@@ -49,9 +49,12 @@ class VaultController extends StateNotifier<VaultState> {
     try {
       // 先等加载完再取解不开的集合：参数按书写顺序求值，写在一个构造调用里会取到加载前的空集合。
       final data = await operation;
+      // 加载要等系统安全存储，期间 controller 可能已被销毁（应用退出、测试结束），这时不能再写 state。
+      if (!mounted) return;
       state = VaultState(
           unreadableSecrets: repository.unreadableSecrets, data: data);
     } catch (error) {
+      if (!mounted) return;
       state = VaultState(
           unreadableSecrets: repository.unreadableSecrets,
           data: state.data ?? VaultData.empty(),
@@ -69,8 +72,10 @@ class VaultController extends StateNotifier<VaultState> {
     final data = state.data;
     if (!state.loading && state.error == null && data != null) return data;
     final loaded = await repository.loadVault();
-    state = VaultState(
-        unreadableSecrets: repository.unreadableSecrets, data: loaded);
+    if (mounted) {
+      state = VaultState(
+          unreadableSecrets: repository.unreadableSecrets, data: loaded);
+    }
     return loaded;
   }
 
