@@ -22,10 +22,10 @@
 |[交接](docs/10-agent-handoff.md) / [里程碑](docs/19-revised-milestones.md)|其他模型的启动与持续实施|
 |[来源](docs/13-sources.md)|63项公开原始资料及证据限制|
 
-首批R00–R04与X00。真实任务状态均未开始；不将规划检查结果当App测试。
+**实施进度、已做的改动和下一批只看 [STATUS.md](STATUS.md)**，本页不重复。规划检查结果不当App测试。
 
 ```bash
 python3 scripts/validate_plan.py
 ```
 
-只检查文档、schema示例、依赖与ID。包内无APK、真实凭据、字体文件或用户照片。名称、包名、签名和目标仓库待指定。
+只检查文档、schema示例、依赖与ID。包内无APK、真实凭据、字体文件或用户照片。目标仓库与 applicationId 已由所有者指定；正式名称、签名与发布仍待定（见 STATUS.md）。
