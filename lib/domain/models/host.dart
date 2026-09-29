@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'server_stats.dart';
 
 enum HostProtocol { ssh, telnet, mosh }
@@ -226,8 +224,11 @@ class HostProfile {
 
   Map<String, dynamic> toJson() => Map<String, dynamic>.from(data);
 
+  /// 只给调试看：id、名称、协议。以前是整份 JSON，主机对象一旦被拼进报错、日志、
+  /// 崩溃报告，密码和代理口令就以明文跟着出去（REG03）。要完整数据用 [toJson]。
   @override
-  String toString() => jsonEncode(data);
+  String toString() =>
+      'HostProfile(id: $id, label: ${data['label'] ?? ''}, ${protocol.name})';
 }
 
 class SshKeyProfile {
