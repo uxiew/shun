@@ -132,9 +132,9 @@ G0基线与关键风险；G1连接路线；G2目录及外部认证支持；G3 Gh
 |---|---|---|---|
 |PLG01|同ID/大小写/保留ID/超长描述符与恶意schema。|冲突或非法输入拒绝，不遮蔽内置provider，不执行schema中的代码。|PASS|
 |PLG02|安装API major不匹配、minor新增及缺失能力的provider。|握手先协商，未支持能力不可调用，版本错误不冒充成功。|PASS|
-|PLG03|Android包可见性受限环境发现插件和外部App。|仅针对action/package查询，无QUERY_ALL_PACKAGES；安装不可见有具体诊断。|NOT_RUN|
-|PLG04|同包名候选但不同签名、伪装官方pluginId以及伪造Intent extras。|对实际安装证书和组件核验，未授权不能获得会话或秘密。|NOT_RUN|
-|PLG05|以未授权UID逐个调用所有AIDL敏感方法，包括拿到已有Binder后。|在真实事务逐次校验UID/证书/授权，不只验证onBind或调用者自报包名。|NOT_RUN|
+|PLG03|Android包可见性受限环境发现插件和外部App。|仅针对action/package查询，无QUERY_ALL_PACKAGES；安装不可见有具体诊断。|PASS|
+|PLG04|同包名候选但不同签名、伪装官方pluginId以及伪造Intent extras。|对实际安装证书和组件核验，未授权不能获得会话或秘密。|PASS|
+|PLG05|以未授权UID逐个调用所有AIDL敏感方法，包括拿到已有Binder后。|在真实事务逐次校验UID/证书/授权，不只验证onBind或调用者自报包名。|PASS|
 |PLG06|跨UID/跨plugin复用session handle，发送旧generation回调。|所有者及代次绑定，不泄露数据、不关闭别人的会话。|NOT_RUN|
 |PLG07|FD逐字节/随机分片/慢消费/超过高水位，混合resize与状态事件。|字节保序、流和控制分离、队列有界，不用大型Base64/Binder数据代替正确流。|NOT_RUN|
 |PLG08|open/resize中取消、重复close、取消后迟到成功。|关闭幂等，无迟到复活，FD/native对象均有清理结果。|NOT_RUN|
@@ -144,7 +144,7 @@ G0基线与关键风险；G1连接路线；G2目录及外部认证支持；G3 Gh
 |PLG12|运行中撤销授权，提供方拒绝close或继续发事件。|宿主停止新调用/释放秘密、关闭自有FD；其他provider不受影响，停止未确认不伪报成功。|NOT_RUN|
 |PLG13|检查release APK及运行时网络/文件行为。|native随提供方APK打包；无下载Dart/Dex/.so到宿主执行，无sharedUserId。|NOT_RUN|
 |PLG14|用测试秘密贯穿bootstrap、IPC、崩溃、导出、备份。|仅有本session临时材料进入Mosh；无SSH私钥/代理口令/Tailscale token整库授权或明文日志。|NOT_RUN|
-|PLG15|安装独立作者签名插件，拒绝信任后再显式批准；切到release。|不要求共享签名私钥；未批准不可用，release不接受万能debug信任。|NOT_RUN|
+|PLG15|安装独立作者签名插件，拒绝信任后再显式批准；切到release。|不要求共享签名私钥；未批准不可用，release不接受万能debug信任。|PASS|
 |PLG16|前后台切换、关闭通知、系统停止、强制停止宿主和插件。|服务所有权与用户停止有效；无假媒体保活、无限自启或不断线承诺。|NOT_RUN|
 |MOS01|安装真实Mosh运行时APK，将native输出接入flterm。|通过真实Mosh协议生成可操作画面，不以Echo provider冒充。|NOT_RUN|
 |MOS02|首次/改变SSH主机指纹、认证失败、缺mosh-server。|用户认证前核验主机；失败不发临时key，不自动安装或sudo。|NOT_RUN|

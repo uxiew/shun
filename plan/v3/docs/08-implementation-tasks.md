@@ -811,7 +811,7 @@
 
 ## X02 Android独立插件发现、桥接与双向签名
 
-阶段：E0；状态：NOT_STARTED；依赖：X00, R01, R02；角色：Android/安全代理。
+阶段：E0；状态：DONE；依赖：X00, R01, R02；角色：Android/安全代理。
 
 **范围**：建立最小Kotlin桥及独立测试APK；显式组件、queries与每方法UID/证书鉴别，实际安装版本记录。
 

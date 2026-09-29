@@ -1041,27 +1041,33 @@
       "action": "Android包可见性受限环境发现插件和外部App。",
       "expected": "仅针对action/package查询，无QUERY_ALL_PACKAGES；安装不可见有具体诊断。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X02.md"
+      ]
     },
     {
       "id": "PLG04",
       "action": "同包名候选但不同签名、伪装官方pluginId以及伪造Intent extras。",
       "expected": "对实际安装证书和组件核验，未授权不能获得会话或秘密。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X02.md"
+      ]
     },
     {
       "id": "PLG05",
       "action": "以未授权UID逐个调用所有AIDL敏感方法，包括拿到已有Binder后。",
       "expected": "在真实事务逐次校验UID/证书/授权，不只验证onBind或调用者自报包名。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X02.md"
+      ]
     },
     {
       "id": "PLG06",
@@ -1151,9 +1157,11 @@
       "action": "安装独立作者签名插件，拒绝信任后再显式批准；切到release。",
       "expected": "不要求共享签名私钥；未批准不可用，release不接受万能debug信任。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X02.md"
+      ]
     },
     {
       "id": "PLG16",

@@ -1756,7 +1756,7 @@
       "id": "X02",
       "phase": "E0",
       "title": "Android独立插件发现、桥接与双向签名",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "X00",
         "R01",
@@ -1785,8 +1785,10 @@
       ],
       "stop_condition": "无Android安装证据保留NOT_RUN；echo不得标Mosh完成。",
       "owner_role": "Android/安全代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/X02.md"
+      ],
+      "commit": "a18c210"
     },
     {
       "id": "X03",
