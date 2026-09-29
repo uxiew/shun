@@ -214,12 +214,14 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
   Future<void> _connect(HostProfile host) async {
     ref.read(homeTabProvider.notifier).state = 1;
     try {
-      await ref.read(sessionControllerProvider.notifier).connect(
-            host,
-            _verifyHostKey,
-            keyboardInteractive: _promptKeyboardInteractive,
-          );
-      if (mounted) {
+      final connected =
+          await ref.read(sessionControllerProvider.notifier).connect(
+                host,
+                _verifyHostKey,
+                keyboardInteractive: _promptKeyboardInteractive,
+              );
+      // 用户点了「终止连接」时 connect 正常返回 false，这时不能说已连接。
+      if (connected && mounted) {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: LText('${host.label} 已连接')));

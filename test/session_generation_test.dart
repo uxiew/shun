@@ -80,7 +80,7 @@ void main() {
       oldCall.attempt.report(const ConnectionStage(ConnectionStep.shell));
       final late = _FakeSession(oldCall.sessionId, host);
       oldCall.result.complete(late);
-      await first;
+      expect(await first, isFalse, reason: '被取消的连接不能向界面报「已连接」');
       expect(late.closedByUser, isTrue, reason: '迟到的成功必须被关掉');
       expect(controller.state.sessions, isEmpty);
       expect(controller.state.pendingConnections.single.stage, isNull,
@@ -88,7 +88,7 @@ void main() {
 
       final fresh = _FakeSession(newCall.sessionId, host);
       newCall.result.complete(fresh);
-      await second;
+      expect(await second, isTrue);
       expect(controller.state.sessions, [same(fresh)]);
       expect(fresh.closedByUser, isFalse);
       expect(controller.state.pendingConnections, isEmpty);
@@ -121,7 +121,7 @@ void main() {
       controller.cancelPendingConnection(
           controller.state.pendingConnections.single.id);
       vault.gate!.complete(VaultData.empty());
-      await connecting;
+      expect(await connecting, isFalse);
       expect(service.calls, isEmpty, reason: '取消后不能先连上再关');
       expect(controller.state.pendingConnections, isEmpty);
     });

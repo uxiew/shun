@@ -149,7 +149,9 @@ class SessionController extends StateNotifier<SessionState> {
   bool _owns(ActiveTerminalSession session) =>
       state.sessions.any((value) => identical(value, session));
 
-  Future<void> connect(
+  /// 新开一个终端连接。返回 true 表示连接已进标签；被取消、或结果迟到被关掉时返回 false。
+  /// 调用方只有拿到 true 才能说「已连接」——以前取消后也正常返回，界面照样弹「已连接」。
+  Future<bool> connect(
     HostProfile host,
     HostKeyVerifier verifyHostKey, {
     KeyboardInteractiveHandler? keyboardInteractive,
@@ -195,7 +197,7 @@ class SessionController extends StateNotifier<SessionState> {
         // 迟到的成功：尝试已被取消或 controller 已销毁。连接此刻归这里，立刻关掉，不进标签。
         _endAttempt(sessionId, attempt);
         await session.close();
-        return;
+        return false;
       }
       _endAttempt(sessionId, attempt);
       final sessions = [...state.sessions, session];
@@ -217,10 +219,11 @@ class SessionController extends StateNotifier<SessionState> {
         unawaited(vaultController.markConnected(connectionHost));
         unawaited(_detectSystem(session, connectionHost));
       }
+      return true;
     } catch (error) {
       final stale = !_isCurrent(sessionId, attempt);
       _endAttempt(sessionId, attempt);
-      if (!mounted) return;
+      if (!mounted) return false;
       if (stale || error is ConnectionCancelledException) {
         state = state.copyWith(
           pendingConnections: state.pendingConnections
@@ -230,7 +233,7 @@ class SessionController extends StateNotifier<SessionState> {
               state.activePendingId == sessionId ? null : state.activePendingId,
           error: null,
         );
-        return;
+        return false;
       }
       state = state.copyWith(
         pendingConnections: state.pendingConnections
@@ -249,7 +252,7 @@ class SessionController extends StateNotifier<SessionState> {
     }
   }
 
-  Future<void> openManagedTerminal(
+  Future<bool> openManagedTerminal(
     ActiveTerminalSession parent, {
     required String label,
     required String command,
