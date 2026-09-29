@@ -1,5 +1,8 @@
 # Netcatty Mobile
 
+> 这是 Netcatty Mobile 的本地实验 fork（xwshun，包名 `top.xdwa.xwshun`）。在本机跑起来、测试、清理的方法见
+> [docs/xwshun/README.md](docs/xwshun/README.md)；下面是上游原文。
+
 Netcatty 的 Android / iOS 移动端实现：一个面向服务器管理、SSH 终端、SFTP 文件管理和远程运维的开源工作台。
 
 项目延续桌面版 Netcatty 的深色工作台设计、Vault 数据模型和 `netcatty-vault.json` 加密同步格式，并针对触屏、多任务、移动文件系统和系统安全存储重新实现交互。

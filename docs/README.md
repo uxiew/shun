@@ -8,6 +8,7 @@
 - [DEVELOPMENT.md](DEVELOPMENT.md)：环境搭建、开发命令、测试矩阵、分支约定、CI 与 Release 流程。
 - [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)：仓库目录树、关键文件职责和常见修改入口。
 - [SECURITY.md](SECURITY.md)：凭据存储、同步加密、主机验证、日志/截图脱敏和提交前安全检查。
+- [xwshun/README.md](xwshun/README.md)：本地 fork 专用——工具链、模拟器、真机安装、测试环境和磁盘清理。
 
 ## Agent 开发前检查
 
