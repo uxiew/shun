@@ -342,7 +342,7 @@
       "id": "R06",
       "phase": "P1",
       "title": "SOCKS5 CONNECT生产加固",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R05",
         "R02"
@@ -380,8 +380,10 @@
       ],
       "stop_condition": "不支持的代理协议明确拒绝；不能关host key或改直连来排错。",
       "owner_role": "网络代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R06.md"
+      ],
+      "commit": "f632069"
     },
     {
       "id": "R07",

@@ -18,14 +18,14 @@
 
 | ID | 操作 | 通过条件 | 结果 |
 |---|---|---|---|
-| NET01 | 通过无认证/用户名密码两类模拟 SOCKS 连接 fixture SSH；协商分片传输。 | 真实 SSH 可建立；认证严格按配置，无字段串位、重复读写或提前截断。 | FAIL |
+| NET01 | 通过无认证/用户名密码两类模拟 SOCKS 连接 fixture SSH；协商分片传输。 | 真实 SSH 可建立；认证严格按配置，无字段串位、重复读写或提前截断。 | PASS |
 | NET02 | 目标名仅模拟代理端能解析；把 App 目标 resolver 注入为调用即失败，并记录所有 socket 端点。 | 目标 resolver 调用零次；SOCKS 请求携带目标域名；socket 只连接代理。 | PASS |
 | NET03 | 让目标具备可直连条件，但让代理拒绝、停服、超时或返回错误。 | 目标直连监听计数为零；App 明确失败；不存在成功“回退”。 | PASS |
 | NET04 | IPv4、IPv6、域名、IDN、过长域名、含 NUL/控制字符、错误端口及 zone-id。 | 合法目标正确编码；非法输入在拨号前拒绝；不猜测域名、不损坏地址。 | PASS |
-| NET05 | 输入错误代理口令；代理选择非允许认证方法或主动降级为无认证。 | 按用户要求的认证策略协商；要求密码时无无认证降级；secret不进日志。 | NOT_RUN |
-| NET06 | 服务端逐字节发送、提前 EOF、错误 VER/RSV/ATYP、长度伪造或重复响应。 | 正确处理部分读取；错误有界退出，没有线程/内存泄漏或无限等待。 | NOT_RUN |
-| NET07 | 分别在 TCP connect、SOCKS 协商、SSH 握手时挂起并触发取消/期限。 | 对应阶段超时；socket 关闭；取消完成后没有迟到成功回调。 | NOT_RUN |
-| NET08 | 模拟 SOCKS REP 的拒绝、网络/主机不可达、命令不支持等结果。 | 错误分类准确，不能把 host unreachable 一律称为 DNS 失败。 | NOT_RUN |
+| NET05 | 输入错误代理口令；代理选择非允许认证方法或主动降级为无认证。 | 按用户要求的认证策略协商；要求密码时无无认证降级；secret不进日志。 | PASS |
+| NET06 | 服务端逐字节发送、提前 EOF、错误 VER/RSV/ATYP、长度伪造或重复响应。 | 正确处理部分读取；错误有界退出，没有线程/内存泄漏或无限等待。 | PASS |
+| NET07 | 分别在 TCP connect、SOCKS 协商、SSH 握手时挂起并触发取消/期限。 | 对应阶段超时；socket 关闭；取消完成后没有迟到成功回调。 | PASS |
+| NET08 | 模拟 SOCKS REP 的拒绝、网络/主机不可达、命令不支持等结果。 | 错误分类准确，不能把 host unreachable 一律称为 DNS 失败。 | PASS |
 | NET09 | 快速连接→取消→再连，同时注入旧连接的晚到事件。 | generation 隔离；旧事件不能覆盖新状态或复活已停止连接。 | NOT_RUN |
 | NET10 | 两个主机同时通过不同代理账号连接；编辑其中一个配置。 | 凭据、routeSnapshot 和目标互不污染；运行连接不会换代理或身份。 | NOT_RUN |
 | NET11 | 在用户输入/多行发送中间断网；记录 fixture 接收到的字节，再恢复连接。 | 新连接不自动收到旧输入、命令、Enter 或粘贴；不确定的旧发送标结果未知。 | FAIL |
@@ -88,10 +88,10 @@
 | RTE03 | 连接中修改host、身份、跳板顺序或proxy引用。 | 活动RoutePlan不可变；修改只影响新attempt。 | PASS |
 | RTE04 | 从终端/SFTP/监控/转发/测试入口连接同一主机。 | 物理拨号与目标身份均遵循选定route；没有独立Direct旁路。 | NOT_RUN |
 | RTE05 | 保留系统VPN选择Direct及SOCKS两种模式。 | Direct也遵守系统VPN；不使用protect或绑定底层非VPN网络。 | NOT_RUN |
-| SOX01 | 外部SOCKS已运行；连续连接两个不同SSH目标后关闭本App。 | 两条独立CONNECT；不重新启动/停止外部隧道；不把一条已连流用于第二目标。 | NOT_RUN |
-| SOX02 | SOCKS成功响应和SSH banner粘包，并随机切分协商。 | 完整余留字节交给SSH且仅一次；无丢包/重复读取。 | NOT_RUN |
-| SOX03 | 代理接收TCP后无限慢速半包，在多个协商点取消。 | 总协商deadline有效；立即关闭正在握手socket，无迟到资源泄漏。 | NOT_RUN |
-| SOX04 | 添加带密码的远程SOCKS，通过受信测试网抓取协商。 | UI明确原生SOCKS密码不加密；不把最终SSH加密误标为代理口令加密。 | NOT_RUN |
+| SOX01 | 外部SOCKS已运行；连续连接两个不同SSH目标后关闭本App。 | 两条独立CONNECT；不重新启动/停止外部隧道；不把一条已连流用于第二目标。 | PASS |
+| SOX02 | SOCKS成功响应和SSH banner粘包，并随机切分协商。 | 完整余留字节交给SSH且仅一次；无丢包/重复读取。 | PASS |
+| SOX03 | 代理接收TCP后无限慢速半包，在多个协商点取消。 | 总协商deadline有效；立即关闭正在握手socket，无迟到资源泄漏。 | PASS |
+| SOX04 | 添加带密码的远程SOCKS，通过受信测试网抓取协商。 | UI明确原生SOCKS密码不加密；不把最终SSH加密误标为代理口令加密。 | PASS |
 | JMP01 | 分别通过1、2、3跳建立最终SSH，关闭/重连，检查fixture。 | 逐跳forwarding与目标正确；不在跳板执行ssh命令或复制私钥。 | NOT_RUN |
 | JMP02 | 分别替换每一跳及最终主机的host key，记录认证事件。 | 对应跳准确阻断，在该跳信任确认前不发送用户认证。 | NOT_RUN |
 | JMP03 | 缺失跳板、非SSH、循环、超上限、重复目标、非法端点。 | 拨号前拒绝；没有最终目标Direct探测。 | PASS |

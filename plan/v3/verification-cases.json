@@ -8,10 +8,11 @@
       "action": "通过无认证/用户名密码两类模拟 SOCKS 连接 fixture SSH；协商分片传输。",
       "expected": "真实 SSH 可建立；认证严格按配置，无字段串位、重复读写或提前截断。",
       "level": "硬门禁",
-      "result": "FAIL",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R02.md"
+        "evidence/R02.md",
+        "evidence/R06.md"
       ]
     },
     {
@@ -52,36 +53,44 @@
       "action": "输入错误代理口令；代理选择非允许认证方法或主动降级为无认证。",
       "expected": "按用户要求的认证策略协商；要求密码时无无认证降级；secret不进日志。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R06.md"
+      ]
     },
     {
       "id": "NET06",
       "action": "服务端逐字节发送、提前 EOF、错误 VER/RSV/ATYP、长度伪造或重复响应。",
       "expected": "正确处理部分读取；错误有界退出，没有线程/内存泄漏或无限等待。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R06.md"
+      ]
     },
     {
       "id": "NET07",
       "action": "分别在 TCP connect、SOCKS 协商、SSH 握手时挂起并触发取消/期限。",
       "expected": "对应阶段超时；socket 关闭；取消完成后没有迟到成功回调。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R06.md"
+      ]
     },
     {
       "id": "NET08",
       "action": "模拟 SOCKS REP 的拒绝、网络/主机不可达、命令不支持等结果。",
       "expected": "错误分类准确，不能把 host unreachable 一律称为 DNS 失败。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R06.md"
+      ]
     },
     {
       "id": "NET09",
@@ -671,8 +680,10 @@
       "action": "外部SOCKS已运行；连续连接两个不同SSH目标后关闭本App。",
       "expected": "两条独立CONNECT；不重新启动/停止外部隧道；不把一条已连流用于第二目标。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R06.md"
+      ],
       "inherited_from": null
     },
     {
@@ -680,8 +691,10 @@
       "action": "SOCKS成功响应和SSH banner粘包，并随机切分协商。",
       "expected": "完整余留字节交给SSH且仅一次；无丢包/重复读取。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R06.md"
+      ],
       "inherited_from": null
     },
     {
@@ -689,8 +702,10 @@
       "action": "代理接收TCP后无限慢速半包，在多个协商点取消。",
       "expected": "总协商deadline有效；立即关闭正在握手socket，无迟到资源泄漏。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R06.md"
+      ],
       "inherited_from": null
     },
     {
@@ -698,8 +713,10 @@
       "action": "添加带密码的远程SOCKS，通过受信测试网抓取协商。",
       "expected": "UI明确原生SOCKS密码不加密；不把最终SSH加密误标为代理口令加密。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R06.md"
+      ],
       "inherited_from": null
     },
     {
