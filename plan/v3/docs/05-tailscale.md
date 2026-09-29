@@ -16,7 +16,28 @@
 
 生产仅允许官方 `https://api.tailscale.com` 的设备GET与token endpoint；不允许从导入JSON改写认证服务器，不跟随跨origin携带Authorization的重定向。API请求走系统网络并遵守现有VPN，不自动使用某个SSH主机的SOCKS profile。token不进入SSH握手或SOCKS密码字段。
 
-设备端点语义为 `GET /api/v2/tailnet/{tailnet}/devices`；精确schema、字段选项和分页方式在R11固定官方版本后记录，不发明cursor参数或sshEnabled字段。tailnet作为单个path segment编码；`-`等别名在本地以catalogId隔离，获得明确canonical ID后才合并来源。429尊重Retry-After，401一次受控刷新后要求用户；没有无限轮询或后台保活。
+设备端点语义为 `GET /api/v2/tailnet/{tailnet}/devices`；精确schema、字段选项和分页方式见下方「R11 固定的官方口径」，不发明cursor参数，也不请求只在 `fields=all` 才有的 sshEnabled。tailnet作为单个path segment编码；`-`等别名在本地以catalogId隔离，获得明确canonical ID后才合并来源。429尊重Retry-After，401一次受控刷新后要求用户；没有无限轮询或后台保活。
+
+## R11 固定的官方口径（2026-09-29）
+
+**来源**：api.tailscale.com 自带的 OpenAPI（`https://api.tailscale.com/api/v2?outputOpenapiSchema=true`，`openapi: 3.1.0`，`info.version: v2`）。
+官方在规范里写明它 unstable、可能不经通知变化，且没有日期字段，所以只能按内容固定：sha256 `b416d98eaf58a5e2b974a8c9424f1f33849866eb45344ecba59e95d6140a742d`（246351 字节，2026-09-29 下载；响应 ETag 即此 sha256）。
+原件存在仓库外 `../.toolchain/artifacts/tailscale-openapi-b416d98e.yaml`。重新下载后 sha256 变了，就是官方改了规范，要重新核对下面各条。另参考 [S23](13-sources.md#s23) [S24](13-sources.md#s24)。
+
+| 项 | 官方口径 | R11 的做法 |
+|---|---|---|
+| 换 token | `https://api.tailscale.com/api/v2/oauth/token`，「符合 OAuth 2.0 client credentials」；官方示例只用 `-d client_id -d client_secret`；可选 `scope`、`tags`（空格分隔）。有效期固定 1 小时 | POST 表单：`grant_type=client_credentials`（RFC 6749 §4.4.2 必填项）、client_id、client_secret、`scope=devices:core:read`；按实际 `expires_in` 续期，留 10%（至少 60 秒）余量；缺 `expires_in` 按 5 分钟算 |
+| 换 token 失败 | **官方未写**。假凭据实测：`401 {"message":"API token invalid"}`，不是 RFC 的 `error` 字段 | 401 → 要求重新授权；其余按通用状态码处理 |
+| scope | `devices:core:read` 只放行列设备、读单个设备；`devices:read` 是 2024-11-14 前的旧名，旧凭据仍有效。OAuth client 现归入 trust credentials | 只请求 `devices:core:read`；返回 scope 全是这两个才算「只读设备」，带任何非 `:read` scope 直接丢弃 token |
+| 列设备 | `GET /tailnet/{tailnet}/devices`；`-` 表示凭据所属 tailnet（官方推荐）；参数 `fields=default|all` 和 `<字段>=<值>` 精确过滤 | 只发默认字段集，不带任何查询参数；tailnet 作为单个路径段，含 `/`、空白、控制字符的在发请求前拒绝 |
+| 分页 | 「does not currently support pagination. All results are returned at once」 | 一个结构完整的响应就是整个 tailnet；不发明 cursor |
+| 响应 | 顶层 `{"devices":[…]}`；Device schema **没有 required**，默认字段 23 个 | 只留 id、nodeId、name、hostname、addresses、os、user、tags、lastSeen、connectedToControl、authorized、isExternal、keyExpiryDisabled、expires、blocksIncomingConnections；缺字段或类型不对记为不知道 |
+| SSH 字段 | `sshEnabled` 存在，但**只在 `fields=all`** 返回，含义是「Tailscale SSH 已启用」 | 不请求（`all` 还会带回含公网端点的 clientConnectivity、含序列号的 postureIdentity）；SSH 能力一律「尚未验证」 |
+| 错误 | 错误体 `{"message": "..."}`；403/404/429 只有一句通用说明；**401 在规范里没出现**（实测无 token、假 token 都是 401） | 403/404/429/5xx 不重试；报错里附服务器 message（截短、抹掉凭据原文） |
+| 429 | **官方未说是否带 Retry-After**，规范里没有任何响应头定义 | 有就带回（秒或 HTTP 日期），没有就是未知；不自动重试 |
+| 重定向 | **官方未写**。实测 `http://` 会被 302 到 https | 一律不跟随（307/308 会把带 client secret 的 POST 原样重发） |
+| key 前缀 | `tskey-api-`（API access token）、`tskey-client-`（OAuth client secret）；OAuth 换来的 token 前缀未见明确说明 | 不按前缀判断权限：粘贴的 token 一律「范围未验证」 |
+| 已知缺陷 | 官方 issue [tailscale#16911](https://github.com/tailscale/tailscale/issues/16911)：OAuth client 换来的 token 看不到共享进来的外部设备，普通 API token 能看到 | 目录可能比普通 token 读到的少；R12/R13 在界面上说明，不当作设备被删 |
 
 ## 缓存与导入
 

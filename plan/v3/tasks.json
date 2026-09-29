@@ -553,7 +553,7 @@
       "id": "R11",
       "phase": "P2",
       "title": "只读Tailscale目录授权与HTTP适配",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R05",
         "R01",
@@ -584,8 +584,10 @@
       ],
       "stop_condition": "无真实token授权用fixture；全权限token不得标只读；不索要管理员密码。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R11.md"
+      ],
+      "commit": "d7c2b89"
     },
     {
       "id": "R12",

@@ -96,15 +96,15 @@
 | JMP02 | 分别替换每一跳及最终主机的host key，记录认证事件。 | 对应跳准确阻断，在该跳信任确认前不发送用户认证。 | PASS |
 | JMP03 | 缺失跳板、非SSH、循环、超上限、重复目标、非法端点。 | 拨号前拒绝；没有最终目标Direct探测。 | PASS |
 | JMP04 | SOCKS入口+跳板高级模式中拒绝第一跳、第二跳或最终转发。 | 标明失败阶段和hop；不忽略入口proxy，不旁路。 | PASS |
-| TSC01 | 模拟OAuth与目录HTTP请求记录method、path、scope、redirect。 | 只用设备读取及token端点；请求devices:core:read；跨origin不转发secret。 | NOT_RUN |
-| TSC02 | token过期、撤销、401、403、429以及无secret的短期导入模式。 | 受控刷新/暂停，不无限重试；保留缓存与主机，提示重新授权。 | NOT_RUN |
+| TSC01 | 模拟OAuth与目录HTTP请求记录method、path、scope、redirect。 | 只用设备读取及token端点；请求devices:core:read；跨origin不转发secret。 | PASS |
+| TSC02 | token过期、撤销、401、403、429以及无secret的短期导入模式。 | 受控刷新/暂停，不无限重试；保留缓存与主机，提示重新授权。 | PASS |
 | TSC03 | 目录字段缺失、未知设备OS、缺IP、错误类型、超大JSON与设备名控制字符。 | 容错或有界拒绝；unknown不显示为online/SSH-ready；不崩溃或执行内容。 | NOT_RUN |
 | TSC04 | 设备改名/换IP、同名不同id、旧id删除后同名重建。 | 按来源+id区分；用户route/username/trust不被覆盖；新主机不继承信任。 | NOT_RUN |
 | TSC05 | 完整/不完整快照、模拟分页、网络中断与合法空目录。 | 仅按确认schema分页；不因错误或空列表删除主机；显示缓存时间与不完整。 | NOT_RUN |
 | TSC06 | 目录可见但路由拒绝、端口关闭、设备离线/状态未知。 | 分别呈现目录/网络/SSH状态；导入不被标成连接成功。 | NOT_RUN |
 | TSC07 | 相同100.x主机分别用普通OpenSSH和显式Tailscale SSH策略fixture。 | 不自动选择none；外部认证不提供key/password；源节点身份解释正确。 | NOT_RUN |
 | TSC08 | 外部auth check批准、拒绝、超时、取消、未知或恶意URL。 | 先host trust，用户确认后外部浏览器；不自动访问，不以返回App当授权成功。 | NOT_RUN |
-| TSC09 | 本地db、诊断、备份、同步、clipboard和错误对象搜索目录secret。 | secret只在受控存储/内存和官方请求；导出无secret；token不送SSH/代理。 | NOT_RUN |
+| TSC09 | 本地db、诊断、备份、同步、clipboard和错误对象搜索目录secret。 | secret只在受控存储/内存和官方请求；导出无secret；token不送SSH/代理。 | PASS |
 | TSC10 | 两目录来源使用别名tailnet和同名主机、删除凭据再刷新。 | 来源隔离；未知canonical不误合并；删凭据不会误删手动编辑主机。 | NOT_RUN |
 | GST01 | 锁定包/native hash构建，篡改缓存库、缺ABI制品，再用16KiB设备运行。 | hash错误阻断；不动态跳过校验；只声明实测ABI/页面大小。 | FAIL |
 | GST02 | 切标签/旋转/预览重复附着controller，销毁时触发迟到回调。 | 单view所有权，不double free/use-after-free，UI重建不新建SSH。 | NOT_RUN |

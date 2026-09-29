@@ -193,7 +193,8 @@
       "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R09.md"
+        "evidence/R09.md",
+        "evidence/R11.md"
       ]
     },
     {
@@ -261,7 +262,9 @@
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R11.md"
+      ]
     },
     {
       "id": "TER01",
@@ -808,9 +811,10 @@
       "action": "模拟OAuth与目录HTTP请求记录method、path、scope、redirect。",
       "expected": "只用设备读取及token端点；请求devices:core:read；跨origin不转发secret。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "evidence": [
-        "evidence/R02.md"
+        "evidence/R02.md",
+        "evidence/R11.md"
       ],
       "inherited_from": null
     },
@@ -819,8 +823,10 @@
       "action": "token过期、撤销、401、403、429以及无secret的短期导入模式。",
       "expected": "受控刷新/暂停，不无限重试；保留缓存与主机，提示重新授权。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R11.md"
+      ],
       "inherited_from": null
     },
     {
@@ -882,8 +888,10 @@
       "action": "本地db、诊断、备份、同步、clipboard和错误对象搜索目录secret。",
       "expected": "secret只在受控存储/内存和官方请求；导出无secret；token不送SSH/代理。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R11.md"
+      ],
       "inherited_from": null
     },
     {
