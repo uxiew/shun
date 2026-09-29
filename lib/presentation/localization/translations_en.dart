@@ -590,6 +590,22 @@ const englishTranslations = <String, String>{
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // X01：插件注册表（plugin_registry.dart、builtin_plugins.dart）。放最前，免得先被「连接」「代理」这类通用词拆碎。
+  ('SSH / Telnet（内置）', 'SSH / Telnet (built-in)'),
+  ('连接路径（内置）', 'Connection route (built-in)'),
+  (
+    ' 不是 bundled，不能当内置 provider 登记',
+    ' is not bundled and cannot be registered as a built-in provider'
+  ),
+  ('内置 provider 不能停用：', 'Built-in providers cannot be disabled: '),
+  (
+    '内置 SSH 会话归 SessionController 管，不登记在插件会话表',
+    'Built-in SSH sessions belong to SessionController and are not registered in the plugin session table'
+  ),
+  ('安装包已不在设备上', 'The package is no longer installed on this device'),
+  ('没有 provider：', 'No provider: '),
+  (' 当前不可用', ' is currently unavailable'),
+  ('已停用', 'Disabled'),
   // R10：连接路径编辑器、测试连接、失败诊断。整句排最前。
   (
     '（代理之后怎么走由代理决定，App 看不到）',

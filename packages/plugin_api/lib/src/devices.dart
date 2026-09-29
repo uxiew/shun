@@ -63,6 +63,19 @@ class DeviceLinks {
   /// 解除关联只删记录本身；各 provider 的引用和它们的设置原样保留。
   void unlink(String recordId) => _records.remove(recordId);
 
+  /// 只把一条引用从它所在的记录里拿出来（比如用户移除了某个目录来源，DEV02）。
+  /// 其余引用继续互相关联；只剩一条时记录不再有意义，随之解散。任何引用本身都不删除。
+  void unlinkRef(ProviderDeviceRef ref) {
+    final record = recordOf(ref);
+    if (record == null) return;
+    final rest = record.refs.difference({ref});
+    if (rest.length < 2) {
+      _records.remove(record.id);
+    } else {
+      _records[record.id] = DeviceRecord._(record.id, Set.unmodifiable(rest));
+    }
+  }
+
   DeviceRecord? recordOf(ProviderDeviceRef ref) =>
       _records.values.where((r) => r.refs.contains(ref)).firstOrNull;
 }

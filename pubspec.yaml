@@ -33,6 +33,8 @@ dependencies:
   flutter_markdown_plus: ^1.0.12
   markdown: ^7.3.0
   highlight: ^0.7.0
+  plugin_api:
+    path: packages/plugin_api
 
 dev_dependencies:
   flutter_test:
