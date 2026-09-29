@@ -123,6 +123,38 @@ void main() {
     });
   });
 
+  group('存过却读成空（Keystore 失效时插件的实际表现）', () {
+    test('之前存过的凭据现在读出空、不抛异常：同样算解不开', () async {
+      await seeded();
+      storage.broken.clear();
+      storage.values.remove('host.h1.password'); // 插件悄悄换了一份新存储，旧值读成空
+      final repository = await VaultRepository.open();
+      await repository.loadVault();
+      expect(repository.unreadableSecrets, {'host.h1.password'});
+    });
+
+    test('清单只有键名没有值；旧安装没有清单时按第一次读到的补上', () async {
+      await seeded();
+      final prefs = await SharedPreferences.getInstance();
+      final index = prefs.getStringList('xwshun_secret_index_v1')!;
+      expect(index, containsAll(['host.h1.password', 'host.h2.password']));
+      expect(index.join(), isNot(contains('pw-')), reason: '只记键名');
+
+      storage.broken.clear();
+      await prefs.remove('xwshun_secret_index_v1'); // 升级前的安装
+      final first = await VaultRepository.open();
+      await first.loadVault();
+      expect(first.unreadableSecrets, isEmpty, reason: '没有清单就无从判断，不误报');
+      expect(prefs.getStringList('xwshun_secret_index_v1'),
+          containsAll(['host.h1.password', 'host.h2.password']));
+
+      storage.values.remove('host.h2.password');
+      final later = await VaultRepository.open();
+      await later.loadVault();
+      expect(later.unreadableSecrets, {'host.h2.password'});
+    });
+  });
+
   group('路线要用的凭据', () {
     final vault = VaultData.fromJson({
       'hosts': [

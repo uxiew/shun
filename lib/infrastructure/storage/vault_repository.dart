@@ -42,6 +42,9 @@ class VaultRepository {
   static const _aiApiKey = 'netcatty.mobile.ai.apiKey';
   static const _deviceIdKey = 'netcatty_mobile_device_id_v1';
 
+  /// 哪些安全存储键存过非空凭据。只有键名（形如 `host.<id>.password`），没有值。
+  static const _secretIndexKey = 'xwshun_secret_index_v1';
+
   final SharedPreferences _preferences;
   final FlutterSecureStorage _secureStorage;
   final BackgroundImageService _backgroundImageService;
@@ -116,11 +119,23 @@ class VaultRepository {
 
   Future<VaultData> _loadVaultWithSecrets() async {
     final vault = _cachedVault ?? _readStoredVault();
+    _savedSecretKeys ??= _loadSecretIndex();
+    final legacyInstall = _savedSecretKeys == null;
+    final seen = <String>{};
+    _onSecretRead = (key, value) {
+      if (value != null && value.isNotEmpty) seen.add(key);
+    };
     await Future.wait([
       ...vault.hosts.map(_loadHostSecrets),
       ...vault.keys.map(_loadKeySecrets),
       ...vault.proxyProfiles.map(_loadProxySecrets),
     ]);
+    _onSecretRead = null;
+    if (legacyInstall) {
+      // 升级前的安装没有清单：按这次实际读到的补上，从此能认出「存过却读成空」。
+      _savedSecretKeys = seen;
+      await _persistSecretIndex();
+    }
     // A metadata-only edit (for example a snippet mutation) may complete while
     // platform keychain reads are still in flight. Keep that newer snapshot;
     // its host/key objects already received the hydrated secrets above.
@@ -140,10 +155,34 @@ class VaultRepository {
 
   Set<String> get unreadableSecrets => Set.unmodifiable(_unreadableSecrets);
 
+  /// 存过凭据的键。为什么要单独记：Keystore 主密钥失效时，flutter_secure_storage 9.2.4 初始化
+  /// 加密存储失败后不报错，而是悄悄换成它的旧版加密方式重新开一份——以前存的凭据全部读成空、不抛异常。
+  /// 模拟器上改坏密钥集实测就是这样：没有任何提示，连接时当成「没存密码」去试。
+  /// 有了这份清单，「清单里有、却读出空」就能认出来，和抛异常一样算解不开。
+  /// null 表示旧安装还没有清单（升级后第一次加载时按实际读到的补上）。
+  Set<String>? _savedSecretKeys;
+  void Function(String key, String? value)? _onSecretRead;
+
+  Set<String>? _loadSecretIndex() {
+    return _preferences.getStringList(_secretIndexKey)?.toSet();
+  }
+
+  Future<void> _persistSecretIndex() async {
+    final keys = _savedSecretKeys;
+    if (keys == null) return;
+    await _preferences.setStringList(_secretIndexKey, keys.toList()..sort());
+  }
+
   Future<String?> _readSecret(String key) async {
     try {
       final value = await _secureStorage.read(key: key);
+      if ((value == null || value.isEmpty) &&
+          (_savedSecretKeys?.contains(key) ?? false)) {
+        _unreadableSecrets.add(key);
+        return null;
+      }
       _unreadableSecrets.remove(key);
+      _onSecretRead?.call(key, value);
       return value;
     } on Object {
       // 不带原始异常：平台异常的文本里有解密细节，没有必要进日志。
@@ -239,6 +278,7 @@ class VaultRepository {
       final config = profile.config;
       await _writeSecret('proxy.${profile.id}.password', config?.password);
     }
+    await _persistSecretIndex();
     final sanitized = vaultWithoutSecrets(vault);
     await _preferences.setString(_vaultKey, jsonEncode(sanitized.toJson()));
     _cachedVault = vault;
@@ -395,6 +435,7 @@ class VaultRepository {
   Future<void> _deleteSecret(String key) async {
     await _secureStorage.delete(key: key);
     _unreadableSecrets.remove(key);
+    _savedSecretKeys?.remove(key);
   }
 
   Future<void> _writeSecret(String key, String? value) async {
@@ -403,9 +444,11 @@ class VaultRepository {
       // 整台主机、整把私钥被删除时，上面按 id 清理的循环会删掉它。
       if (_unreadableSecrets.contains(key)) return;
       await _secureStorage.delete(key: key);
+      _savedSecretKeys?.remove(key);
     } else {
       await _secureStorage.write(key: key, value: value);
       _unreadableSecrets.remove(key);
+      (_savedSecretKeys ??= <String>{}).add(key);
     }
   }
 }
