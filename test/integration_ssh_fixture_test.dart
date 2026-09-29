@@ -37,6 +37,7 @@ void main() {
     final f = fixture!;
     final expected = {
       '127.0.0.1': f.edgeFingerprint,
+      f.hop2Name: f.hop2Fingerprint,
       f.targetName: f.targetFingerprint,
     }[host.hostname];
     return fingerprint == expected;
@@ -257,6 +258,72 @@ void main() {
     expect(dialer.dials, ['${fixture.socksAuthHost}:${fixture.socksAuthPort}']);
     expect(seenFingerprints, {fixture.targetName: fixture.targetFingerprint},
         reason: '主机信任的键是目标逻辑名，不是 127.0.0.1 代理地址');
+  }, skip: skip);
+
+  group('JMP 真实 ProxyJump：按 RoutePlan 逐跳建立（R05）', () {
+    HostProfile node(String id, String hostname, int port,
+            [Map<String, Object?> extra = const {}]) =>
+        HostProfile({
+          'id': id,
+          'label': id,
+          'hostname': hostname,
+          'port': port,
+          'username': fixture!.user,
+          'password': fixture.password,
+          'authMethod': 'password',
+          'protocol': 'ssh',
+          ...extra,
+        });
+
+    Future<void> expectReachesTarget(
+      List<HostProfile> jumps,
+      List<String> expectedVerifyOrder,
+    ) async {
+      final f = fixture!;
+      final dialer = RecordingDialer();
+      final verified = <String>[];
+      final target = node('target', f.targetName, f.targetPort, {
+        'hostChain': {
+          'hostIds': [for (final jump in jumps) jump.id],
+        },
+      });
+      final session = await SshService(dialer: dialer.call).connect(
+        sessionId: 'jmp',
+        host: target,
+        hosts: [...jumps, target],
+        keys: const [],
+        proxyProfiles: const [],
+        verifyHostKey: (host, algorithm, fingerprint) {
+          verified.add(host.hostname);
+          return verifyByLogicalName(host, algorithm, fingerprint);
+        },
+      );
+      addTearDown(session.close);
+      expect(await runInSession(session, 'hostname'), 'target');
+      expect(dialer.dials, ['${f.edgeHost}:${f.edgePort}'],
+          reason: '手机只拨第一跳，后面每一跳都经上一跳转发');
+      expect(verified, expectedVerifyOrder, reason: '每一跳都先验主机指纹，再往下一跳走');
+      expect(session.sshClients, hasLength(jumps.length + 1));
+    }
+
+    test('一跳：边缘 → 目标', () {
+      final f = fixture!;
+      return expectReachesTarget(
+        [node('edge', f.edgeHost, f.edgePort)],
+        [f.edgeHost, f.targetName],
+      );
+    });
+
+    test('两跳：边缘 → hop2 → 目标', () {
+      final f = fixture!;
+      return expectReachesTarget(
+        [
+          node('edge', f.edgeHost, f.edgePort),
+          node('hop2', f.hop2Name, f.hop2Port)
+        ],
+        [f.edgeHost, f.hop2Name, f.targetName],
+      );
+    });
   }, skip: skip);
 
   test('TER01 真实 SSH 大段中文输出没有替换符', () async {
