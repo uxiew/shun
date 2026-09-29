@@ -1,0 +1,26 @@
+name: terminal_spike
+description: "R04 一次性验证工程：libghostty + flterm 在 Android 上能否用。验证完可整目录删除，不进主 App。"
+publish_to: 'none'
+version: 0.0.1+1
+
+environment:
+  sdk: ^3.12.0
+  flutter: ">=3.44.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # 精确锁版本，不用 ^：终端引擎和它下载的 native 库（libghostty-v0.0.12 的 SHA256 表）
+  # 必须一一对应，浮动升级会让 hash 表和证据对不上（GST01 / SUP01）。
+  flterm: 0.0.5
+  libghostty: 0.0.12
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  integration_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
