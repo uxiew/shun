@@ -118,7 +118,7 @@ $P plan/v3/scripts/validate_plan.py  # 检查 ID、依赖、schema；它不测 A
 
 | 目录 | 大约 | 是什么 | 删掉后 |
 |---|---|---|---|
-| `gradle-home/` | 6 GB | Gradle 依赖和构建缓存 | 下次构建重新下载，首次构建会慢 |
+| `gradle-home/` | 2.5–6 GB | Gradle 依赖（`caches/modules-2`，约 1.5 GB）和构建缓存 | 整个删掉：下次构建要联网重新下载依赖。只想腾空间的话，只删 `caches/<Gradle版本>/transforms`（构建一次就会涨到 3.5 GB）：下次构建在本机重新生成，不用联网。删之前先在 `android/` 下执行 `./gradlew --stop`，停掉后台的 Gradle 进程 |
 | `baseline-495f5d31/` | 0.1 GB（构建一次会涨到 2 GB） | 上游原版代码的 git worktree，用来对照原版行为 | 先执行 `git worktree remove ../.toolchain/baseline-495f5d31`，直接删目录会让 git 以为 worktree 还在 |
 | `artifacts/` | 0.2 GB | 留作证据的安装包，目前只有原版 debug APK（sha256 `339f4932…`，和 R01 证据一致） | 做"原版和 fork 同机共存"测试时要重新构建原版 |
 | `avd/` | 每个 AVD 1.5–3 GB | 模拟器的用户数据 | 模拟器就没了，重建一个几分钟 |
@@ -145,4 +145,8 @@ API 35 的 `google_apis` 镜像是你原来就有的，你自己的 `lizhi` 模�
   这个 AVD 已经在后台以无窗口方式运行了，自动化验证就是这样启动的。先执行 `adb devices` 看它的设备 ID，
   需要窗口的话先执行 `adb -s <设备ID> emu kill` 关掉它，再重新 launch。
 - **模拟器启动后 `adb devices` 显示 `offline`**：还没启动完。等 `adb shell getprop sys.boot_completed` 输出 `1`，冷启动大约 20 秒。
-- **磁盘不够**：这台 Mac 可用空间只有 10 GB 左右。一个模拟器镜像 3–5 GB，再加 AVD 数据 1–3 GB。先看第 6 节删掉不用的。
+- **模拟器起不来，日志里是 `FATAL | Not enough space to create userdata partition. Available: 4968.80 MB ..., need 7372.80 MB`**：
+  第一次启动一个新 AVD 时，模拟器要先建 6 GB 的数据分区，并要求磁盘空闲至少是分区大小的 1.2 倍，也就是 7.2 GB（6144 MB × 1.2 = 7372.8 MB）。
+  把 AVD `config.ini` 里的 `disk.dataPartition.size` 改小也没用，启动时会被改回 6 GB（`xwshun-a35-4k` 就是这样被改回去的）。
+  只能按第 6 节腾出空间。
+- **磁盘不够**：这台 Mac 可用空间常年只有 5–10 GB。一个模拟器镜像 3–5 GB，第一次启动 AVD 又要 7.2 GB 空闲。先看第 6 节删掉不用的。
