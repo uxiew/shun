@@ -31,6 +31,21 @@ class ConnectionCancelledException implements Exception {
   String toString() => '连接已由用户终止';
 }
 
+/// 路线上某一跳、某个阶段失败：哪台机器、卡在哪一步、什么原因（JMP02 / JMP04）。
+class RouteHopException implements IOException {
+  const RouteHopException(this.hop, this.message, this.cause);
+
+  /// 从 0 数的跳序号；等于跳板数时就是目标。
+  final int hop;
+  final String message;
+
+  /// 原始错误，给测试和日志用；界面只显示 [message]。
+  final Object cause;
+
+  @override
+  String toString() => message;
+}
+
 /// 这次连接是用户新开的，还是断线后的恢复。
 ///
 /// 只有 [fresh] 会执行主机的 startupCommand。恢复时重跑它等于替用户再执行一遍命令——
@@ -205,38 +220,54 @@ class SshService {
 
       final hops = plan.hops;
       final clients = <SSHClient>[];
-      final silenceGuards = <(SshBannerDeadlineSocket, RouteHop)>[];
       SSHSocket? transport;
       try {
         for (var index = 0; index < hops.length; index++) {
           final hop = hops[index];
           final timeout = _connectTimeout(hop.host);
-          // 只有第一跳由手机拨出（直连或经代理）；后面每一跳都经上一跳的 SSH 转发到达。
-          final reached = transport ??
-              await pending.waitFor<SSHSocket>(
-                _openTransport(plan.entry, hop.endpoint, timeout, pending),
-                onCancelled: (socket) => socket.destroy(),
+          // 只有第一跳由手机拨出（直连或经代理，入口只拨这一次）；后面每一跳都经上一跳的 SSH 转发到达。
+          final SSHSocket reached = transport ??
+              await _atHop<SSHSocket>(
+                plan,
+                index,
+                plan.entry is ProxyEntry ? '经代理连接失败' : '直连失败',
+                () => pending.waitFor<SSHSocket>(
+                  _openTransport(plan.entry, hop.endpoint, timeout, pending),
+                  onCancelled: (socket) => socket.destroy(),
+                ),
               );
-          // 端口接了连接却一直不回 SSH 版本行时按期限断开，而不是无限等（NET07）。
-          final activeTransport = SshBannerDeadlineSocket(reached, timeout);
-          silenceGuards.add((activeTransport, hop));
-          transport = activeTransport;
-          pending.transport = activeTransport;
+          // 版本行攒齐再交给 dartssh2，且这一段有期限（见 SshBannerDeadlineSocket）。
+          final guard = SshBannerDeadlineSocket(reached, timeout);
+          transport = guard;
+          pending.transport = guard;
           pending.throwIfCancelled();
           final client = _createClient(
-            activeTransport,
+            guard,
             hop,
             verifyHostKey,
             keyboardInteractive,
           );
           clients.add(client);
           pending.clients.add(client);
-          pending.throwIfCancelled();
+          // 先等这一跳握手、验指纹、登录全部完成，失败时才分得清是这一跳本身，
+          // 还是它往下一跳的转发（JMP02 / JMP04）。指纹没通过时 dartssh2 在认证前就断开。
+          await _atHop(
+            plan,
+            index,
+            'SSH 握手或登录失败',
+            () => pending.waitFor<void>(client.authenticated),
+            guard: guard,
+          );
           if (index < hops.length - 1) {
             final next = hops[index + 1].endpoint;
-            transport = await pending.waitFor<SSHForwardChannel>(
-              client.forwardLocal(next.host, next.port),
-              onCancelled: (socket) => socket.destroy(),
+            transport = await _atHop<SSHForwardChannel>(
+              plan,
+              index,
+              '转发失败（到 ${next.authority}）',
+              () => pending.waitFor<SSHForwardChannel>(
+                client.forwardLocal(next.host, next.port),
+                onCancelled: (socket) => socket.destroy(),
+              ),
             );
             pending.transport = transport;
           }
@@ -244,13 +275,18 @@ class SshService {
 
         final target = plan.target.host;
         final client = clients.last;
-        final session = await pending.waitFor(
-          client.shell(
-            pty: const SSHPtyConfig(
-                type: 'xterm-256color', width: 80, height: 24),
-            environment: _environment(target),
+        final session = await _atHop(
+          plan,
+          hops.length - 1,
+          '打开终端失败',
+          () => pending.waitFor(
+            client.shell(
+              pty: const SSHPtyConfig(
+                  type: 'xterm-256color', width: 80, height: 24),
+              environment: _environment(target),
+            ),
+            onCancelled: (value) => value.close(),
           ),
-          onCancelled: (value) => value.close(),
         );
         final output = terminal ?? Terminal(maxLines: 10000);
         final input = TerminalInputController();
@@ -282,16 +318,6 @@ class SshService {
         for (final client in clients.reversed) {
           client.close();
         }
-        // dartssh2 只会报「认证前连接已关闭」，这里换成真实原因。
-        for (final (guard, hop) in silenceGuards) {
-          if (guard.expired) {
-            throw ConnectStageException(
-              'SSH 服务在期限内没有发来版本信息，端口上可能不是 SSH 服务或服务卡住了：'
-              '“${hop.host.label}”（${hop.endpoint.authority}，'
-              '${_connectTimeout(hop.host).inSeconds} 秒）',
-            );
-          }
-        }
         rethrow;
       }
     } finally {
@@ -300,6 +326,45 @@ class SshService {
       }
     }
   }
+
+  /// 执行路线上第 [index] 跳的一个阶段。失败时换成指明哪台机器、哪一步、什么原因的报错
+  /// （[RouteHopException]），不只给一句 dartssh2 的「认证前连接已关闭」。取消原样抛出。
+  Future<T> _atHop<T>(
+    RoutePlan plan,
+    int index,
+    String stage,
+    Future<T> Function() step, {
+    SshBannerDeadlineSocket? guard,
+  }) async {
+    try {
+      return await step();
+    } on ConnectionCancelledException {
+      rethrow;
+    } catch (error) {
+      final hop = plan.hops[index];
+      final who = index == plan.jumps.length
+          ? '目标“${hop.host.label}”'
+          : '跳板机“${hop.host.label}”';
+      final reason = guard?.expired == true
+          ? '${_connectTimeout(hop.host).inSeconds} 秒内没有收到 SSH 版本信息，端口上可能不是 SSH 服务或服务卡住了'
+          : _describeSshError(error);
+      throw RouteHopException(
+        index,
+        '$who（${hop.endpoint.authority}）$stage：$reason',
+        error,
+      );
+    }
+  }
+
+  static String _describeSshError(Object error) => switch (error) {
+        SSHHostkeyError() ||
+        SSHAuthAbortError(reason: SSHHostkeyError()) =>
+          '主机指纹没有通过校验，已在发送任何登录信息之前断开',
+        SSHAuthFailError() => '登录被拒绝：用户名、密码或私钥不对',
+        SSHAuthAbortError() => '登录完成前连接被对方关闭：对方可能不是 SSH 服务，或者中途断开了',
+        SSHChannelOpenError(:final description) => '对方拒绝打开转发通道（$description）',
+        _ => '$error',
+      };
 
   SSHClient _createClient(
     SSHSocket socket,

@@ -397,7 +397,8 @@ void main() {
           SshService(dialer: (_, __, {timeout}) => lateSocket.future);
       final error = await failsWithin(connect(service, hostAt('192.0.2.1', 22)),
           const Duration(seconds: 3));
-      expect(error, isA<ConnectStageException>());
+      expect(error, isA<RouteHopException>());
+      expect((error as RouteHopException).cause, isA<ConnectStageException>());
       expect('$error', contains('TCP 连接超时'));
 
       final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
@@ -454,8 +455,8 @@ void main() {
       final error = await failsWithin(
           connect(SshService(), hostAt('127.0.0.1', server.port)),
           const Duration(seconds: 3));
-      expect(error, isA<ConnectStageException>());
-      expect('$error', contains('没有发来版本信息'));
+      expect(error, isA<RouteHopException>());
+      expect('$error', contains('没有收到 SSH 版本信息'));
       await closed.future.timeout(const Duration(seconds: 1));
     });
 
@@ -476,7 +477,8 @@ void main() {
       final error = await failsWithin(
           connect(SshService(), hostAt('127.0.0.1', server.port)),
           const Duration(seconds: 3));
-      expect(error, isA<ConnectStageException>());
+      expect(error, isA<RouteHopException>());
+      expect('$error', contains('没有收到 SSH 版本信息'));
     });
 
     test('SOX02 版本行被拆成几个包：攒齐再交给 SSH，不误断（修前 13 ms 就断）', () async {

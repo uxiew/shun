@@ -193,7 +193,9 @@ class RoutePlan {
 ///   不会被隐式套用（docs/04），出现就拒绝——忽略它等于绕过代理直连跳板机。
 /// - 同一处有两套配置（既引用代理配置又自带代理）时拒绝，不设隐藏优先级，让用户在编辑器里选。
 /// - 缺失、格式不对、循环、超过 [maxJumpHosts] 跳、同一台机器出现两次、地址或端口非法，都拒绝。
-/// - 「代理 + 跳板」组合在 R07 之前不支持，拒绝。
+/// - 目标上同时有代理和跳板，就是「代理入口 + 跳板」（docs/04 的高级模式）：代理只用于手机连第一跳，
+///   后面每一跳经上一跳 SSH 转发，不再经过代理。代理放在目标上，是因为它不可能作用在
+///   「最后一跳到目标」那一段——那段是从跳板机发出的，手机的代理够不着。
 ///
 /// 出错一律抛 [RouteConfigException]，调用方此时还没有拨出任何连接。
 RoutePlan resolveRoutePlan(
@@ -216,11 +218,6 @@ RoutePlan resolveRoutePlan(
   }
 
   final entry = _entry(target, targetName, proxyProfiles);
-  if (entry is ProxyEntry && jumpIds.isNotEmpty) {
-    throw RouteConfigException(
-      '$targetName同时配置了代理和跳板机。当前版本不支持“代理 + 跳板”组合，请去掉其中一个。',
-    );
-  }
   if (jumpIds.length > maxJumpHosts) {
     throw RouteConfigException(
       '$targetName的跳板机数量超过上限（最多 $maxJumpHosts 个）：${jumpIds.length}',
@@ -240,8 +237,8 @@ RoutePlan resolveRoutePlan(
     final jumpName = '跳板机“${jump.label}”';
     if (_hasProxySetting(jump)) {
       throw RouteConfigException(
-        '$jumpName自己配置了代理。经它连接时不会套用它自己的代理，'
-        '当前版本也不支持“代理 + 跳板”组合，请去掉$jumpName上的代理。',
+        '$jumpName自己配置了代理，经它连接时不会隐式套用。'
+        '需要「先经代理再走跳板」时，请把代理设在$targetName上，它会作为入口只用于连第一跳。',
       );
     }
     if (_jumpIds(jump, jumpName).isNotEmpty) {

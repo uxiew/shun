@@ -100,7 +100,7 @@ void main() {
       expect(dialer.dials, isEmpty);
     });
 
-    test('目标同时配置代理和跳板：不能静默忽略代理而直连第一跳', () async {
+    test('目标同时配置代理和跳板：代理是入口，只拨代理，不直连第一跳（R07）', () async {
       final jump = await TrapServer.start();
       addTearDown(jump.close);
       final jumpHost = HostProfile({
@@ -124,10 +124,12 @@ void main() {
         }),
         hosts: [jumpHost],
       );
+      // 这里的"代理"是陷阱服务器，握手必然失败；要看的是失败时有没有绕开代理。
       expect(error, isNotNull);
       expect(jump.accepted, 0, reason: '目标的代理被忽略、第一跳被直连');
       expect(target.accepted, 0);
-      expect(dialer.dials, isEmpty);
+      expect(dialer.dials, ['${proxyEndpoint.host}:${proxyEndpoint.port}'],
+          reason: '入口只拨代理这一次');
     });
 
     test('Telnet 配了代理：不支持就拒绝，不能直连', () async {

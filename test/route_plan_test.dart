@@ -101,14 +101,17 @@ void main() {
       expect(error.message, contains('只保留一个'));
     });
 
-    test('目标代理 + 跳板：拒绝（R07 前不支持组合）', () {
-      rejects(() => plan(
-            host('t', extra: {
-              'proxyConfig': socksProxy,
-              ...chain(['a'])
-            }),
-            jumps: [host('a')],
-          ));
+    test('目标代理 + 跳板：代理是入口，只用于连第一跳（R07）', () {
+      final result = plan(
+        host('t', extra: {
+          'proxyConfig': socksProxy,
+          ...chain(['a'])
+        }),
+        jumps: [host('a')],
+      );
+      expect((result.entry as ProxyEntry).endpoint.authority,
+          'proxy.example:1080');
+      expect(result.jumps.map((hop) => hop.host.id), ['a']);
     });
 
     test('跳板机自带代理：拒绝，不隐式套用、也不忽略后直连跳板机', () {
@@ -248,7 +251,10 @@ void main() {
       );
       await Future<void>.delayed(const Duration(milliseconds: 10));
       target.data['hostname'] = 'after.example';
-      await expectLater(connecting, throwsA(isA<ProxyHandshakeException>()));
+      await expectLater(
+          connecting,
+          throwsA(isA<RouteHopException>().having(
+              (e) => e.cause, 'cause', isA<ProxyHandshakeException>())));
       expect(proxy.attempts.single.requestedHost, 'before.example');
     });
   });

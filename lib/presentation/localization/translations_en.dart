@@ -577,18 +577,17 @@ const englishReplacements = <(String, String)>[
   ('目标“', 'Target “'),
   ('跳板机“', 'Jump host “'),
   (
-    '同时配置了代理和跳板机。当前版本不支持“代理 + 跳板”组合，请去掉其中一个。',
-    ' has both a proxy and jump hosts. Proxy + jump host routes are not supported yet; remove one of them.'
+    '自己配置了代理，经它连接时不会隐式套用。',
+    ' has its own proxy, which is not applied implicitly when connecting through it. '
   ),
   (
-    '自己配置了代理。经它连接时不会套用它自己的代理，',
-    ' has its own proxy. That proxy is not applied when connecting through it, '
+    '需要「先经代理再走跳板」时，请把代理设在',
+    'To go through a proxy first and then the jump hosts, set the proxy on '
   ),
   (
-    '当前版本也不支持“代理 + 跳板”组合，请去掉',
-    'and proxy + jump host routes are not supported yet. Remove the proxy from '
+    '上，它会作为入口只用于连第一跳。',
+    '; it is then used as the entry for the first hop only.'
   ),
-  ('上的代理。', '.'),
   (
     '自己又配置了跳板机，不支持嵌套。请在',
     ' has its own jump hosts; nesting is not supported. List every jump host in order on '
@@ -703,10 +702,42 @@ const englishReplacements = <(String, String)>[
     'The proxy dropped the connection before the handshake finished'
   ),
   ('TCP 连接超时', 'TCP connection timed out'),
+  // 主机指纹弹窗（widgets/host_key_dialogs.dart）。整句排在通用的「服务器指纹已变化」之前。
+  ('服务器指纹已变化，已阻止连接', 'Server fingerprint changed; connection blocked'),
   (
-    'SSH 服务在期限内没有发来版本信息，端口上可能不是 SSH 服务或服务卡住了：',
-    'The SSH service sent no version line in time; the port may not be SSH or the service is stuck: '
+    '可能是服务器重装，也可能是有人在冒充这台服务器。请先向管理员核对新指纹。',
+    'The server may have been reinstalled, or someone may be impersonating it. Verify the new fingerprint with the administrator first. '
   ),
+  (
+    '确认是正常更换后，删除旧指纹再重新连接，届时会按首次连接让你重新核对。',
+    'If the change is legitimate, delete the old fingerprint and reconnect; you will be asked to verify it as on a first connection.'
+  ),
+  ('删除旧指纹', 'Delete old fingerprint'),
+  ('现在：', 'Now: '),
+  ('以前：', 'Before: '),
+  // 逐跳报错（ssh_service.dart 的 _atHop）：「跳板机“x”（地址）阶段：原因」。
+  ('经代理连接失败', ' connecting through the proxy failed'),
+  ('直连失败', ' direct connection failed'),
+  ('SSH 握手或登录失败', ' SSH handshake or login failed'),
+  ('转发失败（到 ', ' forwarding failed (to '),
+  ('打开终端失败', ' opening the terminal failed'),
+  (
+    ' 秒内没有收到 SSH 版本信息，端口上可能不是 SSH 服务或服务卡住了',
+    ' s passed without an SSH version line; the port may not be SSH or the service is stuck'
+  ),
+  (
+    '主机指纹没有通过校验，已在发送任何登录信息之前断开',
+    'host key verification failed; disconnected before sending any login data'
+  ),
+  (
+    '登录被拒绝：用户名、密码或私钥不对',
+    'login rejected: wrong username, password or private key'
+  ),
+  (
+    '登录完成前连接被对方关闭：对方可能不是 SSH 服务，或者中途断开了',
+    'the connection was closed before login finished: the other side may not be an SSH service, or it dropped'
+  ),
+  ('对方拒绝打开转发通道（', 'the remote side refused to open the forwarding channel ('),
   (' 秒）', ' s)'),
   (
     '代理的用户名和密码是明文发给代理的：SSH 只加密之后的终端会话，保护不了这段口令。',
@@ -920,10 +951,6 @@ const englishReplacements = <(String, String)>[
   (
     '返回前台后将自动重连',
     'the session will reconnect when the app returns to the foreground'
-  ),
-  (
-    '这可能表示服务器重装，也可能是中间人攻击。请重新向管理员核对',
-    'This may indicate a server reinstall or a man-in-the-middle attack. Verify it with the administrator again'
   ),
   (
     '首次连接前请与管理员核对',
@@ -1320,7 +1347,6 @@ const englishReplacements = <(String, String)>[
   ('跳板机', 'jump host'),
   ('链路', 'chain'),
   ('存在循环', 'contains a cycle'),
-  ('中间人攻击', 'man-in-the-middle attack'),
   ('管理员', 'administrator'),
   ('核对', 'verify'),
   ('立即', 'immediately'),
