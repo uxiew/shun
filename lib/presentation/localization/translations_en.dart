@@ -627,6 +627,23 @@ const englishTranslations = <String, String>{
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // X03：插件会话（plugin_sessions.dart、PluginBridge.kt 的会话报错与丢弃原因）。
+  ('不是已安装的插件', 'Not an installed plugin'),
+  ('会话不在运行', 'The session is not running'),
+  ('会话不存在或已关闭', 'The session does not exist or is closed'),
+  ('会话句柄或代次无效', 'Invalid session handle or generation'),
+  (
+    '插件没有及时读取，输入积压超过上限',
+    'The plugin is not reading; queued input exceeded the limit'
+  ),
+  ('不是这个插件的会话', 'not a session of this plugin'),
+  ('序号不递增', 'sequence did not increase'),
+  ('事件格式无效', 'invalid event'),
+  ('连接已关闭', 'connection closed'),
+  ('会话已关闭', 'session closed'),
+  ('旧代次 ', 'stale generation '),
+  ('（当前 ', ' (current '),
+  ('插件拒绝：', 'The plugin refused: '),
   // R12：目录缓存与刷新（catalog_cache.dart、tailscale_catalog_refresh.dart）。
   // 放最前：已有的通用片段会把「目录」译成 folder。
   (

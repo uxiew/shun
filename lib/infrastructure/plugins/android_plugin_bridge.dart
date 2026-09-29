@@ -56,6 +56,40 @@ class PluginBridgeEvent {
   final String detail;
 }
 
+/// 会话字节（插件 → 宿主）。收到后必须 [AndroidPluginBridge.ackSession]，否则宿主不再读下一块。
+class SessionDataEvent {
+  const SessionDataEvent(
+      this.packageName, this.handle, this.generation, this.bytes);
+  final String packageName;
+  final String handle;
+  final int generation;
+  final Uint8List bytes;
+}
+
+/// 会话控制事件（与字节流分开的通道）：
+/// sessionEvent（插件回报状态）/ sessionEof（插件关了它那一端）/ sessionClosed（宿主断开了整个连接）/
+/// droppedEvent（宿主丢弃的事件：旧代次、别人的句柄、连接已关…）。
+class SessionBridgeEvent {
+  const SessionBridgeEvent({
+    required this.type,
+    required this.packageName,
+    this.handle,
+    this.generation,
+    this.sequence,
+    this.state,
+    this.reason,
+    this.cause,
+  });
+  final String type;
+  final String packageName;
+  final String? handle;
+  final int? generation;
+  final int? sequence;
+  final String? state;
+  final String? reason;
+  final String? cause;
+}
+
 class PluginBridgeException implements Exception {
   const PluginBridgeException(this.code, this.message);
   final String code;
@@ -70,20 +104,50 @@ class AndroidPluginBridge {
       : _channel =
             channel ?? const MethodChannel('app.netcatty.mobile/plugins') {
     _channel.setMethodCallHandler((call) async {
-      if (call.method != 'event') return;
       final m = call.arguments as Map<Object?, Object?>;
+      final package = m['package'] as String? ?? '';
+      if (call.method == 'sessionData') {
+        _sessionData.add(
+          SessionDataEvent(
+            package,
+            m['handle']! as String,
+            (m['generation']! as num).toInt(),
+            m['bytes']! as Uint8List,
+          ),
+        );
+        return;
+      }
+      if (call.method != 'event') return;
       final type = m['type'] as String? ?? '';
+      if (const {'sessionEvent', 'sessionEof', 'sessionClosed', 'droppedEvent'}
+          .contains(type)) {
+        _sessionEvents.add(
+          SessionBridgeEvent(
+            type: type,
+            packageName: package,
+            handle: m['handle'] as String?,
+            generation: (m['generation'] as num?)?.toInt(),
+            sequence: (m['sequence'] as num?)?.toInt(),
+            state: m['state'] as String?,
+            reason: m['reason'] as String?,
+            cause: m['cause'] as String?,
+          ),
+        );
+        if (type != 'droppedEvent') return;
+      }
       final event = m['event'];
       final sequence = m['sequence'];
       final method = m['method'];
       final reason = m['reason'] ?? '';
+      final handle = m['handle'];
       _events.add(
         PluginBridgeEvent(
           type,
-          m['package'] as String? ?? '',
+          package,
           switch (type) {
             'providerEvent' => '$event（序号 $sequence）',
             'rejectedCall' => '$method：$reason',
+            'droppedEvent' => '$handle：$reason',
             _ => '$reason',
           },
         ),
@@ -93,9 +157,14 @@ class AndroidPluginBridge {
 
   final MethodChannel _channel;
   final _events = StreamController<PluginBridgeEvent>.broadcast();
+  final _sessionData = StreamController<SessionDataEvent>.broadcast(sync: true);
+  final _sessionEvents =
+      StreamController<SessionBridgeEvent>.broadcast(sync: true);
 
   bool get supported => Platform.isAndroid;
   Stream<PluginBridgeEvent> get events => _events.stream;
+  Stream<SessionDataEvent> get sessionData => _sessionData.stream;
+  Stream<SessionBridgeEvent> get sessionEvents => _sessionEvents.stream;
 
   Future<List<DiscoveredPackage>> discover() async {
     if (!supported) return const [];
@@ -148,6 +217,87 @@ class AndroidPluginBridge {
       throw PluginBridgeException(e.code, e.message ?? e.code);
     }
   }
+
+  Future<T?> _invoke<T>(String method, Map<String, Object?> args) async {
+    try {
+      return await _channel.invokeMethod<T>(method, args);
+    } on PlatformException catch (e) {
+      throw PluginBridgeException(e.code, e.message ?? e.code);
+    }
+  }
+
+  Future<void> openSession({
+    required String packageName,
+    required String handle,
+    required int generation,
+    required int cols,
+    required int rows,
+  }) =>
+      _invoke<void>('openSession', {
+        'package': packageName,
+        'handle': handle,
+        'generation': generation,
+        'cols': cols,
+        'rows': rows,
+      });
+
+  Future<void> resizeSession(
+    String packageName,
+    String handle,
+    int generation,
+    int cols,
+    int rows,
+  ) =>
+      _invoke<void>('resizeSession', {
+        'package': packageName,
+        'handle': handle,
+        'generation': generation,
+        'cols': cols,
+        'rows': rows,
+      });
+
+  /// 返回 false 表示宿主这边已经没有这个会话（重复关闭）。
+  Future<bool> closeSession(
+          String packageName, String handle, int generation) async =>
+      await _invoke<bool>('closeSession', {
+        'package': packageName,
+        'handle': handle,
+        'generation': generation,
+      }) ??
+      false;
+
+  Future<void> writeSession(
+    String packageName,
+    String handle,
+    int generation,
+    Uint8List bytes,
+  ) =>
+      _invoke<void>('writeSession', {
+        'package': packageName,
+        'handle': handle,
+        'generation': generation,
+        'bytes': bytes,
+      });
+
+  Future<void> ackSession(String packageName, String handle, int generation) =>
+      _invoke<void>('ackSession', {
+        'package': packageName,
+        'handle': handle,
+        'generation': generation,
+      });
+
+  /// 宿主这一端的缓冲情况（在途输出块、积压输入字节），用来核对背压确实有界。
+  Future<Map<String, Object?>?> sessionStats(
+    String packageName,
+    String handle,
+    int generation,
+  ) async =>
+      (await _invoke<Map<Object?, Object?>>('sessionStats', {
+        'package': packageName,
+        'handle': handle,
+        'generation': generation,
+      }))
+          ?.cast<String, Object?>();
 
   Future<void> disconnect(String packageName) =>
       _channel.invokeMethod<void>('disconnect', {'package': packageName});
