@@ -1,168 +1,117 @@
 # xwshun 本地使用手册
 
-这是 Netcatty-mobile 的本地实验 fork（分支 `xwshun/v3`，不 push）。这份手册讲**在这台 Mac 上怎么把它跑起来、怎么测、怎么清理**。
-做什么、为什么做看 `plan/v3/`；上游功能说明看仓库根目录的 `README.md` 和 `docs/DEVELOPMENT.md`。
+Netcatty-mobile 的本地实验 fork（分支 `xwshun/v3`，不 push）。这里只讲在这台 Mac 上怎么跑、怎么测、怎么清理。
+做什么、做到哪看 `plan/v3/STATUS.md`；上游功能看根目录 `README.md`。命令都在仓库根目录执行。
 
-下面所有命令都在仓库根目录 `netcatty-mobile/` 下执行，并且**先执行第 1 步**。
-
-## 1. 每次开终端先做这一步
+## 1. 先 source 环境
 
 ```bash
-source ../.toolchain/env.sh
-flutter --version   # 应显示 Flutter 3.44.4
+source ../.toolchain/env.sh     # 每开一个终端都要做；只影响当前终端
+flutter --version               # 应为 3.44.4
 ```
 
-`env.sh` 只改当前终端，不动 `~/.zshrc`。它做了这些事：把项目自带的 Flutter、JDK 17、adb、emulator 放进 PATH；
-把 pub / Gradle 缓存和模拟器 AVD 指到 `../.toolchain/` 里；补上 `NO_PROXY=127.0.0.1,localhost,::1`。
+不做的后果：`flutter test` 全部在 loading 阶段报 `HttpException: Connection closed before full header was received`
+（shell 设了 `http_proxy` 没设 `no_proxy`）；`emulator -list-avds` 看不到本项目的 AVD（它们在 `../.toolchain/avd`）。
 
-不 source 会怎样：
-
-- `flutter: command not found`，或者用上了系统里别的 Flutter 版本。
-- `flutter test` 全部在 loading 阶段失败，报 `HttpException: Connection closed before full header was received, uri = http://127.0.0.1:xxxx`。
-  原因是这台机器的 shell 设了 `http_proxy`，没设 `no_proxy`，测试框架连本机的请求被代理截走了。
-- 列不出模拟器：AVD 放在 `../.toolchain/avd`，不在默认的 `~/.android/avd`。
-
-## 2. 跑测试
+## 2. 测试
 
 ```bash
-flutter test                  # 主 App 全量 270 条；没起测试环境时 260 过、10 跳过，本机约 2.5 分钟
-flutter analyze               # 应输出 No issues found；会连 spikes/、packages/ 下的代码一起检查
+flutter test          # 全量约 300 条，约 2.5 分钟；没起测试环境时有 10 条跳过
+flutter analyze       # 应为 No issues found（连 spikes/、packages/ 一起查）
 ```
 
-真实 SSH / SOCKS 的集成测试需要先起 Docker 测试环境（本机用 OrbStack），否则这 9 条会自动 skip：
+真实 SSH/SOCKS/跳板的集成测试要先起 Docker 测试环境：
 
 ```bash
-(cd tool/fixture-environment && ./up.sh && ./selfcheck.sh)   # selfcheck 应 8 项全 PASS
+(cd tool/fixture-environment && ./up.sh && ./selfcheck.sh)   # selfcheck 8 项全 PASS
 flutter test test/integration_ssh_fixture_test.dart
-(cd tool/fixture-environment && ./down.sh)                   # 用完关掉，会删除临时凭据
+(cd tool/fixture-environment && ./down.sh)                   # 用完关掉，删除临时凭据
 ```
 
-测试环境的拓扑、端口和各种坑写在 `tool/fixture-environment/README.md`，这里不重复。
+- 只用 `down.sh` 收尾，**别 `orb stop`**：OrbStack 里还跑着你别的项目。
+- 已知失败或会崩进程的用例默认跳过，要看现场加 `XWSHUN_RUN_KNOWN_FAILS=1`。
+- 测试环境细节见 `tool/fixture-environment/README.md`，终端引擎验证工程见 `spikes/terminal_spike/README.md`。
 
-已知会失败或会让进程崩溃的用例默认跳过。想看实际失败现场时加 `XWSHUN_RUN_KNOWN_FAILS=1`：
+## 3. 模拟器
+
+现在只留一台 `xwshun-a35-4k`（Android 15，4 KiB 页，自带 Gboard），用的是你原有的 API 35 镜像。
 
 ```bash
-XWSHUN_RUN_KNOWN_FAILS=1 flutter test test/integration_ssh_fixture_test.dart
+flutter emulators --launch xwshun-a35-4k    # 带窗口启动；首次启动会重建空系统
+flutter run -d emulator-5554                # 设备 ID 以 flutter devices 为准
+adb -s emulator-5554 logcat -s flutter      # 看 Dart 日志
+adb -s emulator-5554 emu kill               # 关机
 ```
 
-Ghostty 终端引擎的验证工程是独立的，用法见 `spikes/terminal_spike/README.md`。
-
-## 3. 在模拟器上跑
-
-模拟器都是 arm64 的，在 Apple Silicon 上原生运行，不用翻译层。这里只列查看和启动的方法；**模拟器的结果只算部分证据，不能代替真机**。
+其他版本测完已删（省磁盘）。要复测某个版本，按需重建、用完再删：
 
 ```bash
-emulator -list-avds                          # 列出 ../.toolchain/avd 里的 AVD
-flutter emulators --launch xwshun-a35-4k     # 带窗口启动，可以用鼠标和键盘手动操作
-flutter devices                              # 启动好以后能看到 emulator-55xx
+V="system-images;android-24;google_apis;arm64-v8a"      # 换成要测的版本，见下表
+S=$ANDROID_HOME/cmdline-tools/latest/bin
+$S/sdkmanager --install "$V"
+echo no | $S/avdmanager create avd -n xwshun-tmp -k "$V" -d pixel_7
+# 启动前在 ../.toolchain/avd/xwshun-tmp.avd/config.ini 里设 hw.audioInput=no（不让模拟器用 Mac 麦克风）
+emulator -avd xwshun-tmp -no-window -no-snapshot -gpu host &
+# 用完：
+adb emu kill; $S/avdmanager delete avd -n xwshun-tmp; $S/sdkmanager --uninstall "$V"
 ```
 
-| AVD | 系统 | 内存页大小 | 用途 |
-|---|---|---|---|
-| `xwshun-a35-4k` | Android 15（API 35），Google APIs，自带 Gboard | 4 KiB | 日常运行、按键和输入法 |
-| `xwshun-a36-16k` | Android 16（API 36，App 的目标版本），Google APIs 16 KB 页镜像 | 16 KiB | 检查 native 库在 16 KiB 页设备上能不能加载。这台开了硬件键盘（`hw.keyboard=yes`），不会弹软键盘，软键盘和输入法请在 `xwshun-a35-4k` 上测 |
-| `xwshun-a28` | Android 9（API 28），Google APIs | 4 KiB | 替代测不了的 API 24（见"撞墙时"），检查 libghostty.so 在 Android 10 以下能不能加载。同样开了硬件键盘，不弹软键盘 |
+| 用途 | 镜像 |
+|---|---|
+| 最低版本 Android 7.0–8.1 | `android-24`～`android-27`，tag `google_apis` |
+| libghostty 构建目标以下 | `android-28;google_apis` |
+| 16 KiB 页（新手机，native 库没对齐会加载失败） | `android-36;google_apis_ps16k` |
 
-每台上测出了什么，看 `plan/v3/evidence/R04.md`，这里不重复。
-
-为什么单挑 API 28：libghostty.so 是按 API 29 为目标编译的，而 App 声明最低支持 API 24。
-API 28 是低于 29 的最高版本，拿它测往下兼容；API 24 的模拟器在这台 Mac 上起不来，只能先测 28。
-API 28 上的结果不代表 24–27 也一样，那几个版本仍要真机确认。
-
-为什么要单独建一个 16 KiB 的：从 Android 15 开始，部分新手机的内存页大小是 16 KiB（以前都是 4 KiB）。
-App 里的 native 库（比如终端引擎 libghostty.so）如果没按 16 KiB 对齐，在这类手机上一加载就失败，
-表现是 App 闪退或者终端打不开，而在 4 KiB 的设备上一切正常。所以只在普通模拟器上测，是发现不了这个问题的。
-
-在模拟器里跑主 App：
-
-```bash
-flutter run -d emulator-5554        # 设备 ID 以 flutter devices 显示的为准
-```
-
-常用 adb 操作（只有一台设备时可以省略 `-s`）：
-
-```bash
-adb -s emulator-5554 install -r build/app/outputs/flutter-apk/app-debug.apk
-adb -s emulator-5554 exec-out screencap -p > shot.png        # 截图
-adb -s emulator-5554 logcat -s flutter                       # 看 Dart 里的 print / debugPrint
-adb -s emulator-5554 emu kill                                # 关掉模拟器
-```
-
-AVD 的配置里关掉了宿主麦克风（`hw.audioInput=no`），模拟器不能通过 Mac 的麦克风收音。需要测语音输入就只能上真机。
+每台测出了什么见 `plan/v3/evidence/R04.md`。模拟器结果只算部分证据，不能代替真机。
 
 ## 4. 装到真机
 
-1. 手机开启"开发者选项 → USB 调试"，插线，手机上点"允许"。
-2. `adb devices` 能看到设备，并且状态是 `device`，不是 `unauthorized`。
-3. 执行 `flutter run -d <设备ID>`，或者 `flutter build apk --debug` 后执行 `adb install -r build/app/outputs/flutter-apk/app-debug.apk`。
+手机开 USB 调试 → `adb devices` 显示 `device` → `flutter run -d <设备ID>`。
 
-包名是 `top.xdwa.xwshun`，桌面图标名是 xwshun。它和手机上的原版 Netcatty（`app.netcatty.mobile`）是两个独立的 App，
-互不覆盖，数据也不共享。**不要把 applicationId 改回 `app.netcatty.mobile`**，否则安装时会覆盖原版并影响原版数据。
+- 包名 `top.xdwa.xwshun`，和原版 Netcatty（`app.netcatty.mobile`）并存、数据互不影响。**别把 applicationId 改回去**，会覆盖原版。
+- debug 包用 `~/.android/debug.keystore` 签名；换台电脑构建的包签名不同，要先卸载（会清掉 App 数据）才能装。
+- AI、云同步、检查更新默认关闭且不显示，是有意的（`lib/application/fork_features.dart`）。
 
-debug 包用本机的 Android 调试证书（`~/.android/debug.keystore`）签名，只适合自己装着试。
-换一台电脑构建出来的包签名不同，必须先卸载旧的才能装上，卸载会清掉 App 里的数据。正式签名和分发方式还没定。
-
-AI 助手、云同步和检查更新在这个 fork 里默认关闭，设置页也不显示这几项，这是有意的（见 `lib/application/fork_features.dart`）。
-
-## 5. 看进度、改状态
-
-- 当前进度看 `plan/v3/STATUS.md`，每个任务实际做了什么看 `plan/v3/evidence/<任务ID>.md`。
-- 状态只在 JSON 里改，然后同步到文档，最后做校验：
+## 5. 改任务状态
 
 ```bash
 P=../.toolchain/pyenv/bin/python
 $P plan/v3/scripts/set_status.py case <用例ID> <PASS|FAIL|...> --evidence evidence/<任务ID>.md
-$P plan/v3/scripts/sync_docs.py      # 把 JSON 里的状态同步进 docs/08、docs/09
-$P plan/v3/scripts/validate_plan.py  # 检查 ID、依赖、schema；它不测 App
+$P plan/v3/scripts/sync_docs.py       # 同步到 docs/08、09；别手改那两张表
+$P plan/v3/scripts/validate_plan.py   # 只查计划本身，不测 App
 ```
 
-别手改 `docs/08`、`docs/09` 表格里的状态列，下次运行 sync 会被覆盖。也别用 `json.dump` 自己重写 JSON：
-缩进一变，整份文件就是几千行 diff，没法审查。
+## 6. 磁盘与清理
 
-## 6. 磁盘占用和清理
+这台 Mac 常年只剩 5–15 GB。能删的（都在 `../.toolchain/`，删了可重建）：
 
-所有工具都在仓库外的 `../.toolchain/`。整个目录删掉，就恢复到安装前的状态（只剩下面第二张表里那几项）。
-
-| 目录 | 大约 | 是什么 | 删掉后 |
-|---|---|---|---|
-| `gradle-home/` | 2.5–6 GB | Gradle 依赖（`caches/modules-2`，约 1.5 GB）和构建缓存 | 整个删掉：下次构建要联网重新下载依赖。只想腾空间的话，只删 `caches/<Gradle版本>/transforms`（两次实测分别是 3.5 GB 和 2.8 GB）：下次构建在本机重新生成，不用联网，
-spike 三 ABI release 构建从 17 秒变成 45 秒。**构建一次它就长回来了**，只能临时腾空间，比如给新 AVD 第一次启动腾地方。删之前先在 `android/` 下执行 `./gradlew --stop`，停掉后台的 Gradle 进程 |
-| `baseline-495f5d31/` | 0.1 GB（构建一次会涨到 2 GB） | 上游原版代码的 git worktree，用来对照原版行为 | 先执行 `git worktree remove ../.toolchain/baseline-495f5d31`，直接删目录会让 git 以为 worktree 还在 |
-| `artifacts/` | 0.2 GB | 留作证据的安装包，目前只有原版 debug APK（sha256 `339f4932…`，和 R01 证据一致） | 做"原版和 fork 同机共存"测试时要重新构建原版 |
-| `avd/` | 每个 AVD 1.5–3 GB | 模拟器的配置和用户数据 | 整个删掉：模拟器就没了，重建一个要几分钟。只想腾空间的话，先关掉模拟器，再删 `<名字>.avd/` 里所有 `*.img` 和 `*.qcow2` 文件，配置会保留。下次启动会重建一个全新的系统，之前装的 App 和在模拟器里改过的设置都会没了，比如 Gboard 拼音就要重新配 |
-| `flutter/` | 1.1 GB | Flutter SDK | 什么都跑不了 |
-| `pub-cache/` | 0.3 GB | Dart 依赖包 | 执行 `flutter pub get` 重新下载 |
-
-下面这些**不在** `.toolchain` 里，而是装在共享的 Android SDK（`~/Library/Android/sdk`）里，都是 2026-09-29 为这个项目装的：
-
-| 项 | 怎么来的 | 卸载命令 |
+| 目标 | 大小 | 删了会怎样 |
 |---|---|---|
-| NDK 28.2、platform 36、build-tools 36 | 经你同意手动安装 | `sdkmanager --uninstall "ndk;28.2.13676358" "platforms;android-36" "build-tools;36.0.0"` |
-| platform 34、CMake 3.22.1 | 第一次构建时 Gradle 自动装的 | `sdkmanager --uninstall "platforms;android-34" "cmake;3.22.1"` |
-| API 36 16 KB 页镜像（4.2 GB） | 为 `xwshun-a36-16k` 下载 | `sdkmanager --uninstall "system-images;android-36;google_apis_ps16k;arm64-v8a"` |
-| API 28 镜像（2.6 GB） | 为 `xwshun-a28` 下载 | `sdkmanager --uninstall "system-images;android-28;google_apis;arm64-v8a"` |
+| `gradle-home/caches/9.1.0/transforms` | 1–3.5 GB | 下次构建在本机重建（spike release 17 秒→45 秒），构建一次又长回来。先 `(cd android && ./gradlew --stop)` |
+| `gradle-home/` 整个 | 2.5–6 GB | 下次构建要联网重新下依赖 |
+| `avd/<名字>.avd/*.img`、`*.qcow2` | 1–3 GB/台 | 关机后删；下次启动是空系统，装过的 App、Gboard 拼音设置都没了 |
+| `baseline-495f5d31/` | 0.1 GB | 原版代码的 worktree；用 `git worktree remove` 删，直接 rm 会留下失效记录 |
+| `artifacts/` | 0.2 GB | 原版 debug APK（sha256 `339f4932…`），测原版与 fork 同机共存要用 |
+| 整个 `.toolchain/` | — | 回到安装前，只剩下面 SDK 里的东西 |
 
-`sdkmanager` 在 `~/Library/Android/sdk/cmdline-tools/latest/bin/`。
-API 35 的 `google_apis` 镜像是你原来就有的，你自己的 `lizhi` 模拟器也在用它，**不要卸载**。
+共享 Android SDK 里为本项目装的：
+
+```bash
+S=$ANDROID_HOME/cmdline-tools/latest/bin     # sdkmanager 不在 env.sh 的 PATH 里，直接敲会 command not found
+$S/sdkmanager --uninstall "ndk;28.2.13676358" "platforms;android-36" "build-tools;36.0.0" \
+  "platforms;android-34" "cmake;3.22.1"      # 后两个是首次构建时 Gradle 自动装的
+```
+
+API 35 镜像是你原有的，`lizhi` 模拟器在用，**不要卸**。
 
 ## 7. 撞墙时
 
-- **`git push` 报错 `NO_PUSH_see_plan_v3`**：这是故意设置的，防止误推到上游。这个 fork 不 push。
-- **把命令存进 zsh 变量再执行，报 `command not found: adb -s emulator-5554 shell`**：zsh 不会把变量按空格拆开。
-  这种写法请用 bash（`bash -c '...'`），或者写成函数。
-- **`flutter emulators --launch` 报 `Running multiple emulators with the same AVD`**，或者没弹出窗口：
-  这个 AVD 已经在后台以无窗口方式运行了，自动化验证就是这样启动的。先执行 `adb devices` 看它的设备 ID，
-  需要窗口的话先执行 `adb -s <设备ID> emu kill` 关掉它，再重新 launch。
-- **在模拟器里按电脑键盘的 Esc，App 直接退回上一页，而不是给终端发 Esc**：模拟器的虚拟键盘键位表
-  （`qwerty2.kl`）把 Esc（扫描码 1）映射成了 Android 的返回键。这是模拟器特有的，真实蓝牙键盘不会这样。
-  要测 Esc，请用主 App 终端页快捷键栏里的 Esc，或者上真机测。
-- **API 24 的 arm64 模拟器在这台 Mac 上起不来**：`adb devices` 显示 `device`，但 `adb shell` 一直没有响应，
-  等了 10 分钟也没进系统。这是老版本 arm64 镜像在 Apple Silicon 上的已知问题，上游也有人报告过 API 24、25 起不来
-  （[android-emulator-m1-preview#72](https://github.com/google/android-emulator-m1-preview/issues/72)）。
-  API 26、27 没测过。所以 App 声明支持的最低版本 API 24 在这台 Mac 上测不了，只能找真机。
-- **模拟器启动后 `adb devices` 显示 `offline`**：还没启动完。等 `adb shell getprop sys.boot_completed` 输出 `1`，冷启动大约 20 秒。
-- **模拟器起不来，日志里是 `FATAL | Not enough space to create userdata partition. Available: 4968.80 MB ..., need 7372.80 MB`**：
-  第一次启动一个新 AVD 时，模拟器要先建 6 GB 的数据分区，并要求磁盘空闲至少是分区大小的 1.2 倍，也就是 7.2 GB（6144 MB × 1.2 = 7372.8 MB）。
-  把 AVD `config.ini` 里的 `disk.dataPartition.size` 改小也没用，启动时会被改回 6 GB（`xwshun-a35-4k` 就是这样被改回去的）。
-  只能按第 6 节腾出空间。
-- **磁盘不够**：这台 Mac 可用空间常年只有 5–10 GB。一个模拟器镜像 3–5 GB，第一次启动 AVD 又要 7.2 GB 空闲。先看第 6 节删掉不用的。
+- **`git push` 报 `NO_PUSH_see_plan_v3`**：故意的，这个 fork 不 push。
+- **zsh 里把命令存进变量再执行，报 `command not found: adb -s ...`**：zsh 不按空格拆变量，改用 `bash -c '...'` 或函数。
+- **新 AVD 起不来，日志 `FATAL | Not enough space to create userdata partition ... need 7372.80 MB`**：
+  首次启动要建 6 GB 数据盘，需要空闲 ≥ 7.2 GB（分区的 1.2 倍）；改 `config.ini` 的分区大小没用，会被改回。按第 6 节腾空间。
+- **`flutter emulators --launch` 报 `Running multiple emulators with the same AVD`**：这台已在后台无窗口运行，先 `adb -s <ID> emu kill`。
+- **`adb devices` 显示 `offline`**：还没启动完，等 `adb shell getprop sys.boot_completed` 输出 `1`（实测 18 秒到 2 分钟）。
+- **模拟器里按电脑的 Esc，App 退回上一页**：模拟器键位表把 Esc 映射成了返回键，真机蓝牙键盘不会这样。用终端快捷键栏的 Esc。
+- **Android 8.1 及更早的模拟器上 `adb logcat -c` 清不掉日志**（8.0 直接报 `failed to clear the 'main' log`）：
+  按日志核对结果时别依赖清空，按"操作前已有几行"截取（`spikes/terminal_spike/tool/adb_key_check.sh` 就是这么做的）。
