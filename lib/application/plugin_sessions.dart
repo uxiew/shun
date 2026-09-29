@@ -154,10 +154,15 @@ class PluginTerminalSession implements PluginSessionHandle {
     if (next != before.phase) _phases.add(next);
   }
 
-  /// 插件关了它那一端（没经过 close）：会话中断。
-  void _onEof() {
+  /// 插件关了它那一端（没经过 close）：插件进程还在就是中断，不在了就是插件死亡。
+  void _onEof({bool? providerAlive}) {
     if (phase == SessionPhase.closing) return; // 我们在关，EOF 是预期内的
-    if (!phase.isTerminal) _finish(SessionPhase.interrupted);
+    if (phase.isTerminal) return;
+    _finish(
+      providerAlive == false
+          ? SessionPhase.providerDied
+          : SessionPhase.interrupted,
+    );
   }
 
   /// 宿主断开了整个插件连接（撤销、停用、插件进程死亡）。
@@ -289,7 +294,7 @@ class PluginSessionManager {
       case 'sessionEvent':
         session._onPluginState(e.sequence ?? 0, e.state ?? '');
       case 'sessionEof':
-        session._onEof();
+        session._onEof(providerAlive: e.providerAlive);
       case 'sessionClosed':
         session._onConnectionClosed(e.cause);
     }

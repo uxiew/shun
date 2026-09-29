@@ -279,6 +279,22 @@ void main() {
       });
     });
 
+    test('读到 EOF 时插件进程已不在：记为插件死亡，不是普通中断', () async {
+      final a = await manager.open(ready('example.a', 'p.a'));
+      bridge
+        ..state(a, 1, 'active')
+        ..control.add(
+          SessionBridgeEvent(
+            type: 'sessionEof',
+            packageName: 'p.a',
+            handle: a.handle,
+            generation: a.generation,
+            providerAlive: false,
+          ),
+        );
+      expect(a.phase, SessionPhase.providerDied);
+    });
+
     test('插件自己关了它那一端：会话中断，不是正常关闭', () async {
       final a = await manager.open(ready('example.a', 'p.a'));
       bridge

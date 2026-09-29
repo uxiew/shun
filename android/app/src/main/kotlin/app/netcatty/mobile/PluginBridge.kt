@@ -302,7 +302,7 @@ class PluginBridge(
             return
         }
         val pair = ParcelFileDescriptor.createSocketPair()
-        val session = HostSession(handle, generation, connection.packageName, pair[0])
+        val session = HostSession(handle, generation, connection.packageName, pair[0], connection::providerAlive)
         connection.sessions[handle] = session
         connection.callPlugin(
             result,
@@ -381,6 +381,9 @@ class PluginBridge(
                 close("插件进程已退出", "providerDied")
             }
         }
+
+        /** 插件进程还在不在。读到 EOF 时用它区分「插件自己关了流」和「插件进程死了」。 */
+        fun providerAlive(): Boolean = binder?.pingBinder() == true
 
         fun rememberClosed(session: HostSession) = synchronized(recentlyClosed) {
             recentlyClosed[session.handle] = session
@@ -572,6 +575,7 @@ class PluginBridge(
         val generation: Long,
         private val packageName: String,
         private val stream: ParcelFileDescriptor,
+        private val providerAlive: () -> Boolean,
     ) {
         private val credits = Semaphore(OUTPUT_WINDOW)
         private val pendingInput = AtomicLong()
@@ -622,7 +626,22 @@ class PluginBridge(
                 // 关闭
             }
             if (eof && !closed) {
-                emit(mapOf("type" to "sessionEof", "package" to packageName, "handle" to handle, "generation" to generation))
+                // 插件进程被杀时，内核先关它的 socket，这边先读到 EOF，Binder 死亡通知要晚一点才到。
+                // 立刻上报会把「插件死了」记成普通中断（模拟器实测）。等一小会儿：死亡通知先到就由连接统一按
+                // providerDied 收尾（那时 closed 已为 true，这里不再上报）；否则附上插件进程此刻是否还在。
+                main.postDelayed({
+                    if (!closed) {
+                        emit(
+                            mapOf(
+                                "type" to "sessionEof",
+                                "package" to packageName,
+                                "handle" to handle,
+                                "generation" to generation,
+                                "providerAlive" to providerAlive(),
+                            ),
+                        )
+                    }
+                }, EOF_GRACE_MS)
             }
         }
 
@@ -692,5 +711,8 @@ class PluginBridge(
 
         /** 输入积压上限：插件不读时，最多替它排 1 MiB，再多直接告诉 Dart。 */
         const val MAX_PENDING_INPUT = 1L * 1024 * 1024
+
+        /** 读到 EOF 后等 Binder 死亡通知的时间。 */
+        const val EOF_GRACE_MS = 300L
     }
 }

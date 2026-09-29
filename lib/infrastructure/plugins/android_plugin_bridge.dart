@@ -79,6 +79,7 @@ class SessionBridgeEvent {
     this.state,
     this.reason,
     this.cause,
+    this.providerAlive,
   });
   final String type;
   final String packageName;
@@ -88,6 +89,9 @@ class SessionBridgeEvent {
   final String? state;
   final String? reason;
   final String? cause;
+
+  /// sessionEof 时插件进程是否还在（宿主 pingBinder 的结果）。
+  final bool? providerAlive;
 }
 
 class PluginBridgeException implements Exception {
@@ -131,6 +135,7 @@ class AndroidPluginBridge {
             state: m['state'] as String?,
             reason: m['reason'] as String?,
             cause: m['cause'] as String?,
+            providerAlive: m['providerAlive'] as bool?,
           ),
         );
         if (type != 'droppedEvent') return;
