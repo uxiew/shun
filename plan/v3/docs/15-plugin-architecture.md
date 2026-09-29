@@ -102,7 +102,7 @@ APK插件机制限Android；原有iOS仍保持可构建、必要时显示未支�
 
 **描述符硬限制**：≤16 KiB；字段集合封闭（多一个字段就拒绝，exec/intent/url 回调只能从这里混进来）；权限集合封闭，没有 Vault、私钥、口令、token、exec、文件、剪贴板。
 
-**准入**：内置 ID 与 `builtin.` 前缀只属于宿主；所有者登记的官方 ID 绑定固定证书；已占用的 ID 或包名不能被第二个 provider 抢占；描述符自称的包名必须等于实际安装包；批准绑定 `pluginId + 包名 + 证书 + 能力` 四项，换签即禁用、能力扩大即重新批准；debug 证书只在开发构建可用。证书只认系统读出的值，描述符里没有签名字段。
+**准入**：内置 ID 与 `builtin.` 前缀只属于宿主；单独安装的包自称 `bundled` 一律拒绝（X01 补：bundled 分支不走批准，原先可借此跳过授权）；所有者登记的官方 ID 绑定固定证书；已占用的 ID 或包名不能被第二个 provider 抢占；描述符自称的包名必须等于实际安装包；批准绑定 `pluginId + 包名 + 证书 + 能力` 四项，换签即禁用、能力扩大即重新批准；debug 证书只在开发构建可用。证书只认系统读出的值，描述符里没有签名字段。
 
 **会话分型**：`TerminalSessionRef` / `RemoteDesktopSessionRef` / `ExternalLaunchAttempt` 三个类型互不兼容。外部拉起的状态里**没有"已连接"**，只有 `launchedUnverified` 和提供方明确回报的成功/失败。状态事件带 generation + sequence，旧代次或不递增的事件直接丢弃。
 

@@ -1715,7 +1715,7 @@
       "id": "X01",
       "phase": "E0",
       "title": "轻量registry与设备/会话分型",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "X00",
         "R05"
@@ -1745,8 +1745,10 @@
       ],
       "stop_condition": "不一次拆几十个package；保留已验证功能路径。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/X01.md"
+      ],
+      "commit": "99356fe"
     },
     {
       "id": "X02",

@@ -792,7 +792,7 @@
 
 ## X01 轻量registry与设备/会话分型
 
-阶段：E0；状态：NOT_STARTED；依赖：X00, R05；角色：实施代理。
+阶段：E0；状态：DONE；依赖：X00, R05；角色：实施代理。
 
 **范围**：用现有Riverpod装配内置能力；统一设备引用，区分Terminal/RemoteDesktop/ExternalLaunch，保留旧入口可回归。
 
