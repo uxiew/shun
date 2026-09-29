@@ -16,7 +16,7 @@ flutter --version               # 应为 3.44.4
 ## 2. 测试
 
 ```bash
-flutter test          # 全量约 429 条，约 2.5 分钟；没起测试环境时真实 SSH 那 39 条自动跳过
+flutter test -j 4     # 全量约 446 条，约 2.5 分钟；没起测试环境时真实 SSH 那 43 条自动跳过。刚关模拟器、内存紧时不加 -j 4 可能被系统杀掉
 flutter analyze       # 应为 No issues found（连 spikes/、packages/ 一起查）
 ```
 
@@ -42,6 +42,9 @@ flutter run -d emulator-5554                # 设备 ID 以 flutter devices 为�
 adb -s emulator-5554 logcat -s flutter      # 看 Dart 日志
 adb -s emulator-5554 emu kill               # 关机
 ```
+
+在模拟器里连本机的测试环境：先 `adb reverse tcp:22201 tcp:22201`（SOCKS 再加 21080、21081），App 里地址填 `127.0.0.1`。
+别用 `10.0.2.2`：它连 OrbStack 转发的端口能建 TCP 但收不到任何数据，App 会报「对方在登录前断开」，看着像配置错，其实是模拟器网络的问题。
 
 其他版本测完已删（省磁盘）。要复测某个版本，按需重建、用完再删：
 
@@ -71,7 +74,9 @@ adb emu kill; $S/avdmanager delete avd -n xwshun-tmp; $S/sdkmanager --uninstall 
 - 包名 `top.xdwa.xwshun`，和原版 Netcatty（`app.netcatty.mobile`）并存、数据互不影响。**别把 applicationId 改回去**，会覆盖原版。
 - debug 包用 `~/.android/debug.keystore` 签名；换台电脑构建的包签名不同，要先卸载（会清掉 App 数据）才能装。
 - AI、云同步、检查更新默认关闭且不显示，是有意的（`lib/application/fork_features.dart`）。
-- 要先经代理再走跳板：把代理设在**目标主机**上（代理只用于连第一台跳板）。设在跳板机上会报错，不会被偷偷套用。
+- 连接路径在编辑器里三选一：直连 / 经代理 / 经跳板机。要「先经代理再走跳板」，选经跳板机后打开「先经代理连第一台跳板机（高级）」。跳板机自己配的代理不会被套用，会报错。
+- 编辑器下方实时显示连接时会怎么走；配置有矛盾时直接写原因，并且不让保存。
+- 「测试连接」按还没保存的配置走一遍：核对指纹、登录，然后只检查远端终端（显示 `/dev/pts/N`），不打开 shell、不执行启动命令。
 - 连接报错会写明是哪台机器、哪一步，比如「跳板机“hop2”（地址）转发失败（到 目标:端口）」。
 - 服务器指纹变了会直接拒绝连接，没有「确认更新」。先向管理员核对；确认是正常换钥，就在弹窗里点「删除旧指纹」，再重连并重新核对。
 - 连接等待页写着当前到哪一步（比如「第 2/3 跳，“hop2”：SSH 握手、核对指纹、登录」）。点「终止连接」后已连上的那几段马上断开，不会在后台连完。
