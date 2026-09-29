@@ -135,27 +135,33 @@
       "action": "固定信任目标 A，经正常/替换的本地 SOCKS 端连接；检查 known_hosts key。",
       "expected": "信任身份是逻辑目标及端口，不是 127.0.0.1 或代理端口；未确认时不用户认证。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R07.md"
+      ]
     },
     {
       "id": "SEC02",
       "action": "相同主机地址换一把 fixture host key。",
       "expected": "硬阻断，不以普通重试忽略；没有发出 SSH 用户认证数据。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R07.md"
+      ]
     },
     {
       "id": "SEC03",
       "action": "代理把连接转向不同 SSH 主机，或伪造本地 SOCKS 服务。",
       "expected": "已信任主机的身份不匹配会被检测；首次信任仍要求用户核对，不自动信任 Tailnet。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R07.md"
+      ]
     },
     {
       "id": "SEC04",
@@ -724,8 +730,10 @@
       "action": "分别通过1、2、3跳建立最终SSH，关闭/重连，检查fixture。",
       "expected": "逐跳forwarding与目标正确；不在跳板执行ssh命令或复制私钥。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R07.md"
+      ],
       "inherited_from": null
     },
     {
@@ -733,8 +741,10 @@
       "action": "分别替换每一跳及最终主机的host key，记录认证事件。",
       "expected": "对应跳准确阻断，在该跳信任确认前不发送用户认证。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R07.md"
+      ],
       "inherited_from": null
     },
     {
@@ -753,8 +763,10 @@
       "action": "SOCKS入口+跳板高级模式中拒绝第一跳、第二跳或最终转发。",
       "expected": "标明失败阶段和hop；不忽略入口proxy，不旁路。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R07.md"
+      ],
       "inherited_from": null
     },
     {

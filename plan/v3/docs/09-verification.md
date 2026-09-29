@@ -30,9 +30,9 @@
 | NET10 | 两个主机同时通过不同代理账号连接；编辑其中一个配置。 | 凭据、routeSnapshot 和目标互不污染；运行连接不会换代理或身份。 | NOT_RUN |
 | NET11 | 在用户输入/多行发送中间断网；记录 fixture 接收到的字节，再恢复连接。 | 新连接不自动收到旧输入、命令、Enter 或粘贴；不确定的旧发送标结果未知。 | FAIL |
 | NET12 | 真实手机保持已有 VPN，启动 TailSocks 非 VPN 模式，连接/停止/重启代理。 | 本 App 不弹 VPN 授权、不替换当前 VPN；可连接或如实解释具体兼容限制；代理失败无直连。 | NOT_RUN |
-| SEC01 | 固定信任目标 A，经正常/替换的本地 SOCKS 端连接；检查 known_hosts key。 | 信任身份是逻辑目标及端口，不是 127.0.0.1 或代理端口；未确认时不用户认证。 | NOT_RUN |
-| SEC02 | 相同主机地址换一把 fixture host key。 | 硬阻断，不以普通重试忽略；没有发出 SSH 用户认证数据。 | NOT_RUN |
-| SEC03 | 代理把连接转向不同 SSH 主机，或伪造本地 SOCKS 服务。 | 已信任主机的身份不匹配会被检测；首次信任仍要求用户核对，不自动信任 Tailnet。 | NOT_RUN |
+| SEC01 | 固定信任目标 A，经正常/替换的本地 SOCKS 端连接；检查 known_hosts key。 | 信任身份是逻辑目标及端口，不是 127.0.0.1 或代理端口；未确认时不用户认证。 | PASS |
+| SEC02 | 相同主机地址换一把 fixture host key。 | 硬阻断，不以普通重试忽略；没有发出 SSH 用户认证数据。 | PASS |
+| SEC03 | 代理把连接转向不同 SSH 主机，或伪造本地 SOCKS 服务。 | 已信任主机的身份不匹配会被检测；首次信任仍要求用户核对，不自动信任 Tailnet。 | PASS |
 | SEC04 | 修改主机域名/端口/用户、创建 alias、删除或复用身份。 | 不把代理身份、目标身份、Unix 用户混为一谈；alias 只能显式建立。 | NOT_RUN |
 | SEC05 | 搜索 App 私有数据库/偏好、备份/恢复产物、测试日志与临时导入文件。 | 没有秘密明文；备份排除生效；实际验证范围写明，不能只检查代码配置。 | NOT_RUN |
 | SEC06 | 加密私钥正确/错误口令，密文篡改，Keystore key 失效，删除后重读。 | 正确成功；其他失败关闭；无明文降级、无伪恢复、无可解密残留。 | NOT_RUN |
@@ -92,10 +92,10 @@
 | SOX02 | SOCKS成功响应和SSH banner粘包，并随机切分协商。 | 完整余留字节交给SSH且仅一次；无丢包/重复读取。 | PASS |
 | SOX03 | 代理接收TCP后无限慢速半包，在多个协商点取消。 | 总协商deadline有效；立即关闭正在握手socket，无迟到资源泄漏。 | PASS |
 | SOX04 | 添加带密码的远程SOCKS，通过受信测试网抓取协商。 | UI明确原生SOCKS密码不加密；不把最终SSH加密误标为代理口令加密。 | PASS |
-| JMP01 | 分别通过1、2、3跳建立最终SSH，关闭/重连，检查fixture。 | 逐跳forwarding与目标正确；不在跳板执行ssh命令或复制私钥。 | NOT_RUN |
-| JMP02 | 分别替换每一跳及最终主机的host key，记录认证事件。 | 对应跳准确阻断，在该跳信任确认前不发送用户认证。 | NOT_RUN |
+| JMP01 | 分别通过1、2、3跳建立最终SSH，关闭/重连，检查fixture。 | 逐跳forwarding与目标正确；不在跳板执行ssh命令或复制私钥。 | PASS |
+| JMP02 | 分别替换每一跳及最终主机的host key，记录认证事件。 | 对应跳准确阻断，在该跳信任确认前不发送用户认证。 | PASS |
 | JMP03 | 缺失跳板、非SSH、循环、超上限、重复目标、非法端点。 | 拨号前拒绝；没有最终目标Direct探测。 | PASS |
-| JMP04 | SOCKS入口+跳板高级模式中拒绝第一跳、第二跳或最终转发。 | 标明失败阶段和hop；不忽略入口proxy，不旁路。 | NOT_RUN |
+| JMP04 | SOCKS入口+跳板高级模式中拒绝第一跳、第二跳或最终转发。 | 标明失败阶段和hop；不忽略入口proxy，不旁路。 | PASS |
 | TSC01 | 模拟OAuth与目录HTTP请求记录method、path、scope、redirect。 | 只用设备读取及token端点；请求devices:core:read；跨origin不转发secret。 | NOT_RUN |
 | TSC02 | token过期、撤销、401、403、429以及无secret的短期导入模式。 | 受控刷新/暂停，不无限重试；保留缓存与主机，提示重新授权。 | NOT_RUN |
 | TSC03 | 目录字段缺失、未知设备OS、缺IP、错误类型、超大JSON与设备名控制字符。 | 容错或有界拒绝；unknown不显示为online/SSH-ready；不崩溃或执行内容。 | NOT_RUN |

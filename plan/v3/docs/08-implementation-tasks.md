@@ -158,7 +158,7 @@
 
 ## R07 ProxyJump与显式SOCKS入口组合
 
-阶段：P1；状态：NOT_STARTED；依赖：R05, R02；角色：网络代理。
+阶段：P1；状态：DONE；依赖：R05, R02；角色：网络代理。
 
 **范围**：复用dartssh2 forwardLocal串联，最大3跳初始范围，每跳独立trust与auth；入口只开一次明确物理dial。
 

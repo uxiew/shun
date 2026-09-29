@@ -389,7 +389,7 @@
       "id": "R07",
       "phase": "P1",
       "title": "ProxyJump与显式SOCKS入口组合",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R05",
         "R02"
@@ -421,8 +421,10 @@
       ],
       "stop_condition": "所锁dartssh2 API不匹配先小型适配/补丁；不得猜造SDK方法。",
       "owner_role": "网络代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R07.md"
+      ],
+      "commit": "4b16702"
     },
     {
       "id": "R08",
