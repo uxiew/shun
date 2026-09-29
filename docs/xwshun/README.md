@@ -61,7 +61,6 @@ flutter devices                              # 启动好以后能看到 emulator
 |---|---|---|---|
 | `xwshun-a35-4k` | Android 15（API 35），Google APIs，自带 Gboard | 4 KiB | 日常运行、按键和输入法 |
 | `xwshun-a36-16k` | Android 16（API 36，App 的目标版本），Google APIs 16 KB 页镜像 | 16 KiB | 检查 native 库在 16 KiB 页设备上能不能加载。这台开了硬件键盘（`hw.keyboard=yes`），不会弹软键盘，软键盘和输入法请在 `xwshun-a35-4k` 上测 |
-| `xwshun-a24` | Android 7.0（API 24，App 声明支持的最低版本），Google APIs | 4 KiB | 检查最低版本上能不能安装、能不能加载 native 库。同样开了硬件键盘，不弹软键盘 |
 
 每台上测出了什么，看 `plan/v3/evidence/R04.md`，这里不重复。
 
@@ -121,11 +120,11 @@ $P plan/v3/scripts/validate_plan.py  # 检查 ID、依赖、schema；它不测 A
 
 | 目录 | 大约 | 是什么 | 删掉后 |
 |---|---|---|---|
-| `gradle-home/` | 2.5–6 GB | Gradle 依赖（`caches/modules-2`，约 1.5 GB）和构建缓存 | 整个删掉：下次构建要联网重新下载依赖。只想腾空间的话，只删 `caches/<Gradle版本>/transforms`（约 3.5 GB）：下次构建在本机重新生成，不用联网，
+| `gradle-home/` | 2.5–6 GB | Gradle 依赖（`caches/modules-2`，约 1.5 GB）和构建缓存 | 整个删掉：下次构建要联网重新下载依赖。只想腾空间的话，只删 `caches/<Gradle版本>/transforms`（两次实测分别是 3.5 GB 和 2.8 GB）：下次构建在本机重新生成，不用联网，
 spike 三 ABI release 构建从 17 秒变成 45 秒。**构建一次它就长回来了**，只能临时腾空间，比如给新 AVD 第一次启动腾地方。删之前先在 `android/` 下执行 `./gradlew --stop`，停掉后台的 Gradle 进程 |
 | `baseline-495f5d31/` | 0.1 GB（构建一次会涨到 2 GB） | 上游原版代码的 git worktree，用来对照原版行为 | 先执行 `git worktree remove ../.toolchain/baseline-495f5d31`，直接删目录会让 git 以为 worktree 还在 |
 | `artifacts/` | 0.2 GB | 留作证据的安装包，目前只有原版 debug APK（sha256 `339f4932…`，和 R01 证据一致） | 做"原版和 fork 同机共存"测试时要重新构建原版 |
-| `avd/` | 每个 AVD 1.5–3 GB | 模拟器的用户数据 | 模拟器就没了，重建一个几分钟 |
+| `avd/` | 每个 AVD 1.5–3 GB | 模拟器的配置和用户数据 | 整个删掉：模拟器就没了，重建一个要几分钟。只想腾空间的话，先关掉模拟器，再删 `<名字>.avd/` 里所有 `*.img` 和 `*.qcow2` 文件，配置会保留。下次启动会重建一个全新的系统，之前装的 App 和在模拟器里改过的设置都会没了，比如 Gboard 拼音就要重新配 |
 | `flutter/` | 1.1 GB | Flutter SDK | 什么都跑不了 |
 | `pub-cache/` | 0.3 GB | Dart 依赖包 | 执行 `flutter pub get` 重新下载 |
 
@@ -136,7 +135,6 @@ spike 三 ABI release 构建从 17 秒变成 45 秒。**构建一次它就长回
 | NDK 28.2、platform 36、build-tools 36 | 经你同意手动安装 | `sdkmanager --uninstall "ndk;28.2.13676358" "platforms;android-36" "build-tools;36.0.0"` |
 | platform 34、CMake 3.22.1 | 第一次构建时 Gradle 自动装的 | `sdkmanager --uninstall "platforms;android-34" "cmake;3.22.1"` |
 | API 36 16 KB 页镜像（4.2 GB） | 为 `xwshun-a36-16k` 下载 | `sdkmanager --uninstall "system-images;android-36;google_apis_ps16k;arm64-v8a"` |
-| API 24 镜像（3.1 GB） | 为 `xwshun-a24` 下载 | `sdkmanager --uninstall "system-images;android-24;google_apis;arm64-v8a"` |
 
 `sdkmanager` 在 `~/Library/Android/sdk/cmdline-tools/latest/bin/`。
 API 35 的 `google_apis` 镜像是你原来就有的，你自己的 `lizhi` 模拟器也在用它，**不要卸载**。
@@ -152,6 +150,10 @@ API 35 的 `google_apis` 镜像是你原来就有的，你自己的 `lizhi` 模�
 - **在模拟器里按电脑键盘的 Esc，App 直接退回上一页，而不是给终端发 Esc**：模拟器的虚拟键盘键位表
   （`qwerty2.kl`）把 Esc（扫描码 1）映射成了 Android 的返回键。这是模拟器特有的，真实蓝牙键盘不会这样。
   要测 Esc，请用主 App 终端页快捷键栏里的 Esc，或者上真机测。
+- **API 24 的 arm64 模拟器在这台 Mac 上起不来**：`adb devices` 显示 `device`，但 `adb shell` 一直没有响应，
+  等了 10 分钟也没进系统。这是老版本 arm64 镜像在 Apple Silicon 上的已知问题，上游也有人报告过 API 24、25 起不来
+  （[android-emulator-m1-preview#72](https://github.com/google/android-emulator-m1-preview/issues/72)）。
+  API 26、27 没测过。所以 App 声明支持的最低版本 API 24 在这台 Mac 上测不了，只能找真机。
 - **模拟器启动后 `adb devices` 显示 `offline`**：还没启动完。等 `adb shell getprop sys.boot_completed` 输出 `1`，冷启动大约 20 秒。
 - **模拟器起不来，日志里是 `FATAL | Not enough space to create userdata partition. Available: 4968.80 MB ..., need 7372.80 MB`**：
   第一次启动一个新 AVD 时，模拟器要先建 6 GB 的数据分区，并要求磁盘空闲至少是分区大小的 1.2 倍，也就是 7.2 GB（6144 MB × 1.2 = 7372.8 MB）。
