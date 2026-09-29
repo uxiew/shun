@@ -415,6 +415,40 @@ void main() {
           reason: '只拨代理，不在本机解析或直连目标');
     });
 
+    test('直连 IPv6：写成 [::1] 也按去掉方括号的地址拨号，并真的连上', () async {
+      final ServerSocket server;
+      try {
+        server = await ServerSocket.bind(InternetAddress.loopbackIPv6, 0);
+      } on SocketException {
+        markTestSkipped('本机没有 IPv6 回环地址');
+        return;
+      }
+      addTearDown(server.close);
+      var accepted = 0;
+      server.listen((socket) {
+        accepted++;
+        socket.destroy();
+      });
+      final t = host('t', hostname: '[::1]', port: server.port, extra: {
+        'sshTcpConnectTimeoutSeconds': 3,
+      });
+      try {
+        final session = await SshService(dialer: dialer.call).connect(
+          sessionId: 's',
+          host: t,
+          hosts: [t],
+          keys: const [],
+          proxyProfiles: const [],
+          verifyHostKey: (_, __, ___) async => false,
+        );
+        await session.close();
+      } catch (_) {
+        // 对端不是 SSH，连上后握手失败是预期的；这里只验证拨号地址和确实连到了。
+      }
+      expect(dialer.dials, ['::1:${server.port}']);
+      expect(accepted, 1);
+    });
+
     test('HTTP CONNECT：IPv6 目标加方括号', () async {
       final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
       addTearDown(server.close);
