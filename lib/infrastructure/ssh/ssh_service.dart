@@ -9,6 +9,7 @@ import 'package:xterm2/xterm.dart';
 import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/server_stats.dart';
+import '../transport/proxy_transport.dart';
 import 'server_monitor_service.dart';
 
 typedef HostKeyVerifier = Future<bool> Function(
@@ -204,20 +205,21 @@ class SshService {
 
       final hops = plan.hops;
       final clients = <SSHClient>[];
+      final silenceGuards = <(SshBannerDeadlineSocket, RouteHop)>[];
       SSHSocket? transport;
       try {
         for (var index = 0; index < hops.length; index++) {
           final hop = hops[index];
+          final timeout = _connectTimeout(hop.host);
           // 只有第一跳由手机拨出（直连或经代理）；后面每一跳都经上一跳的 SSH 转发到达。
-          final activeTransport = transport ??
+          final reached = transport ??
               await pending.waitFor<SSHSocket>(
-                _openTransport(
-                  plan.entry,
-                  hop.endpoint,
-                  timeout: _connectTimeout(hop.host),
-                ),
+                _openTransport(plan.entry, hop.endpoint, timeout, pending),
                 onCancelled: (socket) => socket.destroy(),
               );
+          // 端口接了连接却一直不回 SSH 版本行时按期限断开，而不是无限等（NET07）。
+          final activeTransport = SshBannerDeadlineSocket(reached, timeout);
+          silenceGuards.add((activeTransport, hop));
           transport = activeTransport;
           pending.transport = activeTransport;
           pending.throwIfCancelled();
@@ -279,6 +281,16 @@ class SshService {
       } catch (_) {
         for (final client in clients.reversed) {
           client.close();
+        }
+        // dartssh2 只会报「认证前连接已关闭」，这里换成真实原因。
+        for (final (guard, hop) in silenceGuards) {
+          if (guard.expired) {
+            throw ConnectStageException(
+              'SSH 服务在期限内没有发来版本信息，端口上可能不是 SSH 服务或服务卡住了：'
+              '“${hop.host.label}”（${hop.endpoint.authority}，'
+              '${_connectTimeout(hop.host).inSeconds} 秒）',
+            );
+          }
         }
         rethrow;
       }
@@ -356,122 +368,51 @@ class SshService {
   }
 
   /// 建手机上的第一条连接：直连 [first]，或者先连代理再让代理 CONNECT 到 [first]。
-  /// 路线已经校验过，这里不再判断配置是否有效。
+  /// 路线已经校验过，这里不再判断配置是否有效；握手细节见 transport/proxy_transport.dart。
   Future<SSHSocket> _openTransport(
     RouteEntry entry,
-    Endpoint first, {
-    required Duration timeout,
-  }) async {
+    Endpoint first,
+    Duration timeout,
+    _PendingConnection pending,
+  ) async {
     final proxy = switch (entry) {
       DirectEntry() => null,
       ProxyEntry value => value,
     };
     if (proxy == null) {
-      return _DirectSshSocket(
-        await _dial(first.host, first.port, timeout: timeout),
-      );
+      return DirectSshSocket(await _dialWithin(first, timeout));
     }
-    final socket = await _dial(
-      proxy.endpoint.host,
-      proxy.endpoint.port,
-      timeout: timeout,
-    );
-    final cursor = _SocketCursor(socket);
-    try {
-      // 握手总截止时间。以前只有 TCP 建连有超时，代理接受连接后不回话就会永远卡住（NET03）。
-      final handshake = switch (proxy.type) {
-        ProxyType.http => _connectHttpProxy(socket, cursor, proxy, first),
-        ProxyType.socks5 => _connectSocksProxy(socket, cursor, proxy, first),
-      };
-      await handshake.timeout(
-        timeout,
-        onTimeout: () => throw SocketException(
-          '代理握手超时（${proxy.endpoint.authority}，${timeout.inSeconds} 秒）',
-        ),
-      );
-      return _ProxySshSocket(socket, cursor);
-    } catch (_) {
+    final socket = await _dialWithin(proxy.endpoint, timeout);
+    if (pending.isCancelled) {
       socket.destroy();
-      rethrow;
+      throw const ConnectionCancelledException();
     }
-  }
-
-  Future<void> _connectHttpProxy(
-    Socket socket,
-    _SocketCursor cursor,
-    ProxyEntry proxy,
-    Endpoint target,
-  ) async {
-    // IPv6 要加方括号：以前拼成 `::1:22`，代理分不清哪段是端口（NET04）。
-    final authority = target.authority;
-    final auth = proxy.username?.isNotEmpty == true
-        ? 'Proxy-Authorization: Basic ${base64Encode(utf8.encode('${proxy.username}:${proxy.password ?? ''}'))}\r\n'
-        : '';
-    socket.write(
-      'CONNECT $authority HTTP/1.1\r\nHost: $authority\r\n$auth'
-      'Proxy-Connection: keep-alive\r\n\r\n',
-    );
-    await socket.flush();
-    final header = utf8.decode(
-      await cursor.readUntil(const [13, 10, 13, 10], maxLength: 32768),
-      allowMalformed: true,
-    );
-    final match = RegExp(r'^HTTP/\d(?:\.\d)?\s+(\d{3})').firstMatch(header);
-    if (match == null || match.group(1) != '200') {
-      throw SocketException('HTTP 代理连接失败：${header.split('\r\n').first}');
-    }
-  }
-
-  Future<void> _connectSocksProxy(
-    Socket socket,
-    _SocketCursor cursor,
-    ProxyEntry proxy,
-    Endpoint target,
-  ) async {
-    final hasAuth = proxy.username?.isNotEmpty == true;
-    socket.add(hasAuth ? [5, 2, 0, 2] : [5, 1, 0]);
-    await socket.flush();
-    final greeting = await cursor.readExact(2);
-    if (greeting[0] != 5 || greeting[1] == 255) {
-      throw const SocketException('SOCKS5 代理拒绝认证方式');
-    }
-    if (greeting[1] == 2) {
-      final user = utf8.encode(proxy.username ?? '');
-      final pass = utf8.encode(proxy.password ?? '');
-      if (user.length > 255 || pass.length > 255) {
-        throw const SocketException('SOCKS5 代理用户名或密码过长');
+    // 握手期间登记这条 socket：用户取消时立刻关掉它（SOX03），不用等握手期限走完。
+    pending.handshakeSocket = socket;
+    try {
+      return await proxyHandshake(socket, proxy, first, deadline: timeout);
+    } finally {
+      if (identical(pending.handshakeSocket, socket)) {
+        pending.handshakeSocket = null;
       }
-      socket.add([1, user.length, ...user, pass.length, ...pass]);
-      await socket.flush();
-      final auth = await cursor.readExact(2);
-      if (auth[1] != 0) throw const SocketException('SOCKS5 代理认证失败');
-    } else if (greeting[1] != 0) {
-      throw const SocketException('SOCKS5 代理认证方式不受支持');
     }
-    // 按地址类型编码（NET04）：以前 IP 字面量也当域名（ATYP 3）发，IPv6 还会带上冒号原样发出。
-    // 域名交给代理解析，手机不提前解析目标名。
-    final address = switch (target.kind) {
-      EndpointKind.ipv4 => [1, ...InternetAddress(target.host).rawAddress],
-      EndpointKind.ipv6 => [4, ...InternetAddress(target.host).rawAddress],
-      EndpointKind.domain => [
-          3,
-          target.host.length,
-          ...ascii.encode(target.host),
-        ],
-    };
-    socket.add([5, 1, 0, ...address, target.port >> 8, target.port & 0xff]);
-    await socket.flush();
-    final reply = await cursor.readExact(4);
-    if (reply[0] != 5 || reply[1] != 0) {
-      throw SocketException('SOCKS5 代理连接失败，状态码 ${reply[1]}');
-    }
-    final addressLength = switch (reply[3]) {
-      1 => 4,
-      3 => (await cursor.readExact(1)).first,
-      4 => 16,
-      _ => throw const SocketException('SOCKS5 返回了未知地址类型'),
-    };
-    await cursor.readExact(addressLength + 2);
+  }
+
+  /// TCP 拨号加一层硬期限：拨号器自己的 timeout 之外再兜底，注入的拨号器不守时也不会无限等（NET07）。
+  /// 期限到了之后才连上的 socket 会被立刻关掉，不会漏成一条没人管的连接。
+  Future<Socket> _dialWithin(Endpoint endpoint, Duration timeout) {
+    final attempt = _dial(endpoint.host, endpoint.port, timeout: timeout);
+    return attempt.timeout(
+      timeout,
+      onTimeout: () {
+        unawaited(
+          attempt.then((late) => late.destroy(), onError: (Object _) {}),
+        );
+        throw ConnectStageException(
+          'TCP 连接超时（${endpoint.authority}，${timeout.inSeconds} 秒）',
+        );
+      },
+    );
   }
 
   Future<ActiveTerminalSession> _connectTelnet(
@@ -484,11 +425,7 @@ class SshService {
     _PendingConnection pending,
   ) async {
     final socket = await pending.waitFor(
-      _dial(
-        endpoint.host,
-        endpoint.port,
-        timeout: const Duration(seconds: 15),
-      ),
+      _dialWithin(endpoint, const Duration(seconds: 15)),
       onCancelled: (value) => value.destroy(),
     );
     pending.telnetSocket = socket;
@@ -555,12 +492,17 @@ class _PendingConnection {
   SSHSocket? transport;
   Socket? telnetSocket;
 
+  /// 正在和代理握手的 socket。握手还没完成时它还不是 [transport]，不单独登记的话，
+  /// 取消后它要等握手期限走完才会被关。
+  Socket? handshakeSocket;
+
   bool get isCancelled => cancelled.isCompleted;
 
   void cancel() {
     if (cancelled.isCompleted) return;
     cancelled.complete();
     telnetSocket?.destroy();
+    handshakeSocket?.destroy();
     transport?.destroy();
     for (final client in clients.reversed) {
       client.close();
@@ -576,10 +518,18 @@ class _PendingConnection {
     void Function(T value)? onCancelled,
   }) async {
     throwIfCancelled();
-    final winner = await Future.any<Object>([
-      operation.then<Object>(_PendingConnectionResult<T>.new),
-      cancelled.future.then<Object>((_) => _connectionCancelledMarker),
-    ]);
+    final Object winner;
+    try {
+      winner = await Future.any<Object>([
+        operation.then<Object>(_PendingConnectionResult<T>.new),
+        cancelled.future.then<Object>((_) => _connectionCancelledMarker),
+      ]);
+    } catch (_) {
+      // cancel() 会顺手关掉正在用的 socket，由此引发的「连接被关闭」可能比取消信号先到。
+      // 用户点的是取消，就报取消，不报这个副作用。
+      if (isCancelled) throw const ConnectionCancelledException();
+      rethrow;
+    }
     if (identical(winner, _connectionCancelledMarker)) {
       unawaited(
         operation.then<void>((value) {
@@ -590,124 +540,4 @@ class _PendingConnection {
     }
     return (winner as _PendingConnectionResult<T>).value;
   }
-}
-
-class _SocketCursor {
-  _SocketCursor(Socket socket) : _iterator = StreamIterator(socket);
-
-  final StreamIterator<Uint8List> _iterator;
-  final List<int> _buffer = [];
-
-  Future<List<int>> readExact(int length) async {
-    await _fill(length);
-    final result = _buffer.sublist(0, length);
-    _buffer.removeRange(0, length);
-    return result;
-  }
-
-  Future<List<int>> readUntil(
-    List<int> marker, {
-    required int maxLength,
-  }) async {
-    while (true) {
-      final index = _indexOf(_buffer, marker);
-      if (index >= 0) {
-        final end = index + marker.length;
-        final result = _buffer.sublist(0, end);
-        _buffer.removeRange(0, end);
-        return result;
-      }
-      if (_buffer.length >= maxLength) {
-        throw const SocketException('代理响应头过长');
-      }
-      if (!await _iterator.moveNext()) {
-        throw const SocketException('代理在握手完成前关闭了连接');
-      }
-      _buffer.addAll(_iterator.current);
-    }
-  }
-
-  Future<void> _fill(int length) async {
-    while (_buffer.length < length) {
-      if (!await _iterator.moveNext()) {
-        throw const SocketException('代理在握手完成前关闭了连接');
-      }
-      _buffer.addAll(_iterator.current);
-    }
-  }
-
-  Stream<Uint8List> remainingStream() async* {
-    if (_buffer.isNotEmpty) {
-      yield Uint8List.fromList(_buffer);
-      _buffer.clear();
-    }
-    while (await _iterator.moveNext()) {
-      yield _iterator.current;
-    }
-  }
-
-  static int _indexOf(List<int> source, List<int> marker) {
-    for (var index = 0; index <= source.length - marker.length; index++) {
-      var matches = true;
-      for (var offset = 0; offset < marker.length; offset++) {
-        if (source[index + offset] != marker[offset]) {
-          matches = false;
-          break;
-        }
-      }
-      if (matches) return index;
-    }
-    return -1;
-  }
-}
-
-/// 直连 socket 的 SSHSocket 包装，和 dartssh2 自带的等价；
-/// 自己包是为了让直连也走 [TcpDialer]，所有拨号都能被记录。
-class _DirectSshSocket implements SSHSocket {
-  _DirectSshSocket(this._socket);
-
-  final Socket _socket;
-
-  @override
-  Stream<Uint8List> get stream => _socket;
-
-  @override
-  StreamSink<List<int>> get sink => _socket;
-
-  @override
-  Future<void> get done => _socket.done;
-
-  @override
-  Future<void> close() async => _socket.close();
-
-  @override
-  void destroy() => _socket.destroy();
-
-  @override
-  Future<void> flush() => _socket.flush();
-}
-
-class _ProxySshSocket implements SSHSocket {
-  _ProxySshSocket(this._socket, this._cursor);
-
-  final Socket _socket;
-  final _SocketCursor _cursor;
-
-  @override
-  Stream<Uint8List> get stream => _cursor.remainingStream();
-
-  @override
-  StreamSink<List<int>> get sink => _socket;
-
-  @override
-  Future<void> get done => _socket.done;
-
-  @override
-  Future<void> close() async => _socket.close();
-
-  @override
-  void destroy() => _socket.destroy();
-
-  @override
-  Future<void> flush() => _socket.flush();
 }

@@ -444,6 +444,15 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                   ),
                 ),
               ],
+              // SOX04：SOCKS5/HTTP 代理认证本身不加密。别让用户以为「SSH 是加密的」就连代理口令也受保护。
+              if (proxyMode != 'none') ...[
+                const SizedBox(height: 8),
+                LText(
+                  '代理的用户名和密码是明文发给代理的：SSH 只加密之后的终端会话，保护不了这段口令。'
+                  '远程代理请只在可信网络（比如你自己的 VPN）里使用。',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+              ],
               _section('高级选项'),
               TextFormField(
                 controller: startupCommand,

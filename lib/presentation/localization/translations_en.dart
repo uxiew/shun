@@ -623,6 +623,99 @@ const englishReplacements = <(String, String)>[
   ('的地址像 IPv4 但不合法：', ': looks like IPv4 but is not a valid address: '),
   ('的端口格式无效：', ': port is not a number: '),
   ('的端口超出 1–65535：', ': port is outside 1–65535: '),
+  // 代理握手与连接阶段（lib/infrastructure/transport/proxy_transport.dart、ssh_service.dart）。
+  // 具体值都放在句末括号里，这里只翻前面的说明，括号和逗号交给表尾的通用标点替换。
+  (
+    'SOCKS5 代理选择了「无认证」，但你配置了用户名和密码。为防止降级到未认证的代理，已拒绝连接',
+    'The SOCKS5 proxy chose "no authentication", but a username and password are configured. The connection was refused to prevent a downgrade to an unauthenticated proxy'
+  ),
+  (
+    'SOCKS5 代理要求用户名和密码，但没有配置',
+    'The SOCKS5 proxy requires a username and password, but none are configured'
+  ),
+  (
+    'SOCKS5 代理认证失败：用户名或密码不对',
+    'SOCKS5 proxy authentication failed: wrong username or password'
+  ),
+  (
+    'SOCKS5 代理不接受我们提供的认证方式',
+    'The SOCKS5 proxy accepts none of the offered authentication methods'
+  ),
+  (
+    'SOCKS5 代理选了没有提供的认证方式，已拒绝（方式 ',
+    'The SOCKS5 proxy picked an authentication method that was not offered; refused (method '
+  ),
+  (
+    'SOCKS5 代理用户名或密码过长（各不能超过 255 字节）',
+    'SOCKS5 proxy username or password is too long (at most 255 bytes each)'
+  ),
+  (
+    '对方不是 SOCKS5 代理（版本字节 ',
+    'The other side is not a SOCKS5 proxy (version byte '
+  ),
+  (
+    'SOCKS5 代理的认证回复格式不对（版本字节 ',
+    'Malformed SOCKS5 authentication reply (version byte '
+  ),
+  ('SOCKS5 代理的连接回复格式不对（版本字节 ', 'Malformed SOCKS5 connect reply (version byte '),
+  (
+    'SOCKS5 代理的连接回复格式不对（保留字节 ',
+    'Malformed SOCKS5 connect reply (reserved byte '
+  ),
+  ('SOCKS5 代理返回了未知地址类型', 'The SOCKS5 proxy returned an unknown address type'),
+  ('SOCKS5 代理返回了未知状态码', 'The SOCKS5 proxy returned an unknown status code'),
+  ('SOCKS5 代理内部错误（状态码 1）', 'SOCKS5 proxy internal failure (status 1)'),
+  (
+    'SOCKS5 代理的规则不允许连接这个目标（状态码 2）',
+    'The SOCKS5 proxy rules do not allow this destination (status 2)'
+  ),
+  (
+    'SOCKS5 代理报告目标网络不可达（状态码 3）',
+    'The SOCKS5 proxy reports the network is unreachable (status 3)'
+  ),
+  (
+    'SOCKS5 代理报告目标主机不可达（状态码 4）：可能是目标关机、被防火墙拦截或代理那边没有路由，不一定是域名解析问题',
+    'The SOCKS5 proxy reports the host is unreachable (status 4): the host may be down, firewalled, or unroutable from the proxy; this is not necessarily a DNS problem'
+  ),
+  (
+    '目标拒绝连接（SOCKS5 状态码 5）：目标端口上可能没有 SSH 服务',
+    'The destination refused the connection (SOCKS5 status 5): nothing may be listening for SSH on that port'
+  ),
+  ('SOCKS5 代理转发超时（状态码 6）', 'The SOCKS5 proxy timed out forwarding (status 6)'),
+  (
+    'SOCKS5 代理不支持 CONNECT 命令（状态码 7）',
+    'The SOCKS5 proxy does not support CONNECT (status 7)'
+  ),
+  (
+    'SOCKS5 代理不支持这种目标地址类型（状态码 8）',
+    'The SOCKS5 proxy does not support this address type (status 8)'
+  ),
+  (
+    'HTTP 代理认证失败（407）：用户名或密码不对',
+    'HTTP proxy authentication failed (407): wrong username or password'
+  ),
+  (
+    'HTTP 代理要求认证（407），但没有配置用户名和密码',
+    'The HTTP proxy requires authentication (407), but no username and password are configured'
+  ),
+  (
+    '代理在握手完成前断开了连接',
+    'The proxy dropped the connection before the handshake finished'
+  ),
+  ('TCP 连接超时', 'TCP connection timed out'),
+  (
+    'SSH 服务在期限内没有发来版本信息，端口上可能不是 SSH 服务或服务卡住了：',
+    'The SSH service sent no version line in time; the port may not be SSH or the service is stuck: '
+  ),
+  (' 秒）', ' s)'),
+  (
+    '代理的用户名和密码是明文发给代理的：SSH 只加密之后的终端会话，保护不了这段口令。',
+    'The proxy username and password are sent to the proxy in plain text: SSH only encrypts the terminal session that follows, not this credential. '
+  ),
+  (
+    '远程代理请只在可信网络（比如你自己的 VPN）里使用。',
+    'Use a remote proxy only over a trusted network, such as your own VPN.'
+  ),
   ('打开链接？', 'Open link?'),
   ('无法打开链接', 'Unable to open link'),
   (
@@ -1080,15 +1173,6 @@ const englishReplacements = <(String, String)>[
     'The proxy closed the connection before the handshake completed'
   ),
   ('HTTP 代理连接失败', 'HTTP proxy connection failed'),
-  ('SOCKS5 代理拒绝认证方式', 'The SOCKS5 proxy rejected the authentication method'),
-  ('SOCKS5 代理用户名或密码过长', 'The SOCKS5 proxy username or password is too long'),
-  ('SOCKS5 代理认证失败', 'SOCKS5 proxy authentication failed'),
-  (
-    'SOCKS5 代理认证方式不受支持',
-    'The SOCKS5 proxy authentication method is unsupported'
-  ),
-  ('SOCKS5 代理连接失败，状态码', 'SOCKS5 proxy connection failed, status'),
-  ('SOCKS5 返回了未知地址类型', 'SOCKS5 returned an unknown address type'),
   ('确认服务器指纹', 'Confirm server fingerprint'),
   ('服务器指纹已变化', 'The server fingerprint changed'),
   ('接受并记住', 'Accept and remember'),

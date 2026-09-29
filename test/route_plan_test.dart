@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/domain/connection_route.dart';
 import 'package:netcatty_mobile/domain/models/host.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
+import 'package:netcatty_mobile/infrastructure/transport/proxy_transport.dart';
 import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
 
 import 'fixtures/net/socks5_fixture.dart';
@@ -247,7 +248,7 @@ void main() {
       );
       await Future<void>.delayed(const Duration(milliseconds: 10));
       target.data['hostname'] = 'after.example';
-      await expectLater(connecting, throwsA(isA<SocketException>()));
+      await expectLater(connecting, throwsA(isA<ProxyHandshakeException>()));
       expect(proxy.attempts.single.requestedHost, 'before.example');
     });
   });
