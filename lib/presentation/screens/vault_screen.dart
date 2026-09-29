@@ -300,7 +300,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                   icon: Icons.public,
                   label: '代理',
                   value:
-                      '${proxy.type.name.toUpperCase()} · ${proxy.host}:${proxy.port}',
+                      '${_proxyTypeLabel(proxy)} · ${proxy.host}:${proxy.port}',
                 ),
               if (host.group?.isNotEmpty == true)
                 _DetailRow(
@@ -738,3 +738,7 @@ class _DetailRow extends StatelessWidget {
         ),
       );
 }
+
+/// 未识别的代理类型也要如实显示，而不是显示成 HTTP。
+String _proxyTypeLabel(ProxyConfig proxy) =>
+    (proxy.type?.name ?? proxy.rawType ?? '未知').toUpperCase();

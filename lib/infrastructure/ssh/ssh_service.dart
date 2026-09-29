@@ -29,6 +29,26 @@ class ConnectionCancelledException implements Exception {
   String toString() => '连接已由用户终止';
 }
 
+/// 路由配置无法按用户的选择执行。一律在拨号前抛出，不会退回直连。
+class RouteConfigException implements Exception {
+  const RouteConfigException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
+}
+
+/// App 发起 TCP 连接的唯一入口，测试可替换成记录端点的实现。
+typedef TcpDialer = Future<Socket> Function(
+  String host,
+  int port, {
+  Duration? timeout,
+});
+
+Future<Socket> _systemDial(String host, int port, {Duration? timeout}) =>
+    Socket.connect(host, port, timeout: timeout);
+
 /// Applies one-shot toolbar modifiers to the next system-keyboard input.
 /// This bridges Flutter's soft keyboard and the terminal toolbar, which do
 /// not share hardware modifier state on Android or iOS.
@@ -138,6 +158,9 @@ class ActiveTerminalSession {
 }
 
 class SshService {
+  SshService({TcpDialer? dialer}) : _dial = dialer ?? _systemDial;
+
+  final TcpDialer _dial;
   final _pendingConnections = <String, _PendingConnection>{};
 
   void cancelConnection(String sessionId) {
@@ -159,6 +182,9 @@ class SshService {
     _pendingConnections[sessionId] = pending;
     try {
       if (host.protocol == HostProtocol.telnet) {
+        if (_hasProxySetting(host)) {
+          throw const RouteConfigException('Telnet 连接不支持代理；已配置代理时不会改为直连。');
+        }
         return await _connectTelnet(
           sessionId,
           host,
@@ -174,6 +200,17 @@ class SshService {
 
       final chain = _resolveHostChain(host, hosts);
       final route = [...chain, host];
+      // 只有第一跳是本机真正拨出去的；后面每一跳都经上一跳 SSH 转发到达，
+      // 它们身上的代理设置根本不会生效。以前是静默忽略——目标配了代理又配了跳板时，
+      // 实际是直连第一跳，用户以为走了代理。在完整 RoutePlan（R05 起）之前一律拒绝。
+      for (var index = 1; index < route.length; index++) {
+        if (_hasProxySetting(route[index])) {
+          throw RouteConfigException(
+            '“${route[index].label}”配置了代理，但它经由跳板机到达，代理不会生效。'
+            '当前版本不支持“代理 + 跳板”组合，请把代理配置在第一跳上或去掉跳板。',
+          );
+        }
+      }
       final clients = <SSHClient>[];
       SSHSocket? transport;
       try {
@@ -348,6 +385,13 @@ class SshService {
     return result;
   }
 
+  /// 主机上有没有任何代理设置（不管有效与否）。
+  ///
+  /// 编辑器选「不用代理」时会删掉这两个字段，所以只要字段在，就是用户选过代理。
+  bool _hasProxySetting(HostProfile host) =>
+      host.proxyProfileId?.isNotEmpty == true ||
+      host.data['proxyConfig'] != null;
+
   ProxyConfig? _effectiveProxy(
     HostProfile host,
     List<ProxyProfile> profiles,
@@ -355,9 +399,15 @@ class SshService {
     final profileId = host.proxyProfileId;
     if (profileId != null && profileId.isNotEmpty) {
       for (final profile in profiles) {
-        if (profile.id == profileId) return profile.config;
+        if (profile.id != profileId) continue;
+        // 以前 profile 在但 config 缺失时返回 null，被当成「没配代理」直连了目标。
+        return profile.config ??
+            (throw RouteConfigException('代理配置“${profile.label}”内容缺失'));
       }
-      throw StateError('找不到代理配置：$profileId');
+      throw RouteConfigException('找不到代理配置：$profileId');
+    }
+    if (host.data['proxyConfig'] != null && host.proxyConfig == null) {
+      throw const RouteConfigException('主机的代理配置格式无效');
     }
     return host.proxyConfig;
   }
@@ -368,19 +418,27 @@ class SshService {
     required Duration timeout,
   }) async {
     final proxy = _effectiveProxy(host, profiles);
-    if (proxy == null || proxy.host.isEmpty || proxy.port <= 0) {
-      return SSHSocket.connect(host.hostname, host.port, timeout: timeout);
+    if (proxy == null) {
+      return _DirectSshSocket(
+        await _dial(host.hostname, host.port, timeout: timeout),
+      );
     }
-    final socket =
-        await Socket.connect(proxy.host, proxy.port, timeout: timeout);
+    final invalid = proxy.invalidReason;
+    if (invalid != null) throw RouteConfigException(invalid);
+    final socket = await _dial(proxy.host, proxy.port, timeout: timeout);
     final cursor = _SocketCursor(socket);
     try {
-      switch (proxy.type) {
-        case ProxyType.http:
-          await _connectHttpProxy(socket, cursor, proxy, host);
-        case ProxyType.socks5:
-          await _connectSocksProxy(socket, cursor, proxy, host);
-      }
+      // 握手总截止时间。以前只有 TCP 建连有超时，代理接受连接后不回话就会永远卡住（NET03）。
+      final handshake = switch (proxy.type!) {
+        ProxyType.http => _connectHttpProxy(socket, cursor, proxy, host),
+        ProxyType.socks5 => _connectSocksProxy(socket, cursor, proxy, host),
+      };
+      await handshake.timeout(
+        timeout,
+        onTimeout: () => throw SocketException(
+          '代理握手超时（${proxy.host}:${proxy.port}，${timeout.inSeconds} 秒）',
+        ),
+      );
       return _ProxySshSocket(socket, cursor);
     } catch (_) {
       socket.destroy();
@@ -474,7 +532,7 @@ class SshService {
     _PendingConnection pending,
   ) async {
     final socket = await pending.waitFor(
-      Socket.connect(
+      _dial(
         host.hostname,
         host.port,
         timeout: const Duration(seconds: 15),
@@ -630,6 +688,32 @@ class _SocketCursor {
     }
     return -1;
   }
+}
+
+/// 直连 socket 的 SSHSocket 包装，和 dartssh2 自带的等价；
+/// 自己包是为了让直连也走 [TcpDialer]，所有拨号都能被记录。
+class _DirectSshSocket implements SSHSocket {
+  _DirectSshSocket(this._socket);
+
+  final Socket _socket;
+
+  @override
+  Stream<Uint8List> get stream => _socket;
+
+  @override
+  StreamSink<List<int>> get sink => _socket;
+
+  @override
+  Future<void> get done => _socket.done;
+
+  @override
+  Future<void> close() async => _socket.close();
+
+  @override
+  void destroy() => _socket.destroy();
+
+  @override
+  Future<void> flush() => _socket.flush();
 }
 
 class _ProxySshSocket implements SSHSocket {

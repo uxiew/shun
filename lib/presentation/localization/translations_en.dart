@@ -571,6 +571,11 @@ const englishTranslations = <String, String>{
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // 整句必须排在最前：后面的通用词（当前版本、不支持…）会先把句子拆碎。
+  (
+    '当前版本不支持“代理 + 跳板”组合，请把代理配置在第一跳上或去掉跳板。',
+    'Proxy plus jump hosts is not supported yet; put the proxy on the first hop or remove the jump hosts.'
+  ),
   ('打开链接？', 'Open link?'),
   ('无法打开链接', 'Unable to open link'),
   (
@@ -981,6 +986,22 @@ const englishReplacements = <(String, String)>[
   ('找不到跳板机', 'Jump host not found'),
   ('跳板机链路存在循环', 'The jump-host chain contains a cycle'),
   ('跳板机必须使用 SSH', 'Jump hosts must use SSH'),
+  (
+    'Telnet 连接不支持代理；已配置代理时不会改为直连。',
+    'Telnet does not support proxies; a configured proxy is never replaced by a direct connection.'
+  ),
+  (
+    '”配置了代理，但它经由跳板机到达，代理不会生效。',
+    '” has a proxy configured, but it is reached through a jump host, so that proxy would not apply. '
+  ),
+  ('代理配置“', 'Proxy profile “'),
+  ('”内容缺失', '” has no configuration'),
+  ('主机的代理配置格式无效', 'The host proxy configuration is malformed'),
+  ('代理握手超时', 'Proxy handshake timed out'),
+  ('代理类型未填写', 'Proxy type is missing'),
+  ('不支持的代理类型', 'Unsupported proxy type'),
+  ('代理地址为空', 'Proxy address is empty'),
+  ('代理端口无效', 'Invalid proxy port'),
   ('未设置 SSH 跳板机', 'No SSH jump host configured'),
   ('添加跳板机', 'Add jump host'),
   (

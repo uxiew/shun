@@ -15,27 +15,48 @@ class ProxyConfig {
     required this.port,
     this.username,
     this.password,
+    this.rawType,
   });
 
-  factory ProxyConfig.fromJson(Map<String, dynamic> json) => ProxyConfig(
-        type: ProxyType.values.firstWhere(
-          (value) => value.name == json['type'],
-          orElse: () => ProxyType.http,
-        ),
-        host: json['host']?.toString() ?? '',
-        port: (json['port'] as num?)?.toInt() ?? 0,
-        username: json['username']?.toString(),
-        password: json['password']?.toString(),
-      );
+  factory ProxyConfig.fromJson(Map<String, dynamic> json) {
+    final rawType = json['type']?.toString();
+    return ProxyConfig(
+      // 不认识的类型保持 null，连接时拒绝。以前默认当成 HTTP，
+      // 会把 socks4、大小写写错的 SOCKS5 之类静默改走 HTTP CONNECT（RTE02）。
+      type:
+          ProxyType.values.where((value) => value.name == rawType).firstOrNull,
+      rawType: rawType,
+      host: json['host']?.toString() ?? '',
+      port: (json['port'] as num?)?.toInt() ?? 0,
+      username: json['username']?.toString(),
+      password: json['password']?.toString(),
+    );
+  }
 
-  final ProxyType type;
+  /// null 表示数据里的类型本 App 不认识，见 [rawType]。
+  final ProxyType? type;
+
+  /// 数据里的原始类型字符串，保存时原样写回，不把未知类型改写成 http。
+  final String? rawType;
   final String host;
   final int port;
   final String? username;
   final String? password;
 
+  /// 配置能否用于拨号；不能用时返回给用户看的原因。
+  ///
+  /// 选了代理就必须经代理，配置无效只能报错，不能当作「没配代理」去直连。
+  String? get invalidReason {
+    if (type == null) {
+      return rawType == null ? '代理类型未填写' : '不支持的代理类型：$rawType';
+    }
+    if (host.trim().isEmpty) return '代理地址为空';
+    if (port < 1 || port > 65535) return '代理端口无效：$port';
+    return null;
+  }
+
   Map<String, dynamic> toJson() => {
-        'type': type.name,
+        'type': type?.name ?? rawType,
         'host': host,
         'port': port,
         if (username?.isNotEmpty == true) 'username': username,
