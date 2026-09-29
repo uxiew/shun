@@ -114,7 +114,7 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
           ),
           const SizedBox(height: 8),
           LText(
-            '内置：$builtinNames（随 App 提供，不能停用）',
+            '随 App 提供、不能停用：$builtinNames',
             style: Theme.of(context).textTheme.bodySmall,
           ),
           if (discovery != null && !discovery.supported)

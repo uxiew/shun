@@ -649,7 +649,7 @@ const englishReplacements = <(String, String)>[
     'The service class claimed in the descriptor differs from the service that actually declares the plugin action'
   ),
   ('没有绑定插件：它现在不可用（', 'Did not bind the plugin: it is unavailable right now ('),
-  ('（随 App 提供，不能停用）', ' (shipped with the app; cannot be disabled)'),
+  ('随 App 提供、不能停用：', 'Shipped with the app and cannot be disabled: '),
   (
     '看不到这个包：没有安装，或者它没有声明插件 action。Android 11 起本 App 只能看到声明了 ',
     'This package is not visible: it is not installed, or it does not declare the plugin action. Since Android 11 this app can only see plugins that declare '
@@ -753,7 +753,6 @@ const englishReplacements = <(String, String)>[
   // 插件页上的前缀与事件名。
   ('证书 SHA-256：', 'Certificate SHA-256: '),
   ('能力：', 'Capabilities: '),
-  ('内置：', 'Built-in: '),
   ('扫描失败：', 'Scan failed: '),
   ('插件回报', 'Plugin reported'),
   ('已拒绝调用', 'Rejected call'),
