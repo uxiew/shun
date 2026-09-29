@@ -41,9 +41,11 @@
       "action": "IPv4、IPv6、域名、IDN、过长域名、含 NUL/控制字符、错误端口及 zone-id。",
       "expected": "合法目标正确编码；非法输入在拨号前拒绝；不猜测域名、不损坏地址。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R05.md"
+      ]
     },
     {
       "id": "NET05",
@@ -618,8 +620,10 @@
       "action": "导入同时包含target代理、跳板自身代理、旧hostChain的矛盾配置。",
       "expected": "显示明确规范化路线或拒绝；不静默选一套或递归应用跳板route。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R05.md"
+      ],
       "inherited_from": null
     },
     {
@@ -638,8 +642,10 @@
       "action": "连接中修改host、身份、跳板顺序或proxy引用。",
       "expected": "活动RoutePlan不可变；修改只影响新attempt。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R05.md"
+      ],
       "inherited_from": null
     },
     {
@@ -719,8 +725,10 @@
       "action": "缺失跳板、非SSH、循环、超上限、重复目标、非法端点。",
       "expected": "拨号前拒绝；没有最终目标Direct探测。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R05.md"
+      ],
       "inherited_from": null
     },
     {

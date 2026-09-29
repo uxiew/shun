@@ -303,7 +303,7 @@
       "id": "R05",
       "phase": "P1",
       "title": "统一RoutePlan与旧配置规范化",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R03",
         "X00"
@@ -333,8 +333,10 @@
       ],
       "stop_condition": "多套配置歧义先要求用户选择，不给隐藏优先级。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R05.md"
+      ],
+      "commit": "f202393"
     },
     {
       "id": "R06",

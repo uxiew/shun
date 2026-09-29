@@ -119,7 +119,7 @@
 
 ## R05 统一RoutePlan与旧配置规范化
 
-阶段：P1；状态：NOT_STARTED；依赖：R03, X00；角色：实施代理。
+阶段：P1；状态：DONE；依赖：R03, X00；角色：实施代理。
 
 **范围**：新增System/SOCKS入口+有序jump列表；旧hostChain/proxy引用转为单一路线，冻结attempt配置。
 

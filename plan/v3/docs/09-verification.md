@@ -21,7 +21,7 @@
 | NET01 | 通过无认证/用户名密码两类模拟 SOCKS 连接 fixture SSH；协商分片传输。 | 真实 SSH 可建立；认证严格按配置，无字段串位、重复读写或提前截断。 | FAIL |
 | NET02 | 目标名仅模拟代理端能解析；把 App 目标 resolver 注入为调用即失败，并记录所有 socket 端点。 | 目标 resolver 调用零次；SOCKS 请求携带目标域名；socket 只连接代理。 | PASS |
 | NET03 | 让目标具备可直连条件，但让代理拒绝、停服、超时或返回错误。 | 目标直连监听计数为零；App 明确失败；不存在成功“回退”。 | PASS |
-| NET04 | IPv4、IPv6、域名、IDN、过长域名、含 NUL/控制字符、错误端口及 zone-id。 | 合法目标正确编码；非法输入在拨号前拒绝；不猜测域名、不损坏地址。 | NOT_RUN |
+| NET04 | IPv4、IPv6、域名、IDN、过长域名、含 NUL/控制字符、错误端口及 zone-id。 | 合法目标正确编码；非法输入在拨号前拒绝；不猜测域名、不损坏地址。 | PASS |
 | NET05 | 输入错误代理口令；代理选择非允许认证方法或主动降级为无认证。 | 按用户要求的认证策略协商；要求密码时无无认证降级；secret不进日志。 | NOT_RUN |
 | NET06 | 服务端逐字节发送、提前 EOF、错误 VER/RSV/ATYP、长度伪造或重复响应。 | 正确处理部分读取；错误有界退出，没有线程/内存泄漏或无限等待。 | NOT_RUN |
 | NET07 | 分别在 TCP connect、SOCKS 协商、SSH 握手时挂起并触发取消/期限。 | 对应阶段超时；socket 关闭；取消完成后没有迟到成功回调。 | NOT_RUN |
@@ -83,9 +83,9 @@
 | BAS02 | 冷启动、deep link、后台恢复与设置打开时监测AI、同步和管理初始化。 | 未经用户开启的AI/同步/云上传网络请求为零；不执行管理命令。 | PASS |
 | BAS03 | 在同机保留原App，安装fork并导入副本、升级schema。 | 不同applicationId/签名，不覆盖原数据；迁移可回滚，无未知字段暗丢。 | BLOCKED |
 | BAS04 | 检查最终构建来源、GPL/Apache/第三方NOTICE与改动声明。 | 分发形态有明确许可结论；不把Conduit自身许可覆盖全部二进制。 | NOT_RUN |
-| RTE01 | 导入同时包含target代理、跳板自身代理、旧hostChain的矛盾配置。 | 显示明确规范化路线或拒绝；不静默选一套或递归应用跳板route。 | NOT_RUN |
+| RTE01 | 导入同时包含target代理、跳板自身代理、旧hostChain的矛盾配置。 | 显示明确规范化路线或拒绝；不静默选一套或递归应用跳板route。 | PASS |
 | RTE02 | 设代理host空、port<=0/>65535、profile缺失、未知代理type。 | dial计数零或只到合法代理；没有目标直连或HTTP类型默认猜测。 | PASS |
-| RTE03 | 连接中修改host、身份、跳板顺序或proxy引用。 | 活动RoutePlan不可变；修改只影响新attempt。 | NOT_RUN |
+| RTE03 | 连接中修改host、身份、跳板顺序或proxy引用。 | 活动RoutePlan不可变；修改只影响新attempt。 | PASS |
 | RTE04 | 从终端/SFTP/监控/转发/测试入口连接同一主机。 | 物理拨号与目标身份均遵循选定route；没有独立Direct旁路。 | NOT_RUN |
 | RTE05 | 保留系统VPN选择Direct及SOCKS两种模式。 | Direct也遵守系统VPN；不使用protect或绑定底层非VPN网络。 | NOT_RUN |
 | SOX01 | 外部SOCKS已运行；连续连接两个不同SSH目标后关闭本App。 | 两条独立CONNECT；不重新启动/停止外部隧道；不把一条已连流用于第二目标。 | NOT_RUN |
@@ -94,7 +94,7 @@
 | SOX04 | 添加带密码的远程SOCKS，通过受信测试网抓取协商。 | UI明确原生SOCKS密码不加密；不把最终SSH加密误标为代理口令加密。 | NOT_RUN |
 | JMP01 | 分别通过1、2、3跳建立最终SSH，关闭/重连，检查fixture。 | 逐跳forwarding与目标正确；不在跳板执行ssh命令或复制私钥。 | NOT_RUN |
 | JMP02 | 分别替换每一跳及最终主机的host key，记录认证事件。 | 对应跳准确阻断，在该跳信任确认前不发送用户认证。 | NOT_RUN |
-| JMP03 | 缺失跳板、非SSH、循环、超上限、重复目标、非法端点。 | 拨号前拒绝；没有最终目标Direct探测。 | NOT_RUN |
+| JMP03 | 缺失跳板、非SSH、循环、超上限、重复目标、非法端点。 | 拨号前拒绝；没有最终目标Direct探测。 | PASS |
 | JMP04 | SOCKS入口+跳板高级模式中拒绝第一跳、第二跳或最终转发。 | 标明失败阶段和hop；不忽略入口proxy，不旁路。 | NOT_RUN |
 | TSC01 | 模拟OAuth与目录HTTP请求记录method、path、scope、redirect。 | 只用设备读取及token端点；请求devices:core:read；跨origin不转发secret。 | NOT_RUN |
 | TSC02 | token过期、撤销、401、403、429以及无secret的短期导入模式。 | 受控刷新/暂停，不无限重试；保留缓存与主机，提示重新授权。 | NOT_RUN |
