@@ -96,7 +96,7 @@ $P plan/v3/scripts/validate_plan.py   # 只查计划本身，不测 App
 | `gradle-home/caches/9.1.0/transforms` | 1–3.5 GB | 下次构建在本机重建（spike release 17 秒→45 秒），构建一次又长回来。先 `(cd android && ./gradlew --stop)` |
 | `gradle-home/` 整个 | 2.5–6 GB | 下次构建要联网重新下依赖 |
 | `avd/<名字>.avd/*.img`、`*.qcow2` | 1–3 GB/台 | 关机后删；下次启动是空系统，装过的 App、Gboard 拼音设置都没了 |
-| `baseline-495f5d31/` | 0.1 GB | 原版代码的 worktree；用 `git worktree remove` 删，直接 rm 会留下失效记录 |
+| `baseline-495f5d31/` | 0.1 GB | 原版代码的 worktree，2026-09-29 已删。要重新构建原版时：`git worktree add ../.toolchain/baseline-495f5d31 495f5d3`，再 `chmod +x android/gradlew`（上游仓库里它没有可执行位，不加会报 Permission denied）。删用 `git worktree remove --force`，直接 rm 会留下失效记录 |
 | `artifacts/` | 0.2 GB | 原版 debug APK（sha256 `339f4932…`），测原版与 fork 同机共存要用 |
 | 整个 `.toolchain/` | — | 回到安装前，只剩下面 SDK 里的东西 |
 
