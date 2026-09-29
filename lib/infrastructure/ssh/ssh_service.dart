@@ -39,6 +39,12 @@ class RouteConfigException implements Exception {
   String toString() => message;
 }
 
+/// 这次连接是用户新开的，还是断线后的恢复。
+///
+/// 只有 [fresh] 会执行主机的 startupCommand。恢复时重跑它等于替用户再执行一遍命令——
+/// 对托管终端（startupCommand 就是那条管理命令）尤其危险（A04 / REG02）。
+enum ConnectionPurpose { fresh, restore }
+
 /// App 发起 TCP 连接的唯一入口，测试可替换成记录端点的实现。
 typedef TcpDialer = Future<Socket> Function(
   String host,
@@ -176,6 +182,7 @@ class SshService {
     required HostKeyVerifier verifyHostKey,
     KeyboardInteractiveHandler? keyboardInteractive,
     Terminal? terminal,
+    ConnectionPurpose purpose = ConnectionPurpose.fresh,
   }) async {
     _pendingConnections.remove(sessionId)?.cancel();
     final pending = _PendingConnection();
@@ -268,7 +275,9 @@ class SshService {
         decodeTerminalText(session.stdout).listen(output.write);
         decodeTerminalText(session.stderr).listen(output.write);
         final startup = host.startupCommand;
-        if (startup != null && startup.isNotEmpty) {
+        if (startup != null &&
+            startup.isNotEmpty &&
+            purpose == ConnectionPurpose.fresh) {
           session.write(Uint8List.fromList(utf8.encode('$startup\n')));
         }
         return ActiveTerminalSession(

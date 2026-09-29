@@ -245,7 +245,15 @@ class SessionController extends StateNotifier<SessionState> {
             verifyHostKey: old.verifyHostKey,
             keyboardInteractive: old.keyboardInteractive,
             terminal: old.terminal,
+            // 恢复只重建连接，不替用户再执行命令：托管终端的 startupCommand 就是那条
+            // 管理命令（比如重启服务），断线重连时重跑会造成真实副作用（REG02）。
+            purpose: ConnectionPurpose.restore,
           );
+          if (old.host.startupCommand?.isNotEmpty == true) {
+            old.terminal.write(
+              '\x1b[33m已恢复为新的 shell，启动命令不会在恢复时重新执行。\x1b[0m\r\n',
+            );
+          }
           final sessions = [...state.sessions];
           final current = sessions.indexWhere((value) => value.id == old.id);
           if (current >= 0) sessions[current] = replacement;

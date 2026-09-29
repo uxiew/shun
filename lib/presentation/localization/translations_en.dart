@@ -1002,6 +1002,10 @@ const englishReplacements = <(String, String)>[
   ('不支持的代理类型', 'Unsupported proxy type'),
   ('代理地址为空', 'Proxy address is empty'),
   ('代理端口无效', 'Invalid proxy port'),
+  (
+    '已恢复为新的 shell，启动命令不会在恢复时重新执行',
+    'Restored as a new shell; the startup command is not re-run on restore'
+  ),
   ('未设置 SSH 跳板机', 'No SSH jump host configured'),
   ('添加跳板机', 'Add jump host'),
   (
