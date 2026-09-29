@@ -61,7 +61,21 @@ class VaultController extends StateNotifier<VaultState> {
     state = VaultState(data: vault);
   }
 
-  Future<void> upsertHost(HostProfile host) async {
+  Future<void> _hostWrites = Future.value();
+
+  /// 主机相关的写入排队执行。每次写入都是「读当前保险库 → 改 → 保存」，两次交叠时，
+  /// 后保存的那次会用它读到的旧列表盖掉先保存的——比如用户刚保存的编辑被连接回写冲掉。
+  /// 只覆盖本类里的主机写入；设置页导入、钥匙串、同步仍直接调 [replace]，不在队列里。
+  Future<void> _serialHostWrite(Future<void> Function() write) {
+    final result = _hostWrites.then((_) => write());
+    _hostWrites = result.catchError((Object _) {});
+    return result;
+  }
+
+  Future<void> upsertHost(HostProfile host) =>
+      _serialHostWrite(() => _upsertHost(host));
+
+  Future<void> _upsertHost(HostProfile host) async {
     final vault = await ready();
     final stamped = HostProfile({
       ...host.data,
@@ -88,7 +102,9 @@ class VaultController extends StateNotifier<VaultState> {
     );
   }
 
-  Future<void> deleteHost(String id) async {
+  Future<void> deleteHost(String id) => _serialHostWrite(() => _deleteHost(id));
+
+  Future<void> _deleteHost(String id) async {
     final vault = await ready();
     final removedHost = vault.hosts.cast<HostProfile?>().firstWhere(
           (value) => value?.id == id,
@@ -174,18 +190,40 @@ class VaultController extends StateNotifier<VaultState> {
     }
   }
 
-  Future<void> markConnected(HostProfile host) async {
-    final vault = await ready();
-    final connected = host.copyWith(
-      lastConnectedAt: DateTime.now().millisecondsSinceEpoch,
-    );
-    final hosts = vault.hosts
-        .map((value) => value.id == connected.id ? connected : value)
-        .toList(growable: false);
-    final next = vault.copyWith(hosts: hosts);
-    // Connection recency is device-local telemetry in desktop Netcatty. Do
-    // not schedule a cloud write just because a terminal was opened.
-    await repository.saveVault(next, remote: true);
-    state = VaultState(data: next);
-  }
+  /// 记一笔最近连接时间。
+  ///
+  /// 只改保险库里此刻那份主机的 lastConnectedAt；主机已被删除就不写。以前拿连接开始时的
+  /// 整份快照写回，连接期间用户改的配置会被改回去（NET10）。
+  Future<void> markConnected(HostProfile host) => _serialHostWrite(() async {
+        final vault = await ready();
+        final index = vault.hosts.indexWhere((value) => value.id == host.id);
+        if (index < 0) return;
+        final hosts = [...vault.hosts];
+        hosts[index] = hosts[index].copyWith(
+          lastConnectedAt: DateTime.now().millisecondsSinceEpoch,
+        );
+        final next = vault.copyWith(hosts: hosts);
+        // Connection recency is device-local telemetry in desktop Netcatty. Do
+        // not schedule a cloud write just because a terminal was opened.
+        await repository.saveVault(next, remote: true);
+        state = VaultState(data: next);
+      });
+
+  /// 只改一台主机的几个字段，基于保险库里此刻的那份；主机已被删除就什么都不做。
+  ///
+  /// 给连接产生的回写用（比如识别出的系统类型）：它们不能用连接开始时的旧快照盖掉用户期间的修改，
+  /// 也不能把用户已经删掉的主机加回来（NET10）。
+  Future<void> patchHost(String id, Map<String, Object?> fields) =>
+      _serialHostWrite(() async {
+        final vault = await ready();
+        final index = vault.hosts.indexWhere((value) => value.id == id);
+        if (index < 0) return;
+        final hosts = [...vault.hosts];
+        hosts[index] = HostProfile({
+          ...hosts[index].data,
+          ...fields,
+          'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        });
+        await replace(vault.copyWith(hosts: hosts));
+      });
 }
