@@ -78,7 +78,8 @@
       "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R06.md"
+        "evidence/R06.md",
+        "evidence/R08.md"
       ]
     },
     {
@@ -97,18 +98,22 @@
       "action": "快速连接→取消→再连，同时注入旧连接的晚到事件。",
       "expected": "generation 隔离；旧事件不能覆盖新状态或复活已停止连接。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R08.md"
+      ]
     },
     {
       "id": "NET10",
       "action": "两个主机同时通过不同代理账号连接；编辑其中一个配置。",
       "expected": "凭据、routeSnapshot 和目标互不污染；运行连接不会换代理或身份。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R08.md"
+      ]
     },
     {
       "id": "NET11",
@@ -490,7 +495,9 @@
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R08.md"
+      ]
     },
     {
       "id": "LIFE07",
@@ -659,7 +666,8 @@
       "level": "硬门禁",
       "result": "PASS",
       "evidence": [
-        "evidence/R05.md"
+        "evidence/R05.md",
+        "evidence/R08.md"
       ],
       "inherited_from": null
     },
@@ -710,7 +718,8 @@
       "level": "硬门禁",
       "result": "PASS",
       "evidence": [
-        "evidence/R06.md"
+        "evidence/R06.md",
+        "evidence/R08.md"
       ],
       "inherited_from": null
     },

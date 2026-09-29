@@ -430,7 +430,7 @@
       "id": "R08",
       "phase": "P1",
       "title": "连接代次、取消和资源所有权",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R06",
         "R07"
@@ -461,8 +461,10 @@
       ],
       "stop_condition": "取消标UI完成但socket仍活跃不算验收通过。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R08.md"
+      ],
+      "commit": "5904a53"
     },
     {
       "id": "R09",
