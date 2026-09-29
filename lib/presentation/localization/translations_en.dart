@@ -301,7 +301,8 @@ const englishTranslations = <String, String>{
   '导入 Netcatty JSON': 'Import Netcatty JSON',
   '支持桌面端解密后的保险库数据': 'Supports decrypted desktop vault data',
   '导出保险库 JSON': 'Export vault JSON',
-  '导出包含凭据，请妥善保存': 'The export contains credentials; store it securely',
+  '不含密码、私钥和代理口令；换手机导入后要重新填写':
+      'Passwords, private keys and proxy passwords are not included; re-enter them after importing on another phone',
   '安全': 'Security',
   '系统安全存储': 'System secure storage',
   '服务器身份验证': 'Server identity verification',

@@ -715,7 +715,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ListTile(
                       leading: const Icon(Icons.file_download_outlined),
                       title: const LText('导出保险库 JSON'),
-                      subtitle: const LText('导出包含凭据，请妥善保存'),
+                      subtitle: const LText('不含密码、私钥和代理口令；换手机导入后要重新填写'),
                       onTap: _export,
                     ),
                   ],
