@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plugin_api/plugin_api.dart';
 
@@ -34,6 +35,9 @@ class PluginEntry {
     this.packageName,
     this.reason,
     this.binding,
+    this.serviceClass,
+    this.signerDigests = const {},
+    this.androidDebugSigned = false,
   });
 
   final PluginStatus status;
@@ -47,6 +51,15 @@ class PluginEntry {
 
   /// 只有 [PluginStatus.ready] 才有。
   final ApprovedBinding? binding;
+
+  /// 系统报告的实际服务类（绑定只用它）；内置 provider 为 null。
+  final String? serviceClass;
+
+  /// 系统读出的当前签名证书 SHA-256。
+  final Set<String> signerDigests;
+
+  /// 用 Android SDK 自动生成的调试证书签的（每台开发机都有一张，谁都能拿来签）。
+  final bool androidDebugSigned;
 
   String? get pluginId => descriptor?.pluginId;
   bool get isBuiltin => packageName == null;
@@ -76,10 +89,20 @@ abstract interface class PluginSessionHandle {
 }
 
 class _Installed {
-  _Installed(this.packageName, this.descriptorJson, this.signerDigests);
+  _Installed(
+    this.packageName,
+    this.descriptorJson,
+    this.signerDigests, {
+    this.serviceClass,
+    this.debugSignerDigests = const {},
+    this.problem,
+  });
   final String packageName;
   final String descriptorJson;
   final Set<String> signerDigests;
+  final String? serviceClass;
+  final Set<String> debugSignerDigests;
+  final String? problem;
 }
 
 /// 用现有 Riverpod 装配的轻量 provider 注册表（X01）。
@@ -117,19 +140,32 @@ class PluginRegistry extends StateNotifier<List<PluginEntry>> {
 
   /// 系统报告某个包装着（首次发现或更新后）。描述符来自包里的静态资源，
   /// 证书摘要必须是系统读出来的，不能是描述符或 Intent 里自报的。
+  ///
+  /// [serviceClass] 是系统报告的、实际声明插件 action 的服务；描述符自称的必须与它一致。
+  /// [debugSignerDigests] 是平台认出的 Android 调试证书，release 构建据此拒收（docs/15 §4）。
+  /// [problem] 是平台层就能确定的问题（服务没导出、声明了多个服务等），有它直接判不兼容。
   void offerInstalled({
     required String packageName,
     required String descriptorJson,
     required Set<String> signerDigests,
+    String? serviceClass,
+    Set<String> debugSignerDigests = const {},
+    String? problem,
   }) {
     _missing.remove(packageName);
     _installed[packageName] = _Installed(
       packageName,
       descriptorJson,
       Set.unmodifiable(signerDigests),
+      serviceClass: serviceClass,
+      debugSignerDigests: Set.unmodifiable(debugSignerDigests),
+      problem: problem,
     );
     _recompute();
   }
+
+  /// 当前系统报告装着的包（不含 missing）。发现流程据此判断哪些包这次没出现。
+  Set<String> get installedPackages => _installed.keys.toSet();
 
   /// 包被卸载。它的会话关掉；条目变 missing，设备引用和配置原样留着（DEV02）。
   void markUninstalled(String packageName) {
@@ -272,16 +308,61 @@ class PluginRegistry extends StateNotifier<List<PluginEntry>> {
         return ap != bp ? ap - bp : a.packageName.compareTo(b.packageName);
       });
 
+    // 平台认出的调试证书并进准入口径；是否放行由构造时的 allowDebugSigners 决定（release 为 false）。
+    final debugSigners = {
+      for (final pkg in _installed.values) ...pkg.debugSignerDigests,
+    };
+    final policy = debugSigners.isEmpty
+        ? _policy
+        : AdmissionPolicy(
+            builtinIds: _policy.builtinIds,
+            reservedOfficialIds: _policy.reservedOfficialIds,
+            allowDebugSigners: _policy.allowDebugSigners,
+            debugSignerDigests: {
+              ..._policy.debugSignerDigests,
+              ...debugSigners,
+            },
+          );
+
     for (final pkg in ordered) {
+      PluginEntry entryFor(
+        PluginStatus status, {
+        PluginDescriptor? descriptor,
+        String? reason,
+        ApprovedBinding? binding,
+      }) =>
+          PluginEntry(
+            status: status,
+            descriptor: descriptor,
+            packageName: pkg.packageName,
+            reason: reason,
+            binding: binding,
+            serviceClass: pkg.serviceClass,
+            signerDigests: pkg.signerDigests,
+            androidDebugSigned: pkg.signerDigests.isNotEmpty &&
+                pkg.signerDigests.every(pkg.debugSignerDigests.contains),
+          );
+
       final PluginDescriptor descriptor;
       try {
         descriptor = PluginDescriptor.parse(pkg.descriptorJson);
       } on DescriptorException catch (e) {
         entries.add(
-          PluginEntry(
-            status: PluginStatus.incompatible,
-            packageName: pkg.packageName,
-            reason: e.message,
+          entryFor(PluginStatus.incompatible, reason: pkg.problem ?? e.message),
+        );
+        continue;
+      }
+      final problem = pkg.problem ??
+          (pkg.serviceClass != null &&
+                  descriptor.serviceClass != pkg.serviceClass
+              ? '描述符自称的服务类与实际声明插件 action 的服务不一致'
+              : null);
+      if (problem != null) {
+        entries.add(
+          entryFor(
+            PluginStatus.incompatible,
+            descriptor: descriptor,
+            reason: problem,
           ),
         );
         continue;
@@ -291,7 +372,7 @@ class PluginRegistry extends StateNotifier<List<PluginEntry>> {
         installedPackage: pkg.packageName,
         actualSignerDigests: pkg.signerDigests,
       );
-      final admission = _policy.evaluate(
+      final admission = policy.evaluate(
         candidate,
         alreadyRegistered: registered,
         approvals: _approvals,
@@ -299,28 +380,24 @@ class PluginRegistry extends StateNotifier<List<PluginEntry>> {
       final entry = switch (admission) {
         // 停用时不给绑定（不可调用）；批准记录仍在 _approvals 里，重新启用即恢复，不用再批。
         Admitted() when _disabled.contains(descriptor.pluginId.toLowerCase()) =>
-          PluginEntry(
-            status: PluginStatus.disabled,
+          entryFor(
+            PluginStatus.disabled,
             descriptor: descriptor,
-            packageName: pkg.packageName,
             reason: '已停用',
           ),
-        Admitted(:final binding) => PluginEntry(
-            status: PluginStatus.ready,
+        Admitted(:final binding) => entryFor(
+            PluginStatus.ready,
             descriptor: descriptor,
-            packageName: pkg.packageName,
             binding: binding,
           ),
-        NeedsApproval(:final reason) => PluginEntry(
-            status: PluginStatus.needsApproval,
+        NeedsApproval(:final reason) => entryFor(
+            PluginStatus.needsApproval,
             descriptor: descriptor,
-            packageName: pkg.packageName,
             reason: reason,
           ),
-        Rejected(:final reason) => PluginEntry(
-            status: PluginStatus.rejected,
+        Rejected(:final reason) => entryFor(
+            PluginStatus.rejected,
             descriptor: descriptor,
-            packageName: pkg.packageName,
             reason: reason,
           ),
       };
@@ -381,12 +458,16 @@ class PluginRegistry extends StateNotifier<List<PluginEntry>> {
   }
 }
 
-/// 宿主的准入口径。外部插件的发现与证书读取在 X02 接入；在那之前只有内置 provider。
+/// 宿主的准入口径。外部插件由 Android 桥发现后喂进来（X02）。
 ///
-/// release 不接受 debug 证书签的插件（docs/15 §4）；是否放行由 X02 按构建类型决定，这里先按最严。
+/// 只有 debug 构建放行 Android 调试证书签的插件（仍要用户批准）；profile、release 一律拒收——
+/// 每台开发机都有一张调试证书，谁都能拿来签（docs/15 §4，PLG15）。
 final pluginRegistryProvider =
     StateNotifierProvider<PluginRegistry, List<PluginEntry>>(
   (ref) => PluginRegistry(
-    policy: AdmissionPolicy(builtinIds: BuiltinPlugins.ids),
+    policy: AdmissionPolicy(
+      builtinIds: BuiltinPlugins.ids,
+      allowDebugSigners: kDebugMode,
+    ),
   ),
 );

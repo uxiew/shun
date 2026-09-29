@@ -190,7 +190,7 @@ class PluginBridge(
             result.error("BAD_ARGS", "缺少包名、服务、pluginId 或批准的证书", null)
             return
         }
-        disconnect(packageName, "重新连接")
+        disconnect(packageName, "被新的连接取代")
         // 绑定前再核一次：服务还在且仍声明 action、证书仍是批准时那张。Dart 那边判定之后包可能已被换掉。
         val stillDeclared = queryProviders(
             Intent(PluginContract.ACTION_PROVIDER).setPackage(packageName),

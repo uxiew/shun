@@ -585,11 +585,180 @@ const englishTranslations = <String, String>{
   '拉取': 'Pull',
   r'调整 PID ${process.pid} 优先级': r'Adjust priority for PID ${process.pid}',
   '分屏': 'Split view',
+  // X02：插件页的独立标签（整句精确匹配，免得短词先被替换规则拆碎）。
+  '插件': 'Plugins',
+  '插件（实验）': 'Plugins (experimental)',
+  '重新扫描': 'Rescan',
+  '包名': 'Package name',
+  '检查': 'Check',
+  '事件': 'Events',
+  '批准': 'Approve',
+  '撤销批准': 'Revoke approval',
+  '连接测试': 'Test connection',
+  '断开': 'Disconnect',
+  '可用': 'Available',
+  '待批准': 'Awaiting approval',
+  '已拒绝': 'Rejected',
+  '不兼容': 'Incompatible',
+  '已卸载': 'Uninstalled',
+  '正在连接…': 'Connecting…',
+  '没有发现插件': 'No plugins found',
+  '某个应用没出现在这里？': 'An app is missing from this list?',
+  '独立插件只支持 Android': 'Standalone plugins are only supported on Android',
+  '批准这个插件？': 'Approve this plugin?',
+  '发现、批准和测试独立插件 App': 'Discover, approve and test standalone plugin apps',
+  '独立安装的插件 App，需要你逐个批准':
+      'Separately installed plugin apps; each one needs your approval',
+  '用 Android 调试证书签名：只有开发构建能用':
+      'Signed with an Android debug certificate: only development builds accept it',
+  '这是 Android 调试证书：每台开发机都有一张，任何人都能用它签名。':
+      'This is an Android debug certificate: every development machine has one, and anyone can sign with it.',
+  '签名证书 SHA-256（请与插件作者公布的核对）：':
+      'Signing certificate SHA-256 (compare it with what the plugin author published):',
+  '只有待批准的插件可以批准': 'Only plugins awaiting approval can be approved',
+  '这个插件由多张证书共同签名，暂不支持批准':
+      'This plugin is signed by several certificates; approving it is not supported yet',
+  'ping 返回的值不对，已断开': 'ping returned the wrong value; disconnected',
+  '握手成功（插件核对了宿主证书），ping 往返正常':
+      'Handshake succeeded (the plugin verified the host certificate); ping round trip OK',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // X02：插件页、Android 桥（PluginBridge.kt、CallerVerifier.java）和 plugin_api 准入给出的原因。
+  // 整句和带插值的前后缀放最前。
+  (
+    '这里只列出声明了本 App 插件接口的已安装应用。批准之前不会启动它们的任何代码；',
+    'Only installed apps that declare this app\'s plugin interface are listed. None of their code runs before you approve them; '
+  ),
+  (
+    '插件是独立的 App，有自己的权限，本 App 管不住它自己联网。',
+    'a plugin is a separate app with its own permissions, and this app cannot stop it from using the network by itself.'
+  ),
+  (
+    '批准后它能收到自己会话里的数据，拿不到保险库、私钥、密码或其他主机。',
+    'Once approved it receives the data of its own sessions; it cannot get the vault, private keys, passwords or other hosts. '
+  ),
+  (
+    '以后换了签名证书或申请新能力，会重新请你确认。',
+    'If its signing certificate changes or it asks for new capabilities, you will be asked again.'
+  ),
+  (
+    '描述符自称的服务类与实际声明插件 action 的服务不一致',
+    'The service class claimed in the descriptor differs from the service that actually declares the plugin action'
+  ),
+  ('没有绑定插件：它现在不可用（', 'Did not bind the plugin: it is unavailable right now ('),
+  ('（随 App 提供，不能停用）', ' (shipped with the app; cannot be disabled)'),
+  (
+    '看不到这个包：没有安装，或者它没有声明插件 action。Android 11 起本 App 只能看到声明了 ',
+    'This package is not visible: it is not installed, or it does not declare the plugin action. Since Android 11 this app can only see plugins that declare '
+  ),
+  (
+    ' 的插件（本 App 故意不申请「查看全部应用」权限）',
+    ' (this app deliberately does not request the "query all packages" permission)'
+  ),
+  (
+    '装了，但它没有声明插件服务 action，不是本 App 的插件',
+    'Installed, but it does not declare the plugin service action, so it is not a plugin for this app'
+  ),
+  ('装了，声明了 ', 'Installed; it declares '),
+  (' 个插件服务，只允许一个', ' plugin services; only one is allowed'),
+  (' 个插件服务', ' plugin services'),
+  ('一个安装包声明了 ', 'The package declares '),
+  (
+    '查询到服务后包又不见了（可能刚被卸载）',
+    'The package disappeared after its service was found (probably just uninstalled)'
+  ),
+  (
+    '插件服务没有导出，宿主无法绑定',
+    'The plugin service is not exported, so the host cannot bind it'
+  ),
+  ('插件服务没有声明 ', 'The plugin service does not declare '),
+  ('读不出描述符资源', 'Cannot read the descriptor resource'),
+  (
+    '插件服务已不在设备上，或不再声明插件 action',
+    'The plugin service is gone or no longer declares the plugin action'
+  ),
+  (
+    '插件的签名证书和批准时不同，已拒绝绑定',
+    'The plugin signing certificate differs from the approved one; binding refused'
+  ),
+  ('插件握手时自称 ', 'During the handshake the plugin claimed to be '),
+  ('，与批准的 ', ', which does not match the approved '),
+  (' 不符', ''),
+  ('插件不接受宿主的 API 版本：', 'The plugin does not accept the host API version: '),
+  ('插件拒绝了宿主：', 'The plugin refused the host: '),
+  ('系统拒绝绑定插件服务', 'The system refused to bind the plugin service'),
+  (
+    '缺少包名、服务、pluginId 或批准的证书',
+    'Missing package, service, pluginId or approved certificate'
+  ),
+  ('握手时插件进程退出', 'The plugin process exited during the handshake'),
+  ('插件进程已退出', 'The plugin process exited'),
+  ('插件进程已不在', 'The plugin process is gone'),
+  ('插件服务断开', 'The plugin service disconnected'),
+  ('没有连着这个插件', 'Not connected to this plugin'),
+  ('插件已被卸载', 'The plugin was uninstalled'),
+  ('这个包没有安装', 'This package is not installed'),
+  ('包名为空', 'The package name is empty'),
+  ('用户断开', 'Disconnected by the user'),
+  ('宿主退出', 'Host exited'),
+  ('被新的连接取代', 'Replaced by a new connection'),
+  ('调用方 UID ', 'Caller UID '),
+  (' 已不在设备上或不可见', ' is no longer installed or not visible'),
+  (' 的签名证书不是信任的那张', ' is not signed with the trusted certificate'),
+  // plugin_api 准入原因（admission.dart）。
+  (
+    '首次安装：需要用户确认 pluginId、包名、证书和能力后才能启用',
+    'First install: confirm the pluginId, package, certificate and capabilities before it can be used'
+  ),
+  (
+    '安装包证书与批准时不同（换签），已禁用，需要重新核验',
+    'The package certificate differs from the approved one (re-signed); disabled until verified again'
+  ),
+  (
+    '插件申请了批准范围之外的新能力，需要重新批准',
+    'The plugin asks for capabilities beyond what was approved; approve it again'
+  ),
+  (
+    'debug 证书签名的插件只在开发构建中可用',
+    'Plugins signed with a debug certificate only work in development builds'
+  ),
+  ('批准时的包名与当前安装包不同', 'The approved package differs from the installed package'),
+  (
+    '描述符声称的包名与实际安装包不一致',
+    'The package named in the descriptor differs from the installed package'
+  ),
+  (
+    ' 是内置 provider 保留 ID，外部包不能占用',
+    ' is reserved for a built-in provider; an external package cannot use it'
+  ),
+  (
+    ' 是登记过的官方 ID，但安装包证书不匹配',
+    ' is a registered official ID, but the package certificate does not match'
+  ),
+  (
+    ' 已被另一个 provider 占用，不允许遮蔽',
+    ' is already used by another provider and cannot be shadowed'
+  ),
+  (
+    ' 自称随包内置，但它是单独安装的包；内置 provider 只能由宿主登记',
+    ' claims to be built in, but it is a separately installed package; only the host registers built-in providers'
+  ),
+  (' 已注册为 ', ' is already registered as '),
+  ('描述符超过 16 KiB', 'The descriptor exceeds 16 KiB'),
+  ('不是合法 JSON', 'is not valid JSON'),
+  ('不允许的字段：', 'Fields not allowed: '),
+  // 插件页上的前缀与事件名。
+  ('证书 SHA-256：', 'Certificate SHA-256: '),
+  ('能力：', 'Capabilities: '),
+  ('内置：', 'Built-in: '),
+  ('扫描失败：', 'Scan failed: '),
+  ('插件回报', 'Plugin reported'),
+  ('已拒绝调用', 'Rejected call'),
+  ('连接关闭', 'Connection closed'),
+  ('（序号 ', ' (sequence '),
   // X01：插件注册表（plugin_registry.dart、builtin_plugins.dart）。放最前，免得先被「连接」「代理」这类通用词拆碎。
   ('SSH / Telnet（内置）', 'SSH / Telnet (built-in)'),
   ('连接路径（内置）', 'Connection route (built-in)'),
@@ -633,7 +802,10 @@ const englishReplacements = <(String, String)>[
     'tailnet 写法无效：只能是 -、tailnet ID 或 tailnet 名',
     'Invalid tailnet: use -, a tailnet ID or a tailnet name'
   ),
-  ('OAuth client ID 或 secret 为空或格式不对', 'The OAuth client ID or secret is empty or malformed'),
+  (
+    'OAuth client ID 或 secret 为空或格式不对',
+    'The OAuth client ID or secret is empty or malformed'
+  ),
   ('access token 为空或格式不对', 'The access token is empty or malformed'),
   ('token 响应缺少 access_token', 'The token response has no access_token'),
   ('token 响应不是 JSON', 'The token response is not JSON'),
@@ -652,7 +824,10 @@ const englishReplacements = <(String, String)>[
     '与 Tailscale API 的 TLS 握手失败，证书未通过校验，已断开',
     'The TLS handshake with the Tailscale API failed certificate verification; disconnected'
   ),
-  ('连接 Tailscale API 时网络出错', 'A network error occurred while connecting to the Tailscale API'),
+  (
+    '连接 Tailscale API 时网络出错',
+    'A network error occurred while connecting to the Tailscale API'
+  ),
   ('设备列表缺少 devices 数组', 'The device list has no devices array'),
   ('设备列表不是 JSON', 'The device list is not JSON'),
   ('设备数量超出上限', 'The device list has too many devices'),
@@ -666,7 +841,10 @@ const englishReplacements = <(String, String)>[
     '），为免把凭据带到别处，没有跟随',
     '), which was not followed so that credentials are not sent elsewhere'
   ),
-  ('：请求太频繁（HTTP 429），请稍后手动重试', ': too many requests (HTTP 429); retry manually later'),
+  (
+    '：请求太频繁（HTTP 429），请稍后手动重试',
+    ': too many requests (HTTP 429); retry manually later'
+  ),
   ('读取设备列表', 'Reading the device list'),
   ('换取 access token', 'Getting an access token'),
   ('fixture 只能指向本机回环地址', 'The fixture must point to a loopback address'),

@@ -30,6 +30,7 @@ import '../widgets/keychain_sheet.dart';
 import '../widgets/custom_background.dart';
 import '../widgets/ai_providers_page.dart';
 import '../widgets/github_manual_config.dart';
+import 'plugins_screen.dart';
 
 part 'settings_screen_dialogs.dart';
 
@@ -738,6 +739,22 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ],
                 ),
               ),
+              if (Platform.isAndroid) ...[
+                _header('插件', '独立安装的插件 App，需要你逐个批准'),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.extension_outlined),
+                    title: const LText('插件（实验）'),
+                    subtitle: const LText('发现、批准和测试独立插件 App'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const PluginsScreen(),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               if (features.updateCheck) ...[
                 _header('关于与更新', '自动检查 GitHub 上的最新正式版本'),
                 Card(child: _updateCheckTile()),
