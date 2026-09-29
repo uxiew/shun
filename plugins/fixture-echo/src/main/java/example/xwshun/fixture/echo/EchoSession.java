@@ -26,6 +26,7 @@ final class EchoSession {
     private final ParcelFileDescriptor stream;
     private final AtomicBoolean closed = new AtomicBoolean();
     private final AtomicLong sequence = new AtomicLong();
+    private volatile Thread worker;
     volatile int cols;
     volatile int rows;
 
@@ -48,7 +49,7 @@ final class EchoSession {
 
     /** 在插件自己的线程里跑，不占 Binder 线程。 */
     void start(long openDelayMs, Runnable afterActive, Events events, Runnable onEnd) {
-        new Thread(() -> {
+        Thread thread = new Thread(() -> {
             try {
                 if (openDelayMs > 0) Thread.sleep(openDelayMs);
             } catch (InterruptedException ignored) {
@@ -74,12 +75,17 @@ final class EchoSession {
             close();
             events.send(this, "closed");
             onEnd.run();
-        }, "echo-" + handle).start();
+        }, "echo-" + handle);
+        worker = thread;
+        thread.start();
     }
 
     /** 幂等。先 shutdown 叫醒阻塞在 read/write 上的线程，再关 FD。 */
     void close() {
         if (!closed.compareAndSet(false, true)) return;
+        Thread thread = worker;
+        // 慢打开还在等时被关：叫醒它，好立刻回报 closed，而不是等满延迟。
+        if (thread != null && thread != Thread.currentThread()) thread.interrupt();
         try {
             Os.shutdown(stream.getFileDescriptor(), OsConstants.SHUT_RDWR);
         } catch (ErrnoException ignored) {

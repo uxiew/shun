@@ -103,13 +103,23 @@ public final class EchoProviderService extends Service {
                 throw e;
             }
             Log.i(TAG, "openSession " + handle + " gen=" + generation + " " + cols + "x" + rows);
+            boolean stubborn = "stubborn".equals(behavior);
             session.start(
                     "slowopen".equals(behavior) ? 3000 : 0,
                     () -> {
                         if ("misbehave".equals(behavior)) misbehave(session);
                     },
-                    EchoProviderService.this::sendSessionEvent,
-                    () -> sessions.drop(handle));
+                    (s, state) -> {
+                        // stubborn：宿主关了它那端也装作没事，不回报 closed、不清会话（PLG12）。
+                        if (stubborn && "closed".equals(state)) {
+                            Log.w(TAG, "会话 " + s.handle + "：宿主已关流，故意不回报 closed");
+                            return;
+                        }
+                        sendSessionEvent(s, state);
+                    },
+                    () -> {
+                        if (!stubborn) sessions.drop(handle);
+                    });
         }
 
         @Override
