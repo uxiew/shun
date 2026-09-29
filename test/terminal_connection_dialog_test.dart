@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -5,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/application/session_controller.dart';
 import 'package:netcatty_mobile/application/settings_controller.dart';
 import 'package:netcatty_mobile/application/vault_controller.dart';
+import 'package:netcatty_mobile/domain/connection_route.dart';
 import 'package:netcatty_mobile/domain/models/host.dart';
 import 'package:netcatty_mobile/domain/models/settings.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
@@ -35,36 +38,30 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final repository = await VaultRepository.open();
     final host = _host('cancel', '等待连接');
-    final pending = PendingTerminalConnection(id: 'pending-cancel', host: host);
     final service = _TrackingSshService();
     final container = ProviderContainer(
       overrides: [
         vaultRepositoryProvider.overrideWithValue(repository),
-        sessionControllerProvider.overrideWith(
-          (ref) => _SeededSessionController(
-            ref.read(vaultControllerProvider.notifier),
-            ref,
-            SessionState(
-              pendingConnections: [pending],
-              activePendingId: pending.id,
-            ),
-            service: service,
-          ),
-        ),
+        sshServiceProvider.overrideWithValue(service),
       ],
     );
     addTearDown(container.dispose);
+    final controller = container.read(sessionControllerProvider.notifier);
 
-    container
-        .read(sessionControllerProvider.notifier)
-        .cancelPendingConnection(pending.id);
+    final connecting = controller.connect(host, _acceptHostKey);
+    await Future<void>.delayed(Duration.zero);
+    final pending = container.read(sessionControllerProvider).selectedPending!;
+    controller.cancelPendingConnection(pending.id);
 
-    expect(service.cancelledIds, [pending.id]);
+    // 取消直接作用在交给 SshService 的那次尝试上：它会立刻关掉已建好的 socket / client。
+    expect(service.attempts.single.isCancelled, isTrue);
     expect(
       container.read(sessionControllerProvider).pendingConnections,
       isEmpty,
     );
     expect(container.read(sessionControllerProvider).activePendingId, isNull);
+    service.result.completeError(const ConnectionCancelledException());
+    await connecting;
   });
 
   test('commands can target a captured session instead of the active tab',
@@ -565,11 +562,28 @@ class _SeededSessionController extends SessionController {
   }
 }
 
+/// connect 一直挂着，记下调用方传进来的尝试，看取消有没有落到它身上。
 class _TrackingSshService extends SshService {
-  final cancelledIds = <String>[];
+  final attempts = <ConnectionAttempt>[];
+  final result = Completer<ActiveTerminalSession>();
 
   @override
-  void cancelConnection(String sessionId) => cancelledIds.add(sessionId);
+  Future<ActiveTerminalSession> connect({
+    required String sessionId,
+    required HostProfile host,
+    List<HostProfile> hosts = const [],
+    List<SshKeyProfile> keys = const [],
+    List<ProxyProfile> proxyProfiles = const [],
+    RoutePlan? routePlan,
+    required HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    Terminal? terminal,
+    ConnectionPurpose purpose = ConnectionPurpose.fresh,
+    ConnectionAttempt? attempt,
+  }) {
+    attempts.add(attempt!);
+    return result.future;
+  }
 }
 
 class _SeededSettingsController extends SettingsController {

@@ -67,6 +67,19 @@ class _ConnectionStatusPane extends StatelessWidget {
                             color: failed ? scheme.error : null,
                           ),
                     ),
+                    if (!failed && pending.stage != null) ...[
+                      const SizedBox(height: 8),
+                      LText(
+                        pending.stage!.describe(),
+                        key: const ValueKey('pending-connection-stage'),
+                        maxLines: 3,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                      ),
+                    ],
                     if (failed) ...[
                       const SizedBox(height: 8),
                       LText(
