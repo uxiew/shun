@@ -11,7 +11,29 @@
 ///   重连时按「第一次见」重新核对——相当于 OpenSSH 的先 `ssh-keygen -R` 再连。
 library;
 
+import 'dart:io';
+
 enum HostKeyStatus { trusted, unknown, changed }
+
+/// 比对信任记录时主机名的规范写法：去掉首尾空白、IPv6 的方括号、结尾的点，IP 按标准写法，其余转小写。
+///
+/// 域名不区分大小写，OpenSSH 的 known_hosts 也按小写记。不规范化的话，把「Web.Example.com」
+/// 改成「web.example.com」会被当成一台没见过的机器，用户被迫再点一次「信任」，
+/// 久了就养成不看指纹直接点的习惯（SEC04）。只做写法上的等价，不做 DNS 解析：
+/// 两个不同的名字即使指向同一个 IP，也各自需要核对——别名只能显式建立。
+String trustHostName(String hostname) {
+  var value = hostname.trim();
+  if (value.startsWith('[') && value.endsWith(']')) {
+    value = value.substring(1, value.length - 1);
+  }
+  if (value.endsWith('.')) value = value.substring(0, value.length - 1);
+  final address = InternetAddress.tryParse(value);
+  // tryParse(...).address 只是把原文还回来；用原始字节重建才是标准写法（0:0::1 → ::1）。
+  if (address != null) {
+    return InternetAddress.fromRawAddress(address.rawAddress).address;
+  }
+  return value.toLowerCase();
+}
 
 /// 查 [knownHosts] 里 [hostname]:[port] 的记录，和这次拿到的指纹比对。
 ({HostKeyStatus status, Map<String, dynamic>? existing}) checkHostKey(
@@ -21,9 +43,10 @@ enum HostKeyStatus { trusted, unknown, changed }
   required String keyType,
   required String fingerprint,
 }) {
+  final name = trustHostName(hostname);
   final existing = knownHosts
       .where((entry) =>
-          entry['hostname'] == hostname &&
+          trustHostName('${entry['hostname'] ?? ''}') == name &&
           ((entry['port'] as num?)?.toInt() ?? 22) == port)
       .firstOrNull;
   if (existing == null) return (status: HostKeyStatus.unknown, existing: null);

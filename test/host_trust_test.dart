@@ -42,6 +42,57 @@ void main() {
     });
   });
 
+  group('SEC04 信任身份：写法等价的名字算同一台，别名不隐式建立', () {
+    HostKeyStatus statusFor(String stored, String asked, {int port = 22}) =>
+        checkHostKey(
+          [
+            {...record(fp), 'hostname': stored},
+          ],
+          hostname: asked,
+          port: port,
+          keyType: 'ssh-ed25519',
+          fingerprint: fp,
+        ).status;
+
+    test('只是大小写、结尾的点、IPv6 方括号或 IPv6 写法不同：同一台，已信任', () {
+      expect(statusFor('Web.Example.COM', 'web.example.com'),
+          HostKeyStatus.trusted);
+      expect(statusFor('web.example.com', 'web.example.com.'),
+          HostKeyStatus.trusted);
+      expect(statusFor('[2001:DB8::1]', '2001:db8:0:0:0:0:0:1'),
+          HostKeyStatus.trusted);
+    });
+
+    test('指向同一个 IP 的另一个名字、换了端口：都要重新核对，不沿用', () {
+      expect(statusFor('127.0.0.1', 'localhost'), HostKeyStatus.unknown);
+      expect(statusFor('web.example.com', 'web2.example.com'),
+          HostKeyStatus.unknown);
+      expect(statusFor('web.example.com', 'web.example.com', port: 2222),
+          HostKeyStatus.unknown);
+    });
+
+    test('写法等价但指纹变了：照样硬阻断', () {
+      expect(
+        checkHostKey(
+          [
+            {...record(oldFp), 'hostname': 'WEB.example.com'},
+          ],
+          hostname: 'web.example.com',
+          port: 22,
+          keyType: 'ssh-ed25519',
+          fingerprint: fp,
+        ).status,
+        HostKeyStatus.changed,
+      );
+    });
+
+    test('规范写法', () {
+      expect(trustHostName(' Web.Example.COM. '), 'web.example.com');
+      expect(trustHostName('[FE80::ABCD]'), 'fe80::abcd');
+      expect(trustHostName('0:0::1'), '::1');
+    });
+  });
+
   group('verifyHostKeyWithKnownHosts', () {
     late int newPrompts;
     late int changedPrompts;
