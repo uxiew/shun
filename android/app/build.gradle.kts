@@ -26,8 +26,10 @@ android {
     }
 
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
-        applicationId = "app.netcatty.mobile"
+        // 本 fork 的安装身份，所有者 2026-09-29 指定。改回上游的 app.netcatty.mobile
+        // 会覆盖手机上的原版 Netcatty 及其数据。上面的 namespace 只是 Kotlin 代码包名，
+        // 不影响安装身份，保持上游值以减少与上游合并时的冲突。
+        applicationId = "top.xdwa.xwshun"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion
