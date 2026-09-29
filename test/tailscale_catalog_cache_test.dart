@@ -462,6 +462,38 @@ void main() {
       expect(await repo.load('cat-b'), isNull);
     });
 
+    test('BAS03 回滚：更新版本写的缓存不读、不改名、不覆盖，刷新也不动它', () async {
+      final newer = jsonEncode({
+        'schemaVersion': 2,
+        'catalogId': 'cat-a',
+        'tailnet': '-',
+        'devices': [],
+        'somethingNew': true,
+      });
+      final file = File('${dir.path}/cat-a.json');
+      await file.writeAsString(newer);
+      await expectLater(
+        repo.load('cat-a'),
+        throwsA(isA<CatalogCacheTooNew>()),
+      );
+      expect(await repo.loadAll(), isEmpty);
+      await expectLater(
+        refresher().refreshWithToken('cat-a', 'tok'),
+        throwsA(isA<CatalogCacheTooNew>()),
+      );
+      expect(await file.readAsString(), newer);
+      expect(await File('${file.path}.corrupt').exists(), isFalse);
+    });
+
+    test('BAS03 未知字段：主机上的目录关联经保险库 JSON 往返不丢', () {
+      final host = boundHost('h1');
+      final back = HostProfile(
+        jsonDecode(jsonEncode(host.data)) as Map<String, dynamic>,
+      );
+      expect(
+          CatalogBinding.of(back)!.toJson(), CatalogBinding.of(host)!.toJson());
+    });
+
     test('catalogId 只能是字母数字和连字符，不能拼出别的路径', () {
       expect(() => repo.load('../vault'), throwsArgumentError);
     });

@@ -640,6 +640,11 @@ const englishReplacements = <(String, String)>[
     ' duplicate IDs); existing devices were not marked missing because of it'
   ),
   ('本机没有这个目录来源', 'This directory source is not on this device'),
+  (
+    '这个目录来源的缓存由更新版本的 App 写入（格式 ',
+    'This directory source cache was written by a newer app version (format '
+  ),
+  ('），当前版本不读也不改它', '); this version neither reads nor changes it'),
   ('这个目录来源已存在', 'This directory source already exists'),
   // X02：插件页、Android 桥（PluginBridge.kt、CallerVerifier.java）和 plugin_api 准入给出的原因。
   // 整句和带插值的前后缀放最前。
