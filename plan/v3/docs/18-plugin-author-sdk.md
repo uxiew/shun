@@ -57,6 +57,19 @@ Android实机需记录主App与插件APK SHA-256、signer SHA-256、API/ABI/页�
 
 **为什么不能只在 onBind 查**（模拟器实测）：宿主已绑定插件后，另一个 App 用相同 Intent（extras 不参与比较）去绑，系统直接把**同一个 Binder** 交给它，插件的 onBind 根本不会再被调用。
 
+### 终端会话（X03 补齐，仍是 v1.0）
+
+| 项 | 约定 |
+|---|---|
+| 方法 | `openSession(handle, generation, cols, rows, ParcelFileDescriptor stream)`、`resizeSession`、`closeSession`；宿主回调 `onSessionEvent(handle, generation, sequence, state)`。只在接口末尾追加，已有方法的事务号不变 |
+| handle / generation | 宿主生成；插件用 SDK 的 `ProviderSessions` 把它们和调用方 UID 绑在一起，三者都对上才处理。「不存在」和「是别人的」给同样的错误，免得被拿来探测 |
+| 字节流 | 宿主建 socketpair、自己留一端，另一端通过 `openSession` 交给插件。终端字节只走这里，不经 Binder。读到 EOF 表示宿主关了，插件随之清理 |
+| 状态 | `active`（可以收发了）、`resized:COLSxROWS`、`closed`（插件已停止）、`failed`。每个会话的 sequence 从 1 递增 |
+| 关闭 | 宿主先关自己那端，再调 `closeSession`，不等返回。2 秒内收到插件的 `closed` 才算确认停止，否则宿主记「停止未确认」 |
+| 背压 | 宿主最多压着 4 + 1 块 × 16 KiB 输出不读、替插件排最多 1 MiB 输入，再多就拒绝写入。插件的 write 会阻塞，要放在自己的线程 |
+| 宿主死亡 | 插件对 `IXwshunHost` 做 `linkToDeath`，宿主进程死了就关掉它开的全部会话（`ProviderSessions.dropOwner`） |
+| 线程 | 三个会话方法都要立即返回，长操作放插件自己的线程；关 FD 前先 `Os.shutdown`，只 `close` 叫不醒阻塞在 read 上的线程 |
+
 插件作者要做的：用自己的密钥签名；把宿主发行证书的 SHA-256 写进插件；在每个方法里调 `requireTrustedCaller`。宿主这边由用户在「设置 → 插件（实验）」里核对证书后批准。
 宿主换了发行证书，插件要发新版本信任新证书；插件换了密钥，用户要重新批准。
 
