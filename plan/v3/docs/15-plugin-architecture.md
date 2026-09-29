@@ -94,7 +94,7 @@ APK插件机制限Android；原有iOS仍保持可构建、必要时显示未支�
 
 ## 9. v1 冻结记录（X00，2026-09-29）
 
-以下已落成 `packages/plugin_api`（纯 Dart 类型与判定逻辑，27 条契约测试）和 `contracts/`（schema + 9 个负例）。这是判定口径，不是 IPC 实现；Binder 事务级校验在 X03。
+以下已落成 `packages/plugin_api`（纯 Dart 类型与判定逻辑，27 条契约测试）和 `contracts/`（schema + 9 个负例）。这是判定口径，不是 IPC 实现：逐事务的 UID + 证书核对在 X02 落成 `plugins/provider-sdk` 的 `CallerVerifier`，session 级 owner/generation 在 X03。（契约测试数随后增加，当前数目以 `dart test` 为准。）
 
 **版本**：宿主 API 1.0。插件 major 不等于 1 直接拒绝。插件 minor 比宿主新时，宿主不认识的能力名记为"忽略、不可调用"，整体不拒绝；同 minor 出现未知能力则拒绝。**未知权限一律拒绝**——宿主给不了的权限，插件不会按预期工作。静态 schema 只描述 1.0，所以"新 minor 的未知能力"这一条是 Dart 运行期校验器与 schema 的唯一有意差异。
 
