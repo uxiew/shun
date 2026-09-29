@@ -470,7 +470,7 @@
       "id": "R09",
       "phase": "P1",
       "title": "每跳主机信任、凭据与所有SSH入口统一",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R08",
         "R01"
@@ -505,8 +505,10 @@
       ],
       "stop_condition": "任何辅助入口发现Direct旁路均阻断G1；不能只修主终端。",
       "owner_role": "安全代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R09.md"
+      ],
+      "commit": "619f050"
     },
     {
       "id": "R10",

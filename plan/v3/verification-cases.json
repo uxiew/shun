@@ -112,7 +112,8 @@
       "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R08.md"
+        "evidence/R08.md",
+        "evidence/R09.md"
       ]
     },
     {
@@ -143,7 +144,8 @@
       "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R07.md"
+        "evidence/R07.md",
+        "evidence/R09.md"
       ]
     },
     {
@@ -154,7 +156,8 @@
       "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R07.md"
+        "evidence/R07.md",
+        "evidence/R09.md"
       ]
     },
     {
@@ -165,7 +168,8 @@
       "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R07.md"
+        "evidence/R07.md",
+        "evidence/R09.md"
       ]
     },
     {
@@ -173,27 +177,33 @@
       "action": "修改主机域名/端口/用户、创建 alias、删除或复用身份。",
       "expected": "不把代理身份、目标身份、Unix 用户混为一谈；alias 只能显式建立。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R09.md"
+      ]
     },
     {
       "id": "SEC05",
       "action": "搜索 App 私有数据库/偏好、备份/恢复产物、测试日志与临时导入文件。",
       "expected": "没有秘密明文；备份排除生效；实际验证范围写明，不能只检查代码配置。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R09.md"
+      ]
     },
     {
       "id": "SEC06",
       "action": "加密私钥正确/错误口令，密文篡改，Keystore key 失效，删除后重读。",
       "expected": "正确成功；其他失败关闭；无明文降级、无伪恢复、无可解密残留。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R09.md"
+      ]
     },
     {
       "id": "SEC07",
@@ -202,7 +212,9 @@
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R09.md"
+      ]
     },
     {
       "id": "SEC08",
@@ -676,8 +688,10 @@
       "action": "从终端/SFTP/监控/转发/测试入口连接同一主机。",
       "expected": "物理拨号与目标身份均遵循选定route；没有独立Direct旁路。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R09.md"
+      ],
       "inherited_from": null
     },
     {
@@ -944,8 +958,10 @@
       "action": "含假秘密的HostProfile.toString、异常、原有JSON导出、同步往返。",
       "expected": "默认文本脱敏；secret不意外外流；受管字段和未知字段不被破坏。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R09.md"
+      ],
       "inherited_from": null
     },
     {

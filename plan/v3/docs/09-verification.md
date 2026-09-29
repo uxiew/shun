@@ -33,9 +33,9 @@
 | SEC01 | 固定信任目标 A，经正常/替换的本地 SOCKS 端连接；检查 known_hosts key。 | 信任身份是逻辑目标及端口，不是 127.0.0.1 或代理端口；未确认时不用户认证。 | PASS |
 | SEC02 | 相同主机地址换一把 fixture host key。 | 硬阻断，不以普通重试忽略；没有发出 SSH 用户认证数据。 | PASS |
 | SEC03 | 代理把连接转向不同 SSH 主机，或伪造本地 SOCKS 服务。 | 已信任主机的身份不匹配会被检测；首次信任仍要求用户核对，不自动信任 Tailnet。 | PASS |
-| SEC04 | 修改主机域名/端口/用户、创建 alias、删除或复用身份。 | 不把代理身份、目标身份、Unix 用户混为一谈；alias 只能显式建立。 | NOT_RUN |
-| SEC05 | 搜索 App 私有数据库/偏好、备份/恢复产物、测试日志与临时导入文件。 | 没有秘密明文；备份排除生效；实际验证范围写明，不能只检查代码配置。 | NOT_RUN |
-| SEC06 | 加密私钥正确/错误口令，密文篡改，Keystore key 失效，删除后重读。 | 正确成功；其他失败关闭；无明文降级、无伪恢复、无可解密残留。 | NOT_RUN |
+| SEC04 | 修改主机域名/端口/用户、创建 alias、删除或复用身份。 | 不把代理身份、目标身份、Unix 用户混为一谈；alias 只能显式建立。 | PASS |
+| SEC05 | 搜索 App 私有数据库/偏好、备份/恢复产物、测试日志与临时导入文件。 | 没有秘密明文；备份排除生效；实际验证范围写明，不能只检查代码配置。 | PASS |
+| SEC06 | 加密私钥正确/错误口令，密文篡改，Keystore key 失效，删除后重读。 | 正确成功；其他失败关闭；无明文降级、无伪恢复、无可解密残留。 | PASS |
 | SEC07 | 设备锁定/应用锁定、身份 lease 到期、进程重启时尝试新认证。 | 按策略需解锁；不为后台恢复永久缓存秘密；已建立连接策略有明确 UI。 | NOT_RUN |
 | SEC08 | 远端输出 OSC 52、恶意 OSC 标题/目录/URL、控制字符、超长序列。 | 不读/静默写剪贴板，不执行本地操作，不自动打开恶意 scheme；内存有界。 | NOT_RUN |
 | SEC09 | 对终端适配层注入伪造sessionId、失效generation、重复view绑定、超长控制序列及恶意native effect回调。 | 终端没有secret或dial权限；不越权读写文件/剪贴板；旧代次不发送；FFI对象不会释放后使用。 | NOT_RUN |
@@ -86,7 +86,7 @@
 | RTE01 | 导入同时包含target代理、跳板自身代理、旧hostChain的矛盾配置。 | 显示明确规范化路线或拒绝；不静默选一套或递归应用跳板route。 | PASS |
 | RTE02 | 设代理host空、port<=0/>65535、profile缺失、未知代理type。 | dial计数零或只到合法代理；没有目标直连或HTTP类型默认猜测。 | PASS |
 | RTE03 | 连接中修改host、身份、跳板顺序或proxy引用。 | 活动RoutePlan不可变；修改只影响新attempt。 | PASS |
-| RTE04 | 从终端/SFTP/监控/转发/测试入口连接同一主机。 | 物理拨号与目标身份均遵循选定route；没有独立Direct旁路。 | NOT_RUN |
+| RTE04 | 从终端/SFTP/监控/转发/测试入口连接同一主机。 | 物理拨号与目标身份均遵循选定route；没有独立Direct旁路。 | PASS |
 | RTE05 | 保留系统VPN选择Direct及SOCKS两种模式。 | Direct也遵守系统VPN；不使用protect或绑定底层非VPN网络。 | NOT_RUN |
 | SOX01 | 外部SOCKS已运行；连续连接两个不同SSH目标后关闭本App。 | 两条独立CONNECT；不重新启动/停止外部隧道；不把一条已连流用于第二目标。 | PASS |
 | SOX02 | SOCKS成功响应和SSH banner粘包，并随机切分协商。 | 完整余留字节交给SSH且仅一次；无丢包/重复读取。 | PASS |
@@ -113,7 +113,7 @@
 | GST05 | 移除生产xterm2引用后构建，强制Ghostty初始化错误。 | 支持列表真实；无静默伪回退；完整READY必须使用已验Ghostty目标。 | NOT_RUN |
 | REG01 | 终端正常时打开既有SFTP/转发/监控，然后关闭目标client。 | 借用者同代次失效，不重建Direct；释放顺序正确。 | NOT_RUN |
 | REG02 | 配置有副作用计数的startup/managedAction；网络断开触发恢复与测试入口。 | 只有明确Fresh操作执行一次；Restore/Probe执行计数零。 | PASS |
-| REG03 | 含假秘密的HostProfile.toString、异常、原有JSON导出、同步往返。 | 默认文本脱敏；secret不意外外流；受管字段和未知字段不被破坏。 | NOT_RUN |
+| REG03 | 含假秘密的HostProfile.toString、异常、原有JSON导出、同步往返。 | 默认文本脱敏；secret不意外外流；受管字段和未知字段不被破坏。 | PASS |
 | REG04 | 断线保存旧画面/草稿，再打开新shell或重附着tmux。 | 旧屏显示为历史；不重放旧VT产生协议回应，不重发草稿，状态不假Active。 | NOT_RUN |
 | SUP01 | 清空依赖缓存，从记录的pin和asset hash重建debug/release。 | 源码、构建链和制品可追溯；main移动不会自动改变本fork依赖。 | NOT_RUN |
 | SUP02 | 变更base_repository/引擎flag并检查所有状态、文档、manifest。 | 基座和实际引擎一致，跨基座结果不可复用为PASS；无旧任务误勾。 | NOT_RUN |
