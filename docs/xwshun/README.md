@@ -60,7 +60,7 @@ flutter devices                              # 启动好以后能看到 emulator
 | AVD | 系统 | 内存页大小 | 用途 |
 |---|---|---|---|
 | `xwshun-a35-4k` | Android 15（API 35），Google APIs，自带 Gboard | 4 KiB | 日常运行、按键和输入法 |
-| `xwshun-a36-16k` | Android 16（API 36，App 的目标版本），Google APIs 16 KB 页镜像 | 16 KiB | 检查 native 库在 16 KiB 页设备上能不能加载 |
+| `xwshun-a36-16k` | Android 16（API 36，App 的目标版本），Google APIs 16 KB 页镜像 | 16 KiB | 检查 native 库在 16 KiB 页设备上能不能加载。这台开了硬件键盘（`hw.keyboard=yes`），不会弹软键盘，软键盘和输入法请在 `xwshun-a35-4k` 上测 |
 
 为什么要单独建一个 16 KiB 的：从 Android 15 开始，部分新手机的内存页大小是 16 KiB（以前都是 4 KiB）。
 App 里的 native 库（比如终端引擎 libghostty.so）如果没按 16 KiB 对齐，在这类手机上一加载就失败，
@@ -118,7 +118,8 @@ $P plan/v3/scripts/validate_plan.py  # 检查 ID、依赖、schema；它不测 A
 
 | 目录 | 大约 | 是什么 | 删掉后 |
 |---|---|---|---|
-| `gradle-home/` | 2.5–6 GB | Gradle 依赖（`caches/modules-2`，约 1.5 GB）和构建缓存 | 整个删掉：下次构建要联网重新下载依赖。只想腾空间的话，只删 `caches/<Gradle版本>/transforms`（构建一次就会涨到 3.5 GB）：下次构建在本机重新生成，不用联网。删之前先在 `android/` 下执行 `./gradlew --stop`，停掉后台的 Gradle 进程 |
+| `gradle-home/` | 2.5–6 GB | Gradle 依赖（`caches/modules-2`，约 1.5 GB）和构建缓存 | 整个删掉：下次构建要联网重新下载依赖。只想腾空间的话，只删 `caches/<Gradle版本>/transforms`（约 3.5 GB）：下次构建在本机重新生成，不用联网，
+spike 三 ABI release 构建从 17 秒变成 45 秒。**构建一次它就长回来了**，只能临时腾空间，比如给新 AVD 第一次启动腾地方。删之前先在 `android/` 下执行 `./gradlew --stop`，停掉后台的 Gradle 进程 |
 | `baseline-495f5d31/` | 0.1 GB（构建一次会涨到 2 GB） | 上游原版代码的 git worktree，用来对照原版行为 | 先执行 `git worktree remove ../.toolchain/baseline-495f5d31`，直接删目录会让 git 以为 worktree 还在 |
 | `artifacts/` | 0.2 GB | 留作证据的安装包，目前只有原版 debug APK（sha256 `339f4932…`，和 R01 证据一致） | 做"原版和 fork 同机共存"测试时要重新构建原版 |
 | `avd/` | 每个 AVD 1.5–3 GB | 模拟器的用户数据 | 模拟器就没了，重建一个几分钟 |
@@ -144,6 +145,9 @@ API 35 的 `google_apis` 镜像是你原来就有的，你自己的 `lizhi` 模�
 - **`flutter emulators --launch` 报 `Running multiple emulators with the same AVD`**，或者没弹出窗口：
   这个 AVD 已经在后台以无窗口方式运行了，自动化验证就是这样启动的。先执行 `adb devices` 看它的设备 ID，
   需要窗口的话先执行 `adb -s <设备ID> emu kill` 关掉它，再重新 launch。
+- **在模拟器里按电脑键盘的 Esc，App 直接退回上一页，而不是给终端发 Esc**：模拟器的虚拟键盘键位表
+  （`qwerty2.kl`）把 Esc（扫描码 1）映射成了 Android 的返回键。这是模拟器特有的，真实蓝牙键盘不会这样。
+  要测 Esc，请用主 App 终端页快捷键栏里的 Esc，或者上真机测。
 - **模拟器启动后 `adb devices` 显示 `offline`**：还没启动完。等 `adb shell getprop sys.boot_completed` 输出 `1`，冷启动大约 20 秒。
 - **模拟器起不来，日志里是 `FATAL | Not enough space to create userdata partition. Available: 4968.80 MB ..., need 7372.80 MB`**：
   第一次启动一个新 AVD 时，模拟器要先建 6 GB 的数据分区，并要求磁盘空闲至少是分区大小的 1.2 倍，也就是 7.2 GB（6144 MB × 1.2 = 7372.8 MB）。
