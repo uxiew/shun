@@ -56,6 +56,10 @@ def main():
    bad=dict(data);bad['exec']='arbitrary-shell'
    try:validator.validate(bad);errors.append('schema permitted extra exec')
    except ValidationError:schema_tests+=1
+  # X00 负例：每个 invalid/ 下的描述符都必须被 schema 拒绝；Dart 运行期校验器用同一批文件做对照测试。
+  for p in (ROOT/'contracts/examples/invalid').glob('*.json'):
+   try:validator.validate(json.loads(p.read_text()));errors.append('schema accepted invalid example '+p.name)
+   except ValidationError:schema_tests+=1
  except ImportError:errors.append('jsonschema missing; install for schema checks')
  result=dict(scope='PLANNING_FILES_ONLY',application_tests_executed=False,passed=not errors,tasks=len(tasks),core_tasks=t['core_count'],deferred_tasks=t['deferred_count'],verification_cases=len(cases),sources=len(sources),legacy_tasks_mapped=len(mapping),schema_example_checks=schema_tests,errors=errors)
  print(json.dumps(result,ensure_ascii=False,indent=2));return bool(errors)

@@ -91,3 +91,31 @@ Ready → Opening → Active → Closing → Closed
 首版允许provider声明受限配置schema，宿主渲染常用字段；复杂设置可显式打开插件自己的Activity。宿主不强制接管所有插件设置页。禁止下载Dart Widget、任意JS UI或加载未验证网页到带特权bridge的容器。
 
 APK插件机制限Android；原有iOS仍保持可构建、必要时显示未支持。不能把Android AIDL写成Flutter跨平台能力已经全部实现。扩展SDK先冻结major=1；minor只追加可协商能力，调用前核对，发布后不重排既有事务语义。
+
+## 9. v1 冻结记录（X00，2026-09-29）
+
+以下已落成 `packages/plugin_api`（纯 Dart 类型与判定逻辑，27 条契约测试）和 `contracts/`（schema + 9 个负例）。这是判定口径，不是 IPC 实现；Binder 事务级校验在 X03。
+
+**版本**：宿主 API 1.0。插件 major 不等于 1 直接拒绝。插件 minor 比宿主新时，宿主不认识的能力名记为"忽略、不可调用"，整体不拒绝；同 minor 出现未知能力则拒绝。**未知权限一律拒绝**——宿主给不了的权限，插件不会按预期工作。静态 schema 只描述 1.0，所以"新 minor 的未知能力"这一条是 Dart 运行期校验器与 schema 的唯一有意差异。
+
+**schema 本次补的两条**（原草案漏了，与 §1、docs/04 冲突）：`route` 能力只允许 `bundled`；`external-app` 的 `supportedRoutes` 只能是 `["provider-managed"]`。
+
+**描述符硬限制**：≤16 KiB；字段集合封闭（多一个字段就拒绝，exec/intent/url 回调只能从这里混进来）；权限集合封闭，没有 Vault、私钥、口令、token、exec、文件、剪贴板。
+
+**准入**：内置 ID 与 `builtin.` 前缀只属于宿主；所有者登记的官方 ID 绑定固定证书；已占用的 ID 或包名不能被第二个 provider 抢占；描述符自称的包名必须等于实际安装包；批准绑定 `pluginId + 包名 + 证书 + 能力` 四项，换签即禁用、能力扩大即重新批准；debug 证书只在开发构建可用。证书只认系统读出的值，描述符里没有签名字段。
+
+**会话分型**：`TerminalSessionRef` / `RemoteDesktopSessionRef` / `ExternalLaunchAttempt` 三个类型互不兼容。外部拉起的状态里**没有"已连接"**，只有 `launchedUnverified` 和提供方明确回报的成功/失败。状态事件带 generation + sequence，旧代次或不递增的事件直接丢弃。
+
+**路由判定**：UDP（Mosh）只允许 system-default，SOCKS/跳板在 bootstrap 前返回 UNSUPPORTED；provider-managed（外部 App）只允许 system-default，用户要求整次远控走代理时返回 UNSUPPORTED；字节流按声明判定。
+
+**设备关联**：只有 `linkByUser` 一个入口；同名同 IP 不合并；同一 provider 的两条引用不能关联；解除关联不动各自引用。
+
+### 已知协议局限（记录，未实测）
+
+- **Mosh**：SSH 引导后切 UDP，SOCKS5 CONNECT 与 ProxyJump 的 direct-tcpip 都只转 TCP，承载不了；SSH 经 TailSocks 成功不代表 Mosh 可达。参考插件 saftssh-mosh-plugin 的 README 与 manifest 不一致（仅静态观察）。
+- **UU 远程**：raw 协议基准为客户端 ≥4.42.0，被控端只有 Windows/macOS，不能声称支持 Linux/Android/TV 目标。全屏模式不回调，只有小窗且带有效 callback 才可能回调；nonce 只做一次性关联，**不等于签名认证**。匿名设备 ID 按敏感引用保护。
+- **RustDesk**：首版只外部拉起，不传密码 URI，不开放任意 URI 透传；核心与参考插件涉及 AGPL，拆成独立 APK 不自动豁免许可义务。
+
+### 真正未测
+
+上面全部是纯逻辑测试。以下一项都没跑过：任何插件 APK 的安装与证书读取、Binder 逐事务 UID/签名/owner/generation 校验、FD 数据面、provider 死亡/更新/卸载、UU/RustDesk 真实客户端行为、Mosh 运行时。对应 X01–X10，需要设备。

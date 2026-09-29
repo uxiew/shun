@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "pluginId": "example.uuremote",
+  "displayName": "UU Remote Adapter (example)",
+  "version": "0.1.0",
+  "apiMajor": 1,
+  "apiMinor": 0,
+  "deployment": "external-app",
+  "capabilities": [
+    "remote-desktop-external"
+  ],
+  "supportedRoutes": [
+    "provider-managed",
+    "socks5-connect"
+  ],
+  "platforms": [
+    "android"
+  ],
+  "permissions": [
+    "user-initiated-external-launch",
+    "own-provider-state"
+  ]
+}

@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "pluginId": "example.mosh",
+  "displayName": "Example Mosh Runtime",
+  "version": "0.1.0",
+  "apiMajor": 1,
+  "apiMinor": 0,
+  "deployment": "android-service",
+  "capabilities": [
+    "terminal-session"
+  ],
+  "supportedRoutes": [
+    "system-default"
+  ],
+  "platforms": [
+    "android"
+  ],
+  "permissions": [
+    "own-session-ephemeral-secret",
+    "own-session-input-output"
+  ],
+  "packageName": "example.terminal.mosh",
+  "serviceClass": "example.terminal.mosh.MoshSessionService",
+  "license": "GPL-3.0-only",
+  "sourceUrl": "http://example.invalid/src"
+}

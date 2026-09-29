@@ -1,0 +1,4 @@
+# 独立包，不继承根目录（根目录引用的 flutter_lints 不是本包依赖）。
+analyzer:
+  language:
+    strict-casts: true

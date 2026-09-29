@@ -1,0 +1,10 @@
+name: plugin_api
+description: 宿主与 provider 共用的插件契约类型（API v1 草案，X00）。只有类型和纯逻辑，没有 IPC 实现。
+publish_to: none
+version: 0.1.0
+
+environment:
+  sdk: ^3.12.0
+
+dev_dependencies:
+  test: ^1.25.0

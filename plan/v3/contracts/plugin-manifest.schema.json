@@ -142,6 +142,50 @@
           }
         }
       }
+    },
+    {
+      "$comment": "RouteProvider 仅内置（docs/15 §1）：路由决定流量走向，第三方声明它等于交出'不偷偷直连'的底线。",
+      "if": {
+        "required": [
+          "capabilities"
+        ],
+        "properties": {
+          "capabilities": {
+            "contains": {
+              "const": "route"
+            }
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "deployment": {
+            "const": "bundled"
+          }
+        }
+      }
+    },
+    {
+      "$comment": "外部 App 用自己的网络和账号，不继承 SSH 路由（docs/04 V3 段）。",
+      "if": {
+        "required": [
+          "deployment"
+        ],
+        "properties": {
+          "deployment": {
+            "const": "external-app"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "supportedRoutes": {
+            "const": [
+              "provider-managed"
+            ]
+          }
+        }
+      }
     }
   ],
   "$comment": "Only structural validation; installed APK signer trust, route compatibility and runtime permissions are enforced separately. IDs/packages are examples, not assigned product names."
