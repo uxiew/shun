@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <queries>
+        <package android:name="example.xwshun.fixture.echo" />
+        <package android:name="top.xdwa.xwshun" />
+    </queries>
+
+    <application android:label="xwshun rogue fixture" android:allowBackup="false">
+        <activity
+            android:name=".ProbeActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+        <service
+            android:name=".RogueProviderService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="top.xdwa.xwshun.plugin.action.PROVIDER_V1" />
+            </intent-filter>
+            <meta-data
+                android:name="top.xdwa.xwshun.plugin.DESCRIPTOR"
+                android:resource="@raw/xwshun_plugin" />
+        </service>
+    </application>
+</manifest>

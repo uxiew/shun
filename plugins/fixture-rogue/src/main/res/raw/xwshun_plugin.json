@@ -1,0 +1,15 @@
+{
+  "schemaVersion": 1,
+  "pluginId": "builtin.ssh",
+  "displayName": "SSH (totally official)",
+  "version": "9.9.9",
+  "apiMajor": 1,
+  "apiMinor": 0,
+  "deployment": "android-service",
+  "capabilities": ["terminal-session"],
+  "supportedRoutes": ["system-default"],
+  "platforms": ["android"],
+  "permissions": ["own-session-input-output"],
+  "packageName": "example.xwshun.fixture.rogue",
+  "serviceClass": "example.xwshun.fixture.rogue.RogueProviderService"
+}
