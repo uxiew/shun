@@ -265,12 +265,8 @@ class SshService {
         output.onResize = (width, height, pixelWidth, pixelHeight) {
           session.resizeTerminal(width, height, pixelWidth, pixelHeight);
         };
-        session.stdout.listen(
-          (data) => output.write(utf8.decode(data, allowMalformed: true)),
-        );
-        session.stderr.listen(
-          (data) => output.write(utf8.decode(data, allowMalformed: true)),
-        );
+        decodeTerminalText(session.stdout).listen(output.write);
+        decodeTerminalText(session.stderr).listen(output.write);
         final startup = host.startupCommand;
         if (startup != null && startup.isNotEmpty) {
           session.write(Uint8List.fromList(utf8.encode('$startup\n')));
@@ -545,20 +541,27 @@ class SshService {
     final input = TerminalInputController();
     terminal.onOutput =
         (value) => socket.add(utf8.encode(input.consume(value)));
-    socket.listen((bytes) {
-      final visible = <int>[];
-      for (var i = 0; i < bytes.length; i++) {
-        if (bytes[i] == 255 && i + 2 < bytes.length) {
-          final command = bytes[i + 1];
-          final option = bytes[i + 2];
-          socket.add([255, command == 253 ? 252 : 254, option]);
-          i += 2;
-        } else {
-          visible.add(bytes[i]);
+    // 同一个解码器跨 chunk 使用：多字节字符被网络切开时，前半截留到下一块再拼。
+    final text = StreamController<List<int>>();
+    decodeTerminalText(text.stream).listen(terminal.write);
+    socket.listen(
+      (bytes) {
+        final visible = <int>[];
+        for (var i = 0; i < bytes.length; i++) {
+          if (bytes[i] == 255 && i + 2 < bytes.length) {
+            final command = bytes[i + 1];
+            final option = bytes[i + 2];
+            socket.add([255, command == 253 ? 252 : 254, option]);
+            i += 2;
+          } else {
+            visible.add(bytes[i]);
+          }
         }
-      }
-      terminal.write(utf8.decode(visible, allowMalformed: true));
-    });
+        text.add(visible);
+      },
+      onDone: text.close,
+      onError: (Object _) => text.close(),
+    );
     return ActiveTerminalSession(
       id: sessionId,
       host: host,
@@ -570,6 +573,18 @@ class SshService {
     );
   }
 }
+
+/// 把远端字节流解成终端文本，整个流共用一个 UTF-8 解码器。
+///
+/// 以前每个网络 chunk 单独 `utf8.decode`：一个汉字（3 字节）或 emoji（4 字节）
+/// 恰好被切在两个 chunk 之间时，两半各自变成 U+FFFD（�），中文输出随机乱码（A03 / TER01）。
+/// xterm2 只收 String，所以这里仍要解码；换 Ghostty 后终端直接吃原始字节，不再经过这一步。
+///
+/// 用 bind 而不是 `bytes.transform(...)`：dartssh2 的 stdout 运行时是 `Stream<Uint8List>`，
+/// transform 会因泛型协变在运行时报
+/// `Utf8Decoder is not a subtype of StreamTransformer<Uint8List, String>`。
+Stream<String> decodeTerminalText(Stream<List<int>> bytes) =>
+    const Utf8Decoder(allowMalformed: true).bind(bytes);
 
 const _connectionCancelledMarker = Object();
 
