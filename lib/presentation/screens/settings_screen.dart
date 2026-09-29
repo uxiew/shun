@@ -10,6 +10,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../application/auto_sync_controller.dart';
+import '../../application/fork_features.dart';
 import '../../application/settings_controller.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/models/settings.dart';
@@ -40,7 +41,7 @@ class SettingsScreen extends ConsumerStatefulWidget {
 
 class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   late final Future<PackageInfo> _packageInfo;
-  late final UpdateCheckService _updateCheckService;
+  UpdateCheckService? _updateCheckService;
   final _backgroundImageService = BackgroundImageService();
   late Future<UpdateCheckResult> _updateCheck;
   final endpoint = TextEditingController();
@@ -82,10 +83,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   void initState() {
     super.initState();
     _packageInfo = PackageInfo.fromPlatform();
-    _updateCheckService = UpdateCheckService(
-      client: ref.read(httpClientProvider),
-    );
-    _updateCheck = _checkForUpdates();
+    // 设置页在 HomeShell 的 IndexedStack 里，App 冷启动就会走到这里；
+    // 开关关着时不创建服务，从根上保证没有请求。
+    if (ref.read(forkFeaturesProvider).updateCheck) {
+      _updateCheckService = UpdateCheckService(
+        client: ref.read(httpClientProvider),
+      );
+      _updateCheck = _checkForUpdates();
+    }
   }
 
   @override
@@ -103,7 +108,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         customBackgroundPath != _persistedBackgroundPath) {
       unawaited(_backgroundImageService.remove(customBackgroundPath));
     }
-    _updateCheckService.close();
+    _updateCheckService?.close();
     endpoint.dispose();
     username.dispose();
     providerSecret.dispose();
@@ -151,7 +156,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         sync?.type == SyncProviderType.githubGist ? sync?.username : null;
     if (mounted) {
       setState(() => provider = sync?.type ?? SyncProviderType.webdav);
-      if ((sync?.type == SyncProviderType.githubGist ||
+      if (ref.read(forkFeaturesProvider).cloudSync &&
+          (sync?.type == SyncProviderType.githubGist ||
               sync?.type == SyncProviderType.s3) &&
           sync?.secret?.isNotEmpty == true &&
           masterPassword.text.isNotEmpty) {
@@ -164,11 +170,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   Widget build(BuildContext context) => _buildSettings(
         context,
         ref.watch(autoSyncControllerProvider),
+        ref.watch(forkFeaturesProvider),
       );
 
   Widget _buildSettings(
     BuildContext context,
     AutoSyncState autoSyncState,
+    ForkFeatures features,
   ) =>
       SafeArea(
         child: Scaffold(
@@ -432,248 +440,253 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
               ),
-              _header('云同步', '兼容桌面端 netcatty-vault.json 加密格式'),
-              Card(
-                child: Padding(
-                  padding: const EdgeInsets.all(14),
-                  child: Column(
-                    children: [
-                      SegmentedButton<SyncProviderType>(
-                        expandedInsets: EdgeInsets.zero,
-                        segments: const [
-                          ButtonSegment(
-                            value: SyncProviderType.webdav,
-                            label: _AdaptiveSyncProviderLabel('WebDAV'),
-                            icon: Icon(Icons.cloud_outlined),
-                          ),
-                          ButtonSegment(
-                            value: SyncProviderType.githubGist,
-                            label: _AdaptiveSyncProviderLabel('GitHub'),
-                            icon: Icon(Icons.code),
-                          ),
-                          ButtonSegment(
-                            value: SyncProviderType.s3,
-                            label: _AdaptiveSyncProviderLabel('S3'),
-                            icon: Icon(Icons.storage_outlined),
-                          ),
-                        ],
-                        selected: {provider},
-                        onSelectionChanged: (value) => setState(() {
-                          provider = value.first;
-                          _syncVersions = null;
-                          _syncVersionsError = null;
-                        }),
-                      ),
-                      const SizedBox(height: 14),
-                      if (provider == SyncProviderType.webdav) ...[
-                        TextField(
-                          controller: endpoint,
-                          keyboardType: TextInputType.url,
-                          decoration: LInputDecoration(
-                            labelText: 'WebDAV 地址',
-                            hintText: 'https://dav.example.com/netcatty',
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: username,
-                          decoration: LInputDecoration(labelText: '用户名'),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: providerSecret,
-                          obscureText: true,
-                          decoration: LInputDecoration(labelText: '密码 / 应用密码'),
-                        ),
-                      ] else if (provider == SyncProviderType.s3) ...[
-                        TextField(
-                          controller: endpoint,
-                          keyboardType: TextInputType.url,
-                          decoration: LInputDecoration(
-                            labelText: 'S3 Endpoint',
-                            hintText: 'https://s3.example.com',
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            Expanded(
-                              child: TextField(
-                                controller: s3Region,
-                                decoration: LInputDecoration(
-                                  labelText: 'Region',
-                                  hintText: 'us-east-1',
-                                ),
-                              ),
+              if (features.cloudSync)
+                _header('云同步', '兼容桌面端 netcatty-vault.json 加密格式'),
+              if (features.cloudSync)
+                Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(14),
+                    child: Column(
+                      children: [
+                        SegmentedButton<SyncProviderType>(
+                          expandedInsets: EdgeInsets.zero,
+                          segments: const [
+                            ButtonSegment(
+                              value: SyncProviderType.webdav,
+                              label: _AdaptiveSyncProviderLabel('WebDAV'),
+                              icon: Icon(Icons.cloud_outlined),
                             ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: TextField(
-                                controller: s3Bucket,
-                                decoration: LInputDecoration(
-                                  labelText: 'Bucket',
-                                ),
-                              ),
+                            ButtonSegment(
+                              value: SyncProviderType.githubGist,
+                              label: _AdaptiveSyncProviderLabel('GitHub'),
+                              icon: Icon(Icons.code),
+                            ),
+                            ButtonSegment(
+                              value: SyncProviderType.s3,
+                              label: _AdaptiveSyncProviderLabel('S3'),
+                              icon: Icon(Icons.storage_outlined),
                             ),
                           ],
+                          selected: {provider},
+                          onSelectionChanged: (value) => setState(() {
+                            provider = value.first;
+                            _syncVersions = null;
+                            _syncVersionsError = null;
+                          }),
                         ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: s3AccessKeyId,
-                          decoration: LInputDecoration(
-                            labelText: 'Access Key ID',
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: providerSecret,
-                          obscureText: true,
-                          onChanged: (_) => setState(() {}),
-                          decoration: LInputDecoration(
-                            labelText: 'Secret Access Key',
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: s3SessionToken,
-                          obscureText: true,
-                          decoration: LInputDecoration(
-                            labelText: 'Session Token（可选）',
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        TextField(
-                          controller: s3Prefix,
-                          decoration: LInputDecoration(
-                            labelText: '对象前缀（可选）',
-                            hintText: 'netcatty/mobile',
-                          ),
-                        ),
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const LText('使用路径式访问'),
-                          subtitle: const LText(
-                            '兼容 MinIO 等自建 S3，默认开启',
-                          ),
-                          value: s3ForcePathStyle,
-                          onChanged: (value) =>
-                              setState(() => s3ForcePathStyle = value),
-                        ),
-                        SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const LText('允许不安全连接'),
-                          subtitle: const LText(
-                            '仅用于 HTTP 或自签名 HTTPS，存在安全风险',
-                          ),
-                          value: s3AllowInsecure,
-                          onChanged: (value) =>
-                              setState(() => s3AllowInsecure = value),
-                        ),
-                        SizedBox(
-                          width: double.infinity,
-                          child: OutlinedButton.icon(
-                            onPressed: _busy ? null : _testS3Connection,
-                            icon: const Icon(Icons.wifi_tethering_outlined),
-                            label: const LText('测试 S3 连接'),
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        _syncVersionsCard(),
-                      ] else ...[
-                        ListTile(
-                          contentPadding: EdgeInsets.zero,
-                          leading: CircleAvatar(
-                            child: Icon(
-                              providerSecret.text.isEmpty
-                                  ? Icons.login
-                                  : Icons.check,
+                        const SizedBox(height: 14),
+                        if (provider == SyncProviderType.webdav) ...[
+                          TextField(
+                            controller: endpoint,
+                            keyboardType: TextInputType.url,
+                            decoration: LInputDecoration(
+                              labelText: 'WebDAV 地址',
+                              hintText: 'https://dav.example.com/netcatty',
                             ),
                           ),
-                          title: LText(
-                            providerSecret.text.isEmpty
-                                ? '尚未登录 GitHub'
-                                : '已连接 GitHub',
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: username,
+                            decoration: LInputDecoration(labelText: '用户名'),
                           ),
-                          subtitle: LText(
-                            _githubUser == null
-                                ? '登录后自动查找或创建 Netcatty Gist'
-                                : '@$_githubUser · 自动同步私有 Gist',
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: providerSecret,
+                            obscureText: true,
+                            decoration:
+                                LInputDecoration(labelText: '密码 / 应用密码'),
+                          ),
+                        ] else if (provider == SyncProviderType.s3) ...[
+                          TextField(
+                            controller: endpoint,
+                            keyboardType: TextInputType.url,
+                            decoration: LInputDecoration(
+                              labelText: 'S3 Endpoint',
+                              hintText: 'https://s3.example.com',
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: s3Region,
+                                  decoration: LInputDecoration(
+                                    labelText: 'Region',
+                                    hintText: 'us-east-1',
+                                  ),
+                                ),
+                              ),
+                              const SizedBox(width: 10),
+                              Expanded(
+                                child: TextField(
+                                  controller: s3Bucket,
+                                  decoration: LInputDecoration(
+                                    labelText: 'Bucket',
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: s3AccessKeyId,
+                            decoration: LInputDecoration(
+                              labelText: 'Access Key ID',
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: providerSecret,
+                            obscureText: true,
+                            onChanged: (_) => setState(() {}),
+                            decoration: LInputDecoration(
+                              labelText: 'Secret Access Key',
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: s3SessionToken,
+                            obscureText: true,
+                            decoration: LInputDecoration(
+                              labelText: 'Session Token（可选）',
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          TextField(
+                            controller: s3Prefix,
+                            decoration: LInputDecoration(
+                              labelText: '对象前缀（可选）',
+                              hintText: 'netcatty/mobile',
+                            ),
+                          ),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const LText('使用路径式访问'),
+                            subtitle: const LText(
+                              '兼容 MinIO 等自建 S3，默认开启',
+                            ),
+                            value: s3ForcePathStyle,
+                            onChanged: (value) =>
+                                setState(() => s3ForcePathStyle = value),
+                          ),
+                          SwitchListTile(
+                            contentPadding: EdgeInsets.zero,
+                            title: const LText('允许不安全连接'),
+                            subtitle: const LText(
+                              '仅用于 HTTP 或自签名 HTTPS，存在安全风险',
+                            ),
+                            value: s3AllowInsecure,
+                            onChanged: (value) =>
+                                setState(() => s3AllowInsecure = value),
+                          ),
+                          SizedBox(
+                            width: double.infinity,
+                            child: OutlinedButton.icon(
+                              onPressed: _busy ? null : _testS3Connection,
+                              icon: const Icon(Icons.wifi_tethering_outlined),
+                              label: const LText('测试 S3 连接'),
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          _syncVersionsCard(),
+                        ] else ...[
+                          ListTile(
+                            contentPadding: EdgeInsets.zero,
+                            leading: CircleAvatar(
+                              child: Icon(
+                                providerSecret.text.isEmpty
+                                    ? Icons.login
+                                    : Icons.check,
+                              ),
+                            ),
+                            title: LText(
+                              providerSecret.text.isEmpty
+                                  ? '尚未登录 GitHub'
+                                  : '已连接 GitHub',
+                            ),
+                            subtitle: LText(
+                              _githubUser == null
+                                  ? '登录后自动查找或创建 Netcatty Gist'
+                                  : '@$_githubUser · 自动同步私有 Gist',
+                            ),
+                          ),
+                          SizedBox(
+                            width: double.infinity,
+                            child: providerSecret.text.isEmpty
+                                ? FilledButton.icon(
+                                    onPressed: _busy ? null : _connectGitHub,
+                                    icon: const Icon(Icons.login),
+                                    label: const LText('登录 GitHub'),
+                                  )
+                                : OutlinedButton.icon(
+                                    onPressed: _busy ? null : _logoutGitHub,
+                                    icon: const Icon(Icons.logout),
+                                    label: const LText('退出 GitHub'),
+                                  ),
+                          ),
+                          const SizedBox(height: 10),
+                          _syncVersionsCard(),
+                          GitHubManualConfig(
+                              resourceId: resourceId,
+                              secret: providerSecret,
+                              onSecretChanged: (_) => setState(() {})),
+                        ],
+                        const SizedBox(height: 10),
+                        TextField(
+                          controller: masterPassword,
+                          obscureText: true,
+                          decoration: LInputDecoration(
+                            labelText: 'Netcatty 同步主密码',
                           ),
                         ),
+                        const SizedBox(height: 6),
+                        SwitchListTile(
+                          key: const ValueKey('cloud-auto-sync'),
+                          contentPadding: EdgeInsets.zero,
+                          secondary: autoSyncState.syncing
+                              ? const SizedBox.square(
+                                  dimension: 24,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2.5,
+                                  ),
+                                )
+                              : const Icon(Icons.sync_outlined),
+                          title: const LText('自动同步'),
+                          subtitle: LText(_autoSyncStatus(autoSyncState)),
+                          value: autoSyncEnabled,
+                          onChanged:
+                              _busy || _savingAutoSync ? null : _setAutoSync,
+                        ),
+                        const SizedBox(height: 14),
                         SizedBox(
                           width: double.infinity,
-                          child: providerSecret.text.isEmpty
-                              ? FilledButton.icon(
-                                  onPressed: _busy ? null : _connectGitHub,
-                                  icon: const Icon(Icons.login),
-                                  label: const LText('登录 GitHub'),
-                                )
-                              : OutlinedButton.icon(
-                                  onPressed: _busy ? null : _logoutGitHub,
-                                  icon: const Icon(Icons.logout),
-                                  label: const LText('退出 GitHub'),
-                                ),
+                          child: FilledButton.icon(
+                            key: const ValueKey('cloud-sync-now'),
+                            onPressed: _busy ? null : _sync,
+                            icon: const Icon(Icons.sync_outlined),
+                            label: const LText('立即同步'),
+                          ),
                         ),
-                        const SizedBox(height: 10),
-                        _syncVersionsCard(),
-                        GitHubManualConfig(
-                            resourceId: resourceId,
-                            secret: providerSecret,
-                            onSecretChanged: (_) => setState(() {})),
+                        if (_busy)
+                          const Padding(
+                            padding: EdgeInsets.only(top: 12),
+                            child: LinearProgressIndicator(),
+                          ),
                       ],
-                      const SizedBox(height: 10),
-                      TextField(
-                        controller: masterPassword,
-                        obscureText: true,
-                        decoration: LInputDecoration(
-                          labelText: 'Netcatty 同步主密码',
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      SwitchListTile(
-                        key: const ValueKey('cloud-auto-sync'),
-                        contentPadding: EdgeInsets.zero,
-                        secondary: autoSyncState.syncing
-                            ? const SizedBox.square(
-                                dimension: 24,
-                                child: CircularProgressIndicator(
-                                  strokeWidth: 2.5,
-                                ),
-                              )
-                            : const Icon(Icons.sync_outlined),
-                        title: const LText('自动同步'),
-                        subtitle: LText(_autoSyncStatus(autoSyncState)),
-                        value: autoSyncEnabled,
-                        onChanged:
-                            _busy || _savingAutoSync ? null : _setAutoSync,
-                      ),
-                      const SizedBox(height: 14),
-                      SizedBox(
-                        width: double.infinity,
-                        child: FilledButton.icon(
-                          key: const ValueKey('cloud-sync-now'),
-                          onPressed: _busy ? null : _sync,
-                          icon: const Icon(Icons.sync_outlined),
-                          label: const LText('立即同步'),
-                        ),
-                      ),
-                      if (_busy)
-                        const Padding(
-                          padding: EdgeInsets.only(top: 12),
-                          child: LinearProgressIndicator(),
-                        ),
-                    ],
+                    ),
                   ),
                 ),
-              ),
-              _header('Catty Agent', '使用 OpenAI 兼容接口连续对话，命令执行前始终确认'),
-              ListTile(
-                leading: const Icon(Icons.dns_outlined),
-                title: const LText('管理多个 AI 服务商'),
-                subtitle: const LText('独立地址、密钥、模型与兼容参数，仅保存在本机'),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: _openAiProviders,
-              ),
+              if (features.ai)
+                _header('Catty Agent', '使用 OpenAI 兼容接口连续对话，命令执行前始终确认'),
+              if (features.ai)
+                ListTile(
+                  leading: const Icon(Icons.dns_outlined),
+                  title: const LText('管理多个 AI 服务商'),
+                  subtitle: const LText('独立地址、密钥、模型与兼容参数，仅保存在本机'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: _openAiProviders,
+                ),
               _header('数据管理', '导入导出会保留桌面端未知字段和插件数据'),
               Card(
                 child: Column(
@@ -724,8 +737,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ],
                 ),
               ),
-              _header('关于与更新', '自动检查 GitHub 上的最新正式版本'),
-              Card(child: _updateCheckTile()),
+              if (features.updateCheck) ...[
+                _header('关于与更新', '自动检查 GitHub 上的最新正式版本'),
+                Card(child: _updateCheckTile()),
+              ],
               const SizedBox(height: 20),
               Center(
                 child: FutureBuilder<PackageInfo>(
@@ -954,7 +969,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   Future<UpdateCheckResult> _checkForUpdates() async {
     final info = await _packageInfo;
-    return _updateCheckService.check(info.version);
+    return _updateCheckService!.check(info.version);
   }
 
   void _retryUpdateCheck() {

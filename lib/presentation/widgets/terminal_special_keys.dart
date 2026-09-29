@@ -32,7 +32,9 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
   final List<TerminalCustomKey> customKeys;
   final void Function(String, {bool enter}) onSend;
   final TerminalInputController inputController;
-  final VoidCallback onAi;
+
+  /// 为 null 时隐藏 AI 按钮（本 fork 默认关闭 AI，见 ForkFeatures）。
+  final VoidCallback? onAi;
   final VoidCallback? onPortForward;
   final VoidCallback? onSystemManagement;
   final bool pictureInPicture;
@@ -91,16 +93,17 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: <Widget>[
-                  IconButton(
-                    key: const ValueKey('terminal-action-ai'),
-                    visualDensity: VisualDensity.compact,
-                    tooltip: localized('Catty Agent'),
-                    onPressed: widget.onAi,
-                    icon: Icon(
-                      Icons.auto_awesome,
-                      color: Theme.of(context).colorScheme.primary,
+                  if (widget.onAi != null)
+                    IconButton(
+                      key: const ValueKey('terminal-action-ai'),
+                      visualDensity: VisualDensity.compact,
+                      tooltip: localized('Catty Agent'),
+                      onPressed: widget.onAi,
+                      icon: Icon(
+                        Icons.auto_awesome,
+                        color: Theme.of(context).colorScheme.primary,
+                      ),
                     ),
-                  ),
                   IconButton(
                     key: const ValueKey('terminal-action-port-forward'),
                     visualDensity: VisualDensity.compact,

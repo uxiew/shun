@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm2/xterm.dart';
 
+import '../../application/fork_features.dart';
 import '../../application/session_controller.dart';
 import '../../application/home_navigation.dart';
 import '../../application/settings_controller.dart';
@@ -319,7 +320,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                     customKeys: settings.terminalCustomKeys,
                     inputController: visibleSession.input,
                     onSend: ref.read(sessionControllerProvider.notifier).send,
-                    onAi: () => _openAi(visibleSession),
+                    onAi: ref.watch(forkFeaturesProvider).ai
+                        ? () => _openAi(visibleSession)
+                        : null,
                     onPortForward: visibleSession.isSsh
                         ? () => showModalBottomSheet<void>(
                               context: context,

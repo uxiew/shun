@@ -3,6 +3,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'application/auto_sync_controller.dart';
+import 'application/fork_features.dart';
 import 'application/settings_controller.dart';
 import 'application/session_controller.dart';
 import 'infrastructure/ssh/connection_platform_service.dart';
@@ -27,8 +28,9 @@ class _NetcattyAppState extends ConsumerState<NetcattyApp>
     WidgetsBinding.instance.addObserver(this);
     _autoSyncSubscription = ref.listenManual<bool>(
       settingsControllerProvider.select((settings) => settings.autoSyncEnabled),
-      (_, enabled) =>
-          ref.read(autoSyncControllerProvider.notifier).setEnabled(enabled),
+      (_, enabled) => ref
+          .read(autoSyncControllerProvider.notifier)
+          .setEnabled(enabled && ref.read(forkFeaturesProvider).cloudSync),
       fireImmediately: true,
     );
   }
@@ -80,7 +82,8 @@ class _NetcattyAppState extends ConsumerState<NetcattyApp>
       _ => ThemeMode.dark,
     };
     return MaterialApp(
-      title: 'Netcatty',
+      // Android 最近任务列表显示的名字；与原版 Netcatty 同机并存时靠它区分。名称待所有者最终确认。
+      title: 'xwshun',
       debugShowCheckedModeBanner: false,
       theme: NetcattyTheme.build(Brightness.light, settings.uiThemeId),
       darkTheme: NetcattyTheme.build(Brightness.dark, settings.uiThemeId),
