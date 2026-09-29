@@ -255,4 +255,26 @@ class VaultController extends StateNotifier<VaultState> {
         });
         await replace(vault.copyWith(hosts: hosts));
       });
+
+  /// 按保险库里此刻的那份主机决定改不改：[change] 返回 null 就不写。
+  ///
+  /// 「先看再改」必须在同一次串行写里完成。比如目录刷新只在主机地址仍是上次自动写入的值时才更新它；
+  /// 分两步做的话，用户恰好在中间改了地址，就会被刷新覆盖（R12）。
+  Future<void> updateHost(
+    String id,
+    HostProfile? Function(HostProfile current) change,
+  ) =>
+      _serialHostWrite(() async {
+        final vault = await ready();
+        final index = vault.hosts.indexWhere((value) => value.id == id);
+        if (index < 0) return;
+        final next = change(vault.hosts[index]);
+        if (next == null) return;
+        final hosts = [...vault.hosts];
+        hosts[index] = HostProfile({
+          ...next.data,
+          'updatedAt': DateTime.now().millisecondsSinceEpoch,
+        });
+        await replace(vault.copyWith(hosts: hosts));
+      });
 }
