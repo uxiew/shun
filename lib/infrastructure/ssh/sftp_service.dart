@@ -341,7 +341,26 @@ class SftpService extends FileTransferService {
   Future<SftpClient> get _sftp async {
     final ssh = session.sshClient;
     if (ssh == null) throw StateError('当前会话不支持 SFTP');
-    return _client ??= await ssh.sftp();
+    return _client ??= await _openSftp(ssh);
+  }
+
+  static const _sftpHandshakeTimeout = Duration(seconds: 10);
+
+  /// dartssh2 2.22.5 发出 SFTP 子系统请求后不看服务器的回复：服务器没开 SFTP（没装 sftp-server、
+  /// sshd 没配 Subsystem）时，它会一直等 SFTP 版本回应，界面就无限转圈。
+  /// 这里给握手加期限，到期关掉这个通道并说清原因；失败的客户端不缓存，下次重新打开。
+  Future<SftpClient> _openSftp(SSHClient ssh) async {
+    final client = await ssh.sftp();
+    try {
+      await client.handshake.timeout(_sftpHandshakeTimeout);
+      return client;
+    } on TimeoutException {
+      unawaited(client.close());
+      throw StateError(
+        '服务器没有回应 SFTP（${_sftpHandshakeTimeout.inSeconds} 秒）：'
+        '可能没有安装 sftp-server，或 sshd 没有配置 Subsystem sftp',
+      );
+    }
   }
 
   @override

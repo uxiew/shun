@@ -571,6 +571,12 @@ const englishTranslations = <String, String>{
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // SFTP 握手期限（sftp_service.dart）。
+  ('服务器没有回应 SFTP（', 'The server did not answer SFTP ('),
+  (
+    '可能没有安装 sftp-server，或 sshd 没有配置 Subsystem sftp',
+    'sftp-server may not be installed, or sshd has no Subsystem sftp configured'
+  ),
   // 路由报错（lib/domain/connection_route.dart）必须排在最前：后面的通用词（的、跳板机、
   // 当前版本、不支持…）会先把句子拆碎。片段之间有包含关系的，长的放前面（「上的代理。」在「自带的代理」前）。
   // 报错是「目标“web”」这类前缀 + 片段拼起来的，英文统一写成 `Target “web”: …`。
