@@ -135,5 +135,8 @@ API 35 的 `google_apis` 镜像是你原来就有的，用户自己的 `lizhi` �
 - **`git push` 报错 `NO_PUSH_see_plan_v3`**：这是故意设置的，防止误推到上游。这个 fork 不 push。
 - **把命令存进 zsh 变量再执行，报 `command not found: adb -s emulator-5554 shell`**：zsh 不会把变量按空格拆开。
   这种写法请用 bash（`bash -c '...'`），或者写成函数。
+- **`flutter emulators --launch` 报 `Running multiple emulators with the same AVD`**，或者没弹出窗口：
+  这个 AVD 已经在后台以无窗口方式运行了，自动化验证就是这样启动的。先执行 `adb devices` 看它的设备 ID，
+  需要窗口的话先执行 `adb -s <设备ID> emu kill` 关掉它，再重新 launch。
 - **模拟器启动后 `adb devices` 显示 `offline`**：还没启动完。等 `adb shell getprop sys.boot_completed` 输出 `1`，冷启动大约 20 秒。
 - **磁盘不够**：这台 Mac 可用空间只有 10 GB 左右。一个模拟器镜像 3–5 GB，再加 AVD 数据 1–3 GB。先看第 6 节删掉不用的。
