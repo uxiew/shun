@@ -4,14 +4,33 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../application/vault_controller.dart';
+import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
+import '../../domain/models/vault.dart';
+import '../../infrastructure/ssh/ssh_service.dart';
+import 'connection_probe_sheet.dart';
 import 'keychain_sheet.dart';
+import 'route_legs_view.dart';
+
+/// 连接路径三选一（R10）。「经跳板机」里还可以显式打开「先经代理连第一台跳板机」这个高级组合。
+enum _RouteMode { direct, proxy, jump }
 
 class HostEditor extends ConsumerStatefulWidget {
-  const HostEditor({super.key, this.host, this.onDelete});
+  const HostEditor({
+    super.key,
+    this.host,
+    this.onDelete,
+    this.verifyHostKey,
+    this.keyboardInteractive,
+  });
 
   final HostProfile? host;
   final Future<bool> Function()? onDelete;
+
+  /// 测试连接用的指纹核对和交互式登录。和正式连接用同一套，测试不能绕过指纹确认。
+  /// 不传（比如测试环境）就不显示「测试连接」。
+  final HostKeyVerifier? verifyHostKey;
+  final KeyboardInteractiveHandler? keyboardInteractive;
 
   @override
   ConsumerState<HostEditor> createState() => _HostEditorState();
@@ -39,7 +58,9 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   late ProxyType proxyType;
   late List<String> jumpHostIds;
   String? identityFileId;
-  String proxyMode = 'none';
+  String proxyMode = 'custom';
+  _RouteMode routeMode = _RouteMode.direct;
+  bool entryProxy = false;
   bool obscurePassword = true;
   bool obscureProxyPassword = true;
   bool pinned = false;
@@ -79,14 +100,38 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     authMethod = host?.authMethod ?? HostAuthMethod.auto;
     identityFileId = host?.identityFileId;
     jumpHostIds = [...?host?.hostChainIds];
-    proxyType = proxy?.type ?? ProxyType.http;
-    proxyMode = host?.proxyProfileId?.isNotEmpty == true
-        ? 'profile:${host!.proxyProfileId}'
-        : proxy == null
-            ? 'none'
-            : 'custom';
+    proxyType = proxy?.type ?? ProxyType.socks5;
+    final hasProfile = host?.proxyProfileId?.isNotEmpty == true;
+    proxyMode = hasProfile ? 'profile:${host!.proxyProfileId}' : 'custom';
+    final hasProxy = hasProfile || proxy != null;
+    routeMode = jumpHostIds.isNotEmpty
+        ? _RouteMode.jump
+        : hasProxy
+            ? _RouteMode.proxy
+            : _RouteMode.direct;
+    entryProxy = jumpHostIds.isNotEmpty && hasProxy;
     pinned = host?.pinned ?? false;
+    // 路线摘要跟着输入实时更新。
+    for (final controller in [
+      hostname,
+      port,
+      username,
+      label,
+      proxyHost,
+      proxyPort,
+      proxyUsername,
+    ]) {
+      controller.addListener(_refresh);
+    }
   }
+
+  void _refresh() {
+    if (mounted) setState(() {});
+  }
+
+  bool get _usesProxy =>
+      routeMode == _RouteMode.proxy ||
+      (routeMode == _RouteMode.jump && entryProxy);
 
   @override
   void dispose() {
@@ -129,8 +174,9 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     }
     if (proxyMode.startsWith('profile:') &&
         !profiles.any((value) => 'profile:${value.id}' == proxyMode)) {
-      proxyMode = 'none';
+      proxyMode = 'custom';
     }
+    final preview = _preview(vault);
 
     return Scaffold(
       resizeToAvoidBottomInset: true,
@@ -149,21 +195,23 @@ class _HostEditorState extends ConsumerState<HostEditor> {
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
             SegmentedButton<HostProtocol>(
-              segments: const [
-                ButtonSegment(
+              segments: [
+                const ButtonSegment(
                   value: HostProtocol.ssh,
                   label: LText('SSH'),
                   icon: Icon(Icons.lock_outline),
                 ),
-                ButtonSegment(
+                const ButtonSegment(
                   value: HostProtocol.telnet,
                   label: LText('Telnet'),
                   icon: Icon(Icons.cable),
                 ),
-                ButtonSegment(
+                const ButtonSegment(
                   value: HostProtocol.mosh,
                   label: LText('Mosh'),
                   icon: Icon(Icons.wifi_tethering),
+                  // Mosh 由独立插件提供（X08–X10），插件还没有：新建时不能选，不列出没实现的功能（UX04）。
+                  enabled: false,
                 ),
               ],
               selected: {protocol},
@@ -174,6 +222,15 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                 }
               }),
             ),
+            if (protocol == HostProtocol.mosh)
+              const Padding(
+                padding: EdgeInsets.only(top: 8),
+                child: LText(
+                  'Mosh 由独立插件提供，目前还没有这个插件：这台主机暂时连不上，可以先改用 SSH。',
+                  key: ValueKey('mosh-unavailable'),
+                  style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                ),
+              ),
             _section('基本信息'),
             TextFormField(
               controller: label,
@@ -202,7 +259,11 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                 Expanded(
                   child: TextFormField(
                     controller: port,
-                    decoration: LInputDecoration(labelText: '端口'),
+                    decoration: LInputDecoration(
+                      labelText: protocol == HostProtocol.telnet
+                          ? 'Telnet 端口'
+                          : 'SSH 端口',
+                    ),
                     keyboardType: TextInputType.number,
                     validator: _validPort,
                   ),
@@ -227,6 +288,14 @@ class _HostEditorState extends ConsumerState<HostEditor> {
               value: pinned,
               onChanged: (value) => setState(() => pinned = value),
             ),
+            if (protocol == HostProtocol.telnet) ...[
+              _section('连接路径'),
+              const LText(
+                'Telnet 只支持直连，不能经代理或跳板机；保存时会去掉这台主机上的代理和跳板设置。',
+                key: ValueKey('telnet-direct-only'),
+              ),
+              _routePreview(preview),
+            ],
             if (protocol != HostProtocol.telnet) ...[
               _section('身份认证'),
               DropdownButtonFormField<HostAuthMethod>(
@@ -305,147 +374,193 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                     style: TextStyle(color: Colors.redAccent, fontSize: 12),
                   ),
                 ),
-              _section('跳板机'),
-              if (jumpHostIds.isEmpty)
-                const ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: Icon(Icons.alt_route),
-                  title: LText('直接连接'),
-                  subtitle: LText('未设置 SSH 跳板机'),
-                )
-              else
-                ReorderableListView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  itemCount: jumpHostIds.length,
-                  onReorderItem: (oldIndex, newIndex) => setState(() {
-                    final id = jumpHostIds.removeAt(oldIndex);
-                    jumpHostIds.insert(newIndex, id);
-                  }),
-                  itemBuilder: (context, index) {
-                    final id = jumpHostIds[index];
-                    final jump = vault?.hosts.cast<HostProfile?>().firstWhere(
-                          (value) => value?.id == id,
-                          orElse: () => null,
-                        );
-                    return ListTile(
-                      key: ValueKey(id),
-                      contentPadding: EdgeInsets.zero,
-                      leading: CircleAvatar(child: LText('${index + 1}')),
-                      title: LText(jump?.label ?? '缺失的主机'),
-                      subtitle: jump == null
-                          ? LText(id)
-                          : LText(
-                              '${jump.username}@${jump.hostname}:${jump.port}'),
-                      trailing: IconButton(
-                        onPressed: () =>
-                            setState(() => jumpHostIds.removeAt(index)),
-                        icon: const Icon(Icons.remove_circle_outline),
-                      ),
-                    );
-                  },
-                ),
-              if (availableHosts.isNotEmpty)
-                DropdownButtonFormField<String>(
-                  decoration: LInputDecoration(
-                    labelText: '添加跳板机',
-                    prefixIcon: Icon(Icons.add_road),
+              _section('连接路径'),
+              SegmentedButton<_RouteMode>(
+                key: const ValueKey('route-mode'),
+                segments: const [
+                  ButtonSegment(
+                    value: _RouteMode.direct,
+                    label: LText('直连'),
+                    icon: Icon(Icons.arrow_forward),
                   ),
-                  items: [
-                    for (final value in availableHosts)
-                      DropdownMenuItem(
-                        value: value.id,
-                        child: LText(value.label),
-                      ),
-                  ],
-                  onChanged: (value) {
-                    if (value != null) setState(() => jumpHostIds.add(value));
-                  },
-                ),
-              _section('代理'),
-              DropdownButtonFormField<String>(
-                initialValue: proxyMode,
-                decoration: LInputDecoration(labelText: '代理方式'),
-                items: [
-                  const DropdownMenuItem(
-                    value: 'none',
-                    child: LText('不使用代理'),
+                  ButtonSegment(
+                    value: _RouteMode.proxy,
+                    label: LText('经代理'),
+                    icon: Icon(Icons.public),
                   ),
-                  const DropdownMenuItem(
-                    value: 'custom',
-                    child: LText('自定义 HTTP / SOCKS5 代理'),
+                  ButtonSegment(
+                    value: _RouteMode.jump,
+                    label: LText('经跳板机'),
+                    icon: Icon(Icons.alt_route),
                   ),
-                  for (final profile in profiles)
-                    DropdownMenuItem(
-                      value: 'profile:${profile.id}',
-                      child: LText('已保存 · ${profile.label}'),
-                    ),
                 ],
-                onChanged: (value) =>
-                    setState(() => proxyMode = value ?? 'none'),
+                selected: {routeMode},
+                onSelectionChanged: (value) =>
+                    setState(() => routeMode = value.first),
               ),
-              if (proxyMode == 'custom') ...[
-                const SizedBox(height: 12),
-                SegmentedButton<ProxyType>(
-                  segments: const [
-                    ButtonSegment(value: ProxyType.http, label: LText('HTTP')),
-                    ButtonSegment(
-                      value: ProxyType.socks5,
-                      label: LText('SOCKS5'),
-                    ),
-                  ],
-                  selected: {proxyType},
-                  onSelectionChanged: (value) =>
-                      setState(() => proxyType = value.first),
+              const SizedBox(height: 8),
+              if (routeMode == _RouteMode.direct)
+                LText(
+                  '手机直接连目标，不经过 App 的代理；你开着的 VPN 照常生效。',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                    Expanded(
-                      flex: 2,
-                      child: TextFormField(
-                        controller: proxyHost,
-                        decoration: LInputDecoration(labelText: '代理主机'),
-                        validator: proxyMode == 'custom' ? _required : null,
+              if (routeMode == _RouteMode.jump) ...[
+                if (jumpHostIds.isEmpty)
+                  const LText(
+                    '还没有选跳板机：从下面添加，按连接顺序排列（最多 3 台）。',
+                    style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                  )
+                else
+                  ReorderableListView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: jumpHostIds.length,
+                    onReorderItem: (oldIndex, newIndex) => setState(() {
+                      final id = jumpHostIds.removeAt(oldIndex);
+                      jumpHostIds.insert(newIndex, id);
+                    }),
+                    itemBuilder: (context, index) {
+                      final id = jumpHostIds[index];
+                      final jump = vault?.hosts.cast<HostProfile?>().firstWhere(
+                            (value) => value?.id == id,
+                            orElse: () => null,
+                          );
+                      return ListTile(
+                        key: ValueKey(id),
+                        contentPadding: EdgeInsets.zero,
+                        leading: CircleAvatar(child: LText('${index + 1}')),
+                        title: LText(jump?.label ?? '缺失的主机'),
+                        subtitle: jump == null
+                            ? LText(id)
+                            : LText(
+                                '${jump.username}@${jump.hostname}:${jump.port}'),
+                        trailing: IconButton(
+                          onPressed: () =>
+                              setState(() => jumpHostIds.removeAt(index)),
+                          icon: const Icon(Icons.remove_circle_outline),
+                        ),
+                      );
+                    },
+                  ),
+                if (availableHosts.isNotEmpty)
+                  // 每加一台就换 key 让它重置成空：否则它还记着刚选的那台，而那台已不在候选里，
+                  // Flutter 断言「当前值必须在选项里恰好出现一次」失败——上游这里选一次跳板机就红屏。
+                  KeyedSubtree(
+                    key: ValueKey('add-jump-${jumpHostIds.length}'),
+                    child: DropdownButtonFormField<String>(
+                      key: const ValueKey('add-jump-host'),
+                      decoration: LInputDecoration(
+                        labelText: '添加跳板机',
+                        prefixIcon: Icon(Icons.add_road),
                       ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: TextFormField(
-                        controller: proxyPort,
-                        decoration: LInputDecoration(labelText: '端口'),
-                        keyboardType: TextInputType.number,
-                        validator: proxyMode == 'custom' ? _validPort : null,
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: proxyUsername,
-                  decoration: LInputDecoration(labelText: '代理用户名（可选）'),
-                ),
-                const SizedBox(height: 12),
-                TextFormField(
-                  controller: proxyPassword,
-                  obscureText: obscureProxyPassword,
-                  decoration: LInputDecoration(
-                    labelText: '代理密码（可选）',
-                    suffixIcon: IconButton(
-                      onPressed: () => setState(
-                        () => obscureProxyPassword = !obscureProxyPassword,
-                      ),
-                      icon: Icon(
-                        obscureProxyPassword
-                            ? Icons.visibility
-                            : Icons.visibility_off,
-                      ),
+                      items: [
+                        for (final value in availableHosts)
+                          DropdownMenuItem(
+                            value: value.id,
+                            child: LText(value.label),
+                          ),
+                      ],
+                      onChanged: (value) {
+                        if (value != null) {
+                          setState(() => jumpHostIds.add(value));
+                        }
+                      },
                     ),
                   ),
+                SwitchListTile(
+                  key: const ValueKey('entry-proxy-switch'),
+                  contentPadding: EdgeInsets.zero,
+                  title: const LText('先经代理连第一台跳板机（高级）'),
+                  subtitle: const LText(
+                    '代理只用于手机连第一台跳板机；之后每一跳由上一跳转发，不再经过代理。',
+                  ),
+                  value: entryProxy,
+                  onChanged: (value) => setState(() => entryProxy = value),
                 ),
               ],
-              // SOX04：SOCKS5/HTTP 代理认证本身不加密。别让用户以为「SSH 是加密的」就连代理口令也受保护。
-              if (proxyMode != 'none') ...[
+              if (_usesProxy) ...[
+                const SizedBox(height: 8),
+                DropdownButtonFormField<String>(
+                  initialValue: proxyMode,
+                  decoration: LInputDecoration(labelText: '代理'),
+                  items: [
+                    const DropdownMenuItem(
+                      value: 'custom',
+                      child: LText('自定义 HTTP / SOCKS5 代理'),
+                    ),
+                    for (final profile in profiles)
+                      DropdownMenuItem(
+                        value: 'profile:${profile.id}',
+                        child: LText('已保存 · ${profile.label}'),
+                      ),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => proxyMode = value ?? 'custom'),
+                ),
+                if (proxyMode == 'custom') ...[
+                  const SizedBox(height: 12),
+                  SegmentedButton<ProxyType>(
+                    segments: const [
+                      ButtonSegment(
+                        value: ProxyType.socks5,
+                        label: LText('SOCKS5'),
+                      ),
+                      ButtonSegment(
+                          value: ProxyType.http, label: LText('HTTP')),
+                    ],
+                    selected: {proxyType},
+                    onSelectionChanged: (value) =>
+                        setState(() => proxyType = value.first),
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
+                        flex: 2,
+                        child: TextFormField(
+                          key: const ValueKey('proxy-host'),
+                          controller: proxyHost,
+                          decoration: LInputDecoration(labelText: '代理地址'),
+                          validator: _required,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: TextFormField(
+                          key: const ValueKey('proxy-port'),
+                          controller: proxyPort,
+                          decoration: LInputDecoration(labelText: '代理端口'),
+                          keyboardType: TextInputType.number,
+                          validator: _validPort,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: proxyUsername,
+                    decoration: LInputDecoration(labelText: '代理用户名（可选）'),
+                  ),
+                  const SizedBox(height: 12),
+                  TextFormField(
+                    controller: proxyPassword,
+                    obscureText: obscureProxyPassword,
+                    decoration: LInputDecoration(
+                      labelText: '代理密码（可选）',
+                      suffixIcon: IconButton(
+                        onPressed: () => setState(
+                          () => obscureProxyPassword = !obscureProxyPassword,
+                        ),
+                        icon: Icon(
+                          obscureProxyPassword
+                              ? Icons.visibility
+                              : Icons.visibility_off,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+                // SOX04：SOCKS5/HTTP 代理认证本身不加密。别让用户以为「SSH 是加密的」就连代理口令也受保护。
                 const SizedBox(height: 8),
                 LText(
                   '代理的用户名和密码是明文发给代理的：SSH 只加密之后的终端会话，保护不了这段口令。'
@@ -453,6 +568,17 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
+              _routePreview(preview),
+              if (widget.verifyHostKey != null)
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: OutlinedButton.icon(
+                    key: const ValueKey('test-connection'),
+                    onPressed: _testConnection,
+                    icon: const Icon(Icons.network_check),
+                    label: const LText('测试连接'),
+                  ),
+                ),
               _section('高级选项'),
               TextFormField(
                 controller: startupCommand,
@@ -555,17 +681,11 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     }
   }
 
-  void _save() {
-    if (!(_form.currentState?.validate() ?? false)) return;
-    if (authMethod == HostAuthMethod.key && identityFileId == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: LText('请选择用于认证的 SSH 私钥')),
-      );
-      return;
-    }
+  /// 按表单当前内容拼出一份主机配置（还没保存）。保存、路线预览、测试连接都用它，三处看到的是同一份。
+  HostProfile _draft() {
     final base = widget.host ??
         HostProfile.create(
-          id: const Uuid().v4(),
+          id: _newId,
           label: label.text.trim(),
           hostname: hostname.text.trim(),
           username: username.text.trim(),
@@ -574,7 +694,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
       ..['label'] = label.text.trim()
       ..['hostname'] = hostname.text.trim()
       ..['username'] = username.text.trim()
-      ..['port'] = int.parse(port.text)
+      ..['port'] = int.tryParse(port.text.trim()) ?? 0
       ..['protocol'] = protocol.name
       ..['authMethod'] = authMethod.name
       ..['savePassword'] = true
@@ -593,14 +713,18 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     _setOrRemove(data, 'group', group.text.trim());
     _setOrRemove(data, 'identityFileId', identityFileId);
     _setOrRemove(data, 'startupCommand', startupCommand.text.trim());
-    if (jumpHostIds.isEmpty) {
-      data.remove('hostChain');
-    } else {
+    // 路线只按当前选的方式保存：切到「直连」就真的去掉代理和跳板，不留一份看不见却还生效的旧设置。
+    final usesJumps =
+        protocol != HostProtocol.telnet && routeMode == _RouteMode.jump;
+    final usesProxy = protocol != HostProtocol.telnet && _usesProxy;
+    if (usesJumps && jumpHostIds.isNotEmpty) {
       data['hostChain'] = {
         'hostIds': [...jumpHostIds]
       };
+    } else {
+      data.remove('hostChain');
     }
-    if (proxyMode == 'none') {
+    if (!usesProxy) {
       data.remove('proxyProfileId');
       data.remove('proxyConfig');
     } else if (proxyMode.startsWith('profile:')) {
@@ -611,12 +735,144 @@ class _HostEditorState extends ConsumerState<HostEditor> {
       data['proxyConfig'] = ProxyConfig(
         type: proxyType,
         host: proxyHost.text.trim(),
-        port: int.parse(proxyPort.text),
+        port: int.tryParse(proxyPort.text.trim()) ?? 0,
         username: proxyUsername.text.trim(),
         password: proxyPassword.text,
       ).toJson();
     }
-    Navigator.pop(context, HostProfile(data));
+    return HostProfile(data);
+  }
+
+  late final String _newId = const Uuid().v4();
+
+  /// 按表单当前内容算路线，和连接时用的是同一个函数。配置矛盾时给出原因。
+  ({RoutePlan? plan, String? error, List<String> warnings}) _preview(
+    VaultData? vault,
+  ) {
+    if (vault == null) return (plan: null, error: null, warnings: const []);
+    if (routeMode == _RouteMode.jump &&
+        protocol != HostProtocol.telnet &&
+        jumpHostIds.isEmpty) {
+      return (plan: null, error: '选了「经跳板机」，但还没有添加跳板机。', warnings: const []);
+    }
+    final draft = _draft();
+    try {
+      final plan = resolveRoutePlan(
+        draft,
+        hosts: vault.hosts,
+        proxyProfiles: vault.proxyProfiles,
+        keys: vault.keys,
+      );
+      final warnings = <String>[];
+      final entry = plan.entry;
+      if (entry is ProxyEntry) {
+        final first = plan.hops.first.endpoint;
+        if (entry.endpoint.sameAs(first)) {
+          warnings.add('代理的地址和端口与要连的 SSH 服务完全一样，可能把两者填混了。');
+        } else if (entry.endpoint.port == 22) {
+          warnings.add('代理端口填的是 22（SSH 的默认端口），确认没有把 SSH 端口填到代理这里。');
+        }
+      }
+      return (plan: plan, error: null, warnings: warnings);
+    } on RouteConfigException catch (error) {
+      return (plan: null, error: error.message, warnings: const []);
+    }
+  }
+
+  Widget _routePreview(
+    ({RoutePlan? plan, String? error, List<String> warnings}) preview,
+  ) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(top: 12, bottom: 4),
+      child: Container(
+        key: const ValueKey('route-preview'),
+        width: double.infinity,
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: preview.error == null
+              ? theme.colorScheme.surfaceContainerHighest
+              : theme.colorScheme.errorContainer,
+          borderRadius: BorderRadius.circular(10),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LText('连接时会这样走', style: theme.textTheme.labelLarge),
+            const SizedBox(height: 6),
+            if (preview.error != null)
+              LText(
+                preview.error!,
+                key: const ValueKey('route-preview-error'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onErrorContainer,
+                ),
+              )
+            else if (preview.plan != null)
+              RouteLegsView(plan: preview.plan!, dense: true)
+            else
+              const LText('填好地址后显示。'),
+            for (final warning in preview.warnings)
+              Padding(
+                padding: const EdgeInsets.only(top: 6),
+                child: LText(
+                  warning,
+                  key: const ValueKey('route-preview-warning'),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.tertiary,
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  /// 保存前的共同检查：表单必填项、私钥认证要选私钥、路线要算得出来。
+  /// 返回能用的草稿和路线；不能用时已经提示过原因，返回 null。
+  ({HostProfile host, RoutePlan? plan})? _checkedDraft() {
+    if (!(_form.currentState?.validate() ?? false)) return null;
+    if (protocol != HostProtocol.telnet &&
+        authMethod == HostAuthMethod.key &&
+        identityFileId == null) {
+      _message('请选择用于认证的 SSH 私钥');
+      return null;
+    }
+    final preview = _preview(ref.read(vaultControllerProvider).data);
+    if (preview.error != null) {
+      // 不支持或矛盾的路线在保存前就拒绝（docs/02），而不是存下来、连接时才报错。
+      _message(preview.error!);
+      return null;
+    }
+    return (host: _draft(), plan: preview.plan);
+  }
+
+  void _save() {
+    final checked = _checkedDraft();
+    if (checked == null) return;
+    Navigator.pop(context, checked.host);
+  }
+
+  Future<void> _testConnection() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final checked = _checkedDraft();
+    if (checked == null || checked.plan == null) return;
+    await showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      builder: (_) => ConnectionProbeSheet(
+        host: checked.host,
+        plan: checked.plan!,
+        verifyHostKey: widget.verifyHostKey!,
+        keyboardInteractive: widget.keyboardInteractive,
+      ),
+    );
+  }
+
+  void _message(String text) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: LText(text)));
   }
 
   void _setOrRemove(Map<String, dynamic> data, String key, String? value) {

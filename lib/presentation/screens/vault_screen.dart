@@ -481,6 +481,9 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
         onDelete: resolvedHost == null
             ? null
             : () => _confirmDeleteHost(resolvedHost!),
+        // 测试连接和正式连接用同一套指纹核对与交互式登录。
+        verifyHostKey: _verifyHostKey,
+        keyboardInteractive: _promptKeyboardInteractive,
       ),
     );
     if (result != null) {

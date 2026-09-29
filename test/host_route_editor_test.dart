@@ -1,0 +1,247 @@
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:netcatty_mobile/domain/models/host.dart';
+import 'package:netcatty_mobile/domain/models/vault.dart';
+import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
+import 'package:netcatty_mobile/presentation/widgets/host_editor.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+// R10 / UX01：连接路径三选一 + 显式高级组合；实时显示按当前填写算出的路线；
+// SSH 端口和代理端口分开写、分开显示；路线有矛盾时不让保存。
+void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  const secureStorage =
+      MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+
+  HostProfile saved(String id, {Map<String, Object?> extra = const {}}) =>
+      HostProfile({
+        'id': id,
+        'label': id,
+        'hostname': '$id.example.com',
+        'port': 22,
+        'username': 'ops',
+        'protocol': 'ssh',
+        ...extra,
+      });
+
+  HostProfile? result;
+
+  Future<void> open(WidgetTester tester, {HostProfile? host}) async {
+    tester.view.physicalSize = const Size(900, 4000);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(secureStorage, (call) async => null);
+    SharedPreferences.setMockInitialValues({});
+    final repository = await VaultRepository.open();
+    await repository.saveVault(VaultData.fromJson({
+      'hosts': [
+        saved('edge').toJson(),
+        saved('proxied-jump', extra: {
+          'proxyConfig': {'type': 'socks5', 'host': '10.0.0.9', 'port': 1080},
+        }).toJson(),
+        if (host != null) host.toJson(),
+      ],
+      'keys': [],
+      'snippets': [],
+      'customGroups': [],
+    }));
+    result = null;
+    await tester.pumpWidget(ProviderScope(
+      overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
+      child: MaterialApp(
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: TextButton(
+              onPressed: () async {
+                result = await Navigator.push<HostProfile>(
+                  context,
+                  MaterialPageRoute(builder: (_) => HostEditor(host: host)),
+                );
+              },
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    ));
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> fill(WidgetTester tester, String label, String value) async {
+    await tester.enterText(find.widgetWithText(TextFormField, label), value);
+    await tester.pump();
+  }
+
+  Future<void> fillTarget(WidgetTester tester) async {
+    await fill(tester, '名称', 'web');
+    await fill(tester, '主机名 / IP', 'web.example.com');
+    await fill(tester, '用户名', 'deploy');
+    await fill(tester, 'SSH 端口', '2222');
+  }
+
+  Future<void> save(WidgetTester tester) async {
+    await tester.tap(find.text('保存'));
+    await tester.pumpAndSettle();
+  }
+
+  String preview(WidgetTester tester) => tester
+      .widgetList<Text>(find.descendant(
+        of: find.byKey(const ValueKey('route-preview')),
+        matching: find.byType(Text),
+      ))
+      .map((text) => text.data ?? '')
+      .join(' | ');
+
+  testWidgets('默认直连：摘要是 手机 → 目标；保存后没有代理和跳板', (tester) async {
+    await open(tester);
+    await fillTarget(tester);
+    expect(preview(tester), contains('1. 手机'));
+    expect(preview(tester), contains('2. 目标“web”'));
+    expect(preview(tester), contains('SSH deploy@web.example.com:2222'));
+    await save(tester);
+    expect(result, isNotNull);
+    expect(result!.data.containsKey('proxyConfig'), isFalse);
+    expect(result!.data.containsKey('hostChain'), isFalse);
+  });
+
+  testWidgets('经代理：SSH 端口和代理端口分开填、分开显示；保存各归各', (tester) async {
+    await open(tester);
+    await fillTarget(tester);
+    await tester.tap(find.text('经代理'));
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextFormField, 'SSH 端口'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, '代理端口'), findsOneWidget);
+    await fill(tester, '代理地址', '127.0.0.1');
+    await fill(tester, '代理端口', '1080');
+    expect(preview(tester), contains('2. SOCKS5 代理'));
+    expect(preview(tester), contains('127.0.0.1:1080（代理之后怎么走由代理决定，App 看不到）'));
+    expect(preview(tester), contains('SSH deploy@web.example.com:2222'));
+    await save(tester);
+    expect(result!.port, 2222);
+    expect(result!.proxyConfig!.port, 1080);
+    expect(result!.proxyConfig!.type, ProxyType.socks5);
+    expect(result!.data.containsKey('hostChain'), isFalse);
+  });
+
+  testWidgets('代理端口填成 22、或与目标完全相同：提示可能填混了（不拦保存）', (tester) async {
+    await open(tester);
+    await fillTarget(tester);
+    await tester.tap(find.text('经代理'));
+    await tester.pumpAndSettle();
+    await fill(tester, '代理地址', '127.0.0.1');
+    await fill(tester, '代理端口', '22');
+    expect(find.byKey(const ValueKey('route-preview-warning')), findsOneWidget);
+    expect(preview(tester), contains('代理端口填的是 22'));
+    await fill(tester, '代理地址', 'web.example.com');
+    await fill(tester, '代理端口', '2222');
+    expect(preview(tester), contains('可能把两者填混了'));
+  });
+
+  testWidgets('经跳板机但没选跳板：摘要报原因，保存被拒绝', (tester) async {
+    await open(tester);
+    await fillTarget(tester);
+    await tester.tap(find.text('经跳板机'));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('route-preview-error')), findsOneWidget);
+    await save(tester);
+    expect(result, isNull, reason: '不支持或矛盾的路线在保存前拒绝');
+    expect(find.text('选了「经跳板机」，但还没有添加跳板机。'), findsWidgets);
+  });
+
+  testWidgets('跳板 + 显式打开「先经代理」：摘要 手机 → 代理 → 跳板 → 目标；两样都保存', (tester) async {
+    await open(tester);
+    await fillTarget(tester);
+    await tester.tap(find.text('经跳板机'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('add-jump-host')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('edge').last);
+    await tester.pumpAndSettle();
+    expect(find.widgetWithText(TextFormField, '代理地址'), findsNothing,
+        reason: '没打开高级开关时不出现代理设置');
+    await tester.tap(find.byKey(const ValueKey('entry-proxy-switch')));
+    await tester.pumpAndSettle();
+    await fill(tester, '代理地址', '127.0.0.1');
+    await fill(tester, '代理端口', '1080');
+    final text = preview(tester);
+    expect(text, contains('1. 手机'));
+    expect(text, contains('2. SOCKS5 代理'));
+    expect(text, contains('3. 跳板机“edge”'));
+    expect(text, contains('4. 目标“web”'));
+    await save(tester);
+    expect(result!.hostChainIds, ['edge']);
+    expect(result!.proxyConfig!.host, '127.0.0.1');
+  });
+
+  testWidgets('跳板机自己带了代理：摘要说明不会隐式套用，保存被拒绝', (tester) async {
+    await open(tester);
+    await fillTarget(tester);
+    await tester.tap(find.text('经跳板机'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('add-jump-host')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('proxied-jump').last);
+    await tester.pumpAndSettle();
+    expect(preview(tester), contains('自己配置了代理，经它连接时不会隐式套用'));
+    await save(tester);
+    expect(result, isNull);
+  });
+
+  testWidgets('从「经代理」切回「直连」：保存时真的去掉代理，不留看不见的旧设置', (tester) async {
+    await open(
+      tester,
+      host: saved('existing', extra: {
+        'proxyConfig': {'type': 'socks5', 'host': '127.0.0.1', 'port': 1080},
+      }),
+    );
+    expect(preview(tester), contains('SOCKS5 代理'), reason: '按已有数据打开在「经代理」');
+    await tester.tap(find.text('直连'));
+    await tester.pumpAndSettle();
+    await save(tester);
+    expect(result!.data.containsKey('proxyConfig'), isFalse);
+    expect(result!.data.containsKey('proxyProfileId'), isFalse);
+  });
+
+  testWidgets('已有「代理 + 跳板」的主机：打开时就在跳板模式且高级开关是开的', (tester) async {
+    await open(
+      tester,
+      host: saved('combo', extra: {
+        'hostChain': {
+          'hostIds': ['edge'],
+        },
+        'proxyConfig': {'type': 'socks5', 'host': '127.0.0.1', 'port': 1080},
+      }),
+    );
+    final toggle = tester.widget<SwitchListTile>(
+        find.byKey(const ValueKey('entry-proxy-switch')));
+    expect(toggle.value, isTrue);
+    expect(preview(tester), contains('3. 跳板机“edge”'));
+  });
+
+  testWidgets('Mosh 新建时不能选（插件还没有）；Telnet 注明只能直连，保存去掉代理', (tester) async {
+    await open(
+      tester,
+      host: saved('old-telnet', extra: {
+        'protocol': 'telnet',
+        'port': 23,
+        'proxyConfig': {'type': 'socks5', 'host': '127.0.0.1', 'port': 1080},
+      }),
+    );
+    final mosh = tester
+        .widget<SegmentedButton<HostProtocol>>(
+            find.byType(SegmentedButton<HostProtocol>))
+        .segments
+        .firstWhere((segment) => segment.value == HostProtocol.mosh);
+    expect(mosh.enabled, isFalse);
+    expect(find.byKey(const ValueKey('telnet-direct-only')), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Telnet 端口'), findsOneWidget);
+    await save(tester);
+    expect(result!.data.containsKey('proxyConfig'), isFalse);
+  });
+}
