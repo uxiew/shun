@@ -134,7 +134,9 @@
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R10.md"
+      ]
     },
     {
       "id": "SEC01",
@@ -525,9 +527,11 @@
       "action": "首次新建主机/代理/身份、修改引用、密码失败、缺少配置。",
       "expected": "SSH 目标与代理端口/凭据清晰；关键错误可纠正；没有空白失败页。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R10.md"
+      ]
     },
     {
       "id": "UX02",
@@ -554,7 +558,9 @@
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R10.md"
+      ]
     },
     {
       "id": "REL01",
@@ -700,7 +706,9 @@
       "expected": "Direct也遵守系统VPN；不使用protect或绑定底层非VPN网络。",
       "level": "硬门禁",
       "result": "NOT_RUN",
-      "evidence": [],
+      "evidence": [
+        "evidence/R10.md"
+      ],
       "inherited_from": null
     },
     {
@@ -710,7 +718,8 @@
       "level": "硬门禁",
       "result": "PASS",
       "evidence": [
-        "evidence/R06.md"
+        "evidence/R06.md",
+        "evidence/R10.md"
       ],
       "inherited_from": null
     },
@@ -755,7 +764,8 @@
       "level": "硬门禁",
       "result": "PASS",
       "evidence": [
-        "evidence/R07.md"
+        "evidence/R07.md",
+        "evidence/R10.md"
       ],
       "inherited_from": null
     },

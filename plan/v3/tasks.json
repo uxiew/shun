@@ -514,7 +514,7 @@
       "id": "R10",
       "phase": "P1",
       "title": "连接路径编辑器与最小SSH闭环",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R09"
       ],
@@ -544,8 +544,10 @@
       ],
       "stop_condition": "没有真实外部代理证据不宣称与所有VPN兼容。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R10.md"
+      ],
+      "commit": "4eec9ab"
     },
     {
       "id": "R11",
