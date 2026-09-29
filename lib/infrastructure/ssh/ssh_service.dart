@@ -51,9 +51,15 @@ class RouteHopException implements IOException {
 ///
 /// 只有 [fresh] 会执行主机的 startupCommand。恢复时重跑它等于替用户再执行一遍命令——
 /// 对托管终端（startupCommand 就是那条管理命令）尤其危险（A04 / REG02）。
-enum ConnectionPurpose { fresh, restore }
+enum ConnectionPurpose { fresh, restore, probe }
 
-enum ConnectionStep { dial, proxy, handshake, forward, shell }
+/// 测试连接的结果。[tty] 是远端分配的终端设备名（如 /dev/pts/3），Telnet 没有这一项。
+class ProbeOutcome {
+  const ProbeOutcome({required this.tty});
+  final String? tty;
+}
+
+enum ConnectionStep { dial, proxy, handshake, forward, shell, pty }
 
 /// 连接进行到了哪一步，给等待界面显示用。
 ///
@@ -88,6 +94,7 @@ class ConnectionStage {
       ConnectionStep.handshake => '$prefix“$label”：SSH 握手、核对指纹、登录',
       ConnectionStep.forward => '$prefix“$label”：转发到下一跳（$detail）',
       ConnectionStep.shell => '正在打开终端',
+      ConnectionStep.pty => '正在检查远端终端（PTY）',
     };
   }
 
@@ -334,6 +341,86 @@ class SshService {
     }
   }
 
+  /// 测试连接：按和正式连接完全相同的路线、同样的指纹核对逐跳建到目标并登录，
+  /// 然后只做一件只读的事——带 PTY 执行 `tty`，拿到远端分配的终端设备名作为「真的有 PTY」的证据，随即全部关掉。
+  ///
+  /// 不开交互式 shell：那会触发用户 .bashrc 里的自动 tmux 之类（docs/04：测试不得创建 tmux）；
+  /// 也从不执行主机配置的启动命令。Telnet 只测到 TCP 连上。
+  /// 阶段按 [attempt] 上报；失败时抛出和正式连接相同的错误（RouteHopException 等），取消抛 ConnectionCancelledException。
+  Future<ProbeOutcome> probe({
+    required HostProfile host,
+    List<HostProfile> hosts = const [],
+    List<SshKeyProfile> keys = const [],
+    List<ProxyProfile> proxyProfiles = const [],
+    RoutePlan? routePlan,
+    required HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    required ConnectionAttempt attempt,
+  }) async {
+    try {
+      attempt.throwIfCancelled();
+      if (host.protocol == HostProtocol.mosh) {
+        throw UnsupportedError('Mosh 需要平台原生 UDP 运行时，当前版本尚未启用。');
+      }
+      final plan = routePlan ??
+          resolveRoutePlan(
+            host,
+            hosts: hosts,
+            proxyProfiles: proxyProfiles,
+            keys: keys,
+          );
+      if (plan.protocol == HostProtocol.telnet) {
+        final endpoint = plan.target.endpoint;
+        attempt.report(ConnectionStage(
+          ConnectionStep.dial,
+          label: plan.target.host.label,
+          detail: endpoint.authority,
+        ));
+        final socket = await attempt.waitFor<Socket>(
+          _dialWithin(endpoint, const Duration(seconds: 15)),
+          onCancelled: (value) => value.destroy(),
+        );
+        attempt.telnetSocket = socket;
+        return const ProbeOutcome(tty: null);
+      }
+      final clients = await _establishSsh(
+        plan,
+        verifyHostKey,
+        keyboardInteractive,
+        attempt,
+      );
+      attempt.report(const ConnectionStage(ConnectionStep.pty));
+      final tty = await _atHop(
+        plan,
+        plan.hops.length - 1,
+        '检查终端（PTY）失败',
+        () => attempt.waitFor(_remoteTty(clients.last)),
+      );
+      return ProbeOutcome(tty: tty);
+    } finally {
+      // 测试连接不交出任何资源：成功、失败、取消都在这里全部关掉。
+      attempt.releasePartial();
+    }
+  }
+
+  /// 带 PTY 执行 `tty`，返回远端终端设备名（如 /dev/pts/3）。没拿到 PTY 时 dartssh2 会抛错。
+  Future<String> _remoteTty(SSHClient client) async {
+    final session = await client.execute(
+      'tty',
+      pty: const SSHPtyConfig(type: 'xterm-256color', width: 80, height: 24),
+    );
+    try {
+      final output = await session.stdout
+          .cast<List<int>>()
+          .transform(const Utf8Decoder(allowMalformed: true))
+          .join()
+          .timeout(const Duration(seconds: 10));
+      return output.trim();
+    } finally {
+      session.close();
+    }
+  }
+
   Future<ActiveTerminalSession> _connectSsh(
     String sessionId,
     HostProfile host,
@@ -342,6 +429,33 @@ class SshService {
     KeyboardInteractiveHandler? keyboardInteractive,
     Terminal? terminal,
     ConnectionPurpose purpose,
+    ConnectionAttempt pending,
+  ) async {
+    final clients = await _establishSsh(
+      plan,
+      verifyHostKey,
+      keyboardInteractive,
+      pending,
+    );
+    return _openShell(
+      sessionId,
+      host,
+      plan,
+      clients,
+      verifyHostKey,
+      keyboardInteractive,
+      terminal,
+      purpose,
+      pending,
+    );
+  }
+
+  /// 按路线逐跳建到目标，每一跳都验完指纹、登录成功。返回各跳 client，最后一个是目标。
+  /// 终端连接和测试连接共用这一段，所以两者走的路线、验指纹的方式完全一样。
+  Future<List<SSHClient>> _establishSsh(
+    RoutePlan plan,
+    HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
     ConnectionAttempt pending,
   ) async {
     final hops = plan.hops;
@@ -419,7 +533,21 @@ class SshService {
         pending.transport = transport;
       }
     }
+    return clients;
+  }
 
+  Future<ActiveTerminalSession> _openShell(
+    String sessionId,
+    HostProfile host,
+    RoutePlan plan,
+    List<SSHClient> clients,
+    HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    Terminal? terminal,
+    ConnectionPurpose purpose,
+    ConnectionAttempt pending,
+  ) async {
+    final hops = plan.hops;
     final target = plan.target.host;
     final client = clients.last;
     pending.report(const ConnectionStage(ConnectionStep.shell));

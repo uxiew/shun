@@ -46,6 +46,22 @@ const englishTranslations = <String, String>{
   '在两台服务器之间怎么传？': 'How should the files move between the two servers?',
   '服务器直传': 'Server direct',
   '手机中转': 'Phone relay',
+  'SSH 端口': 'SSH port',
+  'Telnet 端口': 'Telnet port',
+  '代理地址': 'Proxy address',
+  '代理端口': 'Proxy port',
+  '直连': 'Direct',
+  '经代理': 'Via proxy',
+  '经跳板机': 'Via jump hosts',
+  '连接路径': 'Connection route',
+  '测试连接': 'Test connection',
+  '已连通。': 'Connected.',
+  '正在准备…': 'Preparing…',
+  '连接时会这样走': 'The connection will go like this',
+  '这次实际走的路线': 'Route actually used',
+  '填好地址后显示。': 'Shown once the address is filled in.',
+  '先经代理连第一台跳板机（高级）': 'Reach the first jump host through a proxy (advanced)',
+  '已停止，已建好的连接都已关掉。': 'Stopped; every connection it had opened has been closed.',
   '服务器直传不可用。直传需要服务器之间可达，并已配置密钥认证和可信主机指纹。手机中转会使用手机流量。':
       'Server-side transfer is unavailable. Direct transfers require reachable servers, configured key authentication and trusted host keys. Phone relay uses your phone’s data connection.',
   '正在压缩…': 'Compressing…',
@@ -574,6 +590,86 @@ const englishTranslations = <String, String>{
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // R10：连接路径编辑器、测试连接、失败诊断。整句排最前。
+  (
+    '（代理之后怎么走由代理决定，App 看不到）',
+    ' (what happens after the proxy is up to the proxy; the app cannot see it)'
+  ),
+  (
+    'Mosh 由独立插件提供，目前还没有这个插件：这台主机暂时连不上，可以先改用 SSH。',
+    'Mosh comes from a separate plugin that is not available yet: this host cannot connect for now; switch to SSH instead.'
+  ),
+  (
+    'Telnet 只支持直连，不能经代理或跳板机；保存时会去掉这台主机上的代理和跳板设置。',
+    'Telnet only supports direct connections, not proxies or jump hosts; saving removes any proxy and jump host settings from this host.'
+  ),
+  (
+    '代理只用于手机连第一台跳板机；之后每一跳由上一跳转发，不再经过代理。',
+    'The proxy is only used for the phone to reach the first jump host; every later hop is forwarded by the previous one, not through the proxy.'
+  ),
+  (
+    '代理的地址和端口与要连的 SSH 服务完全一样，可能把两者填混了。',
+    'The proxy address and port are identical to the SSH service being reached; the two may have been mixed up.'
+  ),
+  (
+    '代理端口填的是 22（SSH 的默认端口），确认没有把 SSH 端口填到代理这里。',
+    'The proxy port is 22 (the default SSH port); make sure the SSH port was not entered here by mistake.'
+  ),
+  (
+    '手机连不到这个地址：确认地址和端口没填错（SSH 端口和代理端口是两个不同的端口），',
+    'The phone cannot reach this address: check the address and port (the SSH port and the proxy port are two different ports), '
+  ),
+  (
+    '以及当前网络——包括你开着的 VPN——能到达它。',
+    'and that the current network, including any VPN you have on, can reach it.'
+  ),
+  (
+    '到主机编辑器重新选择私钥，或在私钥管理里补上正确的口令。',
+    'Choose the private key again in the host editor, or enter the correct passphrase in key management.'
+  ),
+  (
+    '对方在登录完成前断开了：确认这个端口上是 SSH 服务——常见原因是把代理端口或别的服务端口填成了 SSH 端口。',
+    'The other side disconnected before login finished: make sure this port runs SSH. A common cause is entering a proxy port or another service port as the SSH port.'
+  ),
+  (
+    '手机直接连目标，不经过 App 的代理；你开着的 VPN 照常生效。',
+    'The phone connects to the target directly without an app proxy; any VPN you have on still applies.'
+  ),
+  (
+    '按当前填写的配置走一遍：会核对指纹、登录，然后只检查远端终端，不打开 shell，不执行启动命令。',
+    'Runs through the current settings: verifies the host key and logs in, then only checks the remote terminal. It opens no shell and runs no startup command.'
+  ),
+  (
+    '服务器拒绝了登录：确认用户名；用密码的检查密码，用私钥的确认服务器上 authorized_keys 里有这把公钥。',
+    'The server rejected the login: check the username; for passwords check the password, for keys make sure the public key is in authorized_keys on the server.'
+  ),
+  (
+    '服务器指纹没通过核对，已在发送任何登录信息前断开。先向管理员确认，不要为了连上而接受不认识的指纹。',
+    'The host key did not verify, so the connection closed before any login data was sent. Check with the administrator first; do not accept an unknown key just to get connected.'
+  ),
+  (
+    '检查代理的地址、端口、用户名和密码。代理之后怎么走由代理决定，App 只看得到代理返回的结果。',
+    'Check the proxy address, port, username and password. What happens after the proxy is up to the proxy; the app only sees what the proxy reports.'
+  ),
+  (
+    '路线配置有问题：到主机编辑器的「连接路径」里改，保存前会检查。',
+    'The route settings have a problem: fix them under "Connection route" in the host editor; they are checked before saving.'
+  ),
+  (
+    '跳板机拒绝转发：确认跳板机允许 TCP 转发（sshd 的 AllowTcpForwarding），且下一跳地址从跳板机那边能到达。',
+    'The jump host refused to forward: make sure it allows TCP forwarding (sshd AllowTcpForwarding) and can reach the next hop.'
+  ),
+  (
+    '还没有选跳板机：从下面添加，按连接顺序排列（最多 3 台）。',
+    'No jump host selected yet: add them below in connection order (at most 3).'
+  ),
+  (
+    '选了「经跳板机」，但还没有添加跳板机。',
+    '"Via jump hosts" is selected, but no jump host has been added.'
+  ),
+  ('登录成功，远端分配了终端：', 'Logged in; the remote side allocated a terminal: '),
+  ('检查终端（PTY）失败', ' checking the terminal (PTY) failed'),
+  ('正在检查远端终端（PTY）', 'Checking the remote terminal (PTY)'),
   // 凭据解不开（credential_availability.dart、vault_screen.dart）。整句排最前，短词在表尾。
   (
     '无法解密（设备密钥可能已失效，或数据被改动过）。请在编辑器里重新填写后再连接。',
@@ -795,10 +891,7 @@ const englishReplacements = <(String, String)>[
     '私钥无法解析：格式不对，或者口令不对',
     'cannot read the private key: wrong format or wrong passphrase'
   ),
-  (
-    '私钥无法解析：不是支持的私钥格式',
-    'cannot read the private key: unsupported key format'
-  ),
+  ('私钥无法解析：不是支持的私钥格式', 'cannot read the private key: unsupported key format'),
   ('私钥文件里没有可用的私钥', 'the key file contains no usable private key'),
   (
     '私钥内容已损坏：解出来的私钥和它的公钥对不上，可能被改动过',
@@ -1584,6 +1677,9 @@ const englishReplacements = <(String, String)>[
   ('小时', ' hours'),
   ('天', ' days'),
   ('核', ' cores'),
+  // 路线摘要里的代理种类（route_description.dart），在所有整句之后。
+  ('SOCKS5 代理', 'SOCKS5 proxy'),
+  ('HTTP 代理', 'HTTP proxy'),
   // 凭据种类（credential_availability.dart），放在所有整句之后，免得把「…和代理口令）」这类整句先拆碎。
   ('登录密码', 'login password'),
   ('代理口令', 'proxy password'),

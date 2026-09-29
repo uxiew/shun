@@ -202,6 +202,25 @@ void main() {
     expect(result.exitCode, 0, reason: '${result.stderr}');
   }
 
+  /// 某台 sshd 容器到目前为止的日志行。按"前后新增的行"看，不依赖宿主机和容器的时钟对齐。
+  Future<List<String>> sshdLog(String service) async {
+    final result = await Process.run('docker', [
+      'compose',
+      '-f',
+      'tool/fixture-environment/compose.yaml',
+      'logs',
+      '--no-color',
+      service,
+    ]);
+    return '${result.stdout}'.split('\n');
+  }
+
+  Future<List<String>> newLines(String service, List<String> before) async {
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    final after = await sshdLog(service);
+    return after.sublist(before.length - 1);
+  }
+
   group('NET01 经 SOCKS5 建立真实 SSH', () {
     test('dante 无认证 → 仅代理可解析的目标', () async {
       final session = await connect(targetViaProxy({
@@ -428,25 +447,6 @@ void main() {
           },
           ...extra,
         });
-
-    /// 某台 sshd 容器到目前为止的日志行。按"前后新增的行"看，不依赖宿主机和容器的时钟对齐。
-    Future<List<String>> sshdLog(String service) async {
-      final result = await Process.run('docker', [
-        'compose',
-        '-f',
-        'tool/fixture-environment/compose.yaml',
-        'logs',
-        '--no-color',
-        service,
-      ]);
-      return '${result.stdout}'.split('\n');
-    }
-
-    Future<List<String>> newLines(String service, List<String> before) async {
-      await Future<void>.delayed(const Duration(milliseconds: 500));
-      final after = await sshdLog(service);
-      return after.sublist(before.length - 1);
-    }
 
     Future<RouteHopException> hopFailure(
       HostProfile target,
@@ -960,8 +960,7 @@ void main() {
           controller.state.pendingConnections.single.id);
       await first;
       expect(watch.elapsed, lessThan(const Duration(milliseconds: 500)));
-      await eventually(
-          () async => await sshdConnections('target') == baseline,
+      await eventually(() async => await sshdConnections('target') == baseline,
           '取消后目标上那条连接被关掉');
 
       await controller.connect(host, verify);
@@ -1059,9 +1058,8 @@ void main() {
 
       // 连接回写（最近连接时间、系统识别）落盘后，A 的编辑还在。
       await Future<void>.delayed(const Duration(seconds: 2));
-      final savedA = (await vault.ready())
-          .hosts
-          .firstWhere((h) => h.id == hostA.id);
+      final savedA =
+          (await vault.ready()).hosts.firstWhere((h) => h.id == hostA.id);
       expect(savedA.username, 'nobody');
       expect((savedA.data['proxyConfig'] as Map)['username'], 'account-b');
 
@@ -1097,7 +1095,8 @@ void main() {
         remoteHost: f.targetName,
         remotePort: f.targetPort,
       );
-      final port = container.read(portForwardControllerProvider).single.localPort;
+      final port =
+          container.read(portForwardControllerProvider).single.localPort;
       Future<String> banner() async {
         final socket = await Socket.connect('127.0.0.1', port);
         try {
@@ -1138,8 +1137,7 @@ void main() {
       await controller.connect(chained, verifyByLogicalName);
       await controller.connect(chained, verifyByLogicalName);
       final [a, b] = controller.state.sessions;
-      expect(await sshdConnections('ssh-edge'), 2,
-          reason: '每条终端连接自己连一次跳板，不共用');
+      expect(await sshdConnections('ssh-edge'), 2, reason: '每条终端连接自己连一次跳板，不共用');
       expect(await sshdConnections('target'), 2);
 
       await controller.close(0);
@@ -1149,8 +1147,8 @@ void main() {
       expect(await runInSession(b, 'hostname'), 'target');
       expect(a.connected, isFalse);
       await controller.close(0);
-      await eventually(() async => await sshdConnections('ssh-edge') == 0,
-          '全部关掉后跳板上不留连接');
+      await eventually(
+          () async => await sshdConnections('ssh-edge') == 0, '全部关掉后跳板上不留连接');
       expect(await sshdConnections('target'), 0);
     }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
 
@@ -1421,7 +1419,8 @@ void main() {
       final lines = const LineSplitter().convert(encrypted.trim());
       final blob = base64.decode(lines.sublist(1, lines.length - 1).join());
       blob[blob.length - 72] ^= 0xff; // 私钥种子里的一个字节
-      final tampered = [lines.first, base64.encode(blob), lines.last].join('\n');
+      final tampered =
+          [lines.first, base64.encode(blob), lines.last].join('\n');
 
       Future<Object?> login(String pem, String passphrase) async {
         final host = edgeHost({
@@ -1430,8 +1429,12 @@ void main() {
           'password': null,
           'identityFileId': 'k',
         });
-        final key = SshKeyProfile(
-            {'id': 'k', 'label': 'k', 'privateKey': pem, 'passphrase': passphrase});
+        final key = SshKeyProfile({
+          'id': 'k',
+          'label': 'k',
+          'privateKey': pem,
+          'passphrase': passphrase
+        });
         try {
           final session = await SshService(dialer: dialer.call).connect(
             sessionId: 'sec06',
@@ -1503,9 +1506,126 @@ void main() {
       expect(prompts, ['localhost']);
 
       await connectAs({'hostname': '127.0.0.1'});
-      expect(prompts, ['localhost', '127.0.0.1'],
-          reason: '同一台机器的另一个名字不隐式沿用信任');
+      expect(prompts, ['localhost', '127.0.0.1'], reason: '同一台机器的另一个名字不隐式沿用信任');
       expect(knownHosts.map((e) => e['hostname']), ['localhost', '127.0.0.1']);
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+  });
+
+  group('R10 测试连接（真实 OpenSSH）', () {
+    Future<({List<ConnectionStep> steps, Object? error, ProbeOutcome? outcome})>
+        probe(HostProfile host, List<HostProfile> hosts,
+            {HostKeyVerifier? verify,
+            void Function(ConnectionAttempt)? onStart}) async {
+      final steps = <ConnectionStep>[];
+      final attempt = ConnectionAttempt(onStage: (s) => steps.add(s.step));
+      onStart?.call(attempt);
+      try {
+        final outcome = await SshService().probe(
+          host: host,
+          hosts: hosts,
+          verifyHostKey: verify ?? verifyByLogicalName,
+          attempt: attempt,
+        );
+        return (steps: steps, error: null, outcome: outcome);
+      } catch (error) {
+        return (steps: steps, error: error, outcome: null);
+      }
+    }
+
+    test('经 dante：阶段是 经代理 → 握手 → 检查 PTY；远端真的分配了 /dev/pts；结束后服务器上不留连接',
+        () async {
+      final f = fixture!;
+      final host = targetViaProxy({
+        'type': 'socks5',
+        'host': f.socksAuthHost,
+        'port': f.socksAuthPort,
+        'username': f.socksUser,
+        'password': f.socksPassword,
+      });
+      final result = await probe(host, [host]);
+      expect(result.error, isNull, reason: '${result.error}');
+      expect(result.steps,
+          [ConnectionStep.proxy, ConnectionStep.handshake, ConnectionStep.pty]);
+      expect(result.outcome!.tty, matches(RegExp(r'^/dev/pts/\d+$')),
+          reason: '真实 PTY，不是本地回显');
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      expect(await sshdConnections('target'), 0);
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
+    test('经跳板：逐跳阶段；目标上只执行了一条命令（tty），没开 shell，也没执行启动命令', () async {
+      Future<String> onTarget(String command) async {
+        final result = await Process.run('docker', [
+          'compose', '-f', 'tool/fixture-environment/compose.yaml', 'exec',
+          '-T', 'target', 'sh', '-c', command, //
+        ]);
+        return '${result.stdout}'.trim();
+      }
+
+      await onTarget('rm -f /home/fixture/probe-startup.log');
+      final edge = edgeHost({'id': 'probe-edge', 'label': 'edge'});
+      final target = HostProfile({
+        ...targetViaProxy(const {}).data,
+        'id': 'probe-target',
+        'proxyConfig': null,
+        'hostChain': {
+          'hostIds': ['probe-edge'],
+        },
+        'startupCommand': 'echo started >> ~/probe-startup.log',
+      });
+      final before = await sshdLog('target');
+      final result = await probe(target, [edge, target]);
+      expect(result.error, isNull, reason: '${result.error}');
+      expect(result.steps, [
+        ConnectionStep.dial,
+        ConnectionStep.handshake,
+        ConnectionStep.forward,
+        ConnectionStep.handshake,
+        ConnectionStep.pty,
+      ]);
+      final log = (await newLines('target', before)).join('\n');
+      expect(log, contains('Starting session: command'));
+      expect(log, isNot(contains('Starting session: shell')),
+          reason: '测试连接不打开交互式 shell（不会触发 .bashrc 里的 tmux）');
+      expect(
+          await onTarget(
+              'test -e /home/fixture/probe-startup.log && echo yes || echo no'),
+          'no',
+          reason: '测试连接不得执行启动命令');
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
+    test('指纹对不上：在握手阶段失败、认证前断开，不能用测试入口绕过', () async {
+      final before = await sshdLog('ssh-edge');
+      final result = await probe(edgeHost({'id': 'probe-bad-key'}), const [],
+          verify: (_, __, ___) async => false);
+      expect(result.error, isA<RouteHopException>());
+      expect('${result.error}', contains('主机指纹没有通过校验'));
+      expect(result.steps.last, ConnectionStep.handshake);
+      final log = (await newLines('ssh-edge', before)).join('\n');
+      expect(log, isNot(contains('Accepted')));
+      expect(log, isNot(contains('Failed')));
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
+    test('指纹确认挂着时停止：马上结束，服务器上不留连接', () async {
+      final gate = Completer<bool>();
+      final reached = Completer<void>();
+      ConnectionAttempt? attempt;
+      final running = probe(
+        edgeHost({'id': 'probe-cancel'}),
+        const [],
+        verify: (host, type, fp) async {
+          reached.complete();
+          return gate.future;
+        },
+        onStart: (a) => attempt = a,
+      );
+      await reached.future;
+      expect(await sshdConnections('ssh-edge'), 1);
+      attempt!.cancel();
+      final result = await running;
+      expect(result.error, isA<ConnectionCancelledException>());
+      gate.complete(true);
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      expect(await sshdConnections('ssh-edge'), 0);
     }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
   });
 }

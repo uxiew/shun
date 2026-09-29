@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../domain/connection_route.dart';
 import '../domain/models/host.dart';
 import '../infrastructure/ssh/ssh_service.dart';
 import '../infrastructure/ssh/server_monitor_service.dart';
@@ -18,6 +19,7 @@ class PendingTerminalConnection {
     this.phase = PendingConnectionPhase.connecting,
     this.error,
     this.stage,
+    this.routePlan,
   });
 
   final String id;
@@ -28,10 +30,14 @@ class PendingTerminalConnection {
   /// 连到哪一步了；还没开始拨号时为 null。
   final ConnectionStage? stage;
 
+  /// 这次连接实际走的路线；路线配置本身有错、还没算出来时为 null。失败页据此显示实际路径（UX04）。
+  final RoutePlan? routePlan;
+
   PendingTerminalConnection copyWith({
     PendingConnectionPhase? phase,
     Object? error,
     ConnectionStage? stage,
+    RoutePlan? routePlan,
   }) =>
       PendingTerminalConnection(
         id: id,
@@ -39,6 +45,7 @@ class PendingTerminalConnection {
         phase: phase ?? this.phase,
         error: error ?? this.error,
         stage: stage ?? this.stage,
+        routePlan: routePlan ?? this.routePlan,
       );
 }
 
@@ -184,6 +191,21 @@ class SessionController extends StateNotifier<SessionState> {
               (value) => value.id == host.id,
               orElse: () => host,
             );
+      // 路线在这里一次算好：配置有错此时就报，算好的路线存进等待卡片，失败页据此显示实际路径。
+      final plan = resolveRoutePlan(
+        connectionHost,
+        hosts: vault.hosts,
+        proxyProfiles: vault.proxyProfiles,
+        keys: vault.keys,
+      );
+      if (mounted) {
+        state = state.copyWith(
+          pendingConnections: [
+            for (final value in state.pendingConnections)
+              value.id == sessionId ? value.copyWith(routePlan: plan) : value,
+          ],
+        );
+      }
       // 要用的凭据解不开就在拨号前拒绝，不拿空密码去试（SEC06）。
       final problem = unreadableCredentialProblem(
         connectionHost,
@@ -194,9 +216,7 @@ class SessionController extends StateNotifier<SessionState> {
       final session = await service.connect(
         sessionId: sessionId,
         host: connectionHost,
-        hosts: vault.hosts,
-        keys: vault.keys,
-        proxyProfiles: vault.proxyProfiles,
+        routePlan: plan,
         verifyHostKey: verifyHostKey,
         keyboardInteractive: keyboardInteractive,
         attempt: attempt,

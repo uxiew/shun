@@ -91,6 +91,64 @@ class _ConnectionStatusPane extends StatelessWidget {
                               color: scheme.onSurfaceVariant,
                             ),
                       ),
+                      if (pending.error != null &&
+                          connectionHint(pending.error!) != null) ...[
+                        const SizedBox(height: 12),
+                        Container(
+                          key: const ValueKey('connection-failure-hint'),
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: scheme.secondaryContainer,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Icon(
+                                Icons.lightbulb_outline,
+                                size: 18,
+                                color: scheme.onSecondaryContainer,
+                              ),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: LText(
+                                  connectionHint(pending.error!)!,
+                                  style: Theme.of(context)
+                                      .textTheme
+                                      .bodySmall
+                                      ?.copyWith(
+                                        color: scheme.onSecondaryContainer,
+                                      ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                      if (pending.routePlan != null) ...[
+                        const SizedBox(height: 14),
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: LText(
+                            '这次实际走的路线',
+                            style: Theme.of(context).textTheme.labelLarge,
+                          ),
+                        ),
+                        const SizedBox(height: 4),
+                        RouteLegsView(plan: pending.routePlan!, dense: true),
+                      ],
+                    ],
+                    if (!failed && pending.routePlan != null) ...[
+                      const SizedBox(height: 6),
+                      LText(
+                        routeSummary(pending.routePlan!),
+                        key: const ValueKey('pending-route-summary'),
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              color: scheme.onSurfaceVariant,
+                            ),
+                      ),
                     ],
                     if (onReturn != null ||
                         onClose != null ||
