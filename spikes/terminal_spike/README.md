@@ -13,6 +13,35 @@ flutter build apk --release     # 三个 ABI，构建时从 GitHub Release 下�
 App 本身是一个"回环终端"：没有 SSH，键盘/输入法发出的字节原样回显，底部列出最近发出的原始字节
 （十六进制）。上真机时用它核对：中文输入法只在确认后发一次、方向键是转义序列、Ctrl/Alt 编码正确。
 
+## 在模拟器/设备上核对按键和输入法
+
+每次发出的字节都会打到 logcat（`SPIKE_SENT` 前缀），每个到达 Flutter 的按键也会打一行（`SPIKE_KEY`，
+带物理键、逻辑键）。屏幕底部只留最近 8 条，逐次核对看 logcat：
+
+```bash
+adb install -r build/app/outputs/flutter-apk/app-release.apk
+adb shell am start -n top.xdwa.xwshun.terminal_spike/.MainActivity
+tool/adb_key_check.sh emulator-5560     # adb 注入方向键/退格/F1 等，逐项 PASS/FAIL
+adb logcat -s flutter | grep SPIKE_     # 手点软键盘时边点边看
+```
+
+`lib/android_key_fallback.dart`（软键盘退格等 scanCode=0 的键）和 `lib/keyboard_reshow.dart`
+（收起后点终端叫回键盘）是对 flterm 0.0.5 的适配层补丁，原因写在各自文件头。
+
+### 中文输入要给 flterm 打补丁
+
+不打补丁时 Gboard 把终端当密码框，只给英文键盘，**打不了中文**。`patches/flterm-0.0.5-android-ime.patch`
+是验证过的修法，只在实验时用，不进依赖：
+
+```bash
+T=/Users/fodelf/xdw/xwshun/.toolchain
+cp -R $T/pub-cache/hosted/pub.dev/flterm-0.0.5 $T/src/flterm-patched && chmod -R u+w $T/src/flterm-patched
+(cd $T/src/flterm-patched && patch -p1 < "$OLDPWD/patches/flterm-0.0.5-android-ime.patch")
+printf 'dependency_overrides:\n  flterm:\n    path: %s\n' "$T/src/flterm-patched" > pubspec_overrides.yaml
+flutter pub get --offline && rm -rf build/app/intermediates/flutter && flutter build apk --release
+# 用完：rm pubspec_overrides.yaml && flutter pub get --offline && rm -rf build/app/intermediates/flutter
+```
+
 ## 撞墙时
 
 - **App 退出页面或 SSH 断开后整个 App 闪退**：flterm 0.0.5 在 `dispose()` 之后再 `write()`
@@ -23,5 +52,9 @@ App 本身是一个"回环终端"：没有 SSH，键盘/输入法发出的字节
 - **改了 `.dart_tool/hooks_runner/shared/libghostty/build/*/lib/libghostty.so`，构建照样成功**：
   是的，hook 只在下载时校验 hash，已缓存的副本不会再校验。发布构建必须先删 `.dart_tool`
   再构建（会重新下载并校验），或加打包前校验（R17 要做）。
+- **换了 `pubspec_overrides.yaml` 里的 path，APK 却和上次一模一样**：Gradle 按
+  `build/app/intermediates/flutter/release/flutter_build.d` 里记的旧文件判断"没变"，整个 Dart
+  编译被跳过，连 `.dart_tool/flutter_build` 都不生成。只删 `.dart_tool/flutter_build` 没用，
+  要删 `build/app/intermediates/flutter`。核对办法：`unzip` 出 `libapp.so` 用 `strings` 搜你改的字符串。
 - **APK 里的 libghostty.so 的 sha256 和 hash 表对不上**：正常，打包时 AGP 会做
   `llvm-strip --strip-unneeded`。拿下载缓存里的原文件 strip 一次再比，应该一致。

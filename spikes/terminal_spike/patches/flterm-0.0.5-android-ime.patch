@@ -1,0 +1,76 @@
+diff --git a/lib/src/widgets/terminal_controller_impl.dart b/lib/src/widgets/terminal_controller_impl.dart
+index dd6196d..d71cb89 100644
+--- a/lib/src/widgets/terminal_controller_impl.dart
++++ b/lib/src/widgets/terminal_controller_impl.dart
+@@ -299,7 +299,11 @@ class TerminalControllerImpl extends TerminalController
+       if (_extendSelection(event.logicalKey)) return .handled;
+     }
+ 
+-    final key = keyFromPhysical(event.physicalKey);
++    var key = keyFromPhysical(event.physicalKey);
++    // xwshun 实验：Android scanCode=0 的键物理键是合成值，按逻辑键兜底；处理后让输入法重新对齐。
++    final synthetic = key == vt.Key.unidentified &&
++        (event.physicalKey.usbHidUsage & 0xFF00000000) == 0x1100000000;
++    if (synthetic) key = _xwKeyFromLogical(event.logicalKey) ?? key;
+     final KeyAction? action = switch (event) {
+       KeyDownEvent() => .press,
+       KeyUpEvent() => .release,
+@@ -353,6 +357,9 @@ class TerminalControllerImpl extends TerminalController
+     );
+     _emitOutput(utf8.encode(result));
+     _onTextInput();
++    if (synthetic && const bool.fromEnvironment('XW_RESYNC', defaultValue: true)) {
++      _textInput.resyncAfterKeyEdit();
++    }
+ 
+     return forwardToPlatformIme ? .skipRemainingHandlers : .handled;
+   }
+@@ -1056,3 +1063,18 @@ class TerminalControllerImpl extends TerminalController
+     return character;
+   }
+ }
++
++// xwshun 实验
++vt.Key? _xwKeyFromLogical(LogicalKeyboardKey k) {
++  const named = {
++    0x100000008: vt.Key.backspace, 0x10000000d: vt.Key.enter, 0x100000009: vt.Key.tab,
++    0x10000001b: vt.Key.escape, 0x100000304: vt.Key.arrowUp, 0x100000301: vt.Key.arrowDown,
++    0x100000302: vt.Key.arrowLeft, 0x100000303: vt.Key.arrowRight, 0x100000306: vt.Key.home,
++    0x100000305: vt.Key.end, 0x100000308: vt.Key.pageUp, 0x100000307: vt.Key.pageDown,
++    0x10000007f: vt.Key.delete,
++  };
++  final id = k.keyId;
++  if (named[id] case final key?) return key;
++  if (id >= 0x61 && id <= 0x7a) return vt.Key.values.byName(String.fromCharCode(id));
++  return null;
++}
+diff --git a/lib/src/widgets/terminal_input_client.dart b/lib/src/widgets/terminal_input_client.dart
+index 3247a93..ecba02d 100644
+--- a/lib/src/widgets/terminal_input_client.dart
++++ b/lib/src/widgets/terminal_input_client.dart
+@@ -83,7 +83,7 @@ final class TerminalInputClient with DeltaTextInputClient {
+     return TextInputConfiguration(
+       viewId: viewId,
+       autocorrect: false,
+-      inputType: .multiline,
++      inputType: .emailAddress, // xwshun 实验：multiline+无建议会被引擎标成可见密码，Gboard 不给中文
+       inputAction: .newline,
+       smartDashesType: .disabled,
+       smartQuotesType: .disabled,
+@@ -118,6 +118,16 @@ final class TerminalInputClient with DeltaTextInputClient {
+ 
+   void detach() => _closeConnection();
+ 
++  /// xwshun 实验：输入法发来的删除/方向键被终端吞掉后编辑区不变，平台不会通知输入法光标位置，
++  /// Gboard 按"已删一个字"估算，之后组字区间错一位。推两次不同状态，逼出 updateSelection。
++  void resyncAfterKeyEdit() {
++    final c = _connection;
++    if (c == null || hasActiveComposition) return;
++    c.setEditingState(const TextEditingValue(text: ' ', selection: .collapsed(offset: 0)));
++    _value = _sentinel;
++    c.setEditingState(_value);
++  }
++
+   @override
+   void didChangeInputControl(TextInputControl? _, TextInputControl? _) {}
+ 
