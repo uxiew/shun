@@ -6,6 +6,7 @@ import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/foundation.dart';
 import 'package:xterm2/xterm.dart';
 
+import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/server_stats.dart';
 import 'server_monitor_service.dart';
@@ -27,16 +28,6 @@ class ConnectionCancelledException implements Exception {
 
   @override
   String toString() => '连接已由用户终止';
-}
-
-/// 路由配置无法按用户的选择执行。一律在拨号前抛出，不会退回直连。
-class RouteConfigException implements Exception {
-  const RouteConfigException(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
 }
 
 /// 这次连接是用户新开的，还是断线后的恢复。
@@ -188,47 +179,42 @@ class SshService {
     final pending = _PendingConnection();
     _pendingConnections[sessionId] = pending;
     try {
-      if (host.protocol == HostProtocol.telnet) {
-        if (_hasProxySetting(host)) {
-          throw const RouteConfigException('Telnet 连接不支持代理；已配置代理时不会改为直连。');
-        }
+      if (host.protocol == HostProtocol.mosh) {
+        throw UnsupportedError('Mosh 需要平台原生 UDP 运行时，当前版本尚未启用。');
+      }
+      // 路线在任何拨号之前一次算好：配置有问题此时就抛 RouteConfigException，一个连接都没开。
+      // 之后全程只用 plan 里的快照，连接中途用户改了主机、跳板或代理，只影响下一次连接（RTE03）。
+      final plan = resolveRoutePlan(
+        host,
+        hosts: hosts,
+        proxyProfiles: proxyProfiles,
+        keys: keys,
+      );
+      if (plan.protocol == HostProtocol.telnet) {
         return await _connectTelnet(
           sessionId,
           host,
+          plan.target.endpoint,
           verifyHostKey,
           keyboardInteractive,
           terminal,
           pending,
         );
       }
-      if (host.protocol == HostProtocol.mosh) {
-        throw UnsupportedError('Mosh 需要平台原生 UDP 运行时，当前版本尚未启用。');
-      }
 
-      final chain = _resolveHostChain(host, hosts);
-      final route = [...chain, host];
-      // 只有第一跳是本机真正拨出去的；后面每一跳都经上一跳 SSH 转发到达，
-      // 它们身上的代理设置根本不会生效。以前是静默忽略——目标配了代理又配了跳板时，
-      // 实际是直连第一跳，用户以为走了代理。在完整 RoutePlan（R05 起）之前一律拒绝。
-      for (var index = 1; index < route.length; index++) {
-        if (_hasProxySetting(route[index])) {
-          throw RouteConfigException(
-            '“${route[index].label}”配置了代理，但它经由跳板机到达，代理不会生效。'
-            '当前版本不支持“代理 + 跳板”组合，请把代理配置在第一跳上或去掉跳板。',
-          );
-        }
-      }
+      final hops = plan.hops;
       final clients = <SSHClient>[];
       SSHSocket? transport;
       try {
-        for (var index = 0; index < route.length; index++) {
-          final current = route[index];
+        for (var index = 0; index < hops.length; index++) {
+          final hop = hops[index];
+          // 只有第一跳由手机拨出（直连或经代理）；后面每一跳都经上一跳的 SSH 转发到达。
           final activeTransport = transport ??
               await pending.waitFor<SSHSocket>(
                 _openTransport(
-                  current,
-                  proxyProfiles,
-                  timeout: _connectTimeout(current),
+                  plan.entry,
+                  hop.endpoint,
+                  timeout: _connectTimeout(hop.host),
                 ),
                 onCancelled: (socket) => socket.destroy(),
               );
@@ -237,30 +223,30 @@ class SshService {
           pending.throwIfCancelled();
           final client = _createClient(
             activeTransport,
-            current,
-            keys,
+            hop,
             verifyHostKey,
             keyboardInteractive,
           );
           clients.add(client);
           pending.clients.add(client);
           pending.throwIfCancelled();
-          if (index < route.length - 1) {
-            final next = route[index + 1];
+          if (index < hops.length - 1) {
+            final next = hops[index + 1].endpoint;
             transport = await pending.waitFor<SSHForwardChannel>(
-              client.forwardLocal(next.hostname, next.port),
+              client.forwardLocal(next.host, next.port),
               onCancelled: (socket) => socket.destroy(),
             );
             pending.transport = transport;
           }
         }
 
+        final target = plan.target.host;
         final client = clients.last;
         final session = await pending.waitFor(
           client.shell(
             pty: const SSHPtyConfig(
                 type: 'xterm-256color', width: 80, height: 24),
-            environment: _environment(host),
+            environment: _environment(target),
           ),
           onCancelled: (value) => value.close(),
         );
@@ -274,7 +260,7 @@ class SshService {
         };
         decodeTerminalText(session.stdout).listen(output.write);
         decodeTerminalText(session.stderr).listen(output.write);
-        final startup = host.startupCommand;
+        final startup = target.startupCommand;
         if (startup != null &&
             startup.isNotEmpty &&
             purpose == ConnectionPurpose.fresh) {
@@ -305,15 +291,13 @@ class SshService {
 
   SSHClient _createClient(
     SSHSocket socket,
-    HostProfile host,
-    List<SshKeyProfile> keys,
+    RouteHop hop,
     HostKeyVerifier verifyHostKey,
     KeyboardInteractiveHandler? keyboardInteractive,
   ) {
-    final identity = keys.cast<SshKeyProfile?>().firstWhere(
-          (value) => value?.id == host.identityFileId,
-          orElse: () => null,
-        );
+    // 登录身份只取这一跳自己的（用户名、密码、私钥），和代理账号无关。
+    final host = hop.host;
+    final identity = hop.key;
     final identities = identity == null || identity.privateKey.isEmpty
         ? null
         : SSHKeyPair.fromPem(identity.privateKey, identity.passphrase);
@@ -355,25 +339,6 @@ class SshService {
     );
   }
 
-  List<HostProfile> _resolveHostChain(
-    HostProfile target,
-    List<HostProfile> hosts,
-  ) {
-    final byId = {for (final host in hosts) host.id: host};
-    final seen = <String>{target.id};
-    final result = <HostProfile>[];
-    for (final id in target.hostChainIds) {
-      final jump = byId[id];
-      if (jump == null) throw StateError('找不到跳板机：$id');
-      if (!seen.add(jump.id)) throw StateError('跳板机链路存在循环');
-      if (jump.protocol != HostProtocol.ssh) {
-        throw StateError('跳板机必须使用 SSH：${jump.label}');
-      }
-      result.add(jump);
-    }
-    return result;
-  }
-
   Duration _connectTimeout(HostProfile host) => Duration(
         seconds:
             (host.data['sshTcpConnectTimeoutSeconds'] as num?)?.toInt() ?? 15,
@@ -390,58 +355,38 @@ class SshService {
     return result;
   }
 
-  /// 主机上有没有任何代理设置（不管有效与否）。
-  ///
-  /// 编辑器选「不用代理」时会删掉这两个字段，所以只要字段在，就是用户选过代理。
-  bool _hasProxySetting(HostProfile host) =>
-      host.proxyProfileId?.isNotEmpty == true ||
-      host.data['proxyConfig'] != null;
-
-  ProxyConfig? _effectiveProxy(
-    HostProfile host,
-    List<ProxyProfile> profiles,
-  ) {
-    final profileId = host.proxyProfileId;
-    if (profileId != null && profileId.isNotEmpty) {
-      for (final profile in profiles) {
-        if (profile.id != profileId) continue;
-        // 以前 profile 在但 config 缺失时返回 null，被当成「没配代理」直连了目标。
-        return profile.config ??
-            (throw RouteConfigException('代理配置“${profile.label}”内容缺失'));
-      }
-      throw RouteConfigException('找不到代理配置：$profileId');
-    }
-    if (host.data['proxyConfig'] != null && host.proxyConfig == null) {
-      throw const RouteConfigException('主机的代理配置格式无效');
-    }
-    return host.proxyConfig;
-  }
-
+  /// 建手机上的第一条连接：直连 [first]，或者先连代理再让代理 CONNECT 到 [first]。
+  /// 路线已经校验过，这里不再判断配置是否有效。
   Future<SSHSocket> _openTransport(
-    HostProfile host,
-    List<ProxyProfile> profiles, {
+    RouteEntry entry,
+    Endpoint first, {
     required Duration timeout,
   }) async {
-    final proxy = _effectiveProxy(host, profiles);
+    final proxy = switch (entry) {
+      DirectEntry() => null,
+      ProxyEntry value => value,
+    };
     if (proxy == null) {
       return _DirectSshSocket(
-        await _dial(host.hostname, host.port, timeout: timeout),
+        await _dial(first.host, first.port, timeout: timeout),
       );
     }
-    final invalid = proxy.invalidReason;
-    if (invalid != null) throw RouteConfigException(invalid);
-    final socket = await _dial(proxy.host, proxy.port, timeout: timeout);
+    final socket = await _dial(
+      proxy.endpoint.host,
+      proxy.endpoint.port,
+      timeout: timeout,
+    );
     final cursor = _SocketCursor(socket);
     try {
       // 握手总截止时间。以前只有 TCP 建连有超时，代理接受连接后不回话就会永远卡住（NET03）。
-      final handshake = switch (proxy.type!) {
-        ProxyType.http => _connectHttpProxy(socket, cursor, proxy, host),
-        ProxyType.socks5 => _connectSocksProxy(socket, cursor, proxy, host),
+      final handshake = switch (proxy.type) {
+        ProxyType.http => _connectHttpProxy(socket, cursor, proxy, first),
+        ProxyType.socks5 => _connectSocksProxy(socket, cursor, proxy, first),
       };
       await handshake.timeout(
         timeout,
         onTimeout: () => throw SocketException(
-          '代理握手超时（${proxy.host}:${proxy.port}，${timeout.inSeconds} 秒）',
+          '代理握手超时（${proxy.endpoint.authority}，${timeout.inSeconds} 秒）',
         ),
       );
       return _ProxySshSocket(socket, cursor);
@@ -454,10 +399,11 @@ class SshService {
   Future<void> _connectHttpProxy(
     Socket socket,
     _SocketCursor cursor,
-    ProxyConfig proxy,
-    HostProfile target,
+    ProxyEntry proxy,
+    Endpoint target,
   ) async {
-    final authority = '${target.hostname}:${target.port}';
+    // IPv6 要加方括号：以前拼成 `::1:22`，代理分不清哪段是端口（NET04）。
+    final authority = target.authority;
     final auth = proxy.username?.isNotEmpty == true
         ? 'Proxy-Authorization: Basic ${base64Encode(utf8.encode('${proxy.username}:${proxy.password ?? ''}'))}\r\n'
         : '';
@@ -479,8 +425,8 @@ class SshService {
   Future<void> _connectSocksProxy(
     Socket socket,
     _SocketCursor cursor,
-    ProxyConfig proxy,
-    HostProfile target,
+    ProxyEntry proxy,
+    Endpoint target,
   ) async {
     final hasAuth = proxy.username?.isNotEmpty == true;
     socket.add(hasAuth ? [5, 2, 0, 2] : [5, 1, 0]);
@@ -502,18 +448,18 @@ class SshService {
     } else if (greeting[1] != 0) {
       throw const SocketException('SOCKS5 代理认证方式不受支持');
     }
-    final domain = utf8.encode(target.hostname);
-    if (domain.length > 255) throw const SocketException('目标主机名过长');
-    socket.add([
-      5,
-      1,
-      0,
-      3,
-      domain.length,
-      ...domain,
-      target.port >> 8,
-      target.port & 0xff,
-    ]);
+    // 按地址类型编码（NET04）：以前 IP 字面量也当域名（ATYP 3）发，IPv6 还会带上冒号原样发出。
+    // 域名交给代理解析，手机不提前解析目标名。
+    final address = switch (target.kind) {
+      EndpointKind.ipv4 => [1, ...InternetAddress(target.host).rawAddress],
+      EndpointKind.ipv6 => [4, ...InternetAddress(target.host).rawAddress],
+      EndpointKind.domain => [
+          3,
+          target.host.length,
+          ...ascii.encode(target.host),
+        ],
+    };
+    socket.add([5, 1, 0, ...address, target.port >> 8, target.port & 0xff]);
     await socket.flush();
     final reply = await cursor.readExact(4);
     if (reply[0] != 5 || reply[1] != 0) {
@@ -531,6 +477,7 @@ class SshService {
   Future<ActiveTerminalSession> _connectTelnet(
     String sessionId,
     HostProfile host,
+    Endpoint endpoint,
     HostKeyVerifier verifyHostKey,
     KeyboardInteractiveHandler? keyboardInteractive,
     Terminal? existingTerminal,
@@ -538,8 +485,8 @@ class SshService {
   ) async {
     final socket = await pending.waitFor(
       _dial(
-        host.hostname,
-        host.port,
+        endpoint.host,
+        endpoint.port,
         timeout: const Duration(seconds: 15),
       ),
       onCancelled: (value) => value.destroy(),

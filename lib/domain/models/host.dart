@@ -27,7 +27,12 @@ class ProxyConfig {
           ProxyType.values.where((value) => value.name == rawType).firstOrNull,
       rawType: rawType,
       host: json['host']?.toString() ?? '',
-      port: (json['port'] as num?)?.toInt() ?? 0,
+      // 端口不是数字（比如同步来的 "1080" 字符串）时记 0，由 invalidReason 在拨号前拒绝；
+      // 以前 `as num?` 直接抛 TypeError，报错看不懂。
+      port: switch (json['port']) {
+        num value => value.toInt(),
+        _ => 0,
+      },
       username: json['username']?.toString(),
       password: json['password']?.toString(),
     );

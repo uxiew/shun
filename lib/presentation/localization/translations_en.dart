@@ -571,11 +571,58 @@ const englishTranslations = <String, String>{
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
-  // 整句必须排在最前：后面的通用词（当前版本、不支持…）会先把句子拆碎。
+  // 路由报错（lib/domain/connection_route.dart）必须排在最前：后面的通用词（的、跳板机、
+  // 当前版本、不支持…）会先把句子拆碎。片段之间有包含关系的，长的放前面（「上的代理。」在「自带的代理」前）。
+  // 报错是「目标“web”」这类前缀 + 片段拼起来的，英文统一写成 `Target “web”: …`。
+  ('目标“', 'Target “'),
+  ('跳板机“', 'Jump host “'),
   (
-    '当前版本不支持“代理 + 跳板”组合，请把代理配置在第一跳上或去掉跳板。',
-    'Proxy plus jump hosts is not supported yet; put the proxy on the first hop or remove the jump hosts.'
+    '同时配置了代理和跳板机。当前版本不支持“代理 + 跳板”组合，请去掉其中一个。',
+    ' has both a proxy and jump hosts. Proxy + jump host routes are not supported yet; remove one of them.'
   ),
+  (
+    '自己配置了代理。经它连接时不会套用它自己的代理，',
+    ' has its own proxy. That proxy is not applied when connecting through it, '
+  ),
+  (
+    '当前版本也不支持“代理 + 跳板”组合，请去掉',
+    'and proxy + jump host routes are not supported yet. Remove the proxy from '
+  ),
+  ('上的代理。', '.'),
+  (
+    '自己又配置了跳板机，不支持嵌套。请在',
+    ' has its own jump hosts; nesting is not supported. List every jump host in order on '
+  ),
+  ('上按顺序列出全部跳板机。', '.'),
+  (
+    '既引用了代理配置，又自带一份代理设置，不知道该用哪个。请在编辑器里只保留一个。',
+    ' references a proxy profile and also has its own proxy settings, so it is unclear which to use. Keep only one in the editor.'
+  ),
+  ('自带的代理', ' own proxy'),
+  (
+    'Telnet 连接不支持跳板机；已配置跳板机时不会改为直连。',
+    'Telnet does not support jump hosts; a configured jump host is never replaced by a direct connection.'
+  ),
+  ('的跳板机数量超过上限（最多 ', ': too many jump hosts (at most '),
+  (' 个）：', '): '),
+  ('的跳板机配置格式无效', ': malformed jump host configuration'),
+  ('的跳板机列表里有无效条目：', ': invalid entry in the jump host list: '),
+  ('路线里同一台机器出现了两次：', 'The same machine appears twice in the route: '),
+  ('的地址为空', ': address is empty'),
+  ('的地址里有空格或控制字符', ': address contains spaces or control characters'),
+  ('的地址方括号不成对：', ': unbalanced brackets in address: '),
+  ('的地址方括号只能用于 IPv6：', ': brackets are only allowed around IPv6 addresses: '),
+  ('的 IPv6 地址带 % 网卡后缀，不支持：', ': IPv6 zone suffixes (%) are not supported: '),
+  ('的地址不是合法的 IPv6：', ': not a valid IPv6 address: '),
+  (
+    '的地址含非 ASCII 字符。国际化域名请填写 xn-- 开头的 Punycode 写法：',
+    ': address contains non-ASCII characters. Enter internationalized domain names in Punycode (starting with xn--): '
+  ),
+  ('的域名超过 253 个字符', ': domain name is longer than 253 characters'),
+  ('的域名格式不对：', ': invalid domain name: '),
+  ('的地址像 IPv4 但不合法：', ': looks like IPv4 but is not a valid address: '),
+  ('的端口格式无效：', ': port is not a number: '),
+  ('的端口超出 1–65535：', ': port is outside 1–65535: '),
   ('打开链接？', 'Open link?'),
   ('无法打开链接', 'Unable to open link'),
   (
@@ -990,10 +1037,6 @@ const englishReplacements = <(String, String)>[
     'Telnet 连接不支持代理；已配置代理时不会改为直连。',
     'Telnet does not support proxies; a configured proxy is never replaced by a direct connection.'
   ),
-  (
-    '”配置了代理，但它经由跳板机到达，代理不会生效。',
-    '” has a proxy configured, but it is reached through a jump host, so that proxy would not apply. '
-  ),
   ('代理配置“', 'Proxy profile “'),
   ('”内容缺失', '” has no configuration'),
   ('主机的代理配置格式无效', 'The host proxy configuration is malformed'),
@@ -1031,7 +1074,6 @@ const englishReplacements = <(String, String)>[
   ('本地端口（0 为自动）', 'Local port (0 for automatic)'),
   ('本地转发', 'Local forwarding'),
   ('端口转发', 'Port forwarding'),
-  ('目标主机名过长', 'Target hostname is too long'),
   ('代理响应头过长', 'Proxy response headers are too large'),
   (
     '代理在握手完成前关闭了连接',
