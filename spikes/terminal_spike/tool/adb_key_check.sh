@@ -30,14 +30,20 @@ read -r w h <<<"$size"
 a shell input tap $((w / 2)) $((h * 3 / 10))
 sleep 1
 
-# 取一次操作之后所有 SPIKE_SENT 的十六进制，多次发送用 " | " 隔开。
+spike_lines() {
+  a logcat -d -s flutter |
+    sed -n 's/.*SPIKE_SENT [0-9]*B  \([0-9a-f ]*\)  「.*/\1/p'
+}
+
+# 取一次操作之后新增的 SPIKE_SENT 十六进制，多次发送用 " | " 隔开。
+# 按"操作前已有几行"截取，不用 logcat -c：Android 8.1 上它清不干净，
+# 上几项的发送会混进这一项，每项都报 FAIL，其实字节全对。
 sent_after() {
-  a logcat -c
+  local before
+  before=$(spike_lines | wc -l)
   a shell "$@"
   sleep 0.6
-  a logcat -d -s flutter |
-    sed -n 's/.*SPIKE_SENT [0-9]*B  \([0-9a-f ]*\)  「.*/\1/p' |
-    paste -sd'|' - | sed 's/|/ | /g'
+  spike_lines | tail -n +$((before + 1)) | paste -sd'|' - | sed 's/|/ | /g'
 }
 
 pass=0 fail=0
@@ -72,9 +78,13 @@ echo "合计 PASS $pass / FAIL $fail"
 main_fail=$fail
 
 # 以下只统计、不计入退出码：adb keycombination 的注入顺序问题，见文件头"撞墙时"。
-echo "-- 组合键（adb 注入限制，仅参考）"
-check Ctrl+C    '03'            input keycombination 113 31
-check Ctrl+D    '04'            input keycombination 113 32
-check Ctrl+A    '01'            input keycombination 113 29
-check Alt+X     '1b 78'         input keycombination 57 52
+if a shell input keycombination 2>&1 | grep -q 'Unknown command'; then
+  echo "-- 组合键：这台设备的 input 命令没有 keycombination（Android 8.1 就没有），跳过"
+else
+  echo "-- 组合键（adb 注入限制，仅参考）"
+  check Ctrl+C    '03'            input keycombination 113 31
+  check Ctrl+D    '04'            input keycombination 113 32
+  check Ctrl+A    '01'            input keycombination 113 29
+  check Alt+X     '1b 78'         input keycombination 57 52
+fi
 [[ $main_fail -eq 0 ]]
