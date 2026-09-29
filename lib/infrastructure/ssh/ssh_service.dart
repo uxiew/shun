@@ -52,6 +52,48 @@ class RouteHopException implements IOException {
 /// 对托管终端（startupCommand 就是那条管理命令）尤其危险（A04 / REG02）。
 enum ConnectionPurpose { fresh, restore }
 
+enum ConnectionStep { dial, proxy, handshake, forward, shell }
+
+/// 连接进行到了哪一步，给等待界面显示用。
+///
+/// 同一次尝试的阶段严格按代码顺序上报；尝试被取消后不再上报，所以界面上不会出现
+/// 「已经取消了，进度还在往前走」或者旧尝试的进度盖掉新尝试的情况（NET09）。
+class ConnectionStage {
+  const ConnectionStage(
+    this.step, {
+    this.hop = 0,
+    this.hopCount = 1,
+    this.label = '',
+    this.detail = '',
+  });
+
+  final ConnectionStep step;
+
+  /// 从 0 数的跳序号，[hopCount] 是跳板数 + 1（目标）。
+  final int hop;
+  final int hopCount;
+
+  /// 这一跳主机的名称。
+  final String label;
+
+  /// 地址之类的补充，比如代理端点、下一跳地址。
+  final String detail;
+
+  String describe() {
+    final prefix = hopCount > 1 ? '第 ${hop + 1}/$hopCount 跳，' : '';
+    return switch (step) {
+      ConnectionStep.dial => '$prefix正在连接“$label”（$detail）',
+      ConnectionStep.proxy => '$prefix正在经代理连接“$label”（代理 $detail）',
+      ConnectionStep.handshake => '$prefix“$label”：SSH 握手、核对指纹、登录',
+      ConnectionStep.forward => '$prefix“$label”：转发到下一跳（$detail）',
+      ConnectionStep.shell => '正在打开终端',
+    };
+  }
+
+  @override
+  String toString() => describe();
+}
+
 /// App 发起 TCP 连接的唯一入口，测试可替换成记录端点的实现。
 typedef TcpDialer = Future<Socket> Function(
   String host,
@@ -116,7 +158,10 @@ class ActiveTerminalSession {
     this.sshClients = const [],
     this.sshSession,
     this.telnetSocket,
-  }) : input = input ?? TerminalInputController();
+    this.routePlan,
+    List<StreamSubscription<Object?>> outputSubscriptions = const [],
+  })  : input = input ?? TerminalInputController(),
+        _outputSubscriptions = outputSubscriptions;
 
   final String id;
   final HostProfile host;
@@ -127,8 +172,20 @@ class ActiveTerminalSession {
   final List<SSHClient> sshClients;
   final SSHSession? sshSession;
   final Socket? telnetSocket;
+
+  /// 建这条连接时冻结的路线（含每一跳的主机配置和私钥副本）。断线恢复沿用它：
+  /// 自动恢复只能走同一条路线，不能因为用户期间改了配置就悄悄换代理、换身份（NET10，docs/07）。
+  /// 手工构造的会话（测试）可能没有，恢复时再按保险库现算。
+  final RoutePlan? routePlan;
+
+  /// 远端输出写进 [terminal] 的订阅。恢复时新旧连接共用同一个 terminal，
+  /// 旧连接释放时必须先断开这里，旧通道迟到的字节才不会混进新 shell 的画面。
+  final List<StreamSubscription<Object?>> _outputSubscriptions;
   bool connected = true;
   bool closedByUser = false;
+  bool _released = false;
+  bool _outputDetached = false;
+  bool _inputDisposed = false;
   ServerSystemInfo? systemInfo;
   SessionMonitor? monitor;
 
@@ -147,9 +204,19 @@ class ActiveTerminalSession {
     await telnetSocket?.flush().timeout(timeout);
   }
 
+  /// 释放这条连接的全部网络资源，可以重复调用（LIFE06）。
+  ///
+  /// 顺序按 docs/03：先关 PTY 通道，再关目标 client，最后逆序关跳板；
+  /// 每个 client 关闭时会关掉自己脚下的 socket（第一跳的就是到代理或第一跳的 TCP）。
+  /// 外部 SOCKS 服务不归 App 管，这里只关 App 自己开的那条到代理的连接。
+  ///
+  /// 不断开输出订阅：shell 刚结束时最后几块输出可能还在路上（dartssh2 的 `done` 先于 stdout 结束），
+  /// 断线时立刻断订阅会吞掉断线前的最后一屏。换上新连接或关标签时再调 [detachOutput]。
   void abort() {
     monitor?.stop();
     connected = false;
+    if (_released) return;
+    _released = true;
     sshSession?.close();
     for (final client in sshClients.reversed) {
       client.close();
@@ -157,15 +224,27 @@ class ActiveTerminalSession {
     telnetSocket?.destroy();
   }
 
-  Future<void> close() async {
-    monitor?.stop();
-    closedByUser = true;
-    connected = false;
-    sshSession?.close();
-    for (final client in sshClients.reversed) {
-      client.close();
+  /// 不再把这条连接的远端输出写进 [terminal]。可以重复调用。
+  ///
+  /// 恢复时新旧连接共用同一个 terminal：换上新连接前必须先调它，
+  /// 旧通道迟到的字节才不会混进新 shell 的画面（NET09）。
+  void detachOutput() {
+    if (_outputDetached) return;
+    _outputDetached = true;
+    for (final subscription in _outputSubscriptions) {
+      unawaited(subscription.cancel());
     }
-    await telnetSocket?.close();
+  }
+
+  /// 用户关标签：断开输出、释放网络资源、销毁输入控制器。重复调用无副作用。
+  ///
+  /// [abort] 不销毁输入控制器：断线后页面可能还挂着它，销毁了再触碰会在 debug 下断言失败。
+  Future<void> close() async {
+    closedByUser = true;
+    detachOutput();
+    abort();
+    if (_inputDisposed) return;
+    _inputDisposed = true;
     input.dispose();
   }
 }
@@ -174,157 +253,207 @@ class SshService {
   SshService({TcpDialer? dialer}) : _dial = dialer ?? _systemDial;
 
   final TcpDialer _dial;
-  final _pendingConnections = <String, _PendingConnection>{};
+  final _pendingConnections = <String, ConnectionAttempt>{};
 
   void cancelConnection(String sessionId) {
     _pendingConnections[sessionId]?.cancel();
   }
 
+  /// 建一条终端连接。
+  ///
+  /// 新开连接传保险库里的 [hosts]、[keys]、[proxyProfiles]，由这里现算路线；
+  /// 恢复连接传原来的 [routePlan]，沿用同一条路线，不重新读配置（NET10）。
+  ///
+  /// [attempt] 由调用方创建并持有，调用方在这里开始之前就能取消它（比如还在等保险库解锁时）。
+  /// 不传就内部新建一个，仍可用 [cancelConnection] 按 [sessionId] 取消。
+  /// 失败或取消时，这次尝试已经建好的 socket、每一跳 client、转发通道全部关掉；
+  /// 成功时资源所有权移交给返回的会话，之后再取消这个 attempt 不会关掉它，由调用方决定是否关闭。
   Future<ActiveTerminalSession> connect({
     required String sessionId,
     required HostProfile host,
-    required List<HostProfile> hosts,
-    required List<SshKeyProfile> keys,
-    required List<ProxyProfile> proxyProfiles,
+    List<HostProfile> hosts = const [],
+    List<SshKeyProfile> keys = const [],
+    List<ProxyProfile> proxyProfiles = const [],
+    RoutePlan? routePlan,
     required HostKeyVerifier verifyHostKey,
     KeyboardInteractiveHandler? keyboardInteractive,
     Terminal? terminal,
     ConnectionPurpose purpose = ConnectionPurpose.fresh,
+    ConnectionAttempt? attempt,
   }) async {
-    _pendingConnections.remove(sessionId)?.cancel();
-    final pending = _PendingConnection();
+    final pending = attempt ?? ConnectionAttempt();
+    final previous = _pendingConnections[sessionId];
+    if (!identical(previous, pending)) previous?.cancel();
     _pendingConnections[sessionId] = pending;
     try {
+      pending.throwIfCancelled();
       if (host.protocol == HostProtocol.mosh) {
         throw UnsupportedError('Mosh 需要平台原生 UDP 运行时，当前版本尚未启用。');
       }
       // 路线在任何拨号之前一次算好：配置有问题此时就抛 RouteConfigException，一个连接都没开。
       // 之后全程只用 plan 里的快照，连接中途用户改了主机、跳板或代理，只影响下一次连接（RTE03）。
-      final plan = resolveRoutePlan(
-        host,
-        hosts: hosts,
-        proxyProfiles: proxyProfiles,
-        keys: keys,
-      );
-      if (plan.protocol == HostProtocol.telnet) {
-        return await _connectTelnet(
-          sessionId,
-          host,
-          plan.target.endpoint,
-          verifyHostKey,
-          keyboardInteractive,
-          terminal,
-          pending,
-        );
-      }
-
-      final hops = plan.hops;
-      final clients = <SSHClient>[];
-      SSHSocket? transport;
-      try {
-        for (var index = 0; index < hops.length; index++) {
-          final hop = hops[index];
-          final timeout = _connectTimeout(hop.host);
-          // 只有第一跳由手机拨出（直连或经代理，入口只拨这一次）；后面每一跳都经上一跳的 SSH 转发到达。
-          final SSHSocket reached = transport ??
-              await _atHop<SSHSocket>(
-                plan,
-                index,
-                plan.entry is ProxyEntry ? '经代理连接失败' : '直连失败',
-                () => pending.waitFor<SSHSocket>(
-                  _openTransport(plan.entry, hop.endpoint, timeout, pending),
-                  onCancelled: (socket) => socket.destroy(),
-                ),
-              );
-          // 版本行攒齐再交给 dartssh2，且这一段有期限（见 SshBannerDeadlineSocket）。
-          final guard = SshBannerDeadlineSocket(reached, timeout);
-          transport = guard;
-          pending.transport = guard;
-          pending.throwIfCancelled();
-          final client = _createClient(
-            guard,
-            hop,
-            verifyHostKey,
-            keyboardInteractive,
+      final plan = routePlan ??
+          resolveRoutePlan(
+            host,
+            hosts: hosts,
+            proxyProfiles: proxyProfiles,
+            keys: keys,
           );
-          clients.add(client);
-          pending.clients.add(client);
-          // 先等这一跳握手、验指纹、登录全部完成，失败时才分得清是这一跳本身，
-          // 还是它往下一跳的转发（JMP02 / JMP04）。指纹没通过时 dartssh2 在认证前就断开。
-          await _atHop(
-            plan,
-            index,
-            'SSH 握手或登录失败',
-            () => pending.waitFor<void>(client.authenticated),
-            guard: guard,
-          );
-          if (index < hops.length - 1) {
-            final next = hops[index + 1].endpoint;
-            transport = await _atHop<SSHForwardChannel>(
+      final session = plan.protocol == HostProtocol.telnet
+          ? await _connectTelnet(
+              sessionId,
+              host,
               plan,
-              index,
-              '转发失败（到 ${next.authority}）',
-              () => pending.waitFor<SSHForwardChannel>(
-                client.forwardLocal(next.host, next.port),
-                onCancelled: (socket) => socket.destroy(),
-              ),
+              verifyHostKey,
+              keyboardInteractive,
+              terminal,
+              pending,
+            )
+          : await _connectSsh(
+              sessionId,
+              host,
+              plan,
+              verifyHostKey,
+              keyboardInteractive,
+              terminal,
+              purpose,
+              pending,
             );
-            pending.transport = transport;
-          }
-        }
-
-        final target = plan.target.host;
-        final client = clients.last;
-        final session = await _atHop(
-          plan,
-          hops.length - 1,
-          '打开终端失败',
-          () => pending.waitFor(
-            client.shell(
-              pty: const SSHPtyConfig(
-                  type: 'xterm-256color', width: 80, height: 24),
-              environment: _environment(target),
-            ),
-            onCancelled: (value) => value.close(),
-          ),
-        );
-        final output = terminal ?? Terminal(maxLines: 10000);
-        final input = TerminalInputController();
-        output.onOutput = (value) => session.write(
-              Uint8List.fromList(utf8.encode(input.consume(value))),
-            );
-        output.onResize = (width, height, pixelWidth, pixelHeight) {
-          session.resizeTerminal(width, height, pixelWidth, pixelHeight);
-        };
-        decodeTerminalText(session.stdout).listen(output.write);
-        decodeTerminalText(session.stderr).listen(output.write);
-        final startup = target.startupCommand;
-        if (startup != null &&
-            startup.isNotEmpty &&
-            purpose == ConnectionPurpose.fresh) {
-          session.write(Uint8List.fromList(utf8.encode('$startup\n')));
-        }
-        return ActiveTerminalSession(
-          id: sessionId,
-          host: host,
-          terminal: output,
-          verifyHostKey: verifyHostKey,
-          keyboardInteractive: keyboardInteractive,
-          input: input,
-          sshClients: clients,
-          sshSession: session,
-        );
-      } catch (_) {
-        for (final client in clients.reversed) {
-          client.close();
-        }
-        rethrow;
-      }
+      pending.handOver();
+      return session;
+    } catch (_) {
+      // 半成品一律关掉：不只是取消，任何一步失败（包括同步抛出的私钥解析错误）
+      // 都不能留下一条没人管的 TCP 或 SSH 连接（R08）。
+      pending.releasePartial();
+      rethrow;
     } finally {
       if (identical(_pendingConnections[sessionId], pending)) {
         _pendingConnections.remove(sessionId);
       }
     }
+  }
+
+  Future<ActiveTerminalSession> _connectSsh(
+    String sessionId,
+    HostProfile host,
+    RoutePlan plan,
+    HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    Terminal? terminal,
+    ConnectionPurpose purpose,
+    ConnectionAttempt pending,
+  ) async {
+    final hops = plan.hops;
+    final clients = <SSHClient>[];
+    SSHSocket? transport;
+    ConnectionStage stageAt(int index, ConnectionStep step, [String? detail]) =>
+        ConnectionStage(
+          step,
+          hop: index,
+          hopCount: hops.length,
+          label: hops[index].host.label,
+          detail: detail ?? hops[index].endpoint.authority,
+        );
+    for (var index = 0; index < hops.length; index++) {
+      final hop = hops[index];
+      final timeout = _connectTimeout(hop.host);
+      // 只有第一跳由手机拨出（直连或经代理，入口只拨这一次）；后面每一跳都经上一跳的 SSH 转发到达。
+      final SSHSocket reached = transport ??
+          await _atHop<SSHSocket>(
+            plan,
+            index,
+            plan.entry is ProxyEntry ? '经代理连接失败' : '直连失败',
+            () => pending.waitFor<SSHSocket>(
+              _openTransport(plan.entry, hop, hops.length, timeout, pending),
+              onCancelled: (socket) => socket.destroy(),
+            ),
+          );
+      // 版本行攒齐再交给 dartssh2，且这一段有期限（见 SshBannerDeadlineSocket）。
+      final guard = SshBannerDeadlineSocket(reached, timeout);
+      transport = guard;
+      pending.transport = guard;
+      pending.throwIfCancelled();
+      pending.report(stageAt(index, ConnectionStep.handshake));
+      // 私钥解析是同步的，坏私钥或口令不对会在这里抛；也按这一跳报错。
+      final client = await _atHop(
+        plan,
+        index,
+        '读取登录私钥失败',
+        () async => _createClient(guard, hop, verifyHostKey, keyboardInteractive),
+      );
+      clients.add(client);
+      pending.clients.add(client);
+      // 先等这一跳握手、验指纹、登录全部完成，失败时才分得清是这一跳本身，
+      // 还是它往下一跳的转发（JMP02 / JMP04）。指纹没通过时 dartssh2 在认证前就断开。
+      await _atHop(
+        plan,
+        index,
+        'SSH 握手或登录失败',
+        () => pending.waitFor<void>(client.authenticated),
+        guard: guard,
+      );
+      if (index < hops.length - 1) {
+        final next = hops[index + 1].endpoint;
+        pending.report(stageAt(index, ConnectionStep.forward, next.authority));
+        transport = await _atHop<SSHForwardChannel>(
+          plan,
+          index,
+          '转发失败（到 ${next.authority}）',
+          () => pending.waitFor<SSHForwardChannel>(
+            client.forwardLocal(next.host, next.port),
+            onCancelled: (socket) => socket.destroy(),
+          ),
+        );
+        pending.transport = transport;
+      }
+    }
+
+    final target = plan.target.host;
+    final client = clients.last;
+    pending.report(const ConnectionStage(ConnectionStep.shell));
+    final session = await _atHop(
+      plan,
+      hops.length - 1,
+      '打开终端失败',
+      () => pending.waitFor(
+        client.shell(
+          pty: const SSHPtyConfig(type: 'xterm-256color', width: 80, height: 24),
+          environment: _environment(target),
+        ),
+        onCancelled: (value) => value.close(),
+      ),
+    );
+    pending.shell = session;
+    final output = terminal ?? Terminal(maxLines: 10000);
+    final input = TerminalInputController();
+    output.onOutput = (value) => session.write(
+          Uint8List.fromList(utf8.encode(input.consume(value))),
+        );
+    output.onResize = (width, height, pixelWidth, pixelHeight) {
+      session.resizeTerminal(width, height, pixelWidth, pixelHeight);
+    };
+    final subscriptions = [
+      decodeTerminalText(session.stdout).listen(output.write),
+      decodeTerminalText(session.stderr).listen(output.write),
+    ];
+    final startup = target.startupCommand;
+    if (startup != null &&
+        startup.isNotEmpty &&
+        purpose == ConnectionPurpose.fresh) {
+      session.write(Uint8List.fromList(utf8.encode('$startup\n')));
+    }
+    return ActiveTerminalSession(
+      id: sessionId,
+      host: host,
+      terminal: output,
+      verifyHostKey: verifyHostKey,
+      keyboardInteractive: keyboardInteractive,
+      input: input,
+      sshClients: clients,
+      sshSession: session,
+      routePlan: plan,
+      outputSubscriptions: subscriptions,
+    );
   }
 
   /// 执行路线上第 [index] 跳的一个阶段。失败时换成指明哪台机器、哪一步、什么原因的报错
@@ -436,17 +565,32 @@ class SshService {
   /// 路线已经校验过，这里不再判断配置是否有效；握手细节见 transport/proxy_transport.dart。
   Future<SSHSocket> _openTransport(
     RouteEntry entry,
-    Endpoint first,
+    RouteHop firstHop,
+    int hopCount,
     Duration timeout,
-    _PendingConnection pending,
+    ConnectionAttempt pending,
   ) async {
+    final first = firstHop.endpoint;
     final proxy = switch (entry) {
       DirectEntry() => null,
       ProxyEntry value => value,
     };
     if (proxy == null) {
+      pending.report(ConnectionStage(
+        ConnectionStep.dial,
+        hopCount: hopCount,
+        label: firstHop.host.label,
+        detail: first.authority,
+      ));
       return DirectSshSocket(await _dialWithin(first, timeout));
     }
+    // 只显示代理端点，不显示代理账号。
+    pending.report(ConnectionStage(
+      ConnectionStep.proxy,
+      hopCount: hopCount,
+      label: firstHop.host.label,
+      detail: proxy.endpoint.authority,
+    ));
     final socket = await _dialWithin(proxy.endpoint, timeout);
     if (pending.isCancelled) {
       socket.destroy();
@@ -483,12 +627,18 @@ class SshService {
   Future<ActiveTerminalSession> _connectTelnet(
     String sessionId,
     HostProfile host,
-    Endpoint endpoint,
+    RoutePlan plan,
     HostKeyVerifier verifyHostKey,
     KeyboardInteractiveHandler? keyboardInteractive,
     Terminal? existingTerminal,
-    _PendingConnection pending,
+    ConnectionAttempt pending,
   ) async {
+    final endpoint = plan.target.endpoint;
+    pending.report(ConnectionStage(
+      ConnectionStep.dial,
+      label: plan.target.host.label,
+      detail: endpoint.authority,
+    ));
     final socket = await pending.waitFor(
       _dialWithin(endpoint, const Duration(seconds: 15)),
       onCancelled: (value) => value.destroy(),
@@ -501,7 +651,7 @@ class SshService {
         (value) => socket.add(utf8.encode(input.consume(value)));
     // 同一个解码器跨 chunk 使用：多字节字符被网络切开时，前半截留到下一块再拼。
     final text = StreamController<List<int>>();
-    decodeTerminalText(text.stream).listen(terminal.write);
+    final output = decodeTerminalText(text.stream).listen(terminal.write);
     socket.listen(
       (bytes) {
         final visible = <int>[];
@@ -528,6 +678,8 @@ class SshService {
       keyboardInteractive: keyboardInteractive,
       input: input,
       telnetSocket: socket,
+      routePlan: plan,
+      outputSubscriptions: [output],
     );
   }
 }
@@ -551,27 +703,64 @@ class _PendingConnectionResult<T> {
   final T value;
 }
 
-class _PendingConnection {
+/// 一次连接尝试（新开或恢复）的取消令牌和半成品清单。
+///
+/// 由调用方创建：这样调用方在 [SshService.connect] 真正开始拨号之前（比如还在等保险库解锁）
+/// 就能取消它，取消后 connect 一开头就放弃，不会先连上再关（R08）。
+///
+/// [generation] 是调用方分配的代次号，单调递增。调用方拿它判断一个结果是不是「当前这一次」的；
+/// 不是的一律关掉——迟到的结果不能复活已经取消、关闭或被替换的连接（NET09）。
+class ConnectionAttempt {
+  ConnectionAttempt({this.generation = 0, this.onStage});
+
+  final int generation;
+
+  /// 阶段回调。只在尝试还有效时调用，按发生顺序；取消后、移交后都不再调用。
+  void Function(ConnectionStage stage)? onStage;
+
   final cancelled = Completer<void>();
   final clients = <SSHClient>[];
   SSHSocket? transport;
   Socket? telnetSocket;
+  SSHSession? shell;
 
   /// 正在和代理握手的 socket。握手还没完成时它还不是 [transport]，不单独登记的话，
   /// 取消后它要等握手期限走完才会被关。
   Socket? handshakeSocket;
 
-  bool get isCancelled => cancelled.isCompleted;
+  /// 资源已经交给返回的会话。之后取消只标记失效，不再关这些资源——它们归会话所有。
+  bool _handedOver = false;
+  ConnectionStage? _stage;
 
+  bool get isCancelled => cancelled.isCompleted;
+  ConnectionStage? get stage => _stage;
+
+  void report(ConnectionStage stage) {
+    if (isCancelled || _handedOver) return;
+    _stage = stage;
+    onStage?.call(stage);
+  }
+
+  /// 使这次尝试失效，并立刻关掉它已经建好的一切。可以重复调用。
   void cancel() {
     if (cancelled.isCompleted) return;
     cancelled.complete();
-    telnetSocket?.destroy();
-    handshakeSocket?.destroy();
-    transport?.destroy();
+    releasePartial();
+  }
+
+  void handOver() => _handedOver = true;
+
+  /// 关掉这次尝试已建好、还没交出去的资源：从 PTY 往外，目标 client 到第一跳逆序关，
+  /// 再关还没被 client 接管的 socket。外部代理服务本身不动。可以重复调用。
+  void releasePartial() {
+    if (_handedOver) return;
+    shell?.close();
     for (final client in clients.reversed) {
       client.close();
     }
+    transport?.destroy();
+    handshakeSocket?.destroy();
+    telnetSocket?.destroy();
   }
 
   void throwIfCancelled() {

@@ -738,6 +738,16 @@ const englishReplacements = <(String, String)>[
     'the connection was closed before login finished: the other side may not be an SSH service, or it dropped'
   ),
   ('对方拒绝打开转发通道（', 'the remote side refused to open the forwarding channel ('),
+  ('读取登录私钥失败', ' reading the login private key failed'),
+  // 连接进度（ssh_service.dart 的 ConnectionStage.describe）：「第 1/3 跳，正在连接“x”（地址）」。
+  ('第 ', 'Hop '),
+  (' 跳，', ', '),
+  ('正在经代理连接“', 'Connecting through the proxy to “'),
+  ('（代理 ', ' (proxy '),
+  ('正在连接“', 'Connecting to “'),
+  ('：SSH 握手、核对指纹、登录', ': SSH handshake, host key check and login'),
+  ('：转发到下一跳（', ': forwarding to the next hop ('),
+  ('正在打开终端', 'Opening the terminal'),
   (' 秒）', ' s)'),
   (
     '代理的用户名和密码是明文发给代理的：SSH 只加密之后的终端会话，保护不了这段口令。',
