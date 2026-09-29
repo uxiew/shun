@@ -79,7 +79,7 @@ main_fail=$fail
 
 # 以下只统计、不计入退出码：adb keycombination 的注入顺序问题，见文件头"撞墙时"。
 if a shell input keycombination 2>&1 | grep -q 'Unknown command'; then
-  echo "-- 组合键：这台设备的 input 命令没有 keycombination（Android 8.1 就没有），跳过"
+  echo "-- 组合键：这台设备的 input 命令没有 keycombination（实测 Android 7.1–8.1 都没有），跳过"
 else
   echo "-- 组合键（adb 注入限制，仅参考）"
   check Ctrl+C    '03'            input keycombination 113 31
