@@ -57,6 +57,13 @@ void main() {
       });
     }
 
+    // 模拟器（API 35）截图：e+U+0301 显示成裸 e，重音不见了。这里确认终端模型本身没丢，
+    // 丢的是绘制——排查从 flterm 的字形绘制/字体回退入手，不是 VT 解析。
+    test('组合字符：模型里 e+U+0301 保留（屏幕上缺重音是绘制问题）', () {
+      final result = feed([Uint8List.fromList(utf8.encode('é|'))]);
+      expect(result.plain, contains('é|'));
+    });
+
     test('前提：素材里的中文确实被渲染，DA 查询确实只回应一次', () {
       final result = feed([VtSamples.all]);
       expect(result.plain, contains('回到主屏'));
