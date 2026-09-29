@@ -85,6 +85,12 @@ class AdmissionPolicy {
     final id = d.pluginId;
     final lower = id.toLowerCase();
 
+    // 下面 bundled 分支不走批准直接放行，所以"单独安装的包自称内置"必须先挡掉：
+    // 否则任何 APK 在描述符里写一句 deployment=bundled 就能跳过用户授权和证书核验。
+    if (d.deployment == Deployment.bundled &&
+        candidate.installedPackage != null) {
+      return Rejected('$id 自称随包内置，但它是单独安装的包；内置 provider 只能由宿主登记');
+    }
     if (d.deployment != Deployment.bundled &&
         (builtinIds.contains(lower) || lower.startsWith('builtin.'))) {
       return Rejected('$id 是内置 provider 保留 ID，外部包不能占用');

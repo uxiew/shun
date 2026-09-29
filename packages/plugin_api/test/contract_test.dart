@@ -178,6 +178,18 @@ void main() {
       }
     });
 
+    test('单独安装的包自称 bundled：拒绝，不能跳过批准和证书核验', () {
+      final m = mosh(id: 'example.fake_builtin')
+        ..['deployment'] = 'bundled'
+        ..remove('serviceClass');
+      final result = policy.evaluate(
+        apk(m, package: 'example.terminal.mosh'),
+        alreadyRegistered: {},
+        approvals: [],
+      );
+      expect(result, isA<Rejected>());
+    });
+
     test('描述符自称的包名与实际安装包不一致：拒绝', () {
       final result = policy.evaluate(
         apk(mosh(), package: 'evil.package'),
