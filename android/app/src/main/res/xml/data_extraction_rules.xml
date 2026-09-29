@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  云备份和设备间迁移（换机）都不带任何 App 数据（SEC05）。
+
+  为什么光有 AndroidManifest 里的 allowBackup="false" 不够：Android 12 起，部分厂商设备上
+  它只关掉云备份，关不掉设备间迁移（官方 behavior-changes-12 原话），换机时数据库、偏好会被整体搬走。
+  凭据本身在系统安全存储里，密钥在 Keystore、不随迁移走，但保险库的主机、跳板、代理配置和那份密文都会被带过去。
+
+  每个数据域都显式排除 path="."（整个目录，含子目录）：不依赖「某一节省略时是否默认全开」这种容易理解反的规则。
+  验证方法和结果见 plan/v3/evidence/R09.md 的 SEC05。
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+        <exclude domain="device_root" path="." />
+        <exclude domain="device_file" path="." />
+        <exclude domain="device_database" path="." />
+        <exclude domain="device_sharedpref" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="root" path="." />
+        <exclude domain="file" path="." />
+        <exclude domain="database" path="." />
+        <exclude domain="sharedpref" path="." />
+        <exclude domain="external" path="." />
+        <exclude domain="device_root" path="." />
+        <exclude domain="device_file" path="." />
+        <exclude domain="device_database" path="." />
+        <exclude domain="device_sharedpref" path="." />
+    </device-transfer>
+</data-extraction-rules>
