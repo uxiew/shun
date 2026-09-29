@@ -38,6 +38,7 @@ class PluginEntry {
     this.serviceClass,
     this.signerDigests = const {},
     this.androidDebugSigned = false,
+    this.hasApproval = false,
   });
 
   final PluginStatus status;
@@ -60,6 +61,9 @@ class PluginEntry {
 
   /// 用 Android SDK 自动生成的调试证书签的（每台开发机都有一张，谁都能拿来签）。
   final bool androidDebugSigned;
+
+  /// 这个 pluginId 有批准记录（不论此刻是否可用）。换签被拒时用户要靠它找到「撤销批准」重新核对。
+  final bool hasApproval;
 
   String? get pluginId => descriptor?.pluginId;
   bool get isBuiltin => packageName == null;
@@ -341,6 +345,8 @@ class PluginRegistry extends StateNotifier<List<PluginEntry>> {
             signerDigests: pkg.signerDigests,
             androidDebugSigned: pkg.signerDigests.isNotEmpty &&
                 pkg.signerDigests.every(pkg.debugSignerDigests.contains),
+            hasApproval: descriptor != null &&
+                _approvals.any((a) => _same(a.pluginId, descriptor.pluginId)),
           );
 
       final PluginDescriptor descriptor;

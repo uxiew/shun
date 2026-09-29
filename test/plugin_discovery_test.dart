@@ -158,6 +158,12 @@ void main() {
     expect(entryOf(echoPackage).status, PluginStatus.rejected);
     await discovery.check(entryOf(echoPackage));
     expect(bridge.connects, isEmpty);
+
+    // 作者真换了密钥：用户撤销旧批准后回到待批准，可以按新证书重新核对。
+    expect(entryOf(echoPackage).hasApproval, isTrue);
+    await discovery.revoke(entryOf(echoPackage));
+    expect(entryOf(echoPackage).status, PluginStatus.needsApproval);
+    expect(entryOf(echoPackage).hasApproval, isFalse);
   });
 
   test('PLG04 冒用内置 ID 的包：拒绝，内置 SSH 不受影响', () async {

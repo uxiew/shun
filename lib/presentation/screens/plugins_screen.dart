@@ -219,8 +219,8 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
                     onPressed: () => _approve(entry),
                     child: const LText('批准'),
                   ),
-                if (entry.status == PluginStatus.ready ||
-                    entry.status == PluginStatus.disabled)
+                // 换签被拒时也要能撤销旧批准，否则作者正常换密钥后用户没有路重新核对。
+                if (entry.hasApproval)
                   OutlinedButton(
                     onPressed: () async {
                       await discovery.revoke(entry);
