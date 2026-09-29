@@ -17,8 +17,19 @@ class SshKeepAliveService : Service() {
     companion object {
         private const val CHANNEL_ID = "netcatty_ssh_sessions"
         private const val NOTIFICATION_ID = 701
+
+        // 下面三个状态只在主线程读写（MethodChannel 回调和 Service 生命周期都跑在主线程），不用加锁。
+        /** 已经调过 startForegroundService，服务还没销毁。 */
+        var requested = false
+
+        /** onCreate 里已经 startForeground。在这之前 stopService 会让系统杀掉 App。 */
+        var inForeground = false
+
+        /** 进入前台之前就收到了停止：进入前台后立刻自己停。 */
+        var stopWhenStarted = false
     }
 
+    private var stopping = false
     private var cpuWakeLock: PowerManager.WakeLock? = null
     private var wifiLock: WifiManager.WifiLock? = null
 
@@ -26,10 +37,24 @@ class SshKeepAliveService : Service() {
         super.onCreate()
         createChannel()
         startForeground(NOTIFICATION_ID, buildNotification())
+        inForeground = true
+        if (stopWhenStarted) {
+            stopWhenStarted = false
+            stopping = true
+            stopSelf()
+            return
+        }
         acquireConnectionLocks()
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (stopWhenStarted) {
+            stopWhenStarted = false
+            stopping = true
+            stopSelf()
+        }
+        // 已经决定要停就不再拿唤醒锁和 Wi-Fi 锁。
+        if (stopping) return START_NOT_STICKY
         acquireConnectionLocks()
         // The SSH sockets live in the Flutter process. Restarting only this
         // service after that process was killed cannot restore them and would
@@ -41,6 +66,8 @@ class SshKeepAliveService : Service() {
 
     override fun onDestroy() {
         releaseConnectionLocks()
+        inForeground = false
+        requested = false
         super.onDestroy()
     }
 

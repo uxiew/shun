@@ -32,12 +32,20 @@ class MainActivity : FlutterActivity() {
                     val active = call.argument<Boolean>("active") == true
                     if (active) {
                         requestNotificationPermission()
+                        SshKeepAliveService.stopWhenStarted = false
                         ContextCompat.startForegroundService(
                             this,
                             Intent(this, SshKeepAliveService::class.java),
                         )
-                    } else {
+                        SshKeepAliveService.requested = true
+                    } else if (SshKeepAliveService.inForeground) {
                         stopService(Intent(this, SshKeepAliveService::class.java))
+                    } else if (SshKeepAliveService.requested) {
+                        // 服务刚被拉起、还没在 onCreate 里 startForeground 时不能 stopService：
+                        // 系统会以 ForegroundServiceDidNotStartInTimeException 杀掉整个 App。
+                        // 连接在拨号前就失败（路线配置错、凭据解不开）时必现，模拟器 API 35 实测。
+                        // 改为记下来，由服务进入前台后自己停。
+                        SshKeepAliveService.stopWhenStarted = true
                     }
                     result.success(null)
                 }
