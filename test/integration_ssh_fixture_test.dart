@@ -6,11 +6,15 @@ import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:netcatty_mobile/application/host_trust.dart';
 import 'package:netcatty_mobile/application/port_forward_controller.dart';
 import 'package:netcatty_mobile/application/session_controller.dart';
 import 'package:netcatty_mobile/application/vault_controller.dart';
 import 'package:netcatty_mobile/domain/models/host.dart';
+import 'package:netcatty_mobile/infrastructure/ssh/server_monitor_service.dart';
+import 'package:netcatty_mobile/infrastructure/ssh/sftp_service.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
+import 'package:netcatty_mobile/infrastructure/ssh/system_management_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:netcatty_mobile/infrastructure/transport/proxy_transport.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -33,6 +37,31 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(secureStorage, (call) async => null);
   });
+
+  /// 主机密码存在系统安全存储里。测试里换成内存表，controller 销毁重建后还能读回来。
+  void useMemorySecureStorage() {
+    final secrets = <String, String>{};
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(secureStorage, (call) async {
+      final args = (call.arguments as Map?) ?? const {};
+      final key = args['key'] as String?;
+      switch (call.method) {
+        case 'write':
+          secrets[key!] = args['value'] as String;
+        case 'read':
+          return secrets[key];
+        case 'containsKey':
+          return secrets.containsKey(key);
+        case 'delete':
+          secrets.remove(key);
+        case 'readAll':
+          return Map<String, String>.from(secrets);
+        case 'deleteAll':
+          secrets.clear();
+      }
+      return null;
+    });
+  }
 
   final seenFingerprints = <String, String>{};
   Future<bool> verifyByLogicalName(
@@ -132,6 +161,46 @@ void main() {
         verifyHostKey: verifyByLogicalName,
         terminal: terminal,
       );
+
+  /// 容器里 sshd（22 端口）上 ESTABLISHED 的 TCP 连接数。直接读内核连接表，不经 SSH 登录，
+  /// 检查本身不会被算进去。这是「App 说关了，socket 是不是真关了」的独立观察口（R08 停止条件）。
+  Future<int> sshdConnections(String service) async {
+    final result = await Process.run('docker', [
+      'compose',
+      '-f',
+      'tool/fixture-environment/compose.yaml',
+      'exec',
+      '-T',
+      service,
+      'sh',
+      '-c',
+      'cat /proc/net/tcp /proc/net/tcp6 2>/dev/null',
+    ]);
+    expect(result.exitCode, 0, reason: '${result.stderr}');
+    var count = 0;
+    for (final line in (result.stdout as String).split('\n')) {
+      final fields = line.trim().split(RegExp(r'\s+'));
+      if (fields.length < 4 || !fields[1].contains(':')) continue;
+      if (fields[1].endsWith(':0016') && fields[3] == '01') count++;
+    }
+    return count;
+  }
+
+  Future<void> killSessions(String service) async {
+    final result = await Process.run('docker', [
+      'compose',
+      '-f',
+      'tool/fixture-environment/compose.yaml',
+      'exec',
+      '-T',
+      service,
+      'pkill',
+      '-KILL',
+      '-f',
+      'sshd-session',
+    ]);
+    expect(result.exitCode, 0, reason: '${result.stderr}');
+  }
 
   group('NET01 经 SOCKS5 建立真实 SSH', () {
     test('dante 无认证 → 仅代理可解析的目标', () async {
@@ -804,28 +873,7 @@ void main() {
 
     setUp(() async {
       if (fixture == null) return;
-      // 主机密码存在系统安全存储里。这里换成内存表，controller 销毁重建后还能读回来。
-      final secrets = <String, String>{};
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(secureStorage, (call) async {
-        final args = (call.arguments as Map?) ?? const {};
-        final key = args['key'] as String?;
-        switch (call.method) {
-          case 'write':
-            secrets[key!] = args['value'] as String;
-          case 'read':
-            return secrets[key];
-          case 'containsKey':
-            return secrets.containsKey(key);
-          case 'delete':
-            secrets.remove(key);
-          case 'readAll':
-            return Map<String, String>.from(secrets);
-          case 'deleteAll':
-            secrets.clear();
-        }
-        return null;
-      });
+      useMemorySecureStorage();
       SharedPreferences.setMockInitialValues({});
       repository = await VaultRepository.open();
       open();
@@ -837,30 +885,6 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 300));
     });
 
-    /// 容器里 sshd（22 端口）上 ESTABLISHED 的 TCP 连接数。直接读内核连接表，不经 SSH 登录，
-    /// 检查本身不会被算进去。这是「App 说关了，socket 是不是真关了」的独立观察口（R08 停止条件）。
-    Future<int> sshdConnections(String service) async {
-      final result = await Process.run('docker', [
-        'compose',
-        '-f',
-        'tool/fixture-environment/compose.yaml',
-        'exec',
-        '-T',
-        service,
-        'sh',
-        '-c',
-        'cat /proc/net/tcp /proc/net/tcp6 2>/dev/null',
-      ]);
-      expect(result.exitCode, 0, reason: '${result.stderr}');
-      var count = 0;
-      for (final line in (result.stdout as String).split('\n')) {
-        final fields = line.trim().split(RegExp(r'\s+'));
-        if (fields.length < 4 || !fields[1].contains(':')) continue;
-        if (fields[1].endsWith(':0016') && fields[3] == '01') count++;
-      }
-      return count;
-    }
-
     Future<void> eventually(Future<bool> Function() condition, String what,
         {Duration timeout = const Duration(seconds: 5)}) async {
       final deadline = DateTime.now().add(timeout);
@@ -868,22 +892,6 @@ void main() {
         if (DateTime.now().isAfter(deadline)) fail('等待超时：$what');
         await Future<void>.delayed(const Duration(milliseconds: 100));
       }
-    }
-
-    Future<void> killSessions(String service) async {
-      final result = await Process.run('docker', [
-        'compose',
-        '-f',
-        'tool/fixture-environment/compose.yaml',
-        'exec',
-        '-T',
-        service,
-        'pkill',
-        '-KILL',
-        '-f',
-        'sshd-session',
-      ]);
-      expect(result.exitCode, 0, reason: '${result.stderr}');
     }
 
     /// 主机指纹核对可以被「挂住」，模拟用户还没在弹窗里点确认。
@@ -1231,5 +1239,273 @@ void main() {
       expect(openFds(), lessThanOrEqualTo(baseFds + 3),
           reason: 'fd 逐轮增长：\n${samples.join('\n')}');
     }, skip: skip, timeout: const Timeout(Duration(minutes: 6)));
+  });
+
+  group('R09 所有 SSH 入口走同一条路线、私钥与信任（真实 OpenSSH）', () {
+    late ProviderContainer container;
+    late SessionController controller;
+    late RecordingDialer dialer;
+
+    setUp(() async {
+      if (fixture == null) return;
+      useMemorySecureStorage();
+      SharedPreferences.setMockInitialValues({});
+      final repository = await VaultRepository.open();
+      dialer = RecordingDialer();
+      container = ProviderContainer(overrides: [
+        vaultRepositoryProvider.overrideWithValue(repository),
+        sshServiceProvider.overrideWithValue(SshService(dialer: dialer.call)),
+      ]);
+      controller = container.read(sessionControllerProvider.notifier);
+    });
+
+    tearDown(() async {
+      if (fixture == null) return;
+      container.dispose();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+
+    /// 建好终端后依次用终端、SFTP、服务器监控、系统管理、本地端口转发访问同一台主机。
+    /// 断言：手机只拨了入口一次；目标机上自始至终只有这一条 TCP 连接——没有任何入口自己另开一条。
+    Future<void> everyEntryUsesTheRoute(
+      HostProfile target,
+      List<HostProfile> jumps, {
+      required String expectedHostname,
+      required String targetContainer,
+      required String entry,
+    }) async {
+      final vault = container.read(vaultControllerProvider.notifier);
+      for (final host in [...jumps, target]) {
+        await vault.upsertHost(host);
+      }
+      expect(await sshdConnections(targetContainer), 0);
+      expect(await controller.connect(target, verifyByLogicalName), isTrue);
+      final session = controller.state.sessions.single;
+
+      expect(await runInSession(session, 'hostname'), expectedHostname,
+          reason: '终端');
+      final listing = await SftpService(session).list('/etc');
+      expect(listing.map((e) => e.name), contains('hostname'), reason: 'SFTP');
+      final info = await ServerMonitorService().detect(session);
+      expect(info.platform, isNotEmpty, reason: '服务器监控：识别');
+      await ServerMonitorService().poll(session);
+      final processes = await SystemManagementService().listProcesses(session);
+      expect(processes, isNotEmpty, reason: '系统管理：进程列表');
+      expect(await sshdConnections(targetContainer), 1,
+          reason: '终端、SFTP、监控、系统管理都在同一条 SSH 连接里，没有谁另开一条');
+
+      final forwards = container.read(portForwardControllerProvider.notifier);
+      await forwards.startLocal(
+        session: session,
+        localPort: 0,
+        remoteHost: '127.0.0.1',
+        remotePort: 22,
+      );
+      final port =
+          container.read(portForwardControllerProvider).single.localPort;
+      final socket = await Socket.connect('127.0.0.1', port);
+      final banner = Completer<List<int>>();
+      final reading = socket.listen((chunk) {
+        if (!banner.isCompleted) banner.complete(chunk);
+      });
+      expect(
+          String.fromCharCodes(
+              await banner.future.timeout(const Duration(seconds: 3))),
+          startsWith('SSH-2.0-'),
+          reason: '端口转发：经目标机转到它自己的 22 端口');
+      // 转发连接还开着时再数：多出来的一条是目标机上从 127.0.0.1 连回自己 22 端口的那条，
+      // 不是手机另开的。
+      expect(await sshdConnections(targetContainer), 2);
+      await reading.cancel();
+      socket.destroy();
+
+      expect(dialer.dials, [entry], reason: '手机只拨了入口一次，没有任何入口直连');
+      await forwards
+          .stop(container.read(portForwardControllerProvider).single.id);
+      await controller.close(0);
+    }
+
+    test('RTE04 经 dante 代理：终端、SFTP、监控、系统管理、端口转发都在这一条连接里', () async {
+      final f = fixture!;
+      await everyEntryUsesTheRoute(
+        targetViaProxy({
+          'type': 'socks5',
+          'host': f.socksAuthHost,
+          'port': f.socksAuthPort,
+          'username': f.socksUser,
+          'password': f.socksPassword,
+        }),
+        const [],
+        expectedHostname: 'target',
+        targetContainer: 'target',
+        entry: '${f.socksAuthHost}:${f.socksAuthPort}',
+      );
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 90)));
+
+    test('RTE04 经边缘跳板：同上，手机只拨边缘机', () async {
+      final f = fixture!;
+      final edge = edgeHost({'id': 'rte04-edge', 'label': 'edge'});
+      await everyEntryUsesTheRoute(
+        HostProfile({
+          ...targetViaProxy(const {}).data,
+          'id': 'rte04-target',
+          'proxyConfig': null,
+          'hostChain': {
+            'hostIds': ['rte04-edge'],
+          },
+        }),
+        [edge],
+        expectedHostname: 'target',
+        targetContainer: 'target',
+        entry: '${f.edgeHost}:${f.edgePort}',
+      );
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 90)));
+
+    test('RTE04 直连：同上，手机只拨目标本身', () async {
+      final f = fixture!;
+      await everyEntryUsesTheRoute(
+        edgeHost({'id': 'rte04-direct'}),
+        const [],
+        expectedHostname: 'ssh-edge',
+        targetContainer: 'ssh-edge',
+        entry: '${f.edgeHost}:${f.edgePort}',
+      );
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 90)));
+
+    test('服务器没开 SFTP：10 秒内报清楚原因，不无限转圈；终端连接不受影响', () async {
+      final f = fixture!;
+      final vault = container.read(vaultControllerProvider.notifier);
+      final edge = edgeHost({'id': 'nosftp-edge', 'label': 'edge'});
+      final hop3 = HostProfile({
+        'id': 'nosftp-hop3',
+        'label': 'hop3',
+        'hostname': f.hop3Name,
+        'port': f.hop3Port,
+        'username': f.user,
+        'password': f.password,
+        'authMethod': 'password',
+        'protocol': 'ssh',
+        'hostChain': {
+          'hostIds': ['nosftp-edge'],
+        },
+      });
+      await vault.upsertHost(edge);
+      await vault.upsertHost(hop3);
+      expect(await controller.connect(hop3, verifyByLogicalName), isTrue);
+      final session = controller.state.sessions.single;
+      final watch = Stopwatch()..start();
+      Object? error;
+      try {
+        await SftpService(session).list('/');
+      } catch (e) {
+        error = e;
+      }
+      expect(watch.elapsed, lessThan(const Duration(seconds: 13)));
+      expect('$error', contains('服务器没有回应 SFTP'));
+      expect(await runInSession(session, 'hostname'), 'ssh-hop3');
+      await controller.close(0);
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
+    test('SEC06 加密私钥：口令对能登录；口令错、密文被改都在拨号前拒绝', () async {
+      final f = fixture!;
+      final dir = await Directory.systemTemp.createTemp('xwshun-sec06-');
+      addTearDown(() => dir.delete(recursive: true));
+      final file = File('${dir.path}/id')..writeAsStringSync(f.privateKeyPem);
+      await Process.run('chmod', ['600', file.path]);
+      final reencrypt = await Process.run('ssh-keygen',
+          ['-q', '-p', '-P', '', '-N', 'right-pass', '-f', file.path]);
+      expect(reencrypt.exitCode, 0, reason: '${reencrypt.stderr}');
+      final encrypted = file.readAsStringSync();
+      expect(encrypted, contains('OPENSSH PRIVATE KEY'));
+
+      final lines = const LineSplitter().convert(encrypted.trim());
+      final blob = base64.decode(lines.sublist(1, lines.length - 1).join());
+      blob[blob.length - 72] ^= 0xff; // 私钥种子里的一个字节
+      final tampered = [lines.first, base64.encode(blob), lines.last].join('\n');
+
+      Future<Object?> login(String pem, String passphrase) async {
+        final host = edgeHost({
+          'id': 'sec06',
+          'authMethod': 'key',
+          'password': null,
+          'identityFileId': 'k',
+        });
+        final key = SshKeyProfile(
+            {'id': 'k', 'label': 'k', 'privateKey': pem, 'passphrase': passphrase});
+        try {
+          final session = await SshService(dialer: dialer.call).connect(
+            sessionId: 'sec06',
+            host: host,
+            hosts: [host],
+            keys: [key],
+            verifyHostKey: verifyByLogicalName,
+          );
+          final name = await runInSession(session, 'hostname');
+          await session.close();
+          return name;
+        } catch (error) {
+          return error;
+        }
+      }
+
+      expect(await login(encrypted, 'right-pass'), 'ssh-edge');
+      expect(dialer.dials, hasLength(1));
+
+      final wrong = await login(encrypted, 'wrong-pass');
+      expect('$wrong', contains('私钥口令不对'));
+      final damaged = await login(tampered, 'right-pass');
+      expect('$damaged', contains('私钥内容已损坏'));
+      expect(dialer.dials, hasLength(1), reason: '口令错、密文被改时一次都没拨');
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
+    test('SEC04 信任按逻辑名：同一台机器换个名字要重新核对；只改大小写或用户名不用', () async {
+      final f = fixture!;
+      var knownHosts = <Map<String, dynamic>>[];
+      final prompts = <String>[];
+      Future<bool> verify(HostProfile host, String type, String fp) =>
+          verifyHostKeyWithKnownHosts(
+            knownHosts: knownHosts,
+            hostname: host.hostname,
+            port: host.port,
+            keyType: type,
+            fingerprint: fp,
+            confirmNew: () async {
+              prompts.add(host.hostname);
+              return fp == f.edgeFingerprint;
+            },
+            onChanged: (_) async => false,
+            save: (value) async => knownHosts = value,
+          );
+      Future<void> connectAs(Map<String, Object?> extra) async {
+        final host = edgeHost(extra);
+        final session = await SshService().connect(
+          sessionId: 'sec04',
+          host: host,
+          hosts: [host],
+          verifyHostKey: verify,
+        );
+        await session.close();
+      }
+
+      await connectAs({'hostname': 'localhost'});
+      expect(prompts, ['localhost'], reason: '第一次见要核对');
+      await connectAs({'hostname': 'LOCALHOST'});
+      expect(prompts, ['localhost'], reason: '只是大小写不同，不再问');
+
+      Object? wrongUser;
+      try {
+        await connectAs({'hostname': 'localhost', 'username': 'nobody-here'});
+      } catch (error) {
+        wrongUser = error;
+      }
+      expect('$wrongUser', contains('登录被拒绝'),
+          reason: '换了用户名：信任照旧（没再问），登录按新用户名进行');
+      expect(prompts, ['localhost']);
+
+      await connectAs({'hostname': '127.0.0.1'});
+      expect(prompts, ['localhost', '127.0.0.1'],
+          reason: '同一台机器的另一个名字不隐式沿用信任');
+      expect(knownHosts.map((e) => e['hostname']), ['localhost', '127.0.0.1']);
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
   });
 }
