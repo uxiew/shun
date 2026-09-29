@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -9,6 +10,7 @@ import 'package:netcatty_mobile/application/session_controller.dart';
 import 'package:netcatty_mobile/domain/models/host.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
+import 'package:netcatty_mobile/infrastructure/transport/proxy_transport.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xterm2/xterm.dart';
 
@@ -225,19 +227,27 @@ void main() {
           proxyProfiles: const [],
           verifyHostKey: (_, __, fp) async => fp == fixture.edgeFingerprint,
         ),
-        throwsA(anything),
+        throwsA(isA<ProxyHandshakeException>()
+            .having((e) => e.message, 'message', contains('防止降级'))),
       );
       expect(proxy.attempts.single.offeredMethods, [2],
           reason: '有凭据时只应提供用户名密码方法');
-    },
-        // 已知失败（A02 归 R06）：默认 skip，不让已知问题把全量回归变红；
-        // XWSHUN_RUN_KNOWN_FAILS=1 时照常运行，用来给证据取实测结果。
-        skip: skip != false
-            ? skip
-            : Platform.environment['XWSHUN_RUN_KNOWN_FAILS'] == '1'
-                ? false
-                : 'A02 属 R06（SOCKS5 认证策略），已知失败；'
-                    'XWSHUN_RUN_KNOWN_FAILS=1 可实际运行，实测结果见 plan/v3/evidence/R02.md');
+    }, skip: skip);
+
+    test('配置了代理密码，却连到只允许无认证的 dante：拒绝，不降级', () async {
+      final f = fixture!;
+      final host = targetViaProxy({
+        'type': 'socks5',
+        'host': f.socksAuthHost,
+        'port': f.socksNoAuthPort,
+        'username': f.socksUser,
+        'password': f.socksPassword,
+      });
+      await expectLater(
+        connect(host),
+        throwsA(isA<ProxyHandshakeException>()),
+      );
+    }, skip: skip);
   });
 
   test('NET02 目标名只交给代理：本机只拨代理端点，指纹按逻辑名校验', () async {
@@ -323,6 +333,76 @@ void main() {
         ],
         [f.edgeHost, f.hop2Name, f.targetName],
       );
+    });
+  }, skip: skip);
+
+  group('R06 经外部 SOCKS 与拆包的真实行为', () {
+    test('SOX01 同一个外部 SOCKS 连两个不同目标：两条独立 CONNECT；会话关了代理照常可用', () async {
+      final f = fixture!;
+      final dialer = RecordingDialer();
+      final proxy = {
+        'type': 'socks5',
+        'host': f.socksAuthHost,
+        'port': f.socksAuthPort,
+        'username': f.socksUser,
+        'password': f.socksPassword,
+      };
+      HostProfile via(String id, String name, int port) => HostProfile({
+            'id': id,
+            'label': id,
+            'hostname': name,
+            'port': port,
+            'username': f.user,
+            'password': f.password,
+            'authMethod': 'password',
+            'protocol': 'ssh',
+            'proxyConfig': proxy,
+          });
+      final a = await connect(via('a', f.targetName, f.targetPort),
+          dialer: dialer.call);
+      final b =
+          await connect(via('b', f.hop2Name, f.hop2Port), dialer: dialer.call);
+      expect(await runInSession(a, 'hostname'), 'target');
+      expect(await runInSession(b, 'hostname'), 'ssh-hop2',
+          reason: '第二个目标走自己的 CONNECT，不复用第一条已连上的流');
+      final socks = '${f.socksAuthHost}:${f.socksAuthPort}';
+      expect(dialer.dials, [socks, socks]);
+      await a.close();
+      await b.close();
+      // 外部代理不是 App 启动的，App 关会话也不去停它：马上再连一次照常可用。
+      final c = await connect(via('c', f.targetName, f.targetPort));
+      addTearDown(c.close);
+      expect(await runInSession(c, 'hostname'), 'target');
+    });
+
+    test('SOX02 真实 sshd 的版本行被逐字节拆开：照样连上', () async {
+      final f = fixture!;
+      final relay = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      addTearDown(relay.close);
+      relay.listen((client) async {
+        client.setOption(SocketOption.tcpNoDelay, true);
+        final upstream = await Socket.connect(f.edgeHost, f.edgePort);
+        client.listen(upstream.add,
+            onDone: upstream.destroy, onError: (_) => upstream.destroy());
+        // 服务器发来的前 40 个字节（含版本行）一字节一个包、间隔 2 ms 转给客户端，之后原样转发。
+        final fromServer = StreamIterator(upstream);
+        var split = 0;
+        while (await fromServer.moveNext()) {
+          final chunk = fromServer.current;
+          var offset = 0;
+          while (split < 40 && offset < chunk.length) {
+            client.add([chunk[offset++]]);
+            await client.flush();
+            split++;
+            await Future<void>.delayed(const Duration(milliseconds: 2));
+          }
+          if (offset < chunk.length) client.add(chunk.sublist(offset));
+        }
+        client.destroy();
+      });
+      final session = await connect(edgeHost({'port': relay.port}));
+      addTearDown(session.close);
+      expect(await runInSession(session, 'hostname'), 'ssh-edge');
     });
   }, skip: skip);
 
