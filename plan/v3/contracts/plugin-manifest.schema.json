@@ -1,0 +1,148 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Mobile terminal provider manifest (design contract v1)",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "schemaVersion",
+    "pluginId",
+    "displayName",
+    "version",
+    "apiMajor",
+    "apiMinor",
+    "deployment",
+    "capabilities",
+    "supportedRoutes",
+    "platforms",
+    "permissions"
+  ],
+  "properties": {
+    "schemaVersion": {
+      "const": 1
+    },
+    "pluginId": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*(\\.[a-z][a-z0-9_]*)+$",
+      "maxLength": 128
+    },
+    "displayName": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 80
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$"
+    },
+    "apiMajor": {
+      "const": 1
+    },
+    "apiMinor": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 999
+    },
+    "deployment": {
+      "enum": [
+        "bundled",
+        "android-service",
+        "external-app"
+      ]
+    },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "device-catalog",
+          "terminal-session",
+          "remote-desktop-external",
+          "remote-desktop-surface",
+          "route"
+        ]
+      }
+    },
+    "supportedRoutes": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "system-default",
+          "socks5-connect",
+          "proxy-jump",
+          "socks5-proxy-jump",
+          "provider-managed"
+        ]
+      }
+    },
+    "platforms": {
+      "type": "array",
+      "minItems": 1,
+      "uniqueItems": true,
+      "items": {
+        "enum": [
+          "android",
+          "ios"
+        ]
+      }
+    },
+    "permissions": {
+      "type": "array",
+      "uniqueItems": true,
+      "maxItems": 8,
+      "items": {
+        "enum": [
+          "own-session-ephemeral-secret",
+          "own-session-input-output",
+          "user-initiated-external-launch",
+          "own-provider-state",
+          "device-catalog-read"
+        ]
+      }
+    },
+    "packageName": {
+      "type": "string",
+      "maxLength": 180
+    },
+    "serviceClass": {
+      "type": "string",
+      "maxLength": 220
+    },
+    "license": {
+      "type": "string",
+      "maxLength": 100
+    },
+    "sourceUrl": {
+      "type": "string",
+      "pattern": "^https://",
+      "maxLength": 1024
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "deployment": {
+            "const": "android-service"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "packageName",
+          "serviceClass"
+        ],
+        "properties": {
+          "platforms": {
+            "const": [
+              "android"
+            ]
+          }
+        }
+      }
+    }
+  ],
+  "$comment": "Only structural validation; installed APK signer trust, route compatibility and runtime permissions are enforced separately. IDs/packages are examples, not assigned product names."
+}

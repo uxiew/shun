@@ -1,0 +1,20 @@
+# 本 fork 的实施入口
+
+这是 Netcatty-mobile 的**本地个人隔离实验 fork**（GPL-3.0-or-later，保留原作者版权），
+按 V3 计划改造成 Flutter 移动终端。上游代码的说明仍以 `README.md` 和 `docs/` 为准。
+
+开始干活前先读 `plan/v3/AGENTS.md`（实施契约），再读 `plan/v3/STATUS.md`（当前进度）。
+任务定义在 `plan/v3/tasks.json`，每批证据写在 `plan/v3/evidence/`。
+
+硬规矩（详见 plan/v3/AGENTS.md）：
+
+- 不 push、不发布。`upstream` 的 push 地址被故意改成了无效值，`git push` 会直接报错——这是防手滑，不是配置坏了。
+- applicationId 是 `top.xdwa.xwshun`，不得改回 `app.netcatty.mobile`，否则会覆盖手机上的原版 Netcatty 及其数据。
+- 没真机/没授权的用例写 NOT_RUN 或 BLOCKED，不许拿 mock、参考 App 或计划校验冒充通过。
+
+工具链装在仓库外的 `../.toolchain/`（Flutter 3.44.4、Python venv），不依赖全局环境：
+
+```bash
+export PATH=/Users/fodelf/xdw/xwshun/.toolchain/flutter/bin:$PATH
+python=/Users/fodelf/xdw/xwshun/.toolchain/pyenv/bin/python   # 跑 plan/v3/scripts/validate_plan.py 用，需要 jsonschema
+```

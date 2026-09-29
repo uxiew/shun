@@ -1,0 +1,410 @@
+{
+  "source_plan": "2026-09-28",
+  "all_old_tasks_retired": true,
+  "mapping": [
+    {
+      "old_id": "T00",
+      "old_title": "仓库身份、范围和依赖事实登记",
+      "new_ids": [
+        "R00"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T01",
+      "old_title": "可重复的 SOCKS、SSH 与终端测试支架",
+      "new_ids": [
+        "R02"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T02",
+      "old_title": "Android → SOCKS5 → SSH 最小验证",
+      "new_ids": [
+        "R03",
+        "R06",
+        "R07",
+        "R09"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T03",
+      "old_title": "libghostty 与 xterm 终端 A/B 实验",
+      "new_ids": [
+        "R04",
+        "R16",
+        "R17",
+        "R20"
+      ],
+      "decision": "REPLACED_TECHNOLOGY",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T04",
+      "old_title": "许可、加密 provider 与 Android 服务可行性",
+      "new_ids": [
+        "R00",
+        "R04",
+        "R27"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T05",
+      "old_title": "最小工程、质量检查与构建锁定",
+      "new_ids": [
+        "R01"
+      ],
+      "decision": "REPLACED_TECHNOLOGY",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T06",
+      "old_title": "领域模型、错误类型与状态约束",
+      "new_ids": [
+        "R05"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T07",
+      "old_title": "元数据存储与迁移",
+      "new_ids": [
+        "R08",
+        "R12"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T08",
+      "old_title": "凭据 Vault、导入与解锁 lease",
+      "new_ids": [
+        "R09",
+        "R28"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T09",
+      "old_title": "生产 SOCKS5 CONNECT transport",
+      "new_ids": [
+        "R06"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T10",
+      "old_title": "SSHJ 适配与 socket 所有权",
+      "new_ids": [
+        "R07",
+        "R08",
+        "R09"
+      ],
+      "decision": "REPLACED_TECHNOLOGY",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T11",
+      "old_title": "主机信任与 SSH 认证交互",
+      "new_ids": [
+        "R09",
+        "R14"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T12",
+      "old_title": "连接编排、PTY 与标签最小闭环",
+      "new_ids": [
+        "R08",
+        "R10"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T13",
+      "old_title": "被选终端引擎的生产适配",
+      "new_ids": [
+        "R16",
+        "R17"
+      ],
+      "decision": "REPLACED_TECHNOLOGY",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T14",
+      "old_title": "中文 IME、键盘和尺寸联动",
+      "new_ids": [
+        "R18"
+      ],
+      "decision": "REPLACED_TECHNOLOGY",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T15",
+      "old_title": "滚动、选择、复制与鼠标模式",
+      "new_ids": [
+        "R19"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T16",
+      "old_title": "多行编辑与防重复发送",
+      "new_ids": [
+        "R19",
+        "R23"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T17",
+      "old_title": "全屏 TUI 与终端负载门禁",
+      "new_ids": [
+        "R20"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T18",
+      "old_title": "tmux 探测、列表与安全命令编码",
+      "new_ids": [
+        "R21"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T19",
+      "old_title": "tmux 附着、显式新建与标签关联",
+      "new_ids": [
+        "R21"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T20",
+      "old_title": "作用域正确的 tmux 快捷控制",
+      "new_ids": [
+        "R21",
+        "R25"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T21",
+      "old_title": "安全恢复到既有 tmux 目标",
+      "new_ids": [
+        "R21",
+        "R23"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T22",
+      "old_title": "前台连接服务与用户停止",
+      "new_ids": [
+        "R22"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T23",
+      "old_title": "网络变化、代理丢失与有界重试",
+      "new_ids": [
+        "R22"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T24",
+      "old_title": "Activity 重建、进程死亡与锁屏恢复",
+      "new_ids": [
+        "R22",
+        "R23"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T25",
+      "old_title": "脱敏诊断与实际引擎状态",
+      "new_ids": [
+        "R25"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T26",
+      "old_title": "真实移动故障与长期资源回归",
+      "new_ids": [
+        "R26"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T27",
+      "old_title": "主机、代理与会话页面整合",
+      "new_ids": [
+        "R10",
+        "R13",
+        "R25"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T28",
+      "old_title": "身份管理、应用锁与隐私设置",
+      "new_ids": [
+        "R09",
+        "R28"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T29",
+      "old_title": "可访问性、横屏与交互统一",
+      "new_ids": [
+        "R25"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T30",
+      "old_title": "用户真实 VPN + TailSocks 日用验收",
+      "new_ids": [
+        "R26"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T31",
+      "old_title": "Release 构建、安全依赖与兼容性",
+      "new_ids": [
+        "R27"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T32",
+      "old_title": "全量安全与功能回归",
+      "new_ids": [
+        "R30"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T33",
+      "old_title": "用户文档、README 与故障说明",
+      "new_ids": [
+        "R29"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T34",
+      "old_title": "独立对抗审查与 v0.1 结论",
+      "new_ids": [
+        "R31"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T35",
+      "old_title": "SFTP 文件管理",
+      "new_ids": [
+        "R24"
+      ],
+      "decision": "RETAIN_OR_REASSESS_BASE_FEATURE",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T36",
+      "old_title": "SSH 端口预览",
+      "new_ids": [
+        "R24"
+      ],
+      "decision": "RETAIN_OR_REASSESS_BASE_FEATURE",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T37",
+      "old_title": "图片附件与远端文件路径插入",
+      "new_ids": [
+        "R37"
+      ],
+      "decision": "DEFERRED_ATTACHMENT_FEATURE_NOT_IN_CORE",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T38",
+      "old_title": "加密导出与可选自带云同步",
+      "new_ids": [
+        "R36"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T39",
+      "old_title": "可选内置用户态 Tailscale",
+      "new_ids": [
+        "R32"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T40",
+      "old_title": "Mosh / UDP 路径研究",
+      "new_ids": [
+        "X08",
+        "X09",
+        "X10",
+        "R34"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    },
+    {
+      "old_id": "T41",
+      "old_title": "iOS 与其他平台评估",
+      "new_ids": [
+        "R35"
+      ],
+      "decision": "REPLAN_NO_STATUS_TRANSFER",
+      "completion_transferred": false
+    }
+  ],
+  "current_plan_revision": "3.0"
+}

@@ -1,0 +1,197 @@
+{
+  "plan_revision": "3.0",
+  "date": "2026-09-29",
+  "files": [
+    {
+      "path": "AGENTS.md",
+      "size": 2222,
+      "sha256": "0aff48a7c073c683760b1ce4a4556c45c75e5eee2a5bb94936df8b9cac406d50"
+    },
+    {
+      "path": "PLAN-CHECK.json",
+      "size": 273,
+      "sha256": "79e6c715aab959a708bc500a31c3b98f42868edc2d608f9632a768d2022d0600"
+    },
+    {
+      "path": "PLANNING-REVIEW.md",
+      "size": 1001,
+      "sha256": "c4602ff805bd21535b6bc9190f7091d4e33eed39a95288d450263f6188a787c8"
+    },
+    {
+      "path": "README.md",
+      "size": 2040,
+      "sha256": "ce42f2198c2308989e624670b41d7cbcd1385797bb39aaa6ad9d226335a1a8d6"
+    },
+    {
+      "path": "STATUS.md",
+      "size": 1411,
+      "sha256": "cd5bc01ba9496d36edec7058adddeea785c78ad751c8609e84ea88176781fcf6"
+    },
+    {
+      "path": "contracts/README.md",
+      "size": 491,
+      "sha256": "1f9796411727667dd546332116be27526c0cfe279480a83c89335f64f1a98c79"
+    },
+    {
+      "path": "contracts/examples/mosh-provider.json",
+      "size": 593,
+      "sha256": "efac4dce5cf8fb7e7d4cbb2200d4aee4a2aaae8f8b3f38148e98b77f6eb171e9"
+    },
+    {
+      "path": "contracts/examples/uu-adapter.json",
+      "size": 424,
+      "sha256": "69e3595e2a1762740ac08bd06e894cdd4a3c981f3bf4c5a1481a740b78ab8aa0"
+    },
+    {
+      "path": "contracts/plugin-manifest.schema.json",
+      "size": 3100,
+      "sha256": "aca901b6e4d1a7b1263fc1495dc5cf32b1ac01473dd83977a37c137ba75b7161"
+    },
+    {
+      "path": "docs/00-revision-overview.md",
+      "size": 3475,
+      "sha256": "eef164220c161c0612bdfee52bca201fe93b1e2511686bdef70d4b2eab1bfbf6"
+    },
+    {
+      "path": "docs/01-source-review.md",
+      "size": 4489,
+      "sha256": "770be63554c75d170e5e28e2d304611af8f917357b75568ec319549ecd873559"
+    },
+    {
+      "path": "docs/02-product-scope.md",
+      "size": 3978,
+      "sha256": "e274b47f2c1e1e24b8a89cafe9ce21d71f56151ff0a859228a4ef23707097411"
+    },
+    {
+      "path": "docs/03-architecture.md",
+      "size": 6135,
+      "sha256": "e6f966e2eb36ce07a95533d852b36a27b0ab54f8205078594446685f592daa5c"
+    },
+    {
+      "path": "docs/04-network-routes.md",
+      "size": 4901,
+      "sha256": "0a113c9356a3c5719f8b10b86d1ca69ab6226582eb32e85e589606da67ea11d5"
+    },
+    {
+      "path": "docs/05-tailscale.md",
+      "size": 5602,
+      "sha256": "7aa0d552efacc201af122be0f63ae0ba95c057ab1d1d82002b1f67b646dc2e85"
+    },
+    {
+      "path": "docs/06-ghostty.md",
+      "size": 4398,
+      "sha256": "2b529bead0772724eb483901b8391ee4a1226b66242a89414c1b3c0e0ba4bcc3"
+    },
+    {
+      "path": "docs/07-security-lifecycle.md",
+      "size": 4701,
+      "sha256": "6d980784571f2754d349b08ffef5ab63c24f323aa00c6f97cea2a837c6ad4487"
+    },
+    {
+      "path": "docs/08-implementation-tasks.md",
+      "size": 46383,
+      "sha256": "c5b2b6675bc8ee1c8adf3f3e9aae807074c104c1d1e3a581903669d7fb1a0c0a"
+    },
+    {
+      "path": "docs/09-verification.md",
+      "size": 29262,
+      "sha256": "c813de81efb21943e88bc34634866e297fe5e9c38ecdd2e6206739216da117e1"
+    },
+    {
+      "path": "docs/10-agent-handoff.md",
+      "size": 3000,
+      "sha256": "2de2f8b5ef4de5478a650014c80829508727d2fbee3f904cad62e86f56a5294a"
+    },
+    {
+      "path": "docs/11-conduit-alternative.md",
+      "size": 3052,
+      "sha256": "484c90c8d17eff6e815fee76b2387d6b2d0b17b81bafc25cf913cc959a228f28"
+    },
+    {
+      "path": "docs/12-upstream-maintenance.md",
+      "size": 2396,
+      "sha256": "b3b5176550e17602a1656a62438e61e896de73988ca180045c1632d79abd1fb1"
+    },
+    {
+      "path": "docs/13-sources.md",
+      "size": 13551,
+      "sha256": "c6ae889130ddc0a956cb9047e28c26addef0834fb117721ee48ef862ef36baf1"
+    },
+    {
+      "path": "docs/14-plugin-research.md",
+      "size": 3579,
+      "sha256": "1b64bae88ea12ae75bd174992e6d2f271c38dcc6f1ae63bd4f46391513170683"
+    },
+    {
+      "path": "docs/15-plugin-architecture.md",
+      "size": 7417,
+      "sha256": "d7286bd5a1653d77699eb3ba215483aa5e3b6cdc5c07c79b3ac1f46c16ac4454"
+    },
+    {
+      "path": "docs/16-mosh-plugin.md",
+      "size": 4494,
+      "sha256": "4a52f05822e3b6a625eb45865889794cdf1e5eb928e2455c872529dec2bea9b1"
+    },
+    {
+      "path": "docs/17-remote-desktop-plugins.md",
+      "size": 5609,
+      "sha256": "4579d3030a956cd1c1f038c7c4d140bccf55738ff05ba3239aac7df427199fd9"
+    },
+    {
+      "path": "docs/18-plugin-author-sdk.md",
+      "size": 3489,
+      "sha256": "854da75c2bdd61f3f19a5b8a9ea497b5b761800f0fc3d49c1ef3cbf0dab92d77"
+    },
+    {
+      "path": "docs/19-revised-milestones.md",
+      "size": 2376,
+      "sha256": "43327199eb1bec99fe6be170d9e66bb455d286189f5a5221c688d1bae7cc3127"
+    },
+    {
+      "path": "legacy-task-map.json",
+      "size": 9786,
+      "sha256": "bdda2ce0690d4cea5f1f574a46d9722a7230e2aef370dd541620153b7eb5085b"
+    },
+    {
+      "path": "observed-baselines.json",
+      "size": 2000,
+      "sha256": "4368e7c61472f187b95adc80eee98a37b9f8e8846df0091dd7d88cd99c49d74f"
+    },
+    {
+      "path": "scripts/validate_plan.py",
+      "size": 3850,
+      "sha256": "a68af155d8ecb52666bca87517c553a4a7314402eecb6ce80d6f2c1858a8d163"
+    },
+    {
+      "path": "sources.json",
+      "size": 23500,
+      "sha256": "60ca31a1224af500ae4fd6b7cae4aedee07f82a35bbd30c3f7e01223596d2103"
+    },
+    {
+      "path": "tasks.json",
+      "size": 67577,
+      "sha256": "8d5001c5124f957eadf85a56311db39d616d167e19cd1d0f81b874d006d62f31"
+    },
+    {
+      "path": "templates/evidence.md",
+      "size": 828,
+      "sha256": "8bac4663ebe75be2d93076fa416f14d26636db93d47d5299e3ec421c12dc45b6"
+    },
+    {
+      "path": "templates/review.md",
+      "size": 587,
+      "sha256": "8a9de5572b82b36824756492d47b077ad407ccced593bec64508f867dc1c535f"
+    },
+    {
+      "path": "v2-to-v3-map.json",
+      "size": 832,
+      "sha256": "e843d445f339ca515a0090b200eceb23bed64b80254b80f1c3dc3a6b8e673db5"
+    },
+    {
+      "path": "verification-cases.json",
+      "size": 49931,
+      "sha256": "a4ffcadea402308b7f6615e622ac3c9d09d06d2115ebca6eb274ee85b771dc9f"
+    }
+  ],
+  "application_build_performed": false
+}

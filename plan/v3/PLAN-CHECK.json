@@ -1,0 +1,13 @@
+{
+  "scope": "PLANNING_FILES_ONLY",
+  "application_tests_executed": false,
+  "passed": true,
+  "tasks": 53,
+  "core_tasks": 46,
+  "deferred_tasks": 7,
+  "verification_cases": 142,
+  "sources": 60,
+  "legacy_tasks_mapped": 42,
+  "schema_example_checks": 4,
+  "errors": []
+}

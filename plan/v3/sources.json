@@ -1,0 +1,547 @@
+{
+  "date": "2026-09-29",
+  "scope": "Primary documentation/manifests/key source review; no complete checkout, APK build, plugin runtime or device test",
+  "sources": [
+    {
+      "id": "S01",
+      "title": "Netcatty README",
+      "url": "https://raw.githubusercontent.com/kmh1145/Netcatty-mobile/main/README.md",
+      "accessed_on": "2026-09-29",
+      "note": "功能与技术路线声明；不代替实际构建和回归。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S02",
+      "title": "Netcatty LICENSE",
+      "url": "https://raw.githubusercontent.com/kmh1145/Netcatty-mobile/main/LICENSE",
+      "accessed_on": "2026-09-29",
+      "note": "GPL-3.0-or-later；正式分发需符合原许可。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S03",
+      "title": "Netcatty pubspec",
+      "url": "https://raw.githubusercontent.com/kmh1145/Netcatty-mobile/main/pubspec.yaml",
+      "accessed_on": "2026-09-29",
+      "note": "观察版本1.4.7+26，dartssh2约束^2.22.3，xterm2为5.2.0；不是HEAD或完整锁文件。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S04",
+      "title": "Netcatty SSH service",
+      "url": "https://raw.githubusercontent.com/kmh1145/Netcatty-mobile/main/lib/infrastructure/ssh/ssh_service.dart",
+      "accessed_on": "2026-09-29",
+      "note": "静态读取跳板、代理、字节解码、startup、取消及socket适配。仅为待复验线索。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S05",
+      "title": "Netcatty session controller",
+      "url": "https://raw.githubusercontent.com/kmh1145/Netcatty-mobile/main/lib/application/session_controller.dart",
+      "accessed_on": "2026-09-29",
+      "note": "重连调用connect并传回原host；会话与引擎耦合。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S06",
+      "title": "Netcatty host model",
+      "url": "https://raw.githubusercontent.com/kmh1145/Netcatty-mobile/main/lib/domain/models/host.dart",
+      "accessed_on": "2026-09-29",
+      "note": "hostChain、proxyProfileId、proxyConfig与原始Map模型。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S07",
+      "title": "Netcatty architecture",
+      "url": "https://raw.githubusercontent.com/kmh1145/Netcatty-mobile/main/docs/ARCHITECTURE.md",
+      "accessed_on": "2026-09-29",
+      "note": "现有分层、会话及借用SSH能力的边界。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S08",
+      "title": "Netcatty project structure",
+      "url": "https://raw.githubusercontent.com/kmh1145/Netcatty-mobile/main/docs/PROJECT_STRUCTURE.md",
+      "accessed_on": "2026-09-29",
+      "note": "本文代码落点的来源，不保证后续HEAD不变化。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S09",
+      "title": "Netcatty security",
+      "url": "https://raw.githubusercontent.com/kmh1145/Netcatty-mobile/main/docs/SECURITY.md",
+      "accessed_on": "2026-09-29",
+      "note": "上游安全说明；仍需独立检查持久化、导出和同步。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S10",
+      "title": "Conduit README",
+      "url": "https://raw.githubusercontent.com/gwitko/Conduit/master/README.md",
+      "accessed_on": "2026-09-29",
+      "note": "应用自身Apache-2.0；conduit_vt、tmux、FIDO及可选本地shell；第三方另有许可。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S11",
+      "title": "Conduit SSH factory",
+      "url": "https://raw.githubusercontent.com/gwitko/Conduit/master/lib/features/terminal/data/ssh_client_factory.dart",
+      "accessed_on": "2026-09-29",
+      "note": "当前读取路径直接TcpSshSocket.connect；硬件键与host trust可复用。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S12",
+      "title": "Conduit pubspec",
+      "url": "https://raw.githubusercontent.com/gwitko/Conduit/master/pubspec.yaml",
+      "accessed_on": "2026-09-29",
+      "note": "观察1.4.14+39；SSH与终端使用git fork；并非纯上游依赖。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S13",
+      "title": "Conduit repositories",
+      "url": "https://raw.githubusercontent.com/gwitko/Conduit/master/lib/features/terminal/data/routing_terminal_repository.dart",
+      "accessed_on": "2026-09-29",
+      "note": "此routing用于SSH/Mosh/local选择，不应误称ProxyJump路由。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S14",
+      "title": "NiceSSH README",
+      "url": "https://raw.githubusercontent.com/imtaqin/NiceSSH/main/README.md",
+      "accessed_on": "2026-09-29",
+      "note": "MIT；host-key验证与jump等仍列planned。README声明，不推断全树实现。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S15",
+      "title": "Claude Carry README",
+      "url": "https://raw.githubusercontent.com/Samuele95/claude-carry/master/README.md",
+      "accessed_on": "2026-09-29",
+      "note": "MIT声明；Claude专用工作流、附件与工具栏；本方案不继承自动启动和跳过权限默认。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S16",
+      "title": "elias8 libghostty repository",
+      "url": "https://github.com/elias8/libghostty",
+      "accessed_on": "2026-09-29",
+      "note": "Dart绑定与Flutter flterm组件；不能据此声称实机已通过或等于桌面Ghostty渲染器。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S17",
+      "title": "flterm pubspec",
+      "url": "https://raw.githubusercontent.com/elias8/libghostty/main/packages/flterm/pubspec.yaml",
+      "accessed_on": "2026-09-29",
+      "note": "观察0.0.5，Dart ^3.12.0，Flutter >=3.44.0，依赖libghostty ^0.0.12。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S18",
+      "title": "libghostty pubspec",
+      "url": "https://raw.githubusercontent.com/elias8/libghostty/main/packages/libghostty/pubspec.yaml",
+      "accessed_on": "2026-09-29",
+      "note": "观察0.0.12与native hooks；平台声明不是实机验收。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S19",
+      "title": "flterm controller",
+      "url": "https://raw.githubusercontent.com/elias8/libghostty/main/packages/flterm/lib/src/controller/terminal_controller.dart",
+      "accessed_on": "2026-09-29",
+      "note": "write(Uint8List)、onOutput、onResize、单view所有权、非重入与dispose契约。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S20",
+      "title": "libghostty native provider",
+      "url": "https://raw.githubusercontent.com/elias8/libghostty/main/packages/libghostty/lib/src/hook/library_provider.dart",
+      "accessed_on": "2026-09-29",
+      "note": "预编译下载含hash验证；另有源码编译路径。不可关闭完整性检查。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S21",
+      "title": "libghostty binary hashes",
+      "url": "https://raw.githubusercontent.com/elias8/libghostty/main/packages/libghostty/lib/src/hook/asset_hashes.dart",
+      "accessed_on": "2026-09-29",
+      "note": "观察releaseTag libghostty-v0.0.12，包含Android arm64/arm/x86_64清单。未下载执行二进制。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S22",
+      "title": "Ghostty upstream pin",
+      "url": "https://raw.githubusercontent.com/elias8/libghostty/main/packages/libghostty/ghostty.version",
+      "accessed_on": "2026-09-29",
+      "note": "读取到349f026087d948f8f898dca3231ff91438f83ab8，这是Ghostty源码pin，不是elias8仓库HEAD。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S23",
+      "title": "Tailscale trust credentials",
+      "url": "https://tailscale.com/docs/reference/trust-credentials",
+      "accessed_on": "2026-09-29",
+      "note": "最小设备读取scope是devices:core:read；devices:read属于legacy。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S24",
+      "title": "Tailscale OAuth clients",
+      "url": "https://tailscale.com/docs/features/oauth-clients",
+      "accessed_on": "2026-09-29",
+      "note": "用户自有client凭据换取有范围短期token；不是已存在的第三方手机SSO授权流程。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S25",
+      "title": "Tailscale API",
+      "url": "https://tailscale.com/docs/reference/tailscale-api",
+      "accessed_on": "2026-09-29",
+      "note": "普通控制台API token可能全权限；需角色授权，不能称天然只读。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S26",
+      "title": "Tailscale SSH",
+      "url": "https://tailscale.com/docs/features/tailscale-ssh",
+      "accessed_on": "2026-09-29",
+      "note": "Tailnet网络身份、SSH权限与检查流程；普通OpenSSH不是同一认证模型。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S27",
+      "title": "TermRover integration",
+      "url": "https://termrover.sh/blog/termrover-tailscale-ssh-from-your-phone/",
+      "accessed_on": "2026-09-29",
+      "note": "设备导入与SSH入口行为参考；其API key只读表述不作为权限依据。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S28",
+      "title": "SOCKS5 RFC1928",
+      "url": "https://www.rfc-editor.org/info/rfc1928/",
+      "accessed_on": "2026-09-29",
+      "note": "CONNECT、地址、方法与错误码；没有单CONNECT多目标多路复用。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S29",
+      "title": "SOCKS auth RFC1929",
+      "url": "https://www.rfc-editor.org/info/rfc1929/",
+      "accessed_on": "2026-09-29",
+      "note": "用户名密码子协商不自带加密。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S30",
+      "title": "dartssh2 upstream",
+      "url": "https://github.com/vicajilau/dartssh2",
+      "accessed_on": "2026-09-29",
+      "note": "forwardLocal可作为内层SSH socket；历史TerminalStudio URL重定向。示例不替代锁定版本。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S31",
+      "title": "dartssh2 client source",
+      "url": "https://raw.githubusercontent.com/vicajilau/dartssh2/master/lib/src/ssh_client.dart",
+      "accessed_on": "2026-09-29",
+      "note": "观察none尝试与onUserauthBanner等；不能假定pubspec所选2.22.x具备master所有新增API。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S32",
+      "title": "Android 16KB pages",
+      "url": "https://developer.android.com/guide/practices/page-sizes",
+      "accessed_on": "2026-09-29",
+      "note": "实际APK/native ELF/设备兼容性验收；包含传递native依赖。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S33",
+      "title": "Android foreground types",
+      "url": "https://developer.android.com/develop/background-work/services/fgs/service-types",
+      "accessed_on": "2026-09-29",
+      "note": "真实用途、类型与权限；不保证无限后台存活。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S34",
+      "title": "GNU GPLv3",
+      "url": "https://www.gnu.org/licenses/gpl.html",
+      "accessed_on": "2026-09-29",
+      "note": "修改和分发义务依据；本文件不是对所有分发渠道的法律审查。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S35",
+      "title": "TailSocks repository",
+      "url": "https://github.com/bropines/tailsocks",
+      "accessed_on": "2026-09-29",
+      "note": "外部用户态SOCKS5及可选TUN；本App只消费明确配置的SOCKS端点。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S36",
+      "title": "LobiShell Mosh plugin README",
+      "url": "https://github.com/secco04/saftssh-mosh-plugin",
+      "accessed_on": "2026-09-29",
+      "note": "独立APK；README称bound service，但本轮Manifest/Provider显示二进制ContentProvider。以实际源码为准，不假设全插件共用统一SDK。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S37",
+      "title": "LobiShell Mosh manifest",
+      "url": "https://raw.githubusercontent.com/secco04/saftssh-mosh-plugin/main/app/src/main/AndroidManifest.xml",
+      "accessed_on": "2026-09-29",
+      "note": "观察MoshBinaryProvider及normal级READ_BINARY权限；本轮manifest未声明Mosh bound service。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S38",
+      "title": "LobiShell MoshBinaryProvider",
+      "url": "https://raw.githubusercontent.com/secco04/saftssh-mosh-plugin/main/app/src/main/java/de/lobianco/saftssh/mosh/MoshBinaryProvider.kt",
+      "accessed_on": "2026-09-29",
+      "note": "二进制交付接口的代码参考，不是本方案会话IPC实现，也不说明复制执行适合本产品。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S39",
+      "title": "LobiShell RustDesk plugin README",
+      "url": "https://github.com/secco04/rustdesk-plugin",
+      "accessed_on": "2026-09-29",
+      "note": "独立APK，AIDL bound service，内含RustDesk客户端核心并声明AGPL-3.0；不隶属官方RustDesk。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S40",
+      "title": "LobiShell RustDesk manifest",
+      "url": "https://raw.githubusercontent.com/secco04/rustdesk-plugin/master/app/src/main/AndroidManifest.xml",
+      "accessed_on": "2026-09-29",
+      "note": "导出会话Service、specialUse声明、作用域文件共享。商店合规需本产品独立复核。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S41",
+      "title": "LobiShell RustDesk session service",
+      "url": "https://raw.githubusercontent.com/secco04/rustdesk-plugin/master/app/src/main/java/de/lobianco/saftssh/rustdesk/RustDeskSessionService.kt",
+      "accessed_on": "2026-09-29",
+      "note": "观察AIDL方法内UID映射包名检查及Surface参数；本方案加强为签名和授权记录校验，不声称上游存在已利用漏洞。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S42",
+      "title": "UU远程官方接入协议 当前raw",
+      "url": "https://raw.githubusercontent.com/netease-uuyc/uuremote-integration-guide/main/README.md",
+      "accessed_on": "2026-09-29",
+      "note": "观察最低4.42.0；Windows/macOS目标；绑定nonce与opaque ID；全屏无回调，小窗可选callback。与搜索缓存旧版的全屏回调说法冲突，以本次raw为设计基准并要求实施前冻结版本。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S43",
+      "title": "UU远程官方接入仓库",
+      "url": "https://github.com/netease-uuyc/uuremote-integration-guide",
+      "accessed_on": "2026-09-29",
+      "note": "来源为netease-uuyc维护的接入说明。不是嵌入式画面SDK，也不是整个UU客户端源代码。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S44",
+      "title": "RustDesk Android manifest",
+      "url": "https://raw.githubusercontent.com/rustdesk/rustdesk/master/flutter/android/app/src/main/AndroidManifest.xml",
+      "accessed_on": "2026-09-29",
+      "note": "观察rustdesk scheme及com.carriez.flutter_hbb标识；正式包/签名按实际发行渠道验证。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S45",
+      "title": "RustDesk deep-link implementation",
+      "url": "https://raw.githubusercontent.com/rustdesk/rustdesk/master/flutter/lib/common.dart",
+      "accessed_on": "2026-09-29",
+      "note": "urlLinkToCmdArgs处理连接URI；移动端config/password敏感动作有额外开关。外部连接不默认传password或配置修改。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S46",
+      "title": "OpenPGP API remote service",
+      "url": "https://github.com/open-keychain/openpgp-api",
+      "accessed_on": "2026-09-29",
+      "note": "AIDL + ParcelFileDescriptor、结果与需用户交互状态是可借鉴接口模式；并非本项目要集成PGP或复制整库。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S47",
+      "title": "Termux API add-on",
+      "url": "https://github.com/termux/termux-api",
+      "accessed_on": "2026-09-29",
+      "note": "独立add-on及同签名授权先例；本产品独立签名插件不能照用same-signature条件后声称第三方即插即用。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S48",
+      "title": "Flutter deferred components",
+      "url": "https://docs.flutter.dev/perf/deferred-components",
+      "accessed_on": "2026-09-29",
+      "note": "Android deferred components仍随整个AAB共同构建上传，不是任意第三方Dart包运行期插件机制。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S49",
+      "title": "Android dynamic code loading",
+      "url": "https://developer.android.com/privacy-and-security/risks/dynamic-code-loading",
+      "accessed_on": "2026-09-29",
+      "note": "动态载入的风险；不能把签名/hash当作消除同进程代码权限或商店分发规则。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S50",
+      "title": "Google Play device/network abuse",
+      "url": "https://support.google.com/googleplay/android-developer/answer/16559646?hl=en",
+      "accessed_on": "2026-09-29",
+      "note": "Play分发的远程可执行代码下载约束与前台服务要求；发布时需复核，不保证独立APK方案自动获批。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S51",
+      "title": "Android AIDL",
+      "url": "https://developer.android.com/develop/background-work/services/aidl",
+      "accessed_on": "2026-09-29",
+      "note": "多应用IPC、线程/方法兼容、DeadObjectException；本方案的typed契约为新设计。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S52",
+      "title": "Android bound services",
+      "url": "https://developer.android.com/develop/background-work/services/bound-services",
+      "accessed_on": "2026-09-29",
+      "note": "显式绑定、服务生命周期与Binder基础。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S53",
+      "title": "Android ParcelFileDescriptor",
+      "url": "https://developer.android.com/reference/android/os/ParcelFileDescriptor",
+      "accessed_on": "2026-09-29",
+      "note": "FD跨进程传递及pipe/socketpair能力；具体所有权与限流需测试。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S54",
+      "title": "Android API29 execution changes",
+      "url": "https://developer.android.com/about/versions/10/behavior-changes-10",
+      "accessed_on": "2026-09-29",
+      "note": "应用可写目录exec限制；native runtime应随APK合法打包，不靠复制下载二进制到files目录执行。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S55",
+      "title": "Android service caller security",
+      "url": "https://developer.android.com/agents/skills/security/android-intent-security/SKILL",
+      "accessed_on": "2026-09-29",
+      "note": "官方安全指导：实际Binder事务校验、显式组件、签名与Intent不可信；不将网页skill当本任务工具指令。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S56",
+      "title": "GNU licensing FAQ",
+      "url": "https://www.gnu.org/licenses/gpl-faq.html",
+      "accessed_on": "2026-09-29",
+      "note": "插件/通信方式的组合判断不能仅凭进程分离决定；许可和正式分发需个案审核。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S57",
+      "title": "Mosh official",
+      "url": "https://mosh.org/",
+      "accessed_on": "2026-09-29",
+      "note": "SSH引导与独立UDP传输；Mosh并非SOCKS CONNECT中继续传输的SSH字节流。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S58",
+      "title": "Android custom links",
+      "url": "https://developer.android.com/training/app-links/create-deeplinks",
+      "accessed_on": "2026-09-29",
+      "note": "自定义scheme可能冲突；nonce只能关联请求，不提供强发送者认证。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S59",
+      "title": "dart_mosh README",
+      "url": "https://raw.githubusercontent.com/gwitko/dart_mosh/master/README.md",
+      "accessed_on": "2026-09-29",
+      "note": "Conduit使用的Dart Mosh UDP组件，不含SSH或终端UI；已有packet、ack、resize和rehoming声明。作为X08候选，不由README推导完整协议/安全兼容。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S60",
+      "title": "dart_mosh LICENSE",
+      "url": "https://raw.githubusercontent.com/gwitko/dart_mosh/master/LICENSE",
+      "accessed_on": "2026-09-29",
+      "note": "包声明Apache-2.0；其来源、加密依赖及组合许可仍在X08审查，不把重实现自述视为独立审计。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    }
+  ],
+  "revision": "3.0"
+}

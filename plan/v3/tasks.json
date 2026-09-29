@@ -1,0 +1,2240 @@
+{
+  "schema_version": 2,
+  "date": "2026-09-29",
+  "base_repository": "kmh1145/Netcatty-mobile",
+  "base_status": "RECOMMENDED_CONDITIONAL_ON_LICENSE",
+  "implementation_started": false,
+  "core_count": 46,
+  "deferred_count": 7,
+  "phase_gates": {
+    "P0": {
+      "title": "基线与高风险排除",
+      "gate": "G0",
+      "requires": [
+        "R01",
+        "R03",
+        "R04"
+      ],
+      "exit": "已冻结基座；旧路径可构建；危险默认有回归；Ghostty Android可行性有实际证据",
+      "status": "NOT_RUN"
+    },
+    "P1": {
+      "title": "连接路线复用与加固",
+      "gate": "G1",
+      "requires": [
+        "R10"
+      ],
+      "exit": "Direct/外部SOCKS/ProxyJump及明确高级组合，真实PTY与无旁路门禁通过",
+      "status": "NOT_RUN"
+    },
+    "P2": {
+      "title": "Tailscale目录与外部认证",
+      "gate": "G2",
+      "requires": [
+        "R15"
+      ],
+      "exit": "最小权限目录/非破坏导入/源身份/check支持矩阵实测",
+      "status": "NOT_RUN"
+    },
+    "P3": {
+      "title": "Ghostty替换",
+      "gate": "G3",
+      "requires": [
+        "R20"
+      ],
+      "exit": "flterm成为实际默认，CJK/TUI/资源/16KiB通过；旧引擎不是完成替代物",
+      "status": "NOT_RUN"
+    },
+    "P4": {
+      "title": "恢复与既有能力回归",
+      "gate": "G4",
+      "requires": [
+        "R23",
+        "R24",
+        "R25"
+      ],
+      "exit": "恢复不重放，tmux目标可靠，SFTP/转发同路线，UI与状态真实",
+      "status": "NOT_RUN"
+    },
+    "P5": {
+      "title": "真机、release和独立交接",
+      "gate": "G5",
+      "requires": [
+        "R31"
+      ],
+      "exit": "同候选完整证据；签名/分发授权另算",
+      "status": "NOT_RUN"
+    },
+    "P6": {
+      "title": "后续候选",
+      "gate": null,
+      "requires": [],
+      "exit": "另行授权，不自动执行",
+      "status": "DEFERRED"
+    },
+    "E0": {
+      "title": "插件契约与IPC基础",
+      "gate": "GX0",
+      "requires": [
+        "X00",
+        "X01",
+        "X03"
+      ],
+      "exit": "真实独立测试APK、双向鉴权、FD、故障与版本协商通过",
+      "status": "NOT_RUN"
+    },
+    "E1": {
+      "title": "目录与外部远控adapter",
+      "gate": "GX1",
+      "requires": [
+        "X04",
+        "X05",
+        "X06",
+        "X07"
+      ],
+      "exit": "插件管理、UU绑定/启动、RustDesk显式调用与设备作用域通过",
+      "status": "NOT_RUN"
+    },
+    "E2": {
+      "title": "真实Mosh插件",
+      "gate": "GX2",
+      "requires": [
+        "X10"
+      ],
+      "exit": "真实native/Direct UDP/VT/移动恢复与代理拒绝矩阵通过",
+      "status": "NOT_RUN"
+    },
+    "E3": {
+      "title": "插件组合交付",
+      "gate": "GX3",
+      "requires": [
+        "X13"
+      ],
+      "exit": "同候选组合证据及插件作者SDK通过",
+      "status": "NOT_RUN"
+    }
+  },
+  "tasks": [
+    {
+      "id": "R00",
+      "phase": "P0",
+      "title": "基座、授权、许可与源码冻结",
+      "status": "NOT_STARTED",
+      "depends_on": [],
+      "scope": "确认指定新仓库；默认Netcatty，记录个人实验/分发意图、dirty、原HEAD与依赖lock。无路径只保留本包，不使用历史项目路径。",
+      "code_targets": [
+        "observed-baselines.json",
+        "docs/architecture/base-decision.md",
+        "上游LICENSE/NOTICE/pubspec.lock"
+      ],
+      "deliverables": [
+        "evidence/R00.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "取得真实SHA而不是版本号",
+        "保留作者归属与GPL选择条件",
+        "不得覆盖原App身份或自动公开仓库"
+      ],
+      "test_ids": [
+        "BAS03",
+        "BAS04",
+        "SUP01",
+        "SUP02",
+        "REL01"
+      ],
+      "stop_condition": "未接受GPL分发条件可继续个人隔离研究；正式基座需明确决定，不能暗换许可证。",
+      "owner_role": "架构代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R01",
+      "phase": "P0",
+      "title": "原基座绿色构建与继承能力清单",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R00"
+      ],
+      "scope": "先运行原有测试并构建；列出保留/禁用AI、同步、Telnet/Mosh/系统管理入口；不批量升级或重写UI。",
+      "code_targets": [
+        "pubspec.yaml/pubspec.lock",
+        "Android应用标识与构建配置",
+        "现有app启动及feature入口"
+      ],
+      "deliverables": [
+        "evidence/R01.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "原xterm2路径可复现或有具体失败记录",
+        "新app身份与原安装隔离",
+        "非授权AI/同步初始化不可触发"
+      ],
+      "test_ids": [
+        "BAS01",
+        "BAS02",
+        "BAS03",
+        "REL01"
+      ],
+      "stop_condition": "原基座构建失败先修最小原因，不用删测试或大量重构换取通过。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R02",
+      "phase": "P0",
+      "title": "隔离网络、SSH、目录与VT支架",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R00"
+      ],
+      "scope": "建立受控SOCKS/多跳OpenSSH/假目录API及原始VT素材；记录目标直连、解析、auth和副作用计数。",
+      "code_targets": [
+        "test/fixtures/",
+        "integration_test/",
+        "tool/fixture-environment/"
+      ],
+      "deliverables": [
+        "evidence/R02.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "测试使用临时凭据和限定监听地址",
+        "具备仅代理可解析目标和可直连陷阱目标",
+        "不接用户生产主机或真实额度"
+      ],
+      "test_ids": [
+        "NET01",
+        "NET02",
+        "NET03",
+        "TER01",
+        "TSC01"
+      ],
+      "stop_condition": "缺真实设备不影响纯Dart测试，真机用例保持NOT_RUN。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R03",
+      "phase": "P0",
+      "title": "先修危险默认与字节/重连最小回归",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R01",
+        "R02"
+      ],
+      "scope": "固定SHA复验A01/A03/A04：无效代理失败关闭、输出增量解码、Restore/Probe不运行startup。先小补丁，不等全架构迁移。",
+      "code_targets": [
+        "lib/infrastructure/ssh/ssh_service.dart",
+        "lib/application/session_controller.dart",
+        "对应回归测试"
+      ],
+      "deliverables": [
+        "evidence/R03.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "三类失败可由测试捕捉且修复",
+        "未实现新RoutePlan前也无无效配置直连",
+        "中文随机分片和startup计数正确"
+      ],
+      "test_ids": [
+        "RTE02",
+        "TER01",
+        "REG02",
+        "NET03",
+        "NET11"
+      ],
+      "stop_condition": "缺陷未复现时保留观察和差异，不编造上游问题；fail-closed未通过禁止日用。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R04",
+      "phase": "P0",
+      "title": "flterm Android可行性门禁",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R01",
+        "R02"
+      ],
+      "scope": "用固定libghostty/flterm和Android SDK做最小字节回环、IME、native打包实验；基准不是Flutter页面截图。",
+      "code_targets": [
+        "独立可回收的terminal spike",
+        "pubspec依赖与native制品锁定",
+        "integration_test/terminal_spike"
+      ],
+      "deliverables": [
+        "evidence/R04.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "ARM64真机能初始化并输入中文/控制键",
+        "原始字节双向及16KiB验证计划可复现",
+        "性能与资源测量预算冻结"
+      ],
+      "test_ids": [
+        "GST01",
+        "GST03",
+        "TER01",
+        "TER02",
+        "REL03"
+      ],
+      "stop_condition": "无真机只能记部分证据；阻断引擎问题单独开ADR，不能默默以xterm完成目标。",
+      "owner_role": "终端代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R05",
+      "phase": "P1",
+      "title": "统一RoutePlan与旧配置规范化",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R03",
+        "X00"
+      ],
+      "scope": "新增System/SOCKS入口+有序jump列表；旧hostChain/proxy引用转为单一路线，冻结attempt配置。",
+      "code_targets": [
+        "lib/domain/models/host.dart",
+        "lib/domain/connection_route.dart（建议）",
+        "路由解析与迁移测试"
+      ],
+      "deliverables": [
+        "evidence/R05.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "缺失/冲突/循环/无效字段拨号前拒绝",
+        "目标和跳板身份与代理分离",
+        "保留未知数据且不隐式递归route"
+      ],
+      "test_ids": [
+        "RTE01",
+        "RTE02",
+        "RTE03",
+        "JMP03",
+        "BAS03",
+        "NET04"
+      ],
+      "stop_condition": "多套配置歧义先要求用户选择，不给隐藏优先级。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R06",
+      "phase": "P1",
+      "title": "SOCKS5 CONNECT生产加固",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R05",
+        "R02"
+      ],
+      "scope": "从现有实现提取有期限、可取消、认证策略明确的代理dial；允许本地和远程代理，严格分离目标DNS。",
+      "code_targets": [
+        "lib/infrastructure/transport/（建议）",
+        "原_SocketCursor/_ProxySshSocket",
+        "ProxyProfile编辑与secret引用"
+      ],
+      "deliverables": [
+        "evidence/R06.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "各认证/地址/分片/粘包正确",
+        "要求认证无降级",
+        "失败无Direct、无本地目标解析",
+        "外部隧道不被App启动停止"
+      ],
+      "test_ids": [
+        "NET01",
+        "NET02",
+        "NET03",
+        "NET04",
+        "NET05",
+        "NET06",
+        "NET07",
+        "NET08",
+        "SOX01",
+        "SOX02",
+        "SOX03",
+        "SOX04",
+        "RTE02"
+      ],
+      "stop_condition": "不支持的代理协议明确拒绝；不能关host key或改直连来排错。",
+      "owner_role": "网络代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R07",
+      "phase": "P1",
+      "title": "ProxyJump与显式SOCKS入口组合",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R05",
+        "R02"
+      ],
+      "scope": "复用dartssh2 forwardLocal串联，最大3跳初始范围，每跳独立trust与auth；入口只开一次明确物理dial。",
+      "code_targets": [
+        "lib/infrastructure/ssh/ssh_service.dart",
+        "RouteExecutor（建议）",
+        "jump fixtures"
+      ],
+      "deliverables": [
+        "evidence/R07.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "1/2/3跳及高级组合实测",
+        "错误定位对应hop",
+        "不依赖remote ssh命令或agent forwarding",
+        "非法链未发起连接"
+      ],
+      "test_ids": [
+        "JMP01",
+        "JMP02",
+        "JMP03",
+        "JMP04",
+        "SEC01",
+        "SEC02",
+        "SEC03"
+      ],
+      "stop_condition": "所锁dartssh2 API不匹配先小型适配/补丁；不得猜造SDK方法。",
+      "owner_role": "网络代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R08",
+      "phase": "P1",
+      "title": "连接代次、取消和资源所有权",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R06",
+        "R07"
+      ],
+      "scope": "串行化阶段事件，统一attempt cancellation；无全局jump池；关闭所有部分构建资源且不停止外部SOCKS。",
+      "code_targets": [
+        "lib/application/session_controller.dart",
+        "ConnectionCoordinator/Lease（建议）",
+        "SSH client/channel cleanup"
+      ],
+      "deliverables": [
+        "evidence/R08.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "迟到结果不能复活旧连接",
+        "各stage取消有界",
+        "routeSnapshot稳定",
+        "资源释放幂等"
+      ],
+      "test_ids": [
+        "NET07",
+        "NET09",
+        "NET10",
+        "LIFE06",
+        "SOX03",
+        "RTE03"
+      ],
+      "stop_condition": "取消标UI完成但socket仍活跃不算验收通过。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R09",
+      "phase": "P1",
+      "title": "每跳主机信任、凭据与所有SSH入口统一",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R08",
+        "R01"
+      ],
+      "scope": "将连接测试/SFTP/监控/转发纳入route；完善普通SSH认证回调与Vault lease、错误脱敏。",
+      "code_targets": [
+        "host trust UI/store",
+        "lib/infrastructure/ssh各消费者",
+        "lib/infrastructure/storage/vault_repository.dart"
+      ],
+      "deliverables": [
+        "evidence/R09.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "最终trust身份不被代理地址污染",
+        "keyboard-interactive不自动对所有问题填密码",
+        "所有新连接走同一resolver",
+        "秘密不进普通日志"
+      ],
+      "test_ids": [
+        "SEC01",
+        "SEC02",
+        "SEC03",
+        "SEC04",
+        "SEC05",
+        "SEC06",
+        "SEC07",
+        "RTE04",
+        "REG03",
+        "NET10"
+      ],
+      "stop_condition": "任何辅助入口发现Direct旁路均阻断G1；不能只修主终端。",
+      "owner_role": "安全代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R10",
+      "phase": "P1",
+      "title": "连接路径编辑器与最小SSH闭环",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R09"
+      ],
+      "scope": "三选一普通UI+显式高级组合；保留主机/身份设计，显示路径和失败阶段；旧引擎先验证网络独立可用。",
+      "code_targets": [
+        "lib/presentation/widgets/host_editor.dart",
+        "主机/代理页面",
+        "路径诊断组件"
+      ],
+      "deliverables": [
+        "evidence/R10.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "SSH端口与proxy端口不混",
+        "真实PTY而非本地echo",
+        "测试连接不执行startup",
+        "原VPN不被替换"
+      ],
+      "test_ids": [
+        "UX01",
+        "UX04",
+        "NET12",
+        "RTE05",
+        "SOX01",
+        "JMP01"
+      ],
+      "stop_condition": "没有真实外部代理证据不宣称与所有VPN兼容。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R11",
+      "phase": "P2",
+      "title": "只读Tailscale目录授权与HTTP适配",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R05",
+        "R01",
+        "R02"
+      ],
+      "scope": "支持短期设备读取token；高级用户自有scope受限OAuth可选持久化；固定官方API，不实现管理员管理功能。",
+      "code_targets": [
+        "lib/infrastructure/tailscale/（建议）",
+        "独立catalog secret store",
+        "HTTP fixture tests"
+      ],
+      "deliverables": [
+        "evidence/R11.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "scope devices:core:read，不打包共享secret",
+        "只允许必要端点，redirect不泄密",
+        "以expires_in与受控401刷新",
+        "参数schema来自固定官方来源"
+      ],
+      "test_ids": [
+        "TSC01",
+        "TSC02",
+        "TSC09",
+        "SEC05",
+        "SEC12"
+      ],
+      "stop_condition": "无真实token授权用fixture；全权限token不得标只读；不索要管理员密码。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R12",
+      "phase": "P2",
+      "title": "设备缓存、来源映射与非破坏合并",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R11"
+      ],
+      "scope": "按catalogId+deviceId稳定识别；区分provider字段和用户覆写，处理未知字段/缺失设备/错误快照。",
+      "code_targets": [
+        "DeviceBinding/CatalogSnapshot（建议）",
+        "catalog repository",
+        "import merge tests"
+      ],
+      "deliverables": [
+        "evidence/R12.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "API未知状态不伪造在线或SSH-ready",
+        "同名不同id不合并",
+        "地址变化不自动信任新key",
+        "未完成快照不会删主机"
+      ],
+      "test_ids": [
+        "TSC03",
+        "TSC04",
+        "TSC05",
+        "TSC10",
+        "BAS03"
+      ],
+      "stop_condition": "无法证明完整快照时只更新可确认记录，不推断删除。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R13",
+      "phase": "P2",
+      "title": "设备选择、批量导入与路由绑定",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R12",
+        "R10"
+      ],
+      "scope": "增加目录页和导入流程，应用共享代理/跳板profile与Unix用户，不改变已有手动主机。",
+      "code_targets": [
+        "Tailscale目录screen/controller（建议）",
+        "主机导入与编辑",
+        "目录刷新状态"
+      ],
+      "deliverables": [
+        "evidence/R13.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "不因导入自动拨号/启动VPN",
+        "来源、刷新时间、路由明确",
+        "缺用户名需填，不默认root",
+        "删凭据默认不删主机"
+      ],
+      "test_ids": [
+        "TSC04",
+        "TSC06",
+        "TSC10",
+        "UX01",
+        "UX04"
+      ],
+      "stop_condition": "目录可见不等于连接可用，不用绿色状态掩盖网络失败。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R14",
+      "phase": "P2",
+      "title": "显式Tailscale SSH外部认证与check",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R09",
+        "R11"
+      ],
+      "scope": "核对锁定dartssh2的none/banner路径；独立外部认证配置；安全展示check链接，等待真实auth结果。",
+      "code_targets": [
+        "SSH认证策略adapter",
+        "外部check UI及URL策略",
+        "受控Tailscale SSH fixture/授权真机"
+      ],
+      "deliverables": [
+        "evidence/R14.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "普通SSH默认不因100.x自动改none",
+        "外部模式不递交key/password",
+        "host trust先于外部浏览器",
+        "源节点不是API账号",
+        "取消/拒绝/check超时正确"
+      ],
+      "test_ids": [
+        "TSC07",
+        "TSC08",
+        "SEC01",
+        "SEC02",
+        "SEC12"
+      ],
+      "stop_condition": "无实际check证据不得声称完整支持；普通SSH进口可继续，但G2功能清单保留缺口。",
+      "owner_role": "安全代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R15",
+      "phase": "P2",
+      "title": "目录到三类路由的端到端验收",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R13",
+        "R14"
+      ],
+      "scope": "同一目录设备经本地SOCKS/远程SOCKS/跳板选择连接，验证权限、缓存和源身份分离。",
+      "code_targets": [
+        "integration_test/catalog_route_matrix",
+        "evidence/R15.md",
+        "能力支持矩阵"
+      ],
+      "deliverables": [
+        "evidence/R15.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "目录/API/路由/认证错误能区分",
+        "API故障不破坏已存主机",
+        "secret不穿越层",
+        "不用App启动第二VPN"
+      ],
+      "test_ids": [
+        "TSC01",
+        "TSC02",
+        "TSC04",
+        "TSC06",
+        "TSC07",
+        "TSC08",
+        "TSC09",
+        "TSC10",
+        "NET12"
+      ],
+      "stop_condition": "无生产授权继续fixture，实际设备部分保持NOT_RUN。",
+      "owner_role": "测试代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R16",
+      "phase": "P3",
+      "title": "Session与xterm2解耦",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R04",
+        "R05",
+        "X01"
+      ],
+      "scope": "提取最薄TerminalSessionAdapter，保持现有UI状态；字节流和输入动作标准化，避免大范围架构重写。",
+      "code_targets": [
+        "ActiveTerminalSession",
+        "lib/infrastructure/terminal/（建议）",
+        "terminal_screen及pane"
+      ],
+      "deliverables": [
+        "evidence/R16.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "SSH层不依赖xterm2具体类型",
+        "字节不按包String转换",
+        "UI重建不控制SSH生命周期",
+        "legacy baseline仍可用于对比"
+      ],
+      "test_ids": [
+        "TER01",
+        "NET09",
+        "GST02",
+        "SEC09"
+      ],
+      "stop_condition": "不能只换import却保留大量xterm专用访问穿透。",
+      "owner_role": "终端代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R17",
+      "phase": "P3",
+      "title": "flterm生产适配与native生命周期",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R16"
+      ],
+      "scope": "安装双向byte callback、终端view、theme、resize、资源释放；先核对真实包API签名。",
+      "code_targets": [
+        "GhosttyTerminalAdapter（建议）",
+        "flterm controller/view glue",
+        "native build pins"
+      ],
+      "deliverables": [
+        "evidence/R17.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "先接onOutput再feed，无重入",
+        "单controller单view",
+        "代次失效停止发送",
+        "初始化失败状态真实"
+      ],
+      "test_ids": [
+        "GST01",
+        "GST02",
+        "GST03",
+        "TER03",
+        "TER06",
+        "TER10",
+        "LIFE06"
+      ],
+      "stop_condition": "native crash不能承诺无缝catch回退；缺资源清理证据不进入默认。",
+      "owner_role": "终端代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R18",
+      "phase": "P3",
+      "title": "中文IME与软硬键盘迁移",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R17"
+      ],
+      "scope": "复用flterm输入能力并移植现有特殊键栏；单一输入所有权，修饰键、composing、commit和resize实机验收。",
+      "code_targets": [
+        "terminal_special_keys.dart",
+        "TerminalView输入/focus",
+        "IME device scripts"
+      ],
+      "deliverables": [
+        "evidence/R18.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "中文不重复不丢失",
+        "Ctrl/Alt/Esc/Tab正确",
+        "键盘/候选不遮挡",
+        "切标签不送错会话"
+      ],
+      "test_ids": [
+        "TER02",
+        "TER04",
+        "TER05",
+        "TER06",
+        "UX02"
+      ],
+      "stop_condition": "只能通过多行编辑框输入中文不算直接终端IME通过。",
+      "owner_role": "终端代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R19",
+      "phase": "P3",
+      "title": "滚动选择、多行编辑与远端effect约束",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R18"
+      ],
+      "scope": "迁移选择/scrollback/tmux鼠标语义，区分sendKey/sendText/paste；保留编辑预览并约束剪贴板/URL/图像。",
+      "code_targets": [
+        "终端composer/selection",
+        "flterm effect callbacks",
+        "链接及粘贴策略"
+      ],
+      "deliverables": [
+        "evidence/R19.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "选择不误发按键或打开链接",
+        "多行默认不加Enter",
+        "OSC读剪贴板禁止",
+        "会话切换取消旧目标发送"
+      ],
+      "test_ids": [
+        "TER07",
+        "TER08",
+        "TER09",
+        "GST04",
+        "SEC08",
+        "SEC09",
+        "SEC10",
+        "UX03"
+      ],
+      "stop_condition": "不把bracketed paste或库清洗视为阻止远端执行保证。",
+      "owner_role": "终端代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R20",
+      "phase": "P3",
+      "title": "TUI/性能门禁与Ghostty成为默认",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R19",
+        "R08"
+      ],
+      "scope": "同素材与旧引擎对比，实际PTY跑TUI；通过后清除生产xterm2路径并核对实际引擎标识。",
+      "code_targets": [
+        "VT corpus/performance tests",
+        "生产依赖与feature flags",
+        "终端支持矩阵"
+      ],
+      "deliverables": [
+        "evidence/R20.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "CJK/全屏/协议回应无关键错误",
+        "高水位背压不丢VT",
+        "100轮释放无持续增长",
+        "完整目标构建实际用Ghostty"
+      ],
+      "test_ids": [
+        "TER01",
+        "TER02",
+        "TER03",
+        "TER10",
+        "TER11",
+        "TER12",
+        "TER13",
+        "GST05",
+        "REL03"
+      ],
+      "stop_condition": "Ghostty阻断可交中间构建但不能标替换完成；改目标需要用户决策。",
+      "owner_role": "测试代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R21",
+      "phase": "P4",
+      "title": "已有tmux能力整理与安全恢复目标",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R08",
+        "R17"
+      ],
+      "scope": "复用基座tmux面板/命令，建立只读探测、稳定目标、显式create/attach/detach；修复拼接和自动新建默认。",
+      "code_targets": [
+        "tmux_manager_panel.dart",
+        "tmux command builder/controller",
+        "resume metadata"
+      ],
+      "deliverables": [
+        "evidence/R21.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "目标含host/user/socket/server代次",
+        "缺失不新建同名",
+        "查询无副作用、命令不注入",
+        "关标签不kill/Ctrl-C"
+      ],
+      "test_ids": [
+        "TMX01",
+        "TMX02",
+        "TMX03",
+        "TMX04",
+        "TMX05",
+        "TMX06",
+        "TMX07",
+        "TMX08",
+        "SEC11"
+      ],
+      "stop_condition": "不支持版本/自定义配置先退到普通SSH，不自动修改远端配置。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R22",
+      "phase": "P4",
+      "title": "Flutter与Android连接生命周期",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R08",
+        "R20"
+      ],
+      "scope": "复用平台service，处理锁屏/进程死亡/网络事件/force-stop；不盲信基座保活承诺。",
+      "code_targets": [
+        "connection_platform_service.dart",
+        "Android SshKeepAliveService/MainActivity",
+        "session controller"
+      ],
+      "deliverables": [
+        "evidence/R22.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "通知/系统停止后不复活",
+        "Foreground类型符合真实用途",
+        "不无条件杀仍存活流",
+        "新secret解锁遵守策略"
+      ],
+      "test_ids": [
+        "LIFE01",
+        "LIFE02",
+        "LIFE03",
+        "LIFE04",
+        "LIFE05",
+        "LIFE06",
+        "LIFE07",
+        "SEC07"
+      ],
+      "stop_condition": "无OEM设备仅保留已测范围；不得假媒体/永久wakelock规避限制。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R23",
+      "phase": "P4",
+      "title": "恢复不重放与旧终端状态隔离",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R21",
+        "R22"
+      ],
+      "scope": "把P0启动命令防重放扩展到所有恢复/管理/测试入口；草稿、旧画面、协议回应与新连接隔离。",
+      "code_targets": [
+        "ConnectionPurpose/ResumeState",
+        "composer/session restore",
+        "managed actions"
+      ],
+      "deliverables": [
+        "evidence/R23.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "Restore/Probe无startup副作用",
+        "旧画面不代表新shell状态",
+        "不重发旧VT/键/粘贴",
+        "目标缺失请用户重选"
+      ],
+      "test_ids": [
+        "NET11",
+        "REG02",
+        "REG04",
+        "TMX04",
+        "TMX05",
+        "LIFE04",
+        "LIFE05"
+      ],
+      "stop_condition": "无法确认远端是否收到时显示未知，不实现假exactly-once。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R24",
+      "phase": "P4",
+      "title": "SFTP、监控与转发无旁路回归",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R09",
+        "R23"
+      ],
+      "scope": "保留上游能力，验证借用client和各入口在Direct/SOCKS/Jump矩阵下行为；限制高风险自动管理。",
+      "code_targets": [
+        "sftp_service.dart",
+        "server_monitor_service.dart",
+        "port_forward_controller.dart",
+        "消费者生命周期"
+      ],
+      "deliverables": [
+        "evidence/R24.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "借用client同一目标/代次",
+        "关闭SSH后借用者失效",
+        "不自动重传有副作用请求",
+        "路由无旁路"
+      ],
+      "test_ids": [
+        "RTE04",
+        "REG01",
+        "SEC12",
+        "NET11"
+      ],
+      "stop_condition": "当前未审查入口可明确禁用，不留可点击的失效菜单或默走Direct。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R25",
+      "phase": "P4",
+      "title": "日用UI、诊断与参考交互收敛",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R10",
+        "R13",
+        "R19",
+        "R21"
+      ],
+      "scope": "整理主机/目录/route/终端设置和无障碍；参考图片的分组，而非复制所有高级功能或闭源素材。",
+      "code_targets": [
+        "screens/widgets与本地文案",
+        "diagnostics",
+        "用户操作说明草稿"
+      ],
+      "deliverables": [
+        "evidence/R25.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "三种凭据/目标/代理端口明确",
+        "引擎和路径真实",
+        "功能无空壳",
+        "字体/主题/横屏/TalkBack可用"
+      ],
+      "test_ids": [
+        "UX01",
+        "UX02",
+        "UX03",
+        "UX04",
+        "SEC12"
+      ],
+      "stop_condition": "视觉改动不能替代网络和输入门禁；不扩大WOL/NFC/sudo功能。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R26",
+      "phase": "P5",
+      "title": "用户手机VPN + TailSocks真实日用",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R15",
+        "R20",
+        "R23",
+        "R24",
+        "R25"
+      ],
+      "scope": "明确授权后在用户手机验证同一候选，比较LobiShell行为基线；测试网络切换、目录、跳板、IME和SFTP。",
+      "code_targets": [
+        "evidence/R26.md",
+        "device/version matrix",
+        "故障复现与问题清单"
+      ],
+      "deliverables": [
+        "evidence/R26.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "不占VPN且完整核心路径可用",
+        "关键负向场景实测",
+        "源设备身份差异说明",
+        "真实模型额度使用另获授权"
+      ],
+      "test_ids": [
+        "NET12",
+        "TER13",
+        "LIFE03",
+        "LIFE04",
+        "LIFE07",
+        "SOX01",
+        "JMP01",
+        "TSC06",
+        "REL04"
+      ],
+      "stop_condition": "无设备/权限标BLOCKED；用户之前LobiShell成功不可计本App通过。",
+      "owner_role": "测试代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R27",
+      "phase": "P5",
+      "title": "Release、native与依赖制品验收",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R26",
+        "X10",
+        "X06",
+        "X07"
+      ],
+      "scope": "检查Flutter AOT、native ABI/16KiB、FGS、目标SDK、release混淆与供应链；只用测试签名除非授权。 V3同时检查主App及Mosh APK的signer、IPC契约和native制品；外部App只记录可验证安装版本。",
+      "code_targets": [
+        "Android build/CI",
+        "依赖锁/native manifest",
+        "release artifact evidence"
+      ],
+      "deliverables": [
+        "evidence/R27.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "同源码冷环境可重建",
+        "native hash失败不能跳过",
+        "仅声明已测ABI/API",
+        "不自动上架或借原签名"
+      ],
+      "test_ids": [
+        "GST01",
+        "SUP01",
+        "REL01",
+        "REL02",
+        "REL03",
+        "BAS04"
+      ],
+      "stop_condition": "不能用debug运行替代release通过；发布政策实时复核。",
+      "owner_role": "发布代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R28",
+      "phase": "P5",
+      "title": "凭据、外连与继承功能对抗审查",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R15",
+        "R23",
+        "R24",
+        "R25",
+        "X11"
+      ],
+      "scope": "独立审查新目录凭据与上游raw model/export/AI/同步/管理路径；复现负向路由和host trust。",
+      "code_targets": [
+        "Vault/exports/sync/diagnostics",
+        "route/auth code",
+        "security evidence"
+      ],
+      "deliverables": [
+        "evidence/R28.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "没有secret明文或非授权外连",
+        "每跳trust不能被任何入口绕过",
+        "输入/startup不重放",
+        "恶意远端输出不执行本地动作"
+      ],
+      "test_ids": [
+        "SEC01",
+        "SEC02",
+        "SEC03",
+        "SEC04",
+        "SEC05",
+        "SEC06",
+        "SEC07",
+        "SEC08",
+        "SEC09",
+        "SEC10",
+        "SEC11",
+        "SEC12",
+        "BAS02",
+        "TSC09",
+        "REG03"
+      ],
+      "stop_condition": "不能以框架secure_storage名称替代实际检查；安全硬项失败不豁免。",
+      "owner_role": "独立审查代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R29",
+      "phase": "P5",
+      "title": "用户文档、迁移与许可交付",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R26",
+        "R27",
+        "R28",
+        "X12"
+      ],
+      "scope": "README精简；详细route/Tailscale/引擎/隐私/恢复放docs；记录独立品牌、上游归属、支持与未测矩阵。",
+      "code_targets": [
+        "README.md",
+        "docs/user/",
+        "LICENSE/NOTICE",
+        "CHANGELOG与UPSTREAM记录"
+      ],
+      "deliverables": [
+        "evidence/R29.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "不宣传双VPN/永不断线/只读全权限token",
+        "未测能力不写支持",
+        "旧Txx计划明确退役",
+        "分发义务检查可追溯"
+      ],
+      "test_ids": [
+        "UX04",
+        "BAS04",
+        "SUP02",
+        "REL04"
+      ],
+      "stop_condition": "截图仅使用真实候选且无秘密，不将参考App图片作为本产品实现。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R30",
+      "phase": "P5",
+      "title": "同一候选全量回归与独立复现",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R27",
+        "R28",
+        "R29",
+        "X13"
+      ],
+      "scope": "重跑本包全部硬用例及保留功能的上游回归；安全和设备证据都绑定同SHA/APK。",
+      "code_targets": [
+        "verification-cases.json结果副本",
+        "evidence/R30.md",
+        "independent review"
+      ],
+      "deliverables": [
+        "evidence/R30.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "全部用例有真实证据",
+        "无跳过测试伪绿",
+        "同候选完成网络/目录/Ghostty/平台",
+        "已知缺陷与未测如实记录"
+      ],
+      "test_ids": [
+        "NET01",
+        "NET02",
+        "NET03",
+        "NET04",
+        "NET05",
+        "NET06",
+        "NET07",
+        "NET08",
+        "NET09",
+        "NET10",
+        "NET11",
+        "NET12",
+        "SEC01",
+        "SEC02",
+        "SEC03",
+        "SEC04",
+        "SEC05",
+        "SEC06",
+        "SEC07",
+        "SEC08",
+        "SEC09",
+        "SEC10",
+        "SEC11",
+        "SEC12",
+        "TER01",
+        "TER02",
+        "TER03",
+        "TER04",
+        "TER05",
+        "TER06",
+        "TER07",
+        "TER08",
+        "TER09",
+        "TER10",
+        "TER11",
+        "TER12",
+        "TER13",
+        "TMX01",
+        "TMX02",
+        "TMX03",
+        "TMX04",
+        "TMX05",
+        "TMX06",
+        "TMX07",
+        "TMX08",
+        "LIFE01",
+        "LIFE02",
+        "LIFE03",
+        "LIFE04",
+        "LIFE05",
+        "LIFE06",
+        "LIFE07",
+        "UX01",
+        "UX02",
+        "UX03",
+        "UX04",
+        "REL01",
+        "REL02",
+        "REL03",
+        "REL04",
+        "REL05",
+        "BAS01",
+        "BAS02",
+        "BAS03",
+        "BAS04",
+        "RTE01",
+        "RTE02",
+        "RTE03",
+        "RTE04",
+        "RTE05",
+        "SOX01",
+        "SOX02",
+        "SOX03",
+        "SOX04",
+        "JMP01",
+        "JMP02",
+        "JMP03",
+        "JMP04",
+        "TSC01",
+        "TSC02",
+        "TSC03",
+        "TSC04",
+        "TSC05",
+        "TSC06",
+        "TSC07",
+        "TSC08",
+        "TSC09",
+        "TSC10",
+        "GST01",
+        "GST02",
+        "GST03",
+        "GST04",
+        "GST05",
+        "REG01",
+        "REG02",
+        "REG03",
+        "REG04",
+        "SUP01",
+        "SUP02",
+        "PLG01",
+        "PLG02",
+        "PLG03",
+        "PLG04",
+        "PLG05",
+        "PLG06",
+        "PLG07",
+        "PLG08",
+        "PLG09",
+        "PLG10",
+        "PLG11",
+        "PLG12",
+        "PLG13",
+        "PLG14",
+        "PLG15",
+        "PLG16",
+        "MOS01",
+        "MOS02",
+        "MOS03",
+        "MOS04",
+        "MOS05",
+        "MOS06",
+        "MOS07",
+        "MOS08",
+        "UUR01",
+        "UUR02",
+        "UUR03",
+        "UUR04",
+        "UUR05",
+        "UUR06",
+        "UUR07",
+        "UUR08",
+        "RDX01",
+        "RDX02",
+        "RDX03",
+        "RDX04",
+        "RDX05",
+        "SDK01",
+        "SDK02",
+        "SDK03",
+        "SDK04",
+        "DEV01",
+        "DEV02"
+      ],
+      "stop_condition": "任何必需NOT_RUN或FAIL不标完整READY；不能借另一版本或基座结果补齐。",
+      "owner_role": "独立审查代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R31",
+      "phase": "P5",
+      "title": "最终状态、交接与可交付范围",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R30"
+      ],
+      "scope": "核对G0–G5、最终引擎、上游来源、用户授权和产物；区分本地候选READY与公开发布。 完整范围包含X00–X13；不能仅用V2核心完成结论标V3 READY。",
+      "code_targets": [
+        "STATUS.md",
+        "tasks.json",
+        "发布候选manifest与交接"
+      ],
+      "deliverables": [
+        "evidence/R31.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "实现完成不等于已发布",
+        "完整目标是Ghostty而非只剩fallback",
+        "下一阶段另行授权",
+        "不自动push/上架"
+      ],
+      "test_ids": [
+        "REL04",
+        "REL05",
+        "SUP02",
+        "GST05"
+      ],
+      "stop_condition": "只放行有证据的范围；未完成部分具体列出，不靠一句大致完成。",
+      "owner_role": "架构代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R32",
+      "phase": "P6",
+      "title": "内置用户态Tailscale transport",
+      "status": "DEFERRED",
+      "depends_on": [
+        "R31"
+      ],
+      "scope": "只有外部TailSocks摩擦经日用证明才评估tsnet、节点身份、Android生命周期和升级；目录接口保持独立。",
+      "code_targets": [
+        "后续独立ADR与任务"
+      ],
+      "deliverables": [
+        "evidence/R32.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "新增范围须授权",
+        "补充专用安全/测试矩阵",
+        "本阶段不自动启动"
+      ],
+      "test_ids": [],
+      "stop_condition": "不读取外部App私有身份，不加VpnService，不影响已有SOCKS。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R33",
+      "phase": "P6",
+      "title": "托管动态SOCKS与跳板连接池",
+      "status": "DEFERRED",
+      "depends_on": [
+        "R31"
+      ],
+      "scope": "用户明确需要时再增加App管理ssh -D或跨会话jump池，单独设计owner/refcount/credential generation与停止。",
+      "code_targets": [
+        "后续独立ADR与任务"
+      ],
+      "deliverables": [
+        "evidence/R33.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "新增范围须授权",
+        "补充专用安全/测试矩阵",
+        "本阶段不自动启动"
+      ],
+      "test_ids": [],
+      "stop_condition": "不把当前消费外部SOCKS偷换成管理隧道；不得共享不同安全身份。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R34",
+      "phase": "P6",
+      "title": "Mosh经代理UDP与高级datagram路线",
+      "status": "DEFERRED",
+      "depends_on": [
+        "R31",
+        "X10"
+      ],
+      "scope": "Mosh基础插件在X08–X10完成；此任务仅扩展SOCKS UDP ASSOCIATE、datagram provider或明确的UDP网关能力，不从TCP CONNECT推导支持。",
+      "code_targets": [
+        "后续独立ADR与任务"
+      ],
+      "deliverables": [
+        "evidence/R34.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "实际UDP路线、DNS、认证、移动恢复和失败无直连证据齐全",
+        "没有合法UDP通道时保留unsupported",
+        "复核native适配与许可而非重写Mosh协议"
+      ],
+      "test_ids": [],
+      "stop_condition": "没有真实UDP路由支持就不启用；不把SSH+SOCKS引导成功当Mosh已支持。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R35",
+      "phase": "P6",
+      "title": "iOS及其他平台发布",
+      "status": "DEFERRED",
+      "depends_on": [
+        "R31"
+      ],
+      "scope": "在Android日用后，利用Flutter共享目录/route/终端合同，逐平台做后台/native/Keystore等差异验收。",
+      "code_targets": [
+        "后续独立ADR与任务"
+      ],
+      "deliverables": [
+        "evidence/R35.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "新增范围须授权",
+        "补充专用安全/测试矩阵",
+        "本阶段不自动启动"
+      ],
+      "test_ids": [],
+      "stop_condition": "有Flutter代码不等于iOS生产支持，不改Android安全合同。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R36",
+      "phase": "P6",
+      "title": "高级硬件密钥、agent forwarding与同步",
+      "status": "DEFERRED",
+      "depends_on": [
+        "R31"
+      ],
+      "scope": "按真实用户需求单独评估硬件签名、授权转发与跨设备加密备份；继续不默认同步管理token。",
+      "code_targets": [
+        "后续独立ADR与任务"
+      ],
+      "deliverables": [
+        "evidence/R36.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "新增范围须授权",
+        "补充专用安全/测试矩阵",
+        "本阶段不自动启动"
+      ],
+      "test_ids": [],
+      "stop_condition": "不把外部签名权限长期自动授给所有远端，不忽略GPL分发条件。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R37",
+      "phase": "P6",
+      "title": "Wake、NFC、Port Knocking及其他高级交互",
+      "status": "DEFERRED",
+      "depends_on": [
+        "R31"
+      ],
+      "scope": "用户截图仅作为后续参考，先说明网络范围、授权动作、标签数据与webhook秘密风险。 附件路径插入若保留上游已有能力仅回归；新增附件/OCR/云处理不属于本次核心。",
+      "code_targets": [
+        "后续独立ADR与任务"
+      ],
+      "deliverables": [
+        "evidence/R37.md（实际执行后填写）",
+        "与范围对应的实现、测试及文档；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "新增范围须授权",
+        "补充专用安全/测试矩阵",
+        "本阶段不自动启动"
+      ],
+      "test_ids": [],
+      "stop_condition": "不以静态NFC tag暗存secret或无需确认执行生产命令。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "X00",
+      "phase": "E0",
+      "title": "插件能力、信任和SDK v1契约",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R00"
+      ],
+      "scope": "冻结bundled/android-service/external-app边界，独立签名授权、三类会话、route capability及协议来源。",
+      "code_targets": [
+        "docs/15-plugin-architecture.md",
+        "contracts/",
+        "packages/plugin_api（初始类型）"
+      ],
+      "deliverables": [
+        "evidence/X00.md（实际执行后填写）",
+        "对应实现、测试、版本及文档，不以接口空壳或参考App成功代替"
+      ],
+      "acceptance": [
+        "描述符不授予任意exec/文件/Vault",
+        "同签名与独立签名策略不矛盾",
+        "记录Mosh与UU协议局限和真正未测事项"
+      ],
+      "test_ids": [
+        "PLG01",
+        "PLG02",
+        "PLG14",
+        "SDK02",
+        "SDK03",
+        "DEV01"
+      ],
+      "stop_condition": "不扩大成插件商城或任意Dart VM；不把独立APK当许可豁免。",
+      "owner_role": "架构/安全代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "X01",
+      "phase": "E0",
+      "title": "轻量registry与设备/会话分型",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "X00",
+        "R05"
+      ],
+      "scope": "用现有Riverpod装配内置能力；统一设备引用，区分Terminal/RemoteDesktop/ExternalLaunch，保留旧入口可回归。",
+      "code_targets": [
+        "domain/plugins",
+        "application/plugin_registry",
+        "domain/device_references",
+        "session model"
+      ],
+      "deliverables": [
+        "evidence/X01.md（实际执行后填写）",
+        "对应实现、测试、版本及文档，不以接口空壳或参考App成功代替"
+      ],
+      "acceptance": [
+        "不按名字/IP自动合并设备",
+        "没有所有能力共用connected布尔值",
+        "核心SSH不依赖外部插件存在"
+      ],
+      "test_ids": [
+        "PLG01",
+        "PLG02",
+        "DEV01",
+        "DEV02",
+        "RTE01"
+      ],
+      "stop_condition": "不一次拆几十个package；保留已验证功能路径。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "X02",
+      "phase": "E0",
+      "title": "Android独立插件发现、桥接与双向签名",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "X00",
+        "R01",
+        "R02"
+      ],
+      "scope": "建立最小Kotlin桥及独立测试APK；显式组件、queries与每方法UID/证书鉴别，实际安装版本记录。",
+      "code_targets": [
+        "AndroidProviderBridge",
+        "plugins/fixture-echo",
+        "provider AIDL SDK"
+      ],
+      "deliverables": [
+        "evidence/X02.md（实际执行后填写）",
+        "对应实现、测试、版本及文档，不以接口空壳或参考App成功代替"
+      ],
+      "acceptance": [
+        "独立作者签名能在用户批准后接入",
+        "拒绝伪装包/未授权caller",
+        "不是只改onBind或信任Intent字符串"
+      ],
+      "test_ids": [
+        "PLG03",
+        "PLG04",
+        "PLG05",
+        "PLG15"
+      ],
+      "stop_condition": "无Android安装证据保留NOT_RUN；echo不得标Mosh完成。",
+      "owner_role": "Android/安全代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "X03",
+      "phase": "E0",
+      "title": "FD流、版本协商与插件故障基础",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "X02"
+      ],
+      "scope": "实现typed session control、FD数据、generation、背压和death/revoke行为，在独立fixture APK故障注入。",
+      "code_targets": [
+        "plugin_api Android IPC",
+        "AndroidProviderBridge stream adapter",
+        "plugins/fixture-echo"
+      ],
+      "deliverables": [
+        "evidence/X03.md（实际执行后填写）",
+        "对应实现、测试、版本及文档，不以接口空壳或参考App成功代替"
+      ],
+      "acceptance": [
+        "控制事件不阻塞UI/Binder线程",
+        "字节流保序和有界",
+        "无响应close显示未确认不假停止"
+      ],
+      "test_ids": [
+        "PLG02",
+        "PLG06",
+        "PLG07",
+        "PLG08",
+        "PLG09",
+        "PLG10",
+        "PLG12"
+      ],
+      "stop_condition": "不使用大型Base64/Binder帧冒充高吞吐管道。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "X04",
+      "phase": "E1",
+      "title": "插件管理、安装检测与用户授权UI",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "X01",
+        "X03",
+        "R10"
+      ],
+      "scope": "展示来源/签名/版本/能力/路由支持，启停、撤销、更新/卸载检测和设置入口；安装由用户操作。",
+      "code_targets": [
+        "presentation/plugins",
+        "plugin trust store",
+        "Android package events"
+      ],
+      "deliverables": [
+        "evidence/X04.md（实际执行后填写）",
+        "对应实现、测试、版本及文档，不以接口空壳或参考App成功代替"
+      ],
+      "acceptance": [
+        "初次未授权不自动启用",
+        "签名/major变化阻断",
+        "卸载插件不破坏其他设备能力"
+      ],
+      "test_ids": [
+        "PLG03",
+        "PLG04",
+        "PLG11",
+        "PLG12",
+        "PLG15",
+        "SDK04",
+        "DEV02"
+      ],
+      "stop_condition": "不得申请全包扫描或自动下载执行代码。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "X05",
+      "phase": "E1",
+      "title": "Tailscale目录接入内置provider",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "X01",
+        "R13"
+      ],
+      "scope": "包装R11–R13既有目录实现，不重写HTTP；source IDs与设备关联/权限存储一致。",
+      "code_targets": [
+        "infrastructure/plugins/tailscale_catalog",
+        "device capability actions"
+      ],
+      "deliverables": [
+        "evidence/X05.md（实际执行后填写）",
+        "对应实现、测试、版本及文档，不以接口空壳或参考App成功代替"
+      ],
+      "acceptance": [
+        "provider只访问本来源控制面凭据",
+        "目录下线不删SSH用户覆写",
+        "发现不等于网络或SSH认证"
+      ],
+      "test_ids": [
+        "TSC01",
+        "TSC02",
+        "TSC04",
+        "DEV01",
+        "DEV02",
+        "PLG14"
+      ],
+      "stop_condition": "不为简单目录功能生成额外APK。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "X06",
+      "phase": "E1",
+      "title": "UU官方绑定、全屏与PiP适配",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "X04"
+      ],
+      "scope": "实现已验证包/scheme的绑定回调、opaque ID、安全关联、全屏launch和PiP结果，不读取UU账号秘密。",
+      "code_targets": [
+        "infrastructure/plugins/uuremote_adapter",
+        "external callback validator",
+        "device bindings UI"
+      ],
+      "deliverables": [
+        "evidence/X06.md（实际执行后填写）",
+        "对应实现、测试、版本及文档，不以接口空壳或参考App成功代替"
+      ],
+      "acceptance": [
+        "冻结实际4.42.0+协议/安装版本；目标Windows/macOS",
+        "全屏无回调不标Active",
+        "nonce/state一次性且回调后不自动远控"
+      ],
+      "test_ids": [
+        "UUR01",
+        "UUR02",
+        "UUR03",
+        "UUR04",
+        "UUR05",
+        "UUR06",
+        "UUR07",
+        "UUR08",
+        "DEV01",
+        "DEV02"
+      ],
+      "stop_condition": "无UU账号/目标授权用mock不填真实PASS；Linux明确不支持。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "X07",
+      "phase": "E1",
+      "title": "RustDesk外部客户端联动",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "X04"
+      ],
+      "scope": "实现peer绑定和显式连接URI、签名/包检测、外部状态边界，保留自建服务由RustDesk配置。",
+      "code_targets": [
+        "infrastructure/plugins/rustdesk_external",
+        "remote action UI"
+      ],
+      "deliverables": [
+        "evidence/X07.md（实际执行后填写）",
+        "对应实现、测试、版本及文档，不以接口空壳或参考App成功代替"
+      ],
+      "acceptance": [
+        "不在URL发密码或修改服务器配置",
+        "只有launch证据不能标远控已连",
+        "不继承并伪称SSH SOCKS有效"
+      ],
+      "test_ids": [
+        "RDX01",
+        "RDX02",
+        "RDX03",
+        "RDX04",
+        "RDX05",
+        "DEV01"
+      ],
+      "stop_condition": "嵌入客户端核心或画面属于R38，不顺手扩张。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "X08",
+      "phase": "E2",
+      "title": "Mosh运行时选择与独立APK可行性",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "X03",
+        "R04",
+        "R09"
+      ],
+      "scope": "先对比dart_mosh与官方native客户端的真实mosh-server互操作、包/密钥处理、VT重绘、移动恢复与独立APK成本，再冻结一种运行时。Dart候选用插件自身AOT/FlutterEngine与Kotlin bridge；native候选验证PTY/JNI/退出。不是只引pub包，也不复制binary到宿主files执行。",
+      "code_targets": [
+        "plugins/mosh",
+        "runtime-selection ADR与可重建构建脚本",
+        "Mosh runtime/ABI/license ledger"
+      ],
+      "deliverables": [
+        "evidence/X08.md（实际执行后填写）",
+        "对应实现、测试、版本及文档，不以接口空壳或参考App成功代替"
+      ],
+      "acceptance": [
+        "真实运行时通过独立APK运行，至少arm64证据；记录Dart与native候选选择理由",
+        "与官方mosh-server互操作，重传/重放边界、坏包及key处理有证据；只固定一套生产实现",
+        "退出、信号或isolate/engine生命周期不拖垮宿主；记录所有传递native ABI/16KiB与来源"
+      ],
+      "test_ids": [
+        "MOS01",
+        "MOS08",
+        "PLG13",
+        "SDK02",
+        "REL03"
+      ],
+      "stop_condition": "候选都未通过则保持阻塞；不能用echo或仅宿主内pub依赖替代独立插件，不规避Android执行限制。",
+      "owner_role": "Native/Android代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "X09",
+      "phase": "E2",
+      "title": "Mosh受控bootstrap与终端session接入",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "X08",
+        "R17",
+        "R08"
+      ],
+      "scope": "宿主SSH核验与受控mosh-server启动，临时key通过IPC，VT接flterm，Direct route capability前置检查。",
+      "code_targets": [
+        "MoshBootstrapCoordinator",
+        "MoshTerminalProvider",
+        "plugins/mosh session implementation"
+      ],
+      "deliverables": [
+        "evidence/X09.md（实际执行后填写）",
+        "对应实现、测试、版本及文档，不以接口空壳或参考App成功代替"
+      ],
+      "acceptance": [
+        "SOCKS/Jump在bootstrap前拒绝",
+        "不把SSH/代理/Tailscale秘密交插件",
+        "输入和resize只走单一所有者"
+      ],
+      "test_ids": [
+        "MOS01",
+        "MOS02",
+        "MOS03",
+        "MOS04",
+        "MOS05",
+        "PLG14",
+        "NET11"
+      ],
+      "stop_condition": "不自动安装远端mosh-server，不直连绕过用户选定代理。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "X10",
+      "phase": "E2",
+      "title": "Mosh移动恢复与运行时生命周期验收",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "X09",
+        "R22"
+      ],
+      "scope": "实测Wi-Fi/蜂窝/后台、断流、native退出、stop和跨App资源；建立诚实支持矩阵。",
+      "code_targets": [
+        "Mosh runtime lifecycle",
+        "device test matrix",
+        "provider release fixture"
+      ],
+      "deliverables": [
+        "evidence/X10.md（实际执行后填写）",
+        "对应实现、测试、版本及文档，不以接口空壳或参考App成功代替"
+      ],
+      "acceptance": [
+        "不因网络事件重复bootstrap或输入",
+        "stop和崩溃不影响已有SSH",
+        "用户当前TailSocks路径继续SSH+tmux"
+      ],
+      "test_ids": [
+        "MOS01",
+        "MOS02",
+        "MOS03",
+        "MOS04",
+        "MOS05",
+        "MOS06",
+        "MOS07",
+        "MOS08",
+        "PLG09",
+        "PLG10",
+        "PLG13",
+        "PLG16",
+        "LIFE06"
+      ],
+      "stop_condition": "没有可达UDP的授权目标或真机则BLOCKED，不改用生产主机试验。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "X11",
+      "phase": "E3",
+      "title": "插件信任、撤销、外部调用对抗回归",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "X04",
+        "X05",
+        "X06",
+        "X07",
+        "X10",
+        "R23"
+      ],
+      "scope": "独立复现伪造provider、跨UID、签名升级、挂死关闭、callback重放、权限/秘密和外部路由边界。",
+      "code_targets": [
+        "integration_test/plugins",
+        "evidence/plugin-security-review"
+      ],
+      "deliverables": [
+        "evidence/X11.md（实际执行后填写）",
+        "对应实现、测试、版本及文档，不以接口空壳或参考App成功代替"
+      ],
+      "acceptance": [
+        "任何敏感操作都有实际边界证据",
+        "不将第三方APK当可强制网络沙箱",
+        "缺证据不能risk-accept安全失败"
+      ],
+      "test_ids": [
+        "PLG01",
+        "PLG02",
+        "PLG03",
+        "PLG04",
+        "PLG05",
+        "PLG06",
+        "PLG07",
+        "PLG08",
+        "PLG09",
+        "PLG10",
+        "PLG11",
+        "PLG12",
+        "PLG13",
+        "PLG14",
+        "PLG15",
+        "PLG16",
+        "UUR06",
+        "UUR08",
+        "RDX02",
+        "RDX04",
+        "DEV02"
+      ],
+      "stop_condition": "发布硬阻断，审查者不能仅照实施总结填通过。",
+      "owner_role": "独立安全代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "X12",
+      "phase": "E3",
+      "title": "插件作者SDK、样例和维护文档",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "X03",
+        "X06",
+        "X07",
+        "X09"
+      ],
+      "scope": "完成可独立构建的样例、契约/错误/兼容文档、签名说明、升级和诊断；由未参与作者流程复验。",
+      "code_targets": [
+        "packages/plugin_api",
+        "plugins/example",
+        "docs/plugin-authors"
+      ],
+      "deliverables": [
+        "evidence/X12.md（实际执行后填写）",
+        "对应实现、测试、版本及文档，不以接口空壳或参考App成功代替"
+      ],
+      "acceptance": [
+        "不要求私有源码或签名私钥",
+        "区分样例、Mosh真实现和外部adapter",
+        "文档说明Android范围和源码许可"
+      ],
+      "test_ids": [
+        "SDK01",
+        "SDK02",
+        "SDK03",
+        "SDK04",
+        "PLG02",
+        "PLG15"
+      ],
+      "stop_condition": "只写接口无样例安装/通信证据不能DONE。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "X13",
+      "phase": "E3",
+      "title": "主App与插件组合候选验收",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "X11",
+        "X12",
+        "R26",
+        "R27"
+      ],
+      "scope": "同一候选安装主App/Mosh及实测UU/RustDesk版本，完整走SSH/Ghostty/Tailscale/Jump/SOCKS与插件兼容。",
+      "code_targets": [
+        "evidence/X13-composed-dogfood",
+        "release matrix",
+        "STATUS.md"
+      ],
+      "deliverables": [
+        "evidence/X13.md（实际执行后填写）",
+        "对应实现、测试、版本及文档，不以接口空壳或参考App成功代替"
+      ],
+      "acceptance": [
+        "core-ready与完整含插件范围分开",
+        "UU及Mosh未授权测试不伪填",
+        "所有APK hash/signer与观察结果关联"
+      ],
+      "test_ids": [
+        "NET12",
+        "GST05",
+        "MOS01",
+        "MOS04",
+        "UUR03",
+        "UUR04",
+        "RDX01",
+        "PLG09",
+        "PLG12",
+        "PLG16",
+        "REL04",
+        "REL05"
+      ],
+      "stop_condition": "缺任何主线必需真机证据，完整V3保持BLOCKED；可明确交付已验证子集。",
+      "owner_role": "人工/独立验收",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R38",
+      "phase": "P6",
+      "title": "RustDesk独立APK内嵌画面provider",
+      "status": "DEFERRED",
+      "depends_on": [
+        "R31"
+      ],
+      "scope": "按docs/17评估AIDL+Surface/PlatformView和RustDesk native核心；通过许可、输入、渲染、媒体与IPC单独门禁后扩展。",
+      "code_targets": [
+        "plugins/rustdesk",
+        "RemoteDesktopSurfaceAdapter"
+      ],
+      "deliverables": [
+        "单会话真实画面/输入PoC",
+        "完整源码/许可证及native再构建记录",
+        "新增测试与显式授权"
+      ],
+      "acceptance": [
+        "不传每帧Base64过Dart/Binder",
+        "AGPL及组合关系审查完成",
+        "密码/剪贴板/媒体独立授权，外部基础模式仍可用"
+      ],
+      "test_ids": [],
+      "stop_condition": "没有许可/ABI/画面证据不合入主线；不直接伪装LobiShell宿主身份。",
+      "owner_role": "Native/远控代理",
+      "evidence": [],
+      "commit": null
+    }
+  ],
+  "plan_revision": "3.0"
+}

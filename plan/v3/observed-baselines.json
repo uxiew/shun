@@ -1,0 +1,65 @@
+{
+  "date": "2026-09-29",
+  "repository_checkout_performed": false,
+  "application_tests_run": false,
+  "previous_handbook_sha256": "2369bce1f1b4da8aebd5bc7af6c7dbc7aeeab964a2fd983a2de4817ce5134f59",
+  "repositories": [
+    {
+      "repository": "kmh1145/Netcatty-mobile",
+      "branch_observed": "main",
+      "manifest_version": "1.4.7+26",
+      "head": null,
+      "dependencies_observed": {
+        "dartssh2_constraint": "^2.22.3",
+        "xterm2": "5.2.0"
+      },
+      "status": "OBSERVATION_NOT_BUILD_PIN"
+    },
+    {
+      "repository": "gwitko/Conduit",
+      "branch_observed": "master",
+      "manifest_version": "1.4.14+39",
+      "head": null,
+      "dependencies_observed": {
+        "dartssh2_conduit_git_ref": "c39f316a853e6d6a21db698503450a39d9e96d68",
+        "conduit_vt_git_ref": "b486b894ea12b18b2ad76339ccd8c6ae3c12416f"
+      },
+      "status": "OBSERVATION_NOT_BUILD_PIN"
+    },
+    {
+      "repository": "elias8/libghostty",
+      "branch_observed": "main",
+      "head": null,
+      "packages": {
+        "flterm": "0.0.5",
+        "libghostty": "0.0.12"
+      },
+      "ghostty_source_pin_observed": "349f026087d948f8f898dca3231ff91438f83ab8",
+      "native_release_observed": "libghostty-v0.0.12",
+      "arm64_android_hash_observed": "e47f9b2a9410bfecd51a6e56d2974eb2ed4ba21a5b41078791a391a66e667a50",
+      "status": "OBSERVATION_NOT_EXECUTED"
+    }
+  ],
+  "plan_revision": "3.0",
+  "plugin_runtime_tests_run": false,
+  "plugin_observations": [
+    {
+      "repository": "secco04/saftssh-mosh-plugin",
+      "head": null,
+      "readme_manifest_discrepancy": true
+    },
+    {
+      "repository": "secco04/rustdesk-plugin",
+      "head": null,
+      "observed_interface": "AIDL + Surface",
+      "license_declared": "AGPL-3.0"
+    },
+    {
+      "repository": "netease-uuyc/uuremote-integration-guide",
+      "head": null,
+      "minimum_client_version_observed": "4.42.0",
+      "full_screen_callback_observed": false,
+      "verified_runtime": false
+    }
+  ]
+}
