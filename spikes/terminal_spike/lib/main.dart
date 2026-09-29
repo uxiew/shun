@@ -39,6 +39,9 @@ class _LoopbackPageState extends State<LoopbackPage> {
     super.initState();
     controller.onOutput = (bytes) {
       final copy = Uint8List.fromList(bytes);
+      // 同时打到 logcat（adb logcat -s flutter），模拟器上用 adb 驱动软键盘/输入法时靠它逐次核对，
+      // 屏幕底部只留最近 8 条，截图核对会漏掉中间的发送。
+      debugPrint('SPIKE_SENT ${_describe(copy)}');
       setState(() {
         sent.insert(0, _describe(copy));
         if (sent.length > 8) sent.removeLast();
