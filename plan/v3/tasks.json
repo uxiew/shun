@@ -2,8 +2,8 @@
   "schema_version": 2,
   "date": "2026-09-29",
   "base_repository": "kmh1145/Netcatty-mobile",
-  "base_status": "RECOMMENDED_CONDITIONAL_ON_LICENSE",
-  "implementation_started": false,
+  "base_status": "PINNED_495f5d31",
+  "implementation_started": true,
   "core_count": 46,
   "deferred_count": 7,
   "phase_gates": {
@@ -119,7 +119,7 @@
       "id": "R00",
       "phase": "P0",
       "title": "基座、授权、许可与源码冻结",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [],
       "scope": "确认指定新仓库；默认Netcatty，记录个人实验/分发意图、dirty、原HEAD与依赖lock。无路径只保留本包，不使用历史项目路径。",
       "code_targets": [

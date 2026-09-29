@@ -1,6 +1,6 @@
 {
   "date": "2026-09-29",
-  "repository_checkout_performed": false,
+  "repository_checkout_performed": true,
   "application_tests_run": false,
   "previous_handbook_sha256": "2369bce1f1b4da8aebd5bc7af6c7dbc7aeeab964a2fd983a2de4817ce5134f59",
   "repositories": [
@@ -8,12 +8,19 @@
       "repository": "kmh1145/Netcatty-mobile",
       "branch_observed": "main",
       "manifest_version": "1.4.7+26",
-      "head": null,
+      "head": "495f5d3174d6b3825fc9edefa7ebe345f3399734",
       "dependencies_observed": {
         "dartssh2_constraint": "^2.22.3",
         "xterm2": "5.2.0"
       },
-      "status": "OBSERVATION_NOT_BUILD_PIN"
+      "status": "PINNED_FOR_FORK",
+      "tag": "v1.4.7",
+      "commit_date": "2026-09-19T12:27:28+08:00",
+      "pubspec_yaml_sha256": "528a0c909227faaf79d27bbc2bc9fef7d082b0996b29ffe05336da0c1ae3377a",
+      "pubspec_lock_sha256": "ad69d656445fa16606c1ee962c1b7cad25b1f4724885ef5263776490af5a1140",
+      "ci_flutter_version": "3.44.4",
+      "dirty_at_clone": false,
+      "pinned_at": "2026-09-29"
     },
     {
       "repository": "gwitko/Conduit",
@@ -61,5 +68,12 @@
       "full_screen_callback_observed": false,
       "verified_runtime": false
     }
-  ]
+  ],
+  "fork": {
+    "path": "/Users/fodelf/xdw/xwshun/netcatty-mobile",
+    "branch": "xwshun/v3",
+    "remote_push": "disabled",
+    "application_id": "top.xdwa.xwshun",
+    "license_mode": "GPL-3.0-or-later personal isolated experiment"
+  }
 }
