@@ -22,7 +22,7 @@
 
 **来源**：api.tailscale.com 自带的 OpenAPI（`https://api.tailscale.com/api/v2?outputOpenapiSchema=true`，`openapi: 3.1.0`，`info.version: v2`）。
 官方在规范里写明它 unstable、可能不经通知变化，且没有日期字段，所以只能按内容固定：sha256 `b416d98eaf58a5e2b974a8c9424f1f33849866eb45344ecba59e95d6140a742d`（246351 字节，2026-09-29 下载；响应 ETag 即此 sha256）。
-原件存在仓库外 `../.toolchain/artifacts/tailscale-openapi-b416d98e.yaml`。重新下载后 sha256 变了，就是官方改了规范，要重新核对下面各条。另参考 [S23](13-sources.md#s23) [S24](13-sources.md#s24)。
+原件存在仓库外 `../.toolchain/artifacts/tailscale-openapi-b416d98e.yaml`。重新下载后 sha256 变了，就是官方改了规范，要重新核对下面各条。来源 [S61](13-sources.md#s61)，另参考 [S23](13-sources.md#s23) [S24](13-sources.md#s24) [S62](13-sources.md#s62)。
 
 | 项 | 官方口径 | R11 的做法 |
 |---|---|---|
@@ -37,7 +37,7 @@
 | 429 | **官方未说是否带 Retry-After**，规范里没有任何响应头定义 | 有就带回（秒或 HTTP 日期），没有就是未知；不自动重试 |
 | 重定向 | **官方未写**。实测 `http://` 会被 302 到 https | 一律不跟随（307/308 会把带 client secret 的 POST 原样重发） |
 | key 前缀 | `tskey-api-`（API access token）、`tskey-client-`（OAuth client secret）；OAuth 换来的 token 前缀未见明确说明 | 不按前缀判断权限：粘贴的 token 一律「范围未验证」 |
-| 已知缺陷 | 官方 issue [tailscale#16911](https://github.com/tailscale/tailscale/issues/16911)：OAuth client 换来的 token 看不到共享进来的外部设备，普通 API token 能看到 | 目录可能比普通 token 读到的少；R12/R13 在界面上说明，不当作设备被删 |
+| 已知缺陷 | 官方 issue tailscale#16911 [S63](13-sources.md#s63)：OAuth client 换来的 token 看不到共享进来的外部设备，普通 API token 能看到 | 目录可能比普通 token 读到的少；R12/R13 在界面上说明，不当作设备被删 |
 
 ## 缓存与导入
 

@@ -20,7 +20,7 @@
 |[作者SDK](docs/18-plugin-author-sdk.md)|作者交付、签名、样例和调试|
 |[任务](docs/08-implementation-tasks.md) / [验收](docs/09-verification.md)|53项任务（46主线/7后续），142项未执行用例|
 |[交接](docs/10-agent-handoff.md) / [里程碑](docs/19-revised-milestones.md)|其他模型的启动与持续实施|
-|[来源](docs/13-sources.md)|60项公开原始资料及证据限制|
+|[来源](docs/13-sources.md)|63项公开原始资料及证据限制|
 
 首批R00–R04与X00。真实任务状态均未开始；不将规划检查结果当App测试。
 

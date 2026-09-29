@@ -541,6 +541,33 @@
       "note": "包声明Apache-2.0；其来源、加密依赖及组合许可仍在X08审查，不把重实现自述视为独立审计。",
       "evidence_level": "PRIMARY_SOURCE_READ",
       "repository_head": null
+    },
+    {
+      "id": "S61",
+      "title": "Tailscale API OpenAPI spec (pinned by sha256)",
+      "url": "https://api.tailscale.com/api/v2?outputOpenapiSchema=true",
+      "accessed_on": "2026-09-29",
+      "note": "R11 固定的官方口径：openapi 3.1.0、info.version v2、官方声明 unstable 且无日期，只能按内容固定 sha256 b416d98eaf58a5e2b974a8c9424f1f33849866eb45344ecba59e95d6140a742d（246351 字节，ETag 同值）。原件在仓库外 .toolchain/artifacts。列设备不分页；sshEnabled 只在 fields=all；无 401/Retry-After/重定向说明。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S62",
+      "title": "Tailscale key prefixes",
+      "url": "https://tailscale.com/docs/reference/key-prefixes",
+      "accessed_on": "2026-09-29",
+      "note": "tskey-api 是 API access token，tskey-client 是 OAuth client secret；OAuth 换来的 token 前缀无明确说明。前缀只用于展示，不据此判断权限。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S63",
+      "title": "tailscale/tailscale issue #16911",
+      "url": "https://github.com/tailscale/tailscale/issues/16911",
+      "accessed_on": "2026-09-29",
+      "note": "官方仓库未关闭 issue：OAuth client 换来的 token 列设备看不到共享进来的外部设备，普通 API token 能看到。是缺陷报告，不是文档承诺。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
     }
   ],
   "revision": "3.0"
