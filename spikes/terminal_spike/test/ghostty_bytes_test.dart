@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flterm/flterm.dart';
+import 'package:flutter/widgets.dart' hide Key;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:terminal_spike/guarded_writer.dart';
 
@@ -112,6 +113,63 @@ void main() {
           ? false
           : '会让测试进程段错误；XWSHUN_RUN_KNOWN_FAILS=1 可复现',
     );
+  });
+
+  testWidgets('GST03：快速 resize 穿插终端查询，回应保序不丢不重；关闭后不再发送', (tester) async {
+    final controller = TerminalController();
+    final writer = GuardedWriter(controller.write);
+    final events = <String>[];
+    var sendAllowed = true;
+    controller.onResize = (cols, rows) => events.add('resize $cols x $rows');
+    controller.onOutput = (bytes) {
+      expect(sendAllowed, isTrue, reason: '关闭后仍有字节要发往远端');
+      events.add('reply');
+    };
+
+    Future<void> show(double width, double height) => tester.pumpWidget(
+      Directionality(
+        textDirection: TextDirection.ltr,
+        child: Center(
+          child: SizedBox(
+            width: width,
+            height: height,
+            child: TerminalView(controller: controller, showKeyboard: false),
+          ),
+        ),
+      ),
+    );
+
+    const sizes = [
+      (800.0, 600.0),
+      (400.0, 300.0),
+      (640.0, 200.0),
+      (320.0, 480.0),
+    ];
+    var queries = 0;
+    for (final (w, h) in sizes) {
+      await show(w, h);
+      writer.write(Uint8List.fromList('\x1b[c'.codeUnits));
+      queries++;
+    }
+    await tester.pump();
+
+    final replies = events.where((e) => e == 'reply').length;
+    final resizes = events.where((e) => e.startsWith('resize')).toList();
+    expect(replies, queries, reason: '每个查询恰好一次回应');
+    expect(writer.maxDepth, 1);
+    expect(
+      resizes.toSet().length,
+      greaterThanOrEqualTo(sizes.length),
+      reason: '每个不同尺寸都通知了后端',
+    );
+
+    // 关闭顺序：先关写入口，再移除视图，再 dispose。之后迟到的数据不得触发发送。
+    writer.close();
+    sendAllowed = false;
+    await tester.pumpWidget(const SizedBox());
+    controller.dispose();
+    writer.write(Uint8List.fromList('\x1b[c'.codeUnits));
+    expect(writer.droppedAfterClose, 1);
   });
 
   test('资源基线（本机，仅作方法冻结；不是 Android 数据）', () {
