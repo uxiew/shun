@@ -38,11 +38,14 @@ void main() {
       expect(owned.destroyed, 0, reason: '交出去的资源归会话，由会话自己关');
     });
 
-    test('私钥坏了：按这一跳报错，已经拨通的 TCP 被关掉', () async {
+    test('私钥坏了：拨号之前就按这一跳报错，服务器一个连接都收不到', () async {
       final server = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
       addTearDown(server.close);
-      final accepted = Completer<Socket>();
-      server.listen(accepted.complete);
+      var accepted = 0;
+      server.listen((socket) {
+        accepted++;
+        socket.destroy();
+      });
       final target = HostProfile({
         'id': 'bad-key',
         'label': 'bad-key',
@@ -72,10 +75,11 @@ void main() {
       }
       expect(error, isA<RouteHopException>());
       expect('$error', contains('读取登录私钥失败'));
-      final socket = await accepted.future;
-      // 客户端关了，服务器这头读到结束。
-      await socket.drain<void>().timeout(const Duration(seconds: 2));
-      expect(stages, [ConnectionStep.dial, ConnectionStep.handshake]);
+      expect('$error', isNot(contains('not a private key')),
+          reason: '报错不带私钥原文');
+      await Future<void>.delayed(const Duration(milliseconds: 200));
+      expect(accepted, 0, reason: '私钥有问题时不该先去连服务器');
+      expect(stages, isEmpty);
     });
 
     test('经代理：阶段依次是经代理、握手；取消后不再上报，握手中的连接被关', () async {

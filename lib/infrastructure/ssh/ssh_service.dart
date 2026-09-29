@@ -11,6 +11,7 @@ import '../../domain/models/host.dart';
 import '../../domain/models/server_stats.dart';
 import '../transport/proxy_transport.dart';
 import 'server_monitor_service.dart';
+import 'ssh_identity.dart';
 
 typedef HostKeyVerifier = Future<bool> Function(
   HostProfile host,
@@ -354,6 +355,17 @@ class SshService {
           label: hops[index].host.label,
           detail: detail ?? hops[index].endpoint.authority,
         );
+    // 每一跳的登录私钥在任何拨号之前解析好（SEC06）：口令不对、私钥被删、内容坏了，
+    // 此时一个连接都还没开，报错也指明是哪一跳，不用先连上服务器再被拒。
+    final identities = <List<SSHKeyPair>?>[];
+    for (var index = 0; index < hops.length; index++) {
+      identities.add(await _atHop(
+        plan,
+        index,
+        '读取登录私钥失败',
+        () async => loadHopIdentities(hops[index]),
+      ));
+    }
     for (var index = 0; index < hops.length; index++) {
       final hop = hops[index];
       final timeout = _connectTimeout(hop.host);
@@ -374,12 +386,12 @@ class SshService {
       pending.transport = guard;
       pending.throwIfCancelled();
       pending.report(stageAt(index, ConnectionStep.handshake));
-      // 私钥解析是同步的，坏私钥或口令不对会在这里抛；也按这一跳报错。
-      final client = await _atHop(
-        plan,
-        index,
-        '读取登录私钥失败',
-        () async => _createClient(guard, hop, verifyHostKey, keyboardInteractive),
+      final client = _createClient(
+        guard,
+        hop,
+        identities[index],
+        verifyHostKey,
+        keyboardInteractive,
       );
       clients.add(client);
       pending.clients.add(client);
@@ -492,26 +504,24 @@ class SshService {
         SSHAuthFailError() => '登录被拒绝：用户名、密码或私钥不对',
         SSHAuthAbortError() => '登录完成前连接被对方关闭：对方可能不是 SSH 服务，或者中途断开了',
         SSHChannelOpenError(:final description) => '对方拒绝打开转发通道（$description）',
+        SshIdentityException(:final message) => message,
         _ => '$error',
       };
 
   SSHClient _createClient(
     SSHSocket socket,
     RouteHop hop,
+    List<SSHKeyPair>? identities,
     HostKeyVerifier verifyHostKey,
     KeyboardInteractiveHandler? keyboardInteractive,
   ) {
     // 登录身份只取这一跳自己的（用户名、密码、私钥），和代理账号无关。
     final host = hop.host;
-    final identity = hop.key;
-    final identities = identity == null || identity.privateKey.isEmpty
-        ? null
-        : SSHKeyPair.fromPem(identity.privateKey, identity.passphrase);
+    var passwordAnswered = false;
     return SSHClient(
       socket,
       username: host.username,
-      identities:
-          host.authMethod == HostAuthMethod.password ? null : identities,
+      identities: identities,
       onPasswordRequest:
           host.authMethod == HostAuthMethod.key || host.password == null
               ? null
@@ -526,9 +536,17 @@ class SshService {
                 .toList(),
           );
         }
-        return request.prompts
-            .map((prompt) => prompt.echo ? '' : (host.password ?? ''))
-            .toList();
+        // 没有界面可问（测试、以后的后台探测）：只在明确问密码时填一次保存的密码，
+        // 验证码、PIN、新密码之类一律不答（见 savedPasswordAnswer）。
+        final answer = savedPasswordAnswer(
+          request.prompts
+              .map((prompt) => (text: prompt.promptText, echo: prompt.echo))
+              .toList(),
+          host.password,
+          alreadyAnswered: passwordAnswered,
+        );
+        if (answer != null && answer.isNotEmpty) passwordAnswered = true;
+        return answer;
       },
       keepAliveInterval: Duration(
         seconds: (host.data['keepaliveInterval'] as num?)?.toInt() ?? 10,

@@ -739,6 +739,29 @@ const englishReplacements = <(String, String)>[
   ),
   ('对方拒绝打开转发通道（', 'the remote side refused to open the forwarding channel ('),
   ('读取登录私钥失败', ' reading the login private key failed'),
+  // 私钥解析报错（ssh_identity.dart），整句放在通用词（私钥、口令、设置…）之前。
+  (
+    '设置为用私钥登录，但引用的私钥不存在（可能已被删除）',
+    'set to log in with a private key, but the referenced key does not exist (it may have been deleted)'
+  ),
+  (
+    '私钥有口令保护，但没有保存口令',
+    'the private key is passphrase-protected, but no passphrase is saved'
+  ),
+  ('私钥口令不对', 'wrong private key passphrase'),
+  (
+    '私钥无法解析：格式不对，或者口令不对',
+    'cannot read the private key: wrong format or wrong passphrase'
+  ),
+  (
+    '私钥无法解析：不是支持的私钥格式',
+    'cannot read the private key: unsupported key format'
+  ),
+  ('私钥文件里没有可用的私钥', 'the key file contains no usable private key'),
+  (
+    '私钥内容已损坏：解出来的私钥和它的公钥对不上，可能被改动过',
+    'the private key is damaged: it does not match its own public key and may have been altered'
+  ),
   // 连接进度（ssh_service.dart 的 ConnectionStage.describe）：「第 1/3 跳，正在连接“x”（地址）」。
   ('第 ', 'Hop '),
   (' 跳，', ', '),
