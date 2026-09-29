@@ -40,6 +40,40 @@ void main() {
         isFalse);
   });
 
+  test('跨服务器传输：没选服务器直传就不探测、不让源服务器去连目标；选了才探测（R09）', () async {
+    ActiveTerminalSession session(String id, String hostname) =>
+        ActiveTerminalSession(
+            id: id,
+            host: HostProfile({
+              'id': id,
+              'hostname': hostname,
+              'port': 22,
+              'username': 'deploy'
+            }),
+            terminal: Terminal(),
+            verifyHostKey: (_, __, ___) async => true,
+            keyboardInteractive: null);
+    final a = _CountingProbe(session('a', 'a.example.test'));
+    final b = _CountingProbe(session('b', 'b.example.test'));
+    expect(crossesServers(a, b), isTrue);
+
+    final byDefault = await prepareTransferRoute(FileSelection(a, []), b, null);
+    expect(byDefault.route, TransferRoute.phoneRelay);
+    expect(byDefault.relayReason, isNull, reason: '用户选的就是中转，不再弹「改用中转？」');
+    expect(a.probes, 0, reason: '探测本身就是一次源服务器到目标的连接');
+
+    final chosen = await prepareTransferRoute(FileSelection(a, []), b, null,
+        allowServerDirect: true);
+    expect(chosen.route, TransferRoute.serverDirect);
+    expect(a.probes, 1);
+
+    final same = _CountingProbe(session('a2', 'a.example.test'));
+    expect(crossesServers(a, same), isFalse);
+    expect((await prepareTransferRoute(FileSelection(a, []), same, null)).route,
+        TransferRoute.serverLocal,
+        reason: '同一台服务器内部复制不涉及跨主机连接，照旧');
+  });
+
   testWidgets('cancelling a remote copy closes its command, not the SSH client',
       (tester) async {
     final client = _CommandClient();
@@ -76,7 +110,10 @@ void main() {
     final selection = FileSelection(source, [source.entries['/a']!]);
     expect((await prepareTransferRoute(selection, source, null)).route,
         TransferRoute.serverLocal);
-    expect((await prepareTransferRoute(selection, target, null)).route,
+    expect(
+        (await prepareTransferRoute(selection, target, null,
+                allowServerDirect: true))
+            .route,
         TransferRoute.serverDirect);
     target.local = true;
     expect((await prepareTransferRoute(selection, target, null)).relayReason,
@@ -89,7 +126,8 @@ void main() {
       ..add('/a')
       ..probeError = StateError('host key not trusted');
     final selection = FileSelection(source, [source.entries['/a']!]);
-    final plan = await prepareTransferRoute(selection, _Server('b'), null);
+    final plan = await prepareTransferRoute(selection, _Server('b'), null,
+        allowServerDirect: true);
     expect(plan.route, TransferRoute.phoneRelay);
     expect(plan.relayReason, contains('host key not trusted'));
     expect(source.copies, 0);
@@ -107,7 +145,8 @@ void main() {
         (await prepareTransferRoute(
                 FileSelection(source, source.entries.values),
                 _Server('b'),
-                null))
+                null,
+                allowServerDirect: true))
             .relayReason,
         contains('regular files'));
     source.entries.clear();
@@ -116,7 +155,8 @@ void main() {
         (await prepareTransferRoute(
                 FileSelection(source, source.entries.values),
                 _Server('b'),
-                null))
+                null,
+                allowServerDirect: true))
             .relayReason,
         contains('Newlines'));
     expect(source.probes, 0);
@@ -370,6 +410,16 @@ class _ProbeService extends SftpService {
   @override
   Future<void> probeServerTransfer(
       FileTransferService target, TransferCancellationToken? token) async {}
+}
+
+class _CountingProbe extends SftpService {
+  _CountingProbe(super.session);
+  int probes = 0;
+  @override
+  Future<void> probeServerTransfer(
+      FileTransferService target, TransferCancellationToken? token) async {
+    probes++;
+  }
 }
 
 class _CommandClient extends Fake implements SSHClient {

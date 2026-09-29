@@ -43,6 +43,9 @@ const englishTranslations = <String, String>{
   '通过手机传输中…': 'Transferring through the phone…',
   '改用手机中转？': 'Use phone relay instead?',
   '使用手机中转': 'Use phone relay',
+  '在两台服务器之间怎么传？': 'How should the files move between the two servers?',
+  '服务器直传': 'Server direct',
+  '手机中转': 'Phone relay',
   '服务器直传不可用。直传需要服务器之间可达，并已配置密钥认证和可信主机指纹。手机中转会使用手机流量。':
       'Server-side transfer is unavailable. Direct transfers require reachable servers, configured key authentication and trusted host keys. Phone relay uses your phone’s data connection.',
   '正在压缩…': 'Compressing…',
@@ -576,6 +579,19 @@ const englishReplacements = <(String, String)>[
   (
     '可能没有安装 sftp-server，或 sshd 没有配置 Subsystem sftp',
     'sftp-server may not be installed, or sshd has no Subsystem sftp configured'
+  ),
+  // 跨服务器传输的选择说明（sftp_screen.dart）。整句排最前，免得先被「服务器」「手机」这类通用词拆碎。
+  (
+    '手机中转：分别按两台服务器各自的连接路线，经手机收发，走手机流量。',
+    "Phone relay: the data passes through the phone over each server's own connection route and uses mobile data."
+  ),
+  (
+    '服务器直传：让源服务器直接连接目标服务器，不经过手机，也不走你为目标设置的代理或跳板；',
+    'Server direct: the source server connects to the target server by itself, bypassing the phone and any proxy or jump hosts set for the target; '
+  ),
+  (
+    '目标的身份由源服务器自己的 known_hosts 核对，需要源服务器能用密钥登录目标。',
+    "the target's identity is checked against the source server's own known_hosts, and the source server must be able to log in to the target with a key."
   ),
   // 路由报错（lib/domain/connection_route.dart）必须排在最前：后面的通用词（的、跳板机、
   // 当前版本、不支持…）会先把句子拆碎。片段之间有包含关系的，长的放前面（「上的代理。」在「自带的代理」前）。

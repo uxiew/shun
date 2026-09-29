@@ -345,6 +345,34 @@ class _SftpScreenState extends ConsumerState<SftpScreen> {
       if (confirmed != true || !mounted) return;
     }
     if (_transfer != null) return;
+    var allowServerDirect = false;
+    if (crossesServers(selection.source, target)) {
+      final choice = await showDialog<TransferRoute>(
+          context: context,
+          builder: (context) => AlertDialog(
+                title: const LText('在两台服务器之间怎么传？'),
+                content: const SingleChildScrollView(
+                  child: LText('手机中转：分别按两台服务器各自的连接路线，经手机收发，走手机流量。\n'
+                      '服务器直传：让源服务器直接连接目标服务器，不经过手机，也不走你为目标设置的代理或跳板；'
+                      '目标的身份由源服务器自己的 known_hosts 核对，需要源服务器能用密钥登录目标。'),
+                ),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(context),
+                      child: const LText('取消')),
+                  TextButton(
+                      onPressed: () =>
+                          Navigator.pop(context, TransferRoute.serverDirect),
+                      child: const LText('服务器直传')),
+                  FilledButton(
+                      onPressed: () =>
+                          Navigator.pop(context, TransferRoute.phoneRelay),
+                      child: const LText('手机中转')),
+                ],
+              ));
+      if (choice == null || !mounted) return;
+      allowServerDirect = choice == TransferRoute.serverDirect;
+    }
     final token = TransferCancellationToken();
     _transferCancellation = token;
     final tracker = _TransferProgressTracker(
@@ -360,7 +388,7 @@ class _SftpScreenState extends ConsumerState<SftpScreen> {
     try {
       tracker.setStatus('正在检查服务器传输条件…');
       final plan = await prepareTransferRoute(selection, target, token,
-          targetDirectory: path);
+          targetDirectory: path, allowServerDirect: allowServerDirect);
       if (!mounted) return;
       if (plan.relayReason != null) {
         final accepted = await showDialog<bool>(

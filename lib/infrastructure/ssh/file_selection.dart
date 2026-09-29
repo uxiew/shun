@@ -13,11 +13,23 @@ class TransferRoutePlan {
   final String? relayReason;
 }
 
+/// 两台不同服务器之间是否会走「服务器直传」：只有用户明确选了（[allowServerDirect]）才会。
+///
+/// 服务器直传是让源服务器自己去连目标服务器：这条连接不经过手机为目标选定的路线，
+/// 目标的身份由源服务器的 known_hosts 核对，不是 App 的信任记录。连探测本身都是一次这样的连接，
+/// 所以没有同意之前连探测也不做（R09 / RTE04）。同一台服务器内部的复制移动不涉及跨主机连接，不受影响。
+bool crossesServers(FileTransferService source, FileTransferService target) =>
+    !source.isLocal && !target.isLocal && !sameTransferStorage(source, target);
+
 Future<TransferRoutePlan> prepareTransferRoute(FileSelection selection,
     FileTransferService target, TransferCancellationToken? token,
-    {String? targetDirectory}) async {
+    {String? targetDirectory, bool allowServerDirect = false}) async {
   final source = selection.source;
   if (source.isLocal || target.isLocal) {
+    return const TransferRoutePlan(TransferRoute.phoneRelay);
+  }
+  if (crossesServers(source, target) && !allowServerDirect) {
+    token?.throwIfCancelled(); // 取消了就是取消，不能变成「改走中转」
     return const TransferRoutePlan(TransferRoute.phoneRelay);
   }
   try {
