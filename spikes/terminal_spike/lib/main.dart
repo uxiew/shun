@@ -3,7 +3,9 @@ import 'dart:typed_data';
 
 import 'package:flterm/flterm.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HardwareKeyboard;
 
+import 'android_key_fallback.dart';
 import 'guarded_writer.dart';
 
 /// R04 spike：没有 SSH，用"回环"代替 PTY——终端发出的字节（按键、输入法提交、协议回应）
@@ -34,9 +36,22 @@ class _LoopbackPageState extends State<LoopbackPage> {
   late final writer = GuardedWriter(controller.write);
   final sent = <String>[];
 
+  /// 只记录不拦截（返回 false）：看软键盘/adb 注入的键到底以什么物理键、逻辑键到达 Flutter。
+  /// 输入法发来的按键 scanCode 常为 0，终端按物理键查表时会认不出来。
+  static bool _logKey(KeyEvent e) {
+    debugPrint(
+      'SPIKE_KEY ${e.runtimeType} '
+      'phys=0x${e.physicalKey.usbHidUsage.toRadixString(16)} '
+      'logical=0x${e.logicalKey.keyId.toRadixString(16)} '
+      'char=${e.character?.codeUnits}',
+    );
+    return false;
+  }
+
   @override
   void initState() {
     super.initState();
+    HardwareKeyboard.instance.addHandler(_logKey);
     controller.onOutput = (bytes) {
       final copy = Uint8List.fromList(bytes);
       // 同时打到 logcat（adb logcat -s flutter），模拟器上用 adb 驱动软键盘/输入法时靠它逐次核对，
@@ -75,6 +90,7 @@ class _LoopbackPageState extends State<LoopbackPage> {
 
   @override
   void dispose() {
+    HardwareKeyboard.instance.removeHandler(_logKey);
     writer.close(); // 先关写入口：flterm 0.0.5 在 dispose 后 write 会段错误
     controller.dispose();
     super.dispose();
@@ -85,7 +101,15 @@ class _LoopbackPageState extends State<LoopbackPage> {
     body: SafeArea(
       child: Column(
         children: [
-          Expanded(child: TerminalView(controller: controller)),
+          Expanded(
+            // 放在 TerminalView 外层：flterm 认不出的键才会冒泡到这里。
+            child: Focus(
+              canRequestFocus: false,
+              skipTraversal: true,
+              onKeyEvent: (_, e) => androidKeyFallback(controller, e),
+              child: TerminalView(controller: controller),
+            ),
+          ),
           Container(
             width: double.infinity,
             color: Colors.black,
