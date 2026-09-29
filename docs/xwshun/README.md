@@ -16,7 +16,7 @@ flutter --version               # 应为 3.44.4
 ## 2. 测试
 
 ```bash
-flutter test          # 全量约 300 条，约 2.5 分钟；没起测试环境时有 10 条跳过
+flutter test          # 全量约 370 条，约 2.5 分钟；没起测试环境时真实 SSH 那 27 条自动跳过
 flutter analyze       # 应为 No issues found（连 spikes/、packages/ 一起查）
 ```
 
@@ -64,13 +64,16 @@ adb emu kill; $S/avdmanager delete avd -n xwshun-tmp; $S/sdkmanager --uninstall 
 
 每台测出了什么见 `plan/v3/evidence/R04.md`。模拟器结果只算部分证据，不能代替真机。
 
-## 4. 装到真机
+## 4. 装到真机与使用
 
 手机开 USB 调试 → `adb devices` 显示 `device` → `flutter run -d <设备ID>`。
 
 - 包名 `top.xdwa.xwshun`，和原版 Netcatty（`app.netcatty.mobile`）并存、数据互不影响。**别把 applicationId 改回去**，会覆盖原版。
 - debug 包用 `~/.android/debug.keystore` 签名；换台电脑构建的包签名不同，要先卸载（会清掉 App 数据）才能装。
 - AI、云同步、检查更新默认关闭且不显示，是有意的（`lib/application/fork_features.dart`）。
+- 要先经代理再走跳板：把代理设在**目标主机**上（代理只用于连第一台跳板）。设在跳板机上会报错，不会被偷偷套用。
+- 连接报错会写明是哪台机器、哪一步，比如「跳板机“hop2”（地址）转发失败（到 目标:端口）」。
+- 服务器指纹变了会直接拒绝连接，没有「确认更新」。先向管理员核对；确认是正常换钥，就在弹窗里点「删除旧指纹」，再重连并重新核对。
 
 ## 5. 改任务状态
 
