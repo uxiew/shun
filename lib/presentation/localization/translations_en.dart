@@ -627,6 +627,20 @@ const englishTranslations = <String, String>{
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // R12：目录缓存与刷新（catalog_cache.dart、tailscale_catalog_refresh.dart）。
+  // 放最前：已有的通用片段会把「目录」译成 folder。
+  (
+    '目录返回 0 台设备，没有据此把已有设备标成不见了',
+    'The directory returned 0 devices; existing devices were not marked missing because of it'
+  ),
+  ('这次的列表不完整（', 'This list was incomplete ('),
+  (' 条无法识别、', ' unrecognized entries, '),
+  (
+    ' 个重复 ID），没有据此把已有设备标成不见了',
+    ' duplicate IDs); existing devices were not marked missing because of it'
+  ),
+  ('本机没有这个目录来源', 'This directory source is not on this device'),
+  ('这个目录来源已存在', 'This directory source already exists'),
   // X02：插件页、Android 桥（PluginBridge.kt、CallerVerifier.java）和 plugin_api 准入给出的原因。
   // 整句和带插值的前后缀放最前。
   (
