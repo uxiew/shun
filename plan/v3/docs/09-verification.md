@@ -80,7 +80,7 @@
 | REL04 | 将每项证据关联相同 commit/构建哈希/设备；核对文档与实际功能。 | NOT_RUN 不冒充 PASS；用户原 LobiShell 成功不计入本 App；生产账号/额度需授权。 | NOT_RUN |
 | REL05 | 独立审查者复现关键负向测试并对照代码、日志和状态清单。 | 无未关闭硬门禁问题；风险接受不能豁免无直连/host key/无重放等核心合同。 | NOT_RUN |
 | BAS01 | 固定fork SHA与lock后运行原项目测试、构建旧引擎APK。 | 建立可复现基线；上游失败如实分类，不虚增本fork通过数。 | PASS |
-| BAS02 | 冷启动、deep link、后台恢复与设置打开时监测AI、同步和管理初始化。 | 未经用户开启的AI/同步/云上传网络请求为零；不执行管理命令。 | BLOCKED |
+| BAS02 | 冷启动、deep link、后台恢复与设置打开时监测AI、同步和管理初始化。 | 未经用户开启的AI/同步/云上传网络请求为零；不执行管理命令。 | PASS |
 | BAS03 | 在同机保留原App，安装fork并导入副本、升级schema。 | 不同applicationId/签名，不覆盖原数据；迁移可回滚，无未知字段暗丢。 | BLOCKED |
 | BAS04 | 检查最终构建来源、GPL/Apache/第三方NOTICE与改动声明。 | 分发形态有明确许可结论；不把Conduit自身许可覆盖全部二进制。 | NOT_RUN |
 | RTE01 | 导入同时包含target代理、跳板自身代理、旧hostChain的矛盾配置。 | 显示明确规范化路线或拒绝；不静默选一套或递归应用跳板route。 | NOT_RUN |

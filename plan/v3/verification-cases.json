@@ -585,7 +585,7 @@
       "action": "冷启动、deep link、后台恢复与设置打开时监测AI、同步和管理初始化。",
       "expected": "未经用户开启的AI/同步/云上传网络请求为零；不执行管理命令。",
       "level": "硬门禁",
-      "result": "BLOCKED",
+      "result": "PASS",
       "evidence": [
         "evidence/R01.md"
       ],
