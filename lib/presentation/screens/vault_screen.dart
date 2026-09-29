@@ -7,8 +7,10 @@ import '../../application/settings_controller.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/models/host.dart';
 import '../../application/home_navigation.dart';
+import '../../application/host_trust.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/host_editor.dart';
+import '../widgets/host_key_dialogs.dart';
 import '../widgets/host_system_icon.dart';
 
 class VaultScreen extends ConsumerStatefulWidget {
@@ -339,6 +341,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     }
   }
 
+  /// 规则在 application/host_trust.dart；这里只提供弹窗和保存。
   Future<bool> _verifyHostKey(
     HostProfile host,
     String algorithm,
@@ -346,65 +349,43 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
   ) async {
     final vault = ref.read(vaultControllerProvider).data;
     if (vault == null) return false;
-    final entries = (vault.extras['knownHosts'] as List? ?? const [])
-        .whereType<Map>()
-        .map((value) => Map<String, dynamic>.from(value))
-        .toList();
-    final index = entries.indexWhere(
-      (value) =>
-          value['hostname'] == host.hostname &&
-          ((value['port'] as num?)?.toInt() ?? 22) == host.port,
-    );
-    final existing = index < 0 ? null : entries[index];
-    if (existing?['fingerprint'] == fingerprint &&
-        existing?['keyType'] == algorithm) {
-      return true;
-    }
-    if (!mounted) return false;
-    final changed = existing != null;
-    final accepted = await showDialog<bool>(
-          context: context,
-          barrierDismissible: false,
-          builder: (context) => AlertDialog(
-            icon: Icon(
-              changed ? Icons.warning_amber : Icons.verified_user_outlined,
-              color: changed ? Colors.redAccent : null,
-            ),
-            title: LText(changed ? '服务器指纹已变化' : '确认服务器指纹'),
-            content: LSelectableText(
-              '${host.hostname}:${host.port}\n$algorithm\n$fingerprint\n\n'
-              '${changed ? '这可能表示服务器重装，也可能是中间人攻击。请重新向管理员核对。' : '首次连接前请与管理员核对。'}',
-            ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const LText('拒绝'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: LText(changed ? '确认更新' : '接受并记住'),
-              ),
-            ],
+    return verifyHostKeyWithKnownHosts(
+      knownHosts: (vault.extras['knownHosts'] as List? ?? const [])
+          .whereType<Map>()
+          .map((value) => Map<String, dynamic>.from(value))
+          .toList(),
+      hostname: host.hostname,
+      port: host.port,
+      keyType: algorithm,
+      fingerprint: fingerprint,
+      confirmNew: () async =>
+          mounted &&
+          await confirmNewHostKey(
+            context,
+            hostname: host.hostname,
+            port: host.port,
+            algorithm: algorithm,
+            fingerprint: fingerprint,
           ),
-        ) ??
-        false;
-    if (!accepted) return false;
-    final record = {
-      'hostname': host.hostname,
-      'port': host.port,
-      'keyType': algorithm,
-      'fingerprint': fingerprint,
-      'acceptedAt': DateTime.now().millisecondsSinceEpoch,
-    };
-    if (index < 0) {
-      entries.add(record);
-    } else {
-      entries[index] = record;
-    }
-    await ref.read(vaultControllerProvider.notifier).replace(
-          vault.copyWith(extras: {...vault.extras, 'knownHosts': entries}),
-        );
-    return true;
+      onChanged: (oldFingerprint) async =>
+          mounted &&
+          await showChangedHostKey(
+            context,
+            hostname: host.hostname,
+            port: host.port,
+            algorithm: algorithm,
+            fingerprint: fingerprint,
+            oldFingerprint: oldFingerprint,
+          ),
+      save: (knownHosts) async {
+        final latest = ref.read(vaultControllerProvider).data ?? vault;
+        await ref.read(vaultControllerProvider.notifier).replace(
+              latest.copyWith(
+                extras: {...latest.extras, 'knownHosts': knownHosts},
+              ),
+            );
+      },
+    );
   }
 
   Future<List<String>?> _promptKeyboardInteractive(
