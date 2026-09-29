@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/settings.dart';
 import '../../domain/models/vault.dart';
+import '../../domain/vault_secrets.dart';
 import 'background_image_service.dart';
 import '../ai/ai_workspace.dart';
 
@@ -229,7 +230,7 @@ class VaultRepository {
       final config = profile.config;
       await _writeSecret('proxy.${profile.id}.password', config?.password);
     }
-    final sanitized = _withoutSecrets(vault);
+    final sanitized = vaultWithoutSecrets(vault);
     await _preferences.setString(_vaultKey, jsonEncode(sanitized.toJson()));
     _cachedVault = vault;
     _vaultSecretsLoaded = true;
@@ -246,7 +247,7 @@ class VaultRepository {
     final previousCache = _cachedVault;
     _cachedVault = vault;
     try {
-      final sanitized = _withoutSecrets(vault);
+      final sanitized = vaultWithoutSecrets(vault);
       await _preferences.setString(_vaultKey, jsonEncode(sanitized.toJson()));
       _changes.add(VaultChange(vault, VaultChangeOrigin.local));
     } on Object {
@@ -255,30 +256,6 @@ class VaultRepository {
     }
   }
 
-  VaultData _withoutSecrets(VaultData vault) {
-    final sanitized = VaultData.fromJson(vault.toJson());
-    for (final host in sanitized.hosts) {
-      host.data.remove('password');
-      host.data.remove('telnetPassword');
-      if (host.data['proxyConfig'] is Map) {
-        host.data['proxyConfig'] =
-            Map<String, dynamic>.from(host.data['proxyConfig'] as Map)
-              ..remove('password');
-      }
-    }
-    for (final key in sanitized.keys) {
-      key.data['privateKey'] = '';
-      key.data.remove('passphrase');
-    }
-    for (final profile in sanitized.proxyProfiles) {
-      if (profile.data['config'] is Map) {
-        profile.data['config'] =
-            Map<String, dynamic>.from(profile.data['config'] as Map)
-              ..remove('password');
-      }
-    }
-    return sanitized;
-  }
 
   Future<AppSettings> loadSettings() async {
     final raw = _preferences.getString(_settingsKey);

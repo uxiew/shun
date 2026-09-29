@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 
 import '../../domain/models/vault.dart';
+import '../../domain/vault_secrets.dart';
 
 enum VaultExportResult { saved, cancelled }
 
@@ -27,9 +28,14 @@ class VaultExportService {
   final SaveVaultFile _saveFile;
   final bool _pickerWritesBytes;
 
+  /// 导出保险库，**不含**密码、私钥和代理口令（REG03）。
+  ///
+  /// 以前导出的是解锁后的完整保险库，JSON 文件里是明文密码和私钥，存到哪、同步到哪都跟着走。
+  /// 在同一台设备上再导入时，[keepLocalSecrets] 会沿用本机已有的凭据；换设备要重新填。
   Future<VaultExportResult> export(VaultData vault) async {
     final bytes = Uint8List.fromList(
-      utf8.encode(const JsonEncoder.withIndent('  ').convert(vault.toJson())),
+      utf8.encode(const JsonEncoder.withIndent('  ')
+          .convert(vaultWithoutSecrets(vault).toJson())),
     );
     final path = await _saveFile(
       dialogTitle: '导出 Netcatty 保险库',

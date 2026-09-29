@@ -15,6 +15,7 @@ import '../../application/settings_controller.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/models/settings.dart';
 import '../../domain/models/vault.dart';
+import '../../domain/vault_secrets.dart';
 import '../../infrastructure/storage/background_image_service.dart';
 import '../../infrastructure/storage/vault_repository.dart';
 import '../../infrastructure/storage/vault_export_service.dart';
@@ -1370,10 +1371,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       final file = result.files.single;
       final bytes = file.bytes ?? await File(file.path!).readAsBytes();
-      final vault = VaultData.fromJson(
+      final imported = VaultData.fromJson(
         jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>,
       );
-      await ref.read(vaultControllerProvider.notifier).replace(vault);
+      final controller = ref.read(vaultControllerProvider.notifier);
+      // 导出文件不带凭据：同一条目、同一登录目标的，沿用本机已有的密码和私钥，
+      // 否则保存时空值会把安全存储里的凭据删掉。
+      final vault = keepLocalSecrets(imported, await controller.ready());
+      await controller.replace(vault);
       _message('已导入 ${vault.hosts.length} 台主机');
     } catch (error) {
       _message('导入失败：$error');
@@ -1384,7 +1389,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     try {
       final vault = await ref.read(vaultControllerProvider.notifier).ready();
       final result = await VaultExportService().export(vault);
-      if (result == VaultExportResult.saved) _message('导出完成');
+      if (result == VaultExportResult.saved) {
+        _message('导出完成（不含密码、私钥和代理口令）');
+      }
     } catch (error) {
       _message('导出失败：$error');
     }

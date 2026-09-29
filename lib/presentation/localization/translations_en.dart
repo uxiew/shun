@@ -762,6 +762,10 @@ const englishReplacements = <(String, String)>[
     '私钥内容已损坏：解出来的私钥和它的公钥对不上，可能被改动过',
     'the private key is damaged: it does not match its own public key and may have been altered'
   ),
+  (
+    '导出完成（不含密码、私钥和代理口令）',
+    'Export complete (passwords, private keys and proxy passwords are not included)'
+  ),
   // 连接进度（ssh_service.dart 的 ConnectionStage.describe）：「第 1/3 跳，正在连接“x”（地址）」。
   ('第 ', 'Hop '),
   (' 跳，', ', '),

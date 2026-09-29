@@ -8,7 +8,7 @@ import 'package:netcatty_mobile/domain/models/vault.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_export_service.dart';
 
 void main() {
-  test('mobile export passes the complete JSON payload to the document picker',
+  test('mobile export passes the JSON payload, without credentials, to the document picker',
       () async {
     Uint8List? savedBytes;
     FileType? savedType;
@@ -51,7 +51,9 @@ void main() {
     expect(savedExtensions, ['json']);
     expect(savedBytes, isNotNull);
     final json = jsonDecode(utf8.decode(savedBytes!)) as Map<String, dynamic>;
-    expect((json['hosts'] as List).single['password'], 'secret');
+    // V3 契约：凭据不进普通导出（上游导出里是明文密码，这里有意反过来）。
+    expect((json['hosts'] as List).single.containsKey('password'), isFalse);
+    expect(utf8.decode(savedBytes!), isNot(contains('secret')));
     expect(json['desktopPluginData'], {'preserved': true});
   });
 
