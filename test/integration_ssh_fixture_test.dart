@@ -40,6 +40,7 @@ void main() {
     final expected = {
       '127.0.0.1': f.edgeFingerprint,
       f.hop2Name: f.hop2Fingerprint,
+      f.hop3Name: f.hop3Fingerprint,
       f.targetName: f.targetFingerprint,
     }[host.hostname];
     return fingerprint == expected;
@@ -227,7 +228,8 @@ void main() {
           proxyProfiles: const [],
           verifyHostKey: (_, __, fp) async => fp == fixture.edgeFingerprint,
         ),
-        throwsA(isA<ProxyHandshakeException>()
+        throwsA(isA<RouteHopException>()
+            .having((e) => e.cause, 'cause', isA<ProxyHandshakeException>())
             .having((e) => e.message, 'message', contains('防止降级'))),
       );
       expect(proxy.attempts.single.offeredMethods, [2],
@@ -245,7 +247,8 @@ void main() {
       });
       await expectLater(
         connect(host),
-        throwsA(isA<ProxyHandshakeException>()),
+        throwsA(isA<RouteHopException>()
+            .having((e) => e.cause, 'cause', isA<ProxyHandshakeException>())),
       );
     }, skip: skip);
   });
@@ -333,6 +336,289 @@ void main() {
         ],
         [f.edgeHost, f.hop2Name, f.targetName],
       );
+    });
+
+    // ---- R07 ----
+
+    List<HostProfile> threeJumps() {
+      final f = fixture!;
+      return [
+        node('edge', f.edgeHost, f.edgePort),
+        node('hop2', f.hop2Name, f.hop2Port),
+        node('hop3', f.hop3Name, f.hop3Port),
+      ];
+    }
+
+    HostProfile targetVia(List<HostProfile> jumps,
+            [Map<String, Object?> extra = const {}]) =>
+        node('target', fixture!.targetName, fixture.targetPort, {
+          'hostChain': {
+            'hostIds': [for (final jump in jumps) jump.id],
+          },
+          ...extra,
+        });
+
+    /// 某台 sshd 容器到目前为止的日志行。按"前后新增的行"看，不依赖宿主机和容器的时钟对齐。
+    Future<List<String>> sshdLog(String service) async {
+      final result = await Process.run('docker', [
+        'compose',
+        '-f',
+        'tool/fixture-environment/compose.yaml',
+        'logs',
+        '--no-color',
+        service,
+      ]);
+      return '${result.stdout}'.split('\n');
+    }
+
+    Future<List<String>> newLines(String service, List<String> before) async {
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      final after = await sshdLog(service);
+      return after.sublist(before.length - 1);
+    }
+
+    Future<RouteHopException> hopFailure(
+      HostProfile target,
+      List<HostProfile> jumps, {
+      HostKeyVerifier? verify,
+      TcpDialer? dialer,
+    }) async {
+      try {
+        final session = await SshService(dialer: dialer).connect(
+          sessionId: 'jmp',
+          host: target,
+          hosts: [...jumps, target],
+          keys: const [],
+          proxyProfiles: const [],
+          verifyHostKey: verify ?? verifyByLogicalName,
+        );
+        await session.close();
+      } on RouteHopException catch (error) {
+        return error;
+      }
+      fail('应当在某一跳失败');
+    }
+
+    test('JMP01 三跳：边缘 → hop2 → hop3 → 目标', () {
+      final f = fixture!;
+      return expectReachesTarget(
+        threeJumps(),
+        [f.edgeHost, f.hop2Name, f.hop3Name, f.targetName],
+      );
+    });
+
+    test('JMP01 跳板只转发：日志里跳板只有登录、没开 shell 或执行命令，目标才开 shell', () async {
+      final f = fixture!;
+      const jumpServices = ['ssh-edge', 'ssh-hop2', 'ssh-hop3'];
+      final before = {
+        for (final s in [...jumpServices, 'target']) s: await sshdLog(s),
+      };
+      await expectReachesTarget(
+        threeJumps(),
+        [f.edgeHost, f.hop2Name, f.hop3Name, f.targetName],
+      );
+      for (final service in jumpServices) {
+        final lines = await newLines(service, before[service]!);
+        expect(lines.join('\n'), contains('Accepted password for fixture'),
+            reason: '$service 应当被登录过（每跳独立认证）');
+        expect(lines.join('\n'), isNot(contains('Starting session')),
+            reason: '$service 上不该开 shell 或执行任何命令（不靠远端 ssh 命令转发）');
+      }
+      expect((await newLines('target', before['target']!)).join('\n'),
+          contains('Starting session: shell'));
+    });
+
+    test('JMP01 关掉后按同一条路线重连（恢复）', () async {
+      final f = fixture!;
+      final jumps = threeJumps().take(2).toList();
+      final target = targetVia(jumps);
+      for (final purpose in ConnectionPurpose.values) {
+        final dialer = RecordingDialer();
+        final session = await SshService(dialer: dialer.call).connect(
+          sessionId: 'jmp-$purpose',
+          host: target,
+          hosts: [...jumps, target],
+          keys: const [],
+          proxyProfiles: const [],
+          verifyHostKey: verifyByLogicalName,
+          purpose: purpose,
+        );
+        expect(await runInSession(session, 'hostname'), 'target');
+        expect(dialer.dials, ['${f.edgeHost}:${f.edgePort}']);
+        await session.close();
+      }
+    });
+
+    const hopNames = ['edge', 'hop2', 'hop3', 'target'];
+    const hopServices = ['ssh-edge', 'ssh-hop2', 'ssh-hop3', 'target'];
+    for (var bad = 0; bad < hopNames.length; bad++) {
+      test('JMP02 / SEC02 ${hopNames[bad]} 的指纹对不上：在这一跳阻断，这台一次登录都没收到', () async {
+        final f = fixture!;
+        final logical = [f.edgeHost, f.hop2Name, f.hop3Name, f.targetName];
+        final before = await sshdLog(hopServices[bad]);
+        final error = await hopFailure(
+          targetVia(threeJumps()),
+          threeJumps(),
+          verify: (host, algorithm, fingerprint) async =>
+              host.hostname != logical[bad] &&
+              await verifyByLogicalName(host, algorithm, fingerprint),
+        );
+        expect(error.hop, bad);
+        expect(error.message, contains('“${hopNames[bad]}”'));
+        expect(error.message, contains('主机指纹没有通过校验'));
+        final lines = (await newLines(hopServices[bad], before)).join('\n');
+        expect(lines, contains('[preauth]'), reason: '连接在认证前就断了');
+        for (final authEvent in ['Accepted', 'Failed', 'Postponed']) {
+          expect(lines, isNot(contains(authEvent)),
+              reason: '指纹没通过时不能发出任何登录数据（$authEvent）');
+        }
+      });
+    }
+
+    group('JMP04 代理入口 + 跳板', () {
+      late Socks5Fixture proxy;
+      late RecordingDialer dialer;
+      setUp(() async {
+        final f = fixture!;
+        proxy = await Socks5Fixture.start(names: {
+          'edge.fixture.invalid': (host: f.edgeHost, port: f.edgePort),
+        });
+        dialer = RecordingDialer();
+      });
+      tearDown(() => proxy.close());
+
+      Map<String, Object?> viaProxy() => {
+            'proxyConfig': {
+              'type': 'socks5',
+              'host': proxy.host,
+              'port': proxy.port,
+            },
+          };
+      Future<bool> verify(HostProfile host, String algorithm, String fp) =>
+          host.hostname == 'edge.fixture.invalid'
+              ? Future.value(fp == fixture!.edgeFingerprint)
+              : verifyByLogicalName(host, algorithm, fp);
+      List<HostProfile> jumps({String edge = 'edge.fixture.invalid'}) => [
+            node('edge', edge, 22),
+            node('hop2', fixture!.hop2Name, fixture.hop2Port),
+          ];
+
+      test('走通：手机只拨代理一次，代理只 CONNECT 第一跳，后面经跳板转发', () async {
+        final path = jumps();
+        final target = targetVia(path, viaProxy());
+        final session = await SshService(dialer: dialer.call).connect(
+          sessionId: 'jmp4',
+          host: target,
+          hosts: [...path, target],
+          keys: const [],
+          proxyProfiles: const [],
+          verifyHostKey: verify,
+        );
+        addTearDown(session.close);
+        expect(await runInSession(session, 'hostname'), 'target');
+        expect(dialer.dials, ['${proxy.host}:${proxy.port}']);
+        expect(proxy.attempts.map((a) => a.requestedHost),
+            ['edge.fixture.invalid']);
+      });
+
+      test('代理连不到第一跳：报第一跳、经代理阶段，不绕过代理', () async {
+        final path = jumps(edge: 'nosuch.fixture.invalid');
+        final error = await hopFailure(targetVia(path, viaProxy()), path,
+            verify: verify, dialer: dialer.call);
+        expect(error.hop, 0);
+        expect(error.message, contains('经代理连接失败'));
+        expect(error.message, contains('主机不可达'));
+        expect(dialer.dials, ['${proxy.host}:${proxy.port}']);
+      });
+
+      // 用"存在的主机 + 关着的端口"而不是不存在的域名：本机 DNS 是 fake-ip，
+      // 跳板机在容器里查任何名字都会拿到 198.18.x.x，转发通道会先被确认、再断开，
+      // 失败就落到了下一跳的握手阶段，测不到"转发被拒"。
+      test('第一跳转发不到第二跳：报第一跳的转发阶段和去向', () async {
+        final path = [
+          node('edge', 'edge.fixture.invalid', 22),
+          node('hop2', fixture!.hop2Name, 2222),
+        ];
+        final error = await hopFailure(targetVia(path, viaProxy()), path,
+            verify: verify, dialer: dialer.call);
+        expect(error.hop, 0);
+        expect(error.message, contains('“edge”'));
+        expect(error.message, contains('转发失败（到 ${fixture.hop2Name}:2222）'));
+        expect(dialer.dials, ['${proxy.host}:${proxy.port}']);
+      });
+
+      test('最后一跳转发不到目标端口：报第二跳的转发阶段', () async {
+        final path = jumps();
+        final target = HostProfile({
+          ...targetVia(path, viaProxy()).data,
+          'port': 2222,
+        });
+        final error =
+            await hopFailure(target, path, verify: verify, dialer: dialer.call);
+        expect(error.hop, 1);
+        expect(error.message, contains('“hop2”'));
+        expect(error.message, contains('转发失败（到 ${fixture!.targetName}:2222）'));
+        expect(dialer.dials, ['${proxy.host}:${proxy.port}']);
+      });
+    });
+
+    test('SEC01 信任记录按逻辑目标：换一个本地 SOCKS 端口连同一目标，记录的仍是 target:22', () async {
+      final f = fixture!;
+      final trusted = <String, String>{};
+      Future<bool> knownHosts(
+          HostProfile host, String algorithm, String fp) async {
+        final key = '${host.hostname}:${host.port}';
+        final known = trusted[key];
+        if (known == null) {
+          // 模拟"用户核对后接受"。首次必须经过这一步，不自动信任。
+          if (fp != f.targetFingerprint) return false;
+          trusted[key] = fp;
+          return true;
+        }
+        return known == fp;
+      }
+
+      for (final port in [f.socksAuthPort, f.socksNoAuthPort]) {
+        final host = targetViaProxy({
+          'type': 'socks5',
+          'host': f.socksAuthHost,
+          'port': port,
+          if (port == f.socksAuthPort) 'username': f.socksUser,
+          if (port == f.socksAuthPort) 'password': f.socksPassword,
+        });
+        final session = await SshService().connect(
+          sessionId: 'sec1',
+          host: host,
+          hosts: [host],
+          keys: const [],
+          proxyProfiles: const [],
+          verifyHostKey: knownHosts,
+        );
+        expect(await runInSession(session, 'hostname'), 'target');
+        await session.close();
+      }
+      expect(trusted.keys, ['${f.targetName}:${f.targetPort}'],
+          reason: '不能按 127.0.0.1 或代理端口记信任');
+    });
+
+    test('SEC03 代理把连接偷偷转到另一台 SSH：已信任的目标指纹对不上，认证前阻断', () async {
+      final f = fixture!;
+      final evil = await Socks5Fixture.start(names: {
+        f.targetName: (host: f.edgeHost, port: f.edgePort),
+      });
+      addTearDown(evil.close);
+      final before = await sshdLog('ssh-edge');
+      final host = targetViaProxy({
+        'type': 'socks5',
+        'host': evil.host,
+        'port': evil.port,
+      });
+      final error = await hopFailure(host, const []);
+      expect(error.hop, 0);
+      expect(error.message, contains('主机指纹没有通过校验'));
+      final lines = (await newLines('ssh-edge', before)).join('\n');
+      expect(lines, isNot(contains('Accepted')));
+      expect(lines, isNot(contains('Failed')));
     });
   }, skip: skip);
 
