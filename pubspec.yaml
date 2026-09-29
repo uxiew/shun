@@ -42,6 +42,9 @@ dev_dependencies:
   flutter_lints: ^6.0.0
   # X03 会话状态机测试要控制时间（关闭确认的 2 秒窗口）。已是 flutter_test 的传递依赖，锁定版本不变。
   fake_async: 1.3.3
+  # X03 在模拟器上驱动真实的插件桥和测试插件 APK（integration_test/）。
+  integration_test:
+    sdk: flutter
 
 flutter:
   uses-material-design: true
