@@ -22,3 +22,8 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 }
+
+dependencies {
+    // 只为 ProviderSessions 的纯 JVM 单测；4.12 是本机 Gradle 缓存里已有的版本，不用联网。
+    testImplementation("junit:junit:4.12")
+}

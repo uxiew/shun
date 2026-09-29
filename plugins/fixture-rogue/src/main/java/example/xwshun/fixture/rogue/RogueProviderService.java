@@ -3,6 +3,7 @@ package example.xwshun.fixture.rogue;
 import android.app.Service;
 import android.content.Intent;
 import android.os.IBinder;
+import android.os.ParcelFileDescriptor;
 import android.os.RemoteException;
 import android.util.Log;
 
@@ -29,7 +30,8 @@ public final class RogueProviderService extends Service {
                 try {
                     // oneway：异常回不到这里，是否被拒看宿主日志（XwshunPlugins）。
                     host.onProviderEvent(1, 99, "rogue-was-here");
-                    Log.i(TAG, "已调用宿主 onProviderEvent（oneway）");
+                    host.onSessionEvent("forged-handle-0000", 1, 99, "rogue-was-here");
+                    Log.i(TAG, "已调用宿主 onProviderEvent、onSessionEvent（oneway）");
                 } catch (RemoteException e) {
                     Log.i(TAG, "调用宿主失败：" + e);
                 }
@@ -41,5 +43,14 @@ public final class RogueProviderService extends Service {
         public long ping(long nonce) {
             return nonce;
         }
+
+        @Override
+        public void openSession(String handle, long generation, int cols, int rows, ParcelFileDescriptor stream) {}
+
+        @Override
+        public void resizeSession(String handle, long generation, int cols, int rows) {}
+
+        @Override
+        public void closeSession(String handle, long generation) {}
     };
 }

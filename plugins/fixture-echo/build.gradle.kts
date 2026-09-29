@@ -7,6 +7,7 @@
 //   -PechoAppId=<包名>                     默认 example.xwshun.fixture.echo
 //   -PpluginId=<pluginId>                  默认 example.fixture_echo
 //   -PleakTo=<包名>                        握手后把宿主回调 Binder 转交给这个包（只为测宿主逐事务鉴权）
+//   -Pbehavior=normal|slowopen|stubborn|misbehave|major2   X03 故障注入，见 EchoProviderService
 plugins {
     id("com.android.application")
 }
@@ -17,6 +18,10 @@ val hostSha256 = (findProperty("hostSha256") as String?)?.lowercase()?.replace("
 val appId = (findProperty("echoAppId") as String?) ?: "example.xwshun.fixture.echo"
 val pluginId = (findProperty("pluginId") as String?) ?: "example.fixture_echo"
 val leakTo = (findProperty("leakTo") as String?) ?: ""
+val behavior = (findProperty("behavior") as String?) ?: "normal"
+if (behavior !in setOf("normal", "slowopen", "stubborn", "misbehave", "major2")) {
+    throw GradleException("behavior 只能是 normal/slowopen/stubborn/misbehave/major2")
+}
 @Suppress("UNCHECKED_CAST")
 val signing = extra["xwshunSigning"] as List<String>
 
@@ -57,6 +62,7 @@ android {
         resValue("string", "xwshun_trusted_host_package", "top.xdwa.xwshun")
         resValue("string", "xwshun_trusted_host_sha256", hostSha256)
         resValue("string", "xwshun_fixture_leak_host_binder_to", leakTo)
+        resValue("string", "xwshun_fixture_behavior", behavior)
     }
 
     signingConfigs {
@@ -71,6 +77,8 @@ android {
     buildTypes {
         getByName("release") {
             isMinifyEnabled = false
+            // 测试 APK：可 debug 才能 run-as 看进程的 fd 表（X03 核对 FD 是否清理）。
+            isDebuggable = true
             signingConfig = signingConfigs.getByName("fixture")
         }
     }

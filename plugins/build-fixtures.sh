@@ -34,3 +34,8 @@ build echo-leaky     fixture-echo  -PsignWith=author -PleakTo=example.xwshun.fix
 build echo-debugkey  fixture-echo  -PsignWith=androidDebug \
   -PechoAppId=example.xwshun.fixture.echo.debugkey -PpluginId=example.fixture_echo_debugkey
 build rogue          fixture-rogue -PsignWith=impostor
+# X03 故障注入：与 echo-author 同包名同密钥，覆盖安装即可切换行为。
+build echo-slowopen  fixture-echo  -PsignWith=author -Pbehavior=slowopen
+build echo-stubborn  fixture-echo  -PsignWith=author -Pbehavior=stubborn
+build echo-misbehave fixture-echo  -PsignWith=author -Pbehavior=misbehave
+build echo-major2    fixture-echo  -PsignWith=author -Pbehavior=major2

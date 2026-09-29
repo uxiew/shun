@@ -8,4 +8,8 @@ interface IXwshunHost {
     // 插件状态事件。generation/sequence 单调，旧代次或不递增的事件被丢弃（docs/15 §5）。
     // event 是短的状态名（如 "ready"），不是任意负载；超过 64 字符直接拒绝。
     oneway void onProviderEvent(long generation, long sequence, String event);
+
+    // 会话状态（X03）：active / resized / closed / failed。宿主核对调用方、handle 归属、generation，
+    // sequence 必须递增；任何一项不对就丢弃，旧代次不能让已关的会话「复活」。state ≤64 字符。
+    oneway void onSessionEvent(String handle, long generation, long sequence, String state);
 }

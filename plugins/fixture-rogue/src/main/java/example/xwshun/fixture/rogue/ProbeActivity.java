@@ -6,6 +6,7 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.os.Bundle;
 import android.os.IBinder;
+import android.os.ParcelFileDescriptor;
 import android.util.Log;
 
 import top.xdwa.xwshun.plugin.v1.IXwshunHost;
@@ -39,8 +40,29 @@ public final class ProbeActivity extends Activity {
                     probe("handshake", () -> provider.handshake(1, 0, new IXwshunHost.Stub() {
                         @Override
                         public void onProviderEvent(long generation, long sequence, String event) {}
+
+                        @Override
+                        public void onSessionEvent(String handle, long generation, long sequence, String state) {}
                     }));
                     probe("ping", () -> provider.ping(42));
+                    probe("openSession", () -> {
+                        ParcelFileDescriptor[] pair = ParcelFileDescriptor.createSocketPair();
+                        try {
+                            provider.openSession("rogue-0001", 1, 80, 24, pair[1]);
+                            return "opened";
+                        } finally {
+                            pair[0].close();
+                            pair[1].close();
+                        }
+                    });
+                    probe("resizeSession", () -> {
+                        provider.resizeSession("rogue-0001", 1, 80, 24);
+                        return "resized";
+                    });
+                    probe("closeSession", () -> {
+                        provider.closeSession("rogue-0001", 1);
+                        return "closed";
+                    });
                     runOnUiThread(() -> {
                         unbindService(this);
                         finish();
