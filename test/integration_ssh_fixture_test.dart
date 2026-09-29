@@ -6,7 +6,9 @@ import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:netcatty_mobile/application/port_forward_controller.dart';
 import 'package:netcatty_mobile/application/session_controller.dart';
+import 'package:netcatty_mobile/application/vault_controller.dart';
 import 'package:netcatty_mobile/domain/models/host.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
@@ -784,5 +786,450 @@ void main() {
       await Future<void>.delayed(const Duration(seconds: 1));
       expect(await lines('~/managed.log'), 1, reason: '恢复重跑了托管命令');
     }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+  });
+
+  group('R08 连接代次、取消与资源所有权（真实 OpenSSH）', () {
+    late VaultRepository repository;
+    late ProviderContainer container;
+    late SessionController controller;
+
+    ProviderContainer open() {
+      final value = ProviderContainer(overrides: [
+        vaultRepositoryProvider.overrideWithValue(repository),
+      ]);
+      container = value;
+      controller = value.read(sessionControllerProvider.notifier);
+      return value;
+    }
+
+    setUp(() async {
+      if (fixture == null) return;
+      // 主机密码存在系统安全存储里。这里换成内存表，controller 销毁重建后还能读回来。
+      final secrets = <String, String>{};
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(secureStorage, (call) async {
+        final args = (call.arguments as Map?) ?? const {};
+        final key = args['key'] as String?;
+        switch (call.method) {
+          case 'write':
+            secrets[key!] = args['value'] as String;
+          case 'read':
+            return secrets[key];
+          case 'containsKey':
+            return secrets.containsKey(key);
+          case 'delete':
+            secrets.remove(key);
+          case 'readAll':
+            return Map<String, String>.from(secrets);
+          case 'deleteAll':
+            secrets.clear();
+        }
+        return null;
+      });
+      SharedPreferences.setMockInitialValues({});
+      repository = await VaultRepository.open();
+      open();
+    });
+
+    tearDown(() async {
+      if (fixture == null) return;
+      container.dispose();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+
+    /// 容器里 sshd（22 端口）上 ESTABLISHED 的 TCP 连接数。直接读内核连接表，不经 SSH 登录，
+    /// 检查本身不会被算进去。这是「App 说关了，socket 是不是真关了」的独立观察口（R08 停止条件）。
+    Future<int> sshdConnections(String service) async {
+      final result = await Process.run('docker', [
+        'compose',
+        '-f',
+        'tool/fixture-environment/compose.yaml',
+        'exec',
+        '-T',
+        service,
+        'sh',
+        '-c',
+        'cat /proc/net/tcp /proc/net/tcp6 2>/dev/null',
+      ]);
+      expect(result.exitCode, 0, reason: '${result.stderr}');
+      var count = 0;
+      for (final line in (result.stdout as String).split('\n')) {
+        final fields = line.trim().split(RegExp(r'\s+'));
+        if (fields.length < 4 || !fields[1].contains(':')) continue;
+        if (fields[1].endsWith(':0016') && fields[3] == '01') count++;
+      }
+      return count;
+    }
+
+    Future<void> eventually(Future<bool> Function() condition, String what,
+        {Duration timeout = const Duration(seconds: 5)}) async {
+      final deadline = DateTime.now().add(timeout);
+      while (!await condition()) {
+        if (DateTime.now().isAfter(deadline)) fail('等待超时：$what');
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+    }
+
+    Future<void> killSessions(String service) async {
+      final result = await Process.run('docker', [
+        'compose',
+        '-f',
+        'tool/fixture-environment/compose.yaml',
+        'exec',
+        '-T',
+        service,
+        'pkill',
+        '-KILL',
+        '-f',
+        'sshd-session',
+      ]);
+      expect(result.exitCode, 0, reason: '${result.stderr}');
+    }
+
+    /// 主机指纹核对可以被「挂住」，模拟用户还没在弹窗里点确认。
+    /// hold() 之后第一个到达的核对会停住：reached 完成表示它确实停在这里了，release 放行。
+    final gate = (
+      pending: <Completer<bool>>[],
+      reached: <Completer<void>>[],
+    );
+    Future<bool> Function(HostProfile, String, String) gatedVerifier(
+        Map<String, String> fingerprints) {
+      return (host, algorithm, fingerprint) async {
+        if (gate.pending.isNotEmpty) {
+          final waiting = gate.pending.removeAt(0);
+          gate.reached.removeAt(0).complete();
+          if (!await waiting.future) return false;
+        }
+        return fingerprint == fingerprints[host.hostname];
+      };
+    }
+
+    ({Future<void> reached, void Function() release}) hold() {
+      final waiting = Completer<bool>();
+      final reached = Completer<void>();
+      gate.pending.add(waiting);
+      gate.reached.add(reached);
+      return (reached: reached.future, release: () => waiting.complete(true));
+    }
+
+    setUp(() {
+      gate.pending.clear();
+      gate.reached.clear();
+    });
+
+    HostProfile targetViaDante(String id) {
+      final f = fixture!;
+      return HostProfile({
+        ...targetViaProxy({
+          'type': 'socks5',
+          'host': f.socksAuthHost,
+          'port': f.socksAuthPort,
+          'username': f.socksUser,
+          'password': f.socksPassword,
+        }).data,
+        'id': id,
+        'label': id,
+      });
+    }
+
+    test('NET09 真实连接：指纹确认挂着时取消→马上再连→旧确认迟到，旧连接不复活', () async {
+      final f = fixture!;
+      final host = targetViaDante('net09');
+      await container.read(vaultControllerProvider.notifier).upsertHost(host);
+      final verify = gatedVerifier({f.targetName: f.targetFingerprint});
+      final baseline = await sshdConnections('target');
+
+      final held = hold();
+      final first = controller.connect(host, verify);
+      await held.reached;
+      expect(controller.state.pendingConnections.single.stage?.step,
+          ConnectionStep.handshake);
+      expect(await sshdConnections('target'), baseline + 1,
+          reason: '取消前第一次尝试确实已经连到目标（卡在指纹确认）');
+
+      final watch = Stopwatch()..start();
+      controller.cancelPendingConnection(
+          controller.state.pendingConnections.single.id);
+      await first;
+      expect(watch.elapsed, lessThan(const Duration(milliseconds: 500)));
+      await eventually(
+          () async => await sshdConnections('target') == baseline,
+          '取消后目标上那条连接被关掉');
+
+      await controller.connect(host, verify);
+      held.release(); // 旧尝试的指纹确认这时才到
+      await Future<void>.delayed(const Duration(seconds: 1));
+
+      final session = controller.state.sessions.single;
+      expect(session.connected, isTrue);
+      expect(await runInSession(session, 'hostname'), 'target');
+      expect(controller.state.pendingConnections, isEmpty);
+      expect(await sshdConnections('target'), baseline + 1,
+          reason: '只剩新连接；旧尝试迟到的确认没有让它复活出第二条');
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
+    test('NET09 恢复进行中关标签：恢复出的连接被关，服务器上不留连接', () async {
+      final f = fixture!;
+      final verify = gatedVerifier({'127.0.0.1': f.edgeFingerprint});
+      await controller.connect(edgeHost({'id': 'restore-close'}), verify);
+      final old = controller.state.sessions.single;
+      await killSessions('ssh-edge');
+      await waitUntil(() => !old.connected);
+
+      final held = hold();
+      final restoring = controller.reconnectDisconnected();
+      await held.reached; // 恢复已经连到服务器，卡在指纹确认
+      await controller.close(0);
+      held.release();
+      await restoring;
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      expect(controller.state.sessions, isEmpty);
+      await eventually(
+          () async => await sshdConnections('ssh-edge') == 0, '边缘上不留连接');
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
+    test('NET10 两个主机各走不同代理账号；连接中改其中一个：互不污染，运行中的连接不换代理和身份', () async {
+      final f = fixture!;
+      final proxyB = await Socks5Fixture.start(
+        username: 'account-b',
+        password: 'secret-b',
+        names: {'edge-b.internal': (host: f.edgeHost, port: f.edgePort)},
+      );
+      addTearDown(proxyB.close);
+      final hostA = targetViaDante('net10-a');
+      final hostB = HostProfile({
+        'id': 'net10-b',
+        'label': 'net10-b',
+        'hostname': 'edge-b.internal',
+        'port': 22,
+        'username': f.user,
+        'password': f.password,
+        'authMethod': 'password',
+        'protocol': 'ssh',
+        'proxyConfig': {
+          'type': 'socks5',
+          'host': proxyB.host,
+          'port': proxyB.port,
+          'username': 'account-b',
+          'password': 'secret-b',
+        },
+      });
+      final vault = container.read(vaultControllerProvider.notifier);
+      await vault.upsertHost(hostA);
+      await vault.upsertHost(hostB);
+      final verify = gatedVerifier({
+        f.targetName: f.targetFingerprint,
+        'edge-b.internal': f.edgeFingerprint,
+      });
+
+      // A 卡在指纹确认时，B 同时连；再把 A 的代理改成 B 的账号、用户名改掉。
+      final held = hold();
+      final connectingA = controller.connect(hostA, verify);
+      await held.reached;
+      await controller.connect(hostB, verify);
+      await vault.upsertHost(HostProfile({
+        ...hostA.data,
+        'username': 'nobody',
+        'proxyConfig': hostB.data['proxyConfig'],
+      }));
+      held.release();
+      await connectingA;
+
+      final sessionA =
+          controller.state.sessions.firstWhere((s) => s.host.id == hostA.id);
+      final sessionB =
+          controller.state.sessions.firstWhere((s) => s.host.id == hostB.id);
+      expect(await runInSession(sessionA, 'hostname'), 'target',
+          reason: 'A 按开始连接时的路线走 dante，用的是 A 的代理账号');
+      expect(await runInSession(sessionA, 'whoami'), f.user);
+      expect(await runInSession(sessionB, 'hostname'), 'ssh-edge');
+      expect(
+          proxyB.attempts
+              .map((a) => '${a.username}/${a.password}->${a.requestedHost}'),
+          ['account-b/secret-b->edge-b.internal'],
+          reason: 'B 的代理只见过 B 自己的账号和目标');
+
+      // 连接回写（最近连接时间、系统识别）落盘后，A 的编辑还在。
+      await Future<void>.delayed(const Duration(seconds: 2));
+      final savedA = (await vault.ready())
+          .hosts
+          .firstWhere((h) => h.id == hostA.id);
+      expect(savedA.username, 'nobody');
+      expect((savedA.data['proxyConfig'] as Map)['username'], 'account-b');
+
+      // A 断线自动恢复：沿用原路线（dante + A 的账号 + 原用户名），不拿改过的配置。
+      await killSessions('target');
+      await waitUntil(() => !sessionA.connected);
+      await controller.reconnectDisconnected();
+      final restoredA =
+          controller.state.sessions.firstWhere((s) => s.host.id == hostA.id);
+      expect(identical(restoredA, sessionA), isFalse);
+      expect(await runInSession(restoredA, 'hostname'), 'target');
+      expect(await runInSession(restoredA, 'whoami'), f.user);
+      expect(proxyB.attempts, hasLength(1), reason: '恢复没有改走 B 的代理');
+      expect(await runInSession(sessionB, 'hostname'), 'ssh-edge',
+          reason: 'B 全程不受影响');
+
+      // 新开一次 A：这才用上改过的配置（B 的代理账号 + 新用户名）。
+      await expectLater(controller.connect(hostA, verify), throwsA(anything));
+      expect(proxyB.attempts, hasLength(2));
+      expect(proxyB.attempts.last.username, 'account-b');
+      expect(proxyB.attempts.last.requestedHost, f.targetName);
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 90)));
+
+    test('断线后借这条连接开的端口转发失效：新连接马上被关，不改走别的路线；条目留在列表里', () async {
+      final f = fixture!;
+      await controller.connect(
+          edgeHost({'id': 'forward-owner'}), verifyByLogicalName);
+      final session = controller.state.sessions.single;
+      final forwards = container.read(portForwardControllerProvider.notifier);
+      await forwards.startLocal(
+        session: session,
+        localPort: 0,
+        remoteHost: f.targetName,
+        remotePort: f.targetPort,
+      );
+      final port = container.read(portForwardControllerProvider).single.localPort;
+      Future<String> banner() async {
+        final socket = await Socket.connect('127.0.0.1', port);
+        try {
+          final first = await socket.first.timeout(const Duration(seconds: 3));
+          return String.fromCharCodes(first);
+        } on StateError {
+          return ''; // 一个字节都没收到就被关了
+        } finally {
+          socket.destroy();
+        }
+      }
+
+      expect(await banner(), startsWith('SSH-2.0-'), reason: '转发正常时经边缘到达目标');
+      await killSessions('ssh-edge');
+      await waitUntil(() => !session.connected);
+      final watch = Stopwatch()..start();
+      expect(await banner(), isEmpty, reason: '断线后转发不能再通');
+      expect(watch.elapsed, lessThan(const Duration(seconds: 2)));
+      expect(container.read(portForwardControllerProvider), hasLength(1),
+          reason: '条目还在列表里（R24 再处理），手册写了要手动停');
+      await forwards
+          .stop(container.read(portForwardControllerProvider).single.id);
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
+    test('无全局跳板池：两条经同一跳板的连接各有自己的跳板连接；关一条不影响另一条', () async {
+      final vault = container.read(vaultControllerProvider.notifier);
+      final edge = edgeHost({'id': 'pool-edge', 'label': 'edge'});
+      final chained = HostProfile({
+        ...targetViaProxy(const {}).data,
+        'id': 'pool-target',
+        'proxyConfig': null,
+        'hostChain': {
+          'hostIds': ['pool-edge'],
+        },
+      });
+      await vault.upsertHost(edge);
+      await vault.upsertHost(chained);
+      await controller.connect(chained, verifyByLogicalName);
+      await controller.connect(chained, verifyByLogicalName);
+      final [a, b] = controller.state.sessions;
+      expect(await sshdConnections('ssh-edge'), 2,
+          reason: '每条终端连接自己连一次跳板，不共用');
+      expect(await sshdConnections('target'), 2);
+
+      await controller.close(0);
+      await eventually(
+          () async => await sshdConnections('ssh-edge') == 1, '关掉的那条的跳板连接被释放');
+      expect(await sshdConnections('target'), 1);
+      expect(await runInSession(b, 'hostname'), 'target');
+      expect(a.connected, isFalse);
+      await controller.close(0);
+      await eventually(() async => await sshdConnections('ssh-edge') == 0,
+          '全部关掉后跳板上不留连接');
+      expect(await sshdConnections('target'), 0);
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
+    test('LIFE06（连接层部分）100 轮连接/取消/断线恢复/关闭/销毁：fd 与服务器连接不逐轮增长', () async {
+      final f = fixture!;
+      final vault = container.read(vaultControllerProvider.notifier);
+      final edge = edgeHost({'id': 'life-edge', 'label': 'edge'});
+      final chained = HostProfile({
+        ...targetViaProxy(const {}).data,
+        'id': 'life-target',
+        'proxyConfig': null,
+        'hostChain': {
+          'hostIds': ['life-edge'],
+        },
+      });
+      await vault.upsertHost(edge);
+      await vault.upsertHost(chained);
+      final verify = gatedVerifier({
+        '127.0.0.1': f.edgeFingerprint,
+        f.targetName: f.targetFingerprint,
+      });
+      // 用 lsof 数本进程的数字 fd。macOS 上用 Dart 列 /dev/fd 会碰到列目录自己开的那个 fd，直接报 EBADF。
+      int openFds() {
+        final result = Process.runSync('lsof', ['-p', '$pid', '-F', 'f']);
+        return (result.stdout as String)
+            .split('\n')
+            .where((line) => RegExp(r'^f\d+$').hasMatch(line))
+            .length;
+      }
+
+      Future<void> round(int i) async {
+        switch (i % 5) {
+          case 0: // 连上 → 关标签
+            await controller.connect(edge, verify);
+            await controller.close(0);
+          case 1: // 指纹确认挂着时取消，确认迟到
+            final held = hold();
+            final connecting = controller.connect(edge, verify);
+            await held.reached;
+            controller.cancelPendingConnection(
+                controller.state.pendingConnections.single.id);
+            await connecting;
+            held.release();
+          case 2: // 断线 → 恢复 → 关标签
+            await controller.connect(edge, verify);
+            final old = controller.state.sessions.single;
+            await killSessions('ssh-edge');
+            await waitUntil(() => !old.connected);
+            await controller.reconnectDisconnected();
+            expect(controller.state.sessions.single.connected, isTrue);
+            await controller.close(0);
+          case 3: // 经跳板到目标 → 关标签
+            await controller.connect(chained, verify);
+            await controller.close(0);
+          case 4: // 连着的时候整个 controller 销毁（应用退出）
+            await controller.connect(chained, verify);
+            container.dispose();
+            open();
+        }
+      }
+
+      for (var i = 0; i < 5; i++) {
+        await round(i); // 预热：让 VM 和 DNS 之类的一次性资源先分配好
+      }
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      final baseFds = openFds();
+      final samples = <String>[];
+      // 默认 100 轮；看内存是否走平时可以设 R08_LIFE06_ROUNDS=500 跑长一点。
+      final rounds =
+          int.tryParse(Platform.environment['R08_LIFE06_ROUNDS'] ?? '') ?? 100;
+      for (var i = 0; i < rounds; i++) {
+        await round(i);
+        if ((i + 1) % (rounds ~/ 5) == 0) {
+          await Future<void>.delayed(const Duration(milliseconds: 500));
+          final edgeConns = await sshdConnections('ssh-edge');
+          final targetConns = await sshdConnections('target');
+          samples.add('round=${i + 1} fds=${openFds()} (基线 $baseFds) '
+              'edge=$edgeConns target=$targetConns '
+              'rss=${(ProcessInfo.currentRss / 1048576).toStringAsFixed(1)}MB');
+          expect(edgeConns, 0, reason: samples.last);
+          expect(targetConns, 0, reason: samples.last);
+        }
+      }
+      // ignore: avoid_print
+      print('LIFE06 采样：\n${samples.join('\n')}');
+      expect(openFds(), lessThanOrEqualTo(baseFds + 3),
+          reason: 'fd 逐轮增长：\n${samples.join('\n')}');
+    }, skip: skip, timeout: const Timeout(Duration(minutes: 6)));
   });
 }
