@@ -114,7 +114,8 @@ $P plan/v3/scripts/validate_plan.py  # 检查 ID、依赖、schema；它不测 A
 | 目录 | 大约 | 是什么 | 删掉后 |
 |---|---|---|---|
 | `gradle-home/` | 6 GB | Gradle 依赖和构建缓存 | 下次构建重新下载，首次构建会慢 |
-| `baseline-495f5d31/` | 2 GB | 上游原版代码的 git worktree，用来对照原版行为 | 先执行 `git worktree remove ../.toolchain/baseline-495f5d31` |
+| `baseline-495f5d31/` | 0.1 GB（构建一次会涨到 2 GB） | 上游原版代码的 git worktree，用来对照原版行为 | 先执行 `git worktree remove ../.toolchain/baseline-495f5d31`，直接删目录会让 git 以为 worktree 还在 |
+| `artifacts/` | 0.2 GB | 留作证据的安装包，目前只有原版 debug APK（sha256 `339f4932…`，和 R01 证据一致） | 做"原版和 fork 同机共存"测试时要重新构建原版 |
 | `avd/` | 每个 AVD 1.5–3 GB | 模拟器的用户数据 | 模拟器就没了，重建一个几分钟 |
 | `flutter/` | 1.1 GB | Flutter SDK | 什么都跑不了 |
 | `pub-cache/` | 0.3 GB | Dart 依赖包 | 执行 `flutter pub get` 重新下载 |
@@ -128,7 +129,7 @@ $P plan/v3/scripts/validate_plan.py  # 检查 ID、依赖、schema；它不测 A
 | 模拟器系统镜像（`system-images/` 下，每个 3–5 GB） | 为模拟器验证下载 | `sdkmanager --uninstall "system-images;android-XX;<tag>;arm64-v8a"` |
 
 `sdkmanager` 在 `~/Library/Android/sdk/cmdline-tools/latest/bin/`。
-API 35 的 `google_apis` 镜像是你原来就有的，用户自己的 `lizhi` 模拟器也在用它，**不要卸载**。
+API 35 的 `google_apis` 镜像是你原来就有的，你自己的 `lizhi` 模拟器也在用它，**不要卸载**。
 
 ## 7. 撞墙时
 
