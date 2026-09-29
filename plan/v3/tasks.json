@@ -1796,7 +1796,7 @@
       "id": "X03",
       "phase": "E0",
       "title": "FD流、版本协商与插件故障基础",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "X02"
       ],
@@ -1826,8 +1826,10 @@
       ],
       "stop_condition": "不使用大型Base64/Binder帧冒充高吞吐管道。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/X03.md"
+      ],
+      "commit": "53debdd"
     },
     {
       "id": "X04",

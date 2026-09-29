@@ -830,7 +830,7 @@
 
 ## X03 FD流、版本协商与插件故障基础
 
-阶段：E0；状态：NOT_STARTED；依赖：X02；角色：实施代理。
+阶段：E0；状态：DONE；依赖：X02；角色：实施代理。
 
 **范围**：实现typed session control、FD数据、generation、背压和death/revoke行为，在独立fixture APK故障注入。
 

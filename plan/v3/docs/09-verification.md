@@ -135,13 +135,13 @@ G0基线与关键风险；G1连接路线；G2目录及外部认证支持；G3 Gh
 |PLG03|Android包可见性受限环境发现插件和外部App。|仅针对action/package查询，无QUERY_ALL_PACKAGES；安装不可见有具体诊断。|PASS|
 |PLG04|同包名候选但不同签名、伪装官方pluginId以及伪造Intent extras。|对实际安装证书和组件核验，未授权不能获得会话或秘密。|PASS|
 |PLG05|以未授权UID逐个调用所有AIDL敏感方法，包括拿到已有Binder后。|在真实事务逐次校验UID/证书/授权，不只验证onBind或调用者自报包名。|PASS|
-|PLG06|跨UID/跨plugin复用session handle，发送旧generation回调。|所有者及代次绑定，不泄露数据、不关闭别人的会话。|NOT_RUN|
-|PLG07|FD逐字节/随机分片/慢消费/超过高水位，混合resize与状态事件。|字节保序、流和控制分离、队列有界，不用大型Base64/Binder数据代替正确流。|NOT_RUN|
-|PLG08|open/resize中取消、重复close、取消后迟到成功。|关闭幂等，无迟到复活，FD/native对象均有清理结果。|NOT_RUN|
-|PLG09|强杀Mosh插件进程，同时另有SSH/SFTP活动。|仅相关插件会话中断，宿主存活，其他连接不被终止。|NOT_RUN|
-|PLG10|宿主进程被杀，插件仍有native会话和打开FD。|death recipient/EOF策略清理，未执行命令不被重放；无法确认停止需如实记录。|NOT_RUN|
+|PLG06|跨UID/跨plugin复用session handle，发送旧generation回调。|所有者及代次绑定，不泄露数据、不关闭别人的会话。|PASS|
+|PLG07|FD逐字节/随机分片/慢消费/超过高水位，混合resize与状态事件。|字节保序、流和控制分离、队列有界，不用大型Base64/Binder数据代替正确流。|PASS|
+|PLG08|open/resize中取消、重复close、取消后迟到成功。|关闭幂等，无迟到复活，FD/native对象均有清理结果。|PASS|
+|PLG09|强杀Mosh插件进程，同时另有SSH/SFTP活动。|仅相关插件会话中断，宿主存活，其他连接不被终止。|PASS|
+|PLG10|宿主进程被杀，插件仍有native会话和打开FD。|death recipient/EOF策略清理，未执行命令不被重放；无法确认停止需如实记录。|PASS|
 |PLG11|插件更新、卸载、替换签名后回到正在打开的页面。|缓存能力失效、重新核验；不自动重新授权或执行旧操作。|NOT_RUN|
-|PLG12|运行中撤销授权，提供方拒绝close或继续发事件。|宿主停止新调用/释放秘密、关闭自有FD；其他provider不受影响，停止未确认不伪报成功。|NOT_RUN|
+|PLG12|运行中撤销授权，提供方拒绝close或继续发事件。|宿主停止新调用/释放秘密、关闭自有FD；其他provider不受影响，停止未确认不伪报成功。|PASS|
 |PLG13|检查release APK及运行时网络/文件行为。|native随提供方APK打包；无下载Dart/Dex/.so到宿主执行，无sharedUserId。|NOT_RUN|
 |PLG14|用测试秘密贯穿bootstrap、IPC、崩溃、导出、备份。|仅有本session临时材料进入Mosh；无SSH私钥/代理口令/Tailscale token整库授权或明文日志。|NOT_RUN|
 |PLG15|安装独立作者签名插件，拒绝信任后再显式批准；切到release。|不要求共享签名私钥；未批准不可用，release不接受万能debug信任。|PASS|

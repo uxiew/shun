@@ -1042,7 +1042,8 @@
       "inherited_from": null,
       "evidence": [
         "evidence/X00.md",
-        "evidence/X01.md"
+        "evidence/X01.md",
+        "evidence/X03.md"
       ]
     },
     {
@@ -1075,7 +1076,8 @@
       "result": "PASS",
       "inherited_from": null,
       "evidence": [
-        "evidence/X02.md"
+        "evidence/X02.md",
+        "evidence/X03.md"
       ]
     },
     {
@@ -1083,45 +1085,55 @@
       "action": "跨UID/跨plugin复用session handle，发送旧generation回调。",
       "expected": "所有者及代次绑定，不泄露数据、不关闭别人的会话。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X03.md"
+      ]
     },
     {
       "id": "PLG07",
       "action": "FD逐字节/随机分片/慢消费/超过高水位，混合resize与状态事件。",
       "expected": "字节保序、流和控制分离、队列有界，不用大型Base64/Binder数据代替正确流。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X03.md"
+      ]
     },
     {
       "id": "PLG08",
       "action": "open/resize中取消、重复close、取消后迟到成功。",
       "expected": "关闭幂等，无迟到复活，FD/native对象均有清理结果。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X03.md"
+      ]
     },
     {
       "id": "PLG09",
       "action": "强杀Mosh插件进程，同时另有SSH/SFTP活动。",
       "expected": "仅相关插件会话中断，宿主存活，其他连接不被终止。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X03.md"
+      ]
     },
     {
       "id": "PLG10",
       "action": "宿主进程被杀，插件仍有native会话和打开FD。",
       "expected": "death recipient/EOF策略清理，未执行命令不被重放；无法确认停止需如实记录。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X03.md"
+      ]
     },
     {
       "id": "PLG11",
@@ -1137,9 +1149,11 @@
       "action": "运行中撤销授权，提供方拒绝close或继续发事件。",
       "expected": "宿主停止新调用/释放秘密、关闭自有FD；其他provider不受影响，停止未确认不伪报成功。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X03.md"
+      ]
     },
     {
       "id": "PLG13",
