@@ -593,7 +593,7 @@
       "id": "R12",
       "phase": "P2",
       "title": "设备缓存、来源映射与非破坏合并",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R11"
       ],
@@ -622,8 +622,10 @@
       ],
       "stop_condition": "无法证明完整快照时只更新可确认记录，不推断删除。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R12.md"
+      ],
+      "commit": "b46002c"
     },
     {
       "id": "R13",

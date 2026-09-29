@@ -643,7 +643,8 @@
       "level": "硬门禁",
       "result": "BLOCKED",
       "evidence": [
-        "evidence/R01.md"
+        "evidence/R01.md",
+        "evidence/R12.md"
       ],
       "inherited_from": null
     },
@@ -834,8 +835,10 @@
       "action": "目录字段缺失、未知设备OS、缺IP、错误类型、超大JSON与设备名控制字符。",
       "expected": "容错或有界拒绝；unknown不显示为online/SSH-ready；不崩溃或执行内容。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R12.md"
+      ],
       "inherited_from": null
     },
     {
@@ -843,8 +846,10 @@
       "action": "设备改名/换IP、同名不同id、旧id删除后同名重建。",
       "expected": "按来源+id区分；用户route/username/trust不被覆盖；新主机不继承信任。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R12.md"
+      ],
       "inherited_from": null
     },
     {
@@ -853,7 +858,9 @@
       "expected": "仅按确认schema分页；不因错误或空列表删除主机；显示缓存时间与不完整。",
       "level": "硬门禁",
       "result": "NOT_RUN",
-      "evidence": [],
+      "evidence": [
+        "evidence/R12.md"
+      ],
       "inherited_from": null
     },
     {
@@ -899,8 +906,10 @@
       "action": "两目录来源使用别名tailnet和同名主机、删除凭据再刷新。",
       "expected": "来源隔离；未知canonical不误合并；删凭据不会误删手动编辑主机。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R12.md"
+      ],
       "inherited_from": null
     },
     {
