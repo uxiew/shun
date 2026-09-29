@@ -1,7 +1,7 @@
 {
   "date": "2026-09-29",
   "repository_checkout_performed": true,
-  "application_tests_run": false,
+  "application_tests_run": true,
   "previous_handbook_sha256": "2369bce1f1b4da8aebd5bc7af6c7dbc7aeeab964a2fd983a2de4817ce5134f59",
   "repositories": [
     {
@@ -36,7 +36,7 @@
     {
       "repository": "elias8/libghostty",
       "branch_observed": "main",
-      "head": null,
+      "head": "aaee143524d1fcb214a552b1476e3e5d847b315d",
       "packages": {
         "flterm": "0.0.5",
         "libghostty": "0.0.12"
@@ -44,7 +44,22 @@
       "ghostty_source_pin_observed": "349f026087d948f8f898dca3231ff91438f83ab8",
       "native_release_observed": "libghostty-v0.0.12",
       "arm64_android_hash_observed": "e47f9b2a9410bfecd51a6e56d2974eb2ed4ba21a5b41078791a391a66e667a50",
-      "status": "OBSERVATION_NOT_EXECUTED"
+      "status": "PINNED_IN_SPIKE",
+      "head_note": "2026-09-29 克隆时的 main，仅供参考；本 fork 用的是下面的发布 tag",
+      "pinned_packages": {
+        "flterm": {
+          "version": "0.0.5",
+          "pub_sha256": "41c4dff517de37abcff66b5ee1481d838b5f2952c02d547c7b6db1cf3ff25c14",
+          "tag_commit": "609ee318345230b915fcfb43859202eb08f8422e"
+        },
+        "libghostty": {
+          "version": "0.0.12",
+          "pub_sha256": "1f09c91ec45559d8e660906121bee6ef4a83bc67f2e8141ee9070388d63e5bd2",
+          "tag_commit": "de2e794dcb63ed61955f695330f46e90d1000857"
+        }
+      },
+      "ghostty_source_pin_for_0_0_12": "15484b607eb5a518dedf1548247c923b8abaae7c",
+      "ghostty_source_pin_correction": "计划初版记录的 349f0260… 是 main 的值，不是 libghostty-v0.0.12 发布所用"
     }
   ],
   "plan_revision": "3.0",
@@ -75,5 +90,13 @@
     "remote_push": "disabled",
     "application_id": "top.xdwa.xwshun",
     "license_mode": "GPL-3.0-or-later personal isolated experiment"
+  },
+  "toolchain": {
+    "flutter": "3.44.4",
+    "dart": "3.12.2",
+    "jdk": "17.0.20",
+    "android_compile_target_sdk": 36,
+    "min_sdk": 24,
+    "ndk": "28.2.13676358"
   }
 }

@@ -18,9 +18,9 @@
 
 | ID | 操作 | 通过条件 | 结果 |
 |---|---|---|---|
-| NET01 | 通过无认证/用户名密码两类模拟 SOCKS 连接 fixture SSH；协商分片传输。 | 真实 SSH 可建立；认证严格按配置，无字段串位、重复读写或提前截断。 | NOT_RUN |
-| NET02 | 目标名仅模拟代理端能解析；把 App 目标 resolver 注入为调用即失败，并记录所有 socket 端点。 | 目标 resolver 调用零次；SOCKS 请求携带目标域名；socket 只连接代理。 | NOT_RUN |
-| NET03 | 让目标具备可直连条件，但让代理拒绝、停服、超时或返回错误。 | 目标直连监听计数为零；App 明确失败；不存在成功“回退”。 | NOT_RUN |
+| NET01 | 通过无认证/用户名密码两类模拟 SOCKS 连接 fixture SSH；协商分片传输。 | 真实 SSH 可建立；认证严格按配置，无字段串位、重复读写或提前截断。 | FAIL |
+| NET02 | 目标名仅模拟代理端能解析；把 App 目标 resolver 注入为调用即失败，并记录所有 socket 端点。 | 目标 resolver 调用零次；SOCKS 请求携带目标域名；socket 只连接代理。 | PASS |
+| NET03 | 让目标具备可直连条件，但让代理拒绝、停服、超时或返回错误。 | 目标直连监听计数为零；App 明确失败；不存在成功“回退”。 | PASS |
 | NET04 | IPv4、IPv6、域名、IDN、过长域名、含 NUL/控制字符、错误端口及 zone-id。 | 合法目标正确编码；非法输入在拨号前拒绝；不猜测域名、不损坏地址。 | NOT_RUN |
 | NET05 | 输入错误代理口令；代理选择非允许认证方法或主动降级为无认证。 | 按用户要求的认证策略协商；要求密码时无无认证降级；secret不进日志。 | NOT_RUN |
 | NET06 | 服务端逐字节发送、提前 EOF、错误 VER/RSV/ATYP、长度伪造或重复响应。 | 正确处理部分读取；错误有界退出，没有线程/内存泄漏或无限等待。 | NOT_RUN |
@@ -28,7 +28,7 @@
 | NET08 | 模拟 SOCKS REP 的拒绝、网络/主机不可达、命令不支持等结果。 | 错误分类准确，不能把 host unreachable 一律称为 DNS 失败。 | NOT_RUN |
 | NET09 | 快速连接→取消→再连，同时注入旧连接的晚到事件。 | generation 隔离；旧事件不能覆盖新状态或复活已停止连接。 | NOT_RUN |
 | NET10 | 两个主机同时通过不同代理账号连接；编辑其中一个配置。 | 凭据、routeSnapshot 和目标互不污染；运行连接不会换代理或身份。 | NOT_RUN |
-| NET11 | 在用户输入/多行发送中间断网；记录 fixture 接收到的字节，再恢复连接。 | 新连接不自动收到旧输入、命令、Enter 或粘贴；不确定的旧发送标结果未知。 | NOT_RUN |
+| NET11 | 在用户输入/多行发送中间断网；记录 fixture 接收到的字节，再恢复连接。 | 新连接不自动收到旧输入、命令、Enter 或粘贴；不确定的旧发送标结果未知。 | FAIL |
 | NET12 | 真实手机保持已有 VPN，启动 TailSocks 非 VPN 模式，连接/停止/重启代理。 | 本 App 不弹 VPN 授权、不替换当前 VPN；可连接或如实解释具体兼容限制；代理失败无直连。 | NOT_RUN |
 | SEC01 | 固定信任目标 A，经正常/替换的本地 SOCKS 端连接；检查 known_hosts key。 | 信任身份是逻辑目标及端口，不是 127.0.0.1 或代理端口；未确认时不用户认证。 | NOT_RUN |
 | SEC02 | 相同主机地址换一把 fixture host key。 | 硬阻断，不以普通重试忽略；没有发出 SSH 用户认证数据。 | NOT_RUN |
@@ -42,8 +42,8 @@
 | SEC10 | 粘贴多行、控制字符与引号到不同目标模式；随后切标签/断网。 | 先预览风险，目标绑定正确；默认不追加 Enter；不宣称 bracketed paste 对所有程序阻止执行。 | NOT_RUN |
 | SEC11 | tmux 名称、路径和配置含分号、引号、换行、Tab、格式表达式及超长输出。 | 无 shell/tmux 注入；解析有界；查询不会意外创建目标或运行命令。 | NOT_RUN |
 | SEC12 | 导出诊断、触发认证失败与崩溃；检查日志/通知/Intent/截图模板。 | 无代理密码、私钥、按键和完整终端原文；导出前可预览；没有自动上传。 | NOT_RUN |
-| TER01 | 将同一 UTF-8/CJK/ANSI 数据按不同字节边界随机分包给内核。 | 结果与完整输入一致；不存在按包转 String 的替换符/字符损坏。 | NOT_RUN |
-| TER02 | 中文输入法拼音候选、撤销 composing、混排、删除、语音输入到普通编辑区。 | 只有确定提交进入终端，中文不重复不丢失；不得自动申请 App 麦克风权限。 | NOT_RUN |
+| TER01 | 将同一 UTF-8/CJK/ANSI 数据按不同字节边界随机分包给内核。 | 结果与完整输入一致；不存在按包转 String 的替换符/字符损坏。 | PASS |
+| TER02 | 中文输入法拼音候选、撤销 composing、混排、删除、语音输入到普通编辑区。 | 只有确定提交进入终端，中文不重复不丢失；不得自动申请 App 麦克风权限。 | BLOCKED |
 | TER03 | 测试 alternate screen、光标定位、清屏、样式切换及退出全屏。 | 主/备用缓冲状态正确；退出后内容/光标正常，没有覆盖旧屏错误。 | NOT_RUN |
 | TER04 | 软键盘、硬件键盘各测 Ctrl-C/Ctrl-D/Alt/Esc/Tab/方向键及修饰键复位。 | 一次物理操作生成一次正确输入；切标签或后台无粘滞 Ctrl/Alt。 | NOT_RUN |
 | TER05 | 中文候选栏、软键盘显示隐藏、横竖屏、分屏、大字体、硬件键盘。 | 光标不被遮挡，触控可达，布局/焦点保持；不将输入送往错误标签。 | NOT_RUN |
@@ -76,15 +76,15 @@
 | UX04 | 从常见错误进入诊断与帮助，再查看实际引擎/代理路线。 | 信息对应真实阶段；支持清单无未实现功能；不能声称观察到了不可见外部链路。 | NOT_RUN |
 | REL01 | 从干净环境按锁定依赖构建；审查所有新文件来源和最终 SBOM。 | 可重复构建，许可明确，无秘密、动态依赖或未授权复制。 | NOT_RUN |
 | REL02 | 以实际Flutter release与Android缩减后的产物重跑SSH、Vault、flterm native初始化和输入。 | Dart AOT、native打包与平台service均正常；无调试接口、secret日志或被裁剪必要能力。 | NOT_RUN |
-| REL03 | 实际 native 产物检查 ABI/16 KiB，最低 API 与目标稳定 API 设备测试。 | 只声明已测支持矩阵；若无 native 仍检查传递依赖，有依据才 N/A。 | NOT_RUN |
+| REL03 | 实际 native 产物检查 ABI/16 KiB，最低 API 与目标稳定 API 设备测试。 | 只声明已测支持矩阵；若无 native 仍检查传递依赖，有依据才 N/A。 | BLOCKED |
 | REL04 | 将每项证据关联相同 commit/构建哈希/设备；核对文档与实际功能。 | NOT_RUN 不冒充 PASS；用户原 LobiShell 成功不计入本 App；生产账号/额度需授权。 | NOT_RUN |
 | REL05 | 独立审查者复现关键负向测试并对照代码、日志和状态清单。 | 无未关闭硬门禁问题；风险接受不能豁免无直连/host key/无重放等核心合同。 | NOT_RUN |
-| BAS01 | 固定fork SHA与lock后运行原项目测试、构建旧引擎APK。 | 建立可复现基线；上游失败如实分类，不虚增本fork通过数。 | NOT_RUN |
-| BAS02 | 冷启动、deep link、后台恢复与设置打开时监测AI、同步和管理初始化。 | 未经用户开启的AI/同步/云上传网络请求为零；不执行管理命令。 | NOT_RUN |
-| BAS03 | 在同机保留原App，安装fork并导入副本、升级schema。 | 不同applicationId/签名，不覆盖原数据；迁移可回滚，无未知字段暗丢。 | NOT_RUN |
+| BAS01 | 固定fork SHA与lock后运行原项目测试、构建旧引擎APK。 | 建立可复现基线；上游失败如实分类，不虚增本fork通过数。 | PASS |
+| BAS02 | 冷启动、deep link、后台恢复与设置打开时监测AI、同步和管理初始化。 | 未经用户开启的AI/同步/云上传网络请求为零；不执行管理命令。 | BLOCKED |
+| BAS03 | 在同机保留原App，安装fork并导入副本、升级schema。 | 不同applicationId/签名，不覆盖原数据；迁移可回滚，无未知字段暗丢。 | BLOCKED |
 | BAS04 | 检查最终构建来源、GPL/Apache/第三方NOTICE与改动声明。 | 分发形态有明确许可结论；不把Conduit自身许可覆盖全部二进制。 | NOT_RUN |
 | RTE01 | 导入同时包含target代理、跳板自身代理、旧hostChain的矛盾配置。 | 显示明确规范化路线或拒绝；不静默选一套或递归应用跳板route。 | NOT_RUN |
-| RTE02 | 设代理host空、port<=0/>65535、profile缺失、未知代理type。 | dial计数零或只到合法代理；没有目标直连或HTTP类型默认猜测。 | NOT_RUN |
+| RTE02 | 设代理host空、port<=0/>65535、profile缺失、未知代理type。 | dial计数零或只到合法代理；没有目标直连或HTTP类型默认猜测。 | PASS |
 | RTE03 | 连接中修改host、身份、跳板顺序或proxy引用。 | 活动RoutePlan不可变；修改只影响新attempt。 | NOT_RUN |
 | RTE04 | 从终端/SFTP/监控/转发/测试入口连接同一主机。 | 物理拨号与目标身份均遵循选定route；没有独立Direct旁路。 | NOT_RUN |
 | RTE05 | 保留系统VPN选择Direct及SOCKS两种模式。 | Direct也遵守系统VPN；不使用protect或绑定底层非VPN网络。 | NOT_RUN |
@@ -106,13 +106,13 @@
 | TSC08 | 外部auth check批准、拒绝、超时、取消、未知或恶意URL。 | 先host trust，用户确认后外部浏览器；不自动访问，不以返回App当授权成功。 | NOT_RUN |
 | TSC09 | 本地db、诊断、备份、同步、clipboard和错误对象搜索目录secret。 | secret只在受控存储/内存和官方请求；导出无secret；token不送SSH/代理。 | NOT_RUN |
 | TSC10 | 两目录来源使用别名tailnet和同名主机、删除凭据再刷新。 | 来源隔离；未知canonical不误合并；删凭据不会误删手动编辑主机。 | NOT_RUN |
-| GST01 | 锁定包/native hash构建，篡改缓存库、缺ABI制品，再用16KiB设备运行。 | hash错误阻断；不动态跳过校验；只声明实测ABI/页面大小。 | NOT_RUN |
+| GST01 | 锁定包/native hash构建，篡改缓存库、缺ABI制品，再用16KiB设备运行。 | hash错误阻断；不动态跳过校验；只声明实测ABI/页面大小。 | FAIL |
 | GST02 | 切标签/旋转/预览重复附着controller，销毁时触发迟到回调。 | 单view所有权，不double free/use-after-free，UI重建不新建SSH。 | NOT_RUN |
-| GST03 | 输入终端查询、onOutput回调和快速resize，再注入重入尝试。 | 协议回应保序不循环；不重入write；代次关闭后不发送。 | NOT_RUN |
+| GST03 | 输入终端查询、onOutput回调和快速resize，再注入重入尝试。 | 协议回应保序不循环；不重入write；代次关闭后不发送。 | PASS |
 | GST04 | 多行paste、普通sendText、按键编码和OSC effect各自测试。 | 语义分离；不把paste清洗宣传为阻止执行；危险effect不默认允许。 | NOT_RUN |
 | GST05 | 移除生产xterm2引用后构建，强制Ghostty初始化错误。 | 支持列表真实；无静默伪回退；完整READY必须使用已验Ghostty目标。 | NOT_RUN |
 | REG01 | 终端正常时打开既有SFTP/转发/监控，然后关闭目标client。 | 借用者同代次失效，不重建Direct；释放顺序正确。 | NOT_RUN |
-| REG02 | 配置有副作用计数的startup/managedAction；网络断开触发恢复与测试入口。 | 只有明确Fresh操作执行一次；Restore/Probe执行计数零。 | NOT_RUN |
+| REG02 | 配置有副作用计数的startup/managedAction；网络断开触发恢复与测试入口。 | 只有明确Fresh操作执行一次；Restore/Probe执行计数零。 | PASS |
 | REG03 | 含假秘密的HostProfile.toString、异常、原有JSON导出、同步往返。 | 默认文本脱敏；secret不意外外流；受管字段和未知字段不被破坏。 | NOT_RUN |
 | REG04 | 断线保存旧画面/草稿，再打开新shell或重附着tmux。 | 旧屏显示为历史；不重放旧VT产生协议回应，不重发草稿，状态不假Active。 | NOT_RUN |
 | SUP01 | 清空依赖缓存，从记录的pin和asset hash重建debug/release。 | 源码、构建链和制品可追溯；main移动不会自动改变本fork依赖。 | NOT_RUN |
@@ -130,8 +130,8 @@ G0基线与关键风险；G1连接路线；G2目录及外部认证支持；G3 Gh
 
 |ID|操作/故障|通过条件|结果|
 |---|---|---|---|
-|PLG01|同ID/大小写/保留ID/超长描述符与恶意schema。|冲突或非法输入拒绝，不遮蔽内置provider，不执行schema中的代码。|NOT_RUN|
-|PLG02|安装API major不匹配、minor新增及缺失能力的provider。|握手先协商，未支持能力不可调用，版本错误不冒充成功。|NOT_RUN|
+|PLG01|同ID/大小写/保留ID/超长描述符与恶意schema。|冲突或非法输入拒绝，不遮蔽内置provider，不执行schema中的代码。|PASS|
+|PLG02|安装API major不匹配、minor新增及缺失能力的provider。|握手先协商，未支持能力不可调用，版本错误不冒充成功。|PASS|
 |PLG03|Android包可见性受限环境发现插件和外部App。|仅针对action/package查询，无QUERY_ALL_PACKAGES；安装不可见有具体诊断。|NOT_RUN|
 |PLG04|同包名候选但不同签名、伪装官方pluginId以及伪造Intent extras。|对实际安装证书和组件核验，未授权不能获得会话或秘密。|NOT_RUN|
 |PLG05|以未授权UID逐个调用所有AIDL敏感方法，包括拿到已有Binder后。|在真实事务逐次校验UID/证书/授权，不只验证onBind或调用者自报包名。|NOT_RUN|
@@ -169,9 +169,9 @@ G0基线与关键风险；G1连接路线；G2目录及外部认证支持；G3 Gh
 |RDX05|目标ID失效、自建relay未配置、外部App升级改变协议。|不自动切服务器/身份/协议，记录安装版本和支持矩阵，普通SSH不受影响。|NOT_RUN|
 |SDK01|新作者只根据SDK/契约/示例构建独立签名测试APK。|无需私有宿主源码或宿主签名私钥；能走授权、协商、流与关闭流程。|NOT_RUN|
 |SDK02|核查SDK、native插件、fork及分发来源/许可材料。|接口与实现许可区分，保留原版权；不声称独立APK自动规避GPL/AGPL。|NOT_RUN|
-|SDK03|验证schema示例与缺字段/任意exec/任意Intent恶意描述符。|结构验证有负例，运行期仍做独立签名和权限校验；计划schema测试不算App测试。|NOT_RUN|
+|SDK03|验证schema示例与缺字段/任意exec/任意Intent恶意描述符。|结构验证有负例，运行期仍做独立签名和权限校验；计划schema测试不算App测试。|PASS|
 |SDK04|打开插件声明的复杂设置页，再禁用/卸载该插件。|用户触发且目标显式，设置所有权清楚；无下载UI代码或强制宿主管理所有设置。|NOT_RUN|
-|DEV01|多个provider返回相同名称或IP但不同ID，用户显式关联两个引用。|只有用户关联形成DeviceRecord；provider身份、认证、网络策略互不复制。|NOT_RUN|
+|DEV01|多个provider返回相同名称或IP但不同ID，用户显式关联两个引用。|只有用户关联形成DeviceRecord；provider身份、认证、网络策略互不复制。|PASS|
 |DEV02|移除一个目录来源或插件，设备还有SSH/UU/RustDesk引用。|仅断开选定关联，不级联删除其他凭据/会话；缺provider的配置可保留修复。|NOT_RUN|
 
 完整READY额外要求GX0–GX3；可以报告CORE_READY但不得省略插件缺口。所有观察必须对应主App与各插件的实际构建和签名。

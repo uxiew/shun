@@ -1,34 +1,40 @@
 {
   "schema_version": 2,
   "date": "2026-09-29",
-  "executed": false,
+  "executed": true,
   "cases": [
     {
       "id": "NET01",
       "action": "通过无认证/用户名密码两类模拟 SOCKS 连接 fixture SSH；协商分片传输。",
       "expected": "真实 SSH 可建立；认证严格按配置，无字段串位、重复读写或提前截断。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "FAIL",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R02.md"
+      ]
     },
     {
       "id": "NET02",
       "action": "目标名仅模拟代理端能解析；把 App 目标 resolver 注入为调用即失败，并记录所有 socket 端点。",
       "expected": "目标 resolver 调用零次；SOCKS 请求携带目标域名；socket 只连接代理。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R02.md"
+      ]
     },
     {
       "id": "NET03",
       "action": "让目标具备可直连条件，但让代理拒绝、停服、超时或返回错误。",
       "expected": "目标直连监听计数为零；App 明确失败；不存在成功“回退”。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R03.md"
+      ]
     },
     {
       "id": "NET04",
@@ -98,9 +104,11 @@
       "action": "在用户输入/多行发送中间断网；记录 fixture 接收到的字节，再恢复连接。",
       "expected": "新连接不自动收到旧输入、命令、Enter 或粘贴；不确定的旧发送标结果未知。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "FAIL",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R03.md"
+      ]
     },
     {
       "id": "NET12",
@@ -224,18 +232,23 @@
       "action": "将同一 UTF-8/CJK/ANSI 数据按不同字节边界随机分包给内核。",
       "expected": "结果与完整输入一致；不存在按包转 String 的替换符/字符损坏。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R03.md",
+        "evidence/R04.md"
+      ]
     },
     {
       "id": "TER02",
       "action": "中文输入法拼音候选、撤销 composing、混排、删除、语音输入到普通编辑区。",
       "expected": "只有确定提交进入终端，中文不重复不丢失；不得自动申请 App 麦克风权限。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "BLOCKED",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R04.md"
+      ]
     },
     {
       "id": "TER03",
@@ -514,7 +527,9 @@
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R00.md"
+      ]
     },
     {
       "id": "REL02",
@@ -530,9 +545,11 @@
       "action": "实际 native 产物检查 ABI/16 KiB，最低 API 与目标稳定 API 设备测试。",
       "expected": "只声明已测支持矩阵；若无 native 仍检查传递依赖，有依据才 N/A。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "BLOCKED",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R04.md"
+      ]
     },
     {
       "id": "REL04",
@@ -557,8 +574,10 @@
       "action": "固定fork SHA与lock后运行原项目测试、构建旧引擎APK。",
       "expected": "建立可复现基线；上游失败如实分类，不虚增本fork通过数。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R01.md"
+      ],
       "inherited_from": null
     },
     {
@@ -566,8 +585,10 @@
       "action": "冷启动、deep link、后台恢复与设置打开时监测AI、同步和管理初始化。",
       "expected": "未经用户开启的AI/同步/云上传网络请求为零；不执行管理命令。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "BLOCKED",
+      "evidence": [
+        "evidence/R01.md"
+      ],
       "inherited_from": null
     },
     {
@@ -575,8 +596,10 @@
       "action": "在同机保留原App，安装fork并导入副本、升级schema。",
       "expected": "不同applicationId/签名，不覆盖原数据；迁移可回滚，无未知字段暗丢。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "BLOCKED",
+      "evidence": [
+        "evidence/R01.md"
+      ],
       "inherited_from": null
     },
     {
@@ -585,7 +608,9 @@
       "expected": "分发形态有明确许可结论；不把Conduit自身许可覆盖全部二进制。",
       "level": "硬门禁",
       "result": "NOT_RUN",
-      "evidence": [],
+      "evidence": [
+        "evidence/R00.md"
+      ],
       "inherited_from": null
     },
     {
@@ -602,8 +627,10 @@
       "action": "设代理host空、port<=0/>65535、profile缺失、未知代理type。",
       "expected": "dial计数零或只到合法代理；没有目标直连或HTTP类型默认猜测。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R03.md"
+      ],
       "inherited_from": null
     },
     {
@@ -711,7 +738,9 @@
       "expected": "只用设备读取及token端点；请求devices:core:read；跨origin不转发secret。",
       "level": "硬门禁",
       "result": "NOT_RUN",
-      "evidence": [],
+      "evidence": [
+        "evidence/R02.md"
+      ],
       "inherited_from": null
     },
     {
@@ -800,8 +829,10 @@
       "action": "锁定包/native hash构建，篡改缓存库、缺ABI制品，再用16KiB设备运行。",
       "expected": "hash错误阻断；不动态跳过校验；只声明实测ABI/页面大小。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "FAIL",
+      "evidence": [
+        "evidence/R04.md"
+      ],
       "inherited_from": null
     },
     {
@@ -818,8 +849,10 @@
       "action": "输入终端查询、onOutput回调和快速resize，再注入重入尝试。",
       "expected": "协议回应保序不循环；不重入write；代次关闭后不发送。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R04.md"
+      ],
       "inherited_from": null
     },
     {
@@ -854,8 +887,10 @@
       "action": "配置有副作用计数的startup/managedAction；网络断开触发恢复与测试入口。",
       "expected": "只有明确Fresh操作执行一次；Restore/Probe执行计数零。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R03.md"
+      ],
       "inherited_from": null
     },
     {
@@ -882,7 +917,9 @@
       "expected": "源码、构建链和制品可追溯；main移动不会自动改变本fork依赖。",
       "level": "硬门禁",
       "result": "NOT_RUN",
-      "evidence": [],
+      "evidence": [
+        "evidence/R00.md"
+      ],
       "inherited_from": null
     },
     {
@@ -899,18 +936,22 @@
       "action": "同ID/大小写/保留ID/超长描述符与恶意schema。",
       "expected": "冲突或非法输入拒绝，不遮蔽内置provider，不执行schema中的代码。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X00.md"
+      ]
     },
     {
       "id": "PLG02",
       "action": "安装API major不匹配、minor新增及缺失能力的provider。",
       "expected": "握手先协商，未支持能力不可调用，版本错误不冒充成功。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X00.md"
+      ]
     },
     {
       "id": "PLG03",
@@ -1018,7 +1059,9 @@
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X00.md"
+      ]
     },
     {
       "id": "PLG15",
@@ -1243,16 +1286,20 @@
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X00.md"
+      ]
     },
     {
       "id": "SDK03",
       "action": "验证schema示例与缺字段/任意exec/任意Intent恶意描述符。",
       "expected": "结构验证有负例，运行期仍做独立签名和权限校验；计划schema测试不算App测试。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X00.md"
+      ]
     },
     {
       "id": "SDK04",
@@ -1268,9 +1315,11 @@
       "action": "多个provider返回相同名称或IP但不同ID，用户显式关联两个引用。",
       "expected": "只有用户关联形成DeviceRecord；provider身份、认证、网络策略互不复制。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X00.md"
+      ]
     },
     {
       "id": "DEV02",

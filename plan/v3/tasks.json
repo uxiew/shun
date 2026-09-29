@@ -16,7 +16,7 @@
         "R04"
       ],
       "exit": "已冻结基座；旧路径可构建；危险默认有回归；Ghostty Android可行性有实际证据",
-      "status": "NOT_RUN"
+      "status": "BLOCKED"
     },
     "P1": {
       "title": "连接路线复用与加固",
@@ -119,7 +119,7 @@
       "id": "R00",
       "phase": "P0",
       "title": "基座、授权、许可与源码冻结",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "depends_on": [],
       "scope": "确认指定新仓库；默认Netcatty，记录个人实验/分发意图、dirty、原HEAD与依赖lock。无路径只保留本包，不使用历史项目路径。",
       "code_targets": [
@@ -145,14 +145,16 @@
       ],
       "stop_condition": "未接受GPL分发条件可继续个人隔离研究；正式基座需明确决定，不能暗换许可证。",
       "owner_role": "架构代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R00.md"
+      ],
+      "commit": "74b6d39"
     },
     {
       "id": "R01",
       "phase": "P0",
       "title": "原基座绿色构建与继承能力清单",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R00"
       ],
@@ -179,14 +181,16 @@
       ],
       "stop_condition": "原基座构建失败先修最小原因，不用删测试或大量重构换取通过。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R01.md"
+      ],
+      "commit": "caaf409"
     },
     {
       "id": "R02",
       "phase": "P0",
       "title": "隔离网络、SSH、目录与VT支架",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R00"
       ],
@@ -214,14 +218,16 @@
       ],
       "stop_condition": "缺真实设备不影响纯Dart测试，真机用例保持NOT_RUN。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R02.md"
+      ],
+      "commit": "5315bb2"
     },
     {
       "id": "R03",
       "phase": "P0",
       "title": "先修危险默认与字节/重连最小回归",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R01",
         "R02"
@@ -250,14 +256,16 @@
       ],
       "stop_condition": "缺陷未复现时保留观察和差异，不编造上游问题；fail-closed未通过禁止日用。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R03.md"
+      ],
+      "commit": "5315bb2"
     },
     {
       "id": "R04",
       "phase": "P0",
       "title": "flterm Android可行性门禁",
-      "status": "NOT_STARTED",
+      "status": "BLOCKED",
       "depends_on": [
         "R01",
         "R02"
@@ -286,7 +294,9 @@
       ],
       "stop_condition": "无真机只能记部分证据；阻断引擎问题单独开ADR，不能默默以xterm完成目标。",
       "owner_role": "终端代理",
-      "evidence": [],
+      "evidence": [
+        "evidence/R04.md"
+      ],
       "commit": null
     },
     {
@@ -1655,7 +1665,7 @@
       "id": "X00",
       "phase": "E0",
       "title": "插件能力、信任和SDK v1契约",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R00"
       ],
@@ -1684,8 +1694,10 @@
       ],
       "stop_condition": "不扩大成插件商城或任意Dart VM；不把独立APK当许可豁免。",
       "owner_role": "架构/安全代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/X00.md"
+      ],
+      "commit": "4ad8039"
     },
     {
       "id": "X01",
