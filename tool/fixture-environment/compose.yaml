@@ -3,9 +3,10 @@
 #   本机 ──127.0.0.1:22201──> ssh-edge ──┐
 #   本机 ──127.0.0.1:21080/21081──> socks ──┤ inner（internal，无外网）
 #                                        ├── target  (别名 target.fixture.internal)
-#                                        └── ssh-hop2
+#                                        ├── ssh-hop2
+#                                        └── ssh-hop3（给"三个跳板 + 目标"用）
 #
-# target 和 ssh-hop2 没有映射到本机端口，本机也解析不了它们的名字：
+# target、ssh-hop2、ssh-hop3 没有映射到本机端口，本机也解析不了它们的名字：
 # 只能经 SOCKS 或经 ssh-edge 跳板到达。这就是"仅代理可解析目标"和"直连必失败"的来源。
 name: xwshun-fixture
 
@@ -46,6 +47,14 @@ services:
     networks:
       inner:
         aliases: [hop2.fixture.internal]
+
+  ssh-hop3:
+    <<: *node
+    hostname: ssh-hop3
+    environment: { ROLE: sshd }
+    networks:
+      inner:
+        aliases: [hop3.fixture.internal]
 
 networks:
   edge: {}

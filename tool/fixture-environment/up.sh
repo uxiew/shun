@@ -16,15 +16,15 @@ cp .run/client/id_ed25519.pub .run/secrets/id_ed25519.pub
 
 docker compose up -d --build >/dev/null
 
-# 等三台 sshd 写出主机密钥、三个端口可连。60 秒没好就报错退出，不假装就绪。
+# 等四台 sshd 写出主机密钥、三个端口可连。60 秒没好就报错退出，不假装就绪。
 for _ in $(seq 60); do
-  if [[ -s .run/hostkeys/ssh-edge.pub && -s .run/hostkeys/target.pub && -s .run/hostkeys/ssh-hop2.pub ]] \
+  if [[ -s .run/hostkeys/ssh-edge.pub && -s .run/hostkeys/target.pub && -s .run/hostkeys/ssh-hop2.pub && -s .run/hostkeys/ssh-hop3.pub ]] \
     && nc -z 127.0.0.1 22201 && nc -z 127.0.0.1 21080 && nc -z 127.0.0.1 21081; then
     break
   fi
   sleep 1
 done
-for f in ssh-edge target ssh-hop2; do
+for f in ssh-edge target ssh-hop2 ssh-hop3; do
   [[ -s .run/hostkeys/$f.pub ]] || { echo "fixture 未就绪：$f 没有主机密钥" >&2; docker compose logs --tail 30 >&2; exit 1; }
 done
 
@@ -47,6 +47,7 @@ fixture = {
     'socksNoAuth': {'host': '127.0.0.1', 'port': 21081},
     'target': {'name': 'target.fixture.internal', 'port': 22, **key('target')},
     'hop2': {'name': 'hop2.fixture.internal', 'port': 22, **key('ssh-hop2')},
+    'hop3': {'name': 'hop3.fixture.internal', 'port': 22, **key('ssh-hop3')},
 }
 path = run / 'fixture.json'
 path.write_text(json.dumps(fixture, indent=2, ensure_ascii=False) + '\n')

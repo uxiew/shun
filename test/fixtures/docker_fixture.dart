@@ -29,6 +29,7 @@ class DockerFixture {
   Map<String, dynamic> get _edge => json['sshEdge'] as Map<String, dynamic>;
   Map<String, dynamic> get _target => json['target'] as Map<String, dynamic>;
   Map<String, dynamic> get _hop2 => json['hop2'] as Map<String, dynamic>;
+  Map<String, dynamic> get _hop3 => json['hop3'] as Map<String, dynamic>;
   Map<String, dynamic> get _socksAuth =>
       json['socksAuth'] as Map<String, dynamic>;
   Map<String, dynamic> get _socksNoAuth =>
@@ -46,6 +47,11 @@ class DockerFixture {
   String get hop2Name => _hop2['name'] as String;
   int get hop2Port => _hop2['port'] as int;
   String get hop2Fingerprint => _hop2['fingerprintSha256'] as String;
+
+  /// 多跳的第三跳，同样只在容器网络里可达。
+  String get hop3Name => _hop3['name'] as String;
+  int get hop3Port => _hop3['port'] as int;
+  String get hop3Fingerprint => _hop3['fingerprintSha256'] as String;
 
   String get socksAuthHost => _socksAuth['host'] as String;
   int get socksAuthPort => _socksAuth['port'] as int;
