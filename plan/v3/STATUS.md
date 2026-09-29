@@ -1,19 +1,20 @@
 # 当前状态 V3
 
-日期：2026-09-29。首批（R00–R04、X00）已执行；同日所有者同意用 arm64 模拟器补测。
+日期：2026-09-29。首批（R00–R04、X00）加 R05 已执行；同日所有者同意用 arm64 模拟器补测，并定"最低兼容到安卓七八"。
 
 - 基座：kmh1145/Netcatty-mobile `495f5d31`（v1.4.7），本机 fork `xwshun/v3`，不 push。GPL-3.0-or-later 个人隔离实验；applicationId `top.xdwa.xwshun`。
-- 任务：DONE 5（R00 R01 R02 R03 X00）、BLOCKED 1（R04）、NOT_STARTED 40、DEFERRED 7。
-- 用例（共 142）：PASS 12、FAIL 4、BLOCKED 2、NOT_RUN 124。每条的实际动作和观察在 `evidence/`。
+- 任务：DONE 6（R00 R01 R02 R03 R05 X00）、BLOCKED 1（R04）、NOT_STARTED 39、DEFERRED 7。
+- 用例（共 142）：PASS 16、FAIL 4、BLOCKED 2、NOT_RUN 120。每条的实际动作和观察在 `evidence/`。
 - 门禁：G0 **BLOCKED**（R04）；其余门禁 NOT_RUN。离 CORE_READY / FULL_READY 都还很远。
-- 设备：只有 arm64 模拟器（API 28 / 35 / 36，36 是 16 KiB 页），**没有真机**。只装过本项目自己的 APK 和原版 Netcatty；没有连接任何用户真实主机/账号/VPN，没有 push 或发布。
+- 设备：只有 arm64 模拟器，**没有真机**。实测过 API 24、25、26、27、28、35（4 KiB）、36（16 KiB），测完即删，只留 `xwshun-a35-4k` 的配置。只装过本项目自己的 APK 和原版 Netcatty；没有连接任何用户真实主机/账号/VPN，没有 push 或发布。
 
-## 这批改了什么（代码层面）
+## 已做的代码改动
 
 - 冷启动不再请求上游 GitHub 检查更新；AI、云同步、更新检查默认关闭（R01）。模拟器上按 UID 看内核流量：fork 冷启动→设置→后台→deep link 全程 0 条，原版冷启动即有（BAS02）。
 - 选了代理就必须经代理：配置无效或代理失败一律报错，不再静默直连；代理握手有截止时间（R03/A01）。
 - 终端输出整条流共用一个 UTF-8 解码器，中文不再因切包乱码（R03/A03）。
 - 断线恢复不再重跑 startupCommand 或托管终端的管理命令（R03/A04）。
+- 连接前一次算好不可变的 RoutePlan：跳板机自己的代理/跳板不再被隐式套用，两处代理并存、坏 hostChain、循环、超 3 跳、非法地址或端口都在拨号前拒绝；IPv6 经 HTTP 代理加方括号、SOCKS 按地址类型编码（R05）。保险库格式不变，仍能和桌面端同步。
 - 插件契约 v1 落成 `packages/plugin_api`（X00）。
 - terminal spike 补了 Android 适配层（软键盘退格兜底、收起后叫回键盘）和一份 flterm 中文输入补丁（R04，只在 spike 里）。
 
@@ -28,16 +29,20 @@
 
 R04 其他要带进 R17 的发现：dispose 后 write 段错误、软键盘退格 0 字节、收起后叫不回键盘、内联组字漏字、组合字符缺重音、默认资源上限过大。详见 `evidence/R04.md`。
 
+## 要知道的行为变化
+
+R05 起，"目标经跳板机、跳板机自己配了代理"会明确报错（以前是隐式套用跳板机的代理）。R07 提供显式的"代理入口 + 跳板"之后恢复这种用法。
+
 ## 下一批
 
-依赖已满足：**R05**（统一 RoutePlan）、**X02**（Android 插件发现与双向签名，模拟器可以出部分证据）。
-R05 完成后可做 R06（修 A02）和 X01。R16/R17（Ghostty 接入主 App）要等 R04 解除 BLOCKED。
+依赖已满足：**R06**（SOCKS5 生产加固，修 A02）、**R07**（显式代理入口 + 跳板）、**R11**（只读 Tailscale 目录）、**X01**（轻量 registry）、**X02**（Android 插件发现与双向签名，模拟器可出部分证据）。
+R16/R17（Ghostty 接入主 App）要等 R04 解除 BLOCKED。
 
 ## 等所有者决定或提供
 
 - 一台 ARM64 Android 真机 + 你常用的中文输入法：R04/TER02 最后一步必须真人在真机上做。
 - flterm 补丁的去向：fork 进仓库自己维护，还是先向上游提 issue/PR 再 pin 新版本（R17 前要定）。
-- Ghostty 路径的最低 API：声明的是 24，但本机模拟器只能测到 28（28 实测能跑）；是找 24–27 的真机，还是把最低版本定成 28。
+- 发布包的 ABI：armeabi-v7a、x86_64 没有设备能测（这台 Apple Silicon Mac 跑不了 x86_64 镜像），是找设备还是只发 arm64（REL03）。
 - 应用正式名称、正式签名、分发形态（BAS03 的"签名不同"、BAS04/REL01 许可结论依赖它）。
 - Gradle 依赖是否也要锁定校验（SUP01 只完成了 pub 层）。
 
