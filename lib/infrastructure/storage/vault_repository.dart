@@ -131,17 +131,32 @@ class VaultRepository {
     return result;
   }
 
+  /// 读不出来（解密失败）的凭据在安全存储里的键。
+  ///
+  /// 设备密钥失效（系统恢复、锁屏被重置）或密文被改动时，这些条目解不开。以前任何一条解不开，
+  /// 整个保险库都加载失败：所有主机都连不上也改不了，界面上没有任何提示（SEC06 模拟器实测）。
+  /// 现在逐条读，解不开的记在这里、当作没有，其余照常；用到它们的连接在拨号前拒绝并说明原因。
+  final _unreadableSecrets = <String>{};
+
+  Set<String> get unreadableSecrets => Set.unmodifiable(_unreadableSecrets);
+
+  Future<String?> _readSecret(String key) async {
+    try {
+      final value = await _secureStorage.read(key: key);
+      _unreadableSecrets.remove(key);
+      return value;
+    } on Object {
+      // 不带原始异常：平台异常的文本里有解密细节，没有必要进日志。
+      _unreadableSecrets.add(key);
+      return null;
+    }
+  }
+
   Future<void> _loadHostSecrets(HostProfile host) async {
     final values = await Future.wait([
-      _secureStorage.read(
-        key: 'host.${host.id}.password',
-      ),
-      _secureStorage.read(
-        key: 'host.${host.id}.telnetPassword',
-      ),
-      _secureStorage.read(
-        key: 'host.${host.id}.proxyPassword',
-      ),
+      _readSecret('host.${host.id}.password'),
+      _readSecret('host.${host.id}.telnetPassword'),
+      _readSecret('host.${host.id}.proxyPassword'),
     ]);
     final password = values[0];
     final telnet = values[1];
@@ -158,12 +173,8 @@ class VaultRepository {
 
   Future<void> _loadKeySecrets(SshKeyProfile key) async {
     final values = await Future.wait([
-      _secureStorage.read(
-        key: 'key.${key.id}.private',
-      ),
-      _secureStorage.read(
-        key: 'key.${key.id}.passphrase',
-      ),
+      _readSecret('key.${key.id}.private'),
+      _readSecret('key.${key.id}.passphrase'),
     ]);
     final privateKey = values[0];
     final passphrase = values[1];
@@ -172,9 +183,7 @@ class VaultRepository {
   }
 
   Future<void> _loadProxySecrets(ProxyProfile profile) async {
-    final password = await _secureStorage.read(
-      key: 'proxy.${profile.id}.password',
-    );
+    final password = await _readSecret('proxy.${profile.id}.password');
     if (password != null && profile.data['config'] is Map) {
       profile.data['config'] = {
         ...Map<String, dynamic>.from(profile.data['config'] as Map),
@@ -197,20 +206,20 @@ class VaultRepository {
       for (final host in previous.hosts.where(
         (value) => !hostIds.contains(value.id),
       )) {
-        await _secureStorage.delete(key: 'host.${host.id}.password');
-        await _secureStorage.delete(key: 'host.${host.id}.telnetPassword');
-        await _secureStorage.delete(key: 'host.${host.id}.proxyPassword');
+        await _deleteSecret('host.${host.id}.password');
+        await _deleteSecret('host.${host.id}.telnetPassword');
+        await _deleteSecret('host.${host.id}.proxyPassword');
       }
       for (final proxy in previous.proxyProfiles.where(
         (value) => !proxyIds.contains(value.id),
       )) {
-        await _secureStorage.delete(key: 'proxy.${proxy.id}.password');
+        await _deleteSecret('proxy.${proxy.id}.password');
       }
       for (final key in previous.keys.where(
         (value) => !keyIds.contains(value.id),
       )) {
-        await _secureStorage.delete(key: 'key.${key.id}.private');
-        await _secureStorage.delete(key: 'key.${key.id}.passphrase');
+        await _deleteSecret('key.${key.id}.private');
+        await _deleteSecret('key.${key.id}.passphrase');
       }
     }
     for (final host in vault.hosts) {
@@ -382,11 +391,21 @@ class VaultRepository {
     return created;
   }
 
+  /// 整台主机、私钥或代理配置被删除时用：连同解不开的那条一起删。
+  Future<void> _deleteSecret(String key) async {
+    await _secureStorage.delete(key: key);
+    _unreadableSecrets.remove(key);
+  }
+
   Future<void> _writeSecret(String key, String? value) async {
     if (value == null || value.isEmpty) {
+      // 解不开的那条，用户没重新填就别删：可能只是暂时解不开，删了就真没了。
+      // 整台主机、整把私钥被删除时，上面按 id 清理的循环会删掉它。
+      if (_unreadableSecrets.contains(key)) return;
       await _secureStorage.delete(key: key);
     } else {
       await _secureStorage.write(key: key, value: value);
+      _unreadableSecrets.remove(key);
     }
   }
 }

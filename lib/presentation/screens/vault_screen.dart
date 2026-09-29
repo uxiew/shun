@@ -124,6 +124,28 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
               ),
             ),
           ),
+          if (state.unreadableSecrets.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 0),
+              child: Card(
+                key: const ValueKey('vault-unreadable-secrets'),
+                margin: EdgeInsets.zero,
+                color: Theme.of(context).colorScheme.errorContainer,
+                child: ListTile(
+                  leading: Icon(
+                    Icons.key_off_outlined,
+                    color: Theme.of(context).colorScheme.onErrorContainer,
+                  ),
+                  title: LText(
+                    '保存的凭据中有 ${state.unreadableSecrets.length} 条无法解密',
+                  ),
+                  subtitle: const LText(
+                    '设备密钥可能已失效，或数据被改动过。主机配置都还在；用到这些凭据的连接会被拒绝，'
+                    '在编辑器里重新填写对应的密码或私钥即可恢复。',
+                  ),
+                ),
+              ),
+            ),
           if (groups.isNotEmpty)
             SizedBox(
               height: 48,

@@ -7,10 +7,18 @@ import '../domain/models/vault.dart';
 import '../infrastructure/storage/vault_repository.dart';
 
 class VaultState {
-  const VaultState({this.data, this.loading = false, this.error});
+  const VaultState({
+    this.data,
+    this.loading = false,
+    this.error,
+    this.unreadableSecrets = const {},
+  });
   final VaultData? data;
   final bool loading;
   final Object? error;
+
+  /// 解不开的凭据在安全存储里的键（见 VaultRepository.unreadableSecrets）。
+  final Set<String> unreadableSecrets;
 }
 
 final vaultControllerProvider =
@@ -32,13 +40,22 @@ class VaultController extends StateNotifier<VaultState> {
   Future<VaultData>? _activeLoad;
 
   Future<void> load() async {
-    state = VaultState(data: state.data, loading: true);
+    state = VaultState(
+        unreadableSecrets: repository.unreadableSecrets,
+        data: state.data,
+        loading: true);
     final operation = repository.loadVault();
     _activeLoad = operation;
     try {
-      state = VaultState(data: await operation);
+      // 先等加载完再取解不开的集合：参数按书写顺序求值，写在一个构造调用里会取到加载前的空集合。
+      final data = await operation;
+      state = VaultState(
+          unreadableSecrets: repository.unreadableSecrets, data: data);
     } catch (error) {
-      state = VaultState(data: state.data ?? VaultData.empty(), error: error);
+      state = VaultState(
+          unreadableSecrets: repository.unreadableSecrets,
+          data: state.data ?? VaultData.empty(),
+          error: error);
     } finally {
       if (identical(_activeLoad, operation)) _activeLoad = null;
     }
@@ -52,13 +69,15 @@ class VaultController extends StateNotifier<VaultState> {
     final data = state.data;
     if (!state.loading && state.error == null && data != null) return data;
     final loaded = await repository.loadVault();
-    state = VaultState(data: loaded);
+    state = VaultState(
+        unreadableSecrets: repository.unreadableSecrets, data: loaded);
     return loaded;
   }
 
   Future<void> replace(VaultData vault, {bool remote = false}) async {
     await repository.saveVault(vault, remote: remote);
-    state = VaultState(data: vault);
+    state = VaultState(
+        unreadableSecrets: repository.unreadableSecrets, data: vault);
   }
 
   Future<void> _hostWrites = Future.value();
@@ -177,11 +196,15 @@ class VaultController extends StateNotifier<VaultState> {
 
   Future<void> _replaceMetadata(VaultData vault) async {
     final previous = state;
-    state = VaultState(data: vault, loading: previous.loading);
+    state = VaultState(
+        unreadableSecrets: repository.unreadableSecrets,
+        data: vault,
+        loading: previous.loading);
     try {
       await repository.saveVaultMetadata(vault);
     } on Object catch (error) {
       state = VaultState(
+        unreadableSecrets: repository.unreadableSecrets,
         data: previous.data,
         loading: previous.loading,
         error: error,
@@ -206,7 +229,8 @@ class VaultController extends StateNotifier<VaultState> {
         // Connection recency is device-local telemetry in desktop Netcatty. Do
         // not schedule a cloud write just because a terminal was opened.
         await repository.saveVault(next, remote: true);
-        state = VaultState(data: next);
+        state = VaultState(
+            unreadableSecrets: repository.unreadableSecrets, data: next);
       });
 
   /// 只改一台主机的几个字段，基于保险库里此刻的那份；主机已被删除就什么都不做。

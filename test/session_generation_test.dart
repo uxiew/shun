@@ -388,5 +388,8 @@ class _NullRepository implements VaultRepository {
   Future<VaultData> loadVault() async => VaultData.empty();
 
   @override
+  Set<String> get unreadableSecrets => const {};
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

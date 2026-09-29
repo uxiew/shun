@@ -574,6 +574,26 @@ const englishTranslations = <String, String>{
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // 凭据解不开（credential_availability.dart、vault_screen.dart）。整句排最前，短词在表尾。
+  (
+    '无法解密（设备密钥可能已失效，或数据被改动过）。请在编辑器里重新填写后再连接。',
+    ' cannot be decrypted (the device key may have been invalidated, or the data was altered). Re-enter it in the editor, then connect again.'
+  ),
+  (
+    '（设备密钥可能已失效，或数据被改动过）。请在编辑器里重新填写后再连接。',
+    ' (the device key may have been invalidated, or the data was altered). Re-enter it in the editor, then connect again.'
+  ),
+  ('保存的凭据中有 ', 'Saved credentials that cannot be decrypted: '),
+  (' 条无法解密', ''),
+  ('无法解密', ' cannot be decrypted'),
+  (
+    '设备密钥可能已失效，或数据被改动过。主机配置都还在；用到这些凭据的连接会被拒绝，',
+    'The device key may have been invalidated, or the data was altered. Host settings are intact; connections that need these credentials are refused. '
+  ),
+  (
+    '在编辑器里重新填写对应的密码或私钥即可恢复。',
+    'Re-enter the password or private key in the editor to restore them.'
+  ),
   // SFTP 握手期限（sftp_service.dart）。
   ('服务器没有回应 SFTP（', 'The server did not answer SFTP ('),
   (
@@ -1564,6 +1584,11 @@ const englishReplacements = <(String, String)>[
   ('小时', ' hours'),
   ('天', ' days'),
   ('核', ' cores'),
+  // 凭据种类（credential_availability.dart），放在所有整句之后，免得把「…和代理口令）」这类整句先拆碎。
+  ('登录密码', 'login password'),
+  ('代理口令', 'proxy password'),
+  ('Telnet 密码', 'Telnet password'),
+  ('、', ', '),
   ('：', ': '),
   ('，', ', '),
   ('。', '. '),

@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import '../domain/models/host.dart';
 import '../infrastructure/ssh/ssh_service.dart';
 import '../infrastructure/ssh/server_monitor_service.dart';
+import 'credential_availability.dart';
 import 'vault_controller.dart';
 
 enum PendingConnectionPhase { connecting, failed }
@@ -183,6 +184,13 @@ class SessionController extends StateNotifier<SessionState> {
               (value) => value.id == host.id,
               orElse: () => host,
             );
+      // 要用的凭据解不开就在拨号前拒绝，不拿空密码去试（SEC06）。
+      final problem = unreadableCredentialProblem(
+        connectionHost,
+        vault,
+        vaultController.repository.unreadableSecrets,
+      );
+      if (problem != null) throw CredentialUnavailableException(problem);
       final session = await service.connect(
         sessionId: sessionId,
         host: connectionHost,
