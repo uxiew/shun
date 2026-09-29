@@ -60,6 +60,11 @@ flutter devices                              # 启动好以后能看到 emulator
 | AVD | 系统 | 内存页大小 | 用途 |
 |---|---|---|---|
 | `xwshun-a35-4k` | Android 15（API 35），Google APIs，自带 Gboard | 4 KiB | 日常运行、按键和输入法 |
+| `xwshun-a36-16k` | Android 16（API 36，App 的目标版本），Google APIs 16 KB 页镜像 | 16 KiB | 检查 native 库在 16 KiB 页设备上能不能加载 |
+
+为什么要单独建一个 16 KiB 的：从 Android 15 开始，部分新手机的内存页大小是 16 KiB（以前都是 4 KiB）。
+App 里的 native 库（比如终端引擎 libghostty.so）如果没按 16 KiB 对齐，在这类手机上一加载就失败，
+表现是 App 闪退或者终端打不开，而在 4 KiB 的设备上一切正常。所以只在普通模拟器上测，是发现不了这个问题的。
 
 在模拟器里跑主 App：
 
