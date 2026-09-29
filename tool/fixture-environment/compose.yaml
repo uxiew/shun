@@ -1,0 +1,53 @@
+# 网络拓扑（端口只绑 127.0.0.1，局域网其他机器访问不到）：
+#
+#   本机 ──127.0.0.1:22201──> ssh-edge ──┐
+#   本机 ──127.0.0.1:21080/21081──> socks ──┤ inner（internal，无外网）
+#                                        ├── target  (别名 target.fixture.internal)
+#                                        └── ssh-hop2
+#
+# target 和 ssh-hop2 没有映射到本机端口，本机也解析不了它们的名字：
+# 只能经 SOCKS 或经 ssh-edge 跳板到达。这就是"仅代理可解析目标"和"直连必失败"的来源。
+name: xwshun-fixture
+
+x-node: &node
+  build: .
+  image: xwshun-fixture:alpine3.22
+  volumes:
+    - ./.run/secrets:/run-secrets:ro
+    - ./.run/hostkeys:/run-hostkeys
+
+services:
+  ssh-edge:
+    <<: *node
+    hostname: ssh-edge
+    environment: { ROLE: sshd }
+    networks: [edge, inner]
+    ports: ["127.0.0.1:22201:22"]
+
+  socks:
+    <<: *node
+    hostname: socks
+    environment: { ROLE: socks }
+    networks: [edge, inner]
+    ports: ["127.0.0.1:21080:1080", "127.0.0.1:21081:1081"]
+
+  target:
+    <<: *node
+    hostname: target
+    environment: { ROLE: sshd }
+    networks:
+      inner:
+        aliases: [target.fixture.internal]
+
+  ssh-hop2:
+    <<: *node
+    hostname: ssh-hop2
+    environment: { ROLE: sshd }
+    networks:
+      inner:
+        aliases: [hop2.fixture.internal]
+
+networks:
+  edge: {}
+  inner:
+    internal: true
