@@ -29,6 +29,8 @@ SSH 用户 `fixture`，密码和客户端私钥每次 `up.sh` 重新生成；四
 - **curl 验证 SOCKS 时别用 `--noproxy '*'`**：它会把 SOCKS 也一起禁掉，curl 变直连，"错口令被拒"会因为错误的原因通过。
 - **手工 ssh 时认证失败，日志里的密钥指纹不是 fixture 的**：本机 `~/.ssh/config` 或 ssh-agent 的真实密钥掺进来了。加 `-F /dev/null -o IdentityAgent=none -o IdentitiesOnly=yes`。
 - **嵌套 ProxyCommand 报"主机身份已改变"**：内层的 `%h:%p` 要写成 `%%h:%%p`，否则外层提前替换，内层跳错机器。
+- **跑到一半所有 SSH 都连不上，报「登录完成前连接被对方关闭」，`docker compose logs ssh-edge` 里有 `drop connection ... penalty`**：
+  OpenSSH 的来源罚时（PerSourcePenalties）把本机拉黑了。`entrypoint.sh` 里已经关掉；自己改 sshd_config 时别删那一行，改完要 `down.sh` + `up.sh` 重建。
 
 ## 安全边界
 

@@ -13,6 +13,10 @@ case "$ROLE" in
     ssh-keygen -q -t ed25519 -N '' -f /etc/ssh/ssh_host_ed25519_key
     ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256 > "/run-hostkeys/$(hostname).sha256"
     cp /etc/ssh/ssh_host_ed25519_key.pub "/run-hostkeys/$(hostname).pub"
+    # PerSourcePenalties no：OpenSSH 9.8 起，连上后不认证就断（测试里「指纹确认时取消」就是这样）
+    # 每次罚 1 秒、被 pkill 杀掉的会话按崩溃罚 90 秒，累计超过 15 秒就拒绝本机全部新连接，
+    # 日志是 "drop connection ... penalty: connections without attempting authentication"。
+    # 所有测试都从同一个来源地址进来，不关的话反复取消的测试会把后面的测试一起连不上。
     cat > /etc/ssh/sshd_config <<'EOF'
 Port 22
 HostKey /etc/ssh/ssh_host_ed25519_key
@@ -24,6 +28,7 @@ PubkeyAuthentication yes
 AllowTcpForwarding yes
 X11Forwarding no
 LogLevel VERBOSE
+PerSourcePenalties no
 EOF
     exec /usr/sbin/sshd -D -e
     ;;
