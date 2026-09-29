@@ -118,4 +118,6 @@ APK插件机制限Android；原有iOS仍保持可构建、必要时显示未支�
 
 ### 真正未测
 
-上面全部是纯逻辑测试。以下一项都没跑过：任何插件 APK 的安装与证书读取、Binder 逐事务 UID/签名/owner/generation 校验、FD 数据面、provider 死亡/更新/卸载、UU/RustDesk 真实客户端行为、Mosh 运行时。对应 X01–X10，需要设备。
+上面是 X00 时的纯逻辑测试。X02（2026-09-30）已在 arm64 模拟器 API 35 上实测：插件 APK 的安装发现、系统读出的证书、批准前不绑定、Binder 逐事务按 UID + 证书拒绝（插件侧与宿主回调侧）、同包名换签、调试证书进 release 宿主，见 evidence/X02.md。
+
+仍没跑过：session 级 owner/generation 校验与 FD 数据面（X03）、provider 死亡/更新/卸载时的会话处理（X03/X04）、UU/RustDesk 真实客户端（X06/X07）、Mosh 运行时（X08–X10）、Android 7–10 上的发现与证书读取路径、任何真机。

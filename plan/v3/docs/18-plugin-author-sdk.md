@@ -41,3 +41,22 @@ Android实机需记录主App与插件APK SHA-256、signer SHA-256、API/ABI/页�
 记录哪些是mock、哪些是APK真实运行；不领取缺授权的生产连接。
 同步任务、测试和证据，提交可回滚小变更。
 ```
+
+## X02 已落地的最小接口（2026-09-30）
+
+契约代码只有一份：`plugins/provider-sdk/`（纯 Java + AIDL，可直接作为 Android 库引用）。构建与测试插件的用法见 `plugins/README.md`。
+
+| 项 | 值 |
+|---|---|
+| 服务 action | `top.xdwa.xwshun.plugin.action.PROVIDER_V1`（宿主 `<queries>` 只查它） |
+| 描述符 | 服务上的 meta-data `top.xdwa.xwshun.plugin.DESCRIPTOR`，指向 raw 资源，≤16 KiB；`packageName`、`serviceClass` 必须等于实际安装包和声明 action 的那个服务 |
+| 一个包 | 只能有一个声明该 action 的服务，多于一个整包判为不兼容 |
+| 服务 | `exported="true"`，不设 `android:permission`（独立签名没法用 signature 权限认宿主） |
+| AIDL | `IXwshunProvider.handshake(hostApiMajor, hostApiMinor, IXwshunHost)` 返回描述符 JSON；`ping(nonce)`。宿主回调 `IXwshunHost.onProviderEvent(generation, sequence, event)`（oneway，event ≤64 字符） |
+| 认人 | 每个方法第一行 `new CallerVerifier(ctx, "top.xdwa.xwshun", {宿主证书 SHA-256}).requireTrustedCaller()`；不在 onBind 查，不看 Intent extras |
+
+**为什么不能只在 onBind 查**（模拟器实测）：宿主已绑定插件后，另一个 App 用相同 Intent（extras 不参与比较）去绑，系统直接把**同一个 Binder** 交给它，插件的 onBind 根本不会再被调用。
+
+插件作者要做的：用自己的密钥签名；把宿主发行证书的 SHA-256 写进插件；在每个方法里调 `requireTrustedCaller`。宿主这边由用户在「设置 → 插件（实验）」里核对证书后批准。
+宿主换了发行证书，插件要发新版本信任新证书；插件换了密钥，用户要重新批准。
+
