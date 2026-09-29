@@ -30,6 +30,11 @@ X11Forwarding no
 LogLevel VERBOSE
 PerSourcePenalties no
 EOF
+    # SFTP 用 sshd 内置的 internal-sftp，不用另装包。ssh-hop3 设 SFTP=off 故意不开，
+    # 用来测「服务器没开 SFTP」时 App 能在期限内报清楚原因（dartssh2 自己会一直等）。
+    if [ "${SFTP:-on}" = on ]; then
+      echo 'Subsystem sftp internal-sftp' >> /etc/ssh/sshd_config
+    fi
     exec /usr/sbin/sshd -D -e
     ;;
   socks)

@@ -51,7 +51,7 @@ services:
   ssh-hop3:
     <<: *node
     hostname: ssh-hop3
-    environment: { ROLE: sshd }
+    environment: { ROLE: sshd, SFTP: "off" }   # 故意不开 SFTP，见 entrypoint.sh
     networks:
       inner:
         aliases: [hop3.fixture.internal]
