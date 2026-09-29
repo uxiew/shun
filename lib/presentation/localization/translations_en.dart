@@ -606,6 +606,70 @@ const englishReplacements = <(String, String)>[
   ('没有 provider：', 'No provider: '),
   (' 当前不可用', ' is currently unavailable'),
   ('已停用', 'Disabled'),
+  // R11：Tailscale 目录读取的报错（tailscale_api.dart、tailscale_device.dart、tailscale_catalog_access.dart）。
+  // 带 $context / $detail / $granted 的句子按插值处拆开，运行时拼出来的整句也能逐段译完。
+  (
+    '这个目录来源没有保存的 OAuth client，请重新授权。本地已导入的设备和主机不受影响。',
+    'This directory source has no saved OAuth client; authorize again. Devices and hosts already imported are not affected.'
+  ),
+  (
+    'Tailscale 不接受这个 access token（无效、已过期或已被撤销）。请重新生成一个再导入；本地已导入的设备和主机不受影响。',
+    'Tailscale rejected this access token (invalid, expired or revoked). Generate a new one and import again; devices and hosts already imported are not affected.'
+  ),
+  (
+    'Tailscale 不接受这个 OAuth client 换来的 token。请在 Tailscale 后台确认 client 仍有效，必要时重新授权；本地已导入的设备和主机不受影响。',
+    'Tailscale rejected the token obtained with this OAuth client. Check in the Tailscale admin console that the client is still valid and authorize again if needed; devices and hosts already imported are not affected.'
+  ),
+  (
+    'Tailscale 不接受这个 OAuth client（ID 或 secret 不对，或已在后台撤销）。本地已导入的设备和主机不受影响。',
+    'Tailscale rejected this OAuth client (wrong ID or secret, or revoked in the admin console). Devices and hosts already imported are not affected.'
+  ),
+  ('换来的 token 不是只读（带有 ', 'The token obtained is not read-only (it has '),
+  (
+    '）。已丢弃，没有用它读取任何数据。请在 Tailscale 后台为本 App 单独创建只含 devices:core:read 的 OAuth client。',
+    '). It was discarded without reading any data. In the Tailscale admin console, create a separate OAuth client for this app with only devices:core:read.'
+  ),
+  (
+    'tailnet 写法无效：只能是 -、tailnet ID 或 tailnet 名',
+    'Invalid tailnet: use -, a tailnet ID or a tailnet name'
+  ),
+  ('OAuth client ID 或 secret 为空或格式不对', 'The OAuth client ID or secret is empty or malformed'),
+  ('access token 为空或格式不对', 'The access token is empty or malformed'),
+  ('token 响应缺少 access_token', 'The token response has no access_token'),
+  ('token 响应不是 JSON', 'The token response is not JSON'),
+  ('token 响应不是对象', 'The token response is not an object'),
+  ('token 类型不是 Bearer', 'The token type is not Bearer'),
+  ('响应超过 16 MiB，已放弃', 'The response exceeded 16 MiB and was abandoned'),
+  (
+    '连接 Tailscale API 超时。请检查当前网络（包括开着的 VPN）',
+    'Connecting to the Tailscale API timed out. Check the current network, including any VPN you have on'
+  ),
+  (
+    '连不上 Tailscale API。请检查当前网络（包括开着的 VPN）',
+    'Cannot reach the Tailscale API. Check the current network, including any VPN you have on'
+  ),
+  (
+    '与 Tailscale API 的 TLS 握手失败，证书未通过校验，已断开',
+    'The TLS handshake with the Tailscale API failed certificate verification; disconnected'
+  ),
+  ('连接 Tailscale API 时网络出错', 'A network error occurred while connecting to the Tailscale API'),
+  ('设备列表缺少 devices 数组', 'The device list has no devices array'),
+  ('设备列表不是 JSON', 'The device list is not JSON'),
+  ('设备数量超出上限', 'The device list has too many devices'),
+  (
+    '被拒绝（HTTP 403）：凭据没有读取设备的权限（需要 devices:core:read）',
+    ' was refused (HTTP 403): the credential cannot read devices (devices:core:read is required)'
+  ),
+  ('：找不到这个 tailnet（HTTP 404）', ': tailnet not found (HTTP 404)'),
+  ('：服务器要求重定向（HTTP ', ': the server asked for a redirect (HTTP '),
+  (
+    '），为免把凭据带到别处，没有跟随',
+    '), which was not followed so that credentials are not sent elsewhere'
+  ),
+  ('：请求太频繁（HTTP 429），请稍后手动重试', ': too many requests (HTTP 429); retry manually later'),
+  ('读取设备列表', 'Reading the device list'),
+  ('换取 access token', 'Getting an access token'),
+  ('fixture 只能指向本机回环地址', 'The fixture must point to a loopback address'),
   // R10：连接路径编辑器、测试连接、失败诊断。整句排最前。
   (
     '（代理之后怎么走由代理决定，App 看不到）',
