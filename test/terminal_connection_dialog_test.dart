@@ -198,6 +198,12 @@ void main() {
       final pending = PendingTerminalConnection(
         id: 'pending-1',
         host: pendingHost,
+        stage: const ConnectionStage(
+          ConnectionStep.handshake,
+          hop: 1,
+          hopCount: 3,
+          label: 'hop2',
+        ),
       );
       final initialState = SessionState(
         sessions: [existing],
@@ -229,6 +235,8 @@ void main() {
         findsOneWidget,
       );
       expect(find.text('正在建立安全连接…'), findsOneWidget);
+      expect(find.text('第 2/3 跳，“hop2”：SSH 握手、核对指纹、登录'), findsOneWidget,
+          reason: '等待页要写出当前卡在哪一跳、哪一步');
       expect(
         find.text('连接会在此标签页中完成，其他终端会话不会受到影响。'),
         findsNothing,
