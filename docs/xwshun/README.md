@@ -65,8 +65,9 @@ flutter devices                              # 启动好以后能看到 emulator
 
 每台上测出了什么，看 `plan/v3/evidence/R04.md`，这里不重复。
 
-为什么单挑 API 28：libghostty.so 用了一种叫 ELF TLS 的格式存放"每个线程各一份"的变量，
-Android 从 10（API 29）才支持这种格式。API 28 是不支持它的最后一个版本，在它上面能不能加载，就代表了 Android 7–9 的情况。
+为什么单挑 API 28：libghostty.so 是按 API 29 为目标编译的，而 App 声明最低支持 API 24。
+API 28 是低于 29 的最高版本，拿它测往下兼容；API 24 的模拟器在这台 Mac 上起不来，只能先测 28。
+API 28 上的结果不代表 24–27 也一样，那几个版本仍要真机确认。
 
 为什么要单独建一个 16 KiB 的：从 Android 15 开始，部分新手机的内存页大小是 16 KiB（以前都是 4 KiB）。
 App 里的 native 库（比如终端引擎 libghostty.so）如果没按 16 KiB 对齐，在这类手机上一加载就失败，
