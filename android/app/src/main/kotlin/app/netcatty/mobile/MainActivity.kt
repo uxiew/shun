@@ -16,6 +16,7 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterActivity() {
     private var documentTreeChannel: DocumentTreeChannel? = null
     private var pictureInPictureChannel: MethodChannel? = null
+    private var pluginBridge: PluginBridge? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -23,6 +24,7 @@ class MainActivity : FlutterActivity() {
             this,
             flutterEngine.dartExecutor.binaryMessenger,
         )
+        pluginBridge = PluginBridge(this, flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "app.netcatty.mobile/connection",
@@ -104,6 +106,8 @@ class MainActivity : FlutterActivity() {
     override fun onDestroy() {
         documentTreeChannel?.dispose()
         documentTreeChannel = null
+        pluginBridge?.dispose()
+        pluginBridge = null
         pictureInPictureChannel?.setMethodCallHandler(null)
         pictureInPictureChannel = null
         super.onDestroy()

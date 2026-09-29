@@ -72,3 +72,7 @@ kotlin {
 flutter {
     source = "../.."
 }
+
+dependencies {
+    implementation(project(":provider-sdk"))
+}

@@ -24,3 +24,7 @@ plugins {
 }
 
 include(":app")
+
+// 宿主与插件共用的 AIDL 契约（X02）。放在 plugins/ 下，测试插件工程也引用同一份，不复制。
+include(":provider-sdk")
+project(":provider-sdk").projectDir = file("../plugins/provider-sdk")

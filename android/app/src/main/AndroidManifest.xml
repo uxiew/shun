@@ -56,5 +56,10 @@
             <action android:name="android.intent.action.PROCESS_TEXT" />
             <data android:mimeType="text/plain" />
         </intent>
+        <!-- 插件发现只查这一个 action（PLG03）。故意不申请 QUERY_ALL_PACKAGES：
+             Android 11 起没声明这个 action 的包对本 App 不可见，插件页会给出具体诊断。 -->
+        <intent>
+            <action android:name="top.xdwa.xwshun.plugin.action.PROVIDER_V1" />
+        </intent>
     </queries>
 </manifest>
