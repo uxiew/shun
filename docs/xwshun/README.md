@@ -61,8 +61,12 @@ flutter devices                              # 启动好以后能看到 emulator
 |---|---|---|---|
 | `xwshun-a35-4k` | Android 15（API 35），Google APIs，自带 Gboard | 4 KiB | 日常运行、按键和输入法 |
 | `xwshun-a36-16k` | Android 16（API 36，App 的目标版本），Google APIs 16 KB 页镜像 | 16 KiB | 检查 native 库在 16 KiB 页设备上能不能加载。这台开了硬件键盘（`hw.keyboard=yes`），不会弹软键盘，软键盘和输入法请在 `xwshun-a35-4k` 上测 |
+| `xwshun-a28` | Android 9（API 28），Google APIs | 4 KiB | 替代测不了的 API 24（见"撞墙时"），检查 libghostty.so 在 Android 10 以下能不能加载。同样开了硬件键盘，不弹软键盘 |
 
 每台上测出了什么，看 `plan/v3/evidence/R04.md`，这里不重复。
+
+为什么单挑 API 28：libghostty.so 用了一种叫 ELF TLS 的格式存放"每个线程各一份"的变量，
+Android 从 10（API 29）才支持这种格式。API 28 是不支持它的最后一个版本，在它上面能不能加载，就代表了 Android 7–9 的情况。
 
 为什么要单独建一个 16 KiB 的：从 Android 15 开始，部分新手机的内存页大小是 16 KiB（以前都是 4 KiB）。
 App 里的 native 库（比如终端引擎 libghostty.so）如果没按 16 KiB 对齐，在这类手机上一加载就失败，
@@ -135,6 +139,7 @@ spike 三 ABI release 构建从 17 秒变成 45 秒。**构建一次它就长回
 | NDK 28.2、platform 36、build-tools 36 | 经你同意手动安装 | `sdkmanager --uninstall "ndk;28.2.13676358" "platforms;android-36" "build-tools;36.0.0"` |
 | platform 34、CMake 3.22.1 | 第一次构建时 Gradle 自动装的 | `sdkmanager --uninstall "platforms;android-34" "cmake;3.22.1"` |
 | API 36 16 KB 页镜像（4.2 GB） | 为 `xwshun-a36-16k` 下载 | `sdkmanager --uninstall "system-images;android-36;google_apis_ps16k;arm64-v8a"` |
+| API 28 镜像（2.6 GB） | 为 `xwshun-a28` 下载 | `sdkmanager --uninstall "system-images;android-28;google_apis;arm64-v8a"` |
 
 `sdkmanager` 在 `~/Library/Android/sdk/cmdline-tools/latest/bin/`。
 API 35 的 `google_apis` 镜像是你原来就有的，你自己的 `lizhi` 模拟器也在用它，**不要卸载**。
