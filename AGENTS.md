@@ -12,9 +12,6 @@
 - applicationId 是 `top.xdwa.xwshun`，不得改回 `app.netcatty.mobile`，否则会覆盖手机上的原版 Netcatty 及其数据。
 - 没真机/没授权的用例写 NOT_RUN 或 BLOCKED，不许拿 mock、参考 App 或计划校验冒充通过。
 
-工具链装在仓库外的 `../.toolchain/`（Flutter 3.44.4、Python venv），不依赖全局环境：
-
-```bash
-export PATH=/Users/fodelf/xdw/xwshun/.toolchain/flutter/bin:$PATH
-python=/Users/fodelf/xdw/xwshun/.toolchain/pyenv/bin/python   # 跑 plan/v3/scripts/validate_plan.py 用，需要 jsonschema
-```
+工具链装在仓库外的 `../.toolchain/`，不依赖全局环境。每个终端先执行 `source ../.toolchain/env.sh`。
+只加 Flutter 的 PATH 不够：少了 `NO_PROXY`，`flutter test` 会全部在 loading 阶段失败。
+怎么跑测试、模拟器、真机，以及怎么清理，都写在 `docs/xwshun/README.md`。
