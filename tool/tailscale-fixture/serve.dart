@@ -5,11 +5,15 @@
 //
 // 18480：假 API。tailnet 写成 redirect-me 时回 302，指向 18481。
 // 18481：「别处」。收到任何请求都记一行 STOLEN——正常情况下这一行永远不该出现。
+//
+// 传一个 JSON 文件路径（内容是 {"devices":[...]}）时，列设备每次都重新读这个文件：
+// 验证途中改文件就能模拟设备换地址、从列表里消失、列表不完整（R13）。不传就用下面的默认列表（R11）。
 import 'dart:convert';
 import 'dart:io';
 import 'dart:math';
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
+  final devicesFile = args.isEmpty ? null : File(args.first);
   final random = Random.secure();
   String nonce() =>
       List.generate(8, (_) => random.nextInt(16).toRadixString(16)).join();
@@ -75,22 +79,26 @@ Future<void> main() async {
     } else if (request.method == 'GET' &&
         RegExp(r'^/api/v2/tailnet/[^/]+/devices$').hasMatch(path)) {
       response.headers.contentType = ContentType.json;
-      response.write(jsonEncode({
-        'devices': [
-          {
-            'id': '1001',
-            'nodeId': 'nFixture1CNTRL',
-            'name': 'fixture-nas.tail0000.ts.net',
-            'hostname': 'fixture-nas',
-            'addresses': ['100.64.0.10'],
-            'os': 'linux',
-            'authorized': true,
-            'connectedToControl': true,
-            'machineKey': 'mkey:R11MACHINEKEYFIXTURE',
-            'tags': ['tag:fixture'],
-          },
-        ],
-      }));
+      if (devicesFile != null) {
+        response.write(await devicesFile.readAsString());
+      } else {
+        response.write(jsonEncode({
+          'devices': [
+            {
+              'id': '1001',
+              'nodeId': 'nFixture1CNTRL',
+              'name': 'fixture-nas.tail0000.ts.net',
+              'hostname': 'fixture-nas',
+              'addresses': ['100.64.0.10'],
+              'os': 'linux',
+              'authorized': true,
+              'connectedToControl': true,
+              'machineKey': 'mkey:R11MACHINEKEYFIXTURE',
+              'tags': ['tag:fixture'],
+            },
+          ],
+        }));
+      }
     } else {
       response.statusCode = 404;
       response.write('{"message":"not found"}');
