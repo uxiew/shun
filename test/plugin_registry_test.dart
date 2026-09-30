@@ -108,6 +108,39 @@ void main() {
       expect(() => r.disable(BuiltinPlugins.tailscale), throwsArgumentError);
     });
 
+    test('X06 UU 调用适配器是内置 provider：只有外部拉起能力，路线只有 provider-managed', () {
+      final r = registry();
+      expect(
+        r
+            .require(BuiltinPlugins.uuremote, Capability.remoteDesktopExternal)
+            .pluginId,
+        BuiltinPlugins.uuremote,
+      );
+      expect(
+        () => r.require(BuiltinPlugins.uuremote, Capability.terminalSession),
+        throwsA(isA<UnsupportedCapability>()),
+      );
+      final d = r.readyEntry(BuiltinPlugins.uuremote)!.descriptor!;
+      expect(d.supportedRoutes, {RouteSupport.providerManaged});
+      // 要求整次远控走 SOCKS：provider-managed 做不到，在发起前就拒绝（UUR08）。
+      expect(
+        checkRoute(
+            d, TransportKind.providerManaged, RequestedRoute.socks5Connect),
+        isA<RouteUnsupported>(),
+      );
+      r.offerInstalled(
+        packageName: 'evil.uu',
+        descriptorJson: descriptor(
+          id: BuiltinPlugins.uuremote,
+          package: 'evil.uu',
+          capabilities: ['remote-desktop-external'],
+        ),
+        signerDigests: {'evil'},
+      );
+      expect(statusOfPackage(r, 'evil.uu'), PluginStatus.rejected);
+      expect(r.readyEntry(BuiltinPlugins.uuremote)!.isBuiltin, isTrue);
+    });
+
     test('内置 provider 不能被停用，外部包怎样折腾都遮蔽不了它', () {
       final r = registry();
       expect(() => r.disable(BuiltinPlugins.ssh), throwsArgumentError);

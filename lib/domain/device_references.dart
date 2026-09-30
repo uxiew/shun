@@ -54,6 +54,15 @@ ProviderDeviceRef catalogDeviceRef(
   );
 }
 
+/// 一条 UU 远程绑定的引用。身份是本 App 给这条绑定起的 ID，**不是** UU 返回的加密设备标识：
+/// 那是敏感的不透明值，只存在 UU 绑定自己的安全存储里，不出现在引用、日志或关联里（docs/17）。
+ProviderDeviceRef uuBindingRef(String bindingId, {String? displayName}) =>
+    ProviderDeviceRef(
+      providerId: BuiltinPlugins.uuremote,
+      refId: bindingId,
+      displayName: displayName ?? 'UU',
+    );
+
 /// [catalogDeviceRef] 的反向：不是目录引用、或格式不对返回 null。
 /// 来源 ID 里不会有冒号，所以按第一个冒号切；设备 ID 里有冒号也不会切错。
 ({String catalogId, String deviceId})? catalogRefKey(ProviderDeviceRef ref) {

@@ -21,7 +21,11 @@ abstract final class BuiltinPlugins {
   /// 所以不为它单独出一个 APK（docs/15 §1）。
   static const tailscale = 'builtin.tailscale';
 
-  static const ids = {ssh, route, tailscale};
+  /// 网易 UU 远程的调用适配器（X06）。远控本身在 UU 远程这个外部 App 里，这里只按官方 URL Scheme
+  /// 发起绑定和远控、校验回调，所以随 App 发布，不另出 APK（docs/15 §1）。
+  static const uuremote = 'builtin.uuremote';
+
+  static const ids = {ssh, route, tailscale, uuremote};
 
   static final List<PluginDescriptor> descriptors = [
     PluginDescriptor.fromMap({
@@ -83,6 +87,25 @@ abstract final class BuiltinPlugins {
       'platforms': [Platform.android.name, Platform.ios.name],
       // 自己的缓存和自己来源的控制面凭据。没有读保险库、没有读别的来源凭据的权限。
       'permissions': [Permission.ownProviderState.wire],
+      'license': 'GPL-3.0-or-later',
+    }),
+    PluginDescriptor.fromMap({
+      'schemaVersion': 1,
+      'pluginId': uuremote,
+      'displayName': 'UU 远程调用（内置）',
+      'version': '1.0.0',
+      'apiMajor': hostApiMajor,
+      'apiMinor': hostApiMinor,
+      'deployment': Deployment.bundled.wire,
+      'capabilities': [Capability.remoteDesktopExternal.wire],
+      // UU 远程用它自己的网络和账号，不经过任何主机配置的代理或跳板（UUR08）。
+      'supportedRoutes': [RouteSupport.providerManaged.wire],
+      'platforms': [Platform.android.name],
+      // 只在用户点了之后拉起 UU；自己保存的绑定（加密设备标识）也只属于这里。
+      'permissions': [
+        Permission.userInitiatedExternalLaunch.wire,
+        Permission.ownProviderState.wire,
+      ],
       'license': 'GPL-3.0-or-later',
     }),
   ];

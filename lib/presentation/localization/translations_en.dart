@@ -853,6 +853,34 @@ const englishTranslations = <String, String>{
   '已关联主机：': 'Linked to host: ',
   '关联到已有主机': 'Link to an existing host',
   '关联设备：': 'Link device: ',
+  // X06：UU 远程适配器与绑定。回调的拒收原因会嵌在提示句里，放在片段表（englishReplacements）。
+  '只支持 Android': 'Android only',
+  'UU 远程联动目前只支持 Android': 'UU Remote integration is Android only for now',
+  '上一个 UU 请求还在等回报。先结束等待，再发新的。':
+      'The previous UU request is still waiting for a reply. Stop waiting before sending a new one.',
+  '回调和请求的类型对不上，已作废':
+      'The callback does not match the kind of request; the request was discarded',
+  '回调校验失败（nonce 不对），已作废':
+      'Callback check failed (wrong nonce); the request was discarded',
+  '手机上的 UU 远程换了签名证书，要重新核对':
+      'UU Remote on this phone has a different signing certificate; check it again',
+  '收到一条 UU 回调，但没有对应的请求（已处理过、已过期、被你结束了等待，或不是本 App 发的），已忽略。':
+      'Ignored a UU callback with no matching request (already handled, expired, stopped by you, or not sent by this app).',
+  '收到的 UU 回调已经过期，已忽略。': 'Ignored an expired UU callback.',
+  '没有装 UU 远程': 'UU Remote is not installed',
+  '确认期间 UU 远程有变化（更新、换签或卸载），没有批准。请重新核对。':
+      'UU Remote changed while you were confirming (update, new signature or uninstall), so it was not approved. Check it again.',
+  '装着的 UU 远程不接受跨 App 请求':
+      'The installed UU Remote does not accept requests from other apps',
+  '要关联的主机已经不在了，没有保存。': 'The host to link no longer exists; nothing was saved.',
+  '还没核对过手机上这个 UU 远程的签名证书':
+      'The signing certificate of UU Remote on this phone has not been checked yet',
+  '还没检查手机上的 UU 远程': 'UU Remote on this phone has not been checked yet',
+  '这个 UU 远程由多张证书签名，暂不支持':
+      'This UU Remote is signed by several certificates, which is not supported yet',
+  '这台主机已不在保险库里': 'This host is no longer in the vault',
+  '这台主机还没有 UU 绑定': 'This host has no UU binding yet',
+  '这条 UU 绑定已失效，要重新绑定': 'This UU binding is no longer valid; bind again',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
@@ -860,6 +888,38 @@ const englishTranslations = <String, String>{
 const englishReplacements = <(String, String)>[
   // X05：关联被拒时带主机名，按片段翻。放最前，免得先被「主机」「设备」这类通用词拆碎。
   ('这台设备已经关联了主机：', 'This device is already linked to host: '),
+  // X06：带插值的 UU 提示，按片段翻。放最前，免得先被「回调」「参数」「主机」这类通用词拆碎。
+  ('收到一条格式不对的 UU 回调，已忽略：', 'Ignored a malformed UU callback: '),
+  ('回调太长', 'The callback is too long'),
+  ('不是本 App 的 UU 回调地址', 'Not a UU callback address of this app'),
+  ('回调路径不对', 'Wrong callback path'),
+  ('回调里没有本 App 的请求标记', 'The callback carries no request mark from this app'),
+  ('绑定回调缺 nonce', 'The binding callback has no nonce'),
+  (
+    '绑定回调的成功和失败要有且只有一个',
+    'A binding callback must carry exactly one of a result or an error'
+  ),
+  ('绑定回调的结果是空的', 'The binding callback result is empty'),
+  (
+    '小窗回调报成功却带了失败原因',
+    'The picture-in-picture callback reports success but carries a failure reason'
+  ),
+  (
+    '小窗回调报失败却没有原因',
+    'The picture-in-picture callback reports failure without a reason'
+  ),
+  ('小窗回调的 status 不对', 'The picture-in-picture callback status is invalid'),
+  ('回调参数太多', 'Too many callback parameters'),
+  ('回调参数格式不对', 'Malformed callback parameters'),
+  ('回调参数的编码不对', 'Callback parameters are badly encoded'),
+  ('处理 UU 回调时出错：', 'Error while handling a UU callback: '),
+  ('读取 UU 绑定失败：', 'Failed to read UU bindings: '),
+  ('UU 远程版本太旧，要 ', 'UU Remote is too old; it needs '),
+  (' 或更高', ' or later'),
+  ('回调参数 ', 'Callback parameter '),
+  (' 出现了不止一次', ' appears more than once'),
+  ('参数 ', 'Parameter '),
+  (' 超长或含控制字符', ' is too long or contains control characters'),
   // X05：多行拼接的说明（精确表匹配不到运行时的整句，按片段翻）。
   (
     '按主机里记着的来源 ID 在本机重建一个空来源，不发请求、不改任何主机。',
@@ -1115,6 +1175,7 @@ const englishReplacements = <(String, String)>[
   ('SSH / Telnet（内置）', 'SSH / Telnet (built-in)'),
   ('连接路径（内置）', 'Connection route (built-in)'),
   ('Tailscale 设备目录（内置）', 'Tailscale device directory (built-in)'),
+  ('UU 远程调用（内置）', 'UU Remote launcher (built-in)'),
   (
     ' 不是 bundled，不能当内置 provider 登记',
     ' is not bundled and cannot be registered as a built-in provider'
