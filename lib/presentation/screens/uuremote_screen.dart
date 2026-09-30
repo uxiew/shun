@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plugin_api/plugin_api.dart';
 
+import '../../application/external_remote.dart';
 import '../../application/plugin_registry.dart';
 import '../../application/uuremote.dart';
 import '../../application/vault_controller.dart';
@@ -624,12 +625,6 @@ class UuCallbackRivalsNote extends StatelessWidget {
     );
   }
 }
-
-/// 64 位十六进制按 4 位一组，方便和别处的证书对着看。
-String formatDigest(String hex) => [
-      for (var i = 0; i < hex.length; i += 4)
-        hex.substring(i, i + 4 > hex.length ? hex.length : i + 4),
-    ].join(' ');
 
 /// UU 绑定失败的错误码（官方 2.5）。
 String uuBindErrorText(String code) => switch (code) {

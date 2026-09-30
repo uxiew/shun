@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/application/device_links.dart';
 import 'package:netcatty_mobile/application/plugin_registry.dart';
 import 'package:netcatty_mobile/application/tailscale_catalog_refresh.dart';
+import 'package:netcatty_mobile/application/external_remote.dart';
 import 'package:netcatty_mobile/application/uuremote.dart';
 import 'package:netcatty_mobile/domain/device_references.dart';
 import 'package:netcatty_mobile/domain/models/host.dart';
@@ -31,7 +32,7 @@ Map<String, String> queryOf(String uri) {
 void main() {
   late FakePlatform platform;
   late MemoryBackend backend;
-  late List<UuHost> hosts;
+  late List<RemoteControlHost> hosts;
   late DateTime clock;
   late UuRemoteController c;
 
@@ -50,8 +51,10 @@ void main() {
     platform = FakePlatform();
     backend = MemoryBackend();
     hosts = const [
-      UuHost(id: 'h1', label: 'win-pc', sshRoute: RequestedRoute.systemDefault),
-      UuHost(id: 'h2', label: 'mac', sshRoute: RequestedRoute.socks5Connect),
+      RemoteControlHost(
+          id: 'h1', label: 'win-pc', sshRoute: RequestedRoute.systemDefault),
+      RemoteControlHost(
+          id: 'h2', label: 'mac', sshRoute: RequestedRoute.socks5Connect),
     ];
     clock = DateTime.utc(2026, 9, 30, 12);
     c = build();

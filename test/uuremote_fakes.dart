@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:netcatty_mobile/application/uuremote.dart';
+import 'package:netcatty_mobile/application/external_remote.dart';
 import 'package:netcatty_mobile/infrastructure/plugins/uuremote_adapter.dart';
 
 // X06 测试共用：假平台（记下发出的 URI、手动喂回调）和内存存储。
@@ -34,7 +34,7 @@ class FakePlatform implements UuRemotePlatform {
   }
 }
 
-class MemoryBackend implements UuSecretBackend {
+class MemoryBackend implements ProviderSecretBackend {
   final values = <String, String>{};
   @override
   Future<String?> read(String key) async => values[key];

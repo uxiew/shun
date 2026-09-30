@@ -18,3 +18,9 @@ String controlPlaneText(bool? connected) => switch (connected) {
       false => 'Tailscale 控制面：未连接',
       null => 'Tailscale 控制面：不知道',
     };
+
+/// 64 位十六进制按 4 位一组，方便和别处的证书对着看。
+String formatDigest(String hex) => [
+      for (var i = 0; i < hex.length; i += 4)
+        hex.substring(i, i + 4 > hex.length ? hex.length : i + 4),
+    ].join(' ');

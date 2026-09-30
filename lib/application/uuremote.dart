@@ -3,12 +3,11 @@ import 'dart:convert';
 import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:plugin_api/plugin_api.dart';
 
-import '../domain/models/host.dart';
 import '../domain/plugins/builtin_plugins.dart';
 import '../infrastructure/plugins/uuremote_adapter.dart';
+import 'external_remote.dart';
 import 'plugin_registry.dart';
 import 'vault_controller.dart';
 
@@ -158,40 +157,9 @@ class UuPendingRequest {
   }
 }
 
-/// UU 绑定的存储后端。抽出来只为测试能换成内存实现。
-abstract interface class UuSecretBackend {
-  Future<String?> read(String key);
-  Future<void> write(String key, String value);
-  Future<void> delete(String key);
-}
-
-/// 和保险库、Tailscale 目录凭据都分开的一份加密存储。已被 R09 的 dataExtractionRules 排除在云备份和换机迁移之外。
-class FlutterSecureUuBackend implements UuSecretBackend {
-  const FlutterSecureUuBackend();
-
-  static const _storage = FlutterSecureStorage(
-    aOptions: AndroidOptions(
-      encryptedSharedPreferences: true,
-      sharedPreferencesName: 'xwshun_uuremote',
-    ),
-    iOptions: IOSOptions(
-      accountName: 'xwshun.uuremote',
-      accessibility: KeychainAccessibility.first_unlock_this_device,
-    ),
-  );
-
-  @override
-  Future<String?> read(String key) => _storage.read(key: key);
-  @override
-  Future<void> write(String key, String value) =>
-      _storage.write(key: key, value: value);
-  @override
-  Future<void> delete(String key) => _storage.delete(key: key);
-}
-
 class UuRemoteStore {
   const UuRemoteStore(this._backend);
-  final UuSecretBackend _backend;
+  final ProviderSecretBackend _backend;
 
   static const _bindings = 'uuremote.bindings.v1';
   static const _pending = 'uuremote.pending.v1';
@@ -341,35 +309,6 @@ class UuRouteNeedsConfirmation implements Exception {
   String toString() => reason;
 }
 
-/// UU 这边看得到的一台主机：id、名字、SSH 走什么路线。没有密码、私钥、代理口令——UU 用不着。
-class UuHost {
-  const UuHost({required this.id, required this.label, required this.sshRoute});
-
-  factory UuHost.of(HostProfile host) =>
-      UuHost(id: host.id, label: host.label, sshRoute: sshRouteOf(host));
-
-  final String id;
-  final String label;
-  final RequestedRoute sshRoute;
-}
-
-/// 主机的 SSH 路线归成插件契约里的几种。HTTP 代理也归到「经代理」：这里只关心是不是直连。
-/// 格式不对的跳板配置算「经跳板」：宁可多问用户一句。
-RequestedRoute sshRouteOf(HostProfile host) {
-  final proxy = host.proxyProfileId?.isNotEmpty == true ||
-      host.data['proxyConfig'] != null;
-  final chain = host.data['hostChain'];
-  final ids = chain is Map ? chain['hostIds'] : null;
-  final jump = chain != null &&
-      (chain is! Map || ids != null && (ids is! List || ids.isNotEmpty));
-  return switch ((proxy, jump)) {
-    (true, true) => RequestedRoute.socks5ProxyJump,
-    (true, false) => RequestedRoute.socks5Connect,
-    (false, true) => RequestedRoute.proxyJump,
-    (false, false) => RequestedRoute.systemDefault,
-  };
-}
-
 /// [UuAttempt.code] 的本地取值：UU 返回了设备，但用户没保存。和 UU 的错误码不重名。
 const uuDiscardedByUser = 'xwshun_discarded_by_user';
 
@@ -397,7 +336,7 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
     required UuRemotePlatform platform,
     required UuRemoteStore store,
     required PluginRegistry registry,
-    required Future<List<UuHost>> Function() hosts,
+    required Future<List<RemoteControlHost>> Function() hosts,
     DateTime Function()? now,
     Random? random,
   })  : _platform = platform,
@@ -433,7 +372,7 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
   final UuRemotePlatform _platform;
   final UuRemoteStore _store;
   final PluginRegistry _registry;
-  final Future<List<UuHost>> Function() _hosts;
+  final Future<List<RemoteControlHost>> Function() _hosts;
   final DateTime Function() _now;
   final Random _random;
   late final StreamSubscription<String> _callbacks;
@@ -765,7 +704,7 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
     throw const UuRequestRefused('上一个 UU 请求还在等回报。先结束等待，再发新的。');
   }
 
-  Future<UuHost> _hostOf(String hostId) async {
+  Future<RemoteControlHost> _hostOf(String hostId) async {
     final host = (await _hosts()).where((h) => h.id == hostId).firstOrNull;
     if (host == null) throw const UuRequestRefused('这台主机已不在保险库里');
     return host;
@@ -976,8 +915,13 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
 final uuRemotePlatformProvider =
     Provider<UuRemotePlatform>((ref) => AndroidUuRemotePlatform());
 
+/// 存储名沿用 X06 定下的：改了就读不到已有的绑定。
 final uuRemoteStoreProvider = Provider<UuRemoteStore>(
-    (ref) => const UuRemoteStore(FlutterSecureUuBackend()));
+  (ref) => UuRemoteStore(SecureProviderBackend(
+    prefsName: 'xwshun_uuremote',
+    keychainAccount: 'xwshun.uuremote',
+  )),
+);
 
 final uuRemoteProvider =
     StateNotifierProvider<UuRemoteController, UuRemoteState>((ref) {
@@ -987,6 +931,6 @@ final uuRemoteProvider =
     store: ref.watch(uuRemoteStoreProvider),
     registry: ref.read(pluginRegistryProvider.notifier),
     hosts: () async =>
-        [for (final h in (await vault.ready()).hosts) UuHost.of(h)],
+        [for (final h in (await vault.ready()).hosts) RemoteControlHost.of(h)],
   );
 });
