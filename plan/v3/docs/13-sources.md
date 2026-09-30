@@ -296,6 +296,8 @@ https://raw.githubusercontent.com/netease-uuyc/uuremote-integration-guide/main/R
 
 观察最低4.42.0；Windows/macOS目标；绑定nonce与opaque ID；全屏无回调，小窗可选callback。与搜索缓存旧版的全屏回调说法冲突，以本次raw为设计基准并要求实施前冻结版本。
 
+X06（2026-09-30）已冻结到提交 `be7d8109`，README sha256 `72f9017b…7bac45`；口径与原件位置见 docs/17「X06 固定的官方口径」。
+
 <a id="s43"></a>
 ## S43 UU远程官方接入仓库
 
