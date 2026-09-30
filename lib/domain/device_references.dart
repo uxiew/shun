@@ -63,6 +63,16 @@ ProviderDeviceRef uuBindingRef(String bindingId, {String? displayName}) =>
       displayName: displayName ?? 'UU',
     );
 
+/// 一条 RustDesk 关联的引用。身份是本 App 给这条关联起的 ID，不是 RustDesk ID：
+/// 两台主机（比如同一台电脑的两个 SSH 账号）可以各自填同一个 RustDesk ID，它们仍是两条引用，
+/// 不会因为 ID 相同就被并成一台设备（DEV01）。
+ProviderDeviceRef rustDeskPeerRef(String linkId, {String? displayName}) =>
+    ProviderDeviceRef(
+      providerId: BuiltinPlugins.rustdesk,
+      refId: linkId,
+      displayName: displayName ?? 'RustDesk',
+    );
+
 /// [catalogDeviceRef] 的反向：不是目录引用、或格式不对返回 null。
 /// 来源 ID 里不会有冒号，所以按第一个冒号切；设备 ID 里有冒号也不会切错。
 ({String catalogId, String deviceId})? catalogRefKey(ProviderDeviceRef ref) {

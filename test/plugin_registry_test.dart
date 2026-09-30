@@ -141,6 +141,56 @@ void main() {
       expect(r.readyEntry(BuiltinPlugins.uuremote)!.isBuiltin, isTrue);
     });
 
+    test('X07 RustDesk 调用适配器是内置 provider：只有外部拉起能力，路线只有 provider-managed', () {
+      final r = registry();
+      expect(
+        r
+            .require(BuiltinPlugins.rustdesk, Capability.remoteDesktopExternal)
+            .pluginId,
+        BuiltinPlugins.rustdesk,
+      );
+      for (final other in [
+        Capability.terminalSession,
+        Capability.deviceCatalog,
+        Capability.route,
+      ]) {
+        expect(
+          () => r.require(BuiltinPlugins.rustdesk, other),
+          throwsA(isA<UnsupportedCapability>()),
+        );
+      }
+      final d = r.readyEntry(BuiltinPlugins.rustdesk)!.descriptor!;
+      expect(d.supportedRoutes, {RouteSupport.providerManaged});
+      // 要求整次远控走 SOCKS 或跳板：provider-managed 做不到，在发起前就拒绝（RDX04）。
+      for (final route in [
+        RequestedRoute.socks5Connect,
+        RequestedRoute.proxyJump,
+        RequestedRoute.socks5ProxyJump,
+      ]) {
+        expect(
+          checkRoute(d, TransportKind.providerManaged, route),
+          isA<RouteUnsupported>(),
+        );
+      }
+      expect(
+        checkRoute(
+            d, TransportKind.providerManaged, RequestedRoute.systemDefault),
+        isA<RouteAllowed>(),
+      );
+      // 外部包冒用这个 ID：拒绝，内置的照常。
+      r.offerInstalled(
+        packageName: 'evil.rustdesk',
+        descriptorJson: descriptor(
+          id: BuiltinPlugins.rustdesk,
+          package: 'evil.rustdesk',
+          capabilities: ['remote-desktop-external'],
+        ),
+        signerDigests: {'evil'},
+      );
+      expect(statusOfPackage(r, 'evil.rustdesk'), PluginStatus.rejected);
+      expect(r.readyEntry(BuiltinPlugins.rustdesk)!.isBuiltin, isTrue);
+    });
+
     test('内置 provider 不能被停用，外部包怎样折腾都遮蔽不了它', () {
       final r = registry();
       expect(() => r.disable(BuiltinPlugins.ssh), throwsArgumentError);

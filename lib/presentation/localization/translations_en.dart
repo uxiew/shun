@@ -1023,11 +1023,126 @@ const englishTranslations = <String, String>{
   '这台主机已不在保险库里': 'This host is no longer in the vault',
   '这台主机还没有 UU 绑定': 'This host has no UU binding yet',
   '这条 UU 绑定已失效，要重新绑定': 'This UU binding is no longer valid; bind again',
+  // X07：RustDesk 外部客户端联动。ID 的拒收原因（rustdesk_external.dart）显示在输入框下面。
+  '太长了，不像 RustDesk ID': 'Too long to be a RustDesk ID',
+  '还没填 RustDesk ID': 'No RustDesk ID entered yet',
+  'ID 里有看不见的控制字符，请重新输入':
+      'The ID contains invisible control characters; type it again',
+  '这里只填 ID，不要粘贴链接': 'Enter only the ID here, not a link',
+  '不支持在 ID 后面带服务器或密钥：用哪台服务器请在 RustDesk 里配置':
+      'A server or key after the ID is not supported: choose the server inside RustDesk',
+  '不支持在 ID 结尾加 /r 强制中继：请在 RustDesk 里设置':
+      'Ending the ID with /r to force relay is not supported: set that inside RustDesk',
+  '不支持按 IP 或域名直连，只能填 RustDesk ID':
+      'Direct connection by IP or domain is not supported; enter a RustDesk ID',
+  'ID 只能是纯数字（最多 16 位），或字母开头、共 6 到 16 位的字母、数字、下划线、连字符':
+      'The ID must be digits only (up to 16), or 6 to 16 letters, digits, underscores or hyphens starting with a letter',
+  // 下面六条是 RustDeskBridge.kt 的报错，经 PlatformException 显示在界面上。
+  '只发 RustDesk 的连接链接': 'Only RustDesk connection links are sent',
+  '没有指定要交给哪个 RustDesk': 'No RustDesk app was given to hand the request to',
+  '要交给的那个 RustDesk 已经不在手机上了':
+      'The RustDesk app the request was meant for is no longer on this phone',
+  'RustDesk 的签名证书和核对过的不一致，没有发送':
+      'The signing certificate of RustDesk differs from the checked one; nothing was sent',
+  'RustDesk 没有接收这个请求（版本可能太旧，或被停用了）':
+      'RustDesk did not accept this request (it may be too old or disabled)',
+  '系统不允许打开 RustDesk': 'The system does not allow opening RustDesk',
+  // X07 状态机（rustdesk.dart）的拒绝原因。带插值的在片段表最前面。
+  '确认期间这个 App 有变化（更新、换签或卸载），没有信任。请重新核对。':
+      'This app changed while you were confirming (update, new signature or uninstall), so it was not trusted. Check it again.',
+  '这台主机还没有填 RustDesk ID': 'This host has no RustDesk ID yet',
+  'RustDesk 联动目前只支持 Android': 'RustDesk integration is Android only for now',
+  'RustDesk 联动目前只支持 Android。': 'RustDesk integration is Android only for now.',
+  '没有装 RustDesk': 'RustDesk is not installed',
+  '还没核对过手机上这个 RustDesk 的签名证书':
+      'The signing certificate of RustDesk on this phone has not been checked yet',
+  '你信任的那个 RustDesk 换了签名证书，要重新核对':
+      'The RustDesk you trusted has a different signing certificate; check it again',
+  '这个 RustDesk 由多张证书签名，暂不支持':
+      'This RustDesk is signed by several certificates, which is not supported yet',
+  '这个 RustDesk 由多张证书签名，暂不支持。':
+      'This RustDesk is signed by several certificates, which is not supported yet.',
+  '还没检查手机上的 RustDesk': 'RustDesk on this phone has not been checked yet',
+  // X07 界面（rustdesk_screen.dart、设置页入口）。
+  '交给手机上装的 UU 远程或 RustDesk 去控制电脑':
+      'Hand off to UU Remote or RustDesk on this phone to control a computer',
+  '检查手机上的 RustDesk、核对证书、管理各主机的 RustDesk ID':
+      "Check RustDesk on this phone, verify its certificate, manage each host's RustDesk ID",
+  '远控画面、密码、服务器设置和网络都在 RustDesk 里，本 App 只把这台主机的 RustDesk ID 交给它。RustDesk 不向本 App 回报结果：连没连上、什么时候断开，都要在 RustDesk 里看。':
+      "The remote screen, password, server settings and network all live in RustDesk; this app only hands it this host's RustDesk ID. RustDesk reports nothing back to this app: whether it connected and when it disconnected can only be seen in RustDesk.",
+  'RustDesk 调用现在不可用：': 'RustDesk launcher is unavailable right now: ',
+  'RustDesk 不走这台主机的代理或跳板':
+      "RustDesk does not use this host's proxy or jump hosts",
+  '这台主机的 SSH 经代理或跳板连接。RustDesk 用它自己配置的 ID 服务器和中继，不会经过这些设置。如果你要求远控也必须走同一条路线，RustDesk 做不到，请取消。':
+      "This host's SSH goes through a proxy or jump hosts. RustDesk uses the ID server and relay configured inside it and does not go through them. If remote control must take the same route, RustDesk cannot do that; cancel.",
+  '用 RustDesk 自己的网络继续': "Continue on RustDesk's own network",
+  '删除这台主机的 RustDesk ID？': "Delete this host's RustDesk ID?",
+  '只删本 App 里的这条关联。主机、它的 SSH 设置和别的关联都不动；RustDesk 里的设备、密码和服务器设置也不受影响。':
+      'Deletes only this link in this app. The host, its SSH settings and other links stay; devices, passwords and server settings in RustDesk are not affected.',
+  '这台主机的 RustDesk ID': "This host's RustDesk ID",
+  '在被控电脑的 RustDesk 主界面上看「ID」，照着填。只填 ID：密码到 RustDesk 里输，本 App 不保存、也不传密码。':
+      'Find "ID" on the main screen of RustDesk on the computer to be controlled and copy it here. Enter only the ID: type the password in RustDesk; this app neither stores nor sends passwords.',
+  '保存只是记下 ID，不会打开 RustDesk，也不会连接。':
+      'Saving only records the ID; it does not open RustDesk or connect.',
+  '保存时间：': 'Saved at: ',
+  '这台主机的 SSH 经代理或跳板；RustDesk 不走这条路线，用它自己的网络。':
+      "This host's SSH goes through a proxy or jump hosts; RustDesk does not take that route and uses its own network.",
+  '用 RustDesk 远控': 'Remote control with RustDesk',
+  '改 ID': 'Change ID',
+  '交给了：': 'Handed to: ',
+  '在保险库里点开一台主机，选「RustDesk」来填 ID 和发起远控。':
+      'Open a host in the vault and choose "RustDesk" to enter its ID and start remote control.',
+  '已填 RustDesk ID 的主机': 'Hosts with a RustDesk ID',
+  '还没有主机填过 RustDesk ID。': 'No host has a RustDesk ID yet.',
+  '手机上的 RustDesk': 'RustDesk on this phone',
+  '没有装 RustDesk：': 'RustDesk is not installed: ',
+  '请从 RustDesk 的 GitHub 发行页或 F-Droid 安装。装好后回到这里。':
+      "Install it from RustDesk's GitHub releases page or F-Droid, then come back here.",
+  '装着的 RustDesk 版本太旧：': 'The installed RustDesk is too old: ',
+  '从这个版本起 RustDesk 才接受别的 App 发来的连接请求，请先更新：':
+      'RustDesk accepts connection requests from other apps only from this version on; update first: ',
+  '这张证书不是本 App 核对过的发行渠道证书（GitHub 发行版、F-Droid）。应用商店重新签名的、自己编译的、冒牌的，本 App 分不出来。只有在你确定它的来源时才批准；批准后证书再变，本 App 会停下来让你重新核对。':
+      'This certificate is not one of the release-channel certificates this app has checked (GitHub releases, F-Droid). This app cannot tell a store-resigned build, a self-built one and a fake apart. Approve it only if you are sure where it came from. If the certificate changes after approval, this app stops and asks you to check again.',
+  '你信任的那个 RustDesk 换了签名证书：可能是换了渠道重装，也可能是冒牌的。核对之前不会再发任何请求。':
+      'The RustDesk you trusted has a different signing certificate: it may have been reinstalled from another source, or it may be fake. No request is sent until you check it.',
+  '撤销信任': 'Revoke trust',
+  '签名证书和 GitHub 官方发行版的一致。':
+      'The signing certificate matches the official GitHub release.',
+  '签名证书和 F-Droid 构建的一致。': 'The signing certificate matches the F-Droid build.',
+  '这是你明确信任的客户端。本 App 没有核对过它的来源。':
+      'This is a client you explicitly trusted. This app has not checked where it came from.',
+  '这个版本的连接链接按源码核对过。':
+      'The connection link for this version was checked against its source code.',
+  '这个版本能用，但它会执行任何 App 或网页发来的改密码、改服务器链接。建议更新 RustDesk，这个版本起默认不再执行：':
+      'This version works, but it runs links from any app or web page that change its password or server. Updating RustDesk is recommended; from this version on such links are off by default: ',
+  '这个版本比本 App 核对过的新，没有核对过。连接链接仍按原来的写法发；打不开或连错了，先怀疑这里。核对过的最高版本：':
+      'This version is newer than any this app has checked. The connection link is still sent in the known form; if it fails to open or connects wrongly, suspect this first. Highest version checked: ',
+  '看不懂这个版本号，没法和核对过的版本对照。连接链接按核对过的写法发。':
+      'The version number cannot be read, so it cannot be compared with the checked versions. The connection link is sent in the checked form.',
+  '另有 App 也声明能打开 rustdesk://：': 'Another app also claims rustdesk://: ',
+  '本 App 不会把请求发给它，除非你明确信任它。':
+      'This app never sends requests to it unless you explicitly trust it.',
+  '本 App 不会把请求发给它。它由多张证书签名，也没法信任。':
+      'This app never sends requests to it. It is signed by several certificates, so it cannot be trusted either.',
+  '信任并改用': 'Trust and use it',
+  '信任这个 App、改用它来远控？': 'Trust this app and use it for remote control?',
+  '之后远控请求（里面有 RustDesk ID）会发给它，不再发给官方包名的 RustDesk。只有当它是你自己编译的、或你信得过的 RustDesk 客户端时才信任。它的证书以后变了，本 App 会停下来让你重新核对。':
+      'From now on remote-control requests (which contain the RustDesk ID) go to it instead of the RustDesk with the official package name. Trust it only if it is a RustDesk client you built yourself or otherwise trust. If its certificate changes later, this app stops and asks you to check again.',
+  '没能打开 RustDesk：': 'Could not open RustDesk: ',
+  '已交给 RustDesk。它不向本 App 回报结果：连没连上、什么时候断开，请看 RustDesk。':
+      'Handed to RustDesk. It reports nothing back to this app: check RustDesk to see whether it connected and when it disconnected.',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // X07：带插值的 RustDesk 提示，按片段翻。放最前，免得先被「版本」「关联」这类通用词拆碎。
+  ('读取 RustDesk 关联失败：', 'Failed to read RustDesk links: '),
+  (
+    'RustDesk 版本太旧，不接受别的 App 发来的连接请求，最低要求：',
+    'RustDesk is too old to accept connection requests from other apps; minimum version: '
+  ),
+  ('RustDesk 调用（内置）', 'RustDesk launcher (built-in)'),
   // X05：关联被拒时带主机名，按片段翻。放最前，免得先被「主机」「设备」这类通用词拆碎。
   ('这台设备已经关联了主机：', 'This device is already linked to host: '),
   // X06 界面：多行拼接的说明（运行时是整句，精确表对不上，按片段翻）。句子都长而独特，不会误伤别处。

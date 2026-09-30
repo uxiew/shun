@@ -25,7 +25,11 @@ abstract final class BuiltinPlugins {
   /// 发起绑定和远控、校验回调，所以随 App 发布，不另出 APK（docs/15 §1）。
   static const uuremote = 'builtin.uuremote';
 
-  static const ids = {ssh, route, tailscale, uuremote};
+  /// RustDesk 的调用适配器（X07）。远控在手机上装的 RustDesk 客户端里，这里只在用户点了之后发一条连接链接，
+  /// 不含 RustDesk 的任何代码，所以随 App 发布，不另出 APK。内嵌画面是另一回事（R38）。
+  static const rustdesk = 'builtin.rustdesk';
+
+  static const ids = {ssh, route, tailscale, uuremote, rustdesk};
 
   static final List<PluginDescriptor> descriptors = [
     PluginDescriptor.fromMap({
@@ -106,6 +110,26 @@ abstract final class BuiltinPlugins {
         Permission.userInitiatedExternalLaunch.wire,
         Permission.ownProviderState.wire,
       ],
+      'license': 'GPL-3.0-or-later',
+    }),
+    PluginDescriptor.fromMap({
+      'schemaVersion': 1,
+      'pluginId': rustdesk,
+      'displayName': 'RustDesk 调用（内置）',
+      'version': '1.0.0',
+      'apiMajor': hostApiMajor,
+      'apiMinor': hostApiMinor,
+      'deployment': Deployment.bundled.wire,
+      'capabilities': [Capability.remoteDesktopExternal.wire],
+      // RustDesk 用它自己配置的 ID 服务器和中继，不经过任何主机配置的代理或跳板（RDX04）。
+      'supportedRoutes': [RouteSupport.providerManaged.wire],
+      'platforms': [Platform.android.name],
+      // 只在用户点了之后拉起 RustDesk；自己保存的只有每台主机对应的 RustDesk ID 和用户信任的客户端。
+      'permissions': [
+        Permission.userInitiatedExternalLaunch.wire,
+        Permission.ownProviderState.wire,
+      ],
+      // 这是本 App 里适配器代码的许可。RustDesk 客户端本身是 AGPL，不在本 App 里。
       'license': 'GPL-3.0-or-later',
     }),
   ];
