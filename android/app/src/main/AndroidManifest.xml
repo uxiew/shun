@@ -37,8 +37,18 @@
                 <category android:name="android.intent.category.BROWSABLE" />
                 <data android:scheme="ssh" />
             </intent-filter>
-            <!-- UU 远程绑定/小窗远控的回调（X06）。自定义 scheme 谁都能声明：回调只靠一次性 state/nonce 对请求，
-                 证明不了真是 UU 发的，所以绑定结果一律要用户确认，回调后不自动远控。 -->
+        </activity>
+        <!-- UU 远程绑定/小窗远控的回调（X06）。自定义 scheme 谁都能声明：回调只靠一次性 state/nonce 对请求，
+             证明不了真是 UU 发的，所以绑定结果一律要用户确认，回调后不自动远控。
+             单独一个过路 Activity 接、不进最近任务不留历史：回调地址里有加密设备标识，
+             让 MainActivity 直接接的话系统会把整条地址记在任务上（见 UuCallbackActivity.kt）。 -->
+        <activity
+            android:name=".UuCallbackActivity"
+            android:exported="true"
+            android:excludeFromRecents="true"
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@android:style/Theme.NoDisplay">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />

@@ -21,20 +21,17 @@ class MainActivity : FlutterActivity() {
     private var uuRemoteBridge: UuRemoteBridge? = null
 
     /**
-     * UU 远程的回调（X06）可能在 App 没运行时把它拉起来，也可能在运行中送到 onNewIntent：
-     * 两个入口都先交给 UuRemoteBridge 排队，再由 Dart 的同一个校验器处理。
-     * 截下来的 Intent 去掉 data 再交给 Flutter，否则 Flutter 会把回调地址当成深链路由。
+     * UU 远程的回调（X06）不由这里接，由 UuCallbackActivity 接（原因写在那里）。
+     * 这里只防一种情况：别的 App 用显式组件名把回调地址直接塞给 MainActivity。那不是 UU 回调的正常路径，
+     * 不当回调处理；data 要去掉，否则 Flutter 会把它当成深链路由。
      */
     override fun onCreate(savedInstanceState: Bundle?) {
-        if (UuRemoteBridge.capture(intent)) intent = UuRemoteBridge.stripped(intent)
+        if (UuRemoteBridge.isCallback(intent)) intent = UuRemoteBridge.stripped(intent)
         super.onCreate(savedInstanceState)
     }
 
     override fun onNewIntent(intent: Intent) {
-        if (UuRemoteBridge.capture(intent)) {
-            setIntent(UuRemoteBridge.stripped(intent))
-            return
-        }
+        if (UuRemoteBridge.isCallback(intent)) return
         super.onNewIntent(intent)
     }
 

@@ -17,7 +17,7 @@ import top.xdwa.xwshun.plugin.v1.SignerDigests
  *
  * 这里只做系统层面的事：查谁能打开 `uuremote://`、读官方包的版本和系统报告的证书、用显式包名发请求、
  * 把收到的回调原文排队交给 Dart。**回调的校验（state、nonce、格式）全部在 Dart**，这里不重复一套规则；
- * 冷启动和 App 已在运行时收到的回调走同一个队列、同一个校验器。
+ * 冷启动和 App 已在运行时收到的回调走同一个队列、同一个校验器。回调由 UuCallbackActivity 接，不经 MainActivity。
  *
  * 不写日志：回调里有 UU 的加密设备标识，按敏感值处理。
  */
@@ -43,24 +43,24 @@ class UuRemoteBridge(
         private val queue = ArrayDeque<String>()
         private var instance: UuRemoteBridge? = null
 
+        fun isCallback(intent: Intent?): Boolean =
+            intent?.action == Intent.ACTION_VIEW && intent.data?.scheme == CALLBACK_SCHEME
+
         /**
-         * MainActivity 收到任何 Intent 都先问这里。是本 App 的 UU 回调就收下、返回 true，
-         * 调用方要把 Intent 里的 data 去掉：不去掉的话 Flutter 会把它当深链路由再处理一次。
+         * UuCallbackActivity 收到回调时调用：原文排队，等 Dart 来取（App 是被回调拉起来的时候，Dart 还没起来）。
          *
-         * 从「最近任务」重新打开时系统会把当初的 Intent 原样再给一次，那不是新回调，直接丢。
+         * 从「最近任务」重新打开时系统会把当初的 Intent 原样再给一次，那不是新回调，直接丢
+         * （UuCallbackActivity 不进最近任务，按理不会发生；清单哪天被改了这里还能兜住）。
          * 队列有上限：被人连发一堆伪造回调也只占这么点内存，反正对不上请求的都会被 Dart 忽略。
          */
-        fun capture(intent: Intent?): Boolean {
-            val data = intent?.data ?: return false
-            if (intent.action != Intent.ACTION_VIEW || data.scheme != CALLBACK_SCHEME) return false
-            val fromHistory = intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0
-            val raw = data.toString()
-            if (!fromHistory && raw.length <= MAX_CALLBACK_CHARS) {
-                while (queue.size >= MAX_QUEUED) queue.removeFirst()
-                queue.addLast(raw)
-                instance?.channel?.invokeMethod("callbacksAvailable", null)
-            }
-            return true
+        fun capture(intent: Intent?) {
+            if (!isCallback(intent)) return
+            val fromHistory = intent!!.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0
+            val raw = intent.data.toString()
+            if (fromHistory || raw.length > MAX_CALLBACK_CHARS) return
+            while (queue.size >= MAX_QUEUED) queue.removeFirst()
+            queue.addLast(raw)
+            instance?.channel?.invokeMethod("callbacksAvailable", null)
         }
 
         /** 去掉 data 的同一个 Intent：Flutter 看到的就是普通启动。 */
