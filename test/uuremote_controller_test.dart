@@ -378,6 +378,51 @@ void main() {
       expect(c.state.offer, isNull);
     });
 
+    // scheme 劫持：自定义 scheme 谁都能声明，回调本身证明不了是谁发的。能做的是发现「有别的 App 也声明了」就不走回调。
+    const withRival = UuProbe(
+      platformSupported: true,
+      officialInstalled: true,
+      officialHandlesScheme: true,
+      versionName: '4.42.0',
+      signers: {'cert-a'},
+      callbackRivals: ['example.hijacker'],
+    );
+
+    test('别的 App 也声明了回调地址：绑定和小窗不发，说出是哪个包；全屏照常', () async {
+      await bound('h1');
+      final before = platform.launched.length;
+      platform.probeResult = withRival;
+      await expectLater(
+        c.startBind('h1'),
+        throwsA(isA<UuRequestRefused>()
+            .having((e) => e.message, 'message', contains('example.hijacker'))),
+      );
+      await expectLater(
+          c.launch('h1', UuWindow.pip), throwsA(isA<UuRequestRefused>()));
+      expect(platform.launched, hasLength(before));
+      expect(c.state.pending, isNull);
+      expect(c.state.callbackRivals, ['example.hijacker']);
+
+      await c.launch('h1', UuWindow.fullscreen);
+      expect(platform.launched, hasLength(before + 1));
+    });
+
+    test('请求发出后才装上抢回调的 App：state、nonce 都对的成功回调也不采用，不给确认', () async {
+      await c.startBind('h1');
+      final uri = platform.launched.single;
+      platform.probeResult = withRival;
+      // 它截下真回调，把设备标识换成自己的再转过来。
+      platform.deliver(callbackFor(uri, {
+        'anonymous_device_id': 'attacker-device',
+        'nonce': queryOf(uri)['nonce']!,
+      }));
+      await settle();
+      expect(c.state.offer, isNull);
+      expect(c.state.pending, isNull);
+      expect(c.state.attempts['h1']!.code, uuCallbackContested);
+      expect(backend.values['uuremote.bindings.v1'], isNull);
+    });
+
     test('冷启动：请求存盘，新进程里回调照样对得上', () async {
       await c.startBind('h1');
       final uri = platform.launched.single;

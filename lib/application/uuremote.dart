@@ -282,10 +282,14 @@ class UuRemoteState {
     this.attempts = const {},
     this.notice,
     this.loaded = false,
+    this.callbackRivals = const [],
   });
 
   /// null：还没探测过。
   final UuAppStatus? app;
+
+  /// 最近一次探测到的、也声明了本 App 回调地址的其他包（见 [UuProbe.callbackRivals]）。
+  final List<String> callbackRivals;
   final List<UuBinding> bindings;
   final UuPendingRequest? pending;
   final UuBindOffer? offer;
@@ -308,8 +312,10 @@ class UuRemoteState {
     Map<String, UuAttempt>? attempts,
     String? Function()? notice,
     bool? loaded,
+    List<String>? callbackRivals,
   }) =>
       UuRemoteState(
+        callbackRivals: callbackRivals ?? this.callbackRivals,
         app: app ?? this.app,
         bindings: bindings ?? this.bindings,
         pending: pending == null ? this.pending : pending(),
@@ -367,6 +373,10 @@ RequestedRoute sshRouteOf(HostProfile host) {
 /// [UuAttempt.code] 的本地取值：UU 返回了设备，但用户没保存。和 UU 的错误码不重名。
 const uuDiscardedByUser = 'xwshun_discarded_by_user';
 
+/// [UuAttempt.code] 的本地取值：绑定成功的回调到达时，手机上有别的 App 也声明了本 App 的回调地址，
+/// 返回的设备没有采用（原因见 [UuRemoteController] 的说明）。
+const uuCallbackContested = 'xwshun_callback_contested';
+
 /// 本地最长等 UU 回调多久。官方：未登录排队最长 180 秒；前置拦截弹窗要用户点了才回调、没有超时。留足余量。
 const uuPendingLifetime = Duration(minutes: 10);
 
@@ -375,6 +385,8 @@ const uuPendingLifetime = Duration(minutes: 10);
 /// - 每个操作先向 registry 要 `builtin.uuremote` 的外部拉起能力。
 /// - 请求只发给已核对证书的官方包；同一时刻只有一个等回调的请求，新请求要等旧的结束或用户结束等待。
 /// - 回调只认 state（和绑定的 nonce）对得上、没过期、没用过的；对上就作废，第二次来就是重放。
+/// - 手机上有别的 App 也声明了本 App 的回调地址时，要靠回调的请求（绑定、小窗）不发，绑定成功的回调不采用：
+///   自定义 scheme 证明不了回调是谁发的，那个 App 能截走回调、换掉设备标识再转给本 App。
 /// - 绑定成功不直接保存，先给用户确认挂到哪台主机；回调之后从不自动发起远控。
 /// - 全屏只显示「已交给 UU 远程」；小窗只显示 UU 报告的结果和时间。
 class UuRemoteController extends StateNotifier<UuRemoteState> {
@@ -452,7 +464,10 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
     final probe = await _platform.probe();
     final approved = await _store.approvedSigner();
     if (!mounted) return;
-    state = state.copyWith(app: evaluateUuApp(probe, approvedSigner: approved));
+    state = state.copyWith(
+      app: evaluateUuApp(probe, approvedSigner: approved),
+      callbackRivals: probe.callbackRivals,
+    );
   }
 
   /// 用户看过证书后批准。只能批准此刻系统读出的那张。
@@ -481,6 +496,7 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
   Future<void> startBind(String hostId) => _serial(() async {
         _require();
         final signer = await _readySigner();
+        _requireNoRivals();
         await _requireNoPending();
         final host = await _hostOf(hostId);
         // 上一次回来、还没确认的绑定作废：用户重新发起，就是不要它了。
@@ -550,6 +566,7 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
           );
           return;
         }
+        _requireNoRivals();
         await _requireNoPending();
         final now = _now();
         final request = UuPendingRequest(
@@ -669,6 +686,14 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
         throw const UuRequestRefused('这个 UU 远程由多张证书签名，暂不支持'),
       null => throw const UuRequestRefused('还没检查手机上的 UU 远程'),
     };
+  }
+
+  /// 调用前 [_readySigner] 刚探测过。全屏不带回调，不用查这个。
+  void _requireNoRivals() {
+    final rivals = state.callbackRivals;
+    if (rivals.isEmpty) return;
+    throw UuRequestRefused(
+        '另有 App 也声明了本 App 的 UU 回调地址，UU 的回报可能被它截走或冒充。先卸载它再试：${rivals.join(', ')}');
   }
 
   Future<void> _requireNoPending() async {
@@ -801,6 +826,13 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
         }
         if (error != null) {
           _setAttempt(pending.hostId, failed(error));
+          return;
+        }
+        // 发请求时查过一次，这里再查：请求发出之后才装上的也要防。此刻有别的包声明了回调地址，
+        // 这条「成功」就可能是它截下、换了设备标识再转来的（state 和 nonce 它都看得到），不给用户确认。
+        await _refresh();
+        if (state.callbackRivals.isNotEmpty) {
+          _setAttempt(pending.hostId, failed(uuCallbackContested));
           return;
         }
         _setAttempt(

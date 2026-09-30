@@ -259,6 +259,41 @@ void main() {
     expect(find.textContaining('没有对应的请求'), findsOneWidget);
   });
 
+  testWidgets('UUR06：别的 App 也声明了回调地址，页面说出包名，绑定和小窗不能点，全屏能点；卸载后回到 App 自动恢复',
+      (tester) async {
+    await open(tester, const UuRemoteHostScreen(hostId: 'win'));
+    await approveAndBind(tester);
+    final clean = platform.probeResult;
+    platform.probeResult = UuProbe(
+      platformSupported: true,
+      officialInstalled: true,
+      officialHandlesScheme: true,
+      versionName: '4.42.0',
+      signers: clean.signers,
+      callbackRivals: const ['example.hijacker'],
+    );
+    // 用户切出去又回来（比如装了个 App）：回到前台时重查。
+    Future<void> leaveAndReturn() async {
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.inactive);
+      tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
+      await tester.pumpAndSettle();
+    }
+
+    await leaveAndReturn();
+    expect(find.byKey(const ValueKey('uu-callback-rivals')), findsOneWidget);
+    expect(find.textContaining('example.hijacker'), findsOneWidget);
+    VoidCallback? pressed<T extends ButtonStyleButton>(String key) =>
+        tester.widget<T>(find.byKey(ValueKey(key))).onPressed;
+    expect(pressed<OutlinedButton>('uu-bind'), isNull);
+    expect(pressed<OutlinedButton>('uu-launch-pip'), isNull);
+    expect(pressed<FilledButton>('uu-launch-fullscreen'), isNotNull);
+
+    platform.probeResult = clean;
+    await leaveAndReturn();
+    expect(find.byKey(const ValueKey('uu-callback-rivals')), findsNothing);
+    expect(pressed<OutlinedButton>('uu-bind'), isNotNull);
+  });
+
   testWidgets('保险库的主机详情：Android 上有「UU 远程」入口', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     addTearDown(() => debugDefaultTargetPlatformOverride = null);
@@ -312,6 +347,26 @@ void main() {
       }
     }
     expect(find.textContaining('quantum_flux'), findsOneWidget);
+
+    // 回调地址被别的 App 也声明：提醒卡片，和请求发出后才出现时的「没有采用」。
+    final clean = platform.probeResult;
+    await tester.tap(find.byKey(const ValueKey('uu-bind')));
+    await tester.pumpAndSettle();
+    platform.probeResult = UuProbe(
+      platformSupported: true,
+      officialInstalled: true,
+      officialHandlesScheme: true,
+      versionName: '4.42.0',
+      signers: clean.signers,
+      callbackRivals: const ['example.hijacker'],
+    );
+    final bind = platform.launched.last;
+    platform.deliver(callbackFor(
+        bind, {'anonymous_device_id': id, 'nonce': queryOf(bind)['nonce']!}));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('uu-callback-rivals')), findsOneWidget);
+    expect(find.byKey(const ValueKey('uu-offer-confirm')), findsNothing);
+    noHan();
 
     await tester.pumpWidget(const SizedBox());
     await open(tester, const UuRemoteSettingsScreen());

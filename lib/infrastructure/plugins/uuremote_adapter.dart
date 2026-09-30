@@ -296,6 +296,7 @@ class UuProbe {
     this.versionCode,
     this.signers = const {},
     this.otherHandlers = const [],
+    this.callbackRivals = const [],
   });
 
   /// 目前只做了 Android。
@@ -310,6 +311,10 @@ class UuProbe {
 
   /// 也声明能打开 `uuremote://` 的其他包。请求不会发给它们，只用来提醒用户。
   final List<String> otherHandlers;
+
+  /// 也声明了本 App 回调地址（`xwshun-uuremote://callback`）的其他包。自定义 scheme 谁都能声明：
+  /// 有这样的包时，UU 回调会让系统弹「用哪个 App 打开」，选到它，回调（含加密设备标识）就到了它手里（UUR06）。
+  final List<String> callbackRivals;
 }
 
 /// 此刻能不能把请求交给手机上的 UU 远程。
@@ -482,6 +487,10 @@ class AndroidUuRemotePlatform implements UuRemotePlatform {
       },
       otherHandlers: [
         for (final s in (map['otherHandlers'] as List? ?? const []))
+          if (s is String) s,
+      ],
+      callbackRivals: [
+        for (final s in (map['callbackRivals'] as List? ?? const []))
           if (s is String) s,
       ],
     );

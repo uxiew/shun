@@ -82,5 +82,11 @@
             <data android:scheme="uuremote" android:host="external" />
         </intent>
         <package android:name="com.netease.uuremote" />
+        <!-- 查有没有别的 App 也声明了本 App 的 UU 回调地址（UUR06）。不写这条，那样的 App 对本 App 不可见，
+             也就没法在绑定前提醒。queries 里不能写 path，系统按「任意 path」匹配。 -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="xwshun-uuremote" android:host="callback" />
+        </intent>
     </queries>
 </manifest>

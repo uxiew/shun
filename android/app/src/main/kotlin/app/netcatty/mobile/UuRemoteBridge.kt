@@ -106,9 +106,16 @@ class UuRemoteBridge(
         val handlers = queryActivities(Intent(Intent.ACTION_VIEW, Uri.parse("uuremote://external")))
             .map { it.activityInfo.packageName }
             .distinct()
+        // 别的 App 也声明了本 App 的回调地址：UU 回调时系统会让用户选 App，选到它回调就到了别人手里（UUR06）。
+        // 查法和 UU 发回调时系统的解析一致（隐式 VIEW、只算 DEFAULT 类别）。
+        val rivals = queryActivities(Intent(Intent.ACTION_VIEW, Uri.parse("$CALLBACK_SCHEME://callback/bind")))
+            .map { it.activityInfo.packageName }
+            .distinct()
+            .filter { it != activity.packageName }
         val out = mutableMapOf<String, Any?>(
             "handlesScheme" to (UU_PACKAGE in handlers),
             "otherHandlers" to handlers.filter { it != UU_PACKAGE },
+            "callbackRivals" to rivals,
         )
         try {
             val info = pm.getPackageInfo(UU_PACKAGE, 0)

@@ -970,6 +970,12 @@ const englishTranslations = <String, String>{
   '等待期间 UU 退出了登录': 'UU logged out while waiting',
   'UU 远程内部出错': 'UU Remote had an internal error',
   '你没有保存这次绑定': 'You did not save this binding',
+  '另有 App 也声明了本 App 的 UU 回调地址，这次返回的设备不可信，没有采用':
+      "Another app also claims this app's UU callback address, so the returned device cannot be trusted and was not used",
+  '另有 App 也声明了本 App 的 UU 回调地址：':
+      "Another app also claims this app's UU callback address: ",
+  'UU 的回报可能被它截走或冒充，所以绑定和小窗远控现在不发；全屏远控不受影响。卸载它之后回到这里。':
+      "It could intercept or fake UU's replies, so binding and picture-in-picture are not sent for now; full-screen remote control is unaffected. Uninstall it, then come back here.",
   'UU 正在远控别的设备，或在做不能同时进行的事':
       'UU is controlling another device or doing something that cannot run at the same time',
   '目标电脑离线': 'The target computer is offline',
@@ -1072,6 +1078,10 @@ const englishReplacements = <(String, String)>[
   ('处理 UU 回调时出错：', 'Error while handling a UU callback: '),
   ('读取 UU 绑定失败：', 'Failed to read UU bindings: '),
   ('UU 远程版本太旧，最低要求：', 'UU Remote is too old; minimum version: '),
+  (
+    '另有 App 也声明了本 App 的 UU 回调地址，UU 的回报可能被它截走或冒充。先卸载它再试：',
+    "Another app also claims this app's UU callback address and could intercept or fake UU's replies. Uninstall it and try again: "
+  ),
   (
     '回调参数超长或含控制字符：',
     'Callback parameter too long or contains control characters: '

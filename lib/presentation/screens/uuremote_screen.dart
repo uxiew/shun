@@ -234,6 +234,8 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
     final waitingElsewhere = pending != null && !waitingHere;
     final ready = uu.app is UuReady;
     final canSend = ready && !_busy && pending == null;
+    // 绑定和小窗要靠回调地址收结果；地址被别的 App 也声明了就不发（全屏不带回调，照常）。
+    final canSendWithCallback = canSend && uu.callbackRivals.isEmpty;
     final attempt = uu.attempts[widget.hostId];
     return Scaffold(
       appBar: AppBar(
@@ -246,6 +248,7 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
           LText(_limits, style: small),
           const SizedBox(height: 12),
           UuAppStatusCard(app: uu.app),
+          UuCallbackRivalsNote(rivals: uu.callbackRivals),
           const SizedBox(height: 12),
           if (host == null)
             const LText('这台主机已不在保险库里。')
@@ -298,8 +301,9 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
                           ),
                           OutlinedButton.icon(
                             key: const ValueKey('uu-launch-pip'),
-                            onPressed:
-                                canSend ? () => _launch(UuWindow.pip) : null,
+                            onPressed: canSendWithCallback
+                                ? () => _launch(UuWindow.pip)
+                                : null,
                             icon: const Icon(
                                 Icons.picture_in_picture_alt_outlined),
                             label: const LText('小窗远控'),
@@ -307,7 +311,7 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
                         ],
                         OutlinedButton.icon(
                           key: const ValueKey('uu-bind'),
-                          onPressed: canSend
+                          onPressed: canSendWithCallback
                               ? () => _run(() => _uu.startBind(widget.hostId))
                               : null,
                           icon: const Icon(Icons.link),
@@ -422,6 +426,7 @@ class _UuRemoteSettingsScreenState
           LText('在保险库里点开一台主机，选「UU 远程」来绑定和发起远控。', style: small),
           const SizedBox(height: 12),
           UuAppStatusCard(app: uu.app),
+          UuCallbackRivalsNote(rivals: uu.callbackRivals),
           const SizedBox(height: 16),
           const LText('绑定'),
           if (uu.bindings.isEmpty)
@@ -592,6 +597,34 @@ class UuAppStatusCard extends ConsumerWidget {
   }
 }
 
+/// 别的 App 也声明了本 App 的 UU 回调地址时的提醒（UUR06）。没有就不占地方。
+class UuCallbackRivalsNote extends StatelessWidget {
+  const UuCallbackRivalsNote({super.key, required this.rivals});
+  final List<String> rivals;
+
+  @override
+  Widget build(BuildContext context) {
+    if (rivals.isEmpty) return const SizedBox.shrink();
+    return Card(
+      key: const ValueKey('uu-callback-rivals'),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            catalogLine('另有 App 也声明了本 App 的 UU 回调地址：', rivals.join(', ')),
+            const SizedBox(height: 4),
+            LText(
+              'UU 的回报可能被它截走或冒充，所以绑定和小窗远控现在不发；全屏远控不受影响。卸载它之后回到这里。',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
 /// 64 位十六进制按 4 位一组，方便和别处的证书对着看。
 String formatDigest(String hex) => [
       for (var i = 0; i < hex.length; i += 4)
@@ -608,6 +641,7 @@ String uuBindErrorText(String code) => switch (code) {
       UuBindErrors.logout => '等待期间 UU 退出了登录',
       UuBindErrors.internalError => 'UU 远程内部出错',
       uuDiscardedByUser => '你没有保存这次绑定',
+      uuCallbackContested => '另有 App 也声明了本 App 的 UU 回调地址，这次返回的设备不可信，没有采用',
       // 未知错误码、本 App 自己的拒收原因：原样显示，不猜含义。
       _ => code,
     };
