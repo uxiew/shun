@@ -25,7 +25,9 @@
 **实施进度、已做的改动和下一批只看 [STATUS.md](STATUS.md)**，本页不重复。规划检查结果不当App测试。
 
 ```bash
-python3 scripts/validate_plan.py
+../../../.toolchain/pyenv/bin/python3 scripts/validate_plan.py   # 在 plan/v3 下跑
 ```
+
+要用工具链里的 Python：系统自带的没有 jsonschema，结果会是 `"passed": false`、错误只有一条 `jsonschema missing`，看着像计划坏了，其实是 schema 检查没跑。
 
 只检查文档、schema示例、依赖与ID。包内无APK、真实凭据、字体文件或用户照片。目标仓库与 applicationId 已由所有者指定；正式名称、签名与发布仍待定（见 STATUS.md）。
