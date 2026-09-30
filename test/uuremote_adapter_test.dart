@@ -279,8 +279,25 @@ void main() {
           isA<UuSignerUnsupported>());
     });
 
-    test('官方证书还没固定（没核对过官方 APK）', () {
-      expect(UuRemoteProtocol.officialSigners, isEmpty);
+    test('固定的官方证书：那张证书签的 UU 不用批准；别的证书照样要批准', () {
+      // 从 uuyc.163.com 下载的 4.42.0 APK 读出的证书（docs/17）。写错一位就永远对不上，所以连格式一起查。
+      const pinned =
+          'bd6a3a04791d5ca2e08fb9d7bd82265893d25aa1cb0b6a205b5a2bb154874924';
+      expect(UuRemoteProtocol.officialSigners, {pinned});
+      for (final signer in UuRemoteProtocol.officialSigners) {
+        expect(signer, matches(RegExp(r'^[0-9a-f]{64}$')));
+      }
+      expect(
+        evaluateUuApp(installed(signers: {pinned})),
+        isA<UuReady>().having((r) => r.official, 'official', isTrue),
+      );
+      // 测试用的假 UU（测试密钥签的）不能因为有了官方证书就变成可用。
+      expect(evaluateUuApp(installed()), isA<UuSignerNeedsApproval>());
+      // 批准过别的证书的人装上官方包：认官方的，不报「换签」。
+      expect(
+        evaluateUuApp(installed(signers: {pinned}), approvedSigner: 'aa'),
+        isA<UuReady>().having((r) => r.official, 'official', isTrue),
+      );
     });
   });
 }

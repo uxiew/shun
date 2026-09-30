@@ -18,11 +18,17 @@ abstract final class UuRemoteProtocol {
   static const callbackScheme = 'xwshun-uuremote';
   static const callbackHost = 'callback';
 
-  /// 从官方渠道下载的 UU 远程 APK 读出的签名证书 SHA-256（小写十六进制，无分隔符）。
+  /// 官方 UU 远程 APK 的签名证书 SHA-256（小写十六进制，无分隔符）。手机上的 UU 是这张证书签的就直接可用。
   ///
-  /// 官方文档没有给证书，所以只能自己从官方 APK 读，不能猜。空集合表示还没核对过官方 APK：
-  /// 这时手机上的 UU 要用户看过证书后明确批准（和插件批准一样），证书以后再变就要重新批准。
-  static const officialSigners = <String>{};
+  /// 官方文档没有给证书，这一条是 2026-09-30 从 uuyc.163.com 下载的 4.42.0 APK 里读出来的
+  /// （证书主体 CN=LiZiQi, OU=netease, O=netease；出处和旁证见 plan/v3/docs/17「X06 固定的官方口径」）。
+  /// 网易没有公开确认过它，所以含义是「和官网下载的那个包同一张证书」。
+  ///
+  /// 手机上的证书不在这里时（网易换了签名，或装的不是官方包），要用户看过证书后明确批准，以后再变就重新批准。
+  /// 要加新证书只能从官方 APK 重新读，不能猜：`apksigner verify --print-certs <apk>`。
+  static const officialSigners = <String>{
+    'bd6a3a04791d5ca2e08fb9d7bd82265893d25aa1cb0b6a205b5a2bb154874924',
+  };
 
   static const bindErrors = {
     UuBindErrors.noDevice,
