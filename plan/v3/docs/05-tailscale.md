@@ -70,3 +70,5 @@ check授权链接只从已验证SSH主机的受控banner获取；显示原host�
 ## V3 provider归属
 
 首版实现内置DeviceCatalogProvider（插件体系中的bundled provider），不再为目录功能另装APK。控制面凭据局限该provider的私有存储/Host HTTP适配；Mosh和远控插件无权读取。目录节点与UU匿名ID、RustDesk peer ID只允许用户关联，任何一个provider刷新/失效不得覆盖另一个provider或SSH身份。
+
+X05 落地时定下的细则：provider ID 是 `builtin.tailscale`，路线只声明 system-default。设备引用是（来源 ID:设备 ID），来源 ID 和缓存文件名、凭据键、主机上的绑定是同一个值、同一条规则。SSH 主机 ↔ 目录设备的关联就是主机上的目录绑定，不另存。用户手动关联的主机不写 appliedAddress，所以地址永远不跟随目录。来源被移除后按原来源 ID 在本机恢复，是用户的明确操作，不算自动合并来源（TSC10 不变）。实现与验证见 evidence/X05.md。

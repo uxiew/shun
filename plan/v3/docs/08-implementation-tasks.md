@@ -868,7 +868,7 @@
 
 ## X05 Tailscale目录接入内置provider
 
-阶段：E1；状态：NOT_STARTED；依赖：X01, R13；角色：实施代理。
+阶段：E1；状态：DONE；依赖：X01, R13；角色：实施代理。
 
 **范围**：包装R11–R13既有目录实现，不重写HTTP；source IDs与设备关联/权限存储一致。
 

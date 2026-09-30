@@ -1878,7 +1878,7 @@
       "id": "X05",
       "phase": "E1",
       "title": "Tailscale目录接入内置provider",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "X01",
         "R13"
@@ -1907,8 +1907,10 @@
       ],
       "stop_condition": "不为简单目录功能生成额外APK。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/X05.md"
+      ],
+      "commit": "5a713bf"
     },
     {
       "id": "X06",
