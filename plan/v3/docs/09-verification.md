@@ -154,8 +154,8 @@ G0基线与关键风险；G1连接路线；G2目录及外部认证支持；G3 Gh
 |MOS06|活动UDP会话Wi-Fi/蜂窝切换、临时离线后回来。|存活runtime按协议恢复；宿主不重新bootstrap、不重放输入，失败状态真实。|NOT_RUN|
 |MOS07|运行时初始化失败/退出/崩溃/用户关闭，再尝试恢复（Dart与native各按选定方案）。|无自动重启远端server/同名tmux或重发命令，资源清理且有重新连接入口。|NOT_RUN|
 |MOS08|bootstrap恶意输出、超长内容、非法端口/注入、locale异常。|限界解析并失败关闭，临时key不入命令行日志/持久化，未支持locale明确报告。|NOT_RUN|
-|UUR01|UU未安装、版本不足、合法scheme但错误签名、非Windows/macOS目标。|拒绝或明确引导，不能把Linux入口假称可用。|NOT_RUN|
-|UUR02|绑定回调包含特殊字符ID、正确/错误nonce、重复参数和超长值。|严格一次解码与关联，用户确认后保存opaque引用；不解密/猜测内部ID。|NOT_RUN|
+|UUR01|UU未安装、版本不足、合法scheme但错误签名、非Windows/macOS目标。|拒绝或明确引导，不能把Linux入口假称可用。|PASS|
+|UUR02|绑定回调包含特殊字符ID、正确/错误nonce、重复参数和超长值。|严格一次解码与关联，用户确认后保存opaque引用；不解密/猜测内部ID。|PASS|
 |UUR03|window_type=0全屏发起后没有任何回调，用户返回主App。|仅显示已交给UU，不等待承诺不存在的回调，不自动标Active/失败重试。|BLOCKED|
 |UUR04|window_type=1分别回调success/failure、PiP不可用。|显示提供方报告状态，失败不自动切全屏后伪报成功，无持续在线假定。|BLOCKED|
 |UUR05|用户确认提示延迟、timeout、superseded、取消和未知reason。|请求串行，结果未确认可终止本地等待；迟到事件不覆盖新请求、不自动再次远控。|BLOCKED|

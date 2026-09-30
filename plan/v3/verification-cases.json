@@ -1293,7 +1293,7 @@
       "action": "UU未安装、版本不足、合法scheme但错误签名、非Windows/macOS目标。",
       "expected": "拒绝或明确引导，不能把Linux入口假称可用。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
       "evidence": [
         "evidence/X06.md"
@@ -1304,7 +1304,7 @@
       "action": "绑定回调包含特殊字符ID、正确/错误nonce、重复参数和超长值。",
       "expected": "严格一次解码与关联，用户确认后保存opaque引用；不解密/猜测内部ID。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
       "evidence": [
         "evidence/X06.md"

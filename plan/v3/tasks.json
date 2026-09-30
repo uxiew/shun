@@ -1916,7 +1916,7 @@
       "id": "X06",
       "phase": "E1",
       "title": "UU官方绑定、全屏与PiP适配",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "depends_on": [
         "X04"
       ],
@@ -1952,7 +1952,7 @@
       "evidence": [
         "evidence/X06.md"
       ],
-      "commit": null
+      "commit": "2dc20f1"
     },
     {
       "id": "X07",
