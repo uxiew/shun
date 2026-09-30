@@ -100,8 +100,8 @@
 | TSC02 | token过期、撤销、401、403、429以及无secret的短期导入模式。 | 受控刷新/暂停，不无限重试；保留缓存与主机，提示重新授权。 | PASS |
 | TSC03 | 目录字段缺失、未知设备OS、缺IP、错误类型、超大JSON与设备名控制字符。 | 容错或有界拒绝；unknown不显示为online/SSH-ready；不崩溃或执行内容。 | PASS |
 | TSC04 | 设备改名/换IP、同名不同id、旧id删除后同名重建。 | 按来源+id区分；用户route/username/trust不被覆盖；新主机不继承信任。 | PASS |
-| TSC05 | 完整/不完整快照、模拟分页、网络中断与合法空目录。 | 仅按确认schema分页；不因错误或空列表删除主机；显示缓存时间与不完整。 | NOT_RUN |
-| TSC06 | 目录可见但路由拒绝、端口关闭、设备离线/状态未知。 | 分别呈现目录/网络/SSH状态；导入不被标成连接成功。 | NOT_RUN |
+| TSC05 | 完整/不完整快照、模拟分页、网络中断与合法空目录。 | 仅按确认schema分页；不因错误或空列表删除主机；显示缓存时间与不完整。 | PASS |
+| TSC06 | 目录可见但路由拒绝、端口关闭、设备离线/状态未知。 | 分别呈现目录/网络/SSH状态；导入不被标成连接成功。 | PASS |
 | TSC07 | 相同100.x主机分别用普通OpenSSH和显式Tailscale SSH策略fixture。 | 不自动选择none；外部认证不提供key/password；源节点身份解释正确。 | NOT_RUN |
 | TSC08 | 外部auth check批准、拒绝、超时、取消、未知或恶意URL。 | 先host trust，用户确认后外部浏览器；不自动访问，不以返回App当授权成功。 | NOT_RUN |
 | TSC09 | 本地db、诊断、备份、同步、clipboard和错误对象搜索目录secret。 | secret只在受控存储/内存和官方请求；导出无secret；token不送SSH/代理。 | PASS |

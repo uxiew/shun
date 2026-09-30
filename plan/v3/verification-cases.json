@@ -533,7 +533,8 @@
       "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R10.md"
+        "evidence/R10.md",
+        "evidence/R13.md"
       ]
     },
     {
@@ -562,7 +563,8 @@
       "result": "NOT_RUN",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R10.md"
+        "evidence/R10.md",
+        "evidence/R13.md"
       ]
     },
     {
@@ -837,7 +839,8 @@
       "level": "硬门禁",
       "result": "PASS",
       "evidence": [
-        "evidence/R12.md"
+        "evidence/R12.md",
+        "evidence/R13.md"
       ],
       "inherited_from": null
     },
@@ -848,7 +851,8 @@
       "level": "硬门禁",
       "result": "PASS",
       "evidence": [
-        "evidence/R12.md"
+        "evidence/R12.md",
+        "evidence/R13.md"
       ],
       "inherited_from": null
     },
@@ -857,9 +861,10 @@
       "action": "完整/不完整快照、模拟分页、网络中断与合法空目录。",
       "expected": "仅按确认schema分页；不因错误或空列表删除主机；显示缓存时间与不完整。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "evidence": [
-        "evidence/R12.md"
+        "evidence/R12.md",
+        "evidence/R13.md"
       ],
       "inherited_from": null
     },
@@ -868,8 +873,10 @@
       "action": "目录可见但路由拒绝、端口关闭、设备离线/状态未知。",
       "expected": "分别呈现目录/网络/SSH状态；导入不被标成连接成功。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R13.md"
+      ],
       "inherited_from": null
     },
     {
@@ -897,7 +904,8 @@
       "level": "硬门禁",
       "result": "PASS",
       "evidence": [
-        "evidence/R11.md"
+        "evidence/R11.md",
+        "evidence/R13.md"
       ],
       "inherited_from": null
     },
@@ -908,7 +916,8 @@
       "level": "硬门禁",
       "result": "PASS",
       "evidence": [
-        "evidence/R12.md"
+        "evidence/R12.md",
+        "evidence/R13.md"
       ],
       "inherited_from": null
     },

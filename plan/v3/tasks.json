@@ -631,7 +631,7 @@
       "id": "R13",
       "phase": "P2",
       "title": "设备选择、批量导入与路由绑定",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R12",
         "R10"
@@ -661,8 +661,10 @@
       ],
       "stop_condition": "目录可见不等于连接可用，不用绿色状态掩盖网络失败。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R13.md"
+      ],
+      "commit": "cf88eef"
     },
     {
       "id": "R14",
