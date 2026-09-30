@@ -1,7 +1,7 @@
-# xwshun 本地使用手册
+# xwshun 本机手册
 
-Netcatty-mobile 的本地实验 fork（分支 `xwshun/v3`，不 push）。这里只讲在这台 Mac 上怎么跑、怎么测、怎么清理。
-做什么、做到哪看 `plan/v3/STATUS.md`；上游功能看根目录 `README.md`。命令都在仓库根目录执行。
+Netcatty-mobile 的本地实验 fork（分支 `xwshun/v3`，不 push）。这里只讲在这台 Mac 上怎么跑、怎么测、怎么装、怎么清理。
+App 怎么用看 [使用手册](USER_GUIDE.md)；做什么、做到哪看 `plan/v3/STATUS.md`。命令都在仓库根目录执行。
 
 ## 1. 先 source 环境
 
@@ -67,27 +67,21 @@ adb emu kill; $S/avdmanager delete avd -n xwshun-tmp; $S/sdkmanager --uninstall 
 
 每台测出了什么见 `plan/v3/evidence/R04.md`。模拟器结果只算部分证据，不能代替真机。
 
-## 4. 装到真机与使用
+## 4. 装到真机
 
-手机开 USB 调试 → `adb devices` 显示 `device` → `flutter run -d <设备ID>`。
+手机开 USB 调试 → `adb devices` 显示 `device` 后，二选一：
+
+```bash
+flutter run -d <设备ID>                    # 调试着用，改代码能热重载
+flutter build apk --release --target-platform android-arm64 \
+  && adb install -r build/app/outputs/flutter-apk/app-release.apk   # 只装不调试；没配正式签名时用 debug 证书签
+```
 
 - 包名 `top.xdwa.xwshun`，和原版 Netcatty（`app.netcatty.mobile`）并存、数据互不影响。**别把 applicationId 改回去**，会覆盖原版。
-- debug 包用 `~/.android/debug.keystore` 签名；换台电脑构建的包签名不同，要先卸载（会清掉 App 数据）才能装。
-- AI、云同步、检查更新默认关闭且不显示，是有意的（`lib/application/fork_features.dart`）。
-- 连接路径在编辑器里三选一：直连 / 经代理 / 经跳板机。要「先经代理再走跳板」，选经跳板机后打开「先经代理连第一台跳板机（高级）」。跳板机自己配的代理不会被套用，会报错。
-- 编辑器下方实时显示连接时会怎么走；配置有矛盾时直接写原因，并且不让保存。
-- 「测试连接」按还没保存的配置走一遍：核对指纹、登录，然后只检查远端终端（显示 `/dev/pts/N`），不打开 shell、不执行启动命令。
-- 连接报错会写明是哪台机器、哪一步，比如「跳板机“hop2”（地址）转发失败（到 目标:端口）」。
-- 服务器指纹变了会直接拒绝连接，没有「确认更新」。先向管理员核对；确认是正常换钥，就在弹窗里点「删除旧指纹」，再重连并重新核对。
-- 连接等待页写着当前到哪一步（比如「第 2/3 跳，“hop2”：SSH 握手、核对指纹、登录」）。点「终止连接」后已连上的那几段马上断开，不会在后台连完。
-- 断线自动恢复沿用这个标签**原来的**路线和账号。期间改了主机、跳板或代理，要关掉标签重新连才生效——自动恢复不会悄悄换路线。
-- 断线（包括在 shell 里 `exit`）后，这个标签的 SSH 连接连同跳板会立刻释放；借它开的端口转发随之不可用，但条目还留在列表里，要手动停掉。
-- 导出的保险库文件**不含**密码、私钥和代理口令。在同一台手机上再导入，地址、端口、用户名都没变的主机会沿用已存的凭据；换手机要重新填。
-- 两台服务器之间复制或移动文件，会先问走「手机中转」还是「服务器直传」。直传是让源服务器自己去连目标，不走你给目标设的代理或跳板。
-- 私钥口令不对、私钥被删、私钥内容损坏，会在连接前直接报出来，不会先连上服务器再说「登录被拒绝」。
-- 保险库页出现红色「保存的凭据中有 N 条无法解密」：设备密钥失效或数据被改动过。主机配置都在，在编辑器里重新填对应的密码或私钥即可；在此之前用到它们的连接会被拒绝。
-- 服务器没开 SFTP 时，文件页 10 秒内报原因，不会一直转圈。
-- 「设置 → 插件（实验）」只列出声明了本 App 插件接口的已安装 App。批准前不会启动它们；批准时核对弹窗里的证书 SHA-256。插件换了签名会变成「已拒绝」，要删掉旧批准重新核对。某个 App 没出现，在页面底部填包名点「检查」看原因。测试插件怎么构建、会话怎么在设备上验证见 `plugins/README.md`。
+- 包用 `~/.android/debug.keystore` 签名；换台电脑构建的包签名不同，`adb install` 报 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`，要先卸载（会清掉 App 数据）才能装。
+- AI、云同步、检查更新默认关闭且不显示，开关在 `lib/application/fork_features.dart`。
+
+装好之后怎么用，看 [使用手册](USER_GUIDE.md)。测试插件怎么构建、插件会话怎么在设备上验证，看 `plugins/README.md`。
 
 ## 5. 改任务状态
 
