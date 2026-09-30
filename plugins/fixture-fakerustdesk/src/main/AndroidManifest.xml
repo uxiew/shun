@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:label="Fake RustDesk (xwshun test only)" android:allowBackup="false">
+        <!-- 和真实 RustDesk 一样：一个 singleTop 的主 Activity 接链接（rustdesk 1.4.9 的清单）。 -->
+        <activity
+            android:name="example.xwshun.fixture.fakerustdesk.FakeRustDeskActivity"
+            android:exported="true"
+            android:launchMode="singleTop">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+        <!-- 默认：只写 scheme、不限 host，和真实 RustDesk 的 intent-filter 一样。 -->
+        <activity-alias
+            android:name="example.xwshun.fixture.fakerustdesk.SchemeOnly"
+            android:enabled="${schemeOnlyEnabled}"
+            android:exported="true"
+            android:targetActivity="example.xwshun.fixture.fakerustdesk.FakeRustDeskActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="rustdesk" />
+            </intent-filter>
+        </activity-alias>
+        <!-- fakeRdHostOnly 变体：限定 host=connect。宿主的 <queries> 只写 scheme 时，这种 App 对宿主不可见。 -->
+        <activity-alias
+            android:name="example.xwshun.fixture.fakerustdesk.HostOnly"
+            android:enabled="${hostOnlyEnabled}"
+            android:exported="true"
+            android:targetActivity="example.xwshun.fixture.fakerustdesk.FakeRustDeskActivity">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="rustdesk" android:host="connect" />
+            </intent-filter>
+        </activity-alias>
+    </application>
+</manifest>

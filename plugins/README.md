@@ -2,6 +2,7 @@
 
 - `provider-sdk/`：宿主与插件共用的 AIDL 契约和认人工具（`CallerVerifier`、`SignerDigests`）。宿主工程和这里的测试工程引用同一份。
 - `fixture-echo/`、`fixture-rogue/`：X02–X04 的测试 APK。**只用于测试**：echo 连上不代表 Mosh 或任何真实 provider 可用。
+- `fixture-fakeuu/`、`fixture-fakerustdesk/`：X06、X07 的「假 UU 远程」「假 RustDesk」，扮演外部远控 App 接请求。它们不是真的，和它们走通不代表真实 App 能用。
 
 ## 构建
 
@@ -33,6 +34,11 @@ cp ../android/local.properties .      # 首次：告诉 Gradle SDK 在哪（被 
 | `fakeuu-resigned.apk` | 同上 | 另一把密钥 | 同包名换签：批准过 `fakeuu` 之后装它，宿主应停下来要求重新核对。要先卸载 `fakeuu` 才装得上 |
 | `fakeuu-lookalike.apk` | example.xwshun.fixture.fakeuu | 另一把密钥 | 别的包也声明 `uuremote://`：官方包名没装时宿主应说「没装」并提醒有别的 App 声明，请求不发给它 |
 | `fakeuu-hijack.apk` | 同上 | 另一把密钥 | 抢回调的 App：另外声明宿主的回调地址 `xwshun-uuremote://callback`。宿主应说出它的包名，绑定和小窗不发（UUR06） |
+| `fakerd.apk` | com.carriez.flutter_hbb | 独立作者密钥 | X07 假 RustDesk 1.4.9：冒充官方包名，证书不是发行渠道的，宿主要用户批准证书后才发请求 |
+| `fakerd-old.apk` / `fakerd-ungated.apk` / `fakerd-newer.apk` | 同上 | 独立作者密钥 | 版本 1.2.3 / 1.4.6 / 1.6.0：宿主应分别说「版本太旧」（不发）、提醒更新（能发）、「这个版本没核对过」（能发）（RDX05） |
+| `fakerd-resigned.apk` | 同上 | 另一把密钥 | 同包名换签：批准过 `fakerd` 之后装它，宿主应停下来要求重新核对。要先卸载 `fakerd` 才装得上 |
+| `fakerd-custom.apk` | example.xwshun.fixture.fakerustdesk | 另一把密钥 | 别的包名也声明 `rustdesk://`：宿主只列出它，点「信任并改用」确认后才把请求发给它（RDX01） |
+| `fakerd-custom-hostonly.apk` | 同上 | 独立作者密钥 | 同上，但 intent-filter 限定 `host=connect`：宿主照样看得见。和 `fakerd-custom` 不同密钥，卸载后换装它就是「信任过的包换签」 |
 
 同包名同密钥的变体之间 `adb install -r` 直接覆盖，批准记录不受影响。测试 APK 都是可调试的，方便 `run-as` 看进程的 fd。
 X04 的三个更新变体 versionCode 是 2、3、4，其余都是 1：从高版本换回低版本要 `adb install -r -d`，否则报 `INSTALL_FAILED_VERSION_DOWNGRADE`。
@@ -123,6 +129,32 @@ adb logcat -d -s XwshunFakeUu | grep HIJACK     # 它拿到了什么（参数名
 ```
 
 `hijack_log`（默认）只记不转。它的模式存在它自己的包里，和假 UU 的模式互不相干；卸载后模式也没了。
+
+## X07 假 RustDesk
+
+假 RustDesk 收到链接后只做一件事：把收到的东西原样写进日志、显示在屏幕上。和真实 RustDesk 一样，它不会回报任何结果。
+
+```bash
+adb install -r out/fakerd.apk
+# 在 App 里：主机 → RustDesk → 批准证书 → 填 ID → 「用 RustDesk 远控」
+adb logcat -d -s XwshunFakeRd
+# RECEIVED via=onCreate pkg=com.carriez.flutter_hbb uri=rustdesk://connect/123456789 action=android.intent.action.VIEW
+#   categories=[] extras=[] flags=0x10000000 newTask=true taskRoot=true referrer=null
+```
+
+每行要看的：`uri` 只能是 `rustdesk://connect/<ID>`，没有 `?`；`extras=[]`；`pkg` 是宿主页面上写的那个包；`via=onNewIntent` 说明假 RustDesk 当时已经开着。
+`referrer=null` 是正常的（模拟器 API 35 上实测如此）。
+换版本直接 `adb install -r out/fakerd-newer.apk`（同密钥、同 versionCode）；换签名的要先 `adb uninstall com.carriez.flutter_hbb`。
+
+绕过 Dart 层、直接调平台桥的设备检查（带密码的、改配置的链接，证书对不上的包，平台层自己挡不挡得住）：
+
+```bash
+adb install -r out/fakerd.apk && adb install -r out/fakerd-custom.apk
+cd .. && flutter test integration_test/rustdesk_bridge_test.dart -d emulator-5580   # 会重装 App、清空数据
+adb logcat -d -s XwshunFakeRd    # 应当只有一行：pkg=example.xwshun.fixture.fakerustdesk uri=rustdesk://connect/987654321
+```
+
+它证明不了的：真实 RustDesk 收到链接后连不连得上、要不要密码、连的是哪台服务器。那些要装真实的 RustDesk 和一台被控电脑。
 
 ## 撞墙时
 

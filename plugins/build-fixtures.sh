@@ -51,3 +51,14 @@ build fakeuu-resigned  fixture-fakeuu -PsignWith=impostor
 build fakeuu-lookalike fixture-fakeuu -PsignWith=impostor -PfakeUuAppId=example.xwshun.fixture.fakeuu
 # 抢回调的 App：和 lookalike 同包名同密钥（install -r 互相覆盖），多声明宿主的回调地址 xwshun-uuremote://callback。
 build fakeuu-hijack    fixture-fakeuu -PsignWith=impostor -PfakeUuAppId=example.xwshun.fixture.fakeuu -PfakeUuHijack=true
+# X07「假 RustDesk」：冒充官方包名 com.carriez.flutter_hbb（证书当然不是发行渠道的）。
+# 同包名同密钥的变体 install -r 直接覆盖（versionCode 故意都一样，不用 -d）；换了密钥的要先卸载。
+build fakerd            fixture-fakerustdesk -PsignWith=author
+build fakerd-old        fixture-fakerustdesk -PsignWith=author -PfakeRdVersion=1.2.3
+build fakerd-ungated    fixture-fakerustdesk -PsignWith=author -PfakeRdVersion=1.4.6
+build fakerd-newer      fixture-fakerustdesk -PsignWith=author -PfakeRdVersion=1.6.0
+build fakerd-resigned   fixture-fakerustdesk -PsignWith=impostor
+# 别的包名也声明 rustdesk://：扮演「改了包名的自建客户端」，也扮演「碰巧或故意占这个 scheme 的 App」——宿主分不出这两种。
+build fakerd-custom     fixture-fakerustdesk -PsignWith=impostor -PfakeRdAppId=example.xwshun.fixture.fakerustdesk
+# 同上，但 intent-filter 限定 host=connect、换一把密钥：和 fakerd-custom 同包名，要先卸载才能换装（用来测「信任过的包换签」）。
+build fakerd-custom-hostonly fixture-fakerustdesk -PsignWith=author -PfakeRdAppId=example.xwshun.fixture.fakerustdesk -PfakeRdHostOnly=true
