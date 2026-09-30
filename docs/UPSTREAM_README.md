@@ -1,7 +1,7 @@
 # Netcatty Mobile
 
-> 这是 Netcatty Mobile 的本地实验 fork（xwshun，包名 `top.xdwa.xwshun`）。在本机跑起来、测试、清理的方法见
-> [docs/xwshun/README.md](docs/xwshun/README.md)；下面是上游原文。
+> 这是上游 Netcatty Mobile v1.4.7（`495f5d31`）的 README 原文，只改了相对路径。本 fork 默认关掉了 AI、云同步和检查更新，
+> 不发布安装包，下面「下载与安装」「内置更新检查」对本 fork 不适用。本 fork 的说明见根目录 [README](../README.md)。
 
 Netcatty 的 Android / iOS 移动端实现：一个面向服务器管理、SSH 终端、SFTP 文件管理和远程运维的开源工作台。
 
@@ -9,7 +9,7 @@ Netcatty 的 Android / iOS 移动端实现：一个面向服务器管理、SSH �
 
 [![Mobile CI](https://github.com/kmh1145/Netcatty-mobile/actions/workflows/mobile.yml/badge.svg)](https://github.com/kmh1145/Netcatty-mobile/actions/workflows/mobile.yml)
 [![Latest Release](https://img.shields.io/github/v/release/kmh1145/Netcatty-mobile)](https://github.com/kmh1145/Netcatty-mobile/releases/latest)
-[![License](https://img.shields.io/github/license/kmh1145/Netcatty-mobile)](LICENSE)
+[![License](https://img.shields.io/github/license/kmh1145/Netcatty-mobile)](../LICENSE)
 
 ## 软件特色
 
@@ -29,7 +29,7 @@ Netcatty 的 Android / iOS 移动端实现：一个面向服务器管理、SSH �
 ### 画中画终端
 
 <p align="center">
-  <img src="docs/images/terminal-pip.jpg" width="720" alt="画中画终端">
+  <img src="images/terminal-pip.jpg" width="720" alt="画中画终端">
 </p>
 
 将终端缩小为系统画中画窗口，在查看其他页面或切换应用时仍能观察 SSH 输出。Android 展示实时 Flutter 终端画面，iOS 通过原生文本帧保持文字清晰和方向正确。画中画也能提高会话在多任务场景中的可见性，但不会绕过移动系统本身的后台网络限制。
@@ -37,11 +37,11 @@ Netcatty 的 Android / iOS 移动端实现：一个面向服务器管理、SSH �
 <table>
   <tr>
     <td align="center" width="50%">
-      <img src="docs/images/system-management.jpg" width="280" alt="系统管理面板"><br>
+      <img src="images/system-management.jpg" width="280" alt="系统管理面板"><br>
       <sub>系统管理：进程、Docker、Compose 与 tmux 三合一工作台</sub>
     </td>
     <td align="center" width="50%">
-      <img src="docs/images/performance-monitor.jpg" width="280" alt="服务器性能监控面板"><br>
+      <img src="images/performance-monitor.jpg" width="280" alt="服务器性能监控面板"><br>
       <sub>性能监控：CPU、内存、磁盘、网络、负载与运行时间</sub>
     </td>
   </tr>
@@ -55,31 +55,31 @@ Netcatty 的 Android / iOS 移动端实现：一个面向服务器管理、SSH �
 <table>
   <tr>
     <td align="center" width="50%">
-      <img src="docs/images/vault-grid.jpg" width="280" alt="服务器网格视图"><br>
+      <img src="images/vault-grid.jpg" width="280" alt="服务器网格视图"><br>
       <sub>服务器网格视图：搜索、分组与系统图标</sub>
     </td>
     <td align="center" width="50%">
-      <img src="docs/images/vault-tree.jpg" width="280" alt="服务器树形视图"><br>
+      <img src="images/vault-tree.jpg" width="280" alt="服务器树形视图"><br>
       <sub>服务器树形视图：按分组展开连接</sub>
     </td>
   </tr>
   <tr>
     <td align="center">
-      <img src="docs/images/ssh-keys.jpg" width="280" alt="SSH 密钥管理"><br>
+      <img src="images/ssh-keys.jpg" width="280" alt="SSH 密钥管理"><br>
       <sub>SSH 密钥管理：移动端独立维护私钥</sub>
     </td>
     <td align="center">
-      <img src="docs/images/themes.jpg" width="280" alt="主题选择器"><br>
+      <img src="images/themes.jpg" width="280" alt="主题选择器"><br>
       <sub>主题系统：搜索、预览并切换 50+ 套主题</sub>
     </td>
   </tr>
   <tr>
     <td align="center">
-      <img src="docs/images/snippets.jpg" width="280" alt="命令片段"><br>
+      <img src="images/snippets.jpg" width="280" alt="命令片段"><br>
       <sub>命令片段：保存常用命令并发送到终端</sub>
     </td>
     <td align="center">
-      <img src="docs/images/vault-list.jpg" width="280" alt="服务器列表视图"><br>
+      <img src="images/vault-list.jpg" width="280" alt="服务器列表视图"><br>
       <sub>服务器列表视图：在窄屏上快速浏览和操作</sub>
     </td>
   </tr>
@@ -146,7 +146,7 @@ Netcatty 的 Android / iOS 移动端实现：一个面向服务器管理、SSH �
 - PBKDF2-HMAC-SHA256 600,000 次派生，AES-256-GCM 认证加密
 - 本地普通偏好设置不保存密码、私钥、同步密码、Token 或 API Key
 - Android 禁用明文网络和系统备份；iOS 凭据使用设备 Keychain
-- Catty Agent 支持流式聊天与停止、多服务商/模型切换、自动拉取模型和思考强度；面板可拖动至全屏，聊天历史本机保存，长对话自动摘要。可控制终端输出上传、预览上下文、隐藏身份和脱敏；命令确认后在当前终端执行，输出可预览后交给 AI 分析。首次使用有风险提示，新增配置和历史不进入云同步。[使用与安全边界](docs/AI_ASSISTANT.md)
+- Catty Agent 支持流式聊天与停止、多服务商/模型切换、自动拉取模型和思考强度；面板可拖动至全屏，聊天历史本机保存，长对话自动摘要。可控制终端输出上传、预览上下文、隐藏身份和脱敏；命令确认后在当前终端执行，输出可预览后交给 AI 分析。首次使用有风险提示，新增配置和历史不进入云同步。[使用与安全边界](AI_ASSISTANT.md)
 - 自定义背景图片保存在 App 管理目录并使用可迁移引用，iOS 更新或重新签名后可自动重新定位旧图片
 - 设置页自动检查 GitHub 最新 Release，并显示当前是否为最新版本
 
@@ -209,11 +209,11 @@ flutter run --dart-define=GITHUB_OAUTH_CLIENT_ID=<your-client-id>
 
 ## 开发文档
 
-- [文档索引](docs/README.md)
-- [架构与关键数据流](docs/ARCHITECTURE.md)
-- [开发、测试与发布流程](docs/DEVELOPMENT.md)
-- [项目目录与文件职责](docs/PROJECT_STRUCTURE.md)
-- [安全与隐私约定](docs/SECURITY.md)
+- [文档索引](README.md)
+- [架构与关键数据流](ARCHITECTURE.md)
+- [开发、测试与发布流程](DEVELOPMENT.md)
+- [项目目录与文件职责](PROJECT_STRUCTURE.md)
+- [安全与隐私约定](SECURITY.md)
 
 ## 与桌面端的关系
 
@@ -221,4 +221,4 @@ flutter run --dart-define=GITHUB_OAUTH_CLIENT_ID=<your-client-id>
 
 ## License
 
-本项目采用 [GPL-3.0-or-later](LICENSE)，延续上游 Netcatty 的许可证。
+本项目采用 [GPL-3.0-or-later](../LICENSE)，延续上游 Netcatty 的许可证。
