@@ -695,7 +695,9 @@ String uuAttemptText(UuAttempt attempt, {required bool waiting}) {
   return switch ((bind, attempt.phase)) {
     (_, ExternalLaunchPhase.launchFailed) => t('没能打开 UU 远程：') + t(code),
     (true, ExternalLaunchPhase.launchedUnverified) => waiting
-        ? t('已打开 UU 远程的设备授权页，等它回报。UU 可能在等你登录（最长 3 分钟）。')
+        // 官方文档说没登录时 UU 等 180 秒后回报 timeout；真实 UU 4.42.0 实测停在登录页、6 分钟没有任何回报，
+        // 所以这里不承诺「最长 3 分钟」，直接告诉用户怎么脱身。
+        ? t('已打开 UU 远程的设备授权页，等它回报。UU 要是停在登录页或用户须知上，它不会回报：回来点「结束等待」，在 UU 里登录好再重新发起。')
         : line('已打开 UU 远程的设备授权页。'),
     (true, ExternalLaunchPhase.providerReportedSuccess) =>
       discarded ? line('UU 返回了一台设备，你没有保存。') : line('UU 返回了一台设备。'),

@@ -914,8 +914,8 @@ const englishTranslations = <String, String>{
       'The signing certificate matches the one from the official download.',
   '签名证书是你批准过的那张（还没和官方 APK 核对）。':
       'The signing certificate is the one you approved (not yet checked against the official APK).',
-  '已打开 UU 远程的设备授权页，等它回报。UU 可能在等你登录（最长 3 分钟）。':
-      'Opened the device authorization page of UU Remote; waiting for its reply. UU may be waiting for you to log in (up to 3 minutes).',
+  '已打开 UU 远程的设备授权页，等它回报。UU 要是停在登录页或用户须知上，它不会回报：回来点「结束等待」，在 UU 里登录好再重新发起。':
+      'Opened the device authorization page of UU Remote; waiting for its reply. If UU stays on its login page or user agreement, it sends no reply: come back, tap "Stop waiting", log in to UU, then start again.',
   '你结束了等待：这次绑定结果未确认，UU 之后的回报会被忽略。':
       'You stopped waiting: this binding result is unconfirmed, and any later reply from UU will be ignored.',
   '你结束了等待：这次小窗结果未确认，UU 之后的回报会被忽略。':
