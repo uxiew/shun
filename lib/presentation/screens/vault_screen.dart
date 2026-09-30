@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -12,6 +13,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/host_editor.dart';
 import '../widgets/host_key_dialogs.dart';
 import '../widgets/host_system_icon.dart';
+import 'uuremote_screen.dart';
 
 class VaultScreen extends ConsumerStatefulWidget {
   const VaultScreen({super.key});
@@ -344,6 +346,14 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
           ),
         ),
         actions: [
+          // UU 远程只做了 Android（X06）；远控在 UU 里进行，和 SSH 是并列的两件事。
+          if (defaultTargetPlatform == TargetPlatform.android)
+            TextButton.icon(
+              key: const ValueKey('host-uuremote'),
+              onPressed: () => Navigator.pop(context, _HostAction.uuRemote),
+              icon: const Icon(Icons.desktop_windows_outlined),
+              label: const LText('UU 远程'),
+            ),
           TextButton.icon(
             onPressed: () => Navigator.pop(context, _HostAction.edit),
             icon: const Icon(Icons.edit_outlined),
@@ -362,6 +372,10 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       await _editHost(host);
     } else if (action == _HostAction.connect) {
       await _connect(host);
+    } else if (action == _HostAction.uuRemote) {
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => UuRemoteHostScreen(hostId: host.id),
+      ));
     }
   }
 
@@ -713,7 +727,7 @@ class _HostTile extends StatelessWidget {
       );
 }
 
-enum _HostAction { connect, edit }
+enum _HostAction { connect, edit, uuRemote }
 
 class _DetailRow extends StatelessWidget {
   const _DetailRow({

@@ -25,29 +25,56 @@ abstract final class UuRemoteProtocol {
   static const officialSigners = <String>{};
 
   static const bindErrors = {
-    'no_device',
-    'user_cancel',
-    'timeout',
-    'not_logined',
-    'superseded',
-    'logout',
-    'internal_error',
+    UuBindErrors.noDevice,
+    UuBindErrors.userCancel,
+    UuBindErrors.timeout,
+    UuBindErrors.notLogined,
+    UuBindErrors.superseded,
+    UuBindErrors.logout,
+    UuBindErrors.internalError,
   };
 
   static const controlReasons = {
-    'busy',
-    'device_offline',
-    'device_not_found',
-    'pip_unsupported',
-    'login_timeout',
-    'network_unavailable',
-    'not_allowed',
-    'connect_timeout',
-    'connect_failed',
-    'user_cancel',
-    'invalid_request',
-    'internal_error',
+    UuReasons.busy,
+    UuReasons.deviceOffline,
+    UuReasons.deviceNotFound,
+    UuReasons.pipUnsupported,
+    UuReasons.loginTimeout,
+    UuReasons.networkUnavailable,
+    UuReasons.notAllowed,
+    UuReasons.connectTimeout,
+    UuReasons.connectFailed,
+    UuReasons.userCancel,
+    UuReasons.invalidRequest,
+    UuReasons.internalError,
   };
+}
+
+/// 绑定失败的错误码（官方 2.5），原文照抄。
+abstract final class UuBindErrors {
+  static const noDevice = 'no_device';
+  static const userCancel = 'user_cancel';
+  static const timeout = 'timeout';
+  static const notLogined = 'not_logined';
+  static const superseded = 'superseded';
+  static const logout = 'logout';
+  static const internalError = 'internal_error';
+}
+
+/// 小窗远控失败的 reason（官方 3.5），原文照抄。
+abstract final class UuReasons {
+  static const busy = 'busy';
+  static const deviceOffline = 'device_offline';
+  static const deviceNotFound = 'device_not_found';
+  static const pipUnsupported = 'pip_unsupported';
+  static const loginTimeout = 'login_timeout';
+  static const networkUnavailable = 'network_unavailable';
+  static const notAllowed = 'not_allowed';
+  static const connectTimeout = 'connect_timeout';
+  static const connectFailed = 'connect_failed';
+  static const userCancel = 'user_cancel';
+  static const invalidRequest = 'invalid_request';
+  static const internalError = 'internal_error';
 }
 
 enum UuWindow {
@@ -165,7 +192,7 @@ UuCallback parseUuCallback(String raw) {
     if (values == null) return null;
     final value = values.single;
     if (value.length > max || _control.hasMatch(value)) {
-      throw UuCallbackRejected('参数 $key 超长或含控制字符');
+      throw UuCallbackRejected('回调参数超长或含控制字符：$key');
     }
     return value;
   }
@@ -229,7 +256,7 @@ Map<String, List<String>> _parseQueryOnce(String query) {
     }
     final values = out.putIfAbsent(key, () => []);
     if (values.isNotEmpty) {
-      throw UuCallbackRejected('回调参数 $key 出现了不止一次');
+      throw UuCallbackRejected('回调参数重复出现：$key');
     }
     values.add(value);
   }

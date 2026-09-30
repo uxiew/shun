@@ -33,6 +33,7 @@ import '../widgets/github_manual_config.dart';
 import '../widgets/vault_import_dialog.dart';
 import 'plugins_screen.dart';
 import 'tailscale_catalog_screen.dart';
+import 'uuremote_screen.dart';
 
 part 'settings_screen_dialogs.dart';
 
@@ -757,6 +758,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               if (Platform.isAndroid) ...[
+                _header('远程桌面', '用网易 UU 远程控制 Windows / Mac 电脑'),
+                Card(
+                  child: ListTile(
+                    key: const ValueKey('settings-uuremote'),
+                    leading: const Icon(Icons.desktop_windows_outlined),
+                    title: const LText('UU 远程'),
+                    subtitle: const LText('检查手机上的 UU 远程、核对证书、管理绑定'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const UuRemoteSettingsScreen(),
+                      ),
+                    ),
+                  ),
+                ),
                 _header('插件', '独立安装的插件 App，需要你逐个批准'),
                 Card(
                   child: ListTile(

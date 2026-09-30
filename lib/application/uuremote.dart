@@ -658,7 +658,7 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
         throw const UuRequestRefused('UU 远程联动目前只支持 Android'),
       UuNotInstalled() => throw const UuRequestRefused('没有装 UU 远程'),
       UuVersionTooOld() => throw const UuRequestRefused(
-          'UU 远程版本太旧，要 ${UuRemoteProtocol.minVersionText} 或更高'),
+          'UU 远程版本太旧，最低要求：${UuRemoteProtocol.minVersionText}'),
       UuSchemeNotHandled() =>
         throw const UuRequestRefused('装着的 UU 远程不接受跨 App 请求'),
       UuSignerNeedsApproval() =>
@@ -832,7 +832,7 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
           return;
         }
         _setAttempt(pending.hostId, failed(reason!));
-        if (reason == 'device_not_found') {
+        if (reason == UuReasons.deviceNotFound) {
           final bindings = [
             for (final b in state.bindings)
               b.id == pending.bindingId ? b.invalidated(reason, _now()) : b,
@@ -884,12 +884,15 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
 final uuRemotePlatformProvider =
     Provider<UuRemotePlatform>((ref) => AndroidUuRemotePlatform());
 
+final uuRemoteStoreProvider = Provider<UuRemoteStore>(
+    (ref) => const UuRemoteStore(FlutterSecureUuBackend()));
+
 final uuRemoteProvider =
     StateNotifierProvider<UuRemoteController, UuRemoteState>((ref) {
   final vault = ref.watch(vaultControllerProvider.notifier);
   return UuRemoteController(
     platform: ref.watch(uuRemotePlatformProvider),
-    store: const UuRemoteStore(FlutterSecureUuBackend()),
+    store: ref.watch(uuRemoteStoreProvider),
     registry: ref.read(pluginRegistryProvider.notifier),
     hosts: () async =>
         [for (final h in (await vault.ready()).hosts) UuHost.of(h)],

@@ -863,6 +863,130 @@ const englishTranslations = <String, String>{
   'UU 远程没有接收这个请求（版本可能太旧）':
       'UU Remote did not accept this request (it may be too old)',
   '系统不允许打开 UU 远程': 'The system does not allow opening UU Remote',
+  // X06 界面（uuremote_screen.dart）的短标签。句子和带插值的在片段表最前面。
+  'UU 远程': 'UU Remote',
+  '不要': 'No',
+  '关联': 'Link',
+  '绑定': 'Binding',
+  '全屏远控': 'Full-screen remote control',
+  '小窗远控': 'Picture-in-picture remote control',
+  '在 UU 里选设备': 'Pick a device in UU',
+  '重新绑定': 'Bind again',
+  '删除绑定': 'Delete binding',
+  '删除这条 UU 绑定？': 'Delete this UU binding?',
+  '结束等待': 'Stop waiting',
+  '改用全屏': 'Use full screen instead',
+  '最近一次': 'Latest attempt',
+  '手机上的 UU 远程': 'UU Remote on this phone',
+  '批准这张证书': 'Approve this certificate',
+  '批准新证书': 'Approve the new certificate',
+  '用 UU 自己的网络继续': "Continue on UU's own network",
+  'UU 远程不走这台主机的代理或跳板': "UU Remote does not use this host's proxy or jump hosts",
+  'UU 远程返回了一台设备': 'UU Remote returned a device',
+  '远程桌面': 'Remote desktop',
+  '用网易 UU 远程控制 Windows / Mac 电脑':
+      'Control Windows / Mac computers with NetEase UU Remote',
+  '检查手机上的 UU 远程、核对证书、管理绑定':
+      'Check UU Remote on this phone, verify its certificate, manage bindings',
+  '（主机已删除）': '(host deleted)',
+  '已关联 UU 远程。': 'Linked to UU Remote.',
+  '还没有 UU 绑定。': 'No UU bindings yet.',
+  '在保险库里点开一台主机，选「UU 远程」来绑定和发起远控。':
+      'Open a host in the vault and choose "UU Remote" to bind and start remote control.',
+  '已绑定，时间：': 'Bound at: ',
+  '绑定时间：': 'Bound at: ',
+  '要关联到主机：': 'Link to host: ',
+  '最多等到：': 'Waiting until: ',
+  '版本：': 'Version: ',
+  '签名证书 SHA-256：': 'Signing certificate SHA-256: ',
+  '批准时：': 'When approved: ',
+  '现在：': 'Now: ',
+  '已失效：UU 报告设备不存在或换了账号':
+      'No longer valid: UU reported the device is gone or the account changed',
+  'UU 远程联动目前只支持 Android。': 'UU Remote integration is Android only for now.',
+  '这个 UU 远程由多张证书签名，暂不支持。':
+      'This UU Remote is signed by several certificates, which is not supported yet.',
+  '这张证书还不在本 App 核对过的官方证书里。只有在你确定这个 UU 远程是从官方渠道（uuyc.163.com 或正规应用商店）装的时候才批准；批准后证书再变，本 App 会停下来让你重新核对。':
+      'This certificate is not among the official certificates this app has checked. Approve it only if you are sure this UU Remote came from an official source (uuyc.163.com or a reputable app store). If the certificate changes after approval, this app stops and asks you to check again.',
+  '手机上的 UU 远程换了签名证书：可能是换了渠道重装，也可能是冒牌的。核对之前不会再发任何请求。':
+      'UU Remote on this phone has a different signing certificate: it may have been reinstalled from another source, or it may be fake. No request is sent until you check it.',
+  '签名证书和从官方下载的一致。':
+      'The signing certificate matches the one from the official download.',
+  '签名证书是你批准过的那张（还没和官方 APK 核对）。':
+      'The signing certificate is the one you approved (not yet checked against the official APK).',
+  '已打开 UU 远程的设备授权页，等它回报。UU 可能在等你登录（最长 3 分钟）。':
+      'Opened the device authorization page of UU Remote; waiting for its reply. UU may be waiting for you to log in (up to 3 minutes).',
+  '你结束了等待：这次绑定结果未确认，UU 之后的回报会被忽略。':
+      'You stopped waiting: this binding result is unconfirmed, and any later reply from UU will be ignored.',
+  '你结束了等待：这次小窗结果未确认，UU 之后的回报会被忽略。':
+      'You stopped waiting: this picture-in-picture result is unconfirmed, and any later reply from UU will be ignored.',
+  '正在打开 UU 远程…': 'Opening UU Remote…',
+  '如果你没有刚在 UU 里选过设备，点「不要」：这条回调可能不是你发起的。':
+      'If you did not just pick a device in UU, tap "No": this callback may not come from you.',
+  '只删本 App 里的这条绑定。主机、它的 SSH 设置和别的关联都不动；UU 远程里的设备也不受影响。':
+      'Deletes only this binding in this app. The host, its SSH settings and other links stay; the device in UU Remote is not affected.',
+  '还没绑定。点「在 UU 里选设备」，UU 会列出你账号下的 Windows/macOS 电脑，选一台再回到这里确认。':
+      'Not bound yet. Tap "Pick a device in UU": UU lists the Windows/macOS computers in your account; pick one and confirm back here.',
+  'UU 报告这条绑定已失效（设备解绑、被删，或换了 UU 账号），要重新绑定。只有这条 UU 绑定受影响，主机的 SSH 照常。':
+      "UU reported this binding is no longer valid (the device was unbound or deleted, or the UU account changed); bind again. Only this UU binding is affected; the host's SSH works as before.",
+  'UU 不把设备名告诉第三方 App，所以这里只显示绑定时间。':
+      'UU does not tell other apps the device name, so only the binding time is shown.',
+  '这台主机的 SSH 经代理或跳板；UU 远程不走这条路线，用它自己的网络。':
+      "This host's SSH goes through a proxy or jump hosts; UU Remote does not take that route and uses its own network.",
+  '另一台主机的 UU 请求还在等回报，先到那里结束等待。':
+      "Another host's UU request is still waiting for a reply; stop waiting there first.",
+  'UU 远程调用现在不可用：': 'UU Remote launcher is unavailable right now: ',
+  '另有 App 也声明能打开 uuremote://：': 'Other apps also claim uuremote://: ',
+  '本 App 只把请求发给官方包名，不会发给它们。':
+      'This app sends requests only to the official package name, never to them.',
+  '没有装 UU 远程：': 'UU Remote is not installed: ',
+  '请从官方渠道（uuyc.163.com 或正规应用商店）安装，最低版本：':
+      'Install it from an official source (uuyc.163.com or a reputable app store); minimum version: ',
+  '装着的 UU 远程版本太旧：': 'The installed UU Remote is too old: ',
+  '跨 App 调用要求的最低版本，请先更新：':
+      'Minimum version for calls from other apps; update first: ',
+  '装着的 UU 远程不接受跨 App 请求，可能被停用了。版本：':
+      'The installed UU Remote does not accept requests from other apps; it may be disabled. Version: ',
+  '已打开 UU 远程的设备授权页。': 'Opened the device authorization page of UU Remote.',
+  'UU 返回了一台设备，你没有保存。': 'UU returned a device; you did not save it.',
+  'UU 返回了一台设备。': 'UU returned a device.',
+  '绑定没成功：': 'Binding failed: ',
+  '已交给 UU 远程。全屏模式 UU 不回报结果，连没连上请看 UU 远程。':
+      'Handed to UU Remote. In full-screen mode UU does not report results; check UU Remote to see whether it connected.',
+  '已交给 UU 远程，等它回报小窗结果。UU 可能先弹窗让你确认，不会自动超时。':
+      'Handed to UU Remote, waiting for its picture-in-picture result. UU may first ask you to confirm in a dialog, with no automatic timeout.',
+  '已交给 UU 远程。': 'Handed to UU Remote.',
+  'UU 报告小窗已就绪。这只是 UU 那一刻的报告，不代表现在还连着。':
+      'UU reported the picture-in-picture window ready. That is only what UU reported at that moment, not proof it is still connected.',
+  'UU 报告小窗远控失败：': 'UU reported picture-in-picture remote control failed: ',
+  '没能打开 UU 远程：': 'Could not open UU Remote: ',
+  '你的 UU 账号下没有可关联的 Windows/macOS 电脑':
+      'Your UU account has no Windows/macOS computer to link',
+  '你在 UU 里取消了': 'You cancelled in UU',
+  'UU 等你登录或加载设备列表超时':
+      'UU timed out waiting for you to log in or for the device list',
+  'UU 远程没有登录': 'UU Remote is not logged in',
+  '这次绑定被 UU 里更新的一次请求取代了': 'This binding was replaced by a newer request in UU',
+  '等待期间 UU 退出了登录': 'UU logged out while waiting',
+  'UU 远程内部出错': 'UU Remote had an internal error',
+  '你没有保存这次绑定': 'You did not save this binding',
+  'UU 正在远控别的设备，或在做不能同时进行的事':
+      'UU is controlling another device or doing something that cannot run at the same time',
+  '目标电脑离线': 'The target computer is offline',
+  '设备不存在、已解绑，或换了 UU 账号：这条绑定已失效，要重新绑定':
+      'The device does not exist, was unbound, or the UU account changed: this binding is no longer valid; bind again',
+  '这台手机现在不能用小窗，可以改用全屏':
+      'Picture-in-picture is not available on this phone right now; you can use full screen instead',
+  'UU 登录或首页初始化超时': 'UU login or home page initialization timed out',
+  '手机没有可用网络': 'The phone has no usable network',
+  '目标电脑没开「允许被控」，或平台不受支持':
+      'The target computer does not allow being controlled, or its platform is not supported',
+  '连接或等首帧超时': 'Connecting or waiting for the first frame timed out',
+  '你取消了': 'You cancelled',
+  '连接失败': 'Connection failed',
+  '请求参数不对': 'The request parameters are invalid',
+  '连接失败，UU 给的原因本 App 不认识：':
+      'Connection failed; this app does not recognize the reason UU gave: ',
   'UU 远程联动目前只支持 Android': 'UU Remote integration is Android only for now',
   '上一个 UU 请求还在等回报。先结束等待，再发新的。':
       'The previous UU request is still waiting for a reply. Stop waiting before sending a new one.',
@@ -896,6 +1020,31 @@ const englishTranslations = <String, String>{
 const englishReplacements = <(String, String)>[
   // X05：关联被拒时带主机名，按片段翻。放最前，免得先被「主机」「设备」这类通用词拆碎。
   ('这台设备已经关联了主机：', 'This device is already linked to host: '),
+  // X06 界面：多行拼接的说明（运行时是整句，精确表对不上，按片段翻）。句子都长而独特，不会误伤别处。
+  (
+    '远控画面、账号和网络都在 UU 远程里，本 App 只负责发起和记录 UU 报告的结果。',
+    'The remote screen, account and network all live in UU Remote; this app only starts requests and records what UU reports. '
+  ),
+  (
+    'UU 只能控制 Windows 和 macOS 电脑，不能控制 Linux、安卓或电视。',
+    'UU can control only Windows and macOS computers, not Linux, Android or TVs.'
+  ),
+  (
+    'UU 只给了一个加密的设备标识，本 App 看不到设备名，也不会把它显示、导出或复制。',
+    'UU gives only an encrypted device identifier; this app cannot see the device name and never shows, exports or copies it. '
+  ),
+  (
+    '关联之后可以在这台主机上用 UU 远程发起远控；本 App 不会自动发起。',
+    'Once linked, you can start UU remote control from this host; this app never starts it on its own.'
+  ),
+  (
+    '这台主机的 SSH 经代理或跳板连接。UU 远程用它自己的网络和账号，不会经过这些设置。',
+    "This host's SSH goes through a proxy or jump hosts. UU Remote uses its own network and account and does not go through them. "
+  ),
+  (
+    '如果你要求远控也必须走同一条路线，UU 做不到，请取消。',
+    'If remote control must take the same route, UU cannot do that; cancel.'
+  ),
   // X06：带插值的 UU 提示，按片段翻。放最前，免得先被「回调」「参数」「主机」这类通用词拆碎。
   ('收到一条格式不对的 UU 回调，已忽略：', 'Ignored a malformed UU callback: '),
   ('回调太长', 'The callback is too long'),
@@ -922,12 +1071,12 @@ const englishReplacements = <(String, String)>[
   ('回调参数的编码不对', 'Callback parameters are badly encoded'),
   ('处理 UU 回调时出错：', 'Error while handling a UU callback: '),
   ('读取 UU 绑定失败：', 'Failed to read UU bindings: '),
-  ('UU 远程版本太旧，要 ', 'UU Remote is too old; it needs '),
-  (' 或更高', ' or later'),
-  ('回调参数 ', 'Callback parameter '),
-  (' 出现了不止一次', ' appears more than once'),
-  ('参数 ', 'Parameter '),
-  (' 超长或含控制字符', ' is too long or contains control characters'),
+  ('UU 远程版本太旧，最低要求：', 'UU Remote is too old; minimum version: '),
+  (
+    '回调参数超长或含控制字符：',
+    'Callback parameter too long or contains control characters: '
+  ),
+  ('回调参数重复出现：', 'Duplicate callback parameter: '),
   // X05：多行拼接的说明（精确表匹配不到运行时的整句，按片段翻）。
   (
     '按主机里记着的来源 ID 在本机重建一个空来源，不发请求、不改任何主机。',

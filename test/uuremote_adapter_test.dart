@@ -136,8 +136,8 @@ void main() {
         }
       }
       expect(
-        NetcattyLocalizations.text('回调参数 nonce 出现了不止一次'),
-        'Callback parameter nonce appears more than once',
+        NetcattyLocalizations.text('回调参数重复出现：nonce'),
+        'Duplicate callback parameter: nonce',
       );
     });
 

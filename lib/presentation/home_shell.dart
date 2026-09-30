@@ -11,6 +11,7 @@ import 'screens/settings_screen.dart';
 import 'screens/sftp_screen.dart';
 import 'screens/snippets_screen.dart';
 import 'screens/terminal_screen.dart';
+import 'screens/uuremote_screen.dart';
 import 'screens/vault_screen.dart';
 import 'widgets/custom_background.dart';
 
@@ -38,45 +39,48 @@ class HomeShell extends ConsumerWidget {
       index,
       terminalFullscreen || terminalPictureInPicture,
     );
-    return PopScope(
-      canPop: !hideNavigation,
-      onPopInvokedWithResult: (didPop, result) {
-        if (!didPop && hideNavigation) {
-          if (terminalPictureInPicture) {
-            ref.read(terminalPictureInPictureProvider.notifier).state = false;
-            unawaited(TerminalPictureInPictureService.stop());
-          } else {
-            ref.read(terminalFullscreenProvider.notifier).state = false;
+    // UU 远程的回调从 App 一启动就要接（冷启动带进来的也算），绑定回来要在任何页面都能弹确认框。
+    return UuRemoteListener(
+      child: PopScope(
+        canPop: !hideNavigation,
+        onPopInvokedWithResult: (didPop, result) {
+          if (!didPop && hideNavigation) {
+            if (terminalPictureInPicture) {
+              ref.read(terminalPictureInPictureProvider.notifier).state = false;
+              unawaited(TerminalPictureInPictureService.stop());
+            } else {
+              ref.read(terminalFullscreenProvider.notifier).state = false;
+            }
           }
-        }
-      },
-      child: Scaffold(
-        extendBody: globalBackground,
-        body: Stack(
-          fit: StackFit.expand,
-          children: [
-            if (customBackground) CustomBackgroundImage(settings: settings),
-            Theme(
-              data: customBackground
-                  ? Theme.of(context).copyWith(
-                      scaffoldBackgroundColor: Colors.transparent,
-                      appBarTheme: Theme.of(context).appBarTheme.copyWith(
-                            backgroundColor: Colors.transparent,
-                          ),
-                    )
-                  : Theme.of(context),
-              child: IndexedStack(index: index, children: _pages),
-            ),
-          ],
-        ),
-        bottomNavigationBar: hideNavigation
-            ? null
-            : _navigationBar(
-                context,
-                ref,
-                index,
-                transparent: globalBackground,
+        },
+        child: Scaffold(
+          extendBody: globalBackground,
+          body: Stack(
+            fit: StackFit.expand,
+            children: [
+              if (customBackground) CustomBackgroundImage(settings: settings),
+              Theme(
+                data: customBackground
+                    ? Theme.of(context).copyWith(
+                        scaffoldBackgroundColor: Colors.transparent,
+                        appBarTheme: Theme.of(context).appBarTheme.copyWith(
+                              backgroundColor: Colors.transparent,
+                            ),
+                      )
+                    : Theme.of(context),
+                child: IndexedStack(index: index, children: _pages),
               ),
+            ],
+          ),
+          bottomNavigationBar: hideNavigation
+              ? null
+              : _navigationBar(
+                  context,
+                  ref,
+                  index,
+                  transparent: globalBackground,
+                ),
+        ),
       ),
     );
   }

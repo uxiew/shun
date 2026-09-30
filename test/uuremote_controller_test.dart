@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/application/device_links.dart';
 import 'package:netcatty_mobile/application/plugin_registry.dart';
@@ -11,47 +9,10 @@ import 'package:netcatty_mobile/domain/plugins/builtin_plugins.dart';
 import 'package:netcatty_mobile/infrastructure/plugins/uuremote_adapter.dart';
 import 'package:plugin_api/plugin_api.dart';
 
+import 'uuremote_fakes.dart';
+
 // X06：UU 绑定与远控的状态机。平台层是假的（记下发出的 URI、手动喂回调），存储在内存里。
 // 证明的是本 App 发什么、认什么、显示什么；不证明真实 UU 远程的行为——那要装官方 App、登录真实账号。
-
-class FakePlatform implements UuRemotePlatform {
-  UuProbe probeResult = const UuProbe(
-    platformSupported: true,
-    officialInstalled: true,
-    officialHandlesScheme: true,
-    versionName: '4.42.0',
-    signers: {'cert-a'},
-  );
-  final launched = <String>[];
-  final signersUsed = <String>[];
-  String? failLaunch;
-  final _callbacks = StreamController<String>.broadcast();
-
-  void deliver(String raw) => _callbacks.add(raw);
-
-  @override
-  Stream<String> get callbacks => _callbacks.stream;
-
-  @override
-  Future<UuProbe> probe() async => probeResult;
-
-  @override
-  Future<void> launch(String uri, {required String signer}) async {
-    if (failLaunch != null) throw UuLaunchFailed(failLaunch!);
-    launched.add(uri);
-    signersUsed.add(signer);
-  }
-}
-
-class MemoryBackend implements UuSecretBackend {
-  final values = <String, String>{};
-  @override
-  Future<String?> read(String key) async => values[key];
-  @override
-  Future<void> write(String key, String value) async => values[key] = value;
-  @override
-  Future<void> delete(String key) async => values.remove(key);
-}
 
 const id = 'Zm9v+YmFy/YmF6==';
 
