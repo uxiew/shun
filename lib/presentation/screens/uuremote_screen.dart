@@ -275,7 +275,7 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
                         key: const ValueKey('uu-binding-invalid'),
                         style: small,
                       ),
-                    if (binding != null)
+                    if (binding != null && binding.valid)
                       LText('UU 不把设备名告诉第三方 App，所以这里只显示绑定时间。', style: small),
                     if (sshRouteOf(host) != RequestedRoute.systemDefault)
                       LText(
