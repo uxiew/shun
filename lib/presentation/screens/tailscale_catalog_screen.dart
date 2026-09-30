@@ -717,6 +717,9 @@ class _LinkHostDialog extends StatelessWidget {
                       ListTile(
                         key: ValueKey('catalog-link-host-${host.id}'),
                         contentPadding: EdgeInsets.zero,
+                        // 只有文字的一行看不出能点：加上图标和箭头。
+                        leading: const Icon(Icons.dns_outlined),
+                        trailing: const Icon(Icons.chevron_right),
                         title: Text(host.label),
                         subtitle: Text(host.username.isEmpty
                             ? host.hostname
