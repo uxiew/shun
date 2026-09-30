@@ -1,7 +1,7 @@
 # xwshun 本机手册
 
 Netcatty-mobile 的本地实验 fork（分支 `xwshun/v3`，不 push）。这里只讲在这台 Mac 上怎么跑、怎么测、怎么装、怎么清理。
-App 怎么用看 [使用手册](USER_GUIDE.md)；做什么、做到哪看 `plan/v3/STATUS.md`。命令都在仓库根目录执行。
+App 怎么用看 [使用手册](../user/README.md)；做什么、做到哪看 `plan/v3/STATUS.md`。命令都在仓库根目录执行。
 
 ## 1. 先 source 环境
 
@@ -81,7 +81,7 @@ flutter build apk --release --target-platform android-arm64 \
 - 包用 `~/.android/debug.keystore` 签名；换台电脑构建的包签名不同，`adb install` 报 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`，要先卸载（会清掉 App 数据）才能装。
 - AI、云同步、检查更新默认关闭且不显示，开关在 `lib/application/fork_features.dart`。
 
-装好之后怎么用，看 [使用手册](USER_GUIDE.md)。测试插件怎么构建、插件会话怎么在设备上验证，看 `plugins/README.md`。
+装好之后怎么用，看 [使用手册](../user/README.md)。测试插件怎么构建、插件会话怎么在设备上验证，看 `plugins/README.md`。
 
 ## 5. 改任务状态
 
