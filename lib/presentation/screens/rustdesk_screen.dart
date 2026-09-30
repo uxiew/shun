@@ -458,13 +458,10 @@ class RustDeskAppStatusCard extends ConsumerWidget {
           catalogLine('版本：', c.versionName ?? '?', style: small),
         ];
 
-    Widget revoke() => Align(
-          alignment: Alignment.centerLeft,
-          child: TextButton(
-            key: const ValueKey('rd-revoke'),
-            onPressed: () => controller.revokeTrust().catchError(snack),
-            child: const LText('撤销信任'),
-          ),
+    Widget revoke() => TextButton(
+          key: const ValueKey('rd-revoke'),
+          onPressed: () => controller.revokeTrust().catchError(snack),
+          child: const LText('撤销信任'),
         );
 
     final children = <Widget>[
@@ -551,8 +548,10 @@ class RustDeskAppStatusCard extends ConsumerWidget {
               style: small,
             ),
             ...switch (version) {
+              // 用户自己信任的客户端只是版本号对得上，它的链接处理改没改过本 App 不知道，不替它作保。
               RustDeskVersionSupport.verified => [
-                  LText('这个版本的连接链接按源码核对过。', style: small),
+                  if (source != RustDeskTrustSource.userApproved)
+                    LText('这个版本的连接链接按源码核对过。', style: small),
                 ],
               RustDeskVersionSupport.deepLinksUngated => [
                   catalogLine(
@@ -581,7 +580,8 @@ class RustDeskAppStatusCard extends ConsumerWidget {
                   ),
                 ],
             },
-            if (source == RustDeskTrustSource.userApproved) revoke(),
+            if (source == RustDeskTrustSource.userApproved)
+              Align(alignment: Alignment.centerLeft, child: revoke()),
           ],
       },
       for (final other in app?.others ?? const <RustDeskClient>[]) ...[

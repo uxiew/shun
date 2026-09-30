@@ -185,6 +185,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('rd-trust-confirm')));
     await tester.pumpAndSettle();
     expect(find.text('这是你明确信任的客户端。本 App 没有核对过它的来源。'), findsOneWidget);
+    // 它只是版本号对得上：不替它说「按源码核对过」。
+    expect(find.text('这个版本的连接链接按源码核对过。'), findsNothing);
     await tester.tap(find.byKey(const ValueKey('rd-launch')));
     await tester.pumpAndSettle();
     expect(platform.launched.single.$2, 'com.example.myrustdesk');
