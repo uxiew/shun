@@ -6,6 +6,7 @@ import '../domain/plugins/builtin_plugins.dart';
 import '../infrastructure/tailscale/catalog_cache.dart';
 import '../infrastructure/tailscale/catalog_cache_repository.dart';
 import '../infrastructure/tailscale/tailscale_api.dart';
+import 'device_links.dart';
 import 'plugin_registry.dart';
 import 'tailscale_catalog_refresh.dart';
 
@@ -212,27 +213,12 @@ class TailscaleCatalogProvider {
   }
 }
 
-/// 从主机上的目录绑定算出设备关联：每个绑定是一对（SSH 主机，目录设备）。
+/// 只看目录这一种关联（SSH 主机 ↔ 目录设备）。规则在 [deviceLinksOf]，这里不另写一份。
 ///
 /// 同一台设备被两台主机绑定（从别的手机同步来、或旧数据）时，只有列表里靠前的那台算关联，
 /// 另一台的绑定照旧保留、照旧显示在它的编辑器里，由用户决定断开哪台——这里不替用户选、也不删。
-DeviceLinks catalogDeviceLinks(List<CatalogHost> hosts) {
-  final links = DeviceLinks();
-  for (final host in hosts) {
-    final binding = host.binding;
-    if (binding == null || !isValidCatalogId(binding.catalogId)) continue;
-    if (binding.deviceId.isEmpty) continue;
-    try {
-      links.linkByUser([
-        sshHostRef(host.id, displayName: host.label, hostname: host.hostname),
-        catalogDeviceRef(binding.catalogId, binding.deviceId),
-      ]);
-    } on StateError {
-      continue;
-    }
-  }
-  return links;
-}
+DeviceLinks catalogDeviceLinks(List<CatalogHost> hosts) =>
+    deviceLinksOf(hosts: hosts);
 
 final tailscaleCatalogProvider = Provider<TailscaleCatalogProvider>((ref) {
   return TailscaleCatalogProvider(
