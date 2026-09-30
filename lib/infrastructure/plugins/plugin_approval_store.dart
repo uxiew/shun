@@ -14,6 +14,9 @@ class PluginApprovalStore {
   final SharedPreferences _preferences;
   static const _key = 'xwshun.plugins.approvals.v1';
 
+  /// 用户停用的 pluginId（小写）。和批准记录分开存：停用不是撤销，重新启用不用再批（docs/15 §7）。
+  static const _disabledKey = 'xwshun.plugins.disabled.v1';
+
   List<ApprovedBinding> load() {
     final raw = _preferences.getString(_key);
     if (raw == null) return const [];
@@ -43,6 +46,20 @@ class PluginApprovalStore {
       for (final b in load())
         if (b.pluginId.toLowerCase() != pluginId.toLowerCase()) b,
     ]);
+    await setDisabled(pluginId, false);
+  }
+
+  Set<String> loadDisabled() =>
+      (_preferences.getStringList(_disabledKey) ?? const [])
+          .map((id) => id.toLowerCase())
+          .toSet();
+
+  Future<void> setDisabled(String pluginId, bool disabled) {
+    final ids = loadDisabled();
+    disabled
+        ? ids.add(pluginId.toLowerCase())
+        : ids.remove(pluginId.toLowerCase());
+    return _preferences.setStringList(_disabledKey, ids.toList()..sort());
   }
 
   Future<void> _write(List<ApprovedBinding> bindings) => _preferences.setString(

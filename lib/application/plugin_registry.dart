@@ -39,6 +39,9 @@ class PluginEntry {
     this.signerDigests = const {},
     this.androidDebugSigned = false,
     this.hasApproval = false,
+    this.settingsActivity,
+    this.installedVersionName,
+    this.installedVersionCode,
   });
 
   final PluginStatus status;
@@ -64,6 +67,14 @@ class PluginEntry {
 
   /// 这个 pluginId 有批准记录（不论此刻是否可用）。换签被拒时用户要靠它找到「撤销批准」重新核对。
   final bool hasApproval;
+
+  /// 插件自己的设置页（系统查出的组件类名）。只有 [PluginStatus.ready] 时界面才给入口（SDK04）。
+  final String? settingsActivity;
+
+  /// 系统报告的安装包版本（versionName / versionCode），用来让用户看出「更新过」。
+  /// 描述符里的 version 是插件自称的，两者可能不同。
+  final String? installedVersionName;
+  final int? installedVersionCode;
 
   String? get pluginId => descriptor?.pluginId;
   bool get isBuiltin => packageName == null;
@@ -100,6 +111,9 @@ class _Installed {
     this.serviceClass,
     this.debugSignerDigests = const {},
     this.problem,
+    this.settingsActivity,
+    this.versionName,
+    this.versionCode,
   });
   final String packageName;
   final String descriptorJson;
@@ -107,6 +121,9 @@ class _Installed {
   final String? serviceClass;
   final Set<String> debugSignerDigests;
   final String? problem;
+  final String? settingsActivity;
+  final String? versionName;
+  final int? versionCode;
 }
 
 /// 用现有 Riverpod 装配的轻量 provider 注册表（X01）。
@@ -155,6 +172,9 @@ class PluginRegistry extends StateNotifier<List<PluginEntry>> {
     String? serviceClass,
     Set<String> debugSignerDigests = const {},
     String? problem,
+    String? settingsActivity,
+    String? versionName,
+    int? versionCode,
   }) {
     _missing.remove(packageName);
     _installed[packageName] = _Installed(
@@ -164,6 +184,9 @@ class PluginRegistry extends StateNotifier<List<PluginEntry>> {
       serviceClass: serviceClass,
       debugSignerDigests: Set.unmodifiable(debugSignerDigests),
       problem: problem,
+      settingsActivity: settingsActivity,
+      versionName: versionName,
+      versionCode: versionCode,
     );
     _recompute();
   }
@@ -187,11 +210,16 @@ class PluginRegistry extends StateNotifier<List<PluginEntry>> {
     _recompute();
   }
 
-  /// 撤销批准：它的会话关掉，回到「待批准」。
+  /// 撤销批准：它的会话关掉，回到「待批准」。停用标记一并清掉：
+  /// 否则以后重新批准时它会莫名其妙地处在「已停用」。
   void revoke(String pluginId) {
     _approvals.removeWhere((a) => _same(a.pluginId, pluginId));
+    _disabled.remove(pluginId.toLowerCase());
     _recompute();
   }
+
+  /// 当前被用户停用的 pluginId（小写）。
+  Set<String> get disabledIds => Set.unmodifiable(_disabled);
 
   /// 停用插件：阻止新操作并关掉它的会话；不影响 SSH/SFTP 或别的 provider。内置 provider 不能停用。
   void disable(String pluginId) {
@@ -347,6 +375,9 @@ class PluginRegistry extends StateNotifier<List<PluginEntry>> {
                 pkg.signerDigests.every(pkg.debugSignerDigests.contains),
             hasApproval: descriptor != null &&
                 _approvals.any((a) => _same(a.pluginId, descriptor.pluginId)),
+            settingsActivity: pkg.settingsActivity,
+            installedVersionName: pkg.versionName,
+            installedVersionCode: pkg.versionCode,
           );
 
       final PluginDescriptor descriptor;
