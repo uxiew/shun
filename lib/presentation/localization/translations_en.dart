@@ -855,6 +855,14 @@ const englishTranslations = <String, String>{
   '关联设备：': 'Link device: ',
   // X06：UU 远程适配器与绑定。回调的拒收原因会嵌在提示句里，放在片段表（englishReplacements）。
   '只支持 Android': 'Android only',
+  // 下面四条是 UuRemoteBridge.kt 的报错，经 PlatformException 显示在界面上。
+  '只发官方协议的绑定和远控请求':
+      'Only the binding and remote-control requests of the official protocol are sent',
+  'UU 远程的签名证书和核对过的不一致，没有发送':
+      'The signing certificate of UU Remote differs from the checked one; nothing was sent',
+  'UU 远程没有接收这个请求（版本可能太旧）':
+      'UU Remote did not accept this request (it may be too old)',
+  '系统不允许打开 UU 远程': 'The system does not allow opening UU Remote',
   'UU 远程联动目前只支持 Android': 'UU Remote integration is Android only for now',
   '上一个 UU 请求还在等回报。先结束等待，再发新的。':
       'The previous UU request is still waiting for a reply. Stop waiting before sending a new one.',

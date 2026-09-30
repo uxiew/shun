@@ -6,6 +6,7 @@ import android.content.res.Configuration
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
+import android.os.Bundle
 import android.util.Rational
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
@@ -17,6 +18,25 @@ class MainActivity : FlutterActivity() {
     private var documentTreeChannel: DocumentTreeChannel? = null
     private var pictureInPictureChannel: MethodChannel? = null
     private var pluginBridge: PluginBridge? = null
+    private var uuRemoteBridge: UuRemoteBridge? = null
+
+    /**
+     * UU 远程的回调（X06）可能在 App 没运行时把它拉起来，也可能在运行中送到 onNewIntent：
+     * 两个入口都先交给 UuRemoteBridge 排队，再由 Dart 的同一个校验器处理。
+     * 截下来的 Intent 去掉 data 再交给 Flutter，否则 Flutter 会把回调地址当成深链路由。
+     */
+    override fun onCreate(savedInstanceState: Bundle?) {
+        if (UuRemoteBridge.capture(intent)) intent = UuRemoteBridge.stripped(intent)
+        super.onCreate(savedInstanceState)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        if (UuRemoteBridge.capture(intent)) {
+            setIntent(UuRemoteBridge.stripped(intent))
+            return
+        }
+        super.onNewIntent(intent)
+    }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
@@ -25,6 +45,7 @@ class MainActivity : FlutterActivity() {
             flutterEngine.dartExecutor.binaryMessenger,
         )
         pluginBridge = PluginBridge(this, flutterEngine.dartExecutor.binaryMessenger)
+        uuRemoteBridge = UuRemoteBridge(this, flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "app.netcatty.mobile/connection",
@@ -108,6 +129,8 @@ class MainActivity : FlutterActivity() {
         documentTreeChannel = null
         pluginBridge?.dispose()
         pluginBridge = null
+        uuRemoteBridge?.dispose()
+        uuRemoteBridge = null
         pictureInPictureChannel?.setMethodCallHandler(null)
         pictureInPictureChannel = null
         super.onDestroy()
