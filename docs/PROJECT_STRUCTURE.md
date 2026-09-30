@@ -10,7 +10,7 @@ Netcatty-mobile/
 ├─ assets/
 │  ├─ distro/                    Linux/Unix 发行版图标
 │  └─ docker/                    Docker 镜像品牌图标
-├─ docs/                          开发文档与 README 截图
+├─ docs/                          开发文档、使用手册（docs/user/）与截图
 ├─ ios/                           iOS Flutter Host 与原生能力
 ├─ lib/
 │  ├─ application/               跨页面状态与生命周期
@@ -19,8 +19,10 @@ Netcatty-mobile/
 │  └─ presentation/              页面、主题和组件
 ├─ test/                          单元测试与 Widget Test
 ├─ pubspec.yaml                   版本、依赖和资源声明
-└─ README.md                      面向用户的项目入口
+└─ README.md                      本 fork 入口（上游原文在 docs/UPSTREAM_README.md）
 ```
+
+本 fork 新增的 `packages/`、`plugins/`、`tool/`、`spikes/`、`plan/` 各放什么，见根目录 README 的「仓库里有什么」。
 
 构建产物、Flutter 缓存、本地 SDK、签名文件和附件缓存均不属于源码，不得加入版本控制。
 
@@ -217,12 +219,14 @@ assets/
 | 路径 | 职责 |
 | --- | --- |
 | `.github/workflows/mobile.yml` | PR/main 自动分析、测试、Android 签名 APK、iOS 无签名 IPA |
-| `README.md` | 用户功能、截图、下载与快速开发入口 |
+| `README.md` | 本 fork 入口：现状、与原版的差异、快速开始、文档导航 |
+| `docs/user/README.md` | 使用手册 |
+| `docs/UPSTREAM_README.md` | 上游 README 原文：功能介绍与截图 |
 | `docs/ARCHITECTURE.md` | 依赖与数据流 |
 | `docs/DEVELOPMENT.md` | 环境、测试、CI 和发布 |
 | `docs/SECURITY.md` | 安全边界和隐私检查 |
 
-改变行为时同步更新对应文档，不要只更新 README 的功能列表。
+改变行为时同步更新对应文档；用户看得到的变化同时改使用手册。
 
 ## 常见任务入口
 

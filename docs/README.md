@@ -9,6 +9,8 @@
 - [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)：仓库目录树、关键文件职责和常见修改入口。
 - [SECURITY.md](SECURITY.md)：凭据存储、同步加密、主机验证、日志/截图脱敏和提交前安全检查。
 - [xwshun/README.md](xwshun/README.md)：本地 fork 专用——工具链、模拟器、真机安装、测试环境和磁盘清理。
+- [user/README.md](user/README.md)：使用手册，写给用 App 的人。
+- [UPSTREAM_README.md](UPSTREAM_README.md)：上游 README 原文（功能介绍与截图）。
 
 ## Agent 开发前检查
 

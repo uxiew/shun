@@ -1,7 +1,8 @@
 # 本 fork 的实施入口
 
 这是 Netcatty-mobile 的**本地个人隔离实验 fork**（GPL-3.0-or-later，保留原作者版权），
-按 V3 计划改造成 Flutter 移动终端。上游代码的说明仍以 `README.md` 和 `docs/` 为准。
+按 V3 计划改造成 Flutter 移动终端。上游的功能说明在 `docs/UPSTREAM_README.md`，架构、目录、安全约定在 `docs/`。
+用户看得到的行为改了，同步改使用手册 `docs/user/README.md`。
 
 开始干活前先读 `plan/v3/AGENTS.md`（实施契约），再读 `plan/v3/STATUS.md`（当前进度）。
 任务定义在 `plan/v3/tasks.json`，每批证据写在 `plan/v3/evidence/`。
