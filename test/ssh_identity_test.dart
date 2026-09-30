@@ -19,15 +19,16 @@ void main() {
     if (!hasKeygen) return;
     dir = await Directory.systemTemp.createTemp('xwshun-keys-');
     Future<void> gen(String name, List<String> args) async {
-      final result = await Process.run('ssh-keygen',
-          ['-q', ...args, '-C', '', '-f', '${dir.path}/$name']);
+      final result = await Process.run(
+          'ssh-keygen', ['-q', ...args, '-C', '', '-f', '${dir.path}/$name']);
       expect(result.exitCode, 0, reason: '${result.stderr}');
       keys[name] = File('${dir.path}/$name').readAsStringSync();
     }
 
     await gen('ed25519', ['-t', 'ed25519', '-N', '']);
     await gen('ed25519_enc', ['-t', 'ed25519', '-N', 'right-pass']);
-    await gen('rsa_pem_enc', ['-t', 'rsa', '-b', '2048', '-m', 'PEM', '-N', 'right-pass']);
+    await gen('rsa_pem_enc',
+        ['-t', 'rsa', '-b', '2048', '-m', 'PEM', '-N', 'right-pass']);
     await gen('ecdsa', ['-t', 'ecdsa', '-b', '256', '-N', '']);
   });
   tearDownAll(() async {
@@ -94,19 +95,23 @@ void main() {
         ('rsa_pem_enc', 'right-pass'),
         ('ecdsa', null),
       ]) {
-        final pairs =
-            loadHopIdentities(hopWith(privateKey: keys[name], passphrase: pass));
+        final pairs = loadHopIdentities(
+            hopWith(privateKey: keys[name], passphrase: pass));
         expect(pairs, isNotEmpty, reason: name);
         expect(pairs!.every(keyPairSelfCheck), isTrue, reason: name);
       }
     }, skip: hasKeygen ? false : '没有 ssh-keygen');
 
     test('口令错、没存口令、传统 PEM 口令错：失败关闭，说清原因', () {
-      expect(failure(hopWith(privateKey: keys['ed25519_enc'], passphrase: 'wrong')),
+      expect(
+          failure(
+              hopWith(privateKey: keys['ed25519_enc'], passphrase: 'wrong')),
           '私钥口令不对');
-      expect(failure(hopWith(privateKey: keys['ed25519_enc'])),
-          '私钥有口令保护，但没有保存口令');
-      expect(failure(hopWith(privateKey: keys['rsa_pem_enc'], passphrase: 'wrong')),
+      expect(
+          failure(hopWith(privateKey: keys['ed25519_enc'])), '私钥有口令保护，但没有保存口令');
+      expect(
+          failure(
+              hopWith(privateKey: keys['rsa_pem_enc'], passphrase: 'wrong')),
           '私钥无法解析：格式不对，或者口令不对');
     }, skip: hasKeygen ? false : '没有 ssh-keygen');
 
@@ -132,8 +137,7 @@ void main() {
     });
 
     test('设成只用私钥、私钥却被删了：拨号前拒绝；密码登录和自动模式不受影响', () {
-      expect(failure(hopWith(keyExists: false)),
-          '设置为用私钥登录，但引用的私钥不存在（可能已被删除）');
+      expect(failure(hopWith(keyExists: false)), '设置为用私钥登录，但引用的私钥不存在（可能已被删除）');
       expect(loadHopIdentities(hopWith(keyExists: false, authMethod: 'auto')),
           isNull);
       expect(

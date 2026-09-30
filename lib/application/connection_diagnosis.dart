@@ -19,10 +19,13 @@ String? connectionHint(Object error) {
     SshIdentityException() => '到主机编辑器重新选择私钥，或在私钥管理里补上正确的口令。',
     ProxyHandshakeException() =>
       '检查代理的地址、端口、用户名和密码。代理之后怎么走由代理决定，App 只看得到代理返回的结果。',
-    ConnectStageException() || SocketException() || TimeoutException() =>
+    ConnectStageException() ||
+    SocketException() ||
+    TimeoutException() =>
       '手机连不到这个地址：确认地址和端口没填错（SSH 端口和代理端口是两个不同的端口），'
           '以及当前网络——包括你开着的 VPN——能到达它。',
-    SSHHostkeyError() || SSHAuthAbortError(reason: SSHHostkeyError()) =>
+    SSHHostkeyError() ||
+    SSHAuthAbortError(reason: SSHHostkeyError()) =>
       '服务器指纹没通过核对，已在发送任何登录信息前断开。先向管理员确认，不要为了连上而接受不认识的指纹。',
     SSHAuthFailError() =>
       '服务器拒绝了登录：确认用户名；用密码的检查密码，用私钥的确认服务器上 authorized_keys 里有这把公钥。',

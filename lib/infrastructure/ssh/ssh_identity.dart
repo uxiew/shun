@@ -49,9 +49,7 @@ List<SSHKeyPair>? loadHopIdentities(RouteHop hop) {
     );
   } on SSHKeyDecryptError catch (error) {
     throw SshIdentityException(
-      error.message.contains('encrypted')
-          ? '私钥有口令保护，但没有保存口令'
-          : '私钥口令不对',
+      error.message.contains('encrypted') ? '私钥有口令保护，但没有保存口令' : '私钥口令不对',
     );
   } on SSHKeyDecodeError {
     // 传统 PEM 格式的 RSA 私钥口令不对时，dartssh2 报的也是解码失败，分不出来。

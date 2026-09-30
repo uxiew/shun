@@ -8,7 +8,8 @@ import 'package:netcatty_mobile/domain/models/vault.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_export_service.dart';
 
 void main() {
-  test('mobile export passes the JSON payload, without credentials, to the document picker',
+  test(
+      'mobile export passes the JSON payload, without credentials, to the document picker',
       () async {
     Uint8List? savedBytes;
     FileType? savedType;

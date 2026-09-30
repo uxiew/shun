@@ -38,7 +38,8 @@ void main() {
       vaultRepositoryProvider.overrideWithValue(repository),
       sshServiceProvider.overrideWithValue(service),
       if (vault != null)
-        vaultControllerProvider.overrideWith((ref) => vault..attach(repository)),
+        vaultControllerProvider
+            .overrideWith((ref) => vault..attach(repository)),
     ]);
     controller = container.read(sessionControllerProvider.notifier);
     await container.read(vaultControllerProvider.notifier).ready();
@@ -73,8 +74,8 @@ void main() {
       final second = controller.connect(host, accept);
       await settle();
       final newCall = service.calls.last;
-      expect(newCall.attempt.generation,
-          greaterThan(oldCall.attempt.generation));
+      expect(
+          newCall.attempt.generation, greaterThan(oldCall.attempt.generation));
 
       // 旧尝试的阶段事件和成功结果都迟到了。
       oldCall.attempt.report(const ConnectionStage(ConnectionStep.shell));
@@ -279,7 +280,6 @@ void main() {
       await pending;
       expect(late.closedByUser, isTrue);
     });
-
   });
 }
 

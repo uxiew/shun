@@ -97,7 +97,11 @@ void main() {
         'port': 22,
         'username': 'u',
         'protocol': 'ssh',
-        'proxyConfig': {'type': 'socks5', 'host': proxy.host, 'port': proxy.port},
+        'proxyConfig': {
+          'type': 'socks5',
+          'host': proxy.host,
+          'port': proxy.port
+        },
       });
       final stages = <ConnectionStep>[];
       final attempt = ConnectionAttempt(onStage: (s) => stages.add(s.step));

@@ -38,8 +38,7 @@ void main() {
 
   group('connectionHint 按真实失败类型给下一步', () {
     test('各类失败对应各自的提示', () {
-      expect(connectionHint(const RouteConfigException('x')),
-          contains('连接路径'));
+      expect(connectionHint(const RouteConfigException('x')), contains('连接路径'));
       expect(connectionHint(hopError(const SshIdentityException('私钥口令不对'))),
           contains('私钥'));
       expect(connectionHint(hopError(const ProxyHandshakeException('x'))),
@@ -73,7 +72,9 @@ void main() {
           },
           'proxyConfig': {'type': 'socks5', 'host': '127.0.0.1', 'port': 1080},
         }),
-        hosts: [host('edge', extra: {'port': 22})],
+        hosts: [
+          host('edge', extra: {'port': 22})
+        ],
         proxyProfiles: const [],
       );
       final legs = describeRoute(plan);
@@ -104,8 +105,8 @@ void main() {
     final target = host('web', extra: {
       'proxyConfig': {'type': 'socks5', 'host': '127.0.0.1', 'port': 1080},
     });
-    final plan = resolveRoutePlan(target,
-        hosts: const [], proxyProfiles: const []);
+    final plan =
+        resolveRoutePlan(target, hosts: const [], proxyProfiles: const []);
     final failed = PendingTerminalConnection(
       id: 'p1',
       host: target,
@@ -130,7 +131,8 @@ void main() {
     ));
     await tester.pump();
     expect(find.text('安全连接建立失败'), findsOneWidget);
-    expect(find.byKey(const ValueKey('connection-failure-hint')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('connection-failure-hint')), findsOneWidget);
     expect(find.textContaining('把代理端口或别的服务端口填成了 SSH 端口'), findsOneWidget);
     expect(find.text('这次实际走的路线'), findsOneWidget);
     expect(find.text('2. SOCKS5 代理'), findsOneWidget);

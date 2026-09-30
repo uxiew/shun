@@ -133,7 +133,9 @@ void main() {
       Object? error;
       try {
         resolveRoutePlan(host,
-            hosts: [host], proxyProfiles: sampleVault().proxyProfiles, keys: []);
+            hosts: [host],
+            proxyProfiles: sampleVault().proxyProfiles,
+            keys: []);
       } catch (e) {
         error = e;
       }
@@ -149,7 +151,8 @@ void main() {
       final text = jsonEncode(clean.toJson());
       expectNoSecrets(text, where: '去凭据后的 JSON');
       final host = clean.hosts.single.data;
-      expect(host['managedSource'], {'provider': 'tailscale', 'deviceId': 'n1'});
+      expect(
+          host['managedSource'], {'provider': 'tailscale', 'deviceId': 'n1'});
       expect(host['x-desktop-only'], {'keep': true});
       expect((host['proxyConfig'] as Map)['username'], 'proxy-user');
       expect(clean.keys.single.data['x-key-extra'], 'keep');
@@ -196,11 +199,12 @@ void main() {
       expect((merged.proxyProfiles.single.data['config'] as Map)['password'],
           profileProxyPw);
 
-      final withOwn = VaultData.fromJson(jsonDecode(jsonEncode(
-          vaultWithoutSecrets(local).toJson())) as Map<String, dynamic>);
+      final withOwn = VaultData.fromJson(
+          jsonDecode(jsonEncode(vaultWithoutSecrets(local).toJson()))
+              as Map<String, dynamic>);
       withOwn.hosts.single.data['password'] = 'FROM-FILE';
-      expect(keepLocalSecrets(withOwn, local).hosts.single.password,
-          'FROM-FILE');
+      expect(
+          keepLocalSecrets(withOwn, local).hosts.single.password, 'FROM-FILE');
     });
 
     test('文件把地址、端口、用户名或代理改了：不沿用，密码不会被发给另一台机器', () {
@@ -228,19 +232,19 @@ void main() {
         'username': 'someone-else',
       };
       final merged = keepLocalSecrets(movedProxy, local);
-      expect((merged.hosts.single.data['proxyConfig'] as Map)['password'],
-          isNull);
       expect(
-          (merged.proxyProfiles.single.data['config'] as Map)['password'], isNull);
-      expect(merged.hosts.single.password, hostPw,
-          reason: '主机本身没变，主机密码照样沿用');
+          (merged.hosts.single.data['proxyConfig'] as Map)['password'], isNull);
+      expect((merged.proxyProfiles.single.data['config'] as Map)['password'],
+          isNull);
+      expect(merged.hosts.single.password, hostPw, reason: '主机本身没变，主机密码照样沿用');
     });
 
     test('真实存储往返：保存 → 导出 → 导入同一文件 → 重新加载，凭据都还在', () async {
       final secrets = <String, String>{};
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(
-              const MethodChannel('plugins.it_nomads.com/flutter_secure_storage'),
+              const MethodChannel(
+                  'plugins.it_nomads.com/flutter_secure_storage'),
               (call) async {
         final args = (call.arguments as Map?) ?? const {};
         final key = args['key'] as String?;
@@ -267,8 +271,8 @@ void main() {
       final exported = VaultData.fromJson(jsonDecode(jsonEncode(
               vaultWithoutSecrets(await controller.ready()).toJson()))
           as Map<String, dynamic>);
-      await controller.replace(
-          keepLocalSecrets(exported, await controller.ready()));
+      await controller
+          .replace(keepLocalSecrets(exported, await controller.ready()));
 
       final reloaded = await (await VaultRepository.open()).loadVault();
       expect(reloaded.hosts.single.password, hostPw);

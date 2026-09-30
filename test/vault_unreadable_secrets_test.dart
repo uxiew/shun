@@ -160,13 +160,12 @@ void main() {
       'hosts': [
         host('jump', extra: {'authMethod': 'key', 'identityFileId': 'k1'})
             .toJson(),
-        host('t',
-            extra: {
-              'hostChain': {
-                'hostIds': ['jump'],
-              },
-              'proxyProfileId': 'p1',
-            }).toJson(),
+        host('t', extra: {
+          'hostChain': {
+            'hostIds': ['jump'],
+          },
+          'proxyProfileId': 'p1',
+        }).toJson(),
         host('keyonly', extra: {'authMethod': 'key', 'identityFileId': 'k2'})
             .toJson(),
       ],
@@ -177,8 +176,7 @@ void main() {
     HostProfile byId(String id) => vault.hosts.firstWhere((h) => h.id == id);
 
     test('目标的登录密码解不开：拒绝并说清是谁、哪种凭据', () {
-      expect(
-          unreadableCredentialProblem(byId('t'), vault, {'host.t.password'}),
+      expect(unreadableCredentialProblem(byId('t'), vault, {'host.t.password'}),
           startsWith('目标“t”：登录密码无法解密'));
     });
 
@@ -186,7 +184,8 @@ void main() {
       expect(
           unreadableCredentialProblem(byId('t'), vault, {'key.k1.passphrase'}),
           startsWith('跳板机“jump”：私钥无法解密'));
-      expect(unreadableCredentialProblem(byId('t'), vault, {'proxy.p1.password'}),
+      expect(
+          unreadableCredentialProblem(byId('t'), vault, {'proxy.p1.password'}),
           startsWith('目标“t”：代理口令无法解密'));
     });
 
@@ -197,8 +196,8 @@ void main() {
           isNull,
           reason: '只用私钥登录，密码解不开无所谓');
       expect(
-          unreadableCredentialProblem(
-              byId('t'), vault, {'host.t.telnetPassword', 'host.other.password'}),
+          unreadableCredentialProblem(byId('t'), vault,
+              {'host.t.telnetPassword', 'host.other.password'}),
           isNull);
     });
   });
@@ -212,9 +211,9 @@ void main() {
     ]);
     addTearDown(container.dispose);
     final controller = container.read(sessionControllerProvider.notifier);
-    final vault = await container.read(vaultControllerProvider.notifier).ready();
-    expect(
-        container.read(vaultControllerProvider).unreadableSecrets,
+    final vault =
+        await container.read(vaultControllerProvider.notifier).ready();
+    expect(container.read(vaultControllerProvider).unreadableSecrets,
         {'host.h1.password'},
         reason: '保险库页据此显示提示');
 

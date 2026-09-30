@@ -95,6 +95,7 @@ bool _sameLoginTarget(HostProfile a, HostProfile b) =>
 
 bool _sameProxy(Map a, Map b) =>
     '${a['type']}' == '${b['type']}' &&
-    '${a['host']}'.trim().toLowerCase() == '${b['host']}'.trim().toLowerCase() &&
+    '${a['host']}'.trim().toLowerCase() ==
+        '${b['host']}'.trim().toLowerCase() &&
     '${a['port']}' == '${b['port']}' &&
     '${a['username'] ?? ''}' == '${b['username'] ?? ''}';

@@ -557,7 +557,8 @@ class SshService {
       '打开终端失败',
       () => pending.waitFor(
         client.shell(
-          pty: const SSHPtyConfig(type: 'xterm-256color', width: 80, height: 24),
+          pty:
+              const SSHPtyConfig(type: 'xterm-256color', width: 80, height: 24),
           environment: _environment(target),
         ),
         onCancelled: (value) => value.close(),

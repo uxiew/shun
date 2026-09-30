@@ -305,7 +305,6 @@ class VaultRepository {
     }
   }
 
-
   Future<AppSettings> loadSettings() async {
     final raw = _preferences.getString(_settingsKey);
     if (raw == null) return const AppSettings();

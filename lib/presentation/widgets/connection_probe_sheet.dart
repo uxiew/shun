@@ -148,8 +148,7 @@ class _ConnectionProbeSheetState extends ConsumerState<ConnectionProbeSheet> {
                 ),
               ],
             ],
-            if (_state == _ProbeState.cancelled)
-              const LText('已停止，已建好的连接都已关掉。'),
+            if (_state == _ProbeState.cancelled) const LText('已停止，已建好的连接都已关掉。'),
             const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerRight,
