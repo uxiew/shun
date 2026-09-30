@@ -115,9 +115,13 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
     }
   }
 
+  /// 对用户这次点击的直接回应，马上显示：SnackBar 会排队，排在「检测到插件包更新」之类的提示后面，
+  /// 用户点了批准却要等四秒才看到「没有批准」，中间会以为已经批准了。
   void _message(String value) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: LText(value)));
+    ScaffoldMessenger.of(context)
+      ..removeCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: LText(value)));
   }
 
   @override
@@ -139,6 +143,8 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
     }
     final d = entry.descriptor;
     final stale = _testedAs != null && _testedAs != _fingerprint(entry);
+    // 包变了之后发现流程已经断开了那条连接，这里不能再给「断开」，免得以为还连着。
+    final connected = _connected && !stale;
     return Scaffold(
       appBar: AppBar(title: Text(d?.displayName ?? widget.packageName)),
       body: ListView(
@@ -215,7 +221,7 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
           Wrap(
             spacing: 8,
             runSpacing: 8,
-            children: _actions(entry),
+            children: _actions(entry, connected: connected),
           ),
         ],
       ),
@@ -227,7 +233,14 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
       return [LText('这个插件没有声明设置页。', style: small)];
     }
     if (entry.status != PluginStatus.ready) {
-      return [LText('批准并启用后才能打开：批准之前不会启动插件的任何代码。', style: small)];
+      return [
+        LText(
+          entry.status == PluginStatus.disabled
+              ? '启用后才能打开：停用的插件本 App 不会再启动它。'
+              : '批准并启用后才能打开：批准之前不会启动插件的任何代码。',
+          style: small,
+        ),
+      ];
     }
     return [
       LText('设置由插件自己保存，本 App 看不到，也不替它管理。', style: small),
@@ -243,7 +256,7 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
     ];
   }
 
-  List<Widget> _actions(PluginEntry entry) {
+  List<Widget> _actions(PluginEntry entry, {required bool connected}) {
     final ready = entry.status == PluginStatus.ready;
     return [
       if (entry.status == PluginStatus.needsApproval)
@@ -269,7 +282,7 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
                   }),
           child: const LText('连接测试'),
         ),
-      if (_connected && ready)
+      if (connected && ready)
         TextButton(
           onPressed: _busy
               ? null

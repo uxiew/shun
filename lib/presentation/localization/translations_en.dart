@@ -820,6 +820,8 @@ const englishTranslations = <String, String>{
   '已停用：它的会话已关闭，批准记录保留，重新启用不用再批准。':
       'Disabled: its sessions were closed and the approval kept; enabling it again needs no new approval.',
   '启用': 'Enable',
+  '启用后才能打开：停用的插件本 App 不会再启动它。':
+      'Available once enabled: this app does not start a disabled plugin.',
   '插件由你自己安装和卸载；本 App 不下载、不安装任何插件。装上、更新、卸载后这里会自动重新核对。':
       'You install and uninstall plugins yourself; this app never downloads or installs any. After an install, update or uninstall, this page checks again automatically.',
 };

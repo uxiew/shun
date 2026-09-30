@@ -190,6 +190,32 @@ void main() {
     expect(find.text(impostor), findsOneWidget);
   });
 
+  testWidgets('确认框开着时包被更新：点批准后马上说明没批准，不排在「检测到更新」提示后面', (tester) async {
+    await openDetail(tester);
+    await tapKey(tester, 'plugin-approve');
+    bridge.installed = [echo(version: '0.2.0')];
+    bridge.changes.add(const PackageChange(pkg, 'replaced', replacing: true));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('检测到插件包更新'), findsWidgets);
+    await tapKey(tester, 'plugin-approve-confirm');
+    expect(find.textContaining('确认期间插件有变化'), findsOneWidget);
+    expect(status(tester), '待批准');
+  });
+
+  testWidgets('包变了之后不再显示「断开」：那条连接已经被断开了', (tester) async {
+    await openDetail(tester);
+    await tapKey(tester, 'plugin-approve');
+    await tapKey(tester, 'plugin-approve-confirm');
+    await tapKey(tester, 'plugin-check');
+    expect(find.text('断开'), findsOneWidget);
+    bridge.installed = [echo(version: '0.2.0')];
+    bridge.changes.add(const PackageChange(pkg, 'replaced', replacing: true));
+    await tester.pumpAndSettle();
+    expect(status(tester), '可用');
+    expect(find.text('断开'), findsNothing);
+    expect(bridge.disconnects, contains(pkg));
+  });
+
   testWidgets('列表页：包更新后自动重新核对，事件里写明，不用手动重新扫描', (tester) async {
     await open(tester);
     bridge.installed = [echo(version: '0.2.0')];
