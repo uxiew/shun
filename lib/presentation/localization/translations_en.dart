@@ -622,11 +622,40 @@ const englishTranslations = <String, String>{
   'ping 返回的值不对，已断开': 'ping returned the wrong value; disconnected',
   '握手成功（插件核对了宿主证书），ping 往返正常':
       'Handshake succeeded (the plugin verified the host certificate); ping round trip OK',
+  // 导入确认框（vault_import_dialog.dart）。
+  '导入保险库文件': 'Import vault file',
+  '本机有、文件里没有的：': 'On this device but not in the file:',
+  '选「合并」会保留它们。选「替换」会把它们连同密码和私钥一起删除，之后再导入不带凭据的备份也找不回来。':
+      'Merge keeps them. Replace deletes them together with their passwords and private keys; importing a backup without credentials later will not bring those back.',
+  '这些条目的地址、端口或用户名和本机不同，本机存的密码不会沿用，导入后要重新填：':
+      'These entries have a different address, port or username than on this device, so the saved passwords will not carry over. Re-enter them after importing:',
+  '这些私钥在文件里只有名字、没有内容（本 App 导出的文件不带私钥），导入后要重新导入私钥：':
+      'These private keys have only a name in the file and no key material (files exported by this app never include private keys). Import the keys again afterwards:',
+  '主机': 'Hosts',
+  '代理配置': 'Proxy profiles',
+  '合并': 'Merge',
+  '替换': 'Replace',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // 导入保险库：带数字的句子（vault_import_dialog.dart、settings_screen.dart 的 _import）。
+  // 放最前：后面的通用片段会把「导入」「失败」「台」拆开逐个翻。
+  ('文件里有 ', 'The file has '),
+  (' 台主机：本机没有的 ', ' hosts: '),
+  (' 台会新增，本机已有的 ', ' will be added and '),
+  (' 台以文件为准更新。', ' existing ones will be updated from the file.'),
+  ('导入完成（合并）：新增主机 ', 'Imported (merge): hosts added '),
+  (' 台，更新主机 ', ', hosts updated '),
+  (' 台，本机独有的主机保留：', ', local-only hosts kept '),
+  ('导入完成（替换）：现在共有主机 ', 'Imported (replace): hosts now '),
+  (' 台，删除了本机独有的主机：', ', local-only hosts deleted '),
+  (
+    '确认期间本机保险库有变化，没有导入。请重新选择文件导入。',
+    'The vault on this device changed while you were confirming; nothing was imported. Choose the file again.'
+  ),
+  ('导入失败：', 'Import failed: '),
   // X03：插件会话（plugin_sessions.dart、PluginBridge.kt 的会话报错与丢弃原因）。
   ('不是已安装的插件', 'Not an installed plugin'),
   ('会话不在运行', 'The session is not running'),

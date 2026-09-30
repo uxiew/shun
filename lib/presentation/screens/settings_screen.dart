@@ -13,9 +13,9 @@ import '../../application/auto_sync_controller.dart';
 import '../../application/fork_features.dart';
 import '../../application/settings_controller.dart';
 import '../../application/vault_controller.dart';
+import '../../application/vault_import.dart';
 import '../../domain/models/settings.dart';
 import '../../domain/models/vault.dart';
-import '../../domain/vault_secrets.dart';
 import '../../infrastructure/storage/background_image_service.dart';
 import '../../infrastructure/storage/vault_repository.dart';
 import '../../infrastructure/storage/vault_export_service.dart';
@@ -30,6 +30,7 @@ import '../widgets/keychain_sheet.dart';
 import '../widgets/custom_background.dart';
 import '../widgets/ai_providers_page.dart';
 import '../widgets/github_manual_config.dart';
+import '../widgets/vault_import_dialog.dart';
 import 'plugins_screen.dart';
 
 part 'settings_screen_dialogs.dart';
@@ -1392,11 +1393,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>,
       );
       final controller = ref.read(vaultControllerProvider.notifier);
-      // 导出文件不带凭据：同一条目、同一登录目标的，沿用本机已有的密码和私钥，
-      // 否则保存时空值会把安全存储里的凭据删掉。
-      final vault = keepLocalSecrets(imported, await controller.ready());
-      await controller.replace(vault);
-      _message('已导入 ${vault.hosts.length} 台主机');
+      // 先让用户看清会新增、更新、删除什么再写。以前直接整库替换，文件里没有的主机连同凭据被删。
+      final shown = planVaultImport(imported, await controller.ready());
+      if (!mounted) return;
+      final mode = await confirmVaultImport(context, shown);
+      if (mode == null) return;
+      final plan = await controller.importVault(shown, mode);
+      final added = plan.addedHosts.length;
+      final updated = plan.updatedHosts.length;
+      final localOnly = plan.localOnlyHosts.length;
+      _message(mode == VaultImportMode.merge
+          ? '导入完成（合并）：新增主机 $added 台，更新主机 $updated 台，本机独有的主机保留：$localOnly'
+          : '导入完成（替换）：现在共有主机 ${added + updated} 台，删除了本机独有的主机：$localOnly');
     } catch (error) {
       _message('导入失败：$error');
     }

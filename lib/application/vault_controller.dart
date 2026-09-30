@@ -5,6 +5,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../domain/models/host.dart';
 import '../domain/models/vault.dart';
 import '../infrastructure/storage/vault_repository.dart';
+import 'vault_import.dart';
+
+/// 确认导入期间本机保险库变了，没有写入任何东西。
+class VaultChangedDuringImport implements Exception {
+  const VaultChangedDuringImport();
+
+  @override
+  String toString() => '确认期间本机保险库有变化，没有导入。请重新选择文件导入。';
+}
 
 class VaultState {
   const VaultState({
@@ -89,12 +98,30 @@ class VaultController extends StateNotifier<VaultState> {
 
   /// 主机相关的写入排队执行。每次写入都是「读当前保险库 → 改 → 保存」，两次交叠时，
   /// 后保存的那次会用它读到的旧列表盖掉先保存的——比如用户刚保存的编辑被连接回写冲掉。
-  /// 只覆盖本类里的主机写入；设置页导入、钥匙串、同步仍直接调 [replace]，不在队列里。
-  Future<void> _serialHostWrite(Future<void> Function() write) {
+  /// 覆盖本类里的主机写入和导入；钥匙串、同步仍直接调 [replace]，不在队列里。
+  Future<T> _serialHostWrite<T>(Future<T> Function() write) {
     final result = _hostWrites.then((_) => write());
-    _hostWrites = result.catchError((Object _) {});
+    _hostWrites = result.then((_) {}, onError: (Object _) {});
     return result;
   }
+
+  /// 按用户在确认框里看到的 [shown] 导入，返回实际用的那份结论。
+  ///
+  /// 排在主机写入的队列里，写之前按此刻的保险库重算。确认框开着的时候本机保险库变了
+  /// （比如在别处新加了一台主机），用户看到的「会删掉哪些」就不作数了：抛 [VaultChangedDuringImport]
+  /// 让用户重新导入，而不是删掉他没在确认框里看到的东西。
+  Future<VaultImportPlan> importVault(
+    VaultImportPlan shown,
+    VaultImportMode mode,
+  ) =>
+      _serialHostWrite(() async {
+        final plan = planVaultImport(shown.incoming, await ready());
+        if (plan.signature != shown.signature) {
+          throw const VaultChangedDuringImport();
+        }
+        await replace(plan.result(mode));
+        return plan;
+      });
 
   Future<void> upsertHost(HostProfile host) =>
       _serialHostWrite(() => _upsertHost(host));
