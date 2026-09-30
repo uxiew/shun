@@ -121,6 +121,7 @@ class UuRemoteHostScreen extends ConsumerStatefulWidget {
 
 class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
   var _busy = false;
+  late final AppLifecycleListener _lifecycle;
 
   UuRemoteController get _uu => ref.read(uuRemoteProvider.notifier);
 
@@ -128,6 +129,15 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
   void initState() {
     super.initState();
     unawaited(_uu.refreshApp());
+    // 用户多半是看了这页的提示，去装/更新 UU 或卸载别的 App 再回来：回来时重查，不用他退出重进。
+    _lifecycle =
+        AppLifecycleListener(onResume: () => unawaited(_uu.refreshApp()));
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
   }
 
   Future<void> _run(Future<void> Function() action) async {
@@ -379,10 +389,21 @@ class UuRemoteSettingsScreen extends ConsumerStatefulWidget {
 
 class _UuRemoteSettingsScreenState
     extends ConsumerState<UuRemoteSettingsScreen> {
+  late final AppLifecycleListener _lifecycle;
+
   @override
   void initState() {
     super.initState();
-    unawaited(ref.read(uuRemoteProvider.notifier).refreshApp());
+    final uu = ref.read(uuRemoteProvider.notifier);
+    unawaited(uu.refreshApp());
+    _lifecycle =
+        AppLifecycleListener(onResume: () => unawaited(uu.refreshApp()));
+  }
+
+  @override
+  void dispose() {
+    _lifecycle.dispose();
+    super.dispose();
   }
 
   @override
