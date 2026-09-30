@@ -25,7 +25,7 @@ class CatalogReadResult {
   bool get persisted => refusal == null;
 }
 
-/// 目录读取的三个入口（R11）。界面在 R13。
+/// 目录读取的三个入口（R11）。界面是 presentation/screens/tailscale_catalog_screen.dart（R13）。
 ///
 /// 1. 粘贴短期 token 读一次：token 只在内存里，读完即丢。
 /// 2. 用自己的 OAuth client 读：默认读完即丢；用户显式要求持续刷新、且换来的 token

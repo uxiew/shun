@@ -176,7 +176,7 @@ class CatalogRefreshOutcome {
   final PersistRefusal? persistRefusal;
 }
 
-/// 目录来源的增删与刷新（R12）。界面在 R13。
+/// 目录来源的增删与刷新（R12）。界面是 presentation/screens/tailscale_catalog_screen.dart（R13）。
 ///
 /// 刷新只做三件事：把列表并进缓存（只加、只改、只标记）、保存、给「地址仍跟随目录」的主机改地址。
 /// 失败只记原因；删来源只删缓存和凭据副本——这些操作都不删除、不改写任何主机的用户字段。
