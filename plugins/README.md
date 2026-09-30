@@ -32,6 +32,7 @@ cp ../android/local.properties .      # 首次：告诉 Gradle SDK 在哪（被 
 | `fakeuu-old.apk` | 同上 | 独立作者密钥 | 4.41.0：宿主应判「版本太旧」 |
 | `fakeuu-resigned.apk` | 同上 | 另一把密钥 | 同包名换签：批准过 `fakeuu` 之后装它，宿主应停下来要求重新核对。要先卸载 `fakeuu` 才装得上 |
 | `fakeuu-lookalike.apk` | example.xwshun.fixture.fakeuu | 另一把密钥 | 别的包也声明 `uuremote://`：官方包名没装时宿主应说「没装」并提醒有别的 App 声明，请求不发给它 |
+| `fakeuu-hijack.apk` | 同上 | 另一把密钥 | 抢回调的 App：另外声明宿主的回调地址 `xwshun-uuremote://callback`。宿主应说出它的包名，绑定和小窗不发（UUR06） |
 
 同包名同密钥的变体之间 `adb install -r` 直接覆盖，批准记录不受影响。测试 APK 都是可调试的，方便 `run-as` 看进程的 fd。
 X04 的三个更新变体 versionCode 是 2、3、4，其余都是 1：从高版本换回低版本要 `adb install -r -d`，否则报 `INSTALL_FAILED_VERSION_DOWNGRADE`。
@@ -108,6 +109,20 @@ adb logcat -d -s XwshunFakeUu     # 每个请求、每次回调一行：参数�
 | `pip_twice` / `pip_late:<秒>` / `pip_none` | 小窗远控 | 重放 / 延迟回报（先在 App 里结束等待，看迟到的是否被忽略）/ 不回 |
 
 全屏远控和官方一样从不回调。伪造一条没有请求的回调：`adb shell am start -a android.intent.action.VIEW -d 'xwshun-uuremote://callback/bind?state=AAAAAAAAAAAAAAAAAAAAAA\&anonymous_device_id=x\&nonce=y'`。
+
+**抢回调的 App**（`fakeuu-hijack.apk`）。装上它，宿主的 UU 页应立刻（回到前台时）出现「另有 App 也声明了本 App 的 UU 回调地址」，绑定和小窗按钮变灰。
+要看「请求发出之后它才装上」会怎样：
+
+```bash
+adb shell am start -n com.netease.uuremote/example.xwshun.fixture.fakeuu.ModeActivity --es mode bind_late:30
+# 在 App 里点「重新绑定」，然后 30 秒内：
+adb install -r out/fakeuu-hijack.apk
+adb shell am start -n example.xwshun.fixture.fakeuu/example.xwshun.fixture.fakeuu.ModeActivity --es mode hijack_swap
+# 假 UU 回调时系统弹「Open with」，选 Fake UU：它把加密标识换成自己的再转给宿主。宿主应显示「…这次返回的设备不可信，没有采用」，不弹确认框。
+adb logcat -d -s XwshunFakeUu | grep HIJACK     # 它拿到了什么（参数名和哈希）
+```
+
+`hijack_log`（默认）只记不转。它的模式存在它自己的包里，和假 UU 的模式互不相干；卸载后模式也没了。
 
 ## 撞墙时
 

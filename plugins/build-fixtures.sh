@@ -49,3 +49,5 @@ build fakeuu           fixture-fakeuu -PsignWith=author
 build fakeuu-old       fixture-fakeuu -PsignWith=author -PfakeUuVersion=4.41.0 -PfakeUuVersionCode=44100
 build fakeuu-resigned  fixture-fakeuu -PsignWith=impostor
 build fakeuu-lookalike fixture-fakeuu -PsignWith=impostor -PfakeUuAppId=example.xwshun.fixture.fakeuu
+# 抢回调的 App：和 lookalike 同包名同密钥（install -r 互相覆盖），多声明宿主的回调地址 xwshun-uuremote://callback。
+build fakeuu-hijack    fixture-fakeuu -PsignWith=impostor -PfakeUuAppId=example.xwshun.fixture.fakeuu -PfakeUuHijack=true

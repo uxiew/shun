@@ -13,6 +13,18 @@
                 <data android:scheme="uuremote" android:host="external" />
             </intent-filter>
         </activity>
+        <!-- 「抢回调的 App」：也声明宿主的 UU 回调地址。只在 fakeuu-hijack 变体里启用（UUR06 的 scheme 劫持模拟）。 -->
+        <activity
+            android:name="example.xwshun.fixture.fakeuu.HijackActivity"
+            android:enabled="${hijackEnabled}"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="xwshun-uuremote" android:host="callback" />
+            </intent-filter>
+        </activity>
         <!-- 测试脚本用 adb 启动它、带字符串 extra「mode」，设定下一次怎么回。用法见 plugins/README.md。 -->
         <activity
             android:name="example.xwshun.fixture.fakeuu.ModeActivity"

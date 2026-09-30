@@ -5,6 +5,7 @@
 //   -PfakeUuAppId=<包名>           默认 com.netease.uuremote（冒充官方包名：宿主会发现证书不是官方的）
 //   -PfakeUuVersion=4.42.0 -PfakeUuVersionCode=44200
 //   -PsignWith=author|impostor     见 ../signing.gradle.kts；换一把密钥就是「同包名换签」
+//   -PfakeUuHijack=true            另外声明宿主的回调地址 xwshun-uuremote://callback（扮演抢回调的 App，见 HijackActivity）
 plugins {
     id("com.android.application")
 }
@@ -13,6 +14,7 @@ apply(from = "../signing.gradle.kts")
 val appId = (findProperty("fakeUuAppId") as String?) ?: "com.netease.uuremote"
 val fakeVersion = (findProperty("fakeUuVersion") as String?) ?: "4.42.0"
 val fakeVersionCode = ((findProperty("fakeUuVersionCode") as String?) ?: "44200").toInt()
+val hijack = (findProperty("fakeUuHijack") as String?) == "true"
 
 @Suppress("UNCHECKED_CAST")
 val signing = extra["xwshunSigning"] as List<String>
@@ -27,6 +29,7 @@ android {
         targetSdk = 36
         versionCode = fakeVersionCode
         versionName = fakeVersion
+        manifestPlaceholders["hijackEnabled"] = hijack.toString()
     }
 
     signingConfigs {
