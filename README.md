@@ -3,7 +3,7 @@
 Android 上的 SSH 终端 + SFTP 文件管理，由 [Netcatty Mobile](https://github.com/kmh1145/Netcatty-mobile) v1.4.7 改造而来。
 本机个人实验 fork：**不 push、不发布**。
 
-**现状（2026-09-30）**：开发中。连接路线、凭据保管、插件基础已改完，在 Android 模拟器上验证过；**还没上过真机**，没有安装包。
+**现状（2026-09-30）**：开发中。连接路线、凭据保管、Tailscale 设备目录、插件基础已改完，在 Android 模拟器上验证过；**还没上过真机**，没有安装包。
 逐项进度看 [plan/v3/STATUS.md](plan/v3/STATUS.md)。
 
 ## 和原版的区别
@@ -15,6 +15,8 @@ Android 上的 SSH 终端 + SFTP 文件管理，由 [Netcatty Mobile](https://gi
 | 服务器指纹变了 | 点「确认更新」就能连 | 拦下，只能删除旧指纹后重新核对 |
 | 导出保险库 | 明文，含密码和私钥 | 不含密码、私钥、代理口令 |
 | AI、云同步、检查更新 | 开着 | 默认关，不联网 |
+| Tailscale 设备目录 | 无 | 只读读取设备列表，批量导入为主机；导入不连接、不开 VPN |
+| 导入保险库 | 直接整库替换，不提示 | 先说明会删什么，默认合并 |
 | 独立插件 | 无 | Android 插件接口（实验），插件和 App 每次调用都互相核对签名 |
 | 包名 | `app.netcatty.mobile` | `top.xdwa.xwshun`，能和原版装在同一台手机上 |
 
