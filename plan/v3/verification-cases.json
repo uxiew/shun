@@ -1191,7 +1191,8 @@
       "inherited_from": null,
       "evidence": [
         "evidence/X00.md",
-        "evidence/X05.md"
+        "evidence/X05.md",
+        "evidence/X06.md"
       ]
     },
     {
@@ -1347,7 +1348,7 @@
       "action": "伪造/重复/无pending/已过期callback、scheme劫持模拟。",
       "expected": "nonce/state校验及固定回调路径有效；说明无法用scheme证明发送者，敏感绑定需用户确认。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
       "evidence": [
         "evidence/X06.md"
@@ -1369,7 +1370,7 @@
       "action": "设备的SSH要求SOCKS，同时点击UU远控且要求所有流量同路由。",
       "expected": "明确provider-managed；无法保证同路由则拒绝/等待用户显式选择，不偷偷把SSH路由当已套用。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
       "evidence": [
         "evidence/X06.md"

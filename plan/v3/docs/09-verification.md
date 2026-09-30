@@ -159,9 +159,9 @@ G0基线与关键风险；G1连接路线；G2目录及外部认证支持；G3 Gh
 |UUR03|window_type=0全屏发起后没有任何回调，用户返回主App。|仅显示已交给UU，不等待承诺不存在的回调，不自动标Active/失败重试。|BLOCKED|
 |UUR04|window_type=1分别回调success/failure、PiP不可用。|显示提供方报告状态，失败不自动切全屏后伪报成功，无持续在线假定。|BLOCKED|
 |UUR05|用户确认提示延迟、timeout、superseded、取消和未知reason。|请求串行，结果未确认可终止本地等待；迟到事件不覆盖新请求、不自动再次远控。|BLOCKED|
-|UUR06|伪造/重复/无pending/已过期callback、scheme劫持模拟。|nonce/state校验及固定回调路径有效；说明无法用scheme证明发送者，敏感绑定需用户确认。|NOT_RUN|
+|UUR06|伪造/重复/无pending/已过期callback、scheme劫持模拟。|nonce/state校验及固定回调路径有效；说明无法用scheme证明发送者，敏感绑定需用户确认。|PASS|
 |UUR07|UU换账号或绑定失效，与同设备SSH/Tailscale/RustDesk并存。|只标UU引用失效并引导重绑，不删其他provider，不索取UU登录秘密。|BLOCKED|
-|UUR08|设备的SSH要求SOCKS，同时点击UU远控且要求所有流量同路由。|明确provider-managed；无法保证同路由则拒绝/等待用户显式选择，不偷偷把SSH路由当已套用。|NOT_RUN|
+|UUR08|设备的SSH要求SOCKS，同时点击UU远控且要求所有流量同路由。|明确provider-managed；无法保证同路由则拒绝/等待用户显式选择，不偷偷把SSH路由当已套用。|PASS|
 |RDX01|RustDesk未安装、scheme被别的App注册、自建签名版本。|验证实际包/签名及明确用户信任，不交给任意匹配scheme的App。|NOT_RUN|
 |RDX02|构造正常peer ID、含恶意scheme/路径/控制字符、带password/config修改的输入。|仅构造允许连接动作，不传密码，不调用敏感设置URI，不拼接任意外部参数。|NOT_RUN|
 |RDX03|外部Activity成功启动、返回、取消但没有会话回调。|只显示已发起，绝不假称connected或远端已终止。|NOT_RUN|
