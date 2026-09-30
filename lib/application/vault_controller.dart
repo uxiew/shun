@@ -126,6 +126,37 @@ class VaultController extends StateNotifier<VaultState> {
   Future<void> upsertHost(HostProfile host) =>
       _serialHostWrite(() => _upsertHost(host));
 
+  /// 一次加入多台新主机（目录批量导入），返回实际加入的。
+  ///
+  /// 在写入队列里按此刻的保险库判断：[skip] 返回 true 的不加（比如同一台设备在别处刚导入过），
+  /// ID 已存在的也不加——这里只新建，绝不改写已有主机。
+  Future<List<HostProfile>> addHosts(
+    List<HostProfile> hosts, {
+    bool Function(VaultData current, HostProfile host)? skip,
+  }) =>
+      _serialHostWrite(() async {
+        final vault = await ready();
+        final ids = {for (final host in vault.hosts) host.id};
+        final now = DateTime.now().millisecondsSinceEpoch;
+        final added = <HostProfile>[];
+        for (final host in hosts) {
+          if (ids.contains(host.id) || (skip?.call(vault, host) ?? false)) {
+            continue;
+          }
+          ids.add(host.id);
+          added.add(HostProfile({...host.data, 'updatedAt': now}));
+        }
+        if (added.isEmpty) return added;
+        final all = [...vault.hosts, ...added];
+        var groups = vault.customGroups;
+        for (final host in added) {
+          groups =
+              _updatedGroups(groups, all, currentGroup: _normalizedGroup(host));
+        }
+        await replace(vault.copyWith(hosts: all, customGroups: groups));
+        return added;
+      });
+
   Future<void> _upsertHost(HostProfile host) async {
     final vault = await ready();
     final stamped = HostProfile({

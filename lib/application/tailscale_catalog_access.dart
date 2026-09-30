@@ -104,6 +104,11 @@ class TailscaleCatalogAccess {
     return client.listDevices(tailnet: tailnet);
   }
 
+  /// 本机有没有保存这个来源的 OAuth client（界面据此决定显示「刷新」还是「重新授权」）。
+  Future<bool> hasSaved(String catalogId) async =>
+      _saved.containsKey(catalogId) ||
+      await _store.readOAuthClient(catalogId) != null;
+
   /// 删除本机保存的 client。只是删副本：要让它彻底失效，得在 Tailscale 后台撤销。
   Future<void> forgetSaved(String catalogId) async {
     _saved.remove(catalogId)?.forgetToken();

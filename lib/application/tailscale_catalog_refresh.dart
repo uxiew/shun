@@ -154,8 +154,13 @@ HostCatalogStatus? catalogStatusOf(
 }
 
 class CatalogRefreshOutcome {
-  const CatalogRefreshOutcome(this.cache,
-      {this.hostsReaddressed = 0, this.error});
+  const CatalogRefreshOutcome(
+    this.cache, {
+    this.hostsReaddressed = 0,
+    this.error,
+    this.scope,
+    this.persistRefusal,
+  });
   final CatalogCache cache;
 
   /// 跟着目录改了地址的主机数。
@@ -163,6 +168,12 @@ class CatalogRefreshOutcome {
 
   /// 刷新失败的原因（已脱敏）。失败时缓存里的设备和所有主机都没动。
   final TailscaleApiException? error;
+
+  /// 这次 token 的范围核对结果；失败时为 null。
+  final TokenScopeStatus? scope;
+
+  /// 用 OAuth client 读取并要求持续刷新、却没保存时的原因；其余情况为 null。
+  final PersistRefusal? persistRefusal;
 }
 
 /// 目录来源的增删与刷新（R12）。界面在 R13。
@@ -226,6 +237,36 @@ class CatalogRefresher {
         (tailnet) => _access.readOnceWithToken(token, tailnet: tailnet),
       );
 
+  /// 用自己的 OAuth client 读一次。[persist] 为 true、且服务器确认 token 只能读设备时，
+  /// 才把 client 存进独立安全存储（R11）；没存的原因放在 [CatalogRefreshOutcome.persistRefusal]。
+  Future<CatalogRefreshOutcome> refreshWithOAuthClient(
+    String catalogId,
+    OAuthClientCredential credential, {
+    required bool persist,
+  }) async {
+    PersistRefusal? refusal;
+    final outcome = await _refresh(catalogId, (tailnet) async {
+      final result = await _access.readWithOAuthClient(
+        catalogId: catalogId,
+        credential: credential,
+        persist: persist,
+        tailnet: tailnet,
+      );
+      refusal = result.refusal;
+      return result.listing;
+    });
+    if (outcome.error != null || !persist) return outcome;
+    return CatalogRefreshOutcome(
+      outcome.cache,
+      hostsReaddressed: outcome.hostsReaddressed,
+      scope: outcome.scope,
+      persistRefusal: refusal,
+    );
+  }
+
+  Future<bool> hasSavedCredentials(String catalogId) =>
+      _access.hasSaved(catalogId);
+
   /// 只删本机保存的 OAuth client（来源、缓存、主机都留着）。之后刷新会要求重新授权。
   /// 这只是删副本：要让它彻底失效，得在 Tailscale 后台撤销。
   Future<void> forgetCredentials(String catalogId) =>
@@ -265,7 +306,11 @@ class CatalogRefresher {
       });
       if (changed) readdressed++;
     }
-    return CatalogRefreshOutcome(next, hostsReaddressed: readdressed);
+    return CatalogRefreshOutcome(
+      next,
+      hostsReaddressed: readdressed,
+      scope: listing.scopeStatus,
+    );
   }
 }
 

@@ -506,4 +506,43 @@ void main() {
       expect(text, isNot(contains('machineKey')));
     });
   });
+
+  group('R13 界面用到的入口：OAuth client 读取与是否已保存', () {
+    const client =
+        OAuthClientCredential(clientId: 'cid', clientSecret: 'csecret');
+
+    test('不要求持续刷新：读完即丢，不保存，也不报「没保存」的原因', () async {
+      final r = await sourceWithHosts([]);
+      final outcome =
+          await r.refreshWithOAuthClient('cat-a', client, persist: false);
+      expect(outcome.error, isNull);
+      expect(outcome.cache.devices, contains('A'));
+      expect(outcome.persistRefusal, isNull);
+      expect(outcome.scope, TokenScopeStatus.deviceReadOnly);
+      expect(await r.hasSavedCredentials('cat-a'), isFalse);
+      expect(secrets.values, isEmpty);
+    });
+
+    test('要求持续刷新、服务器确认只读设备：保存，之后能直接刷新', () async {
+      final r = await sourceWithHosts([]);
+      final outcome =
+          await r.refreshWithOAuthClient('cat-a', client, persist: true);
+      expect(outcome.persistRefusal, isNull);
+      expect(await r.hasSavedCredentials('cat-a'), isTrue);
+      expect((await refresher().refreshSaved('cat-a')).error, isNull);
+      await r.forgetCredentials('cat-a');
+      expect(await refresher().hasSavedCredentials('cat-a'), isFalse);
+    });
+
+    test('失败时不保存，缓存里的设备不动', () async {
+      final r = await sourceWithHosts([]);
+      await r.refreshWithToken('cat-a', 'tok');
+      replies = [http.Response('{"message":"boom"}', 500)];
+      final outcome =
+          await r.refreshWithOAuthClient('cat-a', client, persist: true);
+      expect(outcome.error, isNotNull);
+      expect(outcome.cache.devices, contains('A'));
+      expect(await r.hasSavedCredentials('cat-a'), isFalse);
+    });
+  });
 }
