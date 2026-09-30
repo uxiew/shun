@@ -826,11 +826,22 @@ const englishTranslations = <String, String>{
       'You install and uninstall plugins yourself; this app never downloads or installs any. After an install, update or uninstall, this page checks again automatically.',
   // X05：Tailscale 目录接入内置 provider。
   '目录设备引用无效': 'Invalid directory device reference',
+  '没有主机引用这个来源，不需要恢复。新来源请用「添加来源」。':
+      'No host refers to this source, so there is nothing to restore. Use "Add source" for a new one.',
+  '缓存里没有这台设备，先读一次设备列表。':
+      'This device is not in the cache. Read the device list first.',
+  '最近一次完整列表里没有这台设备，不能关联。':
+      'This device was missing from the latest complete list and cannot be linked.',
+  '这台主机已经关联了目录里的设备，先在主机编辑器里断开。':
+      'This host is already linked to a directory device. Unlink it in the host editor first.',
+  '这台主机已不在保险库里。': 'This host is no longer in the vault.',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // X05：关联被拒时带主机名，按片段翻。放最前，免得先被「主机」「设备」这类通用词拆碎。
+  ('这台设备已经关联了主机：', 'This device is already linked to host: '),
   // X04：插件包变化的提示带包名，按片段翻。
   ('检测到插件包卸载：', 'Plugin package uninstalled: '),
   (
