@@ -635,11 +635,178 @@ const englishTranslations = <String, String>{
   '代理配置': 'Proxy profiles',
   '合并': 'Merge',
   '替换': 'Replace',
+  // R13：Tailscale 设备目录（tailscale_catalog_screen.dart、catalog_import_sheet.dart、
+  // catalog_source_section.dart、tailscale_catalog_import.dart）。
+  '设备目录': 'Device directory',
+  '从 Tailscale 读取设备列表，批量导入为主机':
+      'Read the device list from Tailscale and import devices as hosts',
+  'Tailscale 设备目录': 'Tailscale device directory',
+  '只读设备列表；导入不会连接，也不会启动 VPN':
+      'Read-only device list; importing does not connect or start a VPN',
+  '添加目录来源': 'Add directory source',
+  '名称（可选）': 'Name (optional)',
+  '填 - 表示「凭据所属的 tailnet」，一般不用改':
+      'Use - for "the tailnet the credential belongs to"; usually leave it',
+  'tailnet 不能为空，也不能有空格或斜杠':
+      'tailnet cannot be empty or contain spaces or slashes',
+  '添加来源': 'Add source',
+  '还没有目录来源。点「添加来源」，再用 Tailscale 的 token 或你自己的 OAuth client 读一次设备列表。':
+      'No directory sources yet. Tap "Add source", then read the device list once with a Tailscale token or your own OAuth client.',
+  'tailnet：': 'tailnet: ',
+  '设备数：': 'Devices: ',
+  '缓存时间：': 'Cached at: ',
+  '本机没有这个目录来源': 'This directory source is not on this device',
+  '读取失败，缓存里的设备和主机都没动：':
+      'Read failed; cached devices and hosts were not changed: ',
+  '读取成功，设备数：': 'Read succeeded. Devices: ',
+  '跟着目录改了地址的主机：': 'Hosts whose address followed the directory: ',
+  '服务器没有回报 token 的权限范围，无法确认它只能读设备。':
+      'The server did not report the token scope, so it cannot be confirmed as device read-only.',
+  '没有保存 OAuth client。': 'The OAuth client was not saved.',
+  '没有保存 OAuth client：服务器没有回报权限范围，无法确认它只能读设备。':
+      'The OAuth client was not saved: the server did not report its scope, so it cannot be confirmed as device read-only.',
+  '没有保存 OAuth client：它能读的不止设备。请在 Tailscale 后台新建一个只有 devices:core:read 的 client。':
+      'The OAuth client was not saved: it can read more than devices. Create a client with only devices:core:read in the Tailscale admin console.',
+  '粘贴 token 读一次': 'Paste a token and read once',
+  'token 只用这一次，读完就丢，不保存。建议在 Tailscale 后台生成一个短期 token，用完删掉。':
+      'The token is used once and discarded, never saved. Prefer a short-lived token from the Tailscale admin console and delete it afterwards.',
+  '读取': 'Read',
+  '已删除本机保存的 OAuth client。它在 Tailscale 那边仍然有效，要彻底作废请到 Tailscale 后台撤销。':
+      'Deleted the OAuth client saved on this device. It is still valid at Tailscale; revoke it in the Tailscale admin console to invalidate it.',
+  '移除这个来源？': 'Remove this source?',
+  '会删除本机的设备缓存和保存的 OAuth client。':
+      'This deletes the cached devices and the saved OAuth client on this device.',
+  '从它导入的主机：': 'Hosts imported from it: ',
+  '这些主机都会保留，照常能连；编辑器里会显示「本机没有这个来源」。要删主机请到保险库逐台删。':
+      'These hosts are kept and still connect; their editor will show "source not on this device". Delete hosts one by one in the vault if you want.',
+  '移除来源': 'Remove source',
+  '已导入主机：': 'Hosts imported: ',
+  '。还没有连接过：第一次连接时照常核对服务器指纹。':
+      '. Not connected yet: you will verify the server fingerprint on first connection as usual.',
+  '删除本机保存的 OAuth client': 'Delete the OAuth client saved on this device',
+  '移除这个来源': 'Remove this source',
+  '导入所选设备：': 'Import selected devices: ',
+  '用 OAuth client 读取': 'Read with an OAuth client',
+  '缓存里还没有设备。读一次设备列表后会出现在这里。':
+      'No cached devices yet. They appear here after you read the device list.',
+  '勾选要导入的设备。已导入的不能再选，不会重复建主机。':
+      'Select devices to import. Already imported ones cannot be selected, so no duplicate hosts are created.',
+  '还没有成功读取过设备列表。': 'The device list has never been read successfully.',
+  '上次读到的列表不完整：没有据此把任何设备标成不见了。':
+      'The last list was incomplete: no device was marked missing because of it.',
+  '最近一次读取失败：': 'Last read failed at: ',
+  '缓存里的设备和主机都没动。': 'Cached devices and hosts were not changed.',
+  '本机保存了这个来源的 OAuth client，可以直接刷新。':
+      'An OAuth client for this source is saved on this device, so you can refresh directly.',
+  '本机没有保存凭据：每次读取都要粘贴 token 或填 OAuth client。':
+      'No credentials saved on this device: paste a token or enter an OAuth client each time.',
+  '用 OAuth client 读取时，别人共享给你的设备可能不在列表里（Tailscale 的已知问题 tailscale#16911），这不代表设备被删了。':
+      'When reading with an OAuth client, devices shared with you may be missing from the list (known Tailscale issue tailscale#16911). That does not mean they were deleted.',
+  'Tailscale 控制面：已连接': 'Tailscale control plane: connected',
+  'Tailscale 控制面：未连接': 'Tailscale control plane: not connected',
+  'Tailscale 控制面：不知道': 'Tailscale control plane: unknown',
+  '上次连控制面：': 'Last seen by control plane: ',
+  '最近完整列表里没有它，标记于：': 'Not in the latest complete list, marked at: ',
+  '已导入为主机：': 'Imported as host: ',
+  '在 Tailscale 后台新建一个只勾 devices:core:read 的 OAuth client，把 ID 和 secret 填在这里。':
+      'Create an OAuth client with only devices:core:read in the Tailscale admin console and enter its ID and secret here.',
+  '保存到本机，以后直接刷新': 'Save on this device to refresh later',
+  '导入为主机': 'Import as hosts',
+  '导入': 'Import',
+  '选中的设备按同一套设置建成新主机。只写进保险库：不连接、不启动 VPN，第一次连接时照常核对指纹。':
+      'The selected devices become new hosts with the same settings. Only the vault is written: nothing connects, no VPN starts, and fingerprints are verified on first connection as usual.',
+  '登录用户名': 'Login username',
+  '服务器上的 Unix 用户，比如 ubuntu。必须填，不会默认用 root。':
+      'The Unix user on the server, such as ubuntu. Required; root is never assumed.',
+  '用设备的哪个地址': 'Which device address to use',
+  'MagicDNS 名称': 'MagicDNS name',
+  '地址跟随目录：以后刷新时设备地址变了，这些主机的地址会跟着改；你手动改过的就不再跟随。':
+      'Addresses follow the directory: when a device address changes on refresh, these hosts follow it, unless you edit the address yourself.',
+  '手机直接连设备地址。连 100.x 这类 Tailscale 地址，手机上要开着官方 Tailscale App——本 App 不会替你开。':
+      'The phone connects to the device address directly. For 100.x Tailscale addresses the official Tailscale app must be running on the phone; this app will not start it.',
+  '自动': 'Auto',
+  '不指定': 'None',
+  '密码不在这里批量填：导入后到各主机的编辑器里填。':
+      'Passwords are not set in bulk here: enter them in each host editor after importing.',
+  '按连接顺序选保险库里的主机做跳板机，最多 3 台。':
+      'Pick vault hosts as jump hosts in connection order, up to 3.',
+  '添加跳板机': 'Add jump host',
+  '代理只用于手机连第一台跳板机；之后每一跳由上一跳转发，不再经过代理。':
+      'The proxy is only used from the phone to the first jump host; every later hop is forwarded by the previous one, not through the proxy.',
+  '还没有保存的代理配置（目前只能从桌面端导入）。可以选「自定义」。':
+      'No saved proxy profiles (currently they only come from a desktop import). You can choose "Custom".',
+  '代理的用户名和密码是明文发给代理的：SSH 只加密之后的终端会话，保护不了这段口令。':
+      'The proxy username and password are sent to the proxy in clear text: SSH only encrypts the terminal session after it and cannot protect them.',
+  '选了「经跳板机」，但还没有添加跳板机。':
+      '"Via jump hosts" is selected but no jump host has been added.',
+  '选一个代理：已保存的配置，或者自定义。': 'Choose a proxy: a saved profile or a custom one.',
+  '将新建主机：': 'Hosts to create: ',
+  '跳过：': 'Skipped: ',
+  '目录来源': 'Directory source',
+  '来源：': 'Source: ',
+  '设备：': 'Device: ',
+  '地址跟随目录：刷新时设备地址变了，这里会跟着改。':
+      'Address follows the directory: when the device address changes on refresh, this host follows it.',
+  '地址不跟随目录：你改过地址（或从没由目录写过），刷新不会动它。':
+      'Address does not follow the directory: you edited it (or the directory never wrote it), so refreshes leave it alone.',
+  '目录状态不代表能连上：能不能连到、SSH 是否可用，要实际连接才知道。':
+      'Directory status does not mean the host is reachable: only a real connection shows whether it can be reached and whether SSH works.',
+  '保存后断开关联：主机和它的设置都保留，刷新不再改它。':
+      'Unlinks on save: the host and its settings stay, and refreshes stop changing it.',
+  '断开和目录的关联': 'Unlink from the directory',
+  '目录状态：最近一次列表里有它': 'Directory status: in the latest list',
+  '目录状态：最近完整列表里没有它（设备可能被删、换了 tailnet，或是看不到的共享设备）':
+      'Directory status: not in the latest complete list (the device may be deleted, moved to another tailnet, or be a shared device that is not visible)',
+  '目录状态：缓存里没有这台设备': 'Directory status: this device is not in the cache',
+  '目录状态：本机没有这个来源（来源被移除，或主机是从别的手机导入的）':
+      'Directory status: this source is not on this device (it was removed, or the host was imported from another phone)',
+  '要填登录用户名：目录不知道服务器上的 Unix 用户，不会默认用 root。':
+      'Enter a login username: the directory does not know the Unix user on the server, and root is never assumed.',
+  '用户名里不能有空格或控制字符。':
+      'The username cannot contain spaces or control characters.',
+  '端口要在 1–65535 之间。': 'The port must be between 1 and 65535.',
+  '选了私钥认证，要选一把私钥。': 'Key authentication needs a private key.',
+  '代理只能选一个：已保存的配置或自定义，不能都填。':
+      'Choose only one proxy: a saved profile or a custom one, not both.',
+  '跳板机最多 3 台。': 'At most 3 jump hosts.',
+  '缓存里没有这台设备': 'This device is not in the cache',
+  '最近一次完整列表里没有它': 'Not in the latest complete list',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // R13：多行拼接和带插值的句子（精确表匹配不到运行时的整句，按片段翻）。
+  (
+    '目录只知道设备在不在 Tailscale 的列表里、有没有连上 Tailscale 控制面。',
+    'The directory only knows whether a device is in the Tailscale list and whether it is connected to the Tailscale control plane. '
+  ),
+  (
+    '它不知道手机能不能连到设备，也不知道设备开没开 SSH——这些要实际连接才知道。',
+    'It does not know whether the phone can reach the device or whether SSH is enabled; only a real connection tells.'
+  ),
+  (
+    '从 Tailscale 读取设备列表，选中的设备可以批量导入为主机。',
+    'Read the device list from Tailscale and import selected devices as hosts. '
+  ),
+  (
+    '导入不会连接这些设备，也不会启动 VPN；要连上，手机得先能到达它们',
+    'Importing does not connect to them or start a VPN; to connect, the phone must be able to reach them '
+  ),
+  (
+    '（比如开着官方 Tailscale App，或者经代理、跳板机）。',
+    '(for example with the official Tailscale app running, or through a proxy or jump host).'
+  ),
+  (
+    '只在服务器确认它只能读设备时才保存。存在和保险库分开的加密存储里；',
+    'Saved only if the server confirms it can only read devices, in encrypted storage separate from the vault; '
+  ),
+  (
+    '在这里删除不等于在 Tailscale 那边作废。',
+    'deleting it here does not revoke it at Tailscale.'
+  ),
+  ('读取来源失败：', 'Failed to read sources: '),
+  ('已导入为“', 'Already imported as “'),
   // 导入保险库：带数字的句子（vault_import_dialog.dart、settings_screen.dart 的 _import）。
   // 放最前：后面的通用片段会把「导入」「失败」「台」拆开逐个翻。
   ('文件里有 ', 'The file has '),

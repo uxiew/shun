@@ -3,11 +3,13 @@ import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../application/tailscale_catalog_refresh.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/vault.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
+import 'catalog_source_section.dart';
 import 'connection_probe_sheet.dart';
 import 'keychain_sheet.dart';
 import 'route_legs_view.dart';
@@ -64,6 +66,9 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   bool obscurePassword = true;
   bool obscureProxyPassword = true;
   bool pinned = false;
+
+  /// 用户点了「断开和目录的关联」：保存时去掉关联字段，主机本身留着（R13）。
+  bool unlinkCatalog = false;
 
   @override
   void initState() {
@@ -579,6 +584,15 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                     label: const LText('测试连接'),
                   ),
                 ),
+              if (widget.host case final host?
+                  when CatalogBinding.of(host) != null)
+                CatalogSourceSection(
+                  host: host,
+                  currentHostname: hostname.text.trim(),
+                  unlinked: unlinkCatalog,
+                  onUnlinkChanged: (value) =>
+                      setState(() => unlinkCatalog = value),
+                ),
               _section('高级选项'),
               TextFormField(
                 controller: startupCommand,
@@ -713,6 +727,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     _setOrRemove(data, 'group', group.text.trim());
     _setOrRemove(data, 'identityFileId', identityFileId);
     _setOrRemove(data, 'startupCommand', startupCommand.text.trim());
+    if (unlinkCatalog) data.remove(CatalogBinding.key);
     // 路线只按当前选的方式保存：切到「直连」就真的去掉代理和跳板，不留一份看不见却还生效的旧设置。
     final usesJumps =
         protocol != HostProtocol.telnet && routeMode == _RouteMode.jump;

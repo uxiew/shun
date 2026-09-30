@@ -75,6 +75,18 @@ String catalogDeviceName(CatalogDeviceRecord record) {
   return device.id;
 }
 
+/// 写入前再查一次：同一来源的同一台设备在保险库里已有主机（比如另一个页面刚导入过），就不再建。
+bool alreadyImported(VaultData current, HostProfile host) {
+  final binding = CatalogBinding.of(host);
+  if (binding == null) return false;
+  return current.hosts.any((existing) {
+    final other = CatalogBinding.of(existing);
+    return other != null &&
+        other.catalogId == binding.catalogId &&
+        other.deviceId == binding.deviceId;
+  });
+}
+
 CatalogImportResult buildCatalogImport({
   required CatalogCache cache,
   required List<String> deviceIds,
@@ -101,7 +113,8 @@ CatalogImportResult buildCatalogImport({
     throw const CatalogImportInvalid('代理只能选一个：已保存的配置或自定义，不能都填。');
   }
   if (options.jumpHostIds.length > maxJumpHosts) {
-    throw const CatalogImportInvalid('跳板机最多 $maxJumpHosts 台。');
+    // 文案写死 3：插值后运行时的句子对不上英文翻译表。上限改了要一起改。
+    throw const CatalogImportInvalid('跳板机最多 3 台。');
   }
 
   final imported = <String, HostProfile>{

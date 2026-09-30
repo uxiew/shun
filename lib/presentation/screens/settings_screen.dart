@@ -32,6 +32,7 @@ import '../widgets/ai_providers_page.dart';
 import '../widgets/github_manual_config.dart';
 import '../widgets/vault_import_dialog.dart';
 import 'plugins_screen.dart';
+import 'tailscale_catalog_screen.dart';
 
 part 'settings_screen_dialogs.dart';
 
@@ -738,6 +739,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       subtitle: LText('每次首次连接显示 SHA-256 主机指纹'),
                     ),
                   ],
+                ),
+              ),
+              _header('设备目录', '从 Tailscale 读取设备列表，批量导入为主机'),
+              Card(
+                child: ListTile(
+                  key: const ValueKey('settings-tailscale-catalog'),
+                  leading: const Icon(Icons.lan_outlined),
+                  title: const LText('Tailscale 设备目录'),
+                  subtitle: const LText('只读设备列表；导入不会连接，也不会启动 VPN'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => const TailscaleCatalogScreen(),
+                    ),
+                  ),
                 ),
               ),
               if (Platform.isAndroid) ...[
