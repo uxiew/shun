@@ -41,7 +41,10 @@ class _TailscaleCatalogScreenState
 
   Future<void> _load() async {
     try {
-      final sources = await ref.read(catalogCacheRepositoryProvider).loadAll();
+      // 复制一份再排序：还没有任何来源时仓库返回的是 const 空列表，原地排序会抛 Unsupported operation。
+      final sources = [
+        ...await ref.read(catalogCacheRepositoryProvider).loadAll()
+      ];
       sources.sort((a, b) => (a.label ?? a.catalogId)
           .toLowerCase()
           .compareTo((b.label ?? b.catalogId).toLowerCase()));

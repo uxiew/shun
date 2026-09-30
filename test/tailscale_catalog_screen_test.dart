@@ -41,6 +41,12 @@ class MemoryCatalogRepository extends CatalogCacheRepository {
   Future<void> delete(String catalogId) async => caches.remove(catalogId);
 }
 
+/// 和真实仓库在全新安装时一样：没有任何来源时返回 const 空列表。
+class _ConstEmptyRepository extends MemoryCatalogRepository {
+  @override
+  Future<List<CatalogCache>> loadAll() async => const [];
+}
+
 class MemoryBackend implements CatalogSecretBackend {
   final values = <String, String>{};
   @override
@@ -333,6 +339,21 @@ void main() {
     await tester.pumpAndSettle();
     expect(han.hasMatch(allText(tester)), isFalse, reason: allText(tester));
     expect(find.textContaining('root is never assumed'), findsWidgets);
+  });
+
+  test('真实仓库：缓存目录还不存在时返回不可修改的空列表（界面必须先复制再排序）', () async {
+    final real = CatalogCacheRepository(() async => Directory(
+        '${Directory.systemTemp.path}/r13-none-${DateTime.now().microsecondsSinceEpoch}'));
+    final list = await real.loadAll();
+    expect(list, isEmpty);
+    expect(() => list.sort((a, b) => 0), throwsUnsupportedError);
+  });
+
+  testWidgets('全新安装：来源页正常显示「还没有目录来源」，不因空列表崩溃', (tester) async {
+    repo = _ConstEmptyRepository();
+    await open(tester, const TailscaleCatalogScreen());
+    expect(find.textContaining('还没有目录来源'), findsOneWidget);
+    expect(find.textContaining('Unsupported'), findsNothing);
   });
 
   testWidgets('没关联目录的主机，编辑器里不出现目录来源', (tester) async {
