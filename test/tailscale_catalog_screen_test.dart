@@ -198,6 +198,28 @@ void main() {
         isNot(contains('CANARY')));
   });
 
+  testWidgets('OAuth client：ID 和 secret 都填了才能点读取；「不完整」只说一次', (tester) async {
+    seedIncomplete();
+    await open(tester, const CatalogSourceScreen(catalogId: 'ts-home'));
+    expect(find.textContaining('不完整'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('catalog-read-oauth')));
+    await tester.pumpAndSettle();
+    FilledButton read() =>
+        tester.widget<FilledButton>(find.widgetWithText(FilledButton, '读取'));
+    expect(read().onPressed, isNull);
+    await tester.enterText(
+        find.byKey(const ValueKey('catalog-oauth-id')), 'cid');
+    await tester.pump();
+    expect(read().onPressed, isNull);
+    await tester.enterText(
+        find.byKey(const ValueKey('catalog-oauth-secret')), 'csecret');
+    await tester.pump();
+    expect(read().onPressed, isNotNull);
+    final secret = tester
+        .widget<TextField>(find.byKey(const ValueKey('catalog-oauth-secret')));
+    expect(secret.obscureText, isTrue);
+  });
+
   testWidgets('读取失败：写明失败、缓存里的设备不动', (tester) async {
     seedIncomplete();
     replies = [http.Response('{"message":"boom"}', 500)];

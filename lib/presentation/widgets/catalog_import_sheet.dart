@@ -190,6 +190,8 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
               helperMaxLines: 2,
             ),
           ),
+          // 用户名的提示有两行，贴着下一个输入框会压住它的浮动标签。
+          const SizedBox(height: 12),
           TextField(
             key: const ValueKey('catalog-import-port'),
             controller: _port,
@@ -263,6 +265,7 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
             },
             onSelectionChanged: (value) => setState(() => _auth = value.first),
           ),
+          const SizedBox(height: 12),
           DropdownButtonFormField<String?>(
             key: const ValueKey('catalog-import-key'),
             initialValue: _keyId,
@@ -282,6 +285,7 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
           ),
           const SizedBox(height: 4),
           LText('密码不在这里批量填：导入后到各主机的编辑器里填。', style: small),
+          const SizedBox(height: 12),
           TextField(
             controller: _group,
             onChanged: (_) => setState(() {}),

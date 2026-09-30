@@ -488,12 +488,16 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
             catalogLine(
                 '缓存时间：', success == null ? '—' : catalogTime(success.at)),
             if (success == null) const LText('还没有成功读取过设备列表。'),
-            if (success != null && !success.complete)
-              const LText(
-                '上次读到的列表不完整：没有据此把任何设备标成不见了。',
-                key: ValueKey('catalog-incomplete'),
+            // 列表不完整时只写一句：优先用缓存里记下的具体原因（几条无法识别、几个重复 ID），
+            // 没有才用通用说法。两句一起显示是同一件事说两遍。
+            if (success != null && (!success.complete || success.note != null))
+              LText(
+                success.note ?? '上次读到的列表不完整：没有据此把任何设备标成不见了。',
+                key: success.complete
+                    ? null
+                    : const ValueKey('catalog-incomplete'),
+                style: small,
               ),
-            if (success?.note case final note?) LText(note, style: small),
             if (failedLast) ...[
               const SizedBox(height: 4),
               catalogLine('最近一次读取失败：', catalogTime(attempt.at)),
@@ -590,9 +594,11 @@ class _OAuthClientDialogState extends State<_OAuthClientDialog> {
               const LText(
                 '在 Tailscale 后台新建一个只勾 devices:core:read 的 OAuth client，把 ID 和 secret 填在这里。',
               ),
+              const SizedBox(height: 12),
               TextField(
                 key: const ValueKey('catalog-oauth-id'),
                 controller: _id,
+                onChanged: (_) => setState(() {}),
                 autocorrect: false,
                 enableSuggestions: false,
                 decoration: const InputDecoration(labelText: 'Client ID'),
@@ -600,6 +606,7 @@ class _OAuthClientDialogState extends State<_OAuthClientDialog> {
               TextField(
                 key: const ValueKey('catalog-oauth-secret'),
                 controller: _secret,
+                onChanged: (_) => setState(() {}),
                 obscureText: true,
                 autocorrect: false,
                 enableSuggestions: false,
@@ -625,12 +632,13 @@ class _OAuthClientDialogState extends State<_OAuthClientDialog> {
             child: const LText('取消'),
           ),
           FilledButton(
-            onPressed: () {
-              final id = _id.text.trim();
-              final secret = _secret.text.trim();
-              if (id.isEmpty || secret.isEmpty) return;
-              Navigator.pop(context, (id, secret, _persist));
-            },
+            // 两项都填了才能点：以前少填一项时按了没有任何反应，看着像卡住。
+            onPressed: _id.text.trim().isEmpty || _secret.text.trim().isEmpty
+                ? null
+                : () => Navigator.pop(
+                      context,
+                      (_id.text.trim(), _secret.text.trim(), _persist),
+                    ),
             child: const LText('读取'),
           ),
         ],
@@ -700,7 +708,11 @@ class _FieldsDialogState extends State<_FieldsDialog> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            if (widget.explain != null) LText(widget.explain!),
+            // 说明和输入框之间要留空：输入框的浮动标签在框的上沿，贴着会压住说明的最后一行。
+            if (widget.explain != null) ...[
+              LText(widget.explain!),
+              const SizedBox(height: 12),
+            ],
             for (final (index, field) in widget.fields.indexed)
               TextField(
                 key: field.key,
