@@ -343,18 +343,133 @@ void main() {
     expect(result!.hostname, 'nas.lan');
   });
 
+  Future<void> saveHosts(List<Map<String, Object?>> hosts) =>
+      vault.saveVault(VaultData.fromJson({
+        'hosts': hosts,
+        'keys': [],
+        'snippets': [],
+        'customGroups': [],
+      }));
+
+  Map<String, Object?> boundHost(
+          String id, String label, String catalogId, String deviceId,
+          {String? applied}) =>
+      {
+        ...HostProfile.create(
+                id: id, label: label, hostname: '100.64.0.1', username: 'u')
+            .toJson(),
+        CatalogBinding.key: CatalogBinding(
+          catalogId: catalogId,
+          deviceId: deviceId,
+          appliedAddress: applied,
+        ).toJson(),
+      };
+
+  testWidgets('X05 关联已有主机：只列没关联的主机；只写绑定、不改地址、不发请求', (tester) async {
+    seedIncomplete();
+    await saveHosts([
+      HostProfile.create(
+              id: 'manual',
+              label: 'my nas',
+              hostname: '10.0.0.5',
+              username: 'me')
+          .toJson(),
+      boundHost('bound', 'bound', 'ts-home', '9'),
+    ]);
+    await open(tester, const CatalogSourceScreen(catalogId: 'ts-home'));
+    await tester.tap(find.byKey(const ValueKey('catalog-link-1')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('一概不改'), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('catalog-link-host-manual')), findsOneWidget);
+    expect(find.byKey(const ValueKey('catalog-link-host-bound')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('catalog-link-host-manual')));
+    await tester.pumpAndSettle();
+
+    expect(find.textContaining('已关联。'), findsOneWidget);
+    expect(find.text('已关联主机：my nas'), findsOneWidget);
+    expect(find.byKey(const ValueKey('catalog-link-1')), findsNothing);
+    final checkbox = tester.widget<CheckboxListTile>(
+        find.byKey(const ValueKey('catalog-device-1')));
+    expect(checkbox.onChanged, isNull);
+
+    final manual =
+        (await vault.loadVault()).hosts.singleWhere((h) => h.id == 'manual');
+    expect(manual.hostname, '10.0.0.5');
+    expect(manual.username, 'me');
+    expect(CatalogBinding.of(manual)!.deviceId, '1');
+    expect(CatalogBinding.of(manual)!.appliedAddress, isNull);
+    expect(requests, isEmpty);
+  });
+
+  testWidgets('X05 主机引用了本机没有的来源：列出来；在本机恢复后进入来源页，主机不变、不发请求', (tester) async {
+    await saveHosts([
+      boundHost('h1', 'nas', 'ts-gone', '1', applied: '100.64.0.1'),
+    ]);
+    final before = jsonEncode((await vault.loadVault()).hosts.single.data);
+    await open(tester, const TailscaleCatalogScreen());
+    expect(
+        find.byKey(const ValueKey('catalog-missing-ts-gone')), findsOneWidget);
+    expect(find.text('引用它的主机：nas'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('catalog-restore-ts-gone')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('不发请求、不改任何主机'), findsOneWidget);
+    await tester.tap(find.text('恢复来源'));
+    await tester.pumpAndSettle();
+
+    expect(repo.caches['ts-gone']!.devices, isEmpty);
+    expect(find.text('缓存里还没有设备。读一次设备列表后会出现在这里。'), findsOneWidget);
+    expect(requests, isEmpty);
+    expect(jsonEncode((await vault.loadVault()).hosts.single.data), before);
+
+    // 读一次同一个 tailnet：设备 1 对上，列表里显示它就是那台导入的主机。
+    await tester.tap(find.byKey(const ValueKey('catalog-read-token')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+        find.byKey(const ValueKey('catalog-secret-field')), 'tok');
+    await tester.tap(find.text('读取'));
+    await tester.pumpAndSettle();
+    expect(find.text('已导入为主机：nas'), findsOneWidget);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('catalog-missing-ts-gone')), findsNothing);
+  });
+
   testWidgets('英文界面：来源页和导入页渲染出来的文字里没有汉字', (tester) async {
     NetcattyLocalizations.use('en');
     addTearDown(() => NetcattyLocalizations.use('zh'));
     seedIncomplete();
+    await saveHosts([
+      HostProfile.create(
+              id: 'manual',
+              label: 'my nas',
+              hostname: '10.0.0.5',
+              username: 'me')
+          .toJson(),
+      boundHost('h1', 'gone', 'ts-gone', '1', applied: '100.64.0.1'),
+    ]);
     final han = RegExp(r'[一-鿿]');
     await open(tester, const TailscaleCatalogScreen());
+    expect(
+        find.byKey(const ValueKey('catalog-missing-ts-gone')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('catalog-restore-ts-gone')));
+    await tester.pumpAndSettle();
+    expect(han.hasMatch(allText(tester)), isFalse, reason: allText(tester));
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
     await tester.tap(find.text('home'));
     await tester.pumpAndSettle();
     expect(han.allMatches(allText(tester)).map((m) => m.group(0)), isEmpty,
         reason: allText(tester));
     expect(find.text('Tailscale control plane: unknown'), findsOneWidget);
     expect(find.textContaining('This list was incomplete'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('catalog-link-2')));
+    await tester.pumpAndSettle();
+    expect(han.hasMatch(allText(tester)), isFalse, reason: allText(tester));
+    await tester.tap(find.text('Cancel'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('catalog-device-1')));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('catalog-import-selected')));

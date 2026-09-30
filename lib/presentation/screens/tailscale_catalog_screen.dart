@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/tailscale_catalog_access.dart';
 import '../../application/tailscale_catalog_import.dart';
+import '../../application/tailscale_catalog_provider.dart';
 import '../../application/tailscale_catalog_refresh.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/models/host.dart';
@@ -31,7 +32,10 @@ class TailscaleCatalogScreen extends ConsumerStatefulWidget {
 class _TailscaleCatalogScreenState
     extends ConsumerState<TailscaleCatalogScreen> {
   List<CatalogCache>? _sources;
+  List<MissingCatalogSource> _missing = const [];
   String? _error;
+
+  TailscaleCatalogProvider get _catalog => ref.read(tailscaleCatalogProvider);
 
   @override
   void initState() {
@@ -48,18 +52,30 @@ class _TailscaleCatalogScreenState
       sources.sort((a, b) => (a.label ?? a.catalogId)
           .toLowerCase()
           .compareTo((b.label ?? b.catalogId).toLowerCase()));
-      if (mounted) setState(() => _sources = sources);
+      final missing = await _catalog.missingSources();
+      if (mounted) {
+        setState(() {
+          _sources = sources;
+          _missing = missing;
+        });
+      }
     } on Object catch (error) {
       if (mounted) setState(() => _error = '$error');
     }
   }
 
-  Future<void> _add() async {
+  /// 来源的名称和 tailnet。取消或 tailnet 不合规返回 null（不合规时已提示）。
+  Future<(String?, String)?> _askSource({
+    required String title,
+    required String confirm,
+    String? explain,
+  }) async {
     final values = await showDialog<List<String>>(
       context: context,
       builder: (context) => _FieldsDialog(
-        title: '添加目录来源',
-        confirm: '添加',
+        title: title,
+        confirm: confirm,
+        explain: explain,
         fields: [
           _Field(label: localized('名称（可选）')),
           _Field(
@@ -70,21 +86,50 @@ class _TailscaleCatalogScreenState
         ],
       ),
     );
-    if (values == null || !mounted) return;
+    if (values == null || !mounted) return null;
     final name = values[0];
     final net = values[1];
     if (net.isEmpty || RegExp(r'[\s/\x00-\x1f\x7f]').hasMatch(net)) {
       _message('tailnet 不能为空，也不能有空格或斜杠');
-      return;
+      return null;
     }
+    return (name.isEmpty ? null : name, net);
+  }
+
+  Future<void> _add() async {
+    final source = await _askSource(title: '添加目录来源', confirm: '添加');
+    if (source == null) return;
     try {
-      final cache = await ref.read(catalogRefresherProvider).addSource(
-            catalogId: _newCatalogId(),
-            tailnet: net,
-            label: name.isEmpty ? null : name,
-          );
+      final cache = await _catalog.addSource(
+        catalogId: _newCatalogId(),
+        tailnet: source.$2,
+        label: source.$1,
+      );
       await _load();
       if (mounted) await _open(cache.catalogId);
+    } on Object catch (error) {
+      _message('$error');
+    }
+  }
+
+  /// 按主机里记着的来源 ID 在本机重建来源（DEV02 的修复路径）。只建空来源，不发请求、不改主机。
+  Future<void> _restore(String catalogId) async {
+    final source = await _askSource(
+      title: '在本机恢复来源',
+      confirm: '恢复来源',
+      explain: '按主机里记着的来源 ID 在本机重建一个空来源，不发请求、不改任何主机。'
+          '之后用同一个 tailnet 的凭据读一次设备列表，这些主机就重新对上目录里的设备；'
+          '读的是别的 tailnet，设备对不上，主机什么都不会被改。',
+    );
+    if (source == null) return;
+    try {
+      await _catalog.restoreSource(
+        catalogId,
+        tailnet: source.$2,
+        label: source.$1,
+      );
+      await _load();
+      if (mounted) await _open(catalogId);
     } on Object catch (error) {
       _message('$error');
     }
@@ -156,6 +201,32 @@ class _TailscaleCatalogScreenState
                 onTap: () => _open(source.catalogId),
               ),
             ),
+          if (_missing.isNotEmpty) ...[
+            const SizedBox(height: 16),
+            const LText('主机里引用了、本机没有的来源'),
+            LText(
+              '来源被移除过，或主机是从别的手机同步、导入来的。这些主机照常能连，只是看不到目录状态、地址也不跟随目录。',
+              style: small,
+            ),
+            for (final missing in _missing)
+              Card(
+                key: ValueKey('catalog-missing-${missing.catalogId}'),
+                child: ListTile(
+                  leading: const Icon(Icons.link_off),
+                  title: Text(missing.catalogId),
+                  subtitle: catalogLine(
+                    '引用它的主机：',
+                    missing.hosts.map((h) => h.label).join(', '),
+                    style: small,
+                  ),
+                  trailing: TextButton(
+                    key: ValueKey('catalog-restore-${missing.catalogId}'),
+                    onPressed: () => _restore(missing.catalogId),
+                    child: const LText('在本机恢复'),
+                  ),
+                ),
+              ),
+          ],
         ],
       ),
     );
@@ -186,7 +257,7 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
   String? _loadError;
   final _selected = <String>{};
 
-  CatalogRefresher get _refresher => ref.read(catalogRefresherProvider);
+  TailscaleCatalogProvider get _catalog => ref.read(tailscaleCatalogProvider);
 
   @override
   void initState() {
@@ -198,7 +269,7 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
     try {
       final cache =
           await ref.read(catalogCacheRepositoryProvider).load(widget.catalogId);
-      final saved = await _refresher.hasSavedCredentials(widget.catalogId);
+      final saved = await _catalog.hasSavedCredentials(widget.catalogId);
       if (!mounted) return;
       setState(() {
         _cache = cache;
@@ -258,7 +329,7 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
       label: 'Access token',
     );
     if (token == null || token.isEmpty) return;
-    await _run(() => _refresher.refreshWithToken(widget.catalogId, token));
+    await _run(() => _catalog.refreshWithToken(widget.catalogId, token));
   }
 
   Future<void> _readWithOAuth() async {
@@ -268,7 +339,7 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
     );
     if (result == null) return;
     final (id, secret, persist) = result;
-    await _run(() => _refresher.refreshWithOAuthClient(
+    await _run(() => _catalog.refreshWithOAuthClient(
           widget.catalogId,
           OAuthClientCredential(clientId: id, clientSecret: secret),
           persist: persist,
@@ -299,7 +370,7 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
   }
 
   Future<void> _forgetCredentials() async {
-    await _refresher.forgetCredentials(widget.catalogId);
+    await _catalog.forgetCredentials(widget.catalogId);
     _message(
         '已删除本机保存的 OAuth client。它在 Tailscale 那边仍然有效，要彻底作废请到 Tailscale 后台撤销。');
     await _load();
@@ -321,8 +392,10 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
           children: [
             const LText('会删除本机的设备缓存和保存的 OAuth client。'),
             const SizedBox(height: 8),
-            catalogLine('从它导入的主机：', '${bound.length}'),
+            catalogLine('关联它的主机：', '${bound.length}'),
             const LText('这些主机都会保留，照常能连；编辑器里会显示「本机没有这个来源」。要删主机请到保险库逐台删。'),
+            if (bound.isNotEmpty)
+              const LText('以后想让它们重新对上目录，可以在目录页的「主机里引用了、本机没有的来源」里恢复这个来源。'),
           ],
         ),
         actions: [
@@ -338,7 +411,7 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
       ),
     );
     if (confirmed != true) return;
-    await _refresher.removeSource(widget.catalogId);
+    await _catalog.removeSource(widget.catalogId);
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -360,6 +433,38 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
     _message('$head$added$tail');
   }
 
+  /// 用户选一台已有主机和这台设备关联（DEV01：只有用户关联才形成关联）。只写绑定，不连接。
+  Future<void> _linkExisting(CatalogDeviceRecord record) async {
+    final hosts = [
+      for (final host in ref.read(vaultControllerProvider).data?.hosts ??
+          const <HostProfile>[])
+        if (CatalogBinding.of(host) == null) host,
+    ]..sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
+    if (hosts.isEmpty) {
+      _message('没有可以关联的主机：已经关联了目录设备的主机，要先在编辑器里断开。');
+      return;
+    }
+    final hostId = await showDialog<String>(
+      context: context,
+      builder: (context) =>
+          _LinkHostDialog(device: catalogDeviceName(record), hosts: hosts),
+    );
+    if (hostId == null || !mounted) return;
+    setState(() => _busy = true);
+    try {
+      await _catalog.linkHost(
+        hostId: hostId,
+        catalogId: widget.catalogId,
+        deviceId: record.id,
+      );
+      _message('已关联。主机的地址、用户名、端口、路线、指纹都没改，刷新也不会改它的地址。');
+    } on Object catch (error) {
+      _message('$error');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
   void _message(String value) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: LText(value)));
@@ -371,12 +476,13 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
     final theme = Theme.of(context);
     final small = theme.textTheme.bodySmall;
     final hosts = ref.watch(vaultControllerProvider).data?.hosts ?? const [];
-    final imported = <String, String>{
-      for (final host in hosts)
-        if (CatalogBinding.of(host) case final binding?
-            when binding.catalogId == widget.catalogId)
-          binding.deviceId: host.label,
-    };
+    // 一台设备应该只关联一台主机；从别的手机同步来的旧数据可能有两台，都列出来，不替用户挑。
+    final linked = <String, List<HostProfile>>{};
+    for (final host in hosts) {
+      final binding = CatalogBinding.of(host);
+      if (binding == null || binding.catalogId != widget.catalogId) continue;
+      linked.putIfAbsent(binding.deviceId, () => []).add(host);
+    }
     final devices = [...?cache?.devices.values];
     devices.sort((a, b) => catalogDeviceName(a)
         .toLowerCase()
@@ -439,7 +545,7 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
                             onPressed: _busy
                                 ? null
                                 : () => _run(() =>
-                                    _refresher.refreshSaved(widget.catalogId)),
+                                    _catalog.refreshSaved(widget.catalogId)),
                             icon: const Icon(Icons.refresh),
                             label: const LText('刷新'),
                           ),
@@ -464,8 +570,12 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
                       const LText('缓存里还没有设备。读一次设备列表后会出现在这里。')
                     else ...[
                       const LText('勾选要导入的设备。已导入的不能再选，不会重复建主机。'),
+                      LText(
+                        '保险库里已经有这台机器的主机？点设备下面的「关联到已有主机」，不用再导入一台。',
+                        style: small,
+                      ),
                       for (final record in devices)
-                        _deviceTile(record, imported[record.id], small),
+                        _deviceTile(record, linked[record.id], small),
                     ],
                   ],
                 ),
@@ -524,15 +634,16 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
 
   Widget _deviceTile(
     CatalogDeviceRecord record,
-    String? importedAs,
+    List<HostProfile>? linkedHosts,
     TextStyle? small,
   ) {
     final device = record.device;
+    final linked = linkedHosts ?? const <HostProfile>[];
     return CheckboxListTile(
       key: ValueKey('catalog-device-${record.id}'),
       contentPadding: EdgeInsets.zero,
-      value: importedAs != null || _selected.contains(record.id),
-      onChanged: importedAs != null
+      value: linked.isNotEmpty || _selected.contains(record.id),
+      onChanged: linked.isNotEmpty
           ? null
           : (value) => setState(() => value == true
               ? _selected.add(record.id)
@@ -552,12 +663,79 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
           if (record.missingSince != null)
             catalogLine('最近完整列表里没有它，标记于：', catalogTime(record.missingSince!),
                 style: small),
-          if (importedAs != null)
-            catalogLine('已导入为主机：', importedAs, style: small),
+          // 导入的主机地址由目录写入（appliedAddress 有值）；手动关联的从没由目录写过。
+          for (final host in linked)
+            catalogLine(
+              CatalogBinding.of(host)?.appliedAddress == null
+                  ? '已关联主机：'
+                  : '已导入为主机：',
+              host.label,
+              style: small,
+            ),
+          if (linked.isEmpty && !record.missing)
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                key: ValueKey('catalog-link-${record.id}'),
+                onPressed: _busy ? null : () => _linkExisting(record),
+                icon: const Icon(Icons.link),
+                label: const LText('关联到已有主机'),
+              ),
+            ),
         ],
       ),
     );
   }
+}
+
+/// 选一台已有主机来关联。点主机即选定；上面写清楚关联会改什么、不会改什么。
+class _LinkHostDialog extends StatelessWidget {
+  const _LinkHostDialog({required this.device, required this.hosts});
+
+  final String device;
+  final List<HostProfile> hosts;
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+        title: catalogLine('关联设备：', device),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const LText(
+                '选一台已有主机。只记下它对应目录里的这台设备：主机的地址、用户名、端口、路线、指纹一概不改，'
+                '刷新也不会改它的地址，也不会连接它。以后要断开，在主机编辑器里点「断开和目录的关联」。',
+              ),
+              const SizedBox(height: 8),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  children: [
+                    for (final host in hosts)
+                      ListTile(
+                        key: ValueKey('catalog-link-host-${host.id}'),
+                        contentPadding: EdgeInsets.zero,
+                        title: Text(host.label),
+                        subtitle: Text(host.username.isEmpty
+                            ? host.hostname
+                            : '${host.username}@${host.hostname}'),
+                        onTap: () => Navigator.pop(context, host.id),
+                      ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const LText('取消'),
+          ),
+        ],
+      );
 }
 
 class _OAuthClientDialog extends StatefulWidget {

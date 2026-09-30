@@ -137,5 +137,5 @@ String _presenceText(CatalogPresence presence) => switch (presence) {
         '目录状态：最近完整列表里没有它（设备可能被删、换了 tailnet，或是看不到的共享设备）',
       CatalogPresence.unknownDevice => '目录状态：缓存里没有这台设备',
       CatalogPresence.sourceNotOnThisDevice =>
-        '目录状态：本机没有这个来源（来源被移除，或主机是从别的手机导入的）',
+        '目录状态：本机没有这个来源（来源被移除，或主机是从别的手机导入的）。可以在「Tailscale 设备目录」里恢复它。',
     };

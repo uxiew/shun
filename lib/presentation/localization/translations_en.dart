@@ -676,7 +676,7 @@ const englishTranslations = <String, String>{
   '移除这个来源？': 'Remove this source?',
   '会删除本机的设备缓存和保存的 OAuth client。':
       'This deletes the cached devices and the saved OAuth client on this device.',
-  '从它导入的主机：': 'Hosts imported from it: ',
+  '关联它的主机：': 'Hosts linked to it: ',
   '这些主机都会保留，照常能连；编辑器里会显示「本机没有这个来源」。要删主机请到保险库逐台删。':
       'These hosts are kept and still connect; their editor will show "source not on this device". Delete hosts one by one in the vault if you want.',
   '移除来源': 'Remove source',
@@ -758,8 +758,8 @@ const englishTranslations = <String, String>{
   '目录状态：最近完整列表里没有它（设备可能被删、换了 tailnet，或是看不到的共享设备）':
       'Directory status: not in the latest complete list (the device may be deleted, moved to another tailnet, or be a shared device that is not visible)',
   '目录状态：缓存里没有这台设备': 'Directory status: this device is not in the cache',
-  '目录状态：本机没有这个来源（来源被移除，或主机是从别的手机导入的）':
-      'Directory status: this source is not on this device (it was removed, or the host was imported from another phone)',
+  '目录状态：本机没有这个来源（来源被移除，或主机是从别的手机导入的）。可以在「Tailscale 设备目录」里恢复它。':
+      'Directory status: this source is not on this device (it was removed, or the host was imported from another phone). You can restore it under "Tailscale device directory".',
   '要填登录用户名：目录不知道服务器上的 Unix 用户，不会默认用 root。':
       'Enter a login username: the directory does not know the Unix user on the server, and root is never assumed.',
   '用户名里不能有空格或控制字符。':
@@ -835,6 +835,24 @@ const englishTranslations = <String, String>{
   '这台主机已经关联了目录里的设备，先在主机编辑器里断开。':
       'This host is already linked to a directory device. Unlink it in the host editor first.',
   '这台主机已不在保险库里。': 'This host is no longer in the vault.',
+  '在本机恢复来源': 'Restore the source on this device',
+  '恢复来源': 'Restore source',
+  '主机里引用了、本机没有的来源': 'Sources that hosts refer to but this device does not have',
+  '来源被移除过，或主机是从别的手机同步、导入来的。这些主机照常能连，只是看不到目录状态、地址也不跟随目录。':
+      'The source was removed, or the hosts came from another phone by sync or import. They still connect as usual; they just show no directory status and their address does not follow the directory.',
+  '引用它的主机：': 'Hosts referring to it: ',
+  '在本机恢复': 'Restore here',
+  '以后想让它们重新对上目录，可以在目录页的「主机里引用了、本机没有的来源」里恢复这个来源。':
+      'To match them with the directory again later, restore this source from "Sources that hosts refer to but this device does not have" on the directory page.',
+  '没有可以关联的主机：已经关联了目录设备的主机，要先在编辑器里断开。':
+      'No host can be linked: hosts already linked to a directory device must be unlinked in the editor first.',
+  '已关联。主机的地址、用户名、端口、路线、指纹都没改，刷新也不会改它的地址。':
+      'Linked. The host address, username, port, route and fingerprints were not changed, and refreshing will not change its address.',
+  '保险库里已经有这台机器的主机？点设备下面的「关联到已有主机」，不用再导入一台。':
+      'Already have a host for this machine in the vault? Tap "Link to an existing host" under the device instead of importing another one.',
+  '已关联主机：': 'Linked to host: ',
+  '关联到已有主机': 'Link to an existing host',
+  '关联设备：': 'Link device: ',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
@@ -842,6 +860,27 @@ const englishTranslations = <String, String>{
 const englishReplacements = <(String, String)>[
   // X05：关联被拒时带主机名，按片段翻。放最前，免得先被「主机」「设备」这类通用词拆碎。
   ('这台设备已经关联了主机：', 'This device is already linked to host: '),
+  // X05：多行拼接的说明（精确表匹配不到运行时的整句，按片段翻）。
+  (
+    '按主机里记着的来源 ID 在本机重建一个空来源，不发请求、不改任何主机。',
+    'This recreates an empty source on this device with the source ID the hosts refer to; it sends no request and changes no host. '
+  ),
+  (
+    '之后用同一个 tailnet 的凭据读一次设备列表，这些主机就重新对上目录里的设备；',
+    'Then read the device list once with credentials for the same tailnet and these hosts match their directory devices again; '
+  ),
+  (
+    '读的是别的 tailnet，设备对不上，主机什么都不会被改。',
+    'if you read a different tailnet, the devices will not match and nothing about the hosts changes.'
+  ),
+  (
+    '选一台已有主机。只记下它对应目录里的这台设备：主机的地址、用户名、端口、路线、指纹一概不改，',
+    'Pick an existing host. This only records which directory device it corresponds to: the host address, username, port, route and fingerprints stay unchanged, '
+  ),
+  (
+    '刷新也不会改它的地址，也不会连接它。以后要断开，在主机编辑器里点「断开和目录的关联」。',
+    'refreshing never changes its address, and nothing connects to it. To undo it, tap "Unlink from the directory" in the host editor.'
+  ),
   // X04：插件包变化的提示带包名，按片段翻。
   ('检测到插件包卸载：', 'Plugin package uninstalled: '),
   (
