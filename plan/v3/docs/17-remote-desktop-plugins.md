@@ -43,12 +43,12 @@ callback为本产品固定接收点，`nonce`或callback中保留的`state`使�
 |---|---|---|
 | 版本 | iOS、Android 客户端都从 4.42.0 起支持 | 装的 UU 版本低于 4.42.0 就不发请求，提示更新 |
 | 安装检测 | Android 11+ 要在 `<queries>` 声明 `VIEW` + `uuremote` scheme；用 `resolveActivity(uuremote://external)` 判断；包名 `com.netease.uuremote`，「不建议仅通过包名查询代替 Deeplink 可用性检测」 | 两样都查：scheme 能解析到 `com.netease.uuremote`，且系统读出的证书是已核对的那张；请求用显式包名发出，别的 App 声明同一 scheme 也拿不到请求 |
-| 签名证书 | **官方未给** | 从官方渠道下载的 APK 读出后固定在代码里；没固定之前（或手机上的证书和固定的不同），要用户看过证书后明确批准，证书再变就重新批准 |
+| 签名证书 | **官方未给** | 从官方 APK 读出后固定在代码里（见下面「固定的官方证书」）；手机上的证书和固定的不同时，要用户看过证书后明确批准，证书再变就重新批准 |
 | 绑定请求 | `uuremote://external/device/authorize?callback=<编码>&nonce=<随机>`；callback 必填、要有 scheme 和 host；nonce 可选、建议 UUID | 每次都带 nonce（UUID v4，来自安全随机数），callback 里再带一个自己的一次性 `state` |
 | 回调 URL 的原参数 | 回调时保留 callback 原有查询参数，同名结果字段以本次为准 | `state` 放在 callback 里，靠这一条带回来 |
 | 绑定结果 | 成功 `anonymous_device_id` + `nonce`；失败 `error` + `nonce`，两者互斥；nonce 没传时字段仍出现、值为空 | 两者都出现、都没有、重复出现一律拒收；nonce 必须和请求时的一致 |
 | 绑定错误码 | `no_device`、`user_cancel`、`timeout`、`not_logined`、`superseded`、`logout`、`internal_error` | 未知错误码按「UU 报告失败」显示原文，不猜含义 |
-| 等待时长 | 未登录排队最长 180 秒；设备列表 15 秒；「无可关联设备」弹窗要用户点了才回调 | 本地等待 10 分钟后作废；用户随时可以结束等待 |
+| 等待时长 | 未登录排队最长 180 秒；设备列表 15 秒；「无可关联设备」弹窗要用户点了才回调 | 本地等待 10 分钟后自己作废，记「结果未确认」；用户随时可以结束等待。**实测和官方口径不一致**：没登录的真实 UU 没有在 180 秒后回报（见下面「真实 UU 4.42.0 实测」），所以界面不写「最长 3 分钟」 |
 | 远控请求 | `…/device/control?anonymous_device_id=<编码>&window_type=0|1[&callback=<编码>]`，window_type 默认 0 | 全屏不带 callback（官方示例也不带）；小窗带 callback + `state` |
 | 全屏结果 | 无论成功、失败、取消、超时都不回调 | 只显示「已交给 UU 远程」，不等回调、不标已连接 |
 | 小窗结果 | 带 callback 时最终且只回调一次：`status=success`（不带 reason）或 `status=failure&reason=…`（reason 非空） | 同时出现 success 和 reason、failure 没有 reason 都拒收 |
@@ -59,6 +59,36 @@ callback为本产品固定接收点，`nonce`或callback中保留的`state`使�
 | 官方 Android 示例的回调 | 自定义 scheme `uuremote-integration`、host `callback`，`VIEW` + `DEFAULT` + `BROWSABLE`，`singleTask`，onCreate 和 onNewIntent 都处理 | 用 `xwshun-uuremote://callback/bind`、`…/control`。不照官方示例让主 Activity 直接接，改由过路的 `UuCallbackActivity` 接（原因见下面「系统里留下什么」） |
 | 回调是谁发的 | **官方未写**任何让第三方验证回调来源的办法 | 验证不了。state/nonce 只防没发过的请求和重放；另有 App 声明同一回调地址时不走回调（见下面「回调地址被抢」） |
 | **官方未写** | UU 回调时怎么编码 anonymous_device_id；会不会校验 callback 的 scheme；anonymous_device_id 的长度和字符集 | 回调只做一次百分号解码，`+` 按字面处理（加密 ID 常见 base64，把 `+` 当空格会弄坏它）；长度上限 4096 字符；这些要等真实 UU 实测复核 |
+
+**固定的官方证书**（2026-09-30）
+
+| 项 | 值 |
+|---|---|
+| 来源 | 所有者从 uuyc.163.com 下载页下载的 Android 安装包（文件上没有浏览器留下的来源记录，出处是所有者说的）。原件存在仓库外 `../.toolchain/artifacts/uuremote-official-4.42.0-c85524fa.apk` |
+| 文件 | 26886667 字节，sha256 `c85524fa2c850d9e18f051eae9118754170b5899a04c3f6b6ae313b7f8ec3e39` |
+| 包 | `com.netease.uuremote`，versionName 4.42.0，versionCode 442000，只有 arm64-v8a |
+| 证书 | 单签名（v2 + v3）。主体 `CN=LiZiQi, OU=netease, O=netease, L=China, ST=GZ`，2022-07-13 至 2047-07-07，RSA 2048 |
+| 证书 SHA-256 | `bd6a3a04791d5ca2e08fb9d7bd82265893d25aa1cb0b6a205b5a2bb154874924`（固定在 `UuRemoteProtocol.officialSigners`） |
+| 证书 SHA-1 / MD5 | `4880cf855dbbdd7e128649fa3d99c0d4e5320ca9` / `62c20504b3368cc813b80313c55800eb` |
+| 旁证 | APKPure 上 `com.netease.uuremote` 3.16.0（2025-07-04）页面写 `Signature 62C20504B3368CC813B80313C55800EB`，和这张证书的 MD5 相同：一年多前流通的版本是同一张证书。找不到别的公开来源；网易没有公开过这张证书 |
+| 怎么重读 | `$ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs <apk>`（`keytool -printcert -jarfile` 读不了只有 v2/v3 签名的包） |
+
+主体里的名字是签名的人自己填的，谁都能填 netease，所以靠的是「官网下载的包」加「和旧版本同一张」这两条，不是主体名。网易换签名时这里要重新读、重新核对。
+
+**真实 UU 4.42.0 实测**（2026-09-30，项目模拟器 API 35，没有登录 UU 账号）
+
+| 做了什么 | 看到的 |
+|---|---|
+| 本 App 探测 | 版本 4.42.0，证书和上表一致，页面写「签名证书和从官方下载的一致」，不用批准 |
+| 请求去了哪 | 系统把 `uuremote://external/...` 交给 `com.netease.uuremote/com.remote.deeplink.ui.DeepLinkActivity` |
+| 第一次打开 UU，绑定请求 | UU 先弹《用户须知》。点「拒绝」→「确定」：UU 退出，**不回调** |
+| 同意《用户须知》后，绑定请求 | UU 停在手机号登录页。从 19:12:13 等到 19:18:27（6 分 14 秒），**没有任何回调**——官方文档写的是 180 秒后回 `error=timeout`。前一次（刚点完同意的那次）等了约 5 分钟，也没有 |
+| 在 UU 登录页按返回键 | 回到本 App，**不回调**（又等了 20 秒） |
+| 用 adb 直接发一条小窗远控请求（编造的设备标识，带 callback） | 同样停在登录页。19:19:48 发出，看到 19:24:03（4 分 15 秒），**不回调**——官方文档写的是 180 秒后回 `reason=login_timeout` |
+
+看不到的：模拟器经这台 Mac 的代理上网，UU 连不连得上它自己的服务器没有验证；连不上会不会影响它的超时回调，不知道。
+
+所以没登录时本 App 只会一直等，靠用户「结束等待」或本地 10 分钟到点作废收场。登录之后 UU 怎么回、真实回调里 `anonymous_device_id` 怎么编码，都还没见过（要真实账号，BLOCKED）。
 
 **回调地址被抢**（模拟器 API 35，用 `plugins/out/fakeuu-hijack.apk` 实测）。另一个 App 也声明 `xwshun-uuremote://callback` 时，UU 回调会让系统弹「Open with」；用户选到它，它就拿到 state、nonce 和加密设备标识，还能把标识换成自己的、用显式包名转给本 App——校验全过。所以：
 
