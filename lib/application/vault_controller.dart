@@ -322,11 +322,19 @@ class VaultController extends StateNotifier<VaultState> {
     String id,
     HostProfile? Function(HostProfile current) change,
   ) =>
+      updateHostChecked(id, (current, _) => change(current));
+
+  /// 同 [updateHost]，但 [change] 还能看到同一时刻的全部主机，用来做跨主机的检查
+  /// ——比如一台目录设备只能关联一台主机（X05），分两步查的话中间可能被别处写进第二台。
+  Future<void> updateHostChecked(
+    String id,
+    HostProfile? Function(HostProfile current, List<HostProfile> all) change,
+  ) =>
       _serialHostWrite(() async {
         final vault = await ready();
         final index = vault.hosts.indexWhere((value) => value.id == id);
         if (index < 0) return;
-        final next = change(vault.hosts[index]);
+        final next = change(vault.hosts[index], vault.hosts);
         if (next == null) return;
         final hosts = [...vault.hosts];
         hosts[index] = HostProfile({

@@ -71,12 +71,111 @@ class CatalogBinding {
       };
 }
 
+/// 目录这边看得到的一台主机：id、名字、地址、目录绑定，别的都没有。
+///
+/// 故意不给整条 [HostProfile]：那上面有登录密码、私钥 ID、自定义代理的口令、启动命令。
+/// 目录只该碰自己来源的控制面凭据（X05 验收），刷新和关联也只用得到这四样。
+class CatalogHost {
+  const CatalogHost({
+    required this.id,
+    required this.label,
+    required this.hostname,
+    this.binding,
+  });
+
+  factory CatalogHost.of(HostProfile host) => CatalogHost(
+        id: host.id,
+        label: host.label,
+        hostname: host.hostname,
+        binding: CatalogBinding.of(host),
+      );
+
+  final String id;
+  final String label;
+  final String hostname;
+  final CatalogBinding? binding;
+}
+
+/// 目录对一台主机能做的全部修改：地址、目录绑定。用户名、端口、认证、路线、指纹都不在这里，
+/// 所以刷新、关联、断开从类型上就改不到它们（TSC04）。
+class CatalogHostChange {
+  const CatalogHostChange({this.hostname, required this.binding});
+
+  /// null 表示地址不变。
+  final String? hostname;
+
+  /// null 表示去掉目录绑定（断开关联）。
+  final CatalogBinding? binding;
+}
+
+/// 把 [change] 落到整条主机上：只动 hostname 和绑定字段，其余原样带过去。
+HostProfile applyCatalogChange(HostProfile host, CatalogHostChange change) {
+  final data = {...host.data};
+  if (change.hostname case final hostname?) data['hostname'] = hostname;
+  if (change.binding case final binding?) {
+    data[CatalogBinding.key] = binding.toJson();
+  } else {
+    data.remove(CatalogBinding.key);
+  }
+  return HostProfile(data);
+}
+
+/// 目录访问保险库主机的唯一入口。
+abstract interface class CatalogHosts {
+  Future<List<CatalogHost>> list();
+
+  /// 「先看再改」在保险库的同一次串行写里完成：[decide] 看到的是写入那一刻的这台主机和全部主机，
+  /// 返回 null 不写；在里面抛异常就什么都不写，异常原样交给调用方。主机已不在就不调用 [decide]。
+  Future<void> change(
+    String hostId,
+    CatalogHostChange? Function(CatalogHost current, List<CatalogHost> all)
+        decide,
+  );
+}
+
+/// 用保险库（或测试里的主机表）实现 [CatalogHosts]：读的时候投影成 [CatalogHost]，
+/// 写的时候只经 [applyCatalogChange] 改两个字段。
+class HostProfileCatalogHosts implements CatalogHosts {
+  HostProfileCatalogHosts({
+    required Future<List<HostProfile>> Function() hosts,
+    required Future<void> Function(
+      String id,
+      HostProfile? Function(HostProfile current, List<HostProfile> all) change,
+    ) update,
+  })  : _hosts = hosts,
+        _update = update;
+
+  final Future<List<HostProfile>> Function() _hosts;
+  final Future<void> Function(
+    String,
+    HostProfile? Function(HostProfile, List<HostProfile>),
+  ) _update;
+
+  @override
+  Future<List<CatalogHost>> list() async =>
+      [for (final host in await _hosts()) CatalogHost.of(host)];
+
+  @override
+  Future<void> change(
+    String hostId,
+    CatalogHostChange? Function(CatalogHost current, List<CatalogHost> all)
+        decide,
+  ) =>
+      _update(hostId, (current, all) {
+        final change = decide(
+          CatalogHost.of(current),
+          [for (final host in all) CatalogHost.of(host)],
+        );
+        return change == null ? null : applyCatalogChange(current, change);
+      });
+}
+
 /// 刷新后这台主机要不要跟着改地址；不用改返回 null。
 ///
 /// 改了地址不会带走任何信任：指纹按地址（逻辑名）记录，新地址第一次连接照常要核对（SEC04），
 /// 设备 ID 不能替新地址的新 host key 担保（docs/05）。
-HostProfile? refreshedHost(HostProfile host, CatalogCache cache) {
-  final binding = CatalogBinding.of(host);
+CatalogHostChange? catalogAddressChange(CatalogHost host, CatalogCache cache) {
+  final binding = host.binding;
   if (binding == null || binding.catalogId != cache.catalogId) return null;
   final record = cache.devices[binding.deviceId];
   if (record == null || record.missing) return null;
@@ -86,16 +185,15 @@ HostProfile? refreshedHost(HostProfile host, CatalogCache cache) {
       host.hostname != binding.appliedAddress) {
     return null; // 用户改过地址，或从没由目录写过：尊重用户的值。
   }
-  return HostProfile({
-    ...host.data,
-    'hostname': address,
-    CatalogBinding.key: CatalogBinding(
+  return CatalogHostChange(
+    hostname: address,
+    binding: CatalogBinding(
       catalogId: binding.catalogId,
       deviceId: binding.deviceId,
       address: binding.address,
       appliedAddress: address,
-    ).toJson(),
-  });
+    ),
+  );
 }
 
 /// 主机和目录的关系此刻是什么状态。故意没有「在线」「SSH 可用」：
@@ -184,23 +282,16 @@ class CatalogRefresher {
   CatalogRefresher({
     required TailscaleCatalogAccess access,
     required CatalogCacheRepository repository,
-    required Future<List<HostProfile>> Function() hosts,
-    required Future<void> Function(
-      String id,
-      HostProfile? Function(HostProfile current) change,
-    ) updateHost,
+    required CatalogHosts hosts,
     DateTime Function()? now,
   })  : _access = access,
         _repository = repository,
         _hosts = hosts,
-        _updateHost = updateHost,
         _now = now ?? DateTime.now;
 
   final TailscaleCatalogAccess _access;
   final CatalogCacheRepository _repository;
-  final Future<List<HostProfile>> Function() _hosts;
-  final Future<void> Function(String, HostProfile? Function(HostProfile))
-      _updateHost;
+  final CatalogHosts _hosts;
   final DateTime Function() _now;
 
   Future<CatalogCache> addSource({
@@ -296,13 +387,13 @@ class CatalogRefresher {
     final next = cache.merge(listing.snapshot, _now());
     await _repository.save(next);
     var readdressed = 0;
-    for (final host in await _hosts()) {
-      if (CatalogBinding.of(host)?.catalogId != catalogId) continue;
+    for (final host in await _hosts.list()) {
+      if (host.binding?.catalogId != catalogId) continue;
       var changed = false;
-      await _updateHost(host.id, (current) {
-        final updated = refreshedHost(current, next);
-        changed = updated != null;
-        return updated;
+      await _hosts.change(host.id, (current, _) {
+        final change = catalogAddressChange(current, next);
+        changed = change != null;
+        return change;
       });
       if (changed) readdressed++;
     }
@@ -315,11 +406,17 @@ class CatalogRefresher {
 }
 
 final catalogRefresherProvider = Provider<CatalogRefresher>((ref) {
-  final vault = ref.watch(vaultControllerProvider.notifier);
   return CatalogRefresher(
     access: ref.watch(tailscaleCatalogAccessProvider),
     repository: ref.watch(catalogCacheRepositoryProvider),
+    hosts: ref.watch(catalogHostsProvider),
+  );
+});
+
+final catalogHostsProvider = Provider<CatalogHosts>((ref) {
+  final vault = ref.watch(vaultControllerProvider.notifier);
+  return HostProfileCatalogHosts(
     hosts: () async => (await vault.ready()).hosts,
-    updateHost: vault.updateHost,
+    update: vault.updateHostChecked,
   );
 });

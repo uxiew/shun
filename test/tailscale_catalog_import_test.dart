@@ -282,7 +282,10 @@ void main() {
       final moved = cacheOf([
         device('1', addresses: ['100.64.0.99'], hostname: 'nas'),
       ]);
-      expect(refreshedHost(host, moved)?.hostname, '100.64.0.99');
+      expect(
+        catalogAddressChange(CatalogHost.of(host), moved)?.hostname,
+        '100.64.0.99',
+      );
     });
   });
 

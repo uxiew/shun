@@ -53,12 +53,12 @@ class HostTable {
 
   Future<void> update(
     String id,
-    HostProfile? Function(HostProfile current) change,
+    HostProfile? Function(HostProfile current, List<HostProfile> all) change,
   ) async {
     beforeWrite?.call();
     final index = hosts.indexWhere((h) => h.id == id);
     if (index < 0) return;
-    final next = change(hosts[index]);
+    final next = change(hosts[index], hosts);
     if (next != null) hosts = [...hosts]..[index] = next;
   }
 
@@ -141,8 +141,7 @@ void main() {
         ),
       ),
       repository: repo,
-      hosts: table.list,
-      updateHost: table.update,
+      hosts: HostProfileCatalogHosts(hosts: table.list, update: table.update),
       now: () => clock,
     );
   }
@@ -543,6 +542,45 @@ void main() {
       expect(outcome.error, isNotNull);
       expect(outcome.cache.devices, contains('A'));
       expect(await r.hasSavedCredentials('cat-a'), isFalse);
+    });
+  });
+
+  group('X05 目录只看得到主机的 id、名字、地址、绑定', () {
+    test('刷新改地址：除了地址和绑定，整条主机逐字段不变（含密码、代理口令、启动命令）', () async {
+      final original = HostProfile({
+        ...boundHost('h1').data,
+        'password': 'ssh-secret-x05',
+        'proxyConfig': {
+          'type': 'socks5',
+          'host': '127.0.0.1',
+          'port': 1080,
+          'username': 'u',
+          'password': 'proxy-secret-x05',
+        },
+        'startupCommand': 'echo hi',
+      });
+      final r = await sourceWithHosts([original]);
+      serve([
+        device('A', addresses: ['100.64.0.9'])
+      ]);
+      expect((await r.refreshWithToken('cat-a', 'tok')).hostsReaddressed, 1);
+      final after = table.byId('h1').data;
+      expect(after['hostname'], '100.64.0.9');
+      Map<String, Object?> rest(Map<String, dynamic> data) => {...data}
+        ..remove('hostname')
+        ..remove(CatalogBinding.key);
+      expect(rest(after), rest(original.data));
+    });
+
+    test('去掉绑定只删绑定字段', () {
+      final host = HostProfile({...boundHost('h1').data, 'password': 'p'});
+      final unlinked =
+          applyCatalogChange(host, const CatalogHostChange(binding: null));
+      expect(unlinked.data.containsKey(CatalogBinding.key), isFalse);
+      expect(
+        {...unlinked.data},
+        {...host.data}..remove(CatalogBinding.key),
+      );
     });
   });
 }
