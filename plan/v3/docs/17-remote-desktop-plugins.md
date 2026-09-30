@@ -117,6 +117,59 @@ callback为本产品固定接收点，`nonce`或callback中保留的`state`使�
 
 未获得真实状态回调的版本，只显示已发起，不能承诺连接/结束或撤销成功。失败不自动开启SSH或改远控服务器。主App的SSH SOCKS不自动作用于RustDesk；用户要求强制该路由时，本版拒绝外部调用或请用户明确另设远控网络策略。
 
+### X07 固定的 RustDesk 口径（2026-09-30）
+
+RustDesk 没有给第三方 App 的接入文档，下面每一条都是从源码读出来的。
+**来源**：`rustdesk/rustdesk` tag `1.4.9`，提交 `6c578292e8ebbbec708b76986ba8c4bc7c509747`（2026-07-06 发布，当天最新的正式版；1.5.0 还是预发布）。原件存在仓库外 `../.toolchain/artifacts/`：
+
+| 文件 | sha256 |
+|---|---|
+| `rustdesk-1.4.9-6c578292-AndroidManifest.xml`（`flutter/android/app/src/main/AndroidManifest.xml`） | `93c8be2bbade069f89662bc23b8bd75a161bfe066e18009717097d9903a47d92` |
+| `rustdesk-1.4.9-6c578292-flutter-lib-common.dart`（`flutter/lib/common.dart`，链接处理在 `urlLinkToCmdArgs`） | `530a14c6dc5a8ea34c6d0a8f4eafe7c6821990e660f421c22d26a5fc56969438` |
+| `rustdesk-hbb_common-7e1c392c-src-lib.rs`（子模块 `hbb_common` 提交 `7e1c392c`，自定义 ID 规则 `is_valid_custom_id`） | `71fe3406431ff01d8b2c2282028da99936d321787e2147db6fa999663c9f4b49` |
+| `rustdesk-hbb_common-7e1c392c-src-config.rs`（自动 ID 怎么生成 `get_auto_id`） | `318790aa53dee4a8c52d6384338ef184ebb9e7a877b0f0f8a3e753c601a1654f` |
+
+| 项 | 源码里是怎样的 | X07 的做法 |
+|---|---|---|
+| 包名 | `com.carriez.flutter_hbb` | 默认只认这个包名；别的包要用户明确信任（见下面「发给谁」） |
+| 谁接链接 | `MainActivity`（`singleTop`），intent-filter 是 `VIEW` + `DEFAULT` + `BROWSABLE`、`scheme="rustdesk"`，不限 host | `<queries>` 里声明 `rustdesk` scheme（另加一条带 host 的，原因同 X06）；请求用显式包名发 |
+| 连接链接 | 三种写法都会连：`rustdesk://connect/<ID>`、`rustdesk://<ID>`、`rustdesk://connection/new/<ID>`（兼容旧写法） | 只发 `rustdesk://connect/<ID>`。`rustdesk://<ID>` 把 ID 放在主机名的位置：URI 解析会把它转成小写，而且 ID 恰好叫 `config`、`password`、`terminal` 时会被当成命令 |
+| 别的动作 | `play`、`file-transfer`、`view-camera`、`port-forward`、`rdp`、`terminal`、`terminal-admin` | 都不发。首版只做远程桌面 |
+| 查询参数 | `password`（1.4.0 的移动端不理它，1.4.5 起认：带着它就直接用这个密码连）、`key`、`relay`、`switch_uuid`，键名不分大小写 | 一个都不带。密码由用户在 RustDesk 里输 |
+| ID 里的特殊写法 | `ID@服务器`、`ID?key=…`：改用另一台 ID 服务器；结尾 `/r` 或 `\r`：强制走中继 | 不接受。用哪台服务器、走不走中继，只在 RustDesk 里配 |
+| 改配置的链接 | `rustdesk://config/<配置串>` 导入服务器配置；`rustdesk://password/<密码>` 改这台手机被控时的固定密码 | 从不构造；平台层发送前再按白名单核一次，只放行 `rustdesk://connect/<ID>` |
+| ID 怎么从链接里取 | `uri.path.substring(1)`，**不做百分号解码** | 不编码。接受的字符本来就不需要编码 |
+| ID 格式 | 自动生成的是纯数字（桌面端由网卡地址算出，最大 536870911；手机端 10 位）；自定义 ID 是 `^[a-zA-Z][\w-]{5,15}$`。RustDesk 界面把数字 ID 每三位加空格显示，连接前自己去掉空格 | 纯数字 1–16 位（先去掉空格）；或字母开头、共 6–16 位的字母、数字、下划线、连字符。只收 ASCII（RustDesk 的 `\w` 还包括各国文字，那种 ID 这一版填不了）。按 IP 或域名直连也不收 |
+| 拉起之后 | 移动端直接进远控页开始连接，不再问一次 | 只在用户点「用 RustDesk 远控」时发；保存 ID、打开页面都不发 |
+| 结果回报 | **没有**。链接里没有回调地址这种东西，RustDesk 不会把连上、失败、断开告诉发起方 | 只显示「已交给 RustDesk」和时间，任何情况下都不写「已连接」「已断开」 |
+
+**版本**（同一个函数逐个 tag 对比：1.2.3、1.2.4、1.2.6、1.2.7、1.3.0、1.3.9、1.4.0、1.4.5–1.4.9、1.5.0；中间没抽到的 tag 没看）
+
+| 版本 | 源码里的情况 | X07 怎么对待 |
+|---|---|---|
+| 1.2.3 及更早 | 清单里没有 `rustdesk` scheme | 「版本太旧」，不发 |
+| 1.2.4 – 1.4.6 | 认 `rustdesk://connect/<ID>`。`config`、`password` 两种链接**不设防**：任何 App 或网页发一条链接，就能改这台手机上 RustDesk 的服务器配置和固定密码 | 可用，页面提醒更新到 1.4.7 以上（这是 RustDesk 自己的问题，本 App 发不发都在） |
+| 1.4.7 – 1.5.0 | `config`、`password` 链接要构建时打开内置选项（`allow-deep-link-server-settings`、`allow-deep-link-password`）才执行，默认只弹一个 `Failed`。1.4.7、1.4.8、1.4.9、1.5.0 的链接处理函数一字不差 | 可用 |
+| 高于 1.5.0 | 没看过 | 可用，页面写明「这个版本没核对过」，链接仍按上面的写法发，不猜新写法 |
+
+**发给谁**
+
+| 手机上的情况 | X07 的做法 |
+|---|---|
+| `com.carriez.flutter_hbb`，证书是下表两张之一 | 直接可用 |
+| `com.carriez.flutter_hbb`，别的证书（应用商店重签的、自己编译的、冒牌的，本 App 分不出来） | 显示证书，要用户批准；批准后证书再变就停下重新核对 |
+| 别的包名也声明 `rustdesk://`（改了包名的自建客户端，或者碰巧/故意占这个 scheme 的 App） | 默认不发给它，只列出来。用户点「信任并改用」、看过包名和证书后才发给它；之后它换了证书同样停下 |
+| 多张证书共同签名 | 不支持 |
+
+**固定的证书**
+
+| 渠道 | 证书 SHA-256 | 从哪读的 |
+|---|---|---|
+| GitHub 发行版 | `e92d44ba9b65003c7340683b0a9234f617c1b23a1dd90e89f7d04170b72bfc86`（`CN=zhou huabing, OU=IT, O=carriez, L=singapore`，RSA 2048） | `rustdesk-1.4.9-aarch64-signed.apk`，26871021 字节，sha256 `285b4f0735c000e5155b9a6f087b57744e46c960f4332963f51add1804982102`（和 GitHub 发行页 API 给的 digest 一致），versionCode 2067。存档在 `../.toolchain/artifacts/rustdesk-official-1.4.9-aarch64-285b4f07.apk`。旁证：1.2.7（2024-07-23 发布，sha256 `7d435aac…b5e3a6`）是同一张 |
+| F-Droid | `85366b10ecadff33e10c53250444a125203908285363c27fc62a561f9660fa48`（`CN=FDroid, OU=FDroid, O=fdroid.org`） | `f-droid.org/repo/com.carriez.flutter_hbb_104090002.apk`（arm64，sha256 `c5f3ba33…87bd1ada`）和 `…_104090003.apk`（x86_64，sha256 `f0b7f222…4565463`），两个都是 1.4.9、同一张证书。F-Droid 自己编译、用它给这个包专用的密钥签，所以和 GitHub 版不是同一张。这两个文件读完证书就删了 |
+
+Google Play 等其他渠道的证书没有核对过，装的是那些版本时走「要用户批准」。重新读证书：`$ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs <apk>`。
+
 ### RDX-embedded：R38后续
 
 若真正需要同一标签里显示桌面，可研究LobiShell RustDesk插件的AIDL + Surface模式。主App提供Android SurfaceView/PlatformView生命周期，插件持有native连接与画面；输入使用受限事件，不能用Dart逐帧Base64传整个视频。[S39](13-sources.md#s39) [S41](13-sources.md#s41)

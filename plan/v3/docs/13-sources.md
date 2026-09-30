@@ -312,12 +312,16 @@ https://raw.githubusercontent.com/rustdesk/rustdesk/master/flutter/android/app/s
 
 观察rustdesk scheme及com.carriez.flutter_hbb标识；正式包/签名按实际发行渠道验证。
 
+X07（2026-09-30）已冻结到 tag `1.4.9`（提交 `6c578292`），文件 sha256 `93c8be2b…03a47d92`；GitHub 发行版和 F-Droid 的签名证书从各自的安装包读出。口径与原件位置见 docs/17「X07 固定的 RustDesk 口径」。
+
 <a id="s45"></a>
 ## S45 RustDesk deep-link implementation
 
 https://raw.githubusercontent.com/rustdesk/rustdesk/master/flutter/lib/common.dart
 
 urlLinkToCmdArgs处理连接URI；移动端config/password敏感动作有额外开关。外部连接不默认传password或配置修改。
+
+X07（2026-09-30）已冻结到 tag `1.4.9`（提交 `6c578292`），文件 sha256 `530a14c6…56969438`。逐个 tag 对比后要更正上面一句：config/password 的开关是 1.4.7 才加的，1.4.6 及更早不设防。见 docs/17「X07 固定的 RustDesk 口径」的版本表。
 
 <a id="s46"></a>
 ## S46 OpenPGP API remote service
