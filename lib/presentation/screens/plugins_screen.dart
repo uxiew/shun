@@ -5,11 +5,14 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/plugin_discovery.dart';
 import '../../application/plugin_registry.dart';
-import '../../infrastructure/plugins/android_plugin_bridge.dart';
 import '../localization/localized_widgets.dart';
+import 'plugin_detail_screen.dart';
 
-/// 独立插件 APK 的最小管理页（X02）：发现、批准、撤销、连接测试。
-/// 完整的插件管理（启停、更新/卸载检测、设置入口）在 X04。
+/// 独立插件 APK 的管理页（X02 起、X04 补全）：列出、诊断某个包为什么不在、事件记录。
+/// 每个插件的信息和操作（批准、停用、撤销、设置页）在详情页。
+///
+/// 打开这页就开始跟踪包的安装、更新、卸载：系统一报告，列表和详情页都按重新核验的结果变化，
+/// 不需要手动点「重新扫描」（PLG11）。进程被杀后重新打开这页会整体重新发现一次。
 class PluginsScreen extends ConsumerStatefulWidget {
   const PluginsScreen({super.key});
 
@@ -19,10 +22,8 @@ class PluginsScreen extends ConsumerStatefulWidget {
 
 class _PluginsScreenState extends ConsumerState<PluginsScreen> {
   final _inspectPackage = TextEditingController();
-  final _results = <String, String>{};
   final _events = <String>[];
-  final _connected = <String>{};
-  StreamSubscription<PluginBridgeEvent>? _subscription;
+  final _subscriptions = <StreamSubscription<Object?>>[];
   PluginDiscovery? _discovery;
   String? _inspectResult;
   String? _error;
@@ -38,16 +39,25 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
     final discovery = await ref.read(pluginDiscoveryProvider.future);
     if (!mounted) return;
     _discovery = discovery;
-    _subscription = discovery.events.listen((event) {
-      if (!mounted) return;
-      setState(() {
-        if (event.type == 'closed') _connected.remove(event.packageName);
-        _events.insert(0,
-            '${_eventLabel(event.type)} · ${event.packageName} · ${event.detail}');
-        if (_events.length > 30) _events.removeLast();
-      });
+    _subscriptions
+      ..add(discovery.events.listen((event) => _log(
+          '${localized(_eventLabel(event.type))} · ${event.packageName} · ${localized(event.detail)}')))
+      ..add(discovery.notices.listen((notice) {
+        _log(localized(notice));
+        if (mounted) {
+          ScaffoldMessenger.of(context)
+              .showSnackBar(SnackBar(content: LText(notice)));
+        }
+      }));
+    await _guard(discovery.start);
+  }
+
+  void _log(String line) {
+    if (!mounted) return;
+    setState(() {
+      _events.insert(0, line);
+      if (_events.length > 30) _events.removeLast();
     });
-    await _refresh();
   }
 
   static String _eventLabel(String type) => switch (type) {
@@ -57,15 +67,13 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
         _ => type,
       };
 
-  Future<void> _refresh() async {
-    final discovery = _discovery;
-    if (discovery == null) return;
+  Future<void> _guard(Future<void> Function() action) async {
     setState(() {
       _busy = true;
       _error = null;
     });
     try {
-      await discovery.refresh();
+      await action();
     } on Object catch (e) {
       _error = '$e';
     } finally {
@@ -75,12 +83,8 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
 
   @override
   void dispose() {
-    unawaited(_subscription?.cancel());
-    final discovery = _discovery;
-    if (discovery != null) {
-      for (final package in _connected) {
-        unawaited(discovery.disconnect(package));
-      }
+    for (final subscription in _subscriptions) {
+      unawaited(subscription.cancel());
     }
     _inspectPackage.dispose();
     super.dispose();
@@ -92,6 +96,7 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
     final external = entries.where((e) => !e.isBuiltin).toList();
     final builtin = entries.where((e) => e.isBuiltin).toList();
     final discovery = _discovery;
+    final small = Theme.of(context).textTheme.bodySmall;
     final builtinNames =
         builtin.map((e) => e.descriptor!.displayName).join('、');
     return Scaffold(
@@ -100,7 +105,9 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
         actions: [
           IconButton(
             tooltip: localized('重新扫描'),
-            onPressed: _busy ? null : _refresh,
+            onPressed: _busy || discovery == null
+                ? null
+                : () => _guard(discovery.refresh),
             icon: const Icon(Icons.refresh),
           ),
         ],
@@ -113,10 +120,9 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
             '插件是独立的 App，有自己的权限，本 App 管不住它自己联网。',
           ),
           const SizedBox(height: 8),
-          LText(
-            '随 App 提供、不能停用：$builtinNames',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
+          LText('随 App 提供、不能停用：$builtinNames', style: small),
+          LText('插件由你自己安装和卸载；本 App 不下载、不安装任何插件。装上、更新、卸载后这里会自动重新核对。',
+              style: small),
           if (discovery != null && !discovery.supported)
             const Padding(
               padding: EdgeInsets.only(top: 16),
@@ -132,7 +138,7 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
               padding: EdgeInsets.only(top: 16),
               child: LText('没有发现插件'),
             ),
-          for (final entry in external) _entryCard(entry),
+          for (final entry in external) _summary(entry),
           if (discovery != null && discovery.supported) ...[
             const SizedBox(height: 16),
             const LText('某个应用没出现在这里？'),
@@ -159,150 +165,35 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
           if (_events.isNotEmpty) ...[
             const SizedBox(height: 16),
             const LText('事件'),
-            for (final line in _events)
-              LText(line, style: Theme.of(context).textTheme.bodySmall),
+            for (final line in _events) Text(line, style: small),
           ],
         ],
       ),
     );
   }
 
-  static String _statusLabel(PluginStatus status) => switch (status) {
-        PluginStatus.ready => '可用',
-        PluginStatus.needsApproval => '待批准',
-        PluginStatus.rejected => '已拒绝',
-        PluginStatus.incompatible => '不兼容',
-        PluginStatus.disabled => '已停用',
-        PluginStatus.missing => '已卸载',
-      };
-
-  Widget _entryCard(PluginEntry entry) {
+  Widget _summary(PluginEntry entry) {
     final d = entry.descriptor;
     final package = entry.packageName!;
-    final digest = entry.signerDigests.isEmpty
-        ? '—'
-        : entry.signerDigests.map((s) => '${s.substring(0, 16)}…').join(', ');
-    final discovery = _discovery!;
+    final small = Theme.of(context).textTheme.bodySmall;
     return Card(
       margin: const EdgeInsets.only(top: 12),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
+      child: ListTile(
+        key: ValueKey('plugin-entry-$package'),
+        title: Text(d?.displayName ?? package),
+        subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    d?.displayName ?? package,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                ),
-                Chip(label: LText(_statusLabel(entry.status))),
-              ],
-            ),
-            SelectableText(
-              '${d?.pluginId ?? '?'} · $package · ${d?.version ?? '?'}',
-            ),
-            LText('证书 SHA-256：$digest'),
-            if (entry.androidDebugSigned)
-              const LText('用 Android 调试证书签名：只有开发构建能用'),
-            if (d != null)
-              LText('能力：${d.capabilities.map((c) => c.wire).join('、')}'),
-            if (entry.reason != null) LText(entry.reason!),
-            if (_results[package] != null) LText(_results[package]!),
-            Wrap(
-              spacing: 8,
-              children: [
-                if (entry.status == PluginStatus.needsApproval)
-                  FilledButton(
-                    onPressed: () => _approve(entry),
-                    child: const LText('批准'),
-                  ),
-                // 换签被拒时也要能撤销旧批准，否则作者正常换密钥后用户没有路重新核对。
-                if (entry.hasApproval)
-                  OutlinedButton(
-                    onPressed: () async {
-                      await discovery.revoke(entry);
-                      if (mounted) setState(() => _connected.remove(package));
-                    },
-                    child: const LText('撤销批准'),
-                  ),
-                OutlinedButton(
-                  onPressed: () async {
-                    setState(() => _results[package] = localized('正在连接…'));
-                    final result = await discovery.check(entry);
-                    if (!mounted) return;
-                    setState(() {
-                      _results[package] = result;
-                      if (entry.status == PluginStatus.ready) {
-                        _connected.add(package);
-                      }
-                    });
-                  },
-                  child: const LText('连接测试'),
-                ),
-                if (_connected.contains(package))
-                  TextButton(
-                    onPressed: () async {
-                      await discovery.disconnect(package);
-                      if (mounted) setState(() => _connected.remove(package));
-                    },
-                    child: const LText('断开'),
-                  ),
-              ],
-            ),
+            Text('${d?.pluginId ?? package} · ${d?.version ?? '?'}',
+                style: small),
+            if (entry.reason != null) LText(entry.reason!, style: small),
           ],
         ),
+        trailing: Chip(label: LText(pluginStatusLabel(entry.status))),
+        onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => PluginDetailScreen(packageName: package),
+        )),
       ),
     );
-  }
-
-  Future<void> _approve(PluginEntry entry) async {
-    final d = entry.descriptor!;
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const LText('批准这个插件？'),
-        content: SingleChildScrollView(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              SelectableText(
-                  '${d.displayName}\n${d.pluginId}\n${entry.packageName}'),
-              const SizedBox(height: 8),
-              const LText('签名证书 SHA-256（请与插件作者公布的核对）：'),
-              SelectableText(entry.signerDigests.join('\n')),
-              if (entry.androidDebugSigned)
-                const LText('这是 Android 调试证书：每台开发机都有一张，任何人都能用它签名。'),
-              const SizedBox(height: 8),
-              LText('能力：${d.capabilities.map((c) => c.wire).join('、')}'),
-              const SizedBox(height: 8),
-              const LText(
-                '批准后它能收到自己会话里的数据，拿不到保险库、私钥、密码或其他主机。'
-                '以后换了签名证书或申请新能力，会重新请你确认。',
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const LText('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const LText('批准'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    try {
-      await _discovery!.approve(entry);
-    } on PluginApprovalRefused catch (e) {
-      if (mounted) setState(() => _results[entry.packageName!] = e.message);
-    }
   }
 }

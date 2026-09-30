@@ -771,11 +771,77 @@ const englishTranslations = <String, String>{
   '跳板机最多 3 台。': 'At most 3 jump hosts.',
   '缓存里没有这台设备': 'This device is not in the cache',
   '最近一次完整列表里没有它': 'Not in the latest complete list',
+  // X04：插件详情页与管理（plugin_detail_screen.dart、plugins_screen.dart、plugin_discovery.dart）。
+  '这个插件现在不可用，不能打开它的设置页':
+      'This plugin is not available now, so its settings page cannot be opened',
+  '确认期间插件有变化（更新、换签或卸载），没有批准。请重新核对后再批准。':
+      'The plugin changed while you were confirming (updated, re-signed or uninstalled), so it was not approved. Check it again before approving.',
+  '随 App 提供': 'Shipped with the app',
+  '独立安装的 App': 'Separately installed app',
+  '外部 App': 'External app',
+  '终端会话': 'Terminal session',
+  '打开外部远控 App': 'Open an external remote desktop app',
+  '内嵌远控画面': 'Embedded remote desktop view',
+  '连接路线': 'Connection route',
+  '直连（系统网络）': 'Direct (system network)',
+  '代理 + 跳板机': 'Proxy + jump hosts',
+  '由插件自己管网络': 'Network handled by the plugin itself',
+  '本会话的临时凭据': 'Temporary credentials of its own session',
+  '本会话的输入输出': 'Input and output of its own session',
+  '由你点击后打开外部 App': 'Open an external app after you tap',
+  '插件自己的状态': 'Its own state',
+  '读设备目录': 'Read the device directory',
+  '这个插件不在列表里了': 'This plugin is no longer in the list',
+  '这是谁': 'Who this is',
+  '插件 ID：': 'Plugin ID: ',
+  '包名：': 'Package: ',
+  '插件自称的版本：': 'Version the plugin claims: ',
+  '安装包版本：': 'Installed package version: ',
+  '插件 API：': 'Plugin API: ',
+  '许可证：': 'License: ',
+  '源码：': 'Source: ',
+  '它能做什么': 'What it can do',
+  '能力：': 'Capabilities: ',
+  '支持的连接路线：': 'Supported routes: ',
+  '申请的权限：': 'Requested permissions: ',
+  '插件拿不到保险库、私钥、密码或其他主机；它是独立的 App，有自己的系统权限，本 App 管不住它自己联网。':
+      'The plugin cannot get the vault, private keys, passwords or other hosts; it is a separate app with its own system permissions, and this app cannot stop it from using the network by itself.',
+  '插件自己的设置页': 'Settings page of the plugin',
+  '这个插件没有声明设置页。': 'This plugin does not declare a settings page.',
+  '批准并启用后才能打开：批准之前不会启动插件的任何代码。':
+      'Available once approved and enabled: none of the plugin code runs before approval.',
+  '设置由插件自己保存，本 App 看不到，也不替它管理。':
+      'Settings are stored by the plugin itself; this app cannot see or manage them.',
+  '打开插件的设置页': 'Open the plugin settings page',
+  '操作': 'Actions',
+  '插件包刚变过（更新、换签或状态变化），之前的连接测试结果已作废。':
+      'The plugin package just changed (update, re-signing or status change); the earlier connection test result no longer applies.',
+  '停用': 'Disable',
+  '已停用：它的会话已关闭，批准记录保留，重新启用不用再批准。':
+      'Disabled: its sessions were closed and the approval kept; enabling it again needs no new approval.',
+  '启用': 'Enable',
+  '插件由你自己安装和卸载；本 App 不下载、不安装任何插件。装上、更新、卸载后这里会自动重新核对。':
+      'You install and uninstall plugins yourself; this app never downloads or installs any. After an install, update or uninstall, this page checks again automatically.',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // X04：插件包变化的提示带包名，按片段翻。
+  ('检测到插件包卸载：', 'Plugin package uninstalled: '),
+  (
+    '。它的会话已关闭，批准记录保留，重装同一证书的包会直接恢复。',
+    '. Its sessions were closed and the approval kept; reinstalling a package with the same certificate restores it.'
+  ),
+  ('检测到插件包安装：', 'Plugin package installed: '),
+  ('。已核对证书和描述符。', '. Certificate and descriptor checked.'),
+  ('检测到插件包组件变化：', 'Plugin package components changed: '),
+  ('。已重新核对。', '. Checked again.'),
+  ('检测到插件包更新：', 'Plugin package updated: '),
+  (
+    '。已重新核对证书和描述符，之前的连接已断开。',
+    '. Certificate and descriptor checked again; the earlier connection was closed.'
+  ),
   // R13：多行拼接和带插值的句子（精确表匹配不到运行时的整句，按片段翻）。
   (
     '目录只知道设备在不在 Tailscale 的列表里、有没有连上 Tailscale 控制面。',
