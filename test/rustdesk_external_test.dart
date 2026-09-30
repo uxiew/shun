@@ -328,6 +328,15 @@ void main() {
         ]),
       );
       expect(status, isA<RustDeskNotInstalled>());
+      // 用户信任了这个包：可用，但算「你信任的」，页面不会写成「和 GitHub 官方发行版的一致」。
+      final trusted = evaluateRustDeskApp(
+        probe([
+          custom(signers: {githubCert})
+        ]),
+        trust: const RustDeskTrust(
+            package: 'com.example.myrustdesk', signer: githubCert),
+      ) as RustDeskReady;
+      expect(trusted.source, RustDeskTrustSource.userApproved);
     });
 
     test('官方包和别的包都在：用官方包，别的只列出', () {
