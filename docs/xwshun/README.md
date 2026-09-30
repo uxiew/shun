@@ -124,6 +124,10 @@ API 35 镜像是你原有的，`lizhi` 模拟器在用，**不要卸**。
   首次启动要建 6 GB 数据盘，需要空闲 ≥ 7.2 GB（分区的 1.2 倍）；改 `config.ini` 的分区大小没用，会被改回。按第 6 节腾空间。
 - **`flutter emulators --launch` 报 `Running multiple emulators with the same AVD`**：这台已在后台无窗口运行，先 `adb -s <ID> emu kill`。
 - **`adb devices` 显示 `offline`**：还没启动完，等 `adb shell getprop sys.boot_completed` 输出 `1`（实测 18 秒到 2 分钟）。
+- **adb 断开（`waiting for device`）又连上后，`emulator-5554` 可能已经不是本项目的模拟器了**：
+  X06 时本项目的模拟器在 Mac 内存只剩几十 MB 时被关掉，同一个端口随即出现的是你自己无窗口启动的 `lizhi`，
+  后面几条命令就打到了它上面（一次界面导出、一次点在桌面空白处，已删掉导出文件、确认桌面原样）。
+  每次重连后先 `adb -s emulator-5554 emu avd name`，是 `xwshun-a35-4k` 才继续；两台同时开时内存也更紧。
 - **模拟器里按电脑的 Esc，App 退回上一页**：模拟器键位表把 Esc 映射成了返回键，真机蓝牙键盘不会这样。用终端快捷键栏的 Esc。
 - **Android 8.1 及更早的模拟器上 `adb logcat -c` 清不掉日志**（8.0 直接报 `failed to clear the 'main' log`）：
   按日志核对结果时别依赖清空，按"操作前已有几行"截取（`spikes/terminal_spike/tool/adb_key_check.sh` 就是这么做的）。
