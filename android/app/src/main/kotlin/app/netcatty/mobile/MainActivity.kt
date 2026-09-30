@@ -19,6 +19,7 @@ class MainActivity : FlutterActivity() {
     private var pictureInPictureChannel: MethodChannel? = null
     private var pluginBridge: PluginBridge? = null
     private var uuRemoteBridge: UuRemoteBridge? = null
+    private var rustDeskBridge: RustDeskBridge? = null
 
     /**
      * UU 远程的回调（X06）不由这里接，由 UuCallbackActivity 接（原因写在那里）。
@@ -43,6 +44,7 @@ class MainActivity : FlutterActivity() {
         )
         pluginBridge = PluginBridge(this, flutterEngine.dartExecutor.binaryMessenger)
         uuRemoteBridge = UuRemoteBridge(this, flutterEngine.dartExecutor.binaryMessenger)
+        rustDeskBridge = RustDeskBridge(this, flutterEngine.dartExecutor.binaryMessenger)
         MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "app.netcatty.mobile/connection",
@@ -128,6 +130,8 @@ class MainActivity : FlutterActivity() {
         pluginBridge = null
         uuRemoteBridge?.dispose()
         uuRemoteBridge = null
+        rustDeskBridge?.dispose()
+        rustDeskBridge = null
         pictureInPictureChannel?.setMethodCallHandler(null)
         pictureInPictureChannel = null
         super.onDestroy()

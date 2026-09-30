@@ -98,5 +98,18 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="xwshun-uuremote" android:host="callback" />
         </intent>
+        <!-- RustDesk（X07）：查谁声明能打开 rustdesk:// 。RustDesk 自己的清单只写 scheme、不限 host，第一条就够；
+             再加一条带 host 的，是为了限定了 host=connect 的别的 App 也看得见（原因同上面 UU 的第二条），
+             好在页面上说出「另有 App 也声明…」。官方包名单独列出：1.2.3 及更早不接 rustdesk://，
+             列了才能认出来、提示「版本太旧」，而不是说成「没装」。仍然不申请 QUERY_ALL_PACKAGES（PLG03）。 -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="rustdesk" />
+        </intent>
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="rustdesk" android:host="connect" />
+        </intent>
+        <package android:name="com.carriez.flutter_hbb" />
     </queries>
 </manifest>
