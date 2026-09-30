@@ -13,6 +13,13 @@ public final class PluginContract {
      */
     public static final String META_DESCRIPTOR = "top.xdwa.xwshun.plugin.DESCRIPTOR";
 
+    /**
+     * 插件自己的设置页（可选）：插件里一个导出的 Activity 声明这个 action。
+     * 宿主向系统查出实际组件后用显式组件打开，不带任何 extras；设置由插件自己保存，宿主看不到也不管。
+     * 一个包只认一个；声明了多个宿主就不提供入口，不替插件挑。只有已批准且启用的插件才显示入口。
+     */
+    public static final String ACTION_SETTINGS = "top.xdwa.xwshun.plugin.action.SETTINGS_V1";
+
     public static final int HOST_API_MAJOR = 1;
     public static final int HOST_API_MINOR = 0;
 

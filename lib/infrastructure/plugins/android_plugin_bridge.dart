@@ -14,6 +14,7 @@ class DiscoveredPackage {
     this.problem,
     this.versionName,
     this.versionCode,
+    this.settingsActivity,
   });
 
   final String packageName;
@@ -30,6 +31,9 @@ class DiscoveredPackage {
   final String? versionName;
   final int? versionCode;
 
+  /// 包里唯一声明了设置 action 的导出 Activity（系统查出来的）；没有或不止一个为 null。
+  final String? settingsActivity;
+
   static DiscoveredPackage fromMap(Map<Object?, Object?> m) =>
       DiscoveredPackage(
         packageName: m['package']! as String,
@@ -38,6 +42,7 @@ class DiscoveredPackage {
         problem: m['problem'] as String?,
         versionName: m['versionName'] as String?,
         versionCode: (m['versionCode'] as num?)?.toInt(),
+        settingsActivity: m['settingsActivity'] as String?,
         signers: [
           for (final s in (m['signers'] as List<Object?>? ?? const []))
             (
@@ -46,6 +51,18 @@ class DiscoveredPackage {
             ),
         ],
       );
+}
+
+/// 系统报告某个包装上、更新、卸载或组件启停（X04）。只说「哪个包变了」，怎么变由重新发现判定。
+class PackageChange {
+  const PackageChange(this.packageName, this.action, {this.replacing = false});
+  final String packageName;
+
+  /// added / replaced / removed / changed。
+  final String action;
+
+  /// 更新时系统先发 removed、再发 added，都带 replacing=true；这不是卸载。
+  final bool replacing;
 }
 
 /// 桥上发来的事件：插件回报、被拒绝的调用、连接关闭。
@@ -110,6 +127,14 @@ class AndroidPluginBridge {
     _channel.setMethodCallHandler((call) async {
       final m = call.arguments as Map<Object?, Object?>;
       final package = m['package'] as String? ?? '';
+      if (call.method == 'packageChanged') {
+        _packageChanges.add(PackageChange(
+          package,
+          m['action'] as String? ?? 'changed',
+          replacing: m['replacing'] == true,
+        ));
+        return;
+      }
       if (call.method == 'sessionData') {
         _sessionData.add(
           SessionDataEvent(
@@ -162,12 +187,14 @@ class AndroidPluginBridge {
 
   final MethodChannel _channel;
   final _events = StreamController<PluginBridgeEvent>.broadcast();
+  final _packageChanges = StreamController<PackageChange>.broadcast();
   final _sessionData = StreamController<SessionDataEvent>.broadcast(sync: true);
   final _sessionEvents =
       StreamController<SessionBridgeEvent>.broadcast(sync: true);
 
   bool get supported => Platform.isAndroid;
   Stream<PluginBridgeEvent> get events => _events.stream;
+  Stream<PackageChange> get packageChanges => _packageChanges.stream;
   Stream<SessionDataEvent> get sessionData => _sessionData.stream;
   Stream<SessionBridgeEvent> get sessionEvents => _sessionEvents.stream;
 
@@ -179,6 +206,18 @@ class AndroidPluginBridge {
       for (final item in raw)
         DiscoveredPackage.fromMap(item! as Map<Object?, Object?>),
     ];
+  }
+
+  /// 打开插件自己的设置页。桥会再向系统核一次这个类确实是该包的设置页才启动。
+  Future<void> openSettings(String packageName, String activity) async {
+    try {
+      await _channel.invokeMethod<void>(
+        'openSettings',
+        {'package': packageName, 'activity': activity},
+      );
+    } on PlatformException catch (e) {
+      throw PluginBridgeException(e.code, e.message ?? e.code);
+    }
   }
 
   /// 某个包为什么没出现在插件列表里。

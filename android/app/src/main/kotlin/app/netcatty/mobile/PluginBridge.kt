@@ -1,8 +1,10 @@
 package app.netcatty.mobile
 
+import android.content.BroadcastReceiver
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
 import android.content.pm.ResolveInfo
@@ -57,9 +59,51 @@ class PluginBridge(
     /** 按包名。一个包同时只有一条连接。只在主线程读写。 */
     private val connections = mutableMapOf<String, Connection>()
 
+    /**
+     * 安装、更新、卸载、组件启停的系统广播（X04）。只转告 Dart「哪个包变了」，由 Dart 重新发现、重新核验：
+     * 更新后的证书、描述符、能力都可能变，不能沿用变之前的判定。
+     *
+     * 运行时注册而不是写在清单里：Android 8 起这些隐式广播不再发给清单声明的接收器。
+     * Android 11 起系统只把「对本 App 可见」的包的广播发过来，也就是声明了插件 action 的那些，
+     * 不需要、也不申请查看全部应用。进程不在时收不到，所以插件页每次打开还会整体重新发现一次。
+     */
+    private val packageReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context, intent: Intent) {
+            val packageName = intent.data?.schemeSpecificPart ?: return
+            emitPackageChange(
+                mapOf(
+                    "package" to packageName,
+                    "action" to when (intent.action) {
+                        Intent.ACTION_PACKAGE_ADDED -> "added"
+                        Intent.ACTION_PACKAGE_REPLACED -> "replaced"
+                        Intent.ACTION_PACKAGE_REMOVED -> "removed"
+                        else -> "changed"
+                    },
+                    "replacing" to intent.getBooleanExtra(Intent.EXTRA_REPLACING, false),
+                ),
+            )
+        }
+    }
+
     init {
         channel.setMethodCallHandler(this)
+        val filter = IntentFilter().apply {
+            addAction(Intent.ACTION_PACKAGE_ADDED)
+            addAction(Intent.ACTION_PACKAGE_REPLACED)
+            addAction(Intent.ACTION_PACKAGE_REMOVED)
+            addAction(Intent.ACTION_PACKAGE_CHANGED)
+            addDataScheme("package")
+        }
+        // 不导出：只收系统和本 App 发的广播。这几个 action 本来就只有系统能发，不导出是多一道保险。
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            this.context.registerReceiver(packageReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            this.context.registerReceiver(packageReceiver, filter)
+        }
     }
+
+    private fun emitPackageChange(change: Map<String, Any?>) =
+        main.post { channel.invokeMethod("packageChanged", change) }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
@@ -99,6 +143,11 @@ class PluginBridge(
                 result.success(null)
             }
             "sessionStats" -> result.success(sessionOf(call)?.second?.stats())
+            "openSettings" -> openSettings(
+                call.argument<String>("package") ?: "",
+                call.argument<String>("activity") ?: "",
+                result,
+            )
             else -> result.notImplemented()
         }
     }
@@ -137,6 +186,7 @@ class PluginBridge(
                 out["signers"] = SignerDigests.of(pm, packageName).map {
                     mapOf("sha256" to it.sha256, "androidDebug" to it.androidDebug)
                 }
+                out["settingsActivity"] = settingsActivityOf(packageName)
             } catch (e: PackageManager.NameNotFoundException) {
                 out["problem"] = "查询到服务后包又不见了（可能刚被卸载）"
                 return@map out
@@ -172,6 +222,41 @@ class PluginBridge(
             }
         } catch (e: Exception) {
             null to "读不出描述符资源"
+        }
+    }
+
+    /** 这个包里声明了设置 action 的导出 Activity；没有或不止一个都返回 null，不替插件挑。 */
+    private fun settingsActivityOf(packageName: String): String? {
+        val intent = Intent(PluginContract.ACTION_SETTINGS).setPackage(packageName)
+        val found = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            pm.queryIntentActivities(intent, PackageManager.ResolveInfoFlags.of(0))
+        } else {
+            @Suppress("DEPRECATION")
+            pm.queryIntentActivities(intent, 0)
+        }.filter { it.activityInfo.packageName == packageName && it.activityInfo.exported }
+        return found.singleOrNull()?.activityInfo?.name
+    }
+
+    /**
+     * 打开插件自己的设置页（SDK04）。只在用户点了按钮时由 Dart 调用，Dart 那边已确认插件是「可用」。
+     * 这里再向系统核一次：这个类确实是该包里唯一声明设置 action 的导出 Activity——
+     * 不照 Dart 传来的类名直接启动，免得把任意组件当设置页打开。不带任何 extras。
+     */
+    private fun openSettings(packageName: String, activity: String, result: MethodChannel.Result) {
+        if (packageName.isBlank() || activity.isBlank() || settingsActivityOf(packageName) != activity) {
+            result.error("NOT_FOUND", "这个插件没有声明设置页，或者设置页已经变了", null)
+            return
+        }
+        try {
+            context.startActivity(
+                Intent(PluginContract.ACTION_SETTINGS)
+                    .setComponent(ComponentName(packageName, activity))
+                    // 从 Application 上下文启动别的 App 的页面，必须开新任务栈。
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+            )
+            result.success(null)
+        } catch (e: RuntimeException) {
+            result.error("LAUNCH_FAILED", "系统拒绝打开插件的设置页", null)
         }
     }
 
@@ -349,6 +434,7 @@ class PluginBridge(
 
     fun dispose() {
         for (packageName in connections.keys.toList()) disconnect(packageName, "宿主退出", "hostExit")
+        runCatching { context.unregisterReceiver(packageReceiver) }
         channel.setMethodCallHandler(null)
     }
 
