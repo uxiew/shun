@@ -467,6 +467,19 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
       state = state.copyWith(
         bindings: bindings,
         pending: () => pending,
+        // 「最近一次」只在内存里。App 被杀后重开、请求还在等：补一条，不然页面只有「最多等到」、没说在等什么。
+        attempts: pending == null
+            ? null
+            : {
+                pending.hostId: UuAttempt(
+                  kind: pending.kind,
+                  phase: ExternalLaunchPhase.launchedUnverified,
+                  at: pending.createdAt,
+                  window: pending.kind == UuCallbackKind.control
+                      ? UuWindow.pip
+                      : null,
+                ),
+              },
         loaded: true,
       );
       await _refresh();

@@ -477,6 +477,9 @@ void main() {
       c = build();
       await c.ready;
       expect(c.state.pending?.hostId, 'h1');
+      // 「最近一次」只在内存里，重开后要补上，页面才说得出在等什么。
+      expect(c.state.attempts['h1']?.phase,
+          ExternalLaunchPhase.launchedUnverified);
       platform.deliver(callbackFor(
           uri, {'anonymous_device_id': id, 'nonce': queryOf(uri)['nonce']!}));
       await settle();
