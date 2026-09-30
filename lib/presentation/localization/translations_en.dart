@@ -824,6 +824,8 @@ const englishTranslations = <String, String>{
       'Available once enabled: this app does not start a disabled plugin.',
   '插件由你自己安装和卸载；本 App 不下载、不安装任何插件。装上、更新、卸载后这里会自动重新核对。':
       'You install and uninstall plugins yourself; this app never downloads or installs any. After an install, update or uninstall, this page checks again automatically.',
+  // X05：Tailscale 目录接入内置 provider。
+  '目录设备引用无效': 'Invalid directory device reference',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
@@ -1062,6 +1064,7 @@ const englishReplacements = <(String, String)>[
   // X01：插件注册表（plugin_registry.dart、builtin_plugins.dart）。放最前，免得先被「连接」「代理」这类通用词拆碎。
   ('SSH / Telnet（内置）', 'SSH / Telnet (built-in)'),
   ('连接路径（内置）', 'Connection route (built-in)'),
+  ('Tailscale 设备目录（内置）', 'Tailscale device directory (built-in)'),
   (
     ' 不是 bundled，不能当内置 provider 登记',
     ' is not bundled and cannot be registered as a built-in provider'

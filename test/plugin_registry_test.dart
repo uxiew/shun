@@ -90,14 +90,40 @@ void main() {
       expect(r.entries.every((e) => e.isBuiltin), isTrue);
     });
 
+    test('X05 Tailscale 目录是内置 provider：构造即可用，只有目录能力、只走系统网络', () {
+      final r = registry();
+      expect(
+        r.require(BuiltinPlugins.tailscale, Capability.deviceCatalog).pluginId,
+        BuiltinPlugins.tailscale,
+      );
+      // 目录只列设备：没有终端能力，也就开不了任何会话（发现不等于能连）。
+      expect(
+        () => r.require(BuiltinPlugins.tailscale, Capability.terminalSession),
+        throwsA(isA<UnsupportedCapability>()),
+      );
+      final d = r.readyEntry(BuiltinPlugins.tailscale)!.descriptor!;
+      expect(d.deployment, Deployment.bundled);
+      expect(d.supportedRoutes, {RouteSupport.systemDefault});
+      expect(d.permissions, {Permission.ownProviderState});
+      expect(() => r.disable(BuiltinPlugins.tailscale), throwsArgumentError);
+    });
+
     test('内置 provider 不能被停用，外部包怎样折腾都遮蔽不了它', () {
       final r = registry();
       expect(() => r.disable(BuiltinPlugins.ssh), throwsArgumentError);
-      for (final id in ['builtin.ssh', 'BUILTIN.SSH', 'builtin.route']) {
+      for (final (id, capabilities) in [
+        ('builtin.ssh', ['terminal-session']),
+        ('BUILTIN.SSH', ['terminal-session']),
+        ('builtin.route', ['terminal-session']),
+        ('builtin.tailscale', ['device-catalog']),
+      ]) {
         r.offerInstalled(
           packageName: 'evil.$id'.toLowerCase(),
           descriptorJson: descriptor(
-              id: id.toLowerCase(), package: 'evil.$id'.toLowerCase()),
+            id: id.toLowerCase(),
+            package: 'evil.$id'.toLowerCase(),
+            capabilities: capabilities,
+          ),
           signerDigests: {'evil'},
         );
         r.approve(
@@ -105,10 +131,15 @@ void main() {
             id: id,
             package: 'evil.$id'.toLowerCase(),
             cert: 'evil',
+            capabilities: {
+              for (final c in capabilities)
+                Capability.values.singleWhere((v) => v.wire == c),
+            },
           ),
         );
       }
       expect(r.readyEntry(BuiltinPlugins.ssh)!.isBuiltin, isTrue);
+      expect(r.readyEntry(BuiltinPlugins.tailscale)!.isBuiltin, isTrue);
       expect(
         r.entries.where((e) => !e.isBuiltin).map((e) => e.status).toSet(),
         {PluginStatus.rejected},
@@ -446,6 +477,53 @@ void main() {
       );
       expect(ssh == catalog, isFalse);
       expect(DeviceLinks().recordOf(ssh), isNull);
+    });
+
+    test('X05 目录设备引用：身份是（来源 ID，设备 ID），和同名同 IP 的主机、另一个来源都不相等', () {
+      final a = catalogDeviceRef('ts-a', 'node-1',
+          displayName: 'nas', addresses: ['100.64.0.7']);
+      expect(a.providerId, BuiltinPlugins.tailscale);
+      expect(catalogRefKey(a), (catalogId: 'ts-a', deviceId: 'node-1'));
+      // 两个来源都报出 node-1：各是各的（TSC10）。
+      expect(a == catalogDeviceRef('ts-b', 'node-1'), isFalse);
+      // 名字、地址只是展示：同来源同 ID 就是同一条引用。
+      expect(a == catalogDeviceRef('ts-a', 'node-1', displayName: 'x'), isTrue);
+      expect(a == hostDeviceRef(host), isFalse);
+      // 设备 ID 里有冒号也不会切错：来源 ID 本身不允许冒号。
+      expect(
+        catalogRefKey(catalogDeviceRef('ts-a', 'n:1:2')),
+        (catalogId: 'ts-a', deviceId: 'n:1:2'),
+      );
+    });
+
+    test('X05 来源 ID 只有一条规则：拼不出路径、别的键或别的引用', () {
+      for (final bad in ['', 'a/b', '../x', 'a.b', 'a:b', 'a b', 'x' * 65]) {
+        expect(isValidCatalogId(bad), isFalse, reason: bad);
+        expect(() => catalogDeviceRef(bad, 'n'), throwsArgumentError);
+      }
+      expect(isValidCatalogId('ts-0abc'), isTrue);
+      expect(() => catalogDeviceRef('ts-a', ''), throwsArgumentError);
+      // 别的 provider 的引用、格式不对的引用都不是目录引用。
+      for (final ref in [
+        hostDeviceRef(host),
+        const ProviderDeviceRef(
+          providerId: 'example.catalog',
+          refId: 'ts-a:n',
+          displayName: 'n',
+        ),
+        const ProviderDeviceRef(
+          providerId: BuiltinPlugins.tailscale,
+          refId: 'no-separator',
+          displayName: 'n',
+        ),
+        const ProviderDeviceRef(
+          providerId: BuiltinPlugins.tailscale,
+          refId: 'bad/id:n',
+          displayName: 'n',
+        ),
+      ]) {
+        expect(catalogRefKey(ref), isNull, reason: ref.refId);
+      }
     });
 
     test('移除一个来源插件：只断开它那条关联，SSH 与另一个 provider 的引用、会话都不动', () {

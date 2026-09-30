@@ -1,5 +1,6 @@
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
+import '../../domain/device_references.dart';
 import 'tailscale_api.dart';
 
 /// 目录凭据的存储后端。抽出来只为测试能换成内存实现并数写入次数。
@@ -47,10 +48,9 @@ class TailscaleCatalogSecretStore {
 
   final CatalogSecretBackend _backend;
 
-  static final _catalogId = RegExp(r'^[A-Za-z0-9-]{1,64}$');
-
+  /// 每个来源一组键，键里只有来源 ID：刷新来源 A 只会读到 A 的 client（X05「只访问本来源控制面凭据」）。
   static String _key(String catalogId, String field) {
-    if (!_catalogId.hasMatch(catalogId)) {
+    if (!isValidCatalogId(catalogId)) {
       throw ArgumentError('catalogId 无效');
     }
     return 'tailscale.catalog.$catalogId.oauth.$field';

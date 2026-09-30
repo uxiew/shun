@@ -4,6 +4,7 @@ import 'dart:io';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
 
+import '../../domain/device_references.dart';
 import 'catalog_cache.dart';
 
 /// 缓存文件由更新版本的 App 写入（schemaVersion 更高）。回滚到旧版时会遇到：
@@ -26,13 +27,11 @@ class CatalogCacheRepository {
 
   final Future<Directory> Function() _directory;
 
-  static final _catalogId = RegExp(r'^[A-Za-z0-9-]{1,64}$');
-
   /// 超过就不读：一个来源的缓存不该比 API 响应上限（16 MiB）还大。
   static const _maxBytes = 16 * 1024 * 1024;
 
   Future<File> _file(String catalogId) async {
-    if (!_catalogId.hasMatch(catalogId)) {
+    if (!isValidCatalogId(catalogId)) {
       throw ArgumentError('catalogId 无效');
     }
     return File('${(await _directory()).path}/$catalogId.json');
@@ -72,7 +71,7 @@ class CatalogCacheRepository {
       final name = entity.uri.pathSegments.last;
       if (entity is! File || !name.endsWith('.json')) continue;
       final id = name.substring(0, name.length - '.json'.length);
-      if (!_catalogId.hasMatch(id)) continue;
+      if (!isValidCatalogId(id)) continue;
       try {
         final cache = await load(id);
         if (cache != null) out.add(cache);
