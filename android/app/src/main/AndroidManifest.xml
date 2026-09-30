@@ -75,6 +75,12 @@
             <action android:name="android.intent.action.VIEW" />
             <data android:scheme="uuremote" />
         </intent>
+        <!-- 只写 scheme 时，系统拿 uuremote:（没有 host）去匹配，intent-filter 限定了 host 的 App 就对本 App 不可见
+             （模拟器上实测：限定 host=external 的冒名包查不到）。再加一条带 host 的：它对只写 scheme 的 filter 同样匹配。 -->
+        <intent>
+            <action android:name="android.intent.action.VIEW" />
+            <data android:scheme="uuremote" android:host="external" />
+        </intent>
         <package android:name="com.netease.uuremote" />
     </queries>
 </manifest>
