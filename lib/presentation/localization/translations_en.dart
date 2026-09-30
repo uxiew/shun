@@ -920,6 +920,10 @@ const englishTranslations = <String, String>{
       'You stopped waiting: this binding result is unconfirmed, and any later reply from UU will be ignored.',
   '你结束了等待：这次小窗结果未确认，UU 之后的回报会被忽略。':
       'You stopped waiting: this picture-in-picture result is unconfirmed, and any later reply from UU will be ignored.',
+  '等了 10 分钟 UU 没有回报：这次绑定结果未确认，UU 之后的回报会被忽略。可以重新发起。':
+      'UU did not reply within 10 minutes: this binding result is unconfirmed, and any later reply from UU will be ignored. You can start again.',
+  '等了 10 分钟 UU 没有回报：这次小窗结果未确认，UU 之后的回报会被忽略。可以重新发起。':
+      'UU did not reply within 10 minutes: this picture-in-picture result is unconfirmed, and any later reply from UU will be ignored. You can start again.',
   '正在打开 UU 远程…': 'Opening UU Remote…',
   '如果你没有刚在 UU 里选过设备，点「不要」：这条回调可能不是你发起的。':
       'If you did not just pick a device in UU, tap "No": this callback may not come from you.',

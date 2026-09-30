@@ -1,3 +1,6 @@
+import 'dart:async';
+
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/application/device_links.dart';
 import 'package:netcatty_mobile/application/plugin_registry.dart';
@@ -340,6 +343,50 @@ void main() {
           ExternalLaunchPhase.launchedUnverified);
       await c.launch('h1', UuWindow.pip);
       expect(c.state.pending, isNotNull);
+    });
+
+    // 真实 UU（没登录）实测过：等满 10 分钟也没有任何回报。请求要自己作废，不能让页面一直灰着。
+    test('等满 10 分钟没有回报、用户回到页面（重查）：请求自己作废，记「未确认」，能发新的', () async {
+      await bound('h1');
+      await c.launch('h1', UuWindow.pip);
+      clock = clock.add(uuPendingLifetime);
+      await c.refreshApp();
+      expect(c.state.pending, isNull);
+      expect(backend.values['uuremote.pending.v1'], isNull);
+      final attempt = c.state.attempts['h1']!;
+      expect(attempt.unconfirmed, isTrue);
+      expect(attempt.code, uuWaitExpired);
+      expect(attempt.window, UuWindow.pip);
+      await c.launch('h1', UuWindow.pip);
+      expect(c.state.pending, isNotNull);
+    });
+
+    test('等满 10 分钟没有回报、页面一直开着没人动：到点也自己作废（定时器）', () {
+      fakeAsync((async) {
+        final start = DateTime.utc(2026, 9, 30, 12);
+        final timed = UuRemoteController(
+          platform: platform,
+          store: UuRemoteStore(MemoryBackend()),
+          registry: PluginRegistry(
+            policy: AdmissionPolicy(builtinIds: BuiltinPlugins.ids),
+          ),
+          hosts: () async => hosts,
+          now: () => start.add(async.elapsed),
+        );
+        async.flushMicrotasks();
+        unawaited(timed.approveSigner('cert-a'));
+        async.flushMicrotasks();
+        unawaited(timed.startBind('h1'));
+        async.flushMicrotasks();
+        expect(timed.state.pending, isNotNull);
+
+        async.elapse(uuPendingLifetime - const Duration(seconds: 5));
+        expect(timed.state.pending, isNotNull, reason: '没到点不作废');
+        async.elapse(const Duration(seconds: 10));
+        expect(timed.state.pending, isNull);
+        expect(timed.state.attempts['h1']!.code, uuWaitExpired);
+        timed.dispose();
+      });
     });
   });
 

@@ -377,6 +377,9 @@ const uuDiscardedByUser = 'xwshun_discarded_by_user';
 /// 返回的设备没有采用（原因见 [UuRemoteController] 的说明）。
 const uuCallbackContested = 'xwshun_callback_contested';
 
+/// [UuAttempt.code] 的本地取值：等满 [uuPendingLifetime] UU 也没回报，请求自己作废了（和用户点「结束等待」区分开）。
+const uuWaitExpired = 'xwshun_wait_expired';
+
 /// 本地最长等 UU 回调多久。官方：未登录排队最长 180 秒；前置拦截弹窗要用户点了才回调、没有超时。留足余量。
 const uuPendingLifetime = Duration(minutes: 10);
 
@@ -410,6 +413,20 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
         (Object e) => _notice('处理 UU 回调时出错：$e'),
       );
     });
+    // 等回调的请求一变（发出、对上、结束等待），就按它的到期时间重新定时。挂在状态上而不是各处手动调，免得漏。
+    _stopWatching = addListener((next) {
+      if (identical(next.pending, _watched)) return;
+      _watched = next.pending;
+      _expiry?.cancel();
+      final pending = next.pending;
+      if (pending == null) return;
+      // 多等 1 秒：定时器早到几毫秒的话 _expireIfDue 会认为还没到期，就没人再来清了。
+      final left =
+          pending.expiresAt.difference(_now()) + const Duration(seconds: 1);
+      _expiry = Timer(left.isNegative ? Duration.zero : left, () {
+        unawaited(_serial(_expireIfDue).catchError((Object _) {}));
+      });
+    }, fireImmediately: false);
     _ready = _serial(_load);
   }
 
@@ -421,6 +438,9 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
   final Random _random;
   late final StreamSubscription<String> _callbacks;
   late final Future<void> _ready;
+  late final void Function() _stopWatching;
+  UuPendingRequest? _watched;
+  Timer? _expiry;
 
   /// 所有改状态的操作排队执行：回调可能和用户点击同时到，交叠会让一个回调对上两次。
   Future<void> _queue = Future.value();
@@ -460,7 +480,32 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
 
   Future<void> refreshApp() => _serial(_refresh);
 
+  /// 等回调的请求到点就自己作废，记成「结果未确认」。
+  ///
+  /// 不这么做的话页面一直写着「等它回报」、发送按钮一直灰着，要用户自己点「结束等待」才恢复——
+  /// 模拟器上用真实 UU 碰到过：没登录的 UU 等满 10 分钟也没有任何回报。
+  Future<void> _expireIfDue() async {
+    final pending = state.pending;
+    if (pending == null || _now().isBefore(pending.expiresAt)) return;
+    await _store.savePending(null);
+    final previous = state.attempts[pending.hostId];
+    _setAttempt(
+      pending.hostId,
+      UuAttempt(
+        kind: pending.kind,
+        phase: ExternalLaunchPhase.launchedUnverified,
+        at: previous?.at ?? pending.createdAt,
+        window: previous?.window,
+        code: uuWaitExpired,
+        unconfirmed: true,
+      ),
+      pending: () => null,
+    );
+  }
+
   Future<void> _refresh() async {
+    // 定时器只在 App 活着时走；App 在后台被冻住、回到前台重查时补上。
+    await _expireIfDue();
     final probe = await _platform.probe();
     final approved = await _store.approvedSigner();
     if (!mounted) return;
@@ -908,6 +953,8 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
 
   @override
   void dispose() {
+    _expiry?.cancel();
+    _stopWatching();
     unawaited(_callbacks.cancel());
     super.dispose();
   }

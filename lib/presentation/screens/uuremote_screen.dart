@@ -672,6 +672,12 @@ String uuAttemptText(UuAttempt attempt, {required bool waiting}) {
   final bind = attempt.kind == UuCallbackKind.bind;
   final code = attempt.code ?? '';
   if (attempt.unconfirmed) {
+    // 「10 分钟」是 uuPendingLifetime。
+    if (code == uuWaitExpired) {
+      return t(bind
+          ? '等了 10 分钟 UU 没有回报：这次绑定结果未确认，UU 之后的回报会被忽略。可以重新发起。'
+          : '等了 10 分钟 UU 没有回报：这次小窗结果未确认，UU 之后的回报会被忽略。可以重新发起。');
+    }
     return t(bind
         ? '你结束了等待：这次绑定结果未确认，UU 之后的回报会被忽略。'
         : '你结束了等待：这次小窗结果未确认，UU 之后的回报会被忽略。');
