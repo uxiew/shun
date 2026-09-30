@@ -32,6 +32,7 @@ import '../widgets/ai_providers_page.dart';
 import '../widgets/github_manual_config.dart';
 import '../widgets/vault_import_dialog.dart';
 import 'plugins_screen.dart';
+import 'rustdesk_screen.dart';
 import 'tailscale_catalog_screen.dart';
 import 'uuremote_screen.dart';
 
@@ -758,7 +759,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               if (Platform.isAndroid) ...[
-                _header('远程桌面', '用网易 UU 远程控制 Windows / Mac 电脑'),
+                _header('远程桌面', '交给手机上装的 UU 远程或 RustDesk 去控制电脑'),
                 Card(
                   child: ListTile(
                     key: const ValueKey('settings-uuremote'),
@@ -769,6 +770,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
                         builder: (_) => const UuRemoteSettingsScreen(),
+                      ),
+                    ),
+                  ),
+                ),
+                Card(
+                  child: ListTile(
+                    key: const ValueKey('settings-rustdesk'),
+                    leading: const Icon(Icons.connected_tv_outlined),
+                    title: const Text('RustDesk'),
+                    subtitle:
+                        const LText('检查手机上的 RustDesk、核对证书、管理各主机的 RustDesk ID'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const RustDeskSettingsScreen(),
                       ),
                     ),
                   ),

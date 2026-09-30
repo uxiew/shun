@@ -13,6 +13,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/host_editor.dart';
 import '../widgets/host_key_dialogs.dart';
 import '../widgets/host_system_icon.dart';
+import 'rustdesk_screen.dart';
 import 'uuremote_screen.dart';
 
 class VaultScreen extends ConsumerStatefulWidget {
@@ -354,6 +355,14 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
               icon: const Icon(Icons.desktop_windows_outlined),
               label: const LText('UU 远程'),
             ),
+          // RustDesk 同样只做了 Android（X07）：把主机的 RustDesk ID 交给手机上的 RustDesk 去连。
+          if (defaultTargetPlatform == TargetPlatform.android)
+            TextButton.icon(
+              key: const ValueKey('host-rustdesk'),
+              onPressed: () => Navigator.pop(context, _HostAction.rustDesk),
+              icon: const Icon(Icons.connected_tv_outlined),
+              label: const Text('RustDesk'),
+            ),
           TextButton.icon(
             onPressed: () => Navigator.pop(context, _HostAction.edit),
             icon: const Icon(Icons.edit_outlined),
@@ -375,6 +384,10 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     } else if (action == _HostAction.uuRemote) {
       await Navigator.of(context).push(MaterialPageRoute<void>(
         builder: (_) => UuRemoteHostScreen(hostId: host.id),
+      ));
+    } else if (action == _HostAction.rustDesk) {
+      await Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => RustDeskHostScreen(hostId: host.id),
       ));
     }
   }
@@ -727,7 +740,7 @@ class _HostTile extends StatelessWidget {
       );
 }
 
-enum _HostAction { connect, edit, uuRemote }
+enum _HostAction { connect, edit, uuRemote, rustDesk }
 
 class _DetailRow extends StatelessWidget {
   const _DetailRow({
