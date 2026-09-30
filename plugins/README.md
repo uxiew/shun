@@ -103,6 +103,7 @@ adb logcat -d -s XwshunFakeUu     # 每个请求、每次回调一行：参数�
 | `bind_wrong_nonce` / `bind_dup` / `bind_long` | 绑定 | nonce 不对 / nonce 出现两次 / 5000 字符的 ID：本 App 都应拒收 |
 | `bind_twice` | 绑定 | 同一条回调 1.5 秒后再发一次：第二次应被当成重放忽略 |
 | `bind_none` | 绑定 | 不回调：本 App 一直等，可以「结束等待」 |
+| `bind_late:<秒>` | 绑定 | 延迟回调：趁这段时间 `adb shell am force-stop top.xdwa.xwshun`，看回调冷启动 App 后还能不能对上 |
 | `pip_success` / `pip_failure:<reason>` | 小窗远控 | 比如 `pip_failure:pip_unsupported`、`pip_failure:device_not_found` |
 | `pip_twice` / `pip_late:<秒>` / `pip_none` | 小窗远控 | 重放 / 延迟回报（先在 App 里结束等待，看迟到的是否被忽略）/ 不回 |
 

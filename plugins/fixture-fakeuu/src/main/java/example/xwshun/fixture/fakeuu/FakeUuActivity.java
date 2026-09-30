@@ -23,7 +23,8 @@ import java.util.List;
  *
  * <p>绑定模式（authorize 请求）：
  * bind_ok、bind_ok_b（另一个 ID）、bind_ok_raw（ID 里的 + 不编码）、bind_error:&lt;错误码&gt;、
- * bind_wrong_nonce、bind_dup（nonce 出现两次）、bind_twice（同一回调 1.5 秒后再发一次）、bind_long、bind_none。
+ * bind_wrong_nonce、bind_dup（nonce 出现两次）、bind_twice（同一回调 1.5 秒后再发一次）、bind_long、bind_none、
+ * bind_late:&lt;秒&gt;（延迟回调，测冷启动）。
  * <p>小窗模式（window_type=1 的 control 请求）：
  * pip_success、pip_failure:&lt;reason&gt;、pip_twice、pip_late:&lt;秒&gt;、pip_none。
  * <p>全屏（window_type=0）：和官方一样从不回调。
@@ -110,6 +111,12 @@ public class FakeUuActivity extends Activity {
         }
         if (mode.startsWith("bind_error:")) {
             send(append(callback, "error", mode.substring("bind_error:".length()), "nonce", n), 0);
+            return;
+        }
+        if (mode.startsWith("bind_late:")) {
+            // 延迟回调：测试脚本趁这段时间强杀本 App，看回调把它冷启动起来后还能不能对上请求。
+            long seconds = Long.parseLong(mode.substring("bind_late:".length()));
+            send(append(callback, "anonymous_device_id", ID_A, "nonce", n), seconds * 1000);
             return;
         }
         switch (mode) {
