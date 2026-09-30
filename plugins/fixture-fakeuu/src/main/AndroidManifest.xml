@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <application android:label="Fake UU (xwshun test only)" android:allowBackup="false">
+        <!-- 和官方协议一样只接 uuremote://external/... 。 -->
+        <activity
+            android:name="example.xwshun.fixture.fakeuu.FakeUuActivity"
+            android:exported="true"
+            android:launchMode="singleTask">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:scheme="uuremote" android:host="external" />
+            </intent-filter>
+        </activity>
+        <!-- 测试脚本用 adb 启动它、带字符串 extra「mode」，设定下一次怎么回。用法见 plugins/README.md。 -->
+        <activity
+            android:name="example.xwshun.fixture.fakeuu.ModeActivity"
+            android:exported="true"
+            android:theme="@android:style/Theme.Translucent.NoTitleBar" />
+    </application>
+</manifest>

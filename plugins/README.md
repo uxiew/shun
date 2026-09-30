@@ -28,6 +28,10 @@ cp ../android/local.properties .      # 首次：告诉 Gradle SDK 在哪（被 
 | `echo-v2.apk` | 同上 | 独立作者密钥 | 版本 0.2.0（versionCode 2），能力不变：普通更新，应仍可用（PLG11） |
 | `echo-morecaps.apk` | 同上 | 独立作者密钥 | 0.3.0，多申请 `remote-desktop-external`：应回到待批准，不自动扩大批准（PLG11） |
 | `echo-apimajor2.apk` | 同上 | 独立作者密钥 | 0.4.0，描述符声明 API major 2：应判不兼容（X04「major 变化阻断」） |
+| `fakeuu.apk` | com.netease.uuremote | 独立作者密钥 | X06 假 UU 远程 4.42.0：冒充官方包名，证书不是官方的，宿主要用户批准证书后才发请求 |
+| `fakeuu-old.apk` | 同上 | 独立作者密钥 | 4.41.0：宿主应判「版本太旧」 |
+| `fakeuu-resigned.apk` | 同上 | 另一把密钥 | 同包名换签：批准过 `fakeuu` 之后装它，宿主应停下来要求重新核对。要先卸载 `fakeuu` 才装得上 |
+| `fakeuu-lookalike.apk` | example.xwshun.fixture.fakeuu | 另一把密钥 | 别的包也声明 `uuremote://`：官方包名没装时宿主应说「没装」并提醒有别的 App 声明，请求不发给它 |
 
 同包名同密钥的变体之间 `adb install -r` 直接覆盖，批准记录不受影响。测试 APK 都是可调试的，方便 `run-as` 看进程的 fd。
 X04 的三个更新变体 versionCode 是 2、3、4，其余都是 1：从高版本换回低版本要 `adb install -r -d`，否则报 `INSTALL_FAILED_VERSION_DOWNGRADE`。
@@ -80,6 +84,29 @@ adb logcat -d -s XwshunEcho | grep 设置页   # 点过「打开插件的设置�
 ```
 
 每一步都不需要点「重新扫描」。批准确认框开着时装一个新版本再点批准，应马上提示「确认期间插件有变化」、不批准。
+
+## X06 假 UU 远程
+
+假 UU 收到本 App 的请求后，按事先设定的模式回调。先设模式，再在 App 里点「在 UU 里选设备」或「小窗远控」：
+
+```bash
+adb install -r out/fakeuu.apk
+adb shell am start -n com.netease.uuremote/example.xwshun.fixture.fakeuu.ModeActivity --es mode bind_ok
+adb logcat -d -s XwshunFakeUu     # 每个请求、每次回调一行：参数名、state 长度、加密 ID 的哈希前缀（不记原文）
+```
+
+| 模式 | 用在 | 假 UU 怎么回 |
+|---|---|---|
+| `bind_ok` / `bind_ok_b` | 绑定 | 两个不同的加密 ID，都带 `+ / =`，按官方示例编码 |
+| `bind_ok_raw` | 绑定 | ID 里的 `+` 不编码：本 App 应按字面收下，后面发远控时编码成 `%2B` |
+| `bind_error:<错误码>` | 绑定 | 比如 `bind_error:user_cancel`、`bind_error:superseded` |
+| `bind_wrong_nonce` / `bind_dup` / `bind_long` | 绑定 | nonce 不对 / nonce 出现两次 / 5000 字符的 ID：本 App 都应拒收 |
+| `bind_twice` | 绑定 | 同一条回调 1.5 秒后再发一次：第二次应被当成重放忽略 |
+| `bind_none` | 绑定 | 不回调：本 App 一直等，可以「结束等待」 |
+| `pip_success` / `pip_failure:<reason>` | 小窗远控 | 比如 `pip_failure:pip_unsupported`、`pip_failure:device_not_found` |
+| `pip_twice` / `pip_late:<秒>` / `pip_none` | 小窗远控 | 重放 / 延迟回报（先在 App 里结束等待，看迟到的是否被忽略）/ 不回 |
+
+全屏远控和官方一样从不回调。伪造一条没有请求的回调：`adb shell am start -a android.intent.action.VIEW -d 'xwshun-uuremote://callback/bind?state=AAAAAAAAAAAAAAAAAAAAAA\&anonymous_device_id=x\&nonce=y'`。
 
 ## 撞墙时
 
