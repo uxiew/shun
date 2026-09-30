@@ -65,6 +65,22 @@ cd .. && flutter test integration_test/plugin_session_test.dart -d emulator-5554
 
 `kill` 场景的 SSH 参数用 `--dart-define` 传：`SSH_PORT=22201`、`SSH_USER`、`SSH_PASS`、`SSH_FP`，取自 `tool/fixture-environment/.run/fixture.json`（`sshEdge.fingerprintSha256`）。
 
+## X04 设备检查（管理界面、更新检测、设置页）
+
+用正式 debug 宿主（`flutter build apk --debug`）手动走，没有自动化脚本。先装 `echo-author` 和 `echo-debugkey`，
+在「设置 → 插件（实验）」批准 echo，停在它的详情页，然后在电脑上依次：
+
+```bash
+adb install -r out/echo-v2.apk          # 仍「可用」，版本变 0.2.0（2），之前的连接测试结果作废
+adb install -r out/echo-morecaps.apk    # 回到「待批准」：申请了批准范围之外的新能力
+adb install -r out/echo-apimajor2.apk   # 「不兼容」：API major 2
+adb install -r -d out/echo-author.apk   # 直接「可用」（原批准覆盖它的能力）
+adb uninstall example.xwshun.fixture.echo && adb install out/echo-impostor.apk   # 「已拒绝（换签）」
+adb logcat -d -s XwshunEcho | grep 设置页   # 点过「打开插件的设置页」后：action=…SETTINGS_V1 extras=[]
+```
+
+每一步都不需要点「重新扫描」。批准确认框开着时装一个新版本再点批准，应马上提示「确认期间插件有变化」、不批准。
+
 ## 撞墙时
 
 - **`defaultConfig contains custom resource values, but the feature is disabled`**：AGP 9 默认关了 resValue，模块里要 `buildFeatures { resValues = true }`。

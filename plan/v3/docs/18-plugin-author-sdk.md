@@ -73,3 +73,31 @@ Android实机需记录主App与插件APK SHA-256、signer SHA-256、API/ABI/页�
 插件作者要做的：用自己的密钥签名；把宿主发行证书的 SHA-256 写进插件；在每个方法里调 `requireTrustedCaller`。宿主这边由用户在「设置 → 插件（实验）」里核对证书后批准。
 宿主换了发行证书，插件要发新版本信任新证书；插件换了密钥，用户要重新批准。
 
+### 设置页与更新（X04，仍是 v1.0）
+
+**插件自己的设置页（可选）**：在清单里声明一个导出的 Activity，带 `top.xdwa.xwshun.plugin.action.SETTINGS_V1`（`PluginContract.ACTION_SETTINGS`）和 `DEFAULT` category：
+
+```xml
+<activity android:name=".SettingsActivity" android:exported="true">
+    <intent-filter>
+        <action android:name="top.xdwa.xwshun.plugin.action.SETTINGS_V1" />
+        <category android:name="android.intent.category.DEFAULT" />
+    </intent-filter>
+</activity>
+```
+
+- 宿主向系统查出这个组件，用户点「打开插件的设置页」时用显式组件打开，**不带任何 extras**；设置由插件自己保存，宿主看不到。
+- 一个包只能有一个：声明了多个宿主就不提供入口，不替你挑。
+- 只有「可用」（已批准、已启用、证书未变）的插件才有入口；批准前、停用后、卸载后都没有。
+- 页面是插件自己的 Activity，谁都能从外面打开它，里面别放只该给宿主看的东西。
+
+**发新版本时宿主怎么判**（系统报告更新后宿主会整体重新核验，不沿用旧判定）：
+
+| 你改了什么 | 用户那边的结果 |
+|---|---|
+| 只改实现、描述符里的能力不变 | 仍「可用」，不用重新批准；之前的连接会断开，旧进程已被系统替换 |
+| 描述符多申请了能力 | 回到「待批准」，用户核对后重新批准，不会自动扩大 |
+| 描述符的 `apiMajor` 变了 | 「不兼容」，不能用 |
+| 换了签名密钥 | 系统不让覆盖安装；用户卸载后装新包会被判「已拒绝（换签）」，要撤销旧批准再重新核对 |
+
+`versionCode` 要递增，否则系统拒绝覆盖安装。宿主界面同时显示描述符里的 `version` 和系统报告的安装包版本，两者对不上时用户看得出来。
