@@ -19,6 +19,7 @@ class CatalogImportOptions {
     this.port = 22,
     this.address = CatalogAddressKind.ipv4,
     this.proxyProfileId,
+    this.proxyConfig,
     this.jumpHostIds = const [],
     this.authMethod = HostAuthMethod.auto,
     this.identityFileId,
@@ -31,6 +32,10 @@ class CatalogImportOptions {
 
   /// 已保存的代理配置。和 [jumpHostIds] 同时给时，代理只用于连第一台跳板机（R07 的「代理入口 + 跳板」）。
   final String? proxyProfileId;
+
+  /// 自定义代理，写进每台新主机（和编辑器里「自定义 HTTP / SOCKS5 代理」同一种存法）。
+  /// 手机端目前没有新建代理配置的入口，只有从桌面端导入的才有 [proxyProfileId] 可选。
+  final ProxyConfig? proxyConfig;
   final List<String> jumpHostIds;
   final HostAuthMethod authMethod;
   final String? identityFileId;
@@ -90,6 +95,10 @@ CatalogImportResult buildCatalogImport({
   if (options.authMethod == HostAuthMethod.key &&
       (options.identityFileId ?? '').isEmpty) {
     throw const CatalogImportInvalid('选了私钥认证，要选一把私钥。');
+  }
+  if ((options.proxyProfileId ?? '').isNotEmpty &&
+      options.proxyConfig != null) {
+    throw const CatalogImportInvalid('代理只能选一个：已保存的配置或自定义，不能都填。');
   }
   if (options.jumpHostIds.length > maxJumpHosts) {
     throw const CatalogImportInvalid('跳板机最多 $maxJumpHosts 台。');
@@ -201,6 +210,8 @@ HostProfile _host(
   }
   final proxy = options.proxyProfileId ?? '';
   if (proxy.isNotEmpty) data['proxyProfileId'] = proxy;
+  final custom = options.proxyConfig;
+  if (custom != null) data['proxyConfig'] = custom.toJson();
   return HostProfile(data);
 }
 

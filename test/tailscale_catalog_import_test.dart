@@ -230,6 +230,36 @@ void main() {
       expect(plan.jumps.single.host.id, 'hop');
     });
 
+    test('自定义代理写进每台新主机；和已保存配置二选一；地址不合法整批拒绝', () {
+      const socks = ProxyConfig(
+        type: ProxyType.socks5,
+        host: '127.0.0.1',
+        port: 1055,
+        username: 'u',
+        password: 'PROXY-PW',
+      );
+      final result = run(
+        const CatalogImportOptions(username: 'u', proxyConfig: socks),
+        ids: ['1'],
+      );
+      final host = result.hosts.single;
+      expect(host.proxyConfig?.port, 1055);
+      expect(host.proxyConfig?.password, 'PROXY-PW');
+      expect(host.proxyProfileId, isNull);
+      expect(
+        () => run(const CatalogImportOptions(
+            username: 'u', proxyConfig: socks, proxyProfileId: 'p1')),
+        throwsA(isA<CatalogImportInvalid>()),
+      );
+      expect(
+        () => run(const CatalogImportOptions(
+            username: 'u',
+            proxyConfig:
+                ProxyConfig(type: ProxyType.socks5, host: '', port: 1055))),
+        throwsA(isA<CatalogImportInvalid>()),
+      );
+    });
+
     test('导入不带指纹信任：第一次连接照常要核对（TSC04）', () {
       final host = run(const CatalogImportOptions(username: 'u'), ids: ['1'])
           .hosts
