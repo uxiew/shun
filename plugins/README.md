@@ -1,7 +1,7 @@
 # 插件契约与测试插件
 
 - `provider-sdk/`：宿主与插件共用的 AIDL 契约和认人工具（`CallerVerifier`、`SignerDigests`）。宿主工程和这里的测试工程引用同一份。
-- `fixture-echo/`、`fixture-rogue/`：X02 的测试 APK。**只用于测试**：echo 连上不代表 Mosh 或任何真实 provider 可用。
+- `fixture-echo/`、`fixture-rogue/`：X02–X04 的测试 APK。**只用于测试**：echo 连上不代表 Mosh 或任何真实 provider 可用。
 
 ## 构建
 
@@ -25,8 +25,13 @@ cp ../android/local.properties .      # 首次：告诉 Gradle SDK 在哪（被 
 | `echo-stubborn.apk` | 同上 | 独立作者密钥 | 不理 close、宿主关流也不回报 closed、每 500 ms 发事件（PLG12） |
 | `echo-misbehave.apk` | 同上 | 独立作者密钥 | 发旧代次和伪造句柄的会话事件（PLG06） |
 | `echo-major2.apk` | 同上 | 独立作者密钥 | 握手时只接受宿主 API major 2（PLG02） |
+| `echo-v2.apk` | 同上 | 独立作者密钥 | 版本 0.2.0（versionCode 2），能力不变：普通更新，应仍可用（PLG11） |
+| `echo-morecaps.apk` | 同上 | 独立作者密钥 | 0.3.0，多申请 `remote-desktop-external`：应回到待批准，不自动扩大批准（PLG11） |
+| `echo-apimajor2.apk` | 同上 | 独立作者密钥 | 0.4.0，描述符声明 API major 2：应判不兼容（X04「major 变化阻断」） |
 
 同包名同密钥的变体之间 `adb install -r` 直接覆盖，批准记录不受影响。测试 APK 都是可调试的，方便 `run-as` 看进程的 fd。
+X04 的三个更新变体 versionCode 是 2、3、4，其余都是 1：从高版本换回低版本要 `adb install -r -d`，否则报 `INSTALL_FAILED_VERSION_DOWNGRADE`。
+所有 echo 变体都带一个自己的设置页（`SettingsActivity`，声明 `top.xdwa.xwshun.plugin.action.SETTINGS_V1`）。
 
 插件只接受一张宿主证书：默认是本机 `~/.android/debug.keystore`（宿主 debug 包和没配正式签名的 release 包都用它）。
 换台电脑构建的宿主证书不同，插件会拒绝它，报「签名证书不是信任的那张」。要指定别的宿主证书：`HOST_SHA256=<64位十六进制> ./build-fixtures.sh`。

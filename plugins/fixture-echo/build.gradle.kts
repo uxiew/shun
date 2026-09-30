@@ -8,6 +8,9 @@
 //   -PpluginId=<pluginId>                  默认 example.fixture_echo
 //   -PleakTo=<包名>                        握手后把宿主回调 Binder 转交给这个包（只为测宿主逐事务鉴权）
 //   -Pbehavior=normal|slowopen|stubborn|misbehave|major2   X03 故障注入，见 EchoProviderService
+//   -PdescriptorVersion=0.1.0 -PversionCode=1               X04 模拟插件更新（版本号要递增才能覆盖安装）
+//   -PextraCapability=<能力名>                               X04 更新后多申请一项能力，宿主应要求重新批准
+//   -PapiMajor=1                                             X04 描述符声明的 API major，改成 2 宿主应判不兼容
 plugins {
     id("com.android.application")
 }
@@ -19,6 +22,14 @@ val appId = (findProperty("echoAppId") as String?) ?: "example.xwshun.fixture.ec
 val pluginId = (findProperty("pluginId") as String?) ?: "example.fixture_echo"
 val leakTo = (findProperty("leakTo") as String?) ?: ""
 val behavior = (findProperty("behavior") as String?) ?: "normal"
+val descriptorVersion = (findProperty("descriptorVersion") as String?) ?: "0.1.0"
+val fixtureVersionCode = ((findProperty("versionCode") as String?) ?: "1").toInt()
+val extraCapability = (findProperty("extraCapability") as String?) ?: ""
+val apiMajor = ((findProperty("apiMajor") as String?) ?: "1").toInt()
+val capabilities = listOf("terminal-session") + listOfNotNull(extraCapability.ifBlank { null })
+val permissions = listOf("own-session-input-output") +
+    if (extraCapability == "remote-desktop-external") listOf("user-initiated-external-launch") else emptyList()
+fun jsonList(items: List<String>) = items.joinToString(", ") { "\"$it\"" }
 if (behavior !in setOf("normal", "slowopen", "stubborn", "misbehave", "major2")) {
     throw GradleException("behavior 只能是 normal/slowopen/stubborn/misbehave/major2")
 }
@@ -34,14 +45,14 @@ generatedRes.resolve("raw/xwshun_plugin.json").writeText(
       "schemaVersion": 1,
       "pluginId": "$pluginId",
       "displayName": "Echo fixture (test only)",
-      "version": "0.1.0",
-      "apiMajor": 1,
+      "version": "$descriptorVersion",
+      "apiMajor": $apiMajor,
       "apiMinor": 0,
       "deployment": "android-service",
-      "capabilities": ["terminal-session"],
+      "capabilities": [${jsonList(capabilities)}],
       "supportedRoutes": ["system-default"],
       "platforms": ["android"],
-      "permissions": ["own-session-input-output"],
+      "permissions": [${jsonList(permissions)}],
       "packageName": "$appId",
       "serviceClass": "example.xwshun.fixture.echo.EchoProviderService",
       "license": "GPL-3.0-or-later"
@@ -57,8 +68,8 @@ android {
         applicationId = appId
         minSdk = 24
         targetSdk = 36
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = fixtureVersionCode
+        versionName = descriptorVersion
         resValue("string", "xwshun_trusted_host_package", "top.xdwa.xwshun")
         resValue("string", "xwshun_trusted_host_sha256", hostSha256)
         resValue("string", "xwshun_fixture_leak_host_binder_to", leakTo)

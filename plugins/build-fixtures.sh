@@ -39,3 +39,8 @@ build echo-slowopen  fixture-echo  -PsignWith=author -Pbehavior=slowopen
 build echo-stubborn  fixture-echo  -PsignWith=author -Pbehavior=stubborn
 build echo-misbehave fixture-echo  -PsignWith=author -Pbehavior=misbehave
 build echo-major2    fixture-echo  -PsignWith=author -Pbehavior=major2
+# X04 模拟插件更新：同包名同密钥、版本号递增，覆盖安装即是「更新」。退回旧版要 adb install -r -d。
+build echo-v2        fixture-echo  -PsignWith=author -PdescriptorVersion=0.2.0 -PversionCode=2
+build echo-morecaps  fixture-echo  -PsignWith=author -PdescriptorVersion=0.3.0 -PversionCode=3 \
+  -PextraCapability=remote-desktop-external
+build echo-apimajor2 fixture-echo  -PsignWith=author -PdescriptorVersion=0.4.0 -PversionCode=4 -PapiMajor=2

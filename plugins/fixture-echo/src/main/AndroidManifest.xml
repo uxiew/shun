@@ -19,5 +19,16 @@
                 android:name="top.xdwa.xwshun.plugin.DESCRIPTOR"
                 android:resource="@raw/xwshun_plugin" />
         </service>
+
+        <!-- 插件自己的设置页（X04）。宿主只认声明了这个 action 的导出 Activity，显式组件打开。 -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="true"
+            android:label="Echo 设置">
+            <intent-filter>
+                <action android:name="top.xdwa.xwshun.plugin.action.SETTINGS_V1" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
     </application>
 </manifest>
