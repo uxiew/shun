@@ -1063,7 +1063,8 @@
       "result": "PASS",
       "inherited_from": null,
       "evidence": [
-        "evidence/X02.md"
+        "evidence/X02.md",
+        "evidence/X04.md"
       ]
     },
     {
@@ -1074,7 +1075,8 @@
       "result": "PASS",
       "inherited_from": null,
       "evidence": [
-        "evidence/X02.md"
+        "evidence/X02.md",
+        "evidence/X04.md"
       ]
     },
     {
@@ -1149,9 +1151,11 @@
       "action": "插件更新、卸载、替换签名后回到正在打开的页面。",
       "expected": "缓存能力失效、重新核验；不自动重新授权或执行旧操作。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X04.md"
+      ]
     },
     {
       "id": "PLG12",
@@ -1161,7 +1165,8 @@
       "result": "PASS",
       "inherited_from": null,
       "evidence": [
-        "evidence/X03.md"
+        "evidence/X03.md",
+        "evidence/X04.md"
       ]
     },
     {
@@ -1192,7 +1197,8 @@
       "result": "PASS",
       "inherited_from": null,
       "evidence": [
-        "evidence/X02.md"
+        "evidence/X02.md",
+        "evidence/X04.md"
       ]
     },
     {
@@ -1429,9 +1435,11 @@
       "action": "打开插件声明的复杂设置页，再禁用/卸载该插件。",
       "expected": "用户触发且目标显式，设置所有权清楚；无下载UI代码或强制宿主管理所有设置。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X04.md"
+      ]
     },
     {
       "id": "DEV01",
@@ -1453,7 +1461,8 @@
       "result": "NOT_RUN",
       "inherited_from": null,
       "evidence": [
-        "evidence/X01.md"
+        "evidence/X01.md",
+        "evidence/X04.md"
       ]
     }
   ],

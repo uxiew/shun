@@ -1837,7 +1837,7 @@
       "id": "X04",
       "phase": "E1",
       "title": "插件管理、安装检测与用户授权UI",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "X01",
         "X03",
@@ -1869,8 +1869,10 @@
       ],
       "stop_condition": "不得申请全包扫描或自动下载执行代码。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/X04.md"
+      ],
+      "commit": "7313270"
     },
     {
       "id": "X05",
