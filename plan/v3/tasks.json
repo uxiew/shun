@@ -1916,7 +1916,7 @@
       "id": "X06",
       "phase": "E1",
       "title": "UU官方绑定、全屏与PiP适配",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [
         "X04"
       ],
@@ -1949,7 +1949,9 @@
       ],
       "stop_condition": "无UU账号/目标授权用mock不填真实PASS；Linux明确不支持。",
       "owner_role": "实施代理",
-      "evidence": [],
+      "evidence": [
+        "evidence/X06.md"
+      ],
       "commit": null
     },
     {

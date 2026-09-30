@@ -1067,7 +1067,8 @@
       "inherited_from": null,
       "evidence": [
         "evidence/X02.md",
-        "evidence/X04.md"
+        "evidence/X04.md",
+        "evidence/X06.md"
       ]
     },
     {
@@ -1293,7 +1294,9 @@
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X06.md"
+      ]
     },
     {
       "id": "UUR02",
@@ -1302,34 +1305,42 @@
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X06.md"
+      ]
     },
     {
       "id": "UUR03",
       "action": "window_type=0全屏发起后没有任何回调，用户返回主App。",
       "expected": "仅显示已交给UU，不等待承诺不存在的回调，不自动标Active/失败重试。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "BLOCKED",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X06.md"
+      ]
     },
     {
       "id": "UUR04",
       "action": "window_type=1分别回调success/failure、PiP不可用。",
       "expected": "显示提供方报告状态，失败不自动切全屏后伪报成功，无持续在线假定。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "BLOCKED",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X06.md"
+      ]
     },
     {
       "id": "UUR05",
       "action": "用户确认提示延迟、timeout、superseded、取消和未知reason。",
       "expected": "请求串行，结果未确认可终止本地等待；迟到事件不覆盖新请求、不自动再次远控。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "BLOCKED",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X06.md"
+      ]
     },
     {
       "id": "UUR06",
@@ -1338,16 +1349,20 @@
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X06.md"
+      ]
     },
     {
       "id": "UUR07",
       "action": "UU换账号或绑定失效，与同设备SSH/Tailscale/RustDesk并存。",
       "expected": "只标UU引用失效并引导重绑，不删其他provider，不索取UU登录秘密。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "BLOCKED",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X06.md"
+      ]
     },
     {
       "id": "UUR08",
@@ -1356,7 +1371,9 @@
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X06.md"
+      ]
     },
     {
       "id": "RDX01",
@@ -1455,7 +1472,8 @@
       "evidence": [
         "evidence/X00.md",
         "evidence/X01.md",
-        "evidence/X05.md"
+        "evidence/X05.md",
+        "evidence/X06.md"
       ]
     },
     {
@@ -1468,7 +1486,8 @@
       "evidence": [
         "evidence/X01.md",
         "evidence/X04.md",
-        "evidence/X05.md"
+        "evidence/X05.md",
+        "evidence/X06.md"
       ]
     }
   ],

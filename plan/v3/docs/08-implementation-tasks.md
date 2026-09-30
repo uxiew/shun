@@ -887,7 +887,7 @@
 
 ## X06 UU官方绑定、全屏与PiP适配
 
-阶段：E1；状态：NOT_STARTED；依赖：X04；角色：实施代理。
+阶段：E1；状态：IN_PROGRESS；依赖：X04；角色：实施代理。
 
 **范围**：实现已验证包/scheme的绑定回调、opaque ID、安全关联、全屏launch和PiP结果，不读取UU账号秘密。
 
