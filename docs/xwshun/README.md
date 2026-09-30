@@ -16,7 +16,7 @@ flutter --version               # 应为 3.44.4
 ## 2. 测试
 
 ```bash
-flutter test -j 4     # 全量约 535 条，约 2.5 分钟；没起测试环境时真实 SSH 那 43 条自动跳过。刚关模拟器、内存紧时不加 -j 4 可能被系统杀掉
+flutter test -j 4     # 全量约 700 条（X06 时 654 条通过、44 条跳过），约 2.5 分钟；没起测试环境时真实 SSH 那 44 条自动跳过。刚关模拟器、内存紧时不加 -j 4 可能被系统杀掉
 flutter analyze       # 应为 No issues found（连 spikes/、packages/ 一起查）
 ```
 
@@ -128,6 +128,8 @@ API 35 镜像是你原有的，`lizhi` 模拟器在用，**不要卸**。
   X06 时本项目的模拟器在 Mac 内存只剩几十 MB 时被关掉，同一个端口随即出现的是你自己无窗口启动的 `lizhi`，
   后面几条命令就打到了它上面（一次界面导出、一次点在桌面空白处，已删掉导出文件、确认桌面原样）。
   每次重连后先 `adb -s emulator-5554 emu avd name`，是 `xwshun-a35-4k` 才继续；两台同时开时内存也更紧。
+  `lizhi` 开着的时候，本项目的模拟器用固定的另一个端口起，之后每条 adb 都带 `-s emulator-5580`，就不会串：
+  `emulator -avd xwshun-a35-4k -port 5580 -no-window -no-snapshot -gpu host &`（X06 后半段这样跑的，构建时空闲内存 36%–47%，没再被关）。
 - **模拟器里按电脑的 Esc，App 退回上一页**：模拟器键位表把 Esc 映射成了返回键，真机蓝牙键盘不会这样。用终端快捷键栏的 Esc。
 - **Android 8.1 及更早的模拟器上 `adb logcat -c` 清不掉日志**（8.0 直接报 `failed to clear the 'main' log`）：
   按日志核对结果时别依赖清空，按"操作前已有几行"截取（`spikes/terminal_spike/tool/adb_key_check.sh` 就是这么做的）。

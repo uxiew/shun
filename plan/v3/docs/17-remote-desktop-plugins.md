@@ -56,8 +56,26 @@ callback为本产品固定接收点，`nonce`或callback中保留的`state`使�
 | 前置拦截 | 忙碌、设备不存在/离线、不允许被控：先在 UU 里弹窗，**用户点确认后才回调**，这条路径没有本地超时 | 本地等待留足 10 分钟；结束等待只标「结果未确认」 |
 | 并发 | UU 同一时刻只处理一个第三方请求；被取代的绑定回调 `superseded` | 本 App 同时只允许一个等回调的请求，要先结束等待才能发下一个 |
 | 账号 | anonymous_device_id 绑定生成它时登录的 UU 账号，换账号后返回 `device_not_found` | 只有小窗回调能让 App 知道失效；全屏模式下 UU 在它自己的界面里报错，App 不知道 |
-| 官方 Android 示例的回调 | 自定义 scheme `uuremote-integration`、host `callback`，`VIEW` + `DEFAULT` + `BROWSABLE`，`singleTask`，onCreate 和 onNewIntent 都处理 | 用 `xwshun-uuremote://callback/bind`、`…/control`，两个入口走同一个校验器 |
+| 官方 Android 示例的回调 | 自定义 scheme `uuremote-integration`、host `callback`，`VIEW` + `DEFAULT` + `BROWSABLE`，`singleTask`，onCreate 和 onNewIntent 都处理 | 用 `xwshun-uuremote://callback/bind`、`…/control`。不照官方示例让主 Activity 直接接，改由过路的 `UuCallbackActivity` 接（原因见下面「系统里留下什么」） |
+| 回调是谁发的 | **官方未写**任何让第三方验证回调来源的办法 | 验证不了。state/nonce 只防没发过的请求和重放；另有 App 声明同一回调地址时不走回调（见下面「回调地址被抢」） |
 | **官方未写** | UU 回调时怎么编码 anonymous_device_id；会不会校验 callback 的 scheme；anonymous_device_id 的长度和字符集 | 回调只做一次百分号解码，`+` 按字面处理（加密 ID 常见 base64，把 `+` 当空格会弄坏它）；长度上限 4096 字符；这些要等真实 UU 实测复核 |
+
+**回调地址被抢**（模拟器 API 35，用 `plugins/out/fakeuu-hijack.apk` 实测）。另一个 App 也声明 `xwshun-uuremote://callback` 时，UU 回调会让系统弹「Open with」；用户选到它，它就拿到 state、nonce 和加密设备标识，还能把标识换成自己的、用显式包名转给本 App——校验全过。所以：
+
+- 探测时查有没有别的包声明了回调地址（清单里为此多一条 `<queries>`）。有：页面说出包名，绑定和小窗不发；全屏不带回调，照常。
+- 绑定成功的回调到达时再查一次（防请求发出后才装上的），有就作废，不给用户确认。
+- 挡不住的：系统把那一次回调交给谁由用户在弹窗里选，选错了标识就被它拿走。没有「只让 UU 发给我」的办法——要么 UU 改用带签名校验的通道，要么用 App Links（https 域名归属验证），这两样官方协议都没有。
+
+**系统里留下什么**（同一台模拟器实测）：
+
+| 位置 | 有没有加密标识 | 说明 |
+|---|---|---|
+| logcat | 没有 | 系统的 `START` 行只打 `uuremote://external/...`、`xwshun-uuremote://callback/...`；本 App 和平台桥都不写日志 |
+| 本 App 私有目录 | 没有明文 | `shared_prefs/xwshun_uuremote.xml` 的键和值都是密文；其他文件里搜不到 |
+| `dumpsys activity` / 最近任务：本 App | 改后没有 | 改前：App 被回调冷启动时，整条回调地址被记成主 Activity 任务的基础 Intent。改由 `UuCallbackActivity`（不进最近任务、不留历史、收下就结束）接之后不再留 |
+| `dumpsys activity` / 最近任务：UU | **有** | 本 App 发给 UU 的远控请求地址里带着标识（协议规定放在 URI 里），留在 UU 自己的任务记录上，bugreport 会带上。本 App 管不了 |
+
+只在 API 35 上看过；更早的 Android 版本日志里打多少 URI 没有验证。
 
 ## 3. RustDesk：两级交付
 
