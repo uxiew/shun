@@ -170,6 +170,23 @@ RustDesk 没有给第三方 App 的接入文档，下面每一条都是从源码
 
 Google Play 等其他渠道的证书没有核对过，装的是那些版本时走「要用户批准」。重新读证书：`$ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs <apk>`。
 
+**真实 RustDesk 1.4.9 实测**（2026-10-01，项目模拟器 API 35，所有者同意安装；装的是上面那个 GitHub 发行版 APK，没登录账号、没给录屏等被控权限，测完已卸载）
+
+ID 用的是 `xwshun-x07-none`：字母开头的自定义 ID 写法。RustDesk 自动分配的 ID 都是纯数字，所以不会撞上别人的电脑；实测服务器回的也是「离线或不存在」。
+
+| 做了什么 | 看到的 |
+|---|---|
+| 本 App 探测 | 包名 `com.carriez.flutter_hbb`、1.4.9，页面写「签名证书和 GitHub 官方发行版的一致」「这个版本的连接链接按源码核对过」，不用批准 |
+| 第一次点「用 RustDesk 远控」（RustDesk 从没打开过） | 系统交给 `com.carriez.flutter_hbb/.MainActivity`，在它自己的任务里（`flg=0x10000000`）。RustDesk 没有任何引导页，直接进全屏远控页开始连，约 4 秒后弹「Connection error: Failed to connect: the target device is offline or does not exist」 |
+| 点 OK、按返回 | 回到本 App，页面只有「已交给 RustDesk…」和「交给了：com.carriez.flutter_hbb 1.4.9」，没有任何别的变化 |
+| RustDesk 进程还活着，再点一次 | 它又开始连同一个 ID，同样的报错。按 Home 让它停在自己主界面再点：走的是已开着的那条路（日志 `A uri was received: …`），也照连 |
+| 卸载 RustDesk | 页面变「没有装 RustDesk」，这台主机的 ID 还在，远控按钮变灰 |
+
+**RustDesk 自己会把整条链接打进日志**：冷启动时 `I flutter : initialLink: rustdesk://connect/<ID>`，已开着时 `I flutter : A uri was received: rustdesk://connect/<ID>. handleByFlutter true`（核对过进程号，是 RustDesk 的进程，不是本 App）。所以 logcat 里能看到 RustDesk ID，这是 RustDesk 的行为，本 App 管不了；本 App 自己的进程没打过。
+系统的 `ActivityTaskManager: START` 行只有 `dat=rustdesk://connect/...`；RustDesk 任务的记录（`dumpsys activity recents`，bugreport 会带上）里是完整的 `dat=rustdesk://connect/<ID>`。本 App 的任务记录里没有。
+
+没测到的：真的连上一台电脑之后 RustDesk 怎么样（要一台被控电脑，这轮所有者没提供）；自建 ID 服务器、中继没配好时的样子；Android 11 以下的包可见性。
+
 ### RDX-embedded：R38后续
 
 若真正需要同一标签里显示桌面，可研究LobiShell RustDesk插件的AIDL + Surface模式。主App提供Android SurfaceView/PlatformView生命周期，插件持有native连接与画面；输入使用受限事件，不能用Dart逐帧Base64传整个视频。[S39](13-sources.md#s39) [S41](13-sources.md#s41)

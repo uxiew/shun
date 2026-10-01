@@ -1068,7 +1068,8 @@
       "evidence": [
         "evidence/X02.md",
         "evidence/X04.md",
-        "evidence/X06.md"
+        "evidence/X06.md",
+        "evidence/X07.md"
       ]
     },
     {
@@ -1381,45 +1382,55 @@
       "action": "RustDesk未安装、scheme被别的App注册、自建签名版本。",
       "expected": "验证实际包/签名及明确用户信任，不交给任意匹配scheme的App。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X07.md"
+      ]
     },
     {
       "id": "RDX02",
       "action": "构造正常peer ID、含恶意scheme/路径/控制字符、带password/config修改的输入。",
       "expected": "仅构造允许连接动作，不传密码，不调用敏感设置URI，不拼接任意外部参数。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X07.md"
+      ]
     },
     {
       "id": "RDX03",
       "action": "外部Activity成功启动、返回、取消但没有会话回调。",
       "expected": "只显示已发起，绝不假称connected或远端已终止。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X07.md"
+      ]
     },
     {
       "id": "RDX04",
       "action": "要求使用SSH SOCKS/ProxyJump的严格远控路线。",
       "expected": "external provider不冒充可接管网络，未支持则拒绝；独立策略由用户明确选择。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X07.md"
+      ]
     },
     {
       "id": "RDX05",
       "action": "目标ID失效、自建relay未配置、外部App升级改变协议。",
       "expected": "不自动切服务器/身份/协议，记录安装版本和支持矩阵，普通SSH不受影响。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X07.md"
+      ]
     },
     {
       "id": "SDK01",
@@ -1474,7 +1485,8 @@
         "evidence/X00.md",
         "evidence/X01.md",
         "evidence/X05.md",
-        "evidence/X06.md"
+        "evidence/X06.md",
+        "evidence/X07.md"
       ]
     },
     {
@@ -1482,13 +1494,14 @@
       "action": "移除一个目录来源或插件，设备还有SSH/UU/RustDesk引用。",
       "expected": "仅断开选定关联，不级联删除其他凭据/会话；缺provider的配置可保留修复。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
       "evidence": [
         "evidence/X01.md",
         "evidence/X04.md",
         "evidence/X05.md",
-        "evidence/X06.md"
+        "evidence/X06.md",
+        "evidence/X07.md"
       ]
     }
   ],

@@ -1958,7 +1958,7 @@
       "id": "X07",
       "phase": "E1",
       "title": "RustDesk外部客户端联动",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "X04"
       ],
@@ -1986,8 +1986,10 @@
       ],
       "stop_condition": "嵌入客户端核心或画面属于R38，不顺手扩张。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/X07.md"
+      ],
+      "commit": "086bfe1"
     },
     {
       "id": "X08",

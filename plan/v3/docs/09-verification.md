@@ -162,16 +162,16 @@ G0基线与关键风险；G1连接路线；G2目录及外部认证支持；G3 Gh
 |UUR06|伪造/重复/无pending/已过期callback、scheme劫持模拟。|nonce/state校验及固定回调路径有效；说明无法用scheme证明发送者，敏感绑定需用户确认。|PASS|
 |UUR07|UU换账号或绑定失效，与同设备SSH/Tailscale/RustDesk并存。|只标UU引用失效并引导重绑，不删其他provider，不索取UU登录秘密。|BLOCKED|
 |UUR08|设备的SSH要求SOCKS，同时点击UU远控且要求所有流量同路由。|明确provider-managed；无法保证同路由则拒绝/等待用户显式选择，不偷偷把SSH路由当已套用。|PASS|
-|RDX01|RustDesk未安装、scheme被别的App注册、自建签名版本。|验证实际包/签名及明确用户信任，不交给任意匹配scheme的App。|NOT_RUN|
-|RDX02|构造正常peer ID、含恶意scheme/路径/控制字符、带password/config修改的输入。|仅构造允许连接动作，不传密码，不调用敏感设置URI，不拼接任意外部参数。|NOT_RUN|
-|RDX03|外部Activity成功启动、返回、取消但没有会话回调。|只显示已发起，绝不假称connected或远端已终止。|NOT_RUN|
-|RDX04|要求使用SSH SOCKS/ProxyJump的严格远控路线。|external provider不冒充可接管网络，未支持则拒绝；独立策略由用户明确选择。|NOT_RUN|
-|RDX05|目标ID失效、自建relay未配置、外部App升级改变协议。|不自动切服务器/身份/协议，记录安装版本和支持矩阵，普通SSH不受影响。|NOT_RUN|
+|RDX01|RustDesk未安装、scheme被别的App注册、自建签名版本。|验证实际包/签名及明确用户信任，不交给任意匹配scheme的App。|PASS|
+|RDX02|构造正常peer ID、含恶意scheme/路径/控制字符、带password/config修改的输入。|仅构造允许连接动作，不传密码，不调用敏感设置URI，不拼接任意外部参数。|PASS|
+|RDX03|外部Activity成功启动、返回、取消但没有会话回调。|只显示已发起，绝不假称connected或远端已终止。|PASS|
+|RDX04|要求使用SSH SOCKS/ProxyJump的严格远控路线。|external provider不冒充可接管网络，未支持则拒绝；独立策略由用户明确选择。|PASS|
+|RDX05|目标ID失效、自建relay未配置、外部App升级改变协议。|不自动切服务器/身份/协议，记录安装版本和支持矩阵，普通SSH不受影响。|PASS|
 |SDK01|新作者只根据SDK/契约/示例构建独立签名测试APK。|无需私有宿主源码或宿主签名私钥；能走授权、协商、流与关闭流程。|NOT_RUN|
 |SDK02|核查SDK、native插件、fork及分发来源/许可材料。|接口与实现许可区分，保留原版权；不声称独立APK自动规避GPL/AGPL。|NOT_RUN|
 |SDK03|验证schema示例与缺字段/任意exec/任意Intent恶意描述符。|结构验证有负例，运行期仍做独立签名和权限校验；计划schema测试不算App测试。|PASS|
 |SDK04|打开插件声明的复杂设置页，再禁用/卸载该插件。|用户触发且目标显式，设置所有权清楚；无下载UI代码或强制宿主管理所有设置。|PASS|
 |DEV01|多个provider返回相同名称或IP但不同ID，用户显式关联两个引用。|只有用户关联形成DeviceRecord；provider身份、认证、网络策略互不复制。|PASS|
-|DEV02|移除一个目录来源或插件，设备还有SSH/UU/RustDesk引用。|仅断开选定关联，不级联删除其他凭据/会话；缺provider的配置可保留修复。|NOT_RUN|
+|DEV02|移除一个目录来源或插件，设备还有SSH/UU/RustDesk引用。|仅断开选定关联，不级联删除其他凭据/会话；缺provider的配置可保留修复。|PASS|
 
 完整READY额外要求GX0–GX3；可以报告CORE_READY但不得省略插件缺口。所有观察必须对应主App与各插件的实际构建和签名。
