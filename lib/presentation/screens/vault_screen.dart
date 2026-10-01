@@ -7,6 +7,7 @@ import '../../application/session_controller.dart';
 import '../../application/settings_controller.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/models/host.dart';
+import '../../domain/tailscale_ssh.dart';
 import '../../application/home_navigation.dart';
 import '../../application/host_trust.dart';
 import '../widgets/empty_state.dart';
@@ -314,9 +315,13 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
               _DetailRow(
                 icon: Icons.key_outlined,
                 label: '认证',
-                value: key == null
-                    ? (host.password?.isNotEmpty == true ? '密码' : '自动 / 交互式')
-                    : '私钥 · ${key.label}',
+                value: sshLoginModeOf(host) == SshLoginMode.tailscale
+                    ? 'Tailscale SSH（不发密码和私钥）'
+                    : key == null
+                        ? (host.password?.isNotEmpty == true
+                            ? '密码'
+                            : '自动 / 交互式')
+                        : '私钥 · ${key.label}',
               ),
               if (jumps.isNotEmpty)
                 _DetailRow(

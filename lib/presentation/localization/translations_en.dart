@@ -1132,6 +1132,8 @@ const englishTranslations = <String, String>{
   '已交给 RustDesk。它不向本 App 回报结果：连没连上、什么时候断开，请看 RustDesk。':
       'Handed to RustDesk. It reports nothing back to this app: check RustDesk to see whether it connected and when it disconnected.',
   // R14 Tailscale SSH
+  'Tailscale SSH（不发密码和私钥）':
+      'Tailscale SSH (no password or private key is sent)',
   '普通 SSH': 'Standard SSH',
   'Tailscale 会把这次登录算成：': 'Tailscale will treat this login as coming from:',
   'Tailscale 要求 check': 'Tailscale requires a check',
