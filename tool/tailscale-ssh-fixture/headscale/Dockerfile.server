@@ -1,0 +1,7 @@
+# Tailscale SSH 服务器节点：官方 tailscale 镜像 + 一个普通 OpenSSH（2222 端口，同一个 100.x 地址）。
+FROM tailscale/tailscale:v1.102.5@sha256:c507f3a2a6ab1cabd8d809b98edeb41edbd5c3fb6ad9632ffd098b4c7d0b4065
+RUN apk add --no-cache openssh-server bash \
+ && adduser -D -s /bin/bash checkuser && adduser -D -s /bin/bash acceptuser && adduser -D -s /bin/bash ordinary \
+ && passwd -u checkuser >/dev/null 2>&1; passwd -u acceptuser >/dev/null 2>&1; true
+COPY server-entry.sh /usr/local/bin/server-entry.sh
+ENTRYPOINT ["/usr/local/bin/server-entry.sh"]

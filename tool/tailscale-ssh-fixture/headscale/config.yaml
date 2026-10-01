@@ -1,0 +1,33 @@
+# Headscale 0.29.4 的最小配置：只给本机 fixture 用。控制面地址是容器网络里的名字，外面访问不到。
+server_url: http://headscale:8080
+listen_addr: 0.0.0.0:8080
+metrics_listen_addr: 127.0.0.1:9090
+grpc_listen_addr: 127.0.0.1:50443
+noise:
+  private_key_path: /var/lib/headscale/noise_private.key
+prefixes:
+  v4: 100.64.0.0/10
+  v6: fd7a:115c:a1e0::/48
+  allocation: sequential
+# 不用 Tailscale 官方的 DERP（默认会去 controlplane.tailscale.com 拉 DERP 表）：两个节点在同一个容器网络里直连。
+derp:
+  server:
+    enabled: false
+  urls: []
+  paths: [/etc/headscale/derp.yaml]
+  auto_update_enabled: false
+database:
+  type: sqlite
+  sqlite:
+    path: /var/lib/headscale/db.sqlite
+dns:
+  magic_dns: false
+  base_domain: ts.fixture.internal
+  override_local_dns: false
+policy:
+  mode: file
+  path: /etc/headscale/policy.hujson
+log:
+  level: info
+unix_socket: /var/run/headscale/headscale.sock
+unix_socket_permission: "0770"

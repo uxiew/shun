@@ -1,0 +1,71 @@
+# 真的 tailscaled（v1.102.5）+ Headscale 0.29.4 控制面，给 R14 的 Tailscale SSH 验证用。不是 Tailscale 的服务。
+#
+#   本机 ──127.0.0.1:21055──> ts-socks（userspace tailscaled，SOCKS5，扮演 TailSocks，登录为用户 fixture）
+#                                 │ tailnet（容器网络 tsnet，没有外网）
+#                                 └──> ts-server 100.64.x.x：22 = Tailscale SSH，2222 = 普通 OpenSSH
+#   headscale 只在 tsnet 里，外面访问不到。
+name: xwshun-tailscale-ssh
+
+x-ts: &ts
+  environment: &tsenv
+    TS_USERSPACE: "true"
+    TS_STATE_DIR: /var/lib/tailscale
+    # 不往 log.tailscale.com 上报日志
+    TS_TAILSCALED_EXTRA_ARGS: "--no-logs-no-support"
+    TS_AUTH_ONCE: "true"
+  # 万一哪里还想连 Tailscale 官方服务，名字直接解析到回环
+  extra_hosts:
+    - "log.tailscale.com:127.0.0.1"
+    - "log.tailscale.io:127.0.0.1"
+    - "controlplane.tailscale.com:127.0.0.1"
+    - "login.tailscale.com:127.0.0.1"
+    - "pkgs.tailscale.com:127.0.0.1"
+
+services:
+  headscale:
+    image: headscale/headscale:0.29.4@sha256:8833f828b414c0907b7e5c71da76473216fe17cce0818a166b536ec552c0903f
+    command: ["serve"]
+    volumes:
+      - ./config.yaml:/etc/headscale/config.yaml:ro
+      - ./policy.hujson:/etc/headscale/policy.hujson:ro
+      - ./derp.yaml:/etc/headscale/derp.yaml:ro
+    networks: [tsnet]
+
+  ts-server:
+    <<: *ts
+    build:
+      context: .
+      dockerfile: Dockerfile.server
+    image: xwshun-ts-server:1.102.5
+    hostname: ts-server
+    environment:
+      <<: *tsenv
+      TS_AUTHKEY: ${SERVER_AUTHKEY}
+      TS_HOSTNAME: ts-server
+      TS_EXTRA_ARGS: "--login-server=http://headscale:8080 --ssh"
+      ORDINARY_PASSWORD: ${ORDINARY_PASSWORD}
+    networks: [tsnet]
+
+  ts-socks:
+    <<: *ts
+    image: tailscale/tailscale:v1.102.5@sha256:c507f3a2a6ab1cabd8d809b98edeb41edbd5c3fb6ad9632ffd098b4c7d0b4065
+    hostname: ts-socks
+    # 没有可用的 DERP 中继：空闲一会儿后直连路径会失效，下一次经 SOCKS 拨号直接报 SOCKS 一般错误（状态码 1）。
+    # 每 10 秒 ping 一次 ts-server 保温。
+    entrypoint:
+      - sh
+      - -c
+      - (while sleep 10; do tailscale ping -c 1 --timeout 5s ts-server >/dev/null 2>&1; done) & exec /usr/local/bin/containerboot
+    environment:
+      <<: *tsenv
+      TS_AUTHKEY: ${SOCKS_AUTHKEY}
+      TS_HOSTNAME: ts-socks
+      TS_EXTRA_ARGS: "--login-server=http://headscale:8080"
+      TS_SOCKS5_SERVER: ":1055"
+    networks: [tsnet, edge]
+    ports: ["127.0.0.1:21055:1055"]
+
+networks:
+  tsnet:
+    internal: true
+  edge: {}

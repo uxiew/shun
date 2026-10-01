@@ -1,0 +1,12 @@
+// 用户 fixture 的设备（socks 节点，扮演 TailSocks）可以：
+//   以 checkuser 登录 tag:server —— 每次都要 check（checkPeriod always）
+//   以 acceptuser 登录 tag:server —— 直接放行
+// tag:server 上 2222 端口是普通 OpenSSH，和 Tailscale SSH 无关。
+{
+  "tagOwners": {"tag:server": ["fixture@"]},
+  "acls": [{"action": "accept", "src": ["*"], "dst": ["*:*"]}],
+  "ssh": [
+    {"action": "check", "src": ["fixture@"], "dst": ["tag:server"], "users": ["checkuser"], "checkPeriod": "always"},
+    {"action": "accept", "src": ["fixture@"], "dst": ["tag:server"], "users": ["acceptuser"]}
+  ]
+}

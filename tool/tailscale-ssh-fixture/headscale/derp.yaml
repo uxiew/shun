@@ -1,0 +1,13 @@
+# 占位 DERP 表：Headscale 0.29 要求至少一个条目，但这里不想让节点连任何外部中继。
+# 主机名用 .invalid（RFC 6761 保证解析不到），节点只能靠同一容器网络里的直连互通。
+regions:
+  900:
+    regionid: 900
+    regioncode: none
+    regionname: placeholder (unreachable)
+    nodes:
+      - name: 900a
+        regionid: 900
+        hostname: derp.fixture.invalid
+        stunport: -1
+        derpport: 443
