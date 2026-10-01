@@ -1,5 +1,5 @@
 # R15 的两个路线节点：同一个镜像按 ROLE 扮演远程 SOCKS（relay）或跳板机（jump）。见 node-entry.sh。
 FROM tailscale/tailscale:v1.102.5@sha256:c507f3a2a6ab1cabd8d809b98edeb41edbd5c3fb6ad9632ffd098b4c7d0b4065
 RUN apk add --no-cache openssh-server dante-server
-COPY node-entry.sh /usr/local/bin/node-entry.sh
+COPY node-entry.sh keepalive.sh /usr/local/bin/
 ENTRYPOINT ["/usr/local/bin/node-entry.sh"]

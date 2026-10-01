@@ -8,7 +8,7 @@ set -uo pipefail
 cd "$(dirname "$0")"
 RUN=$(cd ../.run && pwd)
 J=$RUN/headscale.json
-[ -s "$J" ] || { echo "没有 $J：先 ./up.sh routes" >&2; exit 1; }
+[ -s "$J" ] || { echo "没有 ${J}：先 ./up.sh routes" >&2; exit 1; }
 v() { python3 -c "import json,sys;d=json.load(open('$J'));print(eval(sys.argv[1]))" "$1"; }
 SERVER=$(v "d['ts-server']['ipv4']")
 SOCKS_NODE=$(v "d['ts-socks']['ipv4']")

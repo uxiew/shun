@@ -11,4 +11,5 @@ PermitRootLogin no
 PerSourcePenalties no
 CONF
 /usr/sbin/sshd
+/usr/local/bin/keepalive.sh &
 exec /usr/local/bin/containerboot

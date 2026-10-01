@@ -107,7 +107,7 @@ tailscaled 带 `--no-logs-no-support`（不往 log.tailscale.com 报日志），
 ```bash
 ./up.sh routes            # 4 个节点，约 20 秒；会把每条路线用真 TCP 预热一遍，走不通就报错退出
 ./selfcheck-routes.sh     # 不经 App，用本机 OpenSSH 把四条路线各走一遍，8 项应全 PASS
-adb -s emulator-5580 reverse tcp:21055 tcp:21055   # 再加 21056、22202
+ANDROID_SERIAL=emulator-5580 ./route-matrix.sh   # 在模拟器上跑 App 的 R15 集成测试，见脚本开头的说明
 ./down.sh
 ```
 
@@ -123,11 +123,12 @@ ts-relay、ts-jump 是内核模式 tailscaled（要 `NET_ADMIN` 和 `/dev/net/tu
 
 ### 撞墙时
 
-- **App 经代理连 100.x 报「SOCKS5 代理内部错误（状态码 1）」，过一会儿重试又好了**：没有可用的 DERP 中继，两个节点空闲一会儿后直连路径会失效，
-  下一次拨号先失败。compose 里给 ts-socks 加了每 10 秒一次的 `tailscale ping` 保温，还碰到就再连一次。这是这套拓扑的毛病，不是 App 的。
+- **App 经代理连 100.x 报「SOCKS5 代理内部错误（状态码 1）」、经跳板时 ssh 直接被关，过一会儿重试又好了**：没有可用的 DERP 中继，
+  两个节点空闲一会儿后直连路径会失效，下一次拨号先失败。每个节点跑 `keepalive.sh`，每 10 秒对要用到的 peer 发 disco ping 和 TSMP ping
+  （只发 disco、只单向 ping 时，环境起来十来分钟后「经 ts-socks 到 ts-jump」的第一次连接失败过）。还碰到就再连一次。这是这套拓扑的毛病，不是 App 的。
 - **刚 up 完头几次 TCP 连不上 100.x，过一两分钟又好了**：占位 DERP 解析不到，netcheck 每几秒报一次 send error 并 rebind，
   节点间的直连路径全靠 disco 慢慢摸，常常只有一个方向先通。`up.sh` 已经两头互 ping、再用真 TCP 把每条路预热一遍。
-  别用 `tailscale ping --tsmp` 保温：TSMP 走 WireGuard，路径还没摸出来时它只会超时。
+  只发 TSMP 不行：它走 WireGuard，路径还没摸出来时只会超时，所以 `keepalive.sh` 先发 disco。
 - **自己改隔离规则时别用 REJECT、别整块封掉 edge 网卡**：magicsock 往别的容器的 edge 地址发 disco 收到拒绝就反复 rebind，
   节点间的路径一直建不起来（日志里一串 `Rebinding`）。现在的规则只 DROP 发往 tailnet 网段、却不走 tailscale0 的包。
 - **`selfcheck-routes.sh` 报 `name�: unbound variable`**：macOS 自带 bash 3.2 会把变量名后面紧跟的全角标点读进变量名，写成 `${name}：`。

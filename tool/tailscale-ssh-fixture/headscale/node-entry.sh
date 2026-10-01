@@ -68,6 +68,6 @@ EOF
     ;;
 esac
 
-# 没有可用的 DERP：空闲一会儿后到 ts-server 的直连路径会失效，下一次拨号先失败。每 10 秒 ping 一次保温。
-(while sleep 10; do tailscale ping -c 1 --timeout 5s ts-server >/dev/null 2>&1; done) &
+# 保温，见 keepalive.sh。
+/usr/local/bin/keepalive.sh &
 exec /usr/local/bin/containerboot

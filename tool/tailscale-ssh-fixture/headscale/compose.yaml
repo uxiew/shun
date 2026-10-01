@@ -49,6 +49,7 @@ services:
       TS_HOSTNAME: ts-server
       TS_EXTRA_ARGS: "--login-server=http://headscale:8080 --ssh"
       ORDINARY_PASSWORD: ${ORDINARY_PASSWORD}
+      KEEPALIVE_PEERS: ts-socks ts-relay ts-jump
     networks: [tsnet]
 
   ts-socks:
@@ -56,7 +57,7 @@ services:
     image: tailscale/tailscale:v1.102.5@sha256:c507f3a2a6ab1cabd8d809b98edeb41edbd5c3fb6ad9632ffd098b4c7d0b4065
     hostname: ts-socks
     # 没有可用的 DERP 中继：空闲一会儿后直连路径会失效，下一次经 SOCKS 拨号直接报 SOCKS 一般错误（状态码 1）。
-    # 每 10 秒 ping 一次 ts-server（R15 时还有 ts-jump）保温。
+    # 保温见 keepalive.sh（官方镜像不改，挂进去）。
     # 先丢掉内核发往 tailnet 网段的包：userspace 模式下 tailnet 流量都在 tailscaled 自己的网络栈里，
     # 能走到内核的 100.x 只可能是不在这个假 tailnet 里的地址；开发机自己在真实 tailnet 上时，
     # 它们会经 OrbStack 落进真实 tailnet（见 node-entry.sh）。
@@ -67,9 +68,7 @@ services:
       - |
         iptables -A OUTPUT -d 100.64.0.0/10 -j DROP
         ip6tables -A OUTPUT -d fd7a:115c:a1e0::/48 -j DROP
-        (while sleep 10; do
-          for peer in ts-server ts-jump; do tailscale ping -c 1 --timeout 5s $$peer >/dev/null 2>&1; done
-        done) &
+        /keepalive.sh &
         exec /usr/local/bin/containerboot
     environment:
       <<: *tsenv
@@ -77,6 +76,8 @@ services:
       TS_HOSTNAME: ts-socks
       TS_EXTRA_ARGS: "--login-server=http://headscale:8080"
       TS_SOCKS5_SERVER: ":1055"
+      KEEPALIVE_PEERS: ts-server ts-jump
+    volumes: ["./keepalive.sh:/keepalive.sh:ro"]
     networks: [tsnet, edge]
     ports: ["127.0.0.1:21055:1055"]
 
@@ -99,7 +100,8 @@ services:
       # 不让 tailscaled 改容器里的 iptables：出网隔离规则是 node-entry.sh 自己加的，别被它的链打乱。
       TS_EXTRA_ARGS: "--login-server=http://headscale:8080 --netfilter-mode=off"
       RELAY_PASSWORD: ${RELAY_PASSWORD}
-    networks: [tsnet, edge]
+      KEEPALIVE_PEERS: ts-server
+    networks: [tsnet, edge-relay]
     ports: ["127.0.0.1:21056:1080"]
 
   ts-jump:
@@ -118,10 +120,15 @@ services:
       TS_HOSTNAME: ts-jump
       TS_EXTRA_ARGS: "--login-server=http://headscale:8080 --netfilter-mode=off"
       JUMP_PASSWORD: ${JUMP_PASSWORD}
-    networks: [tsnet, edge]
+      KEEPALIVE_PEERS: ts-server ts-socks
+    networks: [tsnet, edge-jump]
     ports: ["127.0.0.1:22202:22"]
 
 networks:
   tsnet:
     internal: true
+  # 每个要映射端口的节点各用一张 edge：两台节点同时在 tsnet 和同一张 edge 上时，disco 会在两条路径间来回切，
+  # 实测「经 ts-socks 到 ts-jump」时不时第一次连接被断开。分开后节点之间只剩 tsnet 一条路。
   edge: {}
+  edge-relay: {}
+  edge-jump: {}

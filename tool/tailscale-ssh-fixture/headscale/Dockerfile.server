@@ -3,5 +3,5 @@ FROM tailscale/tailscale:v1.102.5@sha256:c507f3a2a6ab1cabd8d809b98edeb41edbd5c3f
 RUN apk add --no-cache openssh-server bash \
  && adduser -D -s /bin/bash checkuser && adduser -D -s /bin/bash acceptuser && adduser -D -s /bin/bash ordinary \
  && passwd -u checkuser >/dev/null 2>&1; passwd -u acceptuser >/dev/null 2>&1; true
-COPY server-entry.sh /usr/local/bin/server-entry.sh
+COPY server-entry.sh keepalive.sh /usr/local/bin/
 ENTRYPOINT ["/usr/local/bin/server-entry.sh"]
