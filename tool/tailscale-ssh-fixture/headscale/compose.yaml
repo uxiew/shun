@@ -4,6 +4,11 @@
 #                                 │ tailnet（容器网络 tsnet，没有外网）
 #                                 └──> ts-server 100.64.x.x：22 = Tailscale SSH，2222 = 普通 OpenSSH
 #   headscale 只在 tsnet 里，外面访问不到。
+#
+#   R15（`./up.sh routes` 才起，compose profile `routes`）：同一台 ts-server 的另外两条路
+#   本机 ──127.0.0.1:21056──> ts-relay（tag:relay，共享的远程 SOCKS，dante 要用户名密码）──tailnet──> ts-server
+#   本机 ──127.0.0.1:22202──> ts-jump（用户 fixture 自己的跳板机，OpenSSH）──tailnet──> ts-server
+#   这两台是内核模式 tailscaled（要 NET_ADMIN 和 /dev/net/tun），见 node-entry.sh。
 name: xwshun-tailscale-ssh
 
 x-ts: &ts
@@ -51,11 +56,21 @@ services:
     image: tailscale/tailscale:v1.102.5@sha256:c507f3a2a6ab1cabd8d809b98edeb41edbd5c3fb6ad9632ffd098b4c7d0b4065
     hostname: ts-socks
     # 没有可用的 DERP 中继：空闲一会儿后直连路径会失效，下一次经 SOCKS 拨号直接报 SOCKS 一般错误（状态码 1）。
-    # 每 10 秒 ping 一次 ts-server 保温。
+    # 每 10 秒 ping 一次 ts-server（R15 时还有 ts-jump）保温。
+    # 先丢掉内核发往 tailnet 网段的包：userspace 模式下 tailnet 流量都在 tailscaled 自己的网络栈里，
+    # 能走到内核的 100.x 只可能是不在这个假 tailnet 里的地址；开发机自己在真实 tailnet 上时，
+    # 它们会经 OrbStack 落进真实 tailnet（见 node-entry.sh）。
+    cap_add: [NET_ADMIN]
     entrypoint:
       - sh
       - -c
-      - (while sleep 10; do tailscale ping -c 1 --timeout 5s ts-server >/dev/null 2>&1; done) & exec /usr/local/bin/containerboot
+      - |
+        iptables -A OUTPUT -d 100.64.0.0/10 -j DROP
+        ip6tables -A OUTPUT -d fd7a:115c:a1e0::/48 -j DROP
+        (while sleep 10; do
+          for peer in ts-server ts-jump; do tailscale ping -c 1 --timeout 5s $$peer >/dev/null 2>&1; done
+        done) &
+        exec /usr/local/bin/containerboot
     environment:
       <<: *tsenv
       TS_AUTHKEY: ${SOCKS_AUTHKEY}
@@ -64,6 +79,47 @@ services:
       TS_SOCKS5_SERVER: ":1055"
     networks: [tsnet, edge]
     ports: ["127.0.0.1:21055:1055"]
+
+  ts-relay:
+    <<: *ts
+    profiles: [routes]
+    build: &node
+      context: .
+      dockerfile: Dockerfile.node
+    image: xwshun-ts-node:1.102.5
+    hostname: ts-relay
+    cap_add: [NET_ADMIN]
+    devices: ["/dev/net/tun:/dev/net/tun"]
+    environment:
+      <<: *tsenv
+      TS_USERSPACE: "false"
+      ROLE: relay
+      TS_AUTHKEY: ${RELAY_AUTHKEY}
+      TS_HOSTNAME: ts-relay
+      # 不让 tailscaled 改容器里的 iptables：出网隔离规则是 node-entry.sh 自己加的，别被它的链打乱。
+      TS_EXTRA_ARGS: "--login-server=http://headscale:8080 --netfilter-mode=off"
+      RELAY_PASSWORD: ${RELAY_PASSWORD}
+    networks: [tsnet, edge]
+    ports: ["127.0.0.1:21056:1080"]
+
+  ts-jump:
+    <<: *ts
+    profiles: [routes]
+    build: *node
+    image: xwshun-ts-node:1.102.5
+    hostname: ts-jump
+    cap_add: [NET_ADMIN]
+    devices: ["/dev/net/tun:/dev/net/tun"]
+    environment:
+      <<: *tsenv
+      TS_USERSPACE: "false"
+      ROLE: jump
+      TS_AUTHKEY: ${JUMP_AUTHKEY}
+      TS_HOSTNAME: ts-jump
+      TS_EXTRA_ARGS: "--login-server=http://headscale:8080 --netfilter-mode=off"
+      JUMP_PASSWORD: ${JUMP_PASSWORD}
+    networks: [tsnet, edge]
+    ports: ["127.0.0.1:22202:22"]
 
 networks:
   tsnet:

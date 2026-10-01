@@ -1,9 +1,11 @@
-// 用户 fixture 的设备（socks 节点，扮演 TailSocks）可以：
+// 用户 fixture 的设备（ts-socks 扮演 TailSocks；R15 的跳板机 ts-jump 也是）可以：
 //   以 checkuser 登录 tag:server —— 每次都要 check（checkPeriod always）
 //   以 acceptuser 登录 tag:server —— 直接放行
+// tag:relay（R15 的共享远程 SOCKS）不在任何 ssh 规则里：经它连 Tailscale SSH 一律被拒，
+// 网络层（acls）照样放行——经它连普通 OpenSSH 能通。用来证明「Tailscale 认的是代理那台，不是手机」。
 // tag:server 上 2222 端口是普通 OpenSSH，和 Tailscale SSH 无关。
 {
-  "tagOwners": {"tag:server": ["fixture@"]},
+  "tagOwners": {"tag:server": ["fixture@"], "tag:relay": ["fixture@"]},
   "acls": [{"action": "accept", "src": ["*"], "dst": ["*:*"]}],
   "ssh": [
     {"action": "check", "src": ["fixture@"], "dst": ["tag:server"], "users": ["checkuser"], "checkPeriod": "always"},

@@ -98,11 +98,39 @@ docker compose logs ts-server | grep "audit: SSH login"                   # tail
 隔离：Headscale 和 ts-server 在没有外网的容器网络里；ts-socks 多接一个普通网络只为把 SOCKS 端口映射到本机回环。
 tailscaled 带 `--no-logs-no-support`（不往 log.tailscale.com 报日志），DERP 表只有一个解析不到的占位节点，
 `log/controlplane/login/pkgs.tailscale.com` 在容器里都指向 127.0.0.1。不连任何真实账号。
+**开发机自己可能就在真实 tailnet 上**（这台 Mac 有 `utun4 100.79.x.x`，`100.64/10` 走它），而 Headscale 发的也是 100.64 段：
+每个节点容器都用 iptables 丢掉「发往 100.64/10、fd7a:115c:a1e0::/48 却不走 tailscale0」的包，拨错的 100.x 落不进真实 tailnet。
+同样的道理，**本机和模拟器上永远不要直连 100.x**，只连 127.0.0.1 上映射出来的端口。
+
+### R15：同一台设备的四条路线
+
+```bash
+./up.sh routes            # 4 个节点，约 20 秒；会把每条路线用真 TCP 预热一遍，走不通就报错退出
+./selfcheck-routes.sh     # 不经 App，用本机 OpenSSH 把四条路线各走一遍，8 项应全 PASS
+adb -s emulator-5580 reverse tcp:21055 tcp:21055   # 再加 21056、22202
+./down.sh
+```
+
+| 路线 | App 里怎么配 | 认的是谁 | 普通 SSH（2222） | Tailscale SSH（22，acceptuser） |
+|---|---|---|---|---|
+| 本地 SOCKS | 代理 `127.0.0.1:21055`，无认证 | ts-socks（用户 fixture 的设备，扮演手机上的 TailSocks） | 通 | 通 |
+| 远程 SOCKS | 代理 `127.0.0.1:21056`，`relayuser` + 口令 | ts-relay（`tag:relay`，扮演多人共用的远程代理） | 通 | **被拒**：ssh 规则只放行 fixture 的设备 |
+| 跳板 | 跳板机 `127.0.0.1:22202`，`jumper` + 口令 | ts-jump（用户 fixture 自己的跳板机） | 通 | 通 |
+| 代理入口 + 跳板 | 代理 21055 + 跳板机 `<ts-jump 的 100.x>:22` | ts-jump | 通 | 通 |
+
+口令和各节点地址、主机密钥指纹在 `../.run/headscale.json`。ts-relay 只转发到 100.64/10，别的目标一律拒。
+ts-relay、ts-jump 是内核模式 tailscaled（要 `NET_ADMIN` 和 `/dev/net/tun`，OrbStack 支持），dante 和 sshd 往 100.x 的连接才真的走 tailnet。
 
 ### 撞墙时
 
 - **App 经代理连 100.x 报「SOCKS5 代理内部错误（状态码 1）」，过一会儿重试又好了**：没有可用的 DERP 中继，两个节点空闲一会儿后直连路径会失效，
   下一次拨号先失败。compose 里给 ts-socks 加了每 10 秒一次的 `tailscale ping` 保温，还碰到就再连一次。这是这套拓扑的毛病，不是 App 的。
+- **刚 up 完头几次 TCP 连不上 100.x，过一两分钟又好了**：占位 DERP 解析不到，netcheck 每几秒报一次 send error 并 rebind，
+  节点间的直连路径全靠 disco 慢慢摸，常常只有一个方向先通。`up.sh` 已经两头互 ping、再用真 TCP 把每条路预热一遍。
+  别用 `tailscale ping --tsmp` 保温：TSMP 走 WireGuard，路径还没摸出来时它只会超时。
+- **自己改隔离规则时别用 REJECT、别整块封掉 edge 网卡**：magicsock 往别的容器的 edge 地址发 disco 收到拒绝就反复 rebind，
+  节点间的路径一直建不起来（日志里一串 `Rebinding`）。现在的规则只 DROP 发往 tailnet 网段、却不走 tailscale0 的包。
+- **`selfcheck-routes.sh` 报 `name�: unbound variable`**：macOS 自带 bash 3.2 会把变量名后面紧跟的全角标点读进变量名，写成 `${name}：`。
 - **单独重建某个节点容器后它起不来，日志 `authkey already used`**：节点状态在容器里，重建就丢了。up.sh 发的 authkey 是可复用的（2 小时内），
   更早的一次性 key 不行，重新跑 `./down.sh && ./up.sh`。重建后节点会换一个 100.x 地址，旧节点在 Headscale 里留着，用 `headscale nodes delete -i <id> --force` 删掉。
 - **Headscale 起不来，`initial DERPMap is empty`**：0.29 要求 DERP 表至少一个条目，见 `derp.yaml`。
