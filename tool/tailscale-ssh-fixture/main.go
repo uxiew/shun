@@ -17,6 +17,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"encoding/pem"
 	"errors"
 	"flag"
 	"fmt"
@@ -329,11 +330,35 @@ func (f *fixture) control(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// loadHostKey 读或生成主机私钥。要测「断线后自动恢复」时得用同一把：换了指纹会被 App 的指纹阻断拦下，走不到登录那一步。
+func loadHostKey(path string) (ssh.Signer, error) {
+	if path != "" {
+		if data, err := os.ReadFile(path); err == nil {
+			return ssh.ParsePrivateKey(data)
+		}
+	}
+	_, priv, err := ed25519.GenerateKey(rand.Reader)
+	if err != nil {
+		return nil, err
+	}
+	if path != "" {
+		block, err := ssh.MarshalPrivateKey(priv, "tailssh fixture host key")
+		if err != nil {
+			return nil, err
+		}
+		if err := os.WriteFile(path, pem.EncodeToMemory(block), 0o600); err != nil {
+			return nil, err
+		}
+	}
+	return ssh.NewSignerFromKey(priv)
+}
+
 func main() {
 	listen := flag.String("listen", "127.0.0.1:0", "SSH 监听地址（只绑回环）")
 	controlAddr := flag.String("control", "127.0.0.1:0", "控制面 HTTP 监听地址（只绑回环）")
 	stateFile := flag.String("state", "", "启动后把端口和主机指纹写进这个 JSON 文件")
 	holdLimit := flag.Duration("hold-limit", 30*time.Minute, "check 挂起多久后自己放弃（tailssh 是 30 分钟）")
+	hostKeyFile := flag.String("hostkey", "", "主机私钥文件（PEM）：没有就生成并写进去，有就沿用。不给则每次启动都换一把")
 	flag.Parse()
 	for _, addr := range []string{*listen, *controlAddr} {
 		host, _, err := net.SplitHostPort(addr)
@@ -342,11 +367,7 @@ func main() {
 		}
 	}
 
-	_, priv, err := ed25519.GenerateKey(rand.Reader)
-	if err != nil {
-		log.Fatal(err)
-	}
-	hostKey, err := ssh.NewSignerFromKey(priv)
+	hostKey, err := loadHostKey(*hostKeyFile)
 	if err != nil {
 		log.Fatal(err)
 	}
