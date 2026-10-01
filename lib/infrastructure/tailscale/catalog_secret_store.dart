@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../../domain/device_references.dart';
@@ -18,7 +19,8 @@ abstract interface class CatalogSecretBackend {
 class FlutterSecureCatalogBackend implements CatalogSecretBackend {
   const FlutterSecureCatalogBackend();
 
-  static const _storage = FlutterSecureStorage(
+  @visibleForTesting
+  static const storage = FlutterSecureStorage(
     aOptions: AndroidOptions(
       encryptedSharedPreferences: true,
       sharedPreferencesName: 'xwshun_tailscale_catalog',
@@ -30,14 +32,14 @@ class FlutterSecureCatalogBackend implements CatalogSecretBackend {
   );
 
   @override
-  Future<String?> read(String key) => _storage.read(key: key);
+  Future<String?> read(String key) => storage.read(key: key);
 
   @override
   Future<void> write(String key, String value) =>
-      _storage.write(key: key, value: value);
+      storage.write(key: key, value: value);
 
   @override
-  Future<void> delete(String key) => _storage.delete(key: key);
+  Future<void> delete(String key) => storage.delete(key: key);
 }
 
 /// 用户显式开启「持续刷新」后，保存他自己的 OAuth client。只存这两项，不存 access token。

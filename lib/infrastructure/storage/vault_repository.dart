@@ -26,6 +26,22 @@ class VaultChange {
   final VaultChangeOrigin origin;
 }
 
+/// 保险库凭据的安全存储。
+const vaultSecureStorage = FlutterSecureStorage(
+  aOptions: AndroidOptions(
+    encryptedSharedPreferences: true,
+    // 显式写出默认文件名，不能省。flutter_secure_storage 9.2.4 的 Android 端只在调用带了
+    // 非空文件名时才切换文件、从不切回默认（FlutterSecureStorage.java ensureOptions）：
+    // 同一次运行里先碰过 UU/RustDesk 或 Tailscale 目录那几份带名字的存储，之后保险库的密码就
+    // 全写进了它们的文件，重启后保险库读自己的文件读不到，报「无法解密」（R14 模拟器上撞到）。
+    // 'FlutterSecureStorage' 就是原来的默认文件名，已经存着的凭据照常读得到。
+    sharedPreferencesName: 'FlutterSecureStorage',
+  ),
+  iOptions: IOSOptions(
+    accessibility: KeychainAccessibility.first_unlock_this_device,
+  ),
+);
+
 class VaultRepository {
   VaultRepository._(
     this._preferences,
@@ -66,12 +82,7 @@ class VaultRepository {
   }) async {
     final repository = VaultRepository._(
       await SharedPreferences.getInstance(),
-      const FlutterSecureStorage(
-        aOptions: AndroidOptions(encryptedSharedPreferences: true),
-        iOptions: IOSOptions(
-          accessibility: KeychainAccessibility.first_unlock_this_device,
-        ),
-      ),
+      vaultSecureStorage,
       backgroundImageService ?? BackgroundImageService(),
     );
     repository.loadVaultPreview();

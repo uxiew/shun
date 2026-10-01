@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:plugin_api/plugin_api.dart';
 
@@ -67,6 +68,10 @@ class SecureProviderBackend implements ProviderSecretBackend {
         );
 
   final FlutterSecureStorage _storage;
+
+  /// 测试核对它用的文件名（见 test/secure_storage_file_names_test.dart）。
+  @visibleForTesting
+  FlutterSecureStorage get storage => _storage;
 
   @override
   Future<String?> read(String key) => _storage.read(key: key);
