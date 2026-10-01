@@ -22,4 +22,4 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "xwshun-plugin-fixtures"
-include(":provider-sdk", ":fixture-echo", ":fixture-rogue", ":fixture-fakeuu", ":fixture-fakerustdesk")
+include(":provider-sdk", ":fixture-echo", ":fixture-rogue", ":fixture-fakeuu", ":fixture-fakerustdesk", ":fixture-fakebrowser")

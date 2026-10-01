@@ -62,3 +62,5 @@ build fakerd-resigned   fixture-fakerustdesk -PsignWith=impostor
 build fakerd-custom     fixture-fakerustdesk -PsignWith=impostor -PfakeRdAppId=example.xwshun.fixture.fakerustdesk
 # 同上，但 intent-filter 限定 host=connect、换一把密钥：和 fakerd-custom 同包名，要先卸载才能换装（用来测「信任过的包换签」）。
 build fakerd-custom-hostonly fixture-fakerustdesk -PsignWith=author -PfakeRdAppId=example.xwshun.fixture.fakerustdesk -PfakeRdHostOnly=true
+# R14「假浏览器」：临时设成默认浏览器，接住 Tailscale check 链接只记日志、不联网。
+build fakebrowser       fixture-fakebrowser -PsignWith=author
