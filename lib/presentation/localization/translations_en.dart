@@ -1131,11 +1131,130 @@ const englishTranslations = <String, String>{
   '没能打开 RustDesk：': 'Could not open RustDesk: ',
   '已交给 RustDesk。它不向本 App 回报结果：连没连上、什么时候断开，请看 RustDesk。':
       'Handed to RustDesk. It reports nothing back to this app: check RustDesk to see whether it connected and when it disconnected.',
+  // R14 Tailscale SSH
+  '普通 SSH': 'Standard SSH',
+  'Tailscale 会把这次登录算成：': 'Tailscale will treat this login as coming from:',
+  'Tailscale 要求 check': 'Tailscale requires a check',
+  'Tailscale 认的来源': 'Source as Tailscale sees it',
+  '收到的认证链接不会打开': 'The received authentication link will not be opened',
+  '登录的主机': 'Logging in to',
+  '为什么': 'Why',
+  '用途': 'Purpose',
+  '链接': 'Link',
+  '链接指向': 'Link points to',
+  '最晚等到': 'Waits until',
+  '服务器原话（链接已隐去）：': 'Server message (link hidden):',
+  '在浏览器中打开': 'Open in browser',
+  '在浏览器里用你的 Tailscale 账号确认这次 SSH 登录':
+      'Confirm this SSH login with your Tailscale account in the browser',
+  '在浏览器里确认后回到这里，这里会自己继续。回到 App 不代表已经通过，以这边的登录结果为准。':
+      'After confirming in the browser, come back here; this screen continues by itself. Coming back to the app does not mean the check passed: only the SSH login result here counts.',
+  '已交给浏览器，还在等 Tailscale 回话。':
+      'Handed to the browser; still waiting for Tailscale to answer.',
+  '没有能打开这个链接的浏览器。装一个浏览器后再点，或者终止连接。':
+      'No browser can open this link. Install a browser and tap again, or stop the connection.',
+  '填好地址和路线后显示。': 'Shown once the address and route are filled in.',
+  '设备目录用的 API token、OAuth client 不参与 SSH 登录，Tailscale 也不按它们认人。':
+      'The API token or OAuth client used for the device catalog plays no part in SSH login, and Tailscale does not identify you by them.',
+  '这台手机在 Tailscale 里的节点（手机上要开着官方 Tailscale App 的 VPN）':
+      'This phone\'s node in Tailscale (the official Tailscale app\'s VPN must be on)',
+  '里面不止一条链接，分不清该打开哪条':
+      'It contains more than one link, so it is unclear which one to open',
+  '链接格式不对': 'The link is malformed',
+  '不是 https 链接': 'Not an https link',
+  '链接里带了账号或别的端口': 'The link contains an account or a non-standard port',
+  '链接的样子和 Tailscale check 链接不一样':
+      'The link does not look like a Tailscale check link',
+  '提示里夹带了不可见的控制字符': 'The message contains invisible control characters',
+  '[链接]': '[link]',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // R14：Tailscale SSH 报错、来源说明、check 卡片里带插值或多段拼接的句子，按片段翻。
+  (
+    '到 Tailscale 后台检查访问策略里的 ssh 规则：来源要包含这次连接的来源节点（经代理时是代理出口那台，不是手机），',
+    'Check the ssh rules in the Tailscale access policy: the source must include the node this connection comes from (behind a proxy that is the proxy\'s exit node, not the phone), '
+  ),
+  ('登录用户名要在允许的列表里。', 'and the login user name must be in the allowed list.'),
+  // 放最前，免得先被「代理」「节点」这类通用词拆碎；同一句的长片段排在短片段前面。
+  ('，指纹已核对', ', host key verified'),
+  (
+    '：等你完成 Tailscale check',
+    ': waiting for you to complete the Tailscale check'
+  ),
+  (' 秒内没有等到登录结果，已放弃', ' s passed without a login result; gave up'),
+  (
+    'Tailscale 拒绝了这次登录，服务器说：',
+    'Tailscale refused this login. The server said: '
+  ),
+  (
+    'Tailscale 要求重新做 check，自动恢复不会替你处理。关掉这个标签，从主机列表重新连接',
+    'Tailscale asks for a new check, which automatic reconnection will not handle for you. Close this tab and connect again from the host list'
+  ),
+  (
+    '登录完成前连接断了：可能是 Tailscale 不让你登录（它拒绝时可以不给原因就断开），也可能是网络断了',
+    'The connection dropped before login finished: Tailscale may have refused you (it can disconnect without giving a reason), or the network dropped'
+  ),
+  ('等 Tailscale check 超过 ', 'Waited for the Tailscale check for more than '),
+  (
+    ' 分钟，已放弃这次连接；没有执行任何命令',
+    ' minutes and gave up on this connection; no command was run'
+  ),
+  (
+    '服务器没要任何密码或私钥就让登录了（none 认证），普通 SSH 不接受这种登录，已断开。',
+    'The server let you in without any password or private key ("none" authentication). Standard SSH does not accept such a login, so the connection was closed. '
+  ),
+  (
+    '服务器要求另外到浏览器里认证（发来了带链接的提示），普通 SSH 不处理这种认证，已断开。',
+    'The server asked for extra authentication in a browser (it sent a message with a link). Standard SSH does not handle that, so the connection was closed. '
+  ),
+  (
+    '这台机器开着 Tailscale SSH 的话，在编辑器里把登录方式改成「Tailscale SSH」；',
+    'If this machine runs Tailscale SSH, switch its login method to "Tailscale SSH" in the editor; '
+  ),
+  (
+    '这台机器开着 Tailscale SSH 的话，在编辑器里把登录方式改成「Tailscale SSH」',
+    'If this machine runs Tailscale SSH, switch its login method to "Tailscale SSH" in the editor'
+  ),
+  (
+    '否则检查服务器是不是允许空密码登录',
+    'otherwise check whether the server allows logins with an empty password'
+  ),
+  ('代理出口所在的节点（代理地址 ', 'The node at the proxy\'s exit (proxy address '),
+  (
+    '手机上的 TailSocks 就是 TailSocks 登录的那个节点，远程 SOCKS 就是那台远程机器；',
+    'for TailSocks on the phone it is the node TailSocks is logged in as, for a remote SOCKS proxy it is that remote machine; '
+  ),
+  (
+    '多人共用一个代理，大家都以同一个节点的身份登录',
+    'everyone sharing one proxy logs in as the same node'
+  ),
+  ('”所在的节点：这一跳是从它转发出去的', '”\'s node: this hop is forwarded from it'),
+  ('域名不是 ', 'The domain is not '),
+  ('只打开 https://', 'Only links like https://'),
+  (' 这种链接。可以终止连接；', ' are opened. You can stop the connection; '),
+  (
+    '确认这是你自己的认证服务，也可以用别的方式（比如自建控制面的命令行）批准，这里会继续等到截止时间。',
+    'if you are sure this is your own authentication service, approve it another way (such as the command line of a self-hosted control server) and this screen keeps waiting until the deadline.'
+  ),
+  (
+    '连接时不发密码和私钥，由目标上的 Tailscale 按 tailnet 策略决定放不放行；',
+    'No password or private key is sent when connecting; Tailscale on the target decides by tailnet policy whether to let you in. '
+  ),
+  (
+    '策略要求 check 时，会让你在浏览器里确认。',
+    'If the policy requires a check, you will be asked to confirm in a browser.'
+  ),
+  (
+    '已保存的密码、私钥留着不用，改回普通 SSH 时照常使用。',
+    'Saved passwords and private keys are kept but not used; they are used again if you switch back to standard SSH. '
+  ),
+  (
+    '桌面端 Netcatty 不认这个设置：同步过去后在桌面端仍按普通 SSH 连接。',
+    'Desktop Netcatty does not know this setting: after syncing, the desktop app still connects with standard SSH.'
+  ),
   // X07：带插值的 RustDesk 提示，按片段翻。放最前，免得先被「版本」「关联」这类通用词拆碎。
   ('读取 RustDesk 关联失败：', 'Failed to read RustDesk links: '),
   (

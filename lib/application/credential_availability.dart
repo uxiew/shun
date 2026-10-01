@@ -1,5 +1,6 @@
 import '../domain/models/host.dart';
 import '../domain/models/vault.dart';
+import '../domain/tailscale_ssh.dart';
 
 /// 路线要用到的凭据解不开，连接在拨号前被拒绝。[message] 说明是哪台机器的哪种凭据。
 class CredentialUnavailableException implements Exception {
@@ -32,7 +33,10 @@ String? unreadableCredentialProblem(
   for (final host in hops) {
     final isTarget = identical(host, target);
     final problems = <String>{};
-    if (host.authMethod != HostAuthMethod.key &&
+    // Tailscale SSH 不发登录密码和私钥，它们解不开也不影响这一跳。
+    final standard = sshLoginModeOf(host) == SshLoginMode.standard;
+    if (standard &&
+        host.authMethod != HostAuthMethod.key &&
         unreadable.contains('host.${host.id}.password')) {
       problems.add('登录密码');
     }
@@ -41,7 +45,8 @@ String? unreadableCredentialProblem(
       problems.add('Telnet 密码');
     }
     final keyId = host.identityFileId;
-    if (keyId != null &&
+    if (standard &&
+        keyId != null &&
         host.authMethod != HostAuthMethod.password &&
         (unreadable.contains('key.$keyId.private') ||
             unreadable.contains('key.$keyId.passphrase'))) {

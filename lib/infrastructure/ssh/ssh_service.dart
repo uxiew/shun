@@ -9,9 +9,11 @@ import 'package:xterm2/xterm.dart';
 import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/server_stats.dart';
+import '../../domain/tailscale_ssh.dart';
 import '../transport/proxy_transport.dart';
 import 'server_monitor_service.dart';
 import 'ssh_identity.dart';
+import 'ssh_login_watch.dart';
 
 typedef HostKeyVerifier = Future<bool> Function(
   HostProfile host,
@@ -59,7 +61,7 @@ class ProbeOutcome {
   final String? tty;
 }
 
-enum ConnectionStep { dial, proxy, handshake, forward, shell, pty }
+enum ConnectionStep { dial, proxy, handshake, check, forward, shell, pty }
 
 /// 连接进行到了哪一步，给等待界面显示用。
 ///
@@ -92,6 +94,7 @@ class ConnectionStage {
       ConnectionStep.dial => '$prefix正在连接“$label”（$detail）',
       ConnectionStep.proxy => '$prefix正在经代理连接“$label”（代理 $detail）',
       ConnectionStep.handshake => '$prefix“$label”：SSH 握手、核对指纹、登录',
+      ConnectionStep.check => '$prefix“$label”：等你完成 Tailscale check',
       ConnectionStep.forward => '$prefix“$label”：转发到下一跳（$detail）',
       ConnectionStep.shell => '正在打开终端',
       ConnectionStep.pty => '正在检查远端终端（PTY）',
@@ -191,6 +194,9 @@ class ActiveTerminalSession {
   final List<StreamSubscription<Object?>> _outputSubscriptions;
   bool connected = true;
   bool closedByUser = false;
+
+  /// 自动恢复遇到了只能由用户处理的事（Tailscale check），之后不再自动重试这个标签。
+  bool autoRestoreBlocked = false;
   bool _released = false;
   bool _outputDetached = false;
   bool _inputDisposed = false;
@@ -258,9 +264,16 @@ class ActiveTerminalSession {
 }
 
 class SshService {
-  SshService({TcpDialer? dialer}) : _dial = dialer ?? _systemDial;
+  SshService({
+    TcpDialer? dialer,
+    this.tailscaleCheckWait = const Duration(minutes: 10),
+  }) : _dial = dialer ?? _systemDial;
 
   final TcpDialer _dial;
+
+  /// 收到 Tailscale check 链接后最多等多久。Tailscale 自己最多挂 30 分钟（tailssh v1.104.0），
+  /// 这里取 10 分钟：够开浏览器、登录、确认，又不让一个忘了的连接一直占着。
+  final Duration tailscaleCheckWait;
   final _pendingConnections = <String, ConnectionAttempt>{};
 
   void cancelConnection(String sessionId) {
@@ -388,6 +401,7 @@ class SshService {
         verifyHostKey,
         keyboardInteractive,
         attempt,
+        ConnectionPurpose.probe,
       );
       attempt.report(const ConnectionStage(ConnectionStep.pty));
       final tty = await _atHop(
@@ -436,6 +450,7 @@ class SshService {
       verifyHostKey,
       keyboardInteractive,
       pending,
+      purpose,
     );
     return _openShell(
       sessionId,
@@ -457,6 +472,7 @@ class SshService {
     HostKeyVerifier verifyHostKey,
     KeyboardInteractiveHandler? keyboardInteractive,
     ConnectionAttempt pending,
+    ConnectionPurpose purpose,
   ) async {
     final hops = plan.hops;
     final clients = <SSHClient>[];
@@ -500,12 +516,35 @@ class SshService {
       pending.transport = guard;
       pending.throwIfCancelled();
       pending.report(stageAt(index, ConnectionStep.handshake));
+      final watch = SshLoginWatch(
+        mode: sshLoginModeOf(hop.host),
+        // 自动恢复不替用户做 check（docs/07）；新开连接和测试连接时用户就在跟前。
+        allowCheck: purpose != ConnectionPurpose.restore,
+        authWait: _authTimeout(hop.host),
+        checkWait: tailscaleCheckWait,
+        describePrompt: (banner, deadline) => TailscaleCheckPrompt(
+          hop: index,
+          hopCount: hops.length,
+          hostLabel: hop.host.label,
+          endpoint: hop.endpoint.authority,
+          sourceNode: tailscaleSourceNode(plan, index),
+          banner: banner,
+          deadline: deadline,
+        ),
+        onPrompt: (prompt) {
+          if (prompt != null) {
+            pending.report(stageAt(index, ConnectionStep.check));
+          }
+          pending.reportCheck(prompt);
+        },
+      );
       final client = _createClient(
         guard,
         hop,
         identities[index],
         verifyHostKey,
         keyboardInteractive,
+        watch,
       );
       clients.add(client);
       pending.clients.add(client);
@@ -515,7 +554,7 @@ class SshService {
         plan,
         index,
         'SSH 握手或登录失败',
-        () => pending.waitFor<void>(client.authenticated),
+        () => pending.waitFor<void>(watch.authenticated(client)),
         guard: guard,
       );
       if (index < hops.length - 1) {
@@ -643,9 +682,32 @@ class SshService {
     List<SSHKeyPair>? identities,
     HostKeyVerifier verifyHostKey,
     KeyboardInteractiveHandler? keyboardInteractive,
+    SshLoginWatch watch,
   ) {
     // 登录身份只取这一跳自己的（用户名、密码、私钥），和代理账号无关。
     final host = hop.host;
+    Future<bool> verify(String type, Uint8List fingerprint) async {
+      final accepted =
+          await verifyHostKey(host, type, utf8.decode(fingerprint));
+      if (accepted) watch.hostKeyAccepted();
+      return accepted;
+    }
+
+    if (watch.mode == SshLoginMode.tailscale) {
+      // Tailscale SSH：不给 dartssh2 任何私钥、密码、键盘交互回调，它就只剩 none 一种方法可发
+      // （dartssh2 2.22.5 `_startAuthentication`）。密码和私钥哪怕存着也不发：
+      // tailssh 收到密码或公钥时根本不看内容，照样按 tailnet 策略放行（tailssh.go ServerConfig）。
+      return SSHClient(
+        socket,
+        username: host.username,
+        printDebug: watch.debug,
+        onUserauthBanner: watch.banner,
+        keepAliveInterval: Duration(
+          seconds: (host.data['keepaliveInterval'] as num?)?.toInt() ?? 10,
+        ),
+        onVerifyHostKey: verify,
+      );
+    }
     var passwordAnswered = false;
     return SSHClient(
       socket,
@@ -677,20 +739,20 @@ class SshService {
         if (answer != null && answer.isNotEmpty) passwordAnswered = true;
         return answer;
       },
+      printDebug: watch.debug,
+      onUserauthBanner: watch.banner,
       keepAliveInterval: Duration(
         seconds: (host.data['keepaliveInterval'] as num?)?.toInt() ?? 10,
       ),
-      authTimeout: Duration(
-        seconds:
-            (host.data['sshAuthReadyTimeoutSeconds'] as num?)?.toInt() ?? 30,
-      ),
-      onVerifyHostKey: (type, fingerprint) => verifyHostKey(
-        host,
-        type,
-        utf8.decode(fingerprint),
-      ),
+      authTimeout: _authTimeout(host),
+      onVerifyHostKey: verify,
     );
   }
+
+  Duration _authTimeout(HostProfile host) => Duration(
+        seconds:
+            (host.data['sshAuthReadyTimeoutSeconds'] as num?)?.toInt() ?? 30,
+      );
 
   Duration _connectTimeout(HostProfile host) => Duration(
         seconds:
@@ -858,12 +920,16 @@ class _PendingConnectionResult<T> {
 /// [generation] 是调用方分配的代次号，单调递增。调用方拿它判断一个结果是不是「当前这一次」的；
 /// 不是的一律关掉——迟到的结果不能复活已经取消、关闭或被替换的连接（NET09）。
 class ConnectionAttempt {
-  ConnectionAttempt({this.generation = 0, this.onStage});
+  ConnectionAttempt({this.generation = 0, this.onStage, this.onCheckPrompt});
 
   final int generation;
 
   /// 阶段回调。只在尝试还有效时调用，按发生顺序；取消后、移交后都不再调用。
   void Function(ConnectionStage stage)? onStage;
+
+  /// Tailscale check 要用户处理时回调；处理完（成功、失败、超时）回调 null。
+  /// 和 [onStage] 一样，取消后、移交后都不再调用。
+  void Function(TailscaleCheckPrompt? prompt)? onCheckPrompt;
 
   final cancelled = Completer<void>();
   final clients = <SSHClient>[];
@@ -878,14 +944,22 @@ class ConnectionAttempt {
   /// 资源已经交给返回的会话。之后取消只标记失效，不再关这些资源——它们归会话所有。
   bool _handedOver = false;
   ConnectionStage? _stage;
+  TailscaleCheckPrompt? _checkPrompt;
 
   bool get isCancelled => cancelled.isCompleted;
   ConnectionStage? get stage => _stage;
+  TailscaleCheckPrompt? get checkPrompt => _checkPrompt;
 
   void report(ConnectionStage stage) {
     if (isCancelled || _handedOver) return;
     _stage = stage;
     onStage?.call(stage);
+  }
+
+  void reportCheck(TailscaleCheckPrompt? prompt) {
+    if (isCancelled || _handedOver) return;
+    _checkPrompt = prompt;
+    onCheckPrompt?.call(prompt);
   }
 
   /// 使这次尝试失效，并立刻关掉它已经建好的一切。可以重复调用。

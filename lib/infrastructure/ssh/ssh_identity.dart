@@ -13,6 +13,7 @@ import 'package:dartssh2/src/hostkey/hostkey_rsa.dart';
 
 import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
+import '../../domain/tailscale_ssh.dart';
 
 /// 私钥读不出来、口令不对、被删了或内容坏了。[message] 是给人看的一句话，不含任何私钥内容。
 class SshIdentityException implements Exception {
@@ -31,6 +32,8 @@ class SshIdentityException implements Exception {
 /// 再拿一句「登录被拒绝」糊弄过去（SEC06）。
 List<SSHKeyPair>? loadHopIdentities(RouteHop hop) {
   final host = hop.host;
+  // Tailscale SSH 不发私钥，也就不解密它：口令错了、私钥删了都和这次登录无关。
+  if (sshLoginModeOf(host) == SshLoginMode.tailscale) return null;
   if (host.authMethod == HostAuthMethod.password) return null;
   final key = hop.key;
   if (key == null || key.privateKey.isEmpty) {
