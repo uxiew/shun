@@ -328,6 +328,20 @@ Future<void> main() async {
       }, skip: skip, timeout: const Timeout(Duration(seconds: 30)));
     }
 
+    test('指纹确认框拖得比登录期限还久：期限从确认后才算，照样登录（模拟器上发现的问题）', () async {
+      final result = await probe(
+        host('accept',
+            tailscale: true,
+            extra: {'id': 'slow-trust', 'sshAuthReadyTimeoutSeconds': 1}),
+        verifyHostKey: (h, type, fp) async {
+          await Future<void>.delayed(const Duration(milliseconds: 2500));
+          return fp == fx.fingerprint;
+        },
+      );
+      expect(result.error, isNull);
+      expect(result.outcome!.tty, '/dev/pts/9');
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 30)));
+
     test('指纹没通过：服务器连一次认证请求都收不到，更不会有链接', () async {
       final before = (await fx.events()).length;
       final result = await probe(

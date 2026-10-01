@@ -141,7 +141,20 @@ class SshLoginWatch {
   String? get lastServerMessage => _lastPlain?.text;
 
   /// 在 dartssh2 的指纹回调里，确认通过时调用。
-  void hostKeyAccepted() => _hostKeyAccepted = true;
+  ///
+  /// Tailscale 模式的登录期限从这里才开始算：指纹确认框是在等人看、等人点，
+  /// 不能吃掉登录的时间（docs/04）。dartssh2 自己的 authTimeout 也是指纹确认后才起算。
+  /// 以前从建 client 就开始计时，模拟器上在确认框停了 30 多秒，点完就报「30 秒内没有等到登录结果」。
+  void hostKeyAccepted() {
+    _hostKeyAccepted = true;
+    final result = _result;
+    if (mode == SshLoginMode.tailscale &&
+        result != null &&
+        !result.isCompleted &&
+        _timer == null) {
+      _arm(authWait);
+    }
+  }
 
   /// 接 dartssh2 的 printDebug。只认一句话：它要发 none 认证了；其余一概丢掉，不打印、不留存
   /// （有些调试信息里带 banner 原文，也就是 check 链接）。
@@ -185,8 +198,8 @@ class SshLoginWatch {
       return Future.error(abort);
     }
     // 普通模式的期限仍由 dartssh2 的 authTimeout 管（键盘交互要等人输验证码，原来就是这样）；
-    // Tailscale 模式不交给它，因为收到 check 链接后要换成长得多的期限。
-    if (mode == SshLoginMode.tailscale) _arm(authWait);
+    // Tailscale 模式不交给它，因为收到 check 链接后要换成长得多的期限。期限从指纹确认后起算（见 [hostKeyAccepted]）。
+    if (mode == SshLoginMode.tailscale && _hostKeyAccepted) _arm(authWait);
     client.authenticated.then(
       (_) {
         if (result.isCompleted) return;
