@@ -16,7 +16,7 @@ flutter --version               # 应为 3.44.4
 ## 2. 测试
 
 ```bash
-flutter test -j 4     # 全量约 760 条（X07 时 718 条通过、44 条跳过），约 2.5 分钟；没起测试环境时真实 SSH 那 44 条自动跳过。刚关模拟器、内存紧时不加 -j 4 可能被系统杀掉
+flutter test -j 4     # 全量约 790 条（R14 时开着测试环境 793 条通过、1 条只在 Windows 跑），约 2.5 分钟；没起测试环境时真实 SSH 那 44 条自动跳过。刚关模拟器、内存紧时不加 -j 4 可能被系统杀掉
 flutter analyze       # 应为 No issues found（连 spikes/、packages/ 一起查）
 ```
 
@@ -31,6 +31,7 @@ flutter test test/integration_ssh_fixture_test.dart
 - 只用 `down.sh` 收尾，**别 `orb stop`**：OrbStack 里还跑着你别的项目。
 - 已知失败或会崩进程的用例默认跳过，要看现场加 `XWSHUN_RUN_KNOWN_FAILS=1`。
 - 测试环境细节见 `tool/fixture-environment/README.md`，终端引擎验证工程见 `spikes/terminal_spike/README.md`。
+- Tailscale SSH 的测试（`test/tailscale_ssh_login_test.dart`）要 Go：会自己构建、起停仿制服务器，没装 Go 时整组跳过。仿制服务器和「Headscale + 真 tailscaled」环境的用法见 `tool/tailscale-ssh-fixture/README.md`。
 
 ## 3. 模拟器
 
@@ -119,7 +120,8 @@ API 35 镜像是你原有的，`lizhi` 模拟器在用，**不要卸**。
 ## 7. 撞墙时
 
 - **`git push` 报 `NO_PUSH_see_plan_v3`**：故意的，这个 fork 不 push。
-- **zsh 里把命令存进变量再执行，报 `command not found: adb -s ...`**：zsh 不按空格拆变量，改用 `bash -c '...'` 或函数。
+- **zsh 里把命令存进变量再执行，报 `command not found: adb -s ...`**：zsh 不按空格拆变量，改用 `bash -c '...'` 或函数。`export ANDROID_SERIAL=emulator-5580` 后 adb 默认就打到那台，最省事。
+- **`adb shell input text` 打字，分号后面的东西在模拟器上被当成命令执行了**：参数是交给模拟器的 shell 解释的，`;`、`$` 都会生效。整段用单引号包起来再传（`adb shell input text "'echo%s\$HOME'"`，`%s` 是空格），或者一次只打一条不带分号的命令。
 - **新 AVD 起不来，日志 `FATAL | Not enough space to create userdata partition ... need 7372.80 MB`**：
   首次启动要建 6 GB 数据盘，需要空闲 ≥ 7.2 GB（分区的 1.2 倍）；改 `config.ini` 的分区大小没用，会被改回。按第 6 节腾空间。
 - **`flutter emulators --launch` 报 `Running multiple emulators with the same AVD`**：这台已在后台无窗口运行，先 `adb -s <ID> emu kill`。
