@@ -1707,6 +1707,14 @@ const englishReplacements = <(String, String)>[
     'Choose the private key again in the host editor, or enter the correct passphrase in key management.'
   ),
   (
+    '代理或跳板机已经回报连上了目标，随后在登录前断开：可能这个端口上不是 SSH 服务，',
+    'The proxy or jump host reported that it reached the target, then the connection closed before login: this port may not run SSH, '
+  ),
+  (
+    '也可能代理或跳板机之后的那一段断了，App 看不到那一段。先确认 SSH 端口，再看代理或跳板机那边能不能连到目标。',
+    'or the link beyond the proxy or jump host broke, which the app cannot see. Check the SSH port first, then whether the proxy or jump host can reach the target.'
+  ),
+  (
     '对方在登录完成前断开了：确认这个端口上是 SSH 服务——常见原因是把代理端口或别的服务端口填成了 SSH 端口。',
     'The other side disconnected before login finished: make sure this port runs SSH. A common cause is entering a proxy port or another service port as the SSH port.'
   ),

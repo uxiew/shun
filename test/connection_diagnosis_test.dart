@@ -18,6 +18,8 @@ import 'package:netcatty_mobile/infrastructure/transport/proxy_transport.dart';
 import 'package:netcatty_mobile/presentation/screens/terminal_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'fixtures/net/socks5_fixture.dart';
+
 // R10 / UX04：失败后给出对应真实失败类型的下一步；路线描述只写 App 自己做的事。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -49,6 +51,10 @@ void main() {
           contains('authorized_keys'));
       expect(connectionHint(hopError(SSHAuthAbortError('x'))),
           contains('把代理端口或别的服务端口填成了 SSH 端口'));
+      expect(
+          connectionHint(
+              RouteHopException(0, '…', SSHAuthAbortError('x'), relayed: true)),
+          contains('代理或跳板机之后的那一段断了'));
       expect(connectionHint(hopError(SSHHostkeyError('x'))),
           contains('不要为了连上而接受不认识的指纹'));
       expect(connectionHint(hopError(SSHChannelOpenError(1, 'refused'))),
@@ -60,6 +66,71 @@ void main() {
     test('报错自己已经说清的、认不出的：不画蛇添足', () {
       expect(connectionHint(StateError('x')), isNull);
       expect(connectionHint(UnsupportedError('Mosh')), isNull);
+    });
+  });
+
+  group('连上后在登录前被关：经代理和直连分开说（R15）', () {
+    // 接下 TCP 就关：直连时像「端口上不是 SSH」，经代理时也可能是代理之后那一段断了。
+    late ServerSocket closer;
+    setUp(() async {
+      closer = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      closer.listen((socket) => socket.destroy());
+    });
+    tearDown(() => closer.close());
+
+    Future<Object> failure(HostProfile target) async {
+      try {
+        await SshService().connect(
+          sessionId: 'r15-relayed',
+          host: target,
+          hosts: [target],
+          verifyHostKey: (_, __, ___) async => true,
+        );
+      } catch (error) {
+        return error;
+      }
+      fail('应当失败');
+    }
+
+    test('经代理：代理回报连上、随后被关 → 提示也指向代理之后那一段', () async {
+      final socks = await Socks5Fixture.start(names: {
+        'web.internal': (host: '127.0.0.1', port: closer.port),
+      });
+      addTearDown(socks.close);
+      final error = await failure(HostProfile({
+        'id': 'web',
+        'label': 'web',
+        'hostname': 'web.internal',
+        'port': 22,
+        'username': 'deploy',
+        'protocol': 'ssh',
+        'proxyConfig': {
+          'type': 'socks5',
+          'host': '127.0.0.1',
+          'port': socks.port
+        },
+      }));
+      expect(error, isA<RouteHopException>());
+      error as RouteHopException;
+      expect(error.cause, isA<SSHAuthAbortError>());
+      expect(error.relayed, isTrue);
+      expect(connectionHint(error), contains('代理或跳板机之后的那一段断了'));
+    });
+
+    test('直连：仍按「这个端口上不是 SSH」提示', () async {
+      final error = await failure(HostProfile({
+        'id': 'web',
+        'label': 'web',
+        'hostname': '127.0.0.1',
+        'port': closer.port,
+        'username': 'deploy',
+        'protocol': 'ssh',
+      }));
+      expect(error, isA<RouteHopException>());
+      error as RouteHopException;
+      expect(error.cause, isA<SSHAuthAbortError>());
+      expect(error.relayed, isFalse);
+      expect(connectionHint(error), contains('把代理端口或别的服务端口填成了 SSH 端口'));
     });
   });
 
@@ -115,6 +186,7 @@ void main() {
         0,
         '目标“web”（web.example.com:2222）SSH 握手或登录失败：登录完成前连接被对方关闭',
         SSHAuthAbortError('closed'),
+        relayed: true,
       ),
       routePlan: plan,
     );
@@ -133,7 +205,7 @@ void main() {
     expect(find.text('安全连接建立失败'), findsOneWidget);
     expect(
         find.byKey(const ValueKey('connection-failure-hint')), findsOneWidget);
-    expect(find.textContaining('把代理端口或别的服务端口填成了 SSH 端口'), findsOneWidget);
+    expect(find.textContaining('代理或跳板机之后的那一段断了'), findsOneWidget);
     expect(find.text('这次实际走的路线'), findsOneWidget);
     expect(find.text('2. SOCKS5 代理'), findsOneWidget);
     expect(find.text('SSH deploy@web.example.com:2222'), findsOneWidget);

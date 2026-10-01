@@ -35,6 +35,11 @@ String? connectionHint(Object error) {
       '服务器指纹没通过核对，已在发送任何登录信息前断开。先向管理员确认，不要为了连上而接受不认识的指纹。',
     SSHAuthFailError() =>
       '服务器拒绝了登录：确认用户名；用密码的检查密码，用私钥的确认服务器上 authorized_keys 里有这把公钥。',
+    // 代理或跳板机已经回报连上，随后在登录前被关：只说「端口不是 SSH」会把人引去查端口，
+    // 而实际也可能是代理、跳板机之后那一段断了（R15 在 tailnet 测试环境里撞上过，App 看不到那一段）。
+    SSHAuthAbortError() when error is RouteHopException && error.relayed =>
+      '代理或跳板机已经回报连上了目标，随后在登录前断开：可能这个端口上不是 SSH 服务，'
+          '也可能代理或跳板机之后的那一段断了，App 看不到那一段。先确认 SSH 端口，再看代理或跳板机那边能不能连到目标。',
     SSHAuthAbortError() =>
       '对方在登录完成前断开了：确认这个端口上是 SSH 服务——常见原因是把代理端口或别的服务端口填成了 SSH 端口。',
     SSHChannelOpenError() =>

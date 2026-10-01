@@ -36,7 +36,8 @@ class ConnectionCancelledException implements Exception {
 
 /// 路线上某一跳、某个阶段失败：哪台机器、卡在哪一步、什么原因（JMP02 / JMP04）。
 class RouteHopException implements IOException {
-  const RouteHopException(this.hop, this.message, this.cause);
+  const RouteHopException(this.hop, this.message, this.cause,
+      {this.relayed = false});
 
   /// 从 0 数的跳序号；等于跳板数时就是目标。
   final int hop;
@@ -44,6 +45,10 @@ class RouteHopException implements IOException {
 
   /// 原始错误，给测试和日志用；界面只显示 [message]。
   final Object cause;
+
+  /// 这一跳不是手机直接连的：第一跳经代理，或者后面的跳经上一跳转发。
+  /// 这时「连上后在登录前被关」也可能是代理、跳板机之后那一段断了，App 看不到（见 connectionHint）。
+  final bool relayed;
 
   @override
   String toString() => message;
@@ -661,6 +666,7 @@ class SshService {
         index,
         '$who（${hop.endpoint.authority}）$stage：$reason',
         error,
+        relayed: index > 0 || plan.entry is ProxyEntry,
       );
     }
   }
