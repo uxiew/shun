@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../domain/connection_route.dart';
 import '../domain/models/host.dart';
+import '../infrastructure/ssh/ssh_login_watch.dart';
 import '../infrastructure/ssh/ssh_service.dart';
 import '../infrastructure/ssh/server_monitor_service.dart';
 import 'credential_availability.dart';
@@ -20,7 +21,10 @@ class PendingTerminalConnection {
     this.error,
     this.stage,
     this.routePlan,
+    this.checkPrompt,
   });
+
+  static const _keep = Object();
 
   final String id;
   final HostProfile host;
@@ -33,11 +37,15 @@ class PendingTerminalConnection {
   /// 这次连接实际走的路线；路线配置本身有错、还没算出来时为 null。失败页据此显示实际路径（UX04）。
   final RoutePlan? routePlan;
 
+  /// 正在等用户处理的 Tailscale check；没有时为 null。连接结束（成功、失败、取消）就清掉。
+  final TailscaleCheckPrompt? checkPrompt;
+
   PendingTerminalConnection copyWith({
     PendingConnectionPhase? phase,
     Object? error,
     ConnectionStage? stage,
     RoutePlan? routePlan,
+    Object? checkPrompt = _keep,
   }) =>
       PendingTerminalConnection(
         id: id,
@@ -46,6 +54,9 @@ class PendingTerminalConnection {
         error: error ?? this.error,
         stage: stage ?? this.stage,
         routePlan: routePlan ?? this.routePlan,
+        checkPrompt: identical(checkPrompt, _keep)
+            ? this.checkPrompt
+            : checkPrompt as TailscaleCheckPrompt?,
       );
 }
 
@@ -175,6 +186,15 @@ class SessionController extends StateNotifier<SessionState> {
         ],
       );
     };
+    attempt.onCheckPrompt = (prompt) {
+      if (!mounted) return;
+      state = state.copyWith(
+        pendingConnections: [
+          for (final value in state.pendingConnections)
+            value.id == sessionId ? value.copyWith(checkPrompt: prompt) : value,
+        ],
+      );
+    };
     final pending = PendingTerminalConnection(id: sessionId, host: host);
     state = state.copyWith(
       pendingConnections: [...state.pendingConnections, pending],
@@ -270,6 +290,7 @@ class SessionController extends StateNotifier<SessionState> {
                   ? value.copyWith(
                       phase: PendingConnectionPhase.failed,
                       error: error,
+                      checkPrompt: null,
                     )
                   : value,
             )
@@ -310,7 +331,12 @@ class SessionController extends StateNotifier<SessionState> {
     try {
       for (final old in [...state.sessions]) {
         if (!mounted) break;
-        if (old.connected || old.closedByUser || !_owns(old)) continue;
+        if (old.connected ||
+            old.closedByUser ||
+            old.autoRestoreBlocked ||
+            !_owns(old)) {
+          continue;
+        }
         final attempt = _beginAttempt(old.id);
         try {
           // 沿用这个标签建连时冻结的路线：自动恢复只走同一条路线、同一套身份，
@@ -367,6 +393,11 @@ class SessionController extends StateNotifier<SessionState> {
           final stale = !_isCurrent(old.id, attempt) || !_owns(old);
           _endAttempt(old.id, attempt);
           if (stale || error is ConnectionCancelledException) continue;
+          if (error is RouteHopException &&
+              error.cause is TailscaleCheckNeedsUser) {
+            // 后台每隔几秒重试一次的话，每次都会让 Tailscale 再生成一条 check 请求。停在这里等用户。
+            old.autoRestoreBlocked = true;
+          }
           old.terminal.write('\r\n\x1b[31m恢复连接失败：$error\x1b[0m\r\n');
           state = state.copyWith(error: error);
         }
@@ -423,9 +454,7 @@ class SessionController extends StateNotifier<SessionState> {
         }
       }
       if (!mounted) return;
-      if (!state.sessions.any(
-        (session) => !session.connected && !session.closedByUser,
-      )) {
+      if (!state.sessions.any(_waitingForRestore)) {
         _backgroundReconnectAttempt = 0;
         _nextBackgroundReconnect = null;
         return;
@@ -435,9 +464,7 @@ class SessionController extends StateNotifier<SessionState> {
       if (next != null && now.isBefore(next)) return;
       await reconnectDisconnected();
       if (!mounted) return;
-      if (state.sessions.any(
-        (session) => !session.connected && !session.closedByUser,
-      )) {
+      if (state.sessions.any(_waitingForRestore)) {
         final delay =
             _backgroundReconnectDelays[_backgroundReconnectAttempt.clamp(
           0,
@@ -453,6 +480,11 @@ class SessionController extends StateNotifier<SessionState> {
       _backgroundMaintenanceRunning = false;
     }
   }
+
+  static bool _waitingForRestore(ActiveTerminalSession session) =>
+      !session.connected &&
+      !session.closedByUser &&
+      !session.autoRestoreBlocked;
 
   void _markDisconnected(ActiveTerminalSession session) {
     session.monitor?.stop();
