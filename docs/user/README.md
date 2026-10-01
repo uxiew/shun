@@ -271,6 +271,8 @@ ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
   | 经跳板机 | 最后一台跳板机所在的节点 |
 
   编辑器里选了 Tailscale SSH 后，下面按当前填的路线写出来。
+  所以同一台机器、同一个用户名，**换条路线可能就进不去了**：比如经手机上的 TailSocks 能进，
+  经一台大家共用、打了 tag 的远程 SOCKS 就被拒（策略里允许的是你的设备，不是那台代理）。看到「Tailscale 拒绝了」先想想这次是从哪个节点进去的。
 - check 链接只在你点按钮时交给浏览器，不复制、不记日志，页面上只显示域名、不显示链接里的一次性 token。**回到 App 不等于通过**，以 SSH 登录结果为准。
 - 等 check 最多 10 分钟，到点放弃这次连接，什么命令都没执行。随时可以点「终止连接」。
 - 链接不是 `https://login.tailscale.com/a/…` 这种样子的（别的域名、http、不止一条、夹了不可见字符等），卡片变红、没有打开按钮，写出原因和它指向的域名。
@@ -293,7 +295,8 @@ ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
 | 等 Tailscale check 超过 10 分钟，已放弃这次连接 | 没在时间里确认。重新连 |
 | N 秒内没有等到登录结果 | 还没等到 check 链接就卡住了。这个 N 是编辑器「高级选项」里的认证超时；从核对完指纹开始算 |
 
-> 只在本机仿制的服务器、自建控制面 Headscale 加真 tailscaled 上验证过，**官方 Tailscale 的 check 网页没走过**（没有账号）。
+> 只在本机仿制的服务器、自建控制面 Headscale 加真 tailscaled 上验证过：经本地 SOCKS、远程 SOCKS、跳板机、代理入口 + 跳板四种路线都实测过，
+> 各路线测了什么见 `plan/v3/docs/05-tailscale.md`「R15 能力支持矩阵」。**官方 Tailscale 的 check 网页、直连（手机开着官方 Tailscale App）、真的 TailSocks App 都没走过**。
 
 ## 12. UU 远程
 

@@ -32,6 +32,7 @@ flutter test test/integration_ssh_fixture_test.dart
 - 已知失败或会崩进程的用例默认跳过，要看现场加 `XWSHUN_RUN_KNOWN_FAILS=1`。
 - 测试环境细节见 `tool/fixture-environment/README.md`，终端引擎验证工程见 `spikes/terminal_spike/README.md`。
 - Tailscale SSH 的测试（`test/tailscale_ssh_login_test.dart`）要 Go：会自己构建、起停仿制服务器，没装 Go 时整组跳过。仿制服务器和「Headscale + 真 tailscaled」环境的用法见 `tool/tailscale-ssh-fixture/README.md`。
+- 目录设备经四条路线连接的设备测试（R15，`integration_test/catalog_route_matrix_test.dart`）只在模拟器/真机上跑：`./up.sh routes` 后用同目录的 `route-matrix.sh`，见上面那份 README 的「R15」一节。
 
 ## 3. 模拟器
 
@@ -46,6 +47,9 @@ adb -s emulator-5554 emu kill               # 关机
 
 在模拟器里连本机的测试环境：先 `adb reverse tcp:22201 tcp:22201`（SOCKS 再加 21080、21081），App 里地址填 `127.0.0.1`。
 别用 `10.0.2.2`：它连 OrbStack 转发的端口能建 TCP 但收不到任何数据，App 会报「对方在登录前断开」，看着像配置错，其实是模拟器网络的问题。
+
+**别在模拟器或本机上直连 `100.x`。** 这台 Mac 自己在真实 tailnet 上（`utun4`，`100.64/10` 走它），模拟器发出的连接也是 Mac 发的，
+直连 100.x 等于往你的真实 tailnet 里拨号（R13 曾这样连过 `100.64.0.10`，那里恰好没有设备）。测试用的 tailnet 只经 SOCKS 或跳板去连，见 `tool/tailscale-ssh-fixture/README.md`。
 
 其他版本测完已删（省磁盘）。要复测某个版本，按需重建、用完再删：
 

@@ -98,6 +98,57 @@ PartialSuccessError——x/crypto v0.57.0 收到它**不发 USERAUTH_FAILURE，�
 App 分不出这次是密码起了作用还是 tailnet 身份；是否在普通模式下对 `SSH-2.0-Tailscale` 额外提示或拒绝，留给所有者定（STATUS）。
 实现与验证见 evidence/R14.md。
 
+## R15 能力支持矩阵（2026-10-01 实测）
+
+同一台目录设备（ts-server，`tag:server`，22 是 Tailscale SSH、2222 是普通 OpenSSH）从目录导入成一台主机，只改路线和登录方式，
+在 arm64 模拟器（API 35）上用正式代码连。控制面是 Headscale 0.29.4，节点都是官方 tailscaled v1.102.5，目录 API 是假的。
+**没有官方 Tailscale、没有真机、没有真的 TailSocks App**；下表「通」都只到这一层。测试环境见 `tool/tailscale-ssh-fixture/README.md`「R15」一节，过程见 evidence/R15.md。
+
+| 路线 | 手机实际拨到 | Tailscale 认的来源 | 普通 SSH | Tailscale SSH（accept） | Tailscale SSH（check） | 本次怎么扮演 |
+|---|---|---|---|---|---|---|
+| 直连 | 目标的 100.x | 手机上官方 Tailscale App 的节点 | NOT_RUN | NOT_RUN | NOT_RUN | 模拟器里没有 Tailscale 的 VPN；开发机本身在真实 tailnet 上，测试里禁止直拨 100.x |
+| 本地 SOCKS | 手机上的 SOCKS 端口 | 提供 SOCKS 的那个节点（TailSocks 登录的节点） | 通 | 通，审计 `from=ts-socks` | 批准后通，来源写「代理出口所在的节点」 | userspace tailscaled 自带的 SOCKS5（无认证） |
+| 远程 SOCKS | 远程代理的端口 | 代理那台机器的节点 | 通 | **被拒**：「Tailscale 拒绝了这次登录，服务器说：tailscale: tailnet policy does not permit you to SSH to this node」 | 没测 | `tag:relay` 节点上的 dante（要口令）。ssh 规则只放行用户 fixture 的设备，打了 tag 的共享代理不算这个用户 |
+| 跳板机 | 跳板机 | 跳板机的节点 | 通 | 通，审计 `from=ts-jump` | 批准后通，来源写「跳板机“bastion”所在的节点」 | 用户 fixture 自己的设备，内核模式 tailscaled + OpenSSH |
+| 代理入口 + 跳板 | 本地 SOCKS | 跳板机的节点（不是 SOCKS 那台） | 通 | 通，审计 `from=ts-jump` | 没测 | 本地 SOCKS → ts-jump 的 100.x:22 → ts-server |
+
+结论：**Tailscale SSH 认的是最后把连接送进目标的那个节点**，换路线就换了身份；目录用的 token、OAuth client 从头到尾没进过 SSH 和代理的连接。
+同一个主机、同样的用户名，经本地 SOCKS 能进、经共享的远程 SOCKS 被拒——这是策略按来源节点判，不是 App 的问题，App 的提示直接指向 ssh 规则和来源节点。
+普通 OpenSSH 只认密码，哪条路线都一样；经 userspace tailscaled 转进来的连接，目标上看到的来源是 127.0.0.1。
+
+**目录这一层和连接互不影响：**
+
+| 情况 | 目录页 | 主机 | 连接 |
+|---|---|---|---|
+| 完整列表里没有这台设备 | 不见了 | 不删、不改 | 照常连上 |
+| 设备「未连接控制面」 | 未连接 | 不改 | 照常连上 |
+| API 回 401（受控刷新一次仍 401）、403、429、500、坏 JSON、302 | 最近一次失败 + 原因；302 不跟随 | 一字不差 | 不受影响 |
+| API 整个停掉 | 连不上 Tailscale API | 一字不差 | 经本地 SOCKS、经跳板（Tailscale SSH）都照常连上 |
+| 刷新目录 | — | 路线、用户名、登录方式、密码一字不差 | — |
+
+**连不上时分得清是哪一层**（每一条都带「哪台机器、第几跳、哪一步」和各自不同的下一步提示）：
+
+| 层 | 实测的情况 | App 报的（节选） |
+|---|---|---|
+| 路线配置 | 跳板机不在保险库 | 找不到跳板机（一次都没拨号） |
+| 手机到入口 | 代理端口没人听 | 经代理连接失败：Connection refused |
+| 代理 | 口令错 / 目标端口没开 / 代理那边连不到的名字 | SOCKS5 代理认证失败 / 代理内部错误（状态码 1）/ 规则不允许连接这个目标（状态码 2） |
+| 跳板转发 | 跳板机连不到目标端口 | 跳板机“bastion”转发失败（到 100.x:2299）：对方拒绝打开转发通道（Connection refused） |
+| 指纹 | 指纹对不上 | 主机指纹没有通过校验，已在发送任何登录信息之前断开 |
+| 登录 | 跳板机密码错 / 目标密码错 | 第 1 跳 / 第 2 跳：登录被拒绝 |
+| Tailscale 策略 | 经共享远程 SOCKS 用 Tailscale SSH | Tailscale 拒绝了这次登录（见上表） |
+
+R15 时改的一处：经代理或跳板机到达的一跳，「连上后在登录前被关」原来只提示「这个端口上可能不是 SSH」，
+现在同时说明「也可能是代理或跳板机之后那一段断了，App 看不到」（测试环境里路径抖动时真碰上过，旧提示会把人引去查端口）。
+直连时提示不变。
+
+**不启动第二个 VPN**：App 的清单里没有 `BIND_VPN_SERVICE`、没有 VpnService，代码里不调任何 VPN 接口；模拟器上测试前后系统里的 VPN 网络都是 0 个。
+「真机保持已有 VPN、再开 TailSocks 非 VPN 模式」（NET12）要真机和真的 TailSocks，仍是 NOT_RUN。
+
+测试环境碰到的、和 App 无关的事（写在这里免得被当成 App 的行为）：开发机开着 fake-ip 类代理，容器里解析任何名字都得到 198.18.x，
+所以「代理连不到的名字」在 dante 上表现为规则拒绝（状态码 2），正常环境下应是解析失败；
+tailscaled 的 SOCKS 连 tailnet 以外的名字会走开发机网络，被 fake-ip 代理接下再断开，看着像 SSH 阶段的问题，所以测试不走这条。
+
 ## V3 provider归属
 
 首版实现内置DeviceCatalogProvider（插件体系中的bundled provider），不再为目录功能另装APK。控制面凭据局限该provider的私有存储/Host HTTP适配；Mosh和远控插件无权读取。目录节点与UU匿名ID、RustDesk peer ID只允许用户关联，任何一个provider刷新/失效不得覆盖另一个provider或SSH身份。
