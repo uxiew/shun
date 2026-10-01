@@ -102,8 +102,8 @@
 | TSC04 | 设备改名/换IP、同名不同id、旧id删除后同名重建。 | 按来源+id区分；用户route/username/trust不被覆盖；新主机不继承信任。 | PASS |
 | TSC05 | 完整/不完整快照、模拟分页、网络中断与合法空目录。 | 仅按确认schema分页；不因错误或空列表删除主机；显示缓存时间与不完整。 | PASS |
 | TSC06 | 目录可见但路由拒绝、端口关闭、设备离线/状态未知。 | 分别呈现目录/网络/SSH状态；导入不被标成连接成功。 | PASS |
-| TSC07 | 相同100.x主机分别用普通OpenSSH和显式Tailscale SSH策略fixture。 | 不自动选择none；外部认证不提供key/password；源节点身份解释正确。 | NOT_RUN |
-| TSC08 | 外部auth check批准、拒绝、超时、取消、未知或恶意URL。 | 先host trust，用户确认后外部浏览器；不自动访问，不以返回App当授权成功。 | NOT_RUN |
+| TSC07 | 相同100.x主机分别用普通OpenSSH和显式Tailscale SSH策略fixture。 | 不自动选择none；外部认证不提供key/password；源节点身份解释正确。 | PASS |
+| TSC08 | 外部auth check批准、拒绝、超时、取消、未知或恶意URL。 | 先host trust，用户确认后外部浏览器；不自动访问，不以返回App当授权成功。 | PASS |
 | TSC09 | 本地db、诊断、备份、同步、clipboard和错误对象搜索目录secret。 | secret只在受控存储/内存和官方请求；导出无secret；token不送SSH/代理。 | PASS |
 | TSC10 | 两目录来源使用别名tailnet和同名主机、删除凭据再刷新。 | 来源隔离；未知canonical不误合并；删凭据不会误删手动编辑主机。 | PASS |
 | GST01 | 锁定包/native hash构建，篡改缓存库、缺ABI制品，再用16KiB设备运行。 | hash错误阻断；不动态跳过校验；只声明实测ABI/页面大小。 | FAIL |

@@ -670,7 +670,7 @@
       "id": "R14",
       "phase": "P2",
       "title": "显式Tailscale SSH外部认证与check",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R09",
         "R11"
@@ -701,8 +701,10 @@
       ],
       "stop_condition": "无实际check证据不得声称完整支持；普通SSH进口可继续，但G2功能清单保留缺口。",
       "owner_role": "安全代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R14.md"
+      ],
+      "commit": "5af3641"
     },
     {
       "id": "R15",

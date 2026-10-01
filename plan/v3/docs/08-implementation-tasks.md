@@ -298,7 +298,7 @@
 
 ## R14 显式Tailscale SSH外部认证与check
 
-阶段：P2；状态：NOT_STARTED；依赖：R09, R11；角色：安全代理。
+阶段：P2；状态：DONE；依赖：R09, R11；角色：安全代理。
 
 **范围**：核对锁定dartssh2的none/banner路径；独立外部认证配置；安全展示check链接，等待真实auth结果。
 

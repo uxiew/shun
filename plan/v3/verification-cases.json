@@ -147,7 +147,8 @@
       "inherited_from": "2026-09-28",
       "evidence": [
         "evidence/R07.md",
-        "evidence/R09.md"
+        "evidence/R09.md",
+        "evidence/R14.md"
       ]
     },
     {
@@ -159,7 +160,8 @@
       "inherited_from": "2026-09-28",
       "evidence": [
         "evidence/R07.md",
-        "evidence/R09.md"
+        "evidence/R09.md",
+        "evidence/R14.md"
       ]
     },
     {
@@ -263,7 +265,8 @@
       "result": "NOT_RUN",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R11.md"
+        "evidence/R11.md",
+        "evidence/R14.md"
       ]
     },
     {
@@ -887,8 +890,10 @@
       "action": "相同100.x主机分别用普通OpenSSH和显式Tailscale SSH策略fixture。",
       "expected": "不自动选择none；外部认证不提供key/password；源节点身份解释正确。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R14.md"
+      ],
       "inherited_from": null
     },
     {
@@ -896,8 +901,10 @@
       "action": "外部auth check批准、拒绝、超时、取消、未知或恶意URL。",
       "expected": "先host trust，用户确认后外部浏览器；不自动访问，不以返回App当授权成功。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R14.md"
+      ],
       "inherited_from": null
     },
     {
