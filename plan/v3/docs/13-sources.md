@@ -448,3 +448,45 @@ tskey-api 是 API access token，tskey-client 是 OAuth client secret；OAuth �
 https://github.com/tailscale/tailscale/issues/16911
 
 官方仓库未关闭 issue：OAuth client 换来的 token 列设备看不到共享进来的外部设备，普通 API token 能看到。是缺陷报告，不是文档承诺。
+
+<a id="s64"></a>
+## S64 tailscale v1.104.0 ssh/tailssh/tailssh.go
+
+https://github.com/tailscale/tailscale/blob/v1.104.0/ssh/tailssh/tailssh.go
+
+R14 照它定服务器端行为（提交 c8125a97，仓库外 .toolchain/src 浅克隆）：none、密码、公钥都进同一个 clientAuth，密码公钥内容不看；check 先发 banner 再挂住认证请求最长 30 分钟；拒绝发 banner 后返回空 PartialSuccessError；版本行 SSH-2.0-Tailscale。v1.102.5 的 ServerConfig、clientAuth 与之相同。
+
+<a id="s65"></a>
+## S65 Tailscale SSH（官方文档，含 check mode）
+
+https://tailscale.com/docs/features/tailscale-ssh
+
+check banner 原文只在截图里：# Tailscale SSH requires an additional check. / # To authenticate, visit: https://login.tailscale.com/a/…；checkPeriod 默认 12 小时，最少 1 分钟，最多 168 小时，可写 always。拒绝、超时时用户看到什么文档没写。
+
+<a id="s66"></a>
+## S66 golang.org/x/crypto v0.57.0 ssh/server.go
+
+https://github.com/golang/crypto/blob/v0.57.0/ssh/server.go
+
+tailscale v1.104.0 用的版本（go.sum 校验和与 R14 fixture 一致）。认证回调返回空 Next 的 PartialSuccessError 时，在写 USERAUTH_FAILURE 之前就返回「no authentication methods available」并关闭连接：客户端只看到 EOF。
+
+<a id="s67"></a>
+## S67 juanfont/headscale v0.29.4
+
+https://github.com/juanfont/headscale/releases/tag/v0.29.4
+
+开源的 Tailscale 控制面。0.29.0 起支持 SSH 规则的 check：链接是 <server_url>/auth/hskey-authreq-<24 位>，用 headscale auth approve/reject 裁决，15 分钟未处理算过期。R14 用它加官方 tailscale 镜像搭真 tailscaled 的验证环境；它不是 Tailscale 官方服务。
+
+<a id="s68"></a>
+## S68 tailscale/tailscale issue #7589
+
+https://github.com/tailscale/tailscale/issues/7589
+
+用户报告里真实的 check 链接形如 https://login.tailscale.com/a/c2e8ee2fe1cf（/a/ 加 12 位十六进制）。是用户报告，不是文档承诺；R14 的路径白名单放宽到 1–128 位字母数字。
+
+<a id="s69"></a>
+## S69 flutter_secure_storage 9.2.4 Android FlutterSecureStorage.java
+
+https://github.com/juliansteenbakker/flutter_secure_storage/blob/v9.2.4/flutter_secure_storage/android/src/main/java/com/it_nomads/fluttersecurestorage/FlutterSecureStorage.java
+
+ensureOptions 只在调用带了非空 sharedPreferencesName 时切换文件、从不切回默认，「已初始化就返回」被作者注释掉（注释说会破坏混用）。所以 App 里每一份安全存储都必须显式写文件名，否则会跟着上一次调用的文件走（R14 计划外修复）。

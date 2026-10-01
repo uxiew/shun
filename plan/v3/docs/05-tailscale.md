@@ -67,6 +67,37 @@ check授权链接只从已验证SSH主机的受控banner获取；显示原host�
 
 设备列表未提供可验证SSH能力字段时显示“尚未验证”，不伪造绿色SSH badge。R14失败不会阻止普通SSH目录导入的中间产物，但完整计划不能声称Tailscale SSH/check已支持。
 
+## R14 固定的口径（2026-10-01）
+
+**服务器端怎么认证**（tailscale v1.104.0 `c8125a97`，`ssh/tailssh/tailssh.go` 的 `ServerConfig` 和 `clientAuth`；v1.102.5 这两处相同）：
+none、密码、公钥三种请求都进同一个 `clientAuth`，**密码和公钥的内容一概不看**，按 tailnet 策略放行；版本行 `SSH-2.0-Tailscale`。
+check（HoldAndDelegate）：先发一条 USERAUTH_BANNER（文字由控制面给），再把这次认证请求挂住，最长 30 分钟向控制面长轮询；
+批准回 USERAUTH_SUCCESS，拒绝或超时发一条 banner（`tailscale: access denied` / `tailscale: failed to fetch next SSH action`）后返回空的
+PartialSuccessError——x/crypto v0.57.0 收到它**不发 USERAUTH_FAILURE，直接断 TCP**，客户端只看到连接被关。
+官方 check banner 的文字只在官方文档截图里：`# Tailscale SSH requires an additional check.` / `# To authenticate, visit: https://login.tailscale.com/a/<id>`，
+用户报告里的 id 是 12 位十六进制（tailscale#7589）。来源整理见 13-sources.md 之外的 evidence/R14.md。
+
+**锁定的 dartssh2 2.22.5**：`_startAuthentication` 在私钥、密码、键盘交互之后**总会追加 none**，没有开关；`onUserauthBanner` 在任何阶段收到都回调，
+包括指纹还没确认的时候；认证请求在指纹确认后才发。
+
+| 项 | R14 的做法 |
+|---|---|
+| 登录方式 | 主机上 `xwshunSshLogin: tailscale` 才算 Tailscale SSH，不动桌面端也读写的 `authMethod`；不看 100.x、不看目录绑定 |
+| Tailscale 模式发什么 | 不给 dartssh2 私钥、密码、键盘交互回调，它就只剩 none；私钥连解密都不解 |
+| 普通模式的 none | 借 dartssh2 的调试回调认出「要发 none 了」，登录成功后若是 none 就断开、不执行任何东西（依赖调试文字 `SSHClient._authWithNone`，升级 dartssh2 时对应测试会红）。不打补丁、不 vendor |
+| 普通模式碰上带链接的 banner | 立刻断开，提示改成 Tailscale SSH；不显示链接，不挂 30 分钟 |
+| banner 与指纹 | 指纹确认前到的 banner 一律丢弃 |
+| check 链接 | 只认 `https://login.tailscale.com/a/<1–128 位字母数字>`，单条、无账号、无别的端口、无 query/fragment；带链接的 banner 里出现控制字符或改写方向的字符直接拒（不替它删掉再放行）。不合规的照样提示「不打开」并写原因和域名 |
+| 期限 | Tailscale 模式不用 dartssh2 的 authTimeout；从指纹确认后按主机的「认证超时」算，收到 check 链接后换成 10 分钟。到点关连接 |
+| 拒绝的说法 | Tailscale 模式下认证阶段断开 = 「Tailscale 拒绝了」，附最后一条无链接 banner；没有 banner 时说「可能被拒，也可能是网络」 |
+| 自动恢复 | 碰上 check 就停，标签标记为不再自动重试（docs/07：外部 check 必须人工处理） |
+| 来源节点 | 直连 = 手机的 Tailscale 节点；经代理 = 代理出口那台节点；经跳板 = 上一跳所在节点。编辑器和 check 卡片都写出来，并说明目录凭据不参与 SSH |
+| 自建控制面 | Headscale 的链接（`http://…/auth/hskey-authreq-…`）不在白名单，不打开；用户可在控制面命令行批准，App 等到截止时间 |
+
+已知且不处理的：普通模式带密码连 Tailscale SSH 的 22 端口，tailscaled 收下密码不看内容照样放行（真 tailscaled 上实测，填错密码也能进）。
+App 分不出这次是密码起了作用还是 tailnet 身份；是否在普通模式下对 `SSH-2.0-Tailscale` 额外提示或拒绝，留给所有者定（STATUS）。
+实现与验证见 evidence/R14.md。
+
 ## V3 provider归属
 
 首版实现内置DeviceCatalogProvider（插件体系中的bundled provider），不再为目录功能另装APK。控制面凭据局限该provider的私有存储/Host HTTP适配；Mosh和远控插件无权读取。目录节点与UU匿名ID、RustDesk peer ID只允许用户关联，任何一个provider刷新/失效不得覆盖另一个provider或SSH身份。
