@@ -1,12 +1,12 @@
 # 当前状态 V3
 
-日期：2026-10-01。已执行首批（R00–R04、X00）、网络路由三项（R05、R06、R07）、连接代次（R08）、凭据与入口统一（R09）、连接路径编辑器（R10）、插件注册表（X01）、只读 Tailscale 目录的 HTTP 适配（R11）、Android 独立插件发现与双向签名（X02）、目录缓存与非破坏合并（R12）、插件会话字节流与故障处理（X03）、目录页与批量导入（R13）、插件管理与授权界面（X04）、Tailscale 目录接入内置 provider（X05）、UU 远程适配（X06）、RustDesk 外部客户端联动（X07）和显式 Tailscale SSH 外部认证（R14）；09-30 所有者同意用 arm64 模拟器补测，并定"最低兼容到安卓七八"。
+日期：2026-10-01。已执行首批（R00–R04、X00）、网络路由三项（R05、R06、R07）、连接代次（R08）、凭据与入口统一（R09）、连接路径编辑器（R10）、插件注册表（X01）、只读 Tailscale 目录的 HTTP 适配（R11）、Android 独立插件发现与双向签名（X02）、目录缓存与非破坏合并（R12）、插件会话字节流与故障处理（X03）、目录页与批量导入（R13）、插件管理与授权界面（X04）、Tailscale 目录接入内置 provider（X05）、UU 远程适配（X06）、RustDesk 外部客户端联动（X07）、显式 Tailscale SSH 外部认证（R14）和目录到三类路由的端到端验收（R15）；09-30 所有者同意用 arm64 模拟器补测，并定"最低兼容到安卓七八"。
 
 - 基座：kmh1145/Netcatty-mobile `495f5d31`（v1.4.7），本机 fork `xwshun/v3`，不 push。GPL-3.0-or-later 个人隔离实验；applicationId `top.xdwa.xwshun`。
-- 任务：DONE 22（R00 R01 R02 R03 R05 R06 R07 R08 R09 R10 R11 R12 R13 R14 X00 X01 X02 X03 X04 X05 X06 X07）、BLOCKED 1（R04）、NOT_STARTED 23、DEFERRED 7。
+- 任务：DONE 23（R00 R01 R02 R03 R05 R06 R07 R08 R09 R10 R11 R12 R13 R14 R15 X00 X01 X02 X03 X04 X05 X06 X07）、BLOCKED 1（R04）、NOT_STARTED 22、DEFERRED 7。
 - 用例（共 142）：PASS 71、FAIL 3、BLOCKED 6、NOT_RUN 62。每条的实际动作和观察在 `evidence/`。
-- 门禁：G0 **BLOCKED**（R04）；其余门禁 NOT_RUN。插件基础 GX0 的出口条件（X00–X03）在模拟器上都已满足，只差真机复核，所以仍记 NOT_RUN。离 CORE_READY / FULL_READY 都还很远。
-- 设备：只有 arm64 模拟器，**没有真机**。实测过 API 24–28、35（4 KiB）、36（16 KiB），测完即删，只留 `xwshun-a35-4k` 的配置。只装过本项目自己的 APK（含 `plugins/` 的测试插件、假 UU、假 RustDesk）、原版 Netcatty、官方 UU 远程 4.42.0（所有者提供并同意安装，没有登录）和 GitHub 发行版 RustDesk 1.4.9（所有者同意安装，只连了不存在的 ID）；测试 App、假浏览器、UU、RustDesk 测完都已从 `xwshun-a35-4k` 卸载；R14 在本机 Docker 里起过 Headscale + 官方 tailscale 镜像的隔离测试环境（不连任何真实账号，已 down）；没有连接任何用户真实主机/账号/VPN，没有 push 或发布。
+- 门禁：G0 **BLOCKED**（R04）；其余门禁 NOT_RUN。插件基础 GX0 的出口条件（X00–X03）在模拟器上都已满足，只差真机复核，所以仍记 NOT_RUN；Tailscale 的 G2（R15）同理，另外还差官方 Tailscale 的 check 和直连。离 CORE_READY / FULL_READY 都还很远。
+- 设备：只有 arm64 模拟器，**没有真机**。实测过 API 24–28、35（4 KiB）、36（16 KiB），测完即删，只留 `xwshun-a35-4k` 的配置。只装过本项目自己的 APK（含 `plugins/` 的测试插件、假 UU、假 RustDesk）、原版 Netcatty、官方 UU 远程 4.42.0（所有者提供并同意安装，没有登录）和 GitHub 发行版 RustDesk 1.4.9（所有者同意安装，只连了不存在的 ID）；测试 App、假浏览器、UU、RustDesk 测完都已从 `xwshun-a35-4k` 卸载；R14、R15 在本机 Docker 里起过 Headscale + 官方 tailscale 镜像的隔离测试环境（不连任何真实账号，已 down）；没有连接任何用户真实主机/账号/VPN，没有 push 或发布。
 
 ## 已做的代码改动
 
@@ -23,6 +23,8 @@
 - 目录页与批量导入（R13）：「设置 → Tailscale 设备目录」读设备列表（粘贴 token 读一次，或自己的 OAuth client、可选保存），显示缓存时间、列表是否完整、最近失败原因；设备只说 Tailscale 控制面「已连接 / 未连接 / 不知道」，不说在线。勾选设备批量导入为主机：用户名必填不默认 root，路线可选直连 / 代理 / 跳板，不写指纹、不连接。编辑器里看得到来源、目录状态、地址是否跟随，可断开关联。模拟器上用真实界面 + 本机假 API 走通，导入的主机真 SSH 进测试环境；连接失败按网络 / 代理 / 指纹分别报出。
 - UU 远程（X06）：按冻结的官方协议（提交 be7d8109）做了绑定和全屏/小窗远控。请求只发给已核对证书的官方包名；回调只认一次性的 state/nonce，重放、迟到、伪造都不算数，UU 在前台时本 App 被杀、回调冷启动也能对上；绑定回来要你确认挂到哪台主机，之后从不自动远控；全屏只写「已交给 UU」，小窗只写 UU 报告的结果，不说「已连接」；主机 SSH 经代理/跳板时先说明 UU 走它自己的网络。加密设备标识只存本机加密存储，不进保险库和导出。手机上有别的 App 也声明了本 App 的回调地址时（它能截走、冒充 UU 的回报），绑定和小窗不发，已到的绑定结果不采用。官方 4.42.0 APK 的证书已固定进代码，官方包不用手动批准。模拟器上用假 UU 把本 App 这一侧都走通了；真实 UU 只在没登录的状态下试过：它停在登录页、不给任何回报（官方文档说 180 秒后回超时，实测 6 分钟没有），所以等待到 10 分钟会自己作废。**登录真实账号之后的绑定和远控一次都没走过**（UUR03/04/05/07 BLOCKED）。
 - Tailscale SSH（R14）：编辑器里明确选「Tailscale SSH」才用，不看 100.x、不看目录导入。这种主机只发 none 认证，存着的密码、私钥不发、私钥不解密。check 链接只在指纹确认后才认，只认 `https://login.tailscale.com/a/…` 一种样子，卡片只显示域名、写明来源节点和截止时间，用户点了才交给浏览器，回到 App 不算通过；不合规的（别的域名、http、多条、夹控制字符，以及 Headscale 的链接）不给打开。等 check 最多 10 分钟；拒绝、超时、取消都有准确的说法（Tailscale 拒绝时只发 banner 就断 TCP，原来会被说成「对方可能不是 SSH 服务」）；自动恢复碰上 check 停下、不再重试。普通模式下 dartssh2 自动补发的 none 被放行时断开，碰上 check 链接立刻断开。真 tailscaled（Headscale 控制面）上实测：check 批准/拒绝、来源节点就是 SOCKS 出口那台。**官方 Tailscale 的 check 网页没走过**；**普通模式填错密码连 Tailscale SSH 的 22 端口也能进**（tailscaled 不看密码），App 分不出来。
+- 目录到三类路由（R15）：同一台目录设备导入成主机后，经本地 SOCKS、远程 SOCKS、跳板机、代理入口 + 跳板四条路线在模拟器上用真 tailscaled 测过：普通 SSH 四条都通。**Tailscale SSH 认的是最后把连接送进目标的节点**：经本地 SOCKS 是 SOCKS 那台，经跳板是跳板机；经打了 tag 的共享远程 SOCKS 会被策略拒绝，App 的提示指向 ssh 规则和来源节点。目录不在连接路径上：目录说设备不见了、API 各种故障甚至停掉，主机一字不动、照样连得上。连不上时路线配置、入口、代理、跳板转发、指纹、登录、Tailscale 策略各报各的。目录凭据没进过代理和 SSH 流量，SSH/代理口令没进过目录请求，私有目录明文里都搜不到。顺带改了一句提示：经代理或跳板机到达的一跳在登录前被关，原来只叫人查端口，现在也说明可能是代理之后那一段断了。能力支持矩阵见 `docs/05-tailscale.md`。**直连（手机开着官方 Tailscale）、真的 TailSocks App、真机没测。**
+- **R15 时发现：这台 Mac 自己在真实 tailnet 上**（`100.64/10` 走 `utun4`）。模拟器直连 100.x 等于从 Mac 往真实 tailnet 拨号——R13 那次连过 `100.64.0.10:22`（那里没有设备，没建立连接）。之后的测试只经 SOCKS/跳板连测试 tailnet，测试代码的拨号器只放行 127.0.0.1，测试容器也丢掉了不走 tailscale0 的 100.x 包。
 - 计划外修复（R14 时发现）：保险库密码曾会写进 UU/RustDesk/目录的加密存储文件，重启后报「无法解密」（flutter_secure_storage 9.2.4 Android 端切了文件名不切回来，X05 起就有）。保险库存储现在显式写默认文件名；已写错地方的不搬。
 - RustDesk（X07）：给主机填 RustDesk ID，点「用 RustDesk 远控」交给手机上的 RustDesk 去连。只发一种链接 `rustdesk://connect/<ID>`：ID 只收纯数字或字母开头的自定义 ID，带服务器、密钥、强制中继、IP、整条链接的都拒收；平台层发送前按同一条白名单再核一次，绕过 Dart 直接调也发不出带密码或改配置的链接（模拟器上实测 19 种）。只发给官方包名 + 核对过的证书（GitHub 发行版、F-Droid 各一张，从安装包读出）；别的证书、改了包名的自建客户端要用户看过包名和证书后明确信任，换签就停。RustDesk 不回报任何结果，页面只写「已交给 RustDesk」和交给了哪个包哪个版本，从不写已连接或已断开；SSH 经代理/跳板的主机先问。版本按冻结的 1.4.9 源码分段：1.2.3 及更早不发，1.4.6 及更早提醒它会执行别的 App 发来的改密码/改服务器链接，高于 1.5.0 写明没核对过。真实 RustDesk 1.4.9 在模拟器上冷启动、已开着两条路都实测过（连一个不存在的 ID，它自己报「离线或不存在」，本 App 这边不变）；**真连上一台电脑没做**。RustDesk 自己会把收到的链接（含 ID）打进 logcat。
 - Tailscale 目录接入插件体系（X05）：成了和内置 SSH 一样的内置 provider `builtin.tailscale`，每个目录操作先向注册表要能力；HTTP、缓存、导入规则没动。目录这边只看得到主机的 id、名字、地址和目录绑定，碰不到密码、代理口令。设备关联就是主机上的目录绑定（在保险库里，重启不丢），没另存一份。新增两条修复路径：「关联到已有主机」（只记关联，地址不跟随、不连接）和「在本机恢复」被移除的来源（按原来源 ID，读一次就重新对上）。模拟器上走通了重启、移除来源后照常 SSH、恢复后重新对上；目录凭据和粘贴的 token 在私有目录和日志里搜不到。
@@ -55,8 +57,8 @@ R04 其他要带进 R17 的发现：dispose 后 write 段错误、软键盘退�
 ## 下一批
 
 `lizhi` 开着时，本项目模拟器用 `-port 5580` 起、adb 都带 `-s emulator-5580`（写在 docs/xwshun/README.md 第 7 节）。
-依赖已满足、还没开始的只剩 R15（目录到三类路由的端到端验收）：没有真实 Tailscale 时用假目录 API + R14 的 Headscale 环境做 fixture，实际设备部分记 NOT_RUN。X08 起的 Mosh、R16/R17 的 Ghostty 都卡在 R04（要真机 + 中文输入法）。
-R14 的测试环境：仿制 Tailscale SSH 服务器和 Headscale + 真 tailscaled，用法见 `tool/tailscale-ssh-fixture/README.md`。
+**依赖已满足、还没开始的任务没有了**：剩下的 22 个都直接或间接依赖 R04（要真机 + 中文输入法）——R16 起的 Ghostty、X08 起的 Mosh、R26 的手机 VPN + TailSocks 日用都在这条线上。往下走需要所有者提供真机（见下一节第一条）。
+R14、R15 的测试环境：仿制 Tailscale SSH 服务器和 Headscale + 真 tailscaled（R15 加了远程 SOCKS 和跳板两个节点），用法见 `tool/tailscale-ssh-fixture/README.md`。
 设备关联：目录的存在主机上，UU 的存在 UU 自己的加密存储里（记主机 id），RustDesk 的存在 RustDesk 这边的加密存储里，`deviceLinksOf` 把三样拼起来。
 X05 顺带看到：连接完成前敲的字前几个被丢、后面照常送达（归 R23）。R16/R17（Ghostty 接入主 App）等 R04 解除 BLOCKED；UX04 的「实际引擎」部分也等 R17。
 LIFE06 只完成了连接层部分（仍记 NOT_RUN）：引擎销毁、线程、native 内存要等 R17/R22 在设备上量。

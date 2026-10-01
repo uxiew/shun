@@ -135,7 +135,8 @@
       "result": "NOT_RUN",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R10.md"
+        "evidence/R10.md",
+        "evidence/R15.md"
       ]
     },
     {
@@ -821,7 +822,8 @@
       "evidence": [
         "evidence/R02.md",
         "evidence/R11.md",
-        "evidence/X05.md"
+        "evidence/X05.md",
+        "evidence/R15.md"
       ],
       "inherited_from": null
     },
@@ -833,7 +835,8 @@
       "result": "PASS",
       "evidence": [
         "evidence/R11.md",
-        "evidence/X05.md"
+        "evidence/X05.md",
+        "evidence/R15.md"
       ],
       "inherited_from": null
     },
@@ -858,7 +861,8 @@
       "evidence": [
         "evidence/R12.md",
         "evidence/R13.md",
-        "evidence/X05.md"
+        "evidence/X05.md",
+        "evidence/R15.md"
       ],
       "inherited_from": null
     },
@@ -881,7 +885,8 @@
       "level": "硬门禁",
       "result": "PASS",
       "evidence": [
-        "evidence/R13.md"
+        "evidence/R13.md",
+        "evidence/R15.md"
       ],
       "inherited_from": null
     },
@@ -892,7 +897,8 @@
       "level": "硬门禁",
       "result": "PASS",
       "evidence": [
-        "evidence/R14.md"
+        "evidence/R14.md",
+        "evidence/R15.md"
       ],
       "inherited_from": null
     },
@@ -903,7 +909,8 @@
       "level": "硬门禁",
       "result": "PASS",
       "evidence": [
-        "evidence/R14.md"
+        "evidence/R14.md",
+        "evidence/R15.md"
       ],
       "inherited_from": null
     },
@@ -915,7 +922,8 @@
       "result": "PASS",
       "evidence": [
         "evidence/R11.md",
-        "evidence/R13.md"
+        "evidence/R13.md",
+        "evidence/R15.md"
       ],
       "inherited_from": null
     },
@@ -927,7 +935,8 @@
       "result": "PASS",
       "evidence": [
         "evidence/R12.md",
-        "evidence/R13.md"
+        "evidence/R13.md",
+        "evidence/R15.md"
       ],
       "inherited_from": null
     },
