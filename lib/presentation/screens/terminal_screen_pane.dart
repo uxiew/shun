@@ -80,6 +80,10 @@ class _ConnectionStatusPane extends StatelessWidget {
                             ),
                       ),
                     ],
+                    if (!failed && pending.checkPrompt != null) ...[
+                      const SizedBox(height: 14),
+                      TailscaleCheckCard(prompt: pending.checkPrompt!),
+                    ],
                     if (failed) ...[
                       const SizedBox(height: 8),
                       LText(

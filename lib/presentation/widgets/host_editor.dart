@@ -8,6 +8,7 @@ import '../../application/vault_controller.dart';
 import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/vault.dart';
+import '../../domain/tailscale_ssh.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import 'catalog_source_section.dart';
 import 'connection_probe_sheet.dart';
@@ -57,6 +58,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   late final TextEditingController authTimeout;
   late HostProtocol protocol;
   late HostAuthMethod authMethod;
+  late SshLoginMode loginMode;
   late ProxyType proxyType;
   late List<String> jumpHostIds;
   String? identityFileId;
@@ -103,6 +105,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     );
     protocol = host?.protocol ?? HostProtocol.ssh;
     authMethod = host?.authMethod ?? HostAuthMethod.auto;
+    loginMode = host == null ? SshLoginMode.standard : sshLoginModeOf(host);
     identityFileId = host?.identityFileId;
     jumpHostIds = [...?host?.hostChainIds];
     proxyType = proxy?.type ?? ProxyType.socks5;
@@ -303,82 +306,107 @@ class _HostEditorState extends ConsumerState<HostEditor> {
             ],
             if (protocol != HostProtocol.telnet) ...[
               _section('身份认证'),
-              DropdownButtonFormField<HostAuthMethod>(
-                initialValue: authMethod,
-                decoration: LInputDecoration(labelText: '认证方式'),
-                items: const [
-                  DropdownMenuItem(
-                    value: HostAuthMethod.auto,
-                    child: LText('自动（私钥 / 密码 / 交互式）'),
+              SegmentedButton<SshLoginMode>(
+                key: const ValueKey('ssh-login-mode'),
+                segments: const [
+                  ButtonSegment(
+                    value: SshLoginMode.standard,
+                    label: LText('普通 SSH'),
+                    icon: Icon(Icons.password),
                   ),
-                  DropdownMenuItem(
-                    value: HostAuthMethod.password,
-                    child: LText('密码'),
-                  ),
-                  DropdownMenuItem(
-                    value: HostAuthMethod.key,
-                    child: LText('私钥'),
+                  ButtonSegment(
+                    value: SshLoginMode.tailscale,
+                    label: LText('Tailscale SSH'),
+                    icon: Icon(Icons.hub_outlined),
                   ),
                 ],
-                onChanged: (value) =>
-                    setState(() => authMethod = value ?? HostAuthMethod.auto),
+                selected: {loginMode},
+                onSelectionChanged: (value) =>
+                    setState(() => loginMode = value.first),
               ),
               const SizedBox(height: 12),
-              TextFormField(
-                controller: password,
-                obscureText: obscurePassword,
-                decoration: LInputDecoration(
-                  labelText: '密码（可选）',
-                  suffixIcon: IconButton(
-                    onPressed: () =>
-                        setState(() => obscurePassword = !obscurePassword),
-                    icon: Icon(
-                      obscurePassword ? Icons.visibility : Icons.visibility_off,
+              if (loginMode == SshLoginMode.tailscale)
+                _tailscaleLoginNote(preview.plan),
+              if (loginMode == SshLoginMode.standard) ...[
+                DropdownButtonFormField<HostAuthMethod>(
+                  initialValue: authMethod,
+                  decoration: LInputDecoration(labelText: '认证方式'),
+                  items: const [
+                    DropdownMenuItem(
+                      value: HostAuthMethod.auto,
+                      child: LText('自动（私钥 / 密码 / 交互式）'),
                     ),
-                  ),
+                    DropdownMenuItem(
+                      value: HostAuthMethod.password,
+                      child: LText('密码'),
+                    ),
+                    DropdownMenuItem(
+                      value: HostAuthMethod.key,
+                      child: LText('私钥'),
+                    ),
+                  ],
+                  onChanged: (value) =>
+                      setState(() => authMethod = value ?? HostAuthMethod.auto),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Expanded(
-                    child: DropdownButtonFormField<String>(
-                      initialValue: identityFileId,
-                      decoration: LInputDecoration(labelText: 'SSH 私钥'),
-                      items: [
-                        const DropdownMenuItem(
-                          value: '',
-                          child: LText('不指定'),
-                        ),
-                        for (final key in keys)
-                          DropdownMenuItem(
-                            value: key.id,
-                            child: LText(key.label),
-                          ),
-                      ],
-                      onChanged: (value) => setState(
-                        () => identityFileId =
-                            value?.isEmpty == true ? null : value,
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: password,
+                  obscureText: obscurePassword,
+                  decoration: LInputDecoration(
+                    labelText: '密码（可选）',
+                    suffixIcon: IconButton(
+                      onPressed: () =>
+                          setState(() => obscurePassword = !obscurePassword),
+                      icon: Icon(
+                        obscurePassword
+                            ? Icons.visibility
+                            : Icons.visibility_off,
                       ),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  IconButton.filledTonal(
-                    tooltip: localized('管理私钥'),
-                    onPressed: _openKeychain,
-                    icon: const Icon(Icons.key_outlined),
-                  ),
-                ],
-              ),
-              if (authMethod == HostAuthMethod.key && identityFileId == null)
-                const Padding(
-                  padding: EdgeInsets.only(top: 6),
-                  child: LText(
-                    '私钥认证需要选择或导入私钥。',
-                    style: TextStyle(color: Colors.redAccent, fontSize: 12),
-                  ),
                 ),
+                const SizedBox(height: 12),
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.end,
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue: identityFileId,
+                        decoration: LInputDecoration(labelText: 'SSH 私钥'),
+                        items: [
+                          const DropdownMenuItem(
+                            value: '',
+                            child: LText('不指定'),
+                          ),
+                          for (final key in keys)
+                            DropdownMenuItem(
+                              value: key.id,
+                              child: LText(key.label),
+                            ),
+                        ],
+                        onChanged: (value) => setState(
+                          () => identityFileId =
+                              value?.isEmpty == true ? null : value,
+                        ),
+                      ),
+                    ),
+                    const SizedBox(width: 8),
+                    IconButton.filledTonal(
+                      tooltip: localized('管理私钥'),
+                      onPressed: _openKeychain,
+                      icon: const Icon(Icons.key_outlined),
+                    ),
+                  ],
+                ),
+                if (authMethod == HostAuthMethod.key && identityFileId == null)
+                  const Padding(
+                    padding: EdgeInsets.only(top: 6),
+                    child: LText(
+                      '私钥认证需要选择或导入私钥。',
+                      style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                    ),
+                  ),
+              ],
               _section('连接路径'),
               SegmentedButton<_RouteMode>(
                 key: const ValueKey('route-mode'),
@@ -664,6 +692,47 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     );
   }
 
+  /// Tailscale SSH 选中时，代替密码、私钥那几栏显示的说明。来源节点按当前填写的路线算（TSC07）。
+  Widget _tailscaleLoginNote(RoutePlan? plan) {
+    final theme = Theme.of(context);
+    final style = theme.textTheme.bodySmall;
+    return Container(
+      key: const ValueKey('tailscale-login-note'),
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: theme.colorScheme.surfaceContainerHighest,
+        borderRadius: BorderRadius.circular(10),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          LText(
+            '连接时不发密码和私钥，由目标上的 Tailscale 按 tailnet 策略决定放不放行；'
+            '策略要求 check 时，会让你在浏览器里确认。',
+            style: style,
+          ),
+          const SizedBox(height: 6),
+          LText('Tailscale 会把这次登录算成：', style: theme.textTheme.labelMedium),
+          LText(
+            plan == null
+                ? '填好地址和路线后显示。'
+                : tailscaleSourceNode(plan, plan.hops.length - 1),
+            key: const ValueKey('tailscale-source-node'),
+            style: style,
+          ),
+          const SizedBox(height: 6),
+          LText(tailscaleCatalogIsNotIdentity, style: style),
+          LText(
+            '已保存的密码、私钥留着不用，改回普通 SSH 时照常使用。'
+            '桌面端 Netcatty 不认这个设置：同步过去后在桌面端仍按普通 SSH 连接。',
+            style: style,
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _section(String title) => Padding(
         padding: const EdgeInsets.fromLTRB(2, 22, 2, 10),
         child: LText(
@@ -728,6 +797,12 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     _setOrRemove(data, 'identityFileId', identityFileId);
     _setOrRemove(data, 'startupCommand', startupCommand.text.trim());
     if (unlinkCatalog) data.remove(CatalogBinding.key);
+    if (protocol != HostProtocol.telnet &&
+        loginMode == SshLoginMode.tailscale) {
+      data[sshLoginModeKey] = 'tailscale';
+    } else {
+      data.remove(sshLoginModeKey);
+    }
     // 路线只按当前选的方式保存：切到「直连」就真的去掉代理和跳板，不留一份看不见却还生效的旧设置。
     final usesJumps =
         protocol != HostProtocol.telnet && routeMode == _RouteMode.jump;
@@ -849,6 +924,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   ({HostProfile host, RoutePlan? plan})? _checkedDraft() {
     if (!(_form.currentState?.validate() ?? false)) return null;
     if (protocol != HostProtocol.telnet &&
+        loginMode == SshLoginMode.standard &&
         authMethod == HostAuthMethod.key &&
         identityFileId == null) {
       _message('请选择用于认证的 SSH 私钥');

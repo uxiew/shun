@@ -7,9 +7,11 @@ import '../../application/connection_diagnosis.dart';
 import '../../application/session_controller.dart';
 import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
+import '../../infrastructure/ssh/ssh_login_watch.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import '../localization/localized_widgets.dart';
 import 'route_legs_view.dart';
+import 'tailscale_check_card.dart';
 
 /// 测试连接：按编辑器里当前（可能还没保存）的配置，走一遍和正式连接完全相同的路线和指纹核对，
 /// 逐段显示走到了哪一步；登录后只检查远端终端（PTY），不打开 shell、不执行启动命令（R10）。
@@ -40,13 +42,19 @@ class _ConnectionProbeSheetState extends ConsumerState<ConnectionProbeSheet> {
   _ProbeState _state = _ProbeState.running;
   ProbeOutcome? _outcome;
   Object? _error;
+  TailscaleCheckPrompt? _check;
 
   @override
   void initState() {
     super.initState();
-    _attempt = ConnectionAttempt(onStage: (stage) {
-      if (mounted) setState(() => _stages.add(stage));
-    });
+    _attempt = ConnectionAttempt(
+      onStage: (stage) {
+        if (mounted) setState(() => _stages.add(stage));
+      },
+      onCheckPrompt: (prompt) {
+        if (mounted) setState(() => _check = prompt);
+      },
+    );
     unawaited(_run());
   }
 
@@ -119,6 +127,10 @@ class _ConnectionProbeSheetState extends ConsumerState<ConnectionProbeSheet> {
               ),
             if (_stages.isEmpty && running)
               const _StageRow(stage: null, status: _StageStatus.running),
+            if (running && _check != null) ...[
+              const SizedBox(height: 8),
+              TailscaleCheckCard(prompt: _check!),
+            ],
             const SizedBox(height: 12),
             if (_state == _ProbeState.succeeded)
               _ResultBox(

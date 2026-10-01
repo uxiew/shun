@@ -29,6 +29,7 @@ import '../widgets/route_legs_view.dart';
 import '../widgets/server_monitor_sheet.dart';
 import '../widgets/terminal_special_keys.dart';
 import '../widgets/system_management/system_management_sheet.dart';
+import '../widgets/tailscale_check_card.dart';
 
 part 'terminal_screen_pane.dart';
 
