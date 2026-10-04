@@ -1,5 +1,7 @@
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+
 /// Environment variable that overrides source resolution with a local checkout.
 const ghosttySrcEnvKey = 'GHOSTTY_SRC';
 
@@ -22,6 +24,7 @@ Future<Directory> downloadSource(
   if (cacheDir.existsSync()) return cacheDir;
 
   tarballUrl ??= '$_defaultTarballBase/$commit.tar.gz';
+  final expectedSha256 = pinnedSourceSha256(packageRoot);
 
   final tarball = File.fromUri(cacheBase.resolve('$commit.tar.gz'));
   tarball.parent.createSync(recursive: true);
@@ -43,6 +46,16 @@ Future<Directory> downloadSource(
     httpClient.close();
   }
 
+  // xwshun: 解包前核对，对不上就删包报错，不留半截缓存。
+  final actualSha256 = (await sha256.bind(tarball.openRead()).first).toString();
+  if (actualSha256 != expectedSha256) {
+    tarball.deleteSync();
+    throw Exception(
+      'Ghostty source SHA256 mismatch for $commit: '
+      'expected $expectedSha256 (ghostty.sha256), got $actualSha256.',
+    );
+  }
+
   cacheDir.createSync(recursive: true);
   final extractResult = Process.runSync('tar', [
     'xzf',
@@ -61,6 +74,25 @@ Future<Directory> downloadSource(
   tarball.deleteSync();
 
   return cacheDir;
+}
+
+/// xwshun: 读 `ghostty.sha256` 里固定的源码包 SHA256。上游只按提交号下载、不核对；我们改成从源码
+/// 编进 App 以后，不核对就等于构建时把网上拿来、没验过的一包代码编进去（预编译那条路按包内
+/// SHA256 表核对，plan/v3/docs/06-ghostty.md 也要求不跳过 hash 验证）。
+/// 换 `ghostty.version` 时要一起换，否则构建报 "Ghostty source SHA256 mismatch"。
+String pinnedSourceSha256(Uri packageRoot) {
+  final file = File.fromUri(packageRoot.resolve('ghostty.sha256'));
+  if (!file.existsSync()) {
+    throw StateError(
+      'ghostty.sha256 not found at ${file.path}. '
+      'This file must contain the SHA256 of the pinned Ghostty source tarball.',
+    );
+  }
+  final value = file.readAsStringSync().trim();
+  if (!RegExp(r'^[0-9a-f]{64}$').hasMatch(value)) {
+    throw StateError('ghostty.sha256 at ${file.path} is not a SHA256 digest.');
+  }
+  return value;
 }
 
 /// Reads the pinned Ghostty commit from `ghostty.version` at [packageRoot].

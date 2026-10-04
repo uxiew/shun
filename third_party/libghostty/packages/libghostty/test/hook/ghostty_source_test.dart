@@ -3,6 +3,7 @@ library;
 
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
 import 'package:libghostty/src/hook/ghostty_source.dart';
 import 'package:test/test.dart';
 
@@ -108,12 +109,20 @@ void main() {
       tmpDir.deleteSync(recursive: true);
     });
 
+    // xwshun: downloadSource 会按 ghostty.sha256 核对源码包，测试用的包也要先把 hash 固定下来。
+    void pinSha256(File tarball) {
+      File.fromUri(
+        packageRoot.resolve('ghostty.sha256'),
+      ).writeAsStringSync('${sha256.convert(tarball.readAsBytesSync())}\n');
+    }
+
     test('extracts tarball content to cache', () async {
       final contentDir = Directory('${tmpDir.path}/content')..createSync();
       File('${contentDir.path}/build.zig').writeAsStringSync('test marker');
 
       final tarball = File('${tmpDir.path}/test.tar.gz');
       Process.runSync('tar', ['czf', tarball.path, '-C', contentDir.path, '.']);
+      pinSha256(tarball);
 
       final serverDir = Directory('${tmpDir.path}/server')..createSync();
       tarball.copySync('${serverDir.path}/source.tar.gz');
@@ -140,6 +149,7 @@ void main() {
 
       final tarball = File('${tmpDir.path}/test.tar.gz');
       Process.runSync('tar', ['czf', tarball.path, '-C', contentDir.path, '.']);
+      pinSha256(tarball);
 
       final serverDir = Directory('${tmpDir.path}/server')..createSync();
       tarball.copySync('${serverDir.path}/source.tar.gz');
@@ -172,6 +182,9 @@ void main() {
     });
 
     test('throws on HTTP error with actionable message', () async {
+      File.fromUri(
+        packageRoot.resolve('ghostty.sha256'),
+      ).writeAsStringSync('${'0' * 64}\n');
       final serverDir = Directory('${tmpDir.path}/empty_server')..createSync();
       final server = await TestServer.start(serverDir);
       addTearDown(server.close);
@@ -197,6 +210,8 @@ void main() {
     test('cleans up cache dir on extraction failure', () async {
       final serverDir = Directory('${tmpDir.path}/server')..createSync();
       File('${serverDir.path}/bad.tar.gz').writeAsBytesSync([0x00, 0x01, 0x02]);
+      // 让核对通过，测的是解包失败。
+      pinSha256(File('${serverDir.path}/bad.tar.gz'));
 
       final server = await TestServer.start(serverDir);
       addTearDown(server.close);
@@ -225,6 +240,7 @@ void main() {
 
       final tarball = File('${tmpDir.path}/test.tar.gz');
       Process.runSync('tar', ['czf', tarball.path, '-C', contentDir.path, '.']);
+      pinSha256(tarball);
 
       final serverDir = Directory('${tmpDir.path}/server')..createSync();
       tarball.copySync('${serverDir.path}/source.tar.gz');
@@ -242,6 +258,85 @@ void main() {
       final commit = pinnedCommit(packageRoot);
       final tarballInCache = File.fromUri(cacheBase.resolve('$commit.tar.gz'));
       expect(tarballInCache.existsSync(), isFalse);
+    });
+
+    // xwshun: 源码包被换掉（或 GitHub 改了打包方式）时必须停下，不能编进 App。
+    test(
+      'rejects a tarball whose SHA256 differs from ghostty.sha256',
+      () async {
+        final contentDir = Directory('${tmpDir.path}/content')..createSync();
+        File('${contentDir.path}/build.zig').writeAsStringSync('tampered');
+        final serverDir = Directory('${tmpDir.path}/server')..createSync();
+        final tarball = File('${serverDir.path}/source.tar.gz');
+        Process.runSync('tar', [
+          'czf',
+          tarball.path,
+          '-C',
+          contentDir.path,
+          '.',
+        ]);
+        File.fromUri(
+          packageRoot.resolve('ghostty.sha256'),
+        ).writeAsStringSync('${'a' * 64}\n');
+
+        final server = await TestServer.start(serverDir);
+        addTearDown(server.close);
+        final cacheBase = Uri.directory('${tmpDir.path}/cache/');
+
+        await expectLater(
+          () => downloadSource(
+            cacheBase,
+            packageRoot: packageRoot,
+            tarballUrl: '${server.baseUrl}/source.tar.gz',
+          ),
+          throwsA(
+            isA<Exception>().having(
+              (e) => e.toString(),
+              'message',
+              contains('SHA256 mismatch'),
+            ),
+          ),
+        );
+
+        final commit = pinnedCommit(packageRoot);
+        expect(
+          Directory.fromUri(
+            cacheBase.resolve('ghostty-source-${commit.substring(0, 12)}/'),
+          ).existsSync(),
+          isFalse,
+        );
+        expect(
+          File.fromUri(cacheBase.resolve('$commit.tar.gz')).existsSync(),
+          isFalse,
+        );
+      },
+    );
+
+    test('throws before downloading when ghostty.sha256 is missing', () {
+      expect(
+        () => downloadSource(
+          Uri.directory('${tmpDir.path}/cache/'),
+          packageRoot: packageRoot,
+          tarballUrl: 'http://127.0.0.1:9/never.tar.gz',
+        ),
+        throwsA(isA<StateError>()),
+      );
+    });
+  });
+
+  group('pinnedSourceSha256', () {
+    test('this package pins a source SHA256 next to ghostty.version', () {
+      final root = Directory.current.uri;
+      expect(pinnedSourceSha256(root), matches(RegExp(r'^[0-9a-f]{64}$')));
+      expect(pinnedCommit(root), hasLength(40));
+    });
+
+    test('rejects a value that is not a SHA256 digest', () {
+      final tmpDir = Directory.systemTemp.createTempSync('sha_test_');
+      addTearDown(() => tmpDir.deleteSync(recursive: true));
+      File('${tmpDir.path}/ghostty.sha256').writeAsStringSync('abc\n');
+
+      expect(() => pinnedSourceSha256(tmpDir.uri), throwsA(isA<StateError>()));
     });
   });
 }
