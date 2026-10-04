@@ -6,3 +6,9 @@ linter:
     prefer_single_quotes: true
     use_super_parameters: true
 
+
+analyzer:
+  exclude:
+    # 自己维护的上游 fork 在它自己的 pub workspace 里分析和测试（见 third_party/README.md）；
+    # 不排除的话，根目录 flutter analyze 会因为解析不到 fork 的依赖报上万条错误。
+    - third_party/**
