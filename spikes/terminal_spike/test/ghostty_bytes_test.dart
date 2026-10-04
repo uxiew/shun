@@ -64,6 +64,16 @@ void main() {
       expect(result.plain, contains('é|'));
     });
 
+    // 真机上按退格，回环页回显的 0x7f 显示成一个方格。VT100 收到 DEL 应当忽略（xterm 也是），
+    // Ghostty 0.0.12 却把它当可打印字符存进格子。远端程序真输出 0x7f 时也会出方格。
+    // 这里固定的是"现状"：换库版本后这条失败，说明行为变了，去复核 R04 证据和 R17 的过滤。
+    test('已知差异：裸 DEL（0x7f）被存进格子，VT100 会忽略它', () {
+      final result = feed([
+        Uint8List.fromList([0x61, 0x7f, 0x62]),
+      ]);
+      expect(result.plain, 'a\x7fb');
+    });
+
     test('前提：素材里的中文确实被渲染，DA 查询确实只回应一次', () {
       final result = feed([VtSamples.all]);
       expect(result.plain, contains('回到主屏'));
