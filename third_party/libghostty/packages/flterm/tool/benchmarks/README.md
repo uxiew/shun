@@ -90,7 +90,7 @@ glyphs and also exercises bold text, combining text, and emoji. The bundled
 fonts keep glyph selection stable across machines.
 
 `first terminal frame` records at least 30 independent first frames from fresh
-renderer and render-cache instances. Terminal state and fonts are prepared
+renderer and atlas-pool instances. Terminal state and fonts are prepared
 first. This measures flterm's first presentation, not Flutter process startup.
 
 ## Run locally

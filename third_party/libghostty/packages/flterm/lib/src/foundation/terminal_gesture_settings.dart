@@ -1,4 +1,5 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart' show TextMagnifierConfiguration;
 import 'package:libghostty/libghostty.dart' show SelectionGestureBehaviors;
 
 /// A modifier key used to trigger gesture behaviors.
@@ -55,6 +56,21 @@ final class TerminalGestureSettings {
   /// they do not apply text selection.
   final bool longPressSelection;
 
+  /// Whether touch selections show draggable endpoint handles.
+  ///
+  /// Defaults to true. Android and iOS handles follow their platform selection
+  /// styles. Desktop mouse and trackpad selections never show handles. This
+  /// setting does not disable long-press selection itself.
+  final bool touchSelectionHandles;
+
+  /// Magnifier shown while a touch selection handle is dragged.
+  ///
+  /// When null, flterm uses Flutter's [TextMagnifier] on Android and a
+  /// terminal-themed, borderless lens on iOS. Both platforms include the local
+  /// selection handle in the magnified content. Pass
+  /// [TextMagnifierConfiguration.disabled] to disable only the magnifier.
+  final TextMagnifierConfiguration? magnifierConfiguration;
+
   /// Whether the select-all keyboard shortcut can select terminal contents.
   ///
   /// Defaults to true. This only controls the shortcut; calling
@@ -72,6 +88,7 @@ final class TerminalGestureSettings {
   ///
   /// Defaults to [GestureModifier.alt], matching most desktop terminals.
   /// Set to null to disable modifier-based block selection.
+  /// This modifier also switches selection shape during touch-handle drags.
   ///
   /// Avoid [GestureModifier.shift]: Shift is used to bypass terminal
   /// mouse tracking, and the two behaviors would conflict.
@@ -103,6 +120,8 @@ final class TerminalGestureSettings {
     this.dragSelection = true,
     this.selectAllShortcut = true,
     this.longPressSelection = true,
+    this.touchSelectionHandles = true,
+    this.magnifierConfiguration,
     this.lineSelectMode = .content,
     this.blockSelectionModifier = .alt,
     this.selectionBehaviors = .standard,
@@ -120,6 +139,8 @@ final class TerminalGestureSettings {
     lineSelectMode,
     dragSelection,
     longPressSelection,
+    touchSelectionHandles,
+    magnifierConfiguration,
     selectAllShortcut,
     wordBoundaries,
   );
@@ -139,6 +160,8 @@ final class TerminalGestureSettings {
           lineSelectMode == other.lineSelectMode &&
           dragSelection == other.dragSelection &&
           longPressSelection == other.longPressSelection &&
+          touchSelectionHandles == other.touchSelectionHandles &&
+          magnifierConfiguration == other.magnifierConfiguration &&
           selectAllShortcut == other.selectAllShortcut &&
           wordBoundaries == other.wordBoundaries;
 }

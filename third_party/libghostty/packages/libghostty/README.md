@@ -19,7 +19,7 @@ dependencies:
   libghostty: ^0.0.12
 ```
 
-On web, initialize the WASM module once before using any bindings:
+On web, initialize the Wasm module once before using any libghostty API:
 
 ```dart
 await initializeForWeb(Uri.parse('assets/libghostty.wasm'));
@@ -137,6 +137,18 @@ final formatter = Formatter(terminal: terminal, format: .plain);
 print(formatter.format());
 formatter.dispose();
 ```
+
+### Resource lifetime and errors
+
+Dispose owned resources such as `Terminal`, `RenderState`, iterators, encoders,
+events, parsers, and formatters when they are no longer needed. Disposal is
+idempotent. Borrowed values such as `GridRef`, `KittyGraphics`, and `KittyImage`
+must not be used after a mutating terminal operation; reacquire them instead.
+
+Failures reported by libghostty use typed exceptions, including
+`OutOfMemoryException`, `InvalidValueException`, `OutOfSpaceException`,
+`NoValueException`, `IoException`, and `LimitExceededException`. Invalid Dart
+resource lifecycle use throws `StateError`.
 
 ### SGR and OSC parsing
 

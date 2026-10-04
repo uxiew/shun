@@ -6,7 +6,7 @@ import 'dart:typed_data';
 
 import 'package:flterm/src/foundation.dart';
 import 'package:flterm/src/rendering.dart';
-import 'package:flterm/src/rendering/terminal_render_cache.dart';
+import 'package:flterm/src/rendering/atlas_pool.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,10 +25,10 @@ void main() {
     const rows = 5;
     final sceneKey = GlobalKey();
 
-    TerminalRenderCache renderCache() {
-      final cache = TerminalRenderCache();
-      addTearDown(cache.dispose);
-      return cache;
+    AtlasPool atlasPool() {
+      final pool = AtlasPool();
+      addTearDown(pool.dispose);
+      return pool;
     }
 
     void writeUtf8(Terminal terminal, String text) {
@@ -49,6 +49,14 @@ void main() {
     }) async {
       final terminal = Terminal(cols: cols, rows: rows);
       addTearDown(terminal.dispose);
+      applyTerminalTheme(terminal, theme);
+      final frameChanges = ChangeNotifier();
+      void onTerminalChanged() => frameChanges.notifyListeners();
+      terminal.addListener(onTerminalChanged);
+      addTearDown(() {
+        terminal.removeListener(onTerminalChanged);
+        frameChanges.dispose();
+      });
       writeUtf8(terminal, content);
 
       tester.view.devicePixelRatio = 1.0;
@@ -73,11 +81,14 @@ void main() {
                     ),
                     child: TerminalRenderer(
                       terminal: terminal,
+                      frameChanges: frameChanges,
                       theme: theme,
                       metrics: metrics,
                       offset: ViewportOffset.zero(),
-                      renderCache: renderCache(),
-                      renderObserver: const _Observer(),
+                      atlasPool: atlasPool(),
+                      focused: true,
+                      onGeometryChanged: SurfaceGeometry.tryFrom,
+                      onViewportRowChanged: (_) {},
                     ),
                   ),
                 ),
@@ -149,17 +160,4 @@ void main() {
       await expectGolden('transparent_explicit_default.png');
     });
   });
-}
-
-class _Observer implements TerminalRenderObserver {
-  const _Observer();
-
-  @override
-  bool get hasFocus => true;
-
-  @override
-  void addListener(VoidCallback listener) {}
-
-  @override
-  void removeListener(VoidCallback listener) {}
 }

@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart' show internal;
 
 import 'link_match.dart';
 import 'link_settings.dart';
-import 'terminal_logical_line.dart';
+import 'logical_line.dart';
 
 /// Detects OSC 8 links from cell metadata.
 ///
@@ -16,7 +16,7 @@ final class Osc8LinkDetector {
   /// Each logical line carries one URI entry per retained cell. Adjacent cells
   /// with the same URI are grouped into one link, and null URI cells split the
   /// current run.
-  Iterable<LinkMatch> matches(List<TerminalLogicalLine> lines) sync* {
+  Iterable<LinkMatch> matches(List<LogicalLine> lines) sync* {
     for (final line in lines) {
       String? uri;
       var startIndex = -1;
@@ -24,13 +24,13 @@ final class Osc8LinkDetector {
         final nextUri = line.uris[i];
         if (nextUri == uri) continue;
 
-        if (uri != null && startIndex >= 0) {
+        if (uri != null) {
           yield _matchFromCells(line, startIndex, i - 1, uri: uri);
         }
         uri = nextUri;
         startIndex = nextUri == null ? -1 : i;
       }
-      if (uri != null && startIndex >= 0) {
+      if (uri != null) {
         yield _matchFromCells(
           line,
           startIndex,
@@ -42,7 +42,7 @@ final class Osc8LinkDetector {
   }
 
   LinkMatch _matchFromCells(
-    TerminalLogicalLine line,
+    LogicalLine line,
     int start,
     int end, {
     required String uri,

@@ -7,7 +7,7 @@ import 'dart:typed_data';
 import 'package:flterm/src/foundation.dart';
 import 'package:flterm/src/rendering.dart';
 import 'package:flterm/src/rendering/atlas/atlas_config.dart';
-import 'package:flterm/src/rendering/terminal_render_cache.dart';
+import 'package:flterm/src/rendering/atlas_pool.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -28,28 +28,38 @@ void main() {
   );
   const defaultRows = 5;
 
-  TerminalRenderCache createRenderCache() {
-    final cache = TerminalRenderCache();
-    addTearDown(cache.dispose);
-    return cache;
+  AtlasPool createAtlasPool() {
+    final pool = AtlasPool();
+    addTearDown(pool.dispose);
+    return pool;
   }
 
   Widget wrap(
     Terminal terminal, {
     TerminalTheme? theme,
     CellMetrics metrics = defaultMetrics,
+    EdgeInsets surfacePadding = EdgeInsets.zero,
     TestSelection? selection,
     double? maxWidth,
     double? maxHeight,
     bool focused = true,
     bool blinkVisible = true,
-    OnResize? onResize,
-    VoidCallback? onViewportChanged,
-    TerminalRenderCache? renderCache,
+    double devicePixelRatio = 1,
+    ValueChanged<SurfaceMeasurement>? onGeometryChanged,
+    ValueChanged<int>? onViewportRowChanged,
+    AtlasPool? atlasPool,
     ViewportOffset? offset,
+    bool resizeDeferred = false,
   }) {
     selection?.applyTo(terminal);
-    renderCache ??= createRenderCache();
+    atlasPool ??= createAtlasPool();
+    final frameChanges = ChangeNotifier();
+    void onTerminalChanged() => frameChanges.notifyListeners();
+    terminal.addListener(onTerminalChanged);
+    addTearDown(() {
+      terminal.removeListener(onTerminalChanged);
+      frameChanges.dispose();
+    });
     final width = maxWidth ?? defaultCols * metrics.cellWidth;
     final height = maxHeight ?? defaultRows * metrics.cellHeight;
     return Directionality(
@@ -60,14 +70,46 @@ void main() {
           constraints: BoxConstraints(maxWidth: width, maxHeight: height),
           child: TerminalRenderer(
             terminal: terminal,
+            frameChanges: frameChanges,
             theme: theme ?? TerminalTheme.dark(),
             metrics: metrics,
+            surfacePadding: surfacePadding,
             offset: offset ?? ViewportOffset.zero(),
-            renderCache: renderCache,
-            renderObserver: _TestRenderObserver(hasFocus: focused),
+            atlasPool: atlasPool,
+            devicePixelRatio: devicePixelRatio,
+            focused: focused,
             blinkVisible: blinkVisible,
-            onResize: onResize,
-            onViewportChanged: onViewportChanged,
+            resizeDeferred: resizeDeferred,
+            onGeometryChanged: (measurement) {
+              final current = terminal.geometry;
+              final accepted = SurfaceGeometry.tryFrom(
+                resizeDeferred
+                    ? SurfaceMeasurement(
+                        cols: current.cols,
+                        rows: current.rows,
+                        cellWidth: measurement.cellWidth,
+                        cellHeight: measurement.cellHeight,
+                        paddingLeft: measurement.paddingLeft,
+                        paddingRight: measurement.paddingRight,
+                        paddingTop: measurement.paddingTop,
+                        paddingBottom: measurement.paddingBottom,
+                        devicePixelRatio: measurement.devicePixelRatio,
+                      )
+                    : measurement,
+              );
+              if (accepted == null) return null;
+              if (!resizeDeferred) {
+                terminal.resize(
+                  cols: accepted.cols,
+                  rows: accepted.rows,
+                  cellWidthPx: accepted.cellWidthPx,
+                  cellHeightPx: accepted.cellHeightPx,
+                );
+              }
+              onGeometryChanged?.call(measurement);
+              return accepted;
+            },
+            onViewportRowChanged: onViewportRowChanged ?? (_) {},
           ),
         ),
       ),
@@ -109,6 +151,69 @@ void main() {
       expect(box.size.height, 80.0);
     });
 
+    testWidgets('uses the terminal grid while resize is deferred', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        wrap(
+          terminal,
+          maxWidth: 10 * defaultMetrics.cellWidth,
+          maxHeight: 3 * defaultMetrics.cellHeight,
+          resizeDeferred: true,
+        ),
+      );
+
+      final box = tester.renderObject<TerminalRenderBox>(
+        find.byType(TerminalRenderer),
+      );
+
+      expect(box.debugGridSize, (cols: defaultCols, rows: defaultRows));
+    });
+
+    testWidgets('reports measured grid while resize is deferred', (
+      tester,
+    ) async {
+      SurfaceMeasurement? reportedGeometry;
+
+      await tester.pumpWidget(
+        wrap(
+          terminal,
+          maxWidth: 10 * defaultMetrics.cellWidth,
+          maxHeight: 3 * defaultMetrics.cellHeight,
+          resizeDeferred: true,
+          onGeometryChanged: (geometry) => reportedGeometry = geometry,
+        ),
+      );
+
+      expect((reportedGeometry!.cols, reportedGeometry!.rows), (10, 3));
+    });
+
+    testWidgets('commits the measured grid when resize deferral ends', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        wrap(
+          terminal,
+          maxWidth: 10 * defaultMetrics.cellWidth,
+          maxHeight: 3 * defaultMetrics.cellHeight,
+          resizeDeferred: true,
+        ),
+      );
+
+      await tester.pumpWidget(
+        wrap(
+          terminal,
+          maxWidth: 10 * defaultMetrics.cellWidth,
+          maxHeight: 3 * defaultMetrics.cellHeight,
+        ),
+      );
+
+      final box = tester.renderObject<TerminalRenderBox>(
+        find.byType(TerminalRenderer),
+      );
+      expect(box.debugGridSize, (cols: 10, rows: 3));
+    });
+
     testWidgets('metrics change triggers layout', (tester) async {
       await tester.pumpWidget(wrap(terminal));
       final box = tester.renderObject<TerminalRenderBox>(
@@ -120,53 +225,141 @@ void main() {
       expect(box.size, isNot(equals(sizeBefore)));
     });
 
-    testWidgets('onResize fires when grid dimensions change', (tester) async {
-      int? reportedCols;
-      int? reportedRows;
+    testWidgets('geometry callback reports the complete measured surface', (
+      tester,
+    ) async {
+      SurfaceMeasurement? reportedGeometry;
       await tester.pumpWidget(
         wrap(
           terminal,
-          onResize: (cols, rows) {
-            reportedCols = cols;
-            reportedRows = rows;
-          },
+          surfacePadding: const EdgeInsets.fromLTRB(8, 6, 4, 2),
+          devicePixelRatio: 2,
+          onGeometryChanged: (geometry) => reportedGeometry = geometry,
         ),
       );
-      expect(reportedCols, defaultCols);
-      expect(reportedRows, defaultRows);
+
+      expect(reportedGeometry, isNotNull);
+      expect(reportedGeometry!.cols, defaultCols);
+      expect(reportedGeometry!.rows, defaultRows);
+      expect(reportedGeometry!.paddingLeft, 8);
+      expect(reportedGeometry!.paddingBottom, 2);
+      expect(reportedGeometry!.devicePixelRatio, 2);
+    });
+
+    testWidgets('geometry callback fires when physical cell geometry changes', (
+      tester,
+    ) async {
+      var resizeCount = 0;
+      await tester.pumpWidget(
+        wrap(
+          terminal,
+          onGeometryChanged: (_) => resizeCount++,
+          maxWidth: defaultCols * altMetrics.cellWidth,
+          maxHeight: defaultRows * altMetrics.cellHeight,
+        ),
+      );
+      await tester.pumpWidget(
+        wrap(
+          terminal,
+          metrics: altMetrics,
+          onGeometryChanged: (_) => resizeCount++,
+          maxWidth: defaultCols * altMetrics.cellWidth,
+          maxHeight: defaultRows * altMetrics.cellHeight,
+        ),
+      );
+
+      expect(resizeCount, 2);
+    });
+
+    testWidgets('geometry callback fires when surface padding changes', (
+      tester,
+    ) async {
+      var resizeCount = 0;
+      await tester.pumpWidget(
+        wrap(terminal, onGeometryChanged: (_) => resizeCount++),
+      );
+      await tester.pumpWidget(
+        wrap(
+          terminal,
+          surfacePadding: const EdgeInsets.fromLTRB(8, 6, 4, 2),
+          onGeometryChanged: (_) => resizeCount++,
+        ),
+      );
+
+      expect(resizeCount, 2);
+    });
+
+    testWidgets('clears layout state when the geometry callback throws', (
+      tester,
+    ) async {
+      final error = StateError('geometry failed');
+
+      await tester.pumpWidget(
+        wrap(terminal, onGeometryChanged: (_) => throw error),
+      );
+      expect(tester.takeException(), same(error));
+
+      await tester.pumpWidget(wrap(terminal));
+
+      expect(
+        tester
+            .renderObject<TerminalRenderBox>(find.byType(TerminalRenderer))
+            .size,
+        const Size(200, 80),
+      );
+    });
+
+    testWidgets('geometry callback initializes a replacement terminal', (
+      tester,
+    ) async {
+      final replacement = Terminal(cols: defaultCols, rows: defaultRows);
+      addTearDown(replacement.dispose);
+
+      await tester.pumpWidget(wrap(terminal));
+      await tester.pumpWidget(wrap(replacement));
+
+      expect(
+        replacement.geometry,
+        const TerminalGeometry(
+          cols: defaultCols,
+          rows: defaultRows,
+          widthPx: defaultCols * 8,
+          heightPx: defaultRows * 16,
+        ),
+      );
     });
 
     testWidgets('theme change triggers layout', (tester) async {
-      final renderCache = _TrackingRenderCache();
-      addTearDown(renderCache.dispose);
-      await tester.pumpWidget(wrap(terminal, renderCache: renderCache));
+      final atlasPool = _TrackingAtlasPool();
+      addTearDown(atlasPool.dispose);
+      await tester.pumpWidget(wrap(terminal, atlasPool: atlasPool));
       final box = tester.renderObject<TerminalRenderBox>(
         find.byType(TerminalRenderer),
       );
       expect(box.theme, TerminalTheme.dark());
-      final acquisitionsBefore = renderCache.acquiredKeys.length;
+      final acquisitionsBefore = atlasPool.acquiredKeys.length;
 
       final light = TerminalTheme.light();
       await tester.pumpWidget(
-        wrap(terminal, theme: light, renderCache: renderCache),
+        wrap(terminal, theme: light, atlasPool: atlasPool),
       );
       expect(box.theme, light);
-      expect(renderCache.acquiredKeys, hasLength(acquisitionsBefore));
+      expect(atlasPool.acquiredKeys, hasLength(acquisitionsBefore));
     });
 
     testWidgets('font theme change reacquires atlas', (tester) async {
-      final renderCache = _TrackingRenderCache();
-      addTearDown(renderCache.dispose);
-      await tester.pumpWidget(wrap(terminal, renderCache: renderCache));
-      final keyBefore = renderCache.acquiredKeys.last;
+      final atlasPool = _TrackingAtlasPool();
+      addTearDown(atlasPool.dispose);
+      await tester.pumpWidget(wrap(terminal, atlasPool: atlasPool));
+      final keyBefore = atlasPool.acquiredKeys.last;
 
       final larger = TerminalTheme.dark().copyWith(fontSize: 18);
       await tester.pumpWidget(
-        wrap(terminal, theme: larger, renderCache: renderCache),
+        wrap(terminal, theme: larger, atlasPool: atlasPool),
       );
       await tester.pump();
 
-      expect(renderCache.acquiredKeys.last, isNot(keyBefore));
+      expect(atlasPool.acquiredKeys.last, isNot(keyBefore));
     });
 
     testWidgets('selection change does not trigger layout', (tester) async {
@@ -231,45 +424,28 @@ void main() {
           List.filled(20, 'scrollback row\r\n').join().codeUnits,
         ),
       );
-      var notifications = 0;
+      final requestedRows = <int>[];
       await tester.pumpWidget(
-        wrap(
-          terminal,
-          offset: offset,
-          onViewportChanged: () => notifications++,
-        ),
+        wrap(terminal, offset: offset, onViewportRowChanged: requestedRows.add),
       );
-      notifications = 0;
+      requestedRows.clear();
 
       offset.jumpTo(0);
       await tester.pump();
 
-      expect(notifications, 1);
+      expect(requestedRows, [0]);
     });
   });
 }
 
-class _TrackingRenderCache extends TerminalRenderCache {
+class _TrackingAtlasPool extends AtlasPool {
   final acquiredKeys = <AtlasConfig>[];
 
   @override
-  TerminalAtlasHandle acquireAtlas(AtlasConfig config) {
+  AtlasLease acquireAtlas(AtlasConfig config) {
     acquiredKeys.add(config);
     return super.acquireAtlas(config);
   }
-}
-
-class _TestRenderObserver implements TerminalRenderObserver {
-  @override
-  final bool hasFocus;
-
-  const _TestRenderObserver({this.hasFocus = true});
-
-  @override
-  void addListener(VoidCallback listener) {}
-
-  @override
-  void removeListener(VoidCallback listener) {}
 }
 
 class _TestViewportOffset extends ViewportOffset {

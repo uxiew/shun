@@ -95,7 +95,7 @@ BenchmarkWorkloadResult _measureWrites({
   required List<Uint8List> chunks,
 }) {
   final controller = TerminalController(
-    config: const TerminalConfig(scrollbackLimit: 0),
+    config: const TerminalConfig(scrollbackMaxBytes: 0),
   );
   try {
     return measureBenchmark(

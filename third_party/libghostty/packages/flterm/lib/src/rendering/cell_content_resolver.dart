@@ -12,6 +12,7 @@ final class CellContentResolver {
   final Atlas _atlas;
   var _lastCodepoint = -1;
   var _lastSpan = 0;
+  var _lastCenterInFirstCell = false;
   var _lastBold = false;
   var _lastItalic = false;
   late AtlasEntry _lastEntry;
@@ -22,11 +23,20 @@ final class CellContentResolver {
     CellIterator cell, {
     required Style style,
     required int span,
+    bool borrowedCell = false,
   }) {
     final graphemeLength = cell.graphemeLength;
     if (graphemeLength == 0) return null;
 
     final codepoint = cell.codepoint;
+    if (borrowedCell && graphemeLength == 1) {
+      return resolveCodepoint(
+        codepoint,
+        style: style,
+        span: span,
+        centerInFirstCell: true,
+      );
+    }
     if (graphemeLength == 1) {
       if (codepoint == 0x20) return null;
       if (_usesCodepointEntry(
@@ -78,9 +88,11 @@ final class CellContentResolver {
     int codepoint, {
     required Style style,
     int span = 1,
+    bool centerInFirstCell = false,
   }) {
     if (codepoint == _lastCodepoint &&
         span == _lastSpan &&
+        centerInFirstCell == _lastCenterInFirstCell &&
         style.bold == _lastBold &&
         style.italic == _lastItalic) {
       return _lastEntry;
@@ -91,9 +103,11 @@ final class CellContentResolver {
       bold: style.bold,
       italic: style.italic,
       span: span,
+      centerInFirstCell: centerInFirstCell,
     );
     _lastCodepoint = codepoint;
     _lastSpan = span;
+    _lastCenterInFirstCell = centerInFirstCell;
     _lastBold = style.bold;
     _lastItalic = style.italic;
     _lastEntry = entry;

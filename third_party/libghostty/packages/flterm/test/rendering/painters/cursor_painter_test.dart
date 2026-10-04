@@ -9,7 +9,7 @@ import 'package:flterm/src/rendering/atlas/atlas.dart';
 import 'package:flterm/src/rendering/paint_state.dart';
 import 'package:flterm/src/rendering/painters/cursor_painter.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:libghostty/libghostty.dart' show Cursor;
+import 'package:libghostty/libghostty.dart' show RenderStateCursor;
 
 void main() {
   group('CursorPainter', () {
@@ -30,10 +30,10 @@ void main() {
     Future<ByteData> render({bool preeditActive = false}) async {
       final atlas = Atlas(config());
       addTearDown(atlas.dispose);
-      final state = TerminalPaintState(TerminalTheme.dark(), metrics)
+      final state = PaintState(TerminalTheme.dark(), metrics)
         ..cols = 2
         ..rows = 1
-        ..cursor = const Cursor()
+        ..cursor = const RenderStateCursor(viewportHasValue: true)
         ..cursorColorArgb = 0xFF0000FF
         ..preeditActive = preeditActive;
 

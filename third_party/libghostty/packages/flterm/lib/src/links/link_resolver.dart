@@ -5,8 +5,8 @@ import '../foundation/cell_range.dart';
 import 'link_match.dart';
 import 'link_settings.dart';
 import 'link_snapshot.dart';
+import 'logical_line.dart';
 import 'osc8_link_detector.dart';
-import 'terminal_logical_line.dart';
 import 'text_link_detector.dart';
 
 /// Resolves links from the visible terminal viewport.
@@ -28,7 +28,7 @@ final class LinkResolver {
   }) {
     if (settings.types.isEmpty) return .empty;
 
-    final lines = TerminalLogicalLine.visible(terminal, rows: rows, cols: cols);
+    final lines = LogicalLine.visible(terminal, rows: rows, cols: cols);
     return LinkSnapshot(
       _matches(lines, settings, cwd: null),
       highlighted: highlighted,
@@ -46,7 +46,7 @@ final class LinkResolver {
   }) {
     if (settings.types.isEmpty) return null;
 
-    final line = TerminalLogicalLine.atPosition(
+    final line = LogicalLine.atPosition(
       terminal,
       position,
       rows: rows,
@@ -62,7 +62,7 @@ final class LinkResolver {
   }
 
   List<LinkMatch> _matches(
-    List<TerminalLogicalLine> lines,
+    List<LogicalLine> lines,
     LinkSettings settings, {
     required String? cwd,
   }) {

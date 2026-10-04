@@ -17,9 +17,9 @@ import 'ffigen/enums.dart';
 import 'ffigen/naming.dart';
 import 'ffigen/wasm_exports.dart';
 
-const _nativeOutput = 'lib/src/ffi/libghostty.g.dart';
-const _enumsOutput = 'lib/src/ffi/libghostty_enums.g.dart';
-const _wasmOutput = 'lib/src/ffi/libghostty_wasm.g.dart';
+const _nativeOutput = 'lib/src/generated/libghostty.g.dart';
+const _enumsOutput = 'lib/src/generated/libghostty_enums.g.dart';
+const _wasmOutput = 'lib/src/generated/libghostty_wasm.g.dart';
 
 const _compilerOpts = ['-I../../ghostty/include'];
 
@@ -44,8 +44,8 @@ void main() {
         // C ABI sentinels (GHOSTTY_*_MAX_VALUE = INT_MAX) force enum sizing
         // but have no meaning in Dart and break exhaustive switches.
         (
-          member: RegExp(r',\n\s+\w*[Mm]axValue\(2147483647\);'),
-          fromValueCase: RegExp(r'\n\s+2147483647 => \w*[Mm]axValue,'),
+          member: RegExp(r',\n\s+\w+\(2147483647\);'),
+          fromValueCase: RegExp(r'\n\s+2147483647 => \w+,'),
         ),
       ],
     );
@@ -106,12 +106,18 @@ Headers _headers({List<String> compilerOpts = const []}) => Headers(
     final path = header.path;
     return path.contains('ghostty/vt.h') || path.contains('ghostty/vt/');
   },
-  compilerOptions: [..._compilerOpts, ...compilerOpts],
+  compilerOptions: [
+    ...defaultCompilerOpts(Logger.root),
+    ..._compilerOpts,
+    ...compilerOpts,
+  ],
 );
 
 const _nonLeafFunctions = {
   'ghostty_terminal_resize',
   'ghostty_terminal_vt_write',
+  'ghostty_terminal_continuation_write',
+  'ghostty_terminal_paste',
   'ghostty_terminal_set',
 };
 
@@ -121,7 +127,6 @@ FfiGenerator _createGenerator({
 }) => FfiGenerator(
   output: Output(
     dartFile: Uri.file(_nativeOutput),
-    sort: true,
     preamble: '// ignore_for_file: unused_field',
     style: const NativeExternalBindings(
       assetId: 'package:libghostty/libghostty.dart',

@@ -1,4 +1,4 @@
-import 'package:libghostty/src/bindings/types/result.dart';
+import 'package:libghostty/src/types/exceptions.dart';
 import 'package:test/test.dart';
 
 void main() {
@@ -23,10 +23,10 @@ void main() {
       });
 
       test('uses custom messages', () {
-        const outOfMemory = OutOfMemoryException('Custom OOM message');
+        const outOfMemory = OutOfMemoryException(message: 'Custom OOM message');
         expect(outOfMemory.message, 'Custom OOM message');
 
-        const invalidValue = InvalidValueException('Bad input');
+        const invalidValue = InvalidValueException(message: 'Bad input');
         expect(invalidValue.message, 'Bad input');
       });
     });

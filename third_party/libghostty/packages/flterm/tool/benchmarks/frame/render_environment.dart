@@ -2,16 +2,15 @@ import 'dart:convert' show utf8;
 
 import 'package:crypto/crypto.dart' show sha256;
 import 'package:flterm/src/foundation/cell_metrics.dart';
-import 'package:flterm/src/foundation/terminal_render_observer.dart';
+import 'package:flterm/src/foundation/surface_geometry.dart';
 import 'package:flterm/src/foundation/terminal_theme.dart';
 import 'package:flterm/src/rendering/atlas/atlas_config.dart';
-import 'package:flterm/src/rendering/terminal_render_cache.dart';
+import 'package:flterm/src/rendering/atlas_pool.dart';
 import 'package:flterm/src/rendering/terminal_renderer.dart';
 import 'package:flutter/rendering.dart' show ViewportOffset;
 import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:libghostty/libghostty.dart' show Terminal;
-
 import '../protocol.dart';
 
 const _metrics = CellMetrics(cellWidth: 8, cellHeight: 16, baseline: 12);
@@ -74,12 +73,14 @@ String benchmarkFontDigest({
 /// Fixed terminal surface shared by every rendering workload.
 final class BenchmarkTerminalSurface extends StatelessWidget {
   final Terminal terminal;
-  final TerminalRenderCache cache;
+  final Listenable frameChanges;
+  final AtlasPool atlasPool;
 
   const BenchmarkTerminalSurface({
     super.key,
     required this.terminal,
-    required this.cache,
+    required this.frameChanges,
+    required this.atlasPool,
   });
 
   @override
@@ -93,11 +94,24 @@ final class BenchmarkTerminalSurface extends StatelessWidget {
           height: benchmarkSurfaceSize.height,
           child: TerminalRenderer(
             terminal: terminal,
+            frameChanges: frameChanges,
             theme: _theme,
             metrics: _metrics,
             offset: ViewportOffset.zero(),
-            renderObserver: const _FocusedRenderObserver(),
-            renderCache: cache,
+            focused: true,
+            atlasPool: atlasPool,
+            onGeometryChanged: (measurement) {
+              final geometry = SurfaceGeometry.tryFrom(measurement);
+              if (geometry == null) return null;
+              terminal.resize(
+                cols: geometry.cols,
+                rows: geometry.rows,
+                cellWidthPx: geometry.cellWidthPx,
+                cellHeightPx: geometry.cellHeightPx,
+              );
+              return geometry;
+            },
+            onViewportRowChanged: terminal.scrollToRow,
           ),
         ),
       ),
@@ -106,19 +120,6 @@ final class BenchmarkTerminalSurface extends StatelessWidget {
 }
 
 /// Keeps an already-populated atlas alive after its renderer is detached.
-TerminalAtlasHandle retainBenchmarkAtlas(TerminalRenderCache cache) {
-  return cache.acquireAtlas(_atlasConfig);
-}
-
-final class _FocusedRenderObserver implements TerminalRenderObserver {
-  const _FocusedRenderObserver();
-
-  @override
-  bool get hasFocus => true;
-
-  @override
-  void addListener(VoidCallback listener) {}
-
-  @override
-  void removeListener(VoidCallback listener) {}
+AtlasLease retainBenchmarkAtlas(AtlasPool atlasPool) {
+  return atlasPool.acquireAtlas(_atlasConfig);
 }

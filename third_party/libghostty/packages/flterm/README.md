@@ -21,7 +21,7 @@ libghostty-vt engine.
   keyboard on mobile, both on web.
 - `TerminalController` owns the terminal and connects to a backend
   (PTY, SSH, socket) via output/resize/bell/title callbacks. Helpers
-  for I/O, selection, focus, scrolling, paste, and mode toggling.
+  for I/O, selection, scrolling, paste, and mode toggling.
 - Drag, double-click, triple-click, and Alt+drag selection over wide
   characters (CJK, emoji, VS16, combining marks) with cell-snapped
   boundaries.
@@ -71,6 +71,11 @@ TerminalView(
   theme: TerminalTheme.dark(),
 );
 ```
+
+Attach a controller to only one `TerminalView` at a time. The view does not
+dispose it; remove the view, dispose any formatters created by the controller,
+then dispose the controller when the terminal session ends. Resize callbacks
+begin after the view has measured and committed its first grid.
 
 The same controller drives the terminal programmatically:
 
@@ -146,6 +151,24 @@ TerminalView(
   ),
 );
 ```
+
+## Snapshots
+
+Capture terminal state with `controller.snapshot()` and restore it into a new
+controller:
+
+```dart
+final snapshot = controller.snapshot();
+final session = TerminalController.fromSnapshot(snapshot)
+  ..onOutput = backend.write;
+final view = TerminalView(controller: session);
+await session.restored;
+```
+
+The terminal is available immediately while older scrollback loads. Read
+`session.restoration` for lifecycle state, or await `session.restored` for
+completion and late errors. Enable `TerminalConfig.continuationMaxBytes` before
+writing unfinished VT or UTF-8 input that must be captured.
 
 ## License
 

@@ -3,32 +3,52 @@ import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 import 'dart:typed_data';
 
-import '../../ffi/libghostty_wasm.g.dart';
+import 'package:meta/meta.dart';
 
-class Mem {
+import '../../generated/libghostty_wasm.g.dart';
+
+final class Memory {
   final GhosttyExports _exports;
+  JSArrayBuffer? _bufferObject;
+  late ByteBuffer _buffer;
+  late ByteData _byteData;
+  late Uint8List _bytes;
+  late int _refreshCount;
 
-  Mem(this._exports);
+  Memory(this._exports) : _refreshCount = 0;
 
-  ByteData get view => _buffer.asByteData();
+  @visibleForTesting
+  int get refreshCount => _refreshCount;
 
-  ByteBuffer get _buffer {
-    return (_exports.memory['buffer']! as JSArrayBuffer).toDart;
+  ByteData get view {
+    _refresh();
+    return _byteData;
   }
 
-  Uint8List readBytes(int addr, int len) => _buffer.asUint8List(addr, len);
+  Uint8List readBytes(int addr, int len) {
+    _refresh();
+    _checkRange(addr, len);
+    return _bytes.buffer.asUint8List(addr, len);
+  }
 
   String readCString(int addr) {
     if (addr == 0) return '';
-    final bytes = <int>[];
-    var offset = addr;
-    while (true) {
-      final byte = readU8(offset);
-      if (byte == 0) break;
-      bytes.add(byte);
-      offset++;
+    _refresh();
+    if (addr < 0 || addr >= _bytes.length) {
+      throw StateError(
+        'Invalid WebAssembly C string address: $addr '
+        '(memory length ${_bytes.length})',
+      );
     }
-    return utf8.decode(bytes);
+    final bytes = <int>[];
+    for (var offset = addr; offset < _bytes.length; offset++) {
+      final byte = _bytes[offset];
+      if (byte == 0) {
+        return utf8.decode(bytes);
+      }
+      bytes.add(byte);
+    }
+    throw StateError('Unterminated WebAssembly C string at address $addr');
   }
 
   double readF32(int addr) => view.getFloat32(addr, .little);
@@ -52,7 +72,9 @@ class Mem {
   int readU8(int addr) => view.getUint8(addr);
 
   void writeBytes(int addr, List<int> bytes) {
-    _buffer.asUint8List(addr, bytes.length).setAll(0, bytes);
+    _refresh();
+    _checkRange(addr, bytes.length);
+    _bytes.buffer.asUint8List(addr, bytes.length).setAll(0, bytes);
   }
 
   void writeF32(int addr, double val) => view.setFloat32(addr, val, .little);
@@ -60,6 +82,8 @@ class Mem {
   void writeF64(int addr, double val) => view.setFloat64(addr, val, .little);
 
   void writeI32(int addr, int val) => view.setInt32(addr, val, .little);
+
+  void writePtr(int addr, int val) => writeU32(addr, val);
 
   void writeU16(int addr, int val) => view.setUint16(addr, val, .little);
 
@@ -71,4 +95,25 @@ class Mem {
   }
 
   void writeU8(int addr, int val) => view.setUint8(addr, val);
+
+  void _checkRange(int addr, int length) {
+    if (addr < 0 || length < 0 || addr > _bytes.length - length) {
+      throw StateError(
+        'WebAssembly memory range is out of bounds: address=$addr, '
+        'length=$length, memory length=${_bytes.length}',
+      );
+    }
+  }
+
+  void _refresh() {
+    final bufferObject = _exports.memory['buffer']! as JSArrayBuffer;
+    if (identical(bufferObject, _bufferObject)) return;
+    // WebAssembly.Memory.grow replaces and detaches the old ArrayBuffer. Never
+    // retain a typed view across that identity change.
+    _bufferObject = bufferObject;
+    _buffer = bufferObject.toDart;
+    _byteData = _buffer.asByteData();
+    _bytes = _buffer.asUint8List();
+    _refreshCount++;
+  }
 }

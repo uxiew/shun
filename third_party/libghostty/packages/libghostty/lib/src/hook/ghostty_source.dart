@@ -95,5 +95,6 @@ Future<Directory> resolveSource({
   final localGhostty = Directory.fromUri(workspaceRoot.resolve('ghostty/'));
   if (localGhostty.existsSync()) return localGhostty;
 
-  return downloadSource(cacheBase, packageRoot: packageRoot);
+  final directory = await downloadSource(cacheBase, packageRoot: packageRoot);
+  return directory;
 }

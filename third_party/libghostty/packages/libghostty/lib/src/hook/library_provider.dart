@@ -95,10 +95,11 @@ final class CompileFromSource extends LibraryProvider {
   Future<void> _compile(Directory sourceDir, File target) async {
     final os = input.config.code.targetOS;
     final arch = input.config.code.targetArchitecture;
-    final ios = os == OS.iOS ? input.config.code.iOS.targetSdk : null;
+    final ios = os == .iOS ? input.config.code.iOS.targetSdk : null;
+    final iOSVersion = os == .iOS ? input.config.code.iOS.targetVersion : null;
 
     final installDir = target.parent.parent.uri;
-    final zig = zigTarget(os, arch, iOSSdk: ios);
+    final zig = zigTarget(os, arch, iOSSdk: ios, iOSVersion: iOSVersion);
     final zigCacheDir = os == .windows ? _zigCacheDir(sourceDir) : null;
 
     final zigArgs = [
@@ -108,7 +109,9 @@ final class CompileFromSource extends LibraryProvider {
       Directory.fromUri(installDir).path,
       '--release=fast',
       if (zigCacheDir != null) ...['--global-cache-dir', zigCacheDir],
-      if (os != .current || arch != .current) '-Dtarget=$zig',
+      // Pass -Dtarget so source-compiled libraries use the target CPU baseline
+      // instead of the build machine's CPU.
+      '-Dtarget=$zig',
       if (ios == .iPhoneSimulator && arch == .arm64) '-Dcpu=apple_a17',
     ];
 
@@ -200,10 +203,11 @@ final class CompileFromSource extends LibraryProvider {
     final localGhostty = Directory.fromUri(workspaceRoot.resolve('ghostty/'));
     if (localGhostty.existsSync()) return localGhostty;
 
-    return switch (downloadMethod) {
+    final directory = await switch (downloadMethod) {
       .tarball => _downloadTarball(),
       .git => _gitClone(),
     };
+    return directory;
   }
 }
 

@@ -1,4 +1,4 @@
-import 'package:flterm/src/rendering/terminal_frame_builder.dart';
+import 'package:flterm/src/rendering/frame_builder.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {

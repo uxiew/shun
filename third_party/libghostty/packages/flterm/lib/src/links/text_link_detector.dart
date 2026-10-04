@@ -3,7 +3,7 @@ import 'package:flutter/foundation.dart' show internal;
 import 'link_match.dart';
 import 'link_path_resolver.dart';
 import 'link_settings.dart';
-import 'terminal_logical_line.dart';
+import 'logical_line.dart';
 import 'text_link_patterns.dart';
 
 /// Detects built-in text links and user-defined regex links.
@@ -17,7 +17,7 @@ final class TextLinkDetector {
   /// The detector scans logical-line text with [TextLinkPatterns.link], trims
   /// prose punctuation, then normalizes the match into URI or file data.
   Iterable<LinkMatch> builtInMatches(
-    List<TerminalLogicalLine> lines, {
+    List<LogicalLine> lines, {
     required String? cwd,
   }) sync* {
     for (final line in lines) {
@@ -51,7 +51,7 @@ final class TextLinkDetector {
   /// The rule runs against each logical line. Non-empty matches become custom
   /// links with their regex capture groups.
   Iterable<LinkMatch> customMatches(
-    List<TerminalLogicalLine> lines,
+    List<LogicalLine> lines,
     LinkRule rule,
     int sourceOrder,
   ) sync* {
@@ -83,7 +83,7 @@ final class TextLinkDetector {
   }
 
   LinkMatch _matchFromOffsets(
-    TerminalLogicalLine line,
+    LogicalLine line,
     int start,
     int end, {
     required LinkType type,

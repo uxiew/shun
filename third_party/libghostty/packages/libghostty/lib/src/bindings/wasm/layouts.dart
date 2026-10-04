@@ -1,14 +1,202 @@
+import 'dart:convert';
+
+import '../../generated/libghostty_enums.g.dart';
+import '../types.dart';
+
+_PackedBit _bit(Map<String, dynamic> value, String name, int totalWidth) {
+  final lsb = _requiredNonNegativeInt(value, 'lsb', name);
+  final width = _positiveInt(value, 'width');
+  if (lsb + width > totalWidth) {
+    throw FormatException('Packed cell bit "$name" exceeds its container.');
+  }
+  return _PackedBit(lsb: lsb, width: width);
+}
+
+void _checkKeys(
+  Map<String, dynamic> value,
+  Set<String> expected,
+  String context,
+) {
+  for (final key in value.keys) {
+    if (!expected.contains(key)) {
+      throw FormatException(
+        'Layout metadata has an unknown $context field: $key.',
+      );
+    }
+  }
+  for (final key in expected) {
+    if (!value.containsKey(key)) {
+      throw FormatException('Layout metadata is missing $context field: $key.');
+    }
+  }
+}
+
+Map<String, dynamic> _decodeLayoutJson(String source) {
+  final value = jsonDecode(source);
+  if (value is! Map) {
+    throw const FormatException('Layout metadata must have an object root.');
+  }
+  return value.cast<String, dynamic>();
+}
+
+Map<String, dynamic> _descriptor(Map<String, dynamic> types, String name) {
+  final descriptor = types[name];
+  if (descriptor is Map<String, dynamic>) return descriptor;
+  throw FormatException('Layout metadata is missing type "$name".');
+}
+
+int _extract(int raw, _PackedBit bit) {
+  return raw ~/ bit.divisor % bit.modulus;
+}
+
+_PackedArm _packedArm(
+  Map<String, dynamic> arms,
+  String name,
+  int width,
+  Map<String, String> expectedBits,
+) {
+  final value = _requiredMap(arms, name);
+  if (value['kind'] != 'packed' || value['width'] != width) {
+    throw FormatException('Packed cell arm "$name" has an invalid width.');
+  }
+  final bits = _requiredMap(value, 'bits');
+  if (bits.keys.length != expectedBits.length ||
+      !expectedBits.keys.every(bits.containsKey)) {
+    throw FormatException('Packed cell arm "$name" has invalid fields.');
+  }
+  final parsed = <String, _PackedBit>{};
+  for (final entry in expectedBits.entries) {
+    final bit = _requiredMap(bits, entry.key);
+    if (bit['kind'] != null || bit['type'] != entry.value) {
+      throw FormatException(
+        'Packed cell arm "$name" field "${entry.key}" has an invalid type.',
+      );
+    }
+    parsed[entry.key] = _bit(bit, '$name.${entry.key}', width);
+  }
+  return _PackedArm(width: width, bits: parsed);
+}
+
+Map<String, dynamic> _packedDescriptor(
+  Map<String, dynamic> types,
+  String name,
+) {
+  final descriptor = types[name];
+  if (descriptor is! Map<String, dynamic> || descriptor['kind'] != 'packed') {
+    throw FormatException('Layout metadata type "$name" is not packed.');
+  }
+  return descriptor;
+}
+
+int _positiveInt(Map<String, dynamic> value, String key) {
+  final result = value[key];
+  if (result is int && result > 0) return result;
+  throw FormatException(
+    'Layout metadata field "$key" must be a positive integer.',
+  );
+}
+
+int _powerOfTwo(int exponent) {
+  var value = 1;
+  for (var i = 0; i < exponent; i++) {
+    value *= 2;
+  }
+  return value;
+}
+
+Map<String, dynamic> _requiredMap(Map<String, dynamic> value, String key) {
+  final result = value[key];
+  if (result is Map<String, dynamic>) return result;
+  throw FormatException('Layout metadata field "$key" must be an object.');
+}
+
+int _requiredNonNegativeInt(
+  Map<String, dynamic> value,
+  String key,
+  String context,
+) {
+  final result = value[key];
+  if (result is int && result >= 0) return result;
+  throw FormatException(
+    'Layout metadata field "$key" for "$context" must be a '
+    'non-negative integer.',
+  );
+}
+
+String _requiredString(Map<String, dynamic> value, String key) {
+  final result = value[key];
+  if (result is String && result.isNotEmpty) return result;
+  throw FormatException(
+    'Layout metadata field "$key" must be a non-empty string.',
+  );
+}
+
+int _requireStruct(Map<String, dynamic> descriptor, String name) {
+  if (descriptor['kind'] != 'struct') {
+    throw FormatException('Layout metadata type "$name" is not a struct.');
+  }
+  return _requiredNonNegativeInt(descriptor, 'size', name);
+}
+
+_PackedBit _scalarBit(
+  Map<String, dynamic> bits,
+  String name,
+  String type,
+  int totalWidth,
+) {
+  final value = _requiredMap(bits, name);
+  if (value['kind'] != null || value['type'] != type) {
+    throw FormatException('Packed cell bit "$name" has an invalid type.');
+  }
+  return _bit(value, name, totalWidth);
+}
+
+_PackedBit _unionBit(
+  Map<String, dynamic> bits,
+  String name,
+  String tag,
+  int totalWidth,
+) {
+  final value = _requiredMap(bits, name);
+  if (value['kind'] != 'union' || value['tag'] != tag) {
+    throw FormatException('Packed cell union "$name" has an invalid tag.');
+  }
+  return _bit(value, name, totalWidth);
+}
+
+void _validateDisjoint(Iterable<_PackedBit> bits, String context) {
+  final ordered = bits.toList()..sort((a, b) => a.lsb.compareTo(b.lsb));
+  for (var i = 1; i < ordered.length; i++) {
+    if (ordered[i - 1].lsb + ordered[i - 1].width > ordered[i].lsb) {
+      throw FormatException('$context contains overlapping bits.');
+    }
+  }
+}
+
 /// Precomputed C struct sizes and field offsets for WASM32.
 ///
 /// Parsed once from [ghostty_type_json] at initialization. All fields
 /// are final ints resolved from the JSON, so method calls use direct
 /// field access with no map lookups.
-class Layouts {
+final class Layouts {
+  final int maxAlignment;
+  final PackedCellLayout cellLayout;
+
+  // GhosttyCellsView
+  late final int cellsViewSize;
+  late final int cellsViewPtr;
+  late final int cellsViewLen;
+
   // GhosttyBuffer
   late final int bufferSize;
   late final int bufferPtr;
   late final int bufferCap;
   late final int bufferLen;
+
+  // GhosttyWriter
+  late final int writerSize;
+  late final int writerWrite;
+  late final int writerUserdata;
 
   // GhosttyClipboardContent
   late final int clipboardContentSize;
@@ -20,9 +208,75 @@ class Layouts {
   late final int clipboardWriteLocation;
   late final int clipboardWriteContents;
   late final int clipboardWriteContentsLen;
+  late final int clipboardWriteName;
+  late final int clipboardWriteGranted;
+  late final int clipboardWriteCanRemember;
+  late final int clipboardWriteCtx;
+  late final int clipboardWriteReply;
+
+  // GhosttyClipboardRead
+  late final int clipboardReadSize;
+  late final int clipboardReadLocation;
+  late final int clipboardReadMimes;
+  late final int clipboardReadMimesLen;
+  late final int clipboardReadList;
+  late final int clipboardReadName;
+  late final int clipboardReadGranted;
+  late final int clipboardReadCanRemember;
+  late final int clipboardReadCtx;
+  late final int clipboardReadReply;
+
+  // GhosttyClipboardWriteReply
+  late final int clipboardWriteReplySize;
+  late final int clipboardWriteReplySizeField;
+  late final int clipboardWriteReplyResult;
+  late final int clipboardWriteReplyRemember;
+
+  // GhosttyClipboardReadReply
+  late final int clipboardReadReplySize;
+  late final int clipboardReadReplySizeField;
+  late final int clipboardReadReplyResult;
+  late final int clipboardReadReplyContents;
+  late final int clipboardReadReplyContentsLen;
+  late final int clipboardReadReplyAvailable;
+  late final int clipboardReadReplyAvailableLen;
+  late final int clipboardReadReplyRemember;
+
+  // GhosttyPaste
+  late final int pasteSize;
+  late final int pasteSizeField;
+  late final int pasteLocation;
+  late final int pasteSource;
+  late final int pasteMimes;
+  late final int pasteMimesLen;
+  late final int pasteReader;
+  late final int pasteReaderUserdata;
+  late final int pasteAllowUnsafe;
+
+  // GhosttySelectionBuffer
+  late final int selectionBufferSize;
+  late final int selectionBufferPtr;
+  late final int selectionBufferCap;
+  late final int selectionBufferLen;
+
+  // GhosttyTerminalDesktopNotification
+  late final int desktopNotificationSize;
+  late final int desktopNotificationTitle;
+  late final int desktopNotificationBody;
+
+  // GhosttyTerminalProgressReport
+  late final int terminalProgressReportSize;
+  late final int terminalProgressReportState;
+  late final int terminalProgressReportProgress;
+
+  // GhosttyTerminalModeConfig
+  late final int terminalModeConfigSize;
+  late final int terminalModeConfigMode;
+  late final int terminalModeConfigValue;
 
   // GhosttyColorRgb
   late final int colorRgbSize;
+  late final int colorRgbR;
   late final int colorRgbG;
   late final int colorRgbB;
 
@@ -175,6 +429,17 @@ class Layouts {
   late final int colorsCursorHasValue;
   late final int colorsPalette;
 
+  // GhosttyRenderStateCursor
+  late final int cursorSize;
+  late final int cursorViewportHasValue;
+  late final int cursorViewportX;
+  late final int cursorViewportY;
+  late final int cursorWideTail;
+  late final int cursorVisible;
+  late final int cursorBlinking;
+  late final int cursorPasswordInput;
+  late final int cursorVisualStyle;
+
   // GhosttyRenderStateRowSelection
   late final int renderRowSelectionSize;
   late final int renderRowSelectionStartX;
@@ -210,11 +475,6 @@ class Layouts {
   late final int styleColorG;
   late final int styleColorB;
 
-  // GhosttyTerminalOptions
-  late final int terminalOptsSize;
-  late final int terminalOptsRows;
-  late final int terminalOptsMaxScrollback;
-
   // GhosttyTerminalScrollbar
   late final int scrollbarSize;
   late final int scrollbarOffset;
@@ -224,15 +484,103 @@ class Layouts {
   late final int scrollViewportSize;
   late final int scrollViewportDelta;
 
-  Layouts(Map<String, dynamic> types) {
-    // TODO(elias8): migrate to `_Struct(types, ...)` once upstream ghostty
-    // registers `GhosttyBuffer` in `types.zig`.
-    bufferSize = 12;
-    bufferPtr = 0;
-    bufferCap = 4;
-    bufferLen = 8;
+  // GhosttySysImage
+  late final int sysImageSize;
+  late final int sysImageWidth;
+  late final int sysImageHeight;
+  late final int sysImageData;
+  late final int sysImageDataLen;
 
-    var struct = _Struct(types, 'GhosttyClipboardContent');
+  // GhosttySgrAttribute
+  late final int sgrAttributeSize;
+
+  // GhosttyTerminalUnknownSequence
+  late final int unknownSequenceSize;
+  late final int unknownSequenceTag;
+  late final int unknownSequenceValue;
+
+  // GhosttyTerminalUnknownStringSequence
+  late final int unknownStringSequenceSize;
+  late final int unknownStringSequenceTruncated;
+  late final int unknownStringSequenceContent;
+
+  factory Layouts.fromJson(String source) {
+    final root = _decodeLayoutJson(source);
+    _checkKeys(root, const {
+      'schema',
+      'abi',
+      'library_version',
+      'commit',
+      'dirty',
+      'types',
+    }, 'manifest');
+    final schema = root['schema'];
+    if (schema != 1) {
+      throw FormatException('Unsupported layout metadata schema: $schema.');
+    }
+
+    final abi = _requiredMap(root, 'abi');
+    _checkKeys(abi, const {
+      'target',
+      'os',
+      'environment',
+      'pointer_size',
+      'usize_size',
+      'max_alignment',
+      'endian',
+    }, 'abi');
+    if (abi['target'] != 'wasm32') {
+      throw FormatException(
+        'Unsupported layout metadata target: ${abi['target']}.',
+      );
+    }
+    if (abi['pointer_size'] != 4 || abi['usize_size'] != 4) {
+      throw const FormatException(
+        'Wasm layout metadata must use 32-bit pointers and usize.',
+      );
+    }
+    if (abi['endian'] != 'little') {
+      throw FormatException(
+        'Unsupported Wasm layout metadata endianness: ${abi['endian']}.',
+      );
+    }
+    final maxAlignment = _positiveInt(abi, 'max_alignment');
+    _requiredString(root, 'library_version');
+    final commit = root['commit'];
+    if (commit != null && commit is! String) {
+      throw const FormatException(
+        'Layout metadata field "commit" must be a string or null.',
+      );
+    }
+    final dirty = root['dirty'];
+    if (dirty != null && dirty is! bool) {
+      throw const FormatException(
+        'Layout metadata field "dirty" must be a boolean or null.',
+      );
+    }
+    final types = _requiredMap(root, 'types');
+    final cellLayout = PackedCellLayout.fromTypes(types);
+    return Layouts._(types, maxAlignment, cellLayout);
+  }
+
+  Layouts._(Map<String, dynamic> types, this.maxAlignment, this.cellLayout) {
+    var struct = _Struct(types, 'GhosttyCellsView');
+    cellsViewSize = struct.size;
+    cellsViewPtr = struct['ptr'];
+    cellsViewLen = struct['len'];
+
+    struct = _Struct(types, 'GhosttyBuffer');
+    bufferSize = struct.size;
+    bufferPtr = struct['ptr'];
+    bufferCap = struct['cap'];
+    bufferLen = struct['len'];
+
+    struct = _Struct(types, 'GhosttyWriter');
+    writerSize = struct.size;
+    writerWrite = struct['write'];
+    writerUserdata = struct['userdata'];
+
+    struct = _Struct(types, 'GhosttyClipboardContent');
     clipboardContentSize = struct.size;
     clipboardContentMime = struct['mime'];
     clipboardContentData = struct['data'];
@@ -242,9 +590,76 @@ class Layouts {
     clipboardWriteLocation = struct['location'];
     clipboardWriteContents = struct['contents'];
     clipboardWriteContentsLen = struct['contents_len'];
+    clipboardWriteName = struct['name'];
+    clipboardWriteGranted = struct['granted'];
+    clipboardWriteCanRemember = struct['can_remember'];
+    clipboardWriteCtx = struct['ctx'];
+    clipboardWriteReply = struct['reply'];
+
+    struct = _Struct(types, 'GhosttyClipboardRead');
+    clipboardReadSize = struct.size;
+    clipboardReadLocation = struct['location'];
+    clipboardReadMimes = struct['mimes'];
+    clipboardReadMimesLen = struct['mimes_len'];
+    clipboardReadList = struct['list'];
+    clipboardReadName = struct['name'];
+    clipboardReadGranted = struct['granted'];
+    clipboardReadCanRemember = struct['can_remember'];
+    clipboardReadCtx = struct['ctx'];
+    clipboardReadReply = struct['reply'];
+
+    struct = _Struct(types, 'GhosttyClipboardWriteReply');
+    clipboardWriteReplySize = struct.size;
+    clipboardWriteReplySizeField = struct['size'];
+    clipboardWriteReplyResult = struct['result'];
+    clipboardWriteReplyRemember = struct['remember'];
+
+    struct = _Struct(types, 'GhosttyClipboardReadReply');
+    clipboardReadReplySize = struct.size;
+    clipboardReadReplySizeField = struct['size'];
+    clipboardReadReplyResult = struct['result'];
+    clipboardReadReplyContents = struct['contents'];
+    clipboardReadReplyContentsLen = struct['contents_len'];
+    clipboardReadReplyAvailable = struct['available'];
+    clipboardReadReplyAvailableLen = struct['available_len'];
+    clipboardReadReplyRemember = struct['remember'];
+
+    struct = _Struct(types, 'GhosttyPaste');
+    pasteSize = struct.size;
+    pasteSizeField = struct['size'];
+    pasteLocation = struct['location'];
+    pasteSource = struct['source'];
+    pasteMimes = struct['mimes'];
+    pasteMimesLen = struct['mimes_len'];
+    final pasteReaderStruct = _Struct(types, 'GhosttyMimeReader');
+    pasteReader = struct['reader'] + pasteReaderStruct['read'];
+    pasteReaderUserdata = struct['reader'] + pasteReaderStruct['userdata'];
+    pasteAllowUnsafe = struct['allow_unsafe'];
+
+    struct = _Struct(types, 'GhosttySelectionBuffer');
+    selectionBufferSize = struct.size;
+    selectionBufferPtr = struct['ptr'];
+    selectionBufferCap = struct['cap'];
+    selectionBufferLen = struct['len'];
+
+    struct = _Struct(types, 'GhosttyTerminalDesktopNotification');
+    desktopNotificationSize = struct.size;
+    desktopNotificationTitle = struct['title'];
+    desktopNotificationBody = struct['body'];
+
+    struct = _Struct(types, 'GhosttyTerminalProgressReport');
+    terminalProgressReportSize = struct.size;
+    terminalProgressReportState = struct['state'];
+    terminalProgressReportProgress = struct['progress'];
+
+    struct = _Struct(types, 'GhosttyTerminalModeConfig');
+    terminalModeConfigSize = struct.size;
+    terminalModeConfigMode = struct['mode'];
+    terminalModeConfigValue = struct['value'];
 
     struct = _Struct(types, 'GhosttyColorRgb');
     colorRgbSize = struct.size;
+    colorRgbR = struct['r'];
     colorRgbG = struct['g'];
     colorRgbB = struct['b'];
 
@@ -320,22 +735,12 @@ class Layouts {
     selectLineWhitespaceLen = struct['whitespace_len'];
     selectLineSemanticPromptBoundary = struct['semantic_prompt_boundary'];
 
-    final selectionFormat = types['GhosttyTerminalSelectionFormatOptions'];
-    if (selectionFormat == null) {
-      // Some WASM artifacts omit this C struct from ghostty_type_json.
-      selectionFormatSize = 16;
-      selectionFormatEmit = 4;
-      selectionFormatUnwrap = 8;
-      selectionFormatTrim = 9;
-      selectionFormatSelection = 12;
-    } else {
-      struct = _Struct(types, 'GhosttyTerminalSelectionFormatOptions');
-      selectionFormatSize = struct.size;
-      selectionFormatEmit = struct['emit'];
-      selectionFormatUnwrap = struct['unwrap'];
-      selectionFormatTrim = struct['trim'];
-      selectionFormatSelection = struct['selection'];
-    }
+    struct = _Struct(types, 'GhosttyTerminalSelectionFormatOptions');
+    selectionFormatSize = struct.size;
+    selectionFormatEmit = struct['emit'];
+    selectionFormatUnwrap = struct['unwrap'];
+    selectionFormatTrim = struct['trim'];
+    selectionFormatSelection = struct['selection'];
 
     struct = _Struct(types, 'GhosttyGridRef');
     gridRefSize = struct.size;
@@ -343,20 +748,19 @@ class Layouts {
     gridRefX = struct['x'];
     gridRefY = struct['y'];
 
-    // TODO(elias8): migrate to `_Struct(types, ...)` once upstream ghostty
-    // registers `GhosttyKittyGraphicsPlacementRenderInfo` in `types.zig`.
-    kittyRenderInfoSize = 48;
-    kittyRenderInfoPixelWidth = 4;
-    kittyRenderInfoPixelHeight = 8;
-    kittyRenderInfoGridCols = 12;
-    kittyRenderInfoGridRows = 16;
-    kittyRenderInfoViewportCol = 20;
-    kittyRenderInfoViewportRow = 24;
-    kittyRenderInfoViewportVisible = 28;
-    kittyRenderInfoSourceX = 32;
-    kittyRenderInfoSourceY = 36;
-    kittyRenderInfoSourceWidth = 40;
-    kittyRenderInfoSourceHeight = 44;
+    struct = _Struct(types, 'GhosttyKittyGraphicsPlacementRenderInfo');
+    kittyRenderInfoSize = struct.size;
+    kittyRenderInfoPixelWidth = struct['pixel_width'];
+    kittyRenderInfoPixelHeight = struct['pixel_height'];
+    kittyRenderInfoGridCols = struct['grid_cols'];
+    kittyRenderInfoGridRows = struct['grid_rows'];
+    kittyRenderInfoViewportCol = struct['viewport_col'];
+    kittyRenderInfoViewportRow = struct['viewport_row'];
+    kittyRenderInfoViewportVisible = struct['viewport_visible'];
+    kittyRenderInfoSourceX = struct['source_x'];
+    kittyRenderInfoSourceY = struct['source_y'];
+    kittyRenderInfoSourceWidth = struct['source_width'];
+    kittyRenderInfoSourceHeight = struct['source_height'];
 
     struct = _Struct(types, 'GhosttyMouseEncoderSize');
     mouseEncoderSizeSize = struct.size;
@@ -414,17 +818,21 @@ class Layouts {
     colorsCursorHasValue = struct['cursor_has_value'];
     colorsPalette = struct['palette'];
 
-    final renderRowSelection = types['GhosttyRenderStateRowSelection'];
-    if (renderRowSelection == null) {
-      renderRowSelectionSize = 8;
-      renderRowSelectionStartX = 4;
-      renderRowSelectionEndX = 6;
-    } else {
-      struct = _Struct(types, 'GhosttyRenderStateRowSelection');
-      renderRowSelectionSize = struct.size;
-      renderRowSelectionStartX = struct['start_x'];
-      renderRowSelectionEndX = struct['end_x'];
-    }
+    struct = _Struct(types, 'GhosttyRenderStateCursor');
+    cursorSize = struct.size;
+    cursorViewportHasValue = struct['viewport_has_value'];
+    cursorViewportX = struct['viewport_x'];
+    cursorViewportY = struct['viewport_y'];
+    cursorWideTail = struct['wide_tail'];
+    cursorVisible = struct['visible'];
+    cursorBlinking = struct['blinking'];
+    cursorPasswordInput = struct['password_input'];
+    cursorVisualStyle = struct['visual_style'];
+
+    struct = _Struct(types, 'GhosttyRenderStateRowSelection');
+    renderRowSelectionSize = struct.size;
+    renderRowSelectionStartX = struct['start_x'];
+    renderRowSelectionEndX = struct['end_x'];
 
     struct = _Struct(types, 'GhosttySizeReportSize');
     sizeReportSize = struct.size;
@@ -458,11 +866,6 @@ class Layouts {
     styleColorG = scValueOff + sub['g'];
     styleColorB = scValueOff + sub['b'];
 
-    struct = _Struct(types, 'GhosttyTerminalOptions');
-    terminalOptsSize = struct.size;
-    terminalOptsRows = struct['rows'];
-    terminalOptsMaxScrollback = struct['max_scrollback'];
-
     struct = _Struct(types, 'GhosttyTerminalScrollbar');
     scrollbarSize = struct.size;
     scrollbarOffset = struct['offset'];
@@ -471,21 +874,250 @@ class Layouts {
     struct = _Struct(types, 'GhosttyTerminalScrollViewport');
     scrollViewportSize = struct.size;
     scrollViewportDelta = struct['value'];
+
+    struct = _Struct(types, 'GhosttySysImage');
+    sysImageSize = struct.size;
+    sysImageWidth = struct['width'];
+    sysImageHeight = struct['height'];
+    sysImageData = struct['data'];
+    sysImageDataLen = struct['data_len'];
+
+    struct = _Struct(types, 'GhosttySgrAttribute');
+    sgrAttributeSize = struct.size;
+
+    struct = _Struct(types, 'GhosttyTerminalUnknownSequence');
+    unknownSequenceSize = struct.size;
+    unknownSequenceTag = struct['tag'];
+    unknownSequenceValue = struct['value'];
+
+    struct = _Struct(types, 'GhosttyTerminalUnknownStringSequence');
+    unknownStringSequenceSize = struct.size;
+    unknownStringSequenceTruncated = struct['truncated'];
+    unknownStringSequenceContent = struct['content'];
   }
 }
 
+/// Packed cell metadata decoded from the artifact's ABI manifest.
+///
+/// This is an internal Wasm implementation detail. Bit positions are always
+/// read from [ghostty_type_json] and are never part of the Dart API.
+final class PackedCellLayout {
+  final int size;
+  final String underlying;
+  final _PackedBit _contentTag;
+  final _PackedBit _contentRgbR;
+  final _PackedBit _contentRgbG;
+  final _PackedBit _contentRgbB;
+  final _PackedBit _styleId;
+  final _PackedBit _wide;
+  final _PackedBit _protected;
+  final _PackedBit _hyperlink;
+  final _PackedBit _semanticContent;
+  final _PackedBit _codepoint;
+  final _PackedBit _codepointGrapheme;
+
+  factory PackedCellLayout.fromTypes(Map<String, dynamic> types) {
+    final descriptor = _packedDescriptor(types, 'GhosttyCell');
+    final cellSize = _positiveInt(descriptor, 'size');
+    final underlying = _requiredString(descriptor, 'underlying');
+    if (underlying != 'u64' || cellSize != 8) {
+      throw const FormatException(
+        'GhosttyCell must use an 8-byte u64 packed representation.',
+      );
+    }
+    final bits = _requiredMap(descriptor, 'bits');
+    const fieldNames = {
+      'content_tag',
+      'content',
+      'style_id',
+      'wide',
+      'protected',
+      'hyperlink',
+      'semantic_content',
+    };
+    if (bits.keys.length != fieldNames.length ||
+        !fieldNames.every(bits.containsKey)) {
+      throw const FormatException(
+        'GhosttyCell packed fields do not match the supported ABI.',
+      );
+    }
+    final contentTag = _scalarBit(
+      bits,
+      'content_tag',
+      'GhosttyCellContentTag',
+      cellSize * 8,
+    );
+    final content = _unionBit(bits, 'content', 'content_tag', cellSize * 8);
+    final styleId = _scalarBit(
+      bits,
+      'style_id',
+      'GhosttyStyleId',
+      cellSize * 8,
+    );
+    final wide = _scalarBit(bits, 'wide', 'GhosttyCellWide', cellSize * 8);
+    final protected = _scalarBit(bits, 'protected', 'bool', cellSize * 8);
+    final hyperlink = _scalarBit(bits, 'hyperlink', 'bool', cellSize * 8);
+    final semanticContent = _scalarBit(
+      bits,
+      'semantic_content',
+      'GhosttyCellSemanticContent',
+      cellSize * 8,
+    );
+    _validateDisjoint([
+      contentTag,
+      content,
+      styleId,
+      wide,
+      protected,
+      hyperlink,
+      semanticContent,
+    ], 'GhosttyCell');
+
+    final contentValue = _requiredMap(bits, 'content');
+    final arms = _requiredMap(contentValue, 'arms');
+    const armNames = {
+      'CODEPOINT',
+      'CODEPOINT_GRAPHEME',
+      'BG_COLOR_PALETTE',
+      'BG_COLOR_RGB',
+    };
+    if (!armNames.containsAll(arms.keys) ||
+        arms.keys.length != armNames.length) {
+      throw const FormatException(
+        'GhosttyCell content arms do not match the supported ABI.',
+      );
+    }
+    final codepoint = _packedArm(arms, 'CODEPOINT', content.width, {
+      'codepoint': 'u21',
+    });
+    final codepointGrapheme = _packedArm(
+      arms,
+      'CODEPOINT_GRAPHEME',
+      content.width,
+      {'codepoint': 'u21'},
+    );
+    final palette = _packedArm(arms, 'BG_COLOR_PALETTE', content.width, {
+      'index': 'GhosttyColorPaletteIndex',
+    });
+    final rgb = _packedArm(arms, 'BG_COLOR_RGB', content.width, {
+      'r': 'u8',
+      'g': 'u8',
+      'b': 'u8',
+    });
+    for (final arm in [codepoint, codepointGrapheme, palette, rgb]) {
+      _validateDisjoint(arm.bits.values, 'GhosttyCell content arm');
+    }
+
+    return PackedCellLayout._(
+      size: cellSize,
+      underlying: underlying,
+      contentTag: contentTag,
+      contentRgbR: _nestedBit(content, rgb, 'r'),
+      contentRgbG: _nestedBit(content, rgb, 'g'),
+      contentRgbB: _nestedBit(content, rgb, 'b'),
+      styleId: styleId,
+      wide: wide,
+      protected: protected,
+      hyperlink: hyperlink,
+      semanticContent: semanticContent,
+      codepoint: _nestedBit(content, codepoint, 'codepoint'),
+      codepointGrapheme: _nestedBit(content, codepointGrapheme, 'codepoint'),
+    );
+  }
+
+  PackedCellLayout._({
+    required this.size,
+    required this.underlying,
+    required _PackedBit contentTag,
+    required _PackedBit contentRgbR,
+    required _PackedBit contentRgbG,
+    required _PackedBit contentRgbB,
+    required _PackedBit styleId,
+    required _PackedBit wide,
+    required _PackedBit protected,
+    required _PackedBit hyperlink,
+    required _PackedBit semanticContent,
+    required _PackedBit codepoint,
+    required _PackedBit codepointGrapheme,
+  }) : _contentTag = contentTag,
+       _contentRgbR = contentRgbR,
+       _contentRgbG = contentRgbG,
+       _contentRgbB = contentRgbB,
+       _styleId = styleId,
+       _wide = wide,
+       _protected = protected,
+       _hyperlink = hyperlink,
+       _semanticContent = semanticContent,
+       _codepoint = codepoint,
+       _codepointGrapheme = codepointGrapheme;
+
+  /// Decodes one manifest-described cell into reusable storage.
+  ///
+  /// [target] is overwritten and returned. The packed value is borrowed from
+  /// the row view and remains valid only until the render state is updated.
+  RawCellData decodeInto(int raw, RawCellData target) {
+    final contentTag = CellContentTag.fromValue(_extract(raw, _contentTag));
+    final hasGrapheme = contentTag == .codepointGrapheme;
+    final codepoint = switch (contentTag) {
+      .codepoint => _extract(raw, _codepoint),
+      .codepointGrapheme => _extract(raw, _codepointGrapheme),
+      .bgColorPalette || .bgColorRgb => 0,
+    };
+    target.set(
+      rawCell: raw,
+      contentTag: contentTag,
+      codepoint: codepoint,
+      hasGrapheme: hasGrapheme,
+      styleId: _extract(raw, _styleId),
+      wide: CellWide.fromValue(_extract(raw, _wide)),
+      isProtected: _extract(raw, _protected) != 0,
+      hasHyperlink: _extract(raw, _hyperlink) != 0,
+      semanticContent: .fromValue(_extract(raw, _semanticContent)),
+      hasBackgroundRgb: contentTag == .bgColorRgb,
+      backgroundR: _extract(raw, _contentRgbR),
+      backgroundG: _extract(raw, _contentRgbG),
+      backgroundB: _extract(raw, _contentRgbB),
+    );
+    return target;
+  }
+
+  static _PackedBit _nestedBit(_PackedBit parent, _PackedArm arm, String name) {
+    final bit = arm.bits[name];
+    if (bit == null) throw StateError('Missing packed cell arm bit: $name.');
+    return _PackedBit(lsb: parent.lsb + bit.lsb, width: bit.width);
+  }
+}
+
+final class _PackedArm {
+  final int width;
+  final Map<String, _PackedBit> bits;
+
+  const _PackedArm({required this.width, required this.bits});
+}
+
+final class _PackedBit {
+  final int lsb;
+  final int width;
+  final int divisor;
+  final int modulus;
+
+  _PackedBit({required this.lsb, required this.width})
+    : divisor = _powerOfTwo(lsb),
+      modulus = _powerOfTwo(width);
+}
+
 /// Typed accessor for a single struct's layout from the JSON.
-class _Struct {
+final class _Struct {
   final int size;
   final Map<String, dynamic> _fields;
 
   _Struct(Map<String, dynamic> types, String name)
-    : size = (types[name] as Map<String, dynamic>)['size'] as int,
-      _fields =
-          (types[name] as Map<String, dynamic>)['fields']
-              as Map<String, dynamic>;
+    : this._fromDescriptor(_descriptor(types, name), name);
 
-  int operator [](String field) {
-    return (_fields[field] as Map<String, dynamic>)['offset'] as int;
-  }
+  _Struct._fromDescriptor(Map<String, dynamic> descriptor, String name)
+    : size = _requireStruct(descriptor, name),
+      _fields = _requiredMap(descriptor, 'fields');
+
+  int operator [](String field) =>
+      _requiredNonNegativeInt(_requiredMap(_fields, field), 'offset', field);
 }

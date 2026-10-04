@@ -12,26 +12,25 @@ import 'paint_state.dart';
 /// invalidates resolved placement rectangles. Unchanged inputs avoid placement
 /// iteration, image lookup, sorting, and image eviction.
 final class KittyPlacementCache {
-  final TerminalPaintState _state;
+  final PaintState _state;
   final KittyImageCache _images;
-  final List<KittyPlacementSnapshot> _snapshots = [];
   final Set<int> _liveImageIds = {};
+  final List<KittyPlacementSnapshot> _snapshots = [];
   _SnapshotKey? _key;
 
   KittyPlacementCache({required this._state, required this._images});
 
-  /// Placement snapshots ordered by their signed z-index.
+  /// Placement snapshots ordered by signed z-index, then image ID.
   Iterable<KittyPlacementSnapshot> get snapshots => _snapshots;
 
-  /// Refreshes snapshots from [terminal] when protocol or geometry inputs have
+  /// Refreshes snapshots from [graphics] when protocol or geometry inputs have
   /// changed.
   ///
   /// [geometryDirty] must be true after terminal mutations that can change
   /// placement render information without changing Kitty storage generation.
   ///
   /// Returns whether callers must rebuild their paint-order buckets.
-  bool sync(Terminal terminal, {required bool geometryDirty}) {
-    final graphics = KittyGraphics.of(terminal);
+  bool sync(KittyGraphics? graphics, {required bool geometryDirty}) {
     if (graphics == null) {
       final changed = _key != null || _snapshots.isNotEmpty;
       _clear();
@@ -51,9 +50,45 @@ final class KittyPlacementCache {
     );
     if (!geometryDirty && _key == key) return false;
 
-    _clear();
+    final (:nextSnapshots, :nextLiveImageIds, :replacementPending) =
+        _collectSnapshots(graphics, key);
+
+    if (nextSnapshots.length > 1) nextSnapshots.sort(_compareZ);
+    // Animated clients often replace every image before its decode completes.
+    // Keep the last complete frame only while its placement geometry remains
+    // compatible; changed geometry must wait for matching pixels instead.
+    if (replacementPending && _hasCompatibleGeometry(nextSnapshots)) {
+      _images.evict({..._liveImageIds, ...nextLiveImageIds});
+      return false;
+    }
+
+    _snapshots
+      ..clear()
+      ..addAll(nextSnapshots);
+    _liveImageIds
+      ..clear()
+      ..addAll(nextLiveImageIds);
+    _images.evict(_liveImageIds);
+    _key = key;
+    return true;
+  }
+
+  void _clear() {
+    _snapshots.clear();
+    _liveImageIds.clear();
+  }
+
+  ({
+    List<KittyPlacementSnapshot> nextSnapshots,
+    Set<int> nextLiveImageIds,
+    bool replacementPending,
+  })
+  _collectSnapshots(KittyGraphics graphics, _SnapshotKey key) {
+    final nextSnapshots = <KittyPlacementSnapshot>[];
+    final nextLiveImageIds = <int>{};
+    var replacementPending = false;
     for (final placement in graphics.placements()) {
-      _liveImageIds.add(placement.imageId);
+      nextLiveImageIds.add(placement.imageId);
 
       final info = placement.renderInfo;
       if (!info.viewportVisible) continue;
@@ -62,10 +97,15 @@ final class KittyPlacementCache {
       final image = graphics.image(placement.imageId);
       if (image == null) continue;
 
-      _images.lookup(image);
-      _snapshots.add(
+      final imageGeneration = image.generation;
+      final entry = _images.lookup(image, generation: imageGeneration);
+      replacementPending |=
+          entry is KittyImagePending ||
+          (entry is KittyImageReady && entry.generation != imageGeneration);
+      nextSnapshots.add(
         KittyPlacementSnapshot(
           imageId: placement.imageId,
+          imageGeneration: imageGeneration,
           dst: Rect.fromLTWH(
             info.viewportCol * key.cellWidth +
                 placement.xOffset / key.devicePixelRatio,
@@ -84,20 +124,40 @@ final class KittyPlacementCache {
         ),
       );
     }
+    return (
+      nextSnapshots: nextSnapshots,
+      nextLiveImageIds: nextLiveImageIds,
+      replacementPending: replacementPending,
+    );
+  }
 
-    if (_snapshots.length > 1) _snapshots.sort(_compareZ);
-    _images.evict(_liveImageIds);
-    _key = key;
+  bool _hasCompatibleGeometry(List<KittyPlacementSnapshot> next) {
+    if (_snapshots.isEmpty || _snapshots.length != next.length) return false;
+    final remaining = <({Rect dst, Rect src, int z}), int>{};
+    for (final replacement in next) {
+      final geometry = (
+        dst: replacement.dst,
+        src: replacement.src,
+        z: replacement.z,
+      );
+      remaining.update(geometry, (count) => count + 1, ifAbsent: () => 1);
+    }
+    for (final previous in _snapshots) {
+      final geometry = (dst: previous.dst, src: previous.src, z: previous.z);
+      final count = remaining[geometry];
+      if (count == null) return false;
+      if (count == 1) {
+        remaining.remove(geometry);
+      } else {
+        remaining[geometry] = count - 1;
+      }
+    }
     return true;
   }
 
-  void _clear() {
-    _snapshots.clear();
-    _liveImageIds.clear();
-  }
-
   static int _compareZ(KittyPlacementSnapshot a, KittyPlacementSnapshot b) {
-    return a.z.compareTo(b.z);
+    final z = a.z.compareTo(b.z);
+    return z != 0 ? z : a.imageId.compareTo(b.imageId);
   }
 }
 
@@ -107,6 +167,12 @@ final class KittyPlacementCache {
 /// libghostty's borrowed placement handles.
 final class KittyPlacementSnapshot {
   final int imageId;
+
+  /// Image generation this geometry was resolved against.
+  ///
+  /// The painter only draws a decoded image with the same generation, keeping
+  /// replacement geometry from being paired with stale pixels.
+  final int imageGeneration;
 
   /// Destination rectangle in the same logical-pixel space as cells.
   final Rect dst;
@@ -119,6 +185,7 @@ final class KittyPlacementSnapshot {
 
   const KittyPlacementSnapshot({
     required this.imageId,
+    this.imageGeneration = 0,
     required this.dst,
     required this.src,
     required this.z,

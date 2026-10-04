@@ -1,8 +1,8 @@
 import 'package:flterm/src/foundation/color_palette.dart';
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:libghostty/libghostty.dart'
     show RgbColor, defaultColorPalette, generateColorPalette;
+import 'package:material_ui/material_ui.dart';
 
 void main() {
   group('ColorPalette', () {

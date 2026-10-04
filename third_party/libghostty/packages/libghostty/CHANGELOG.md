@@ -1,5 +1,54 @@
 # Changelog
 
+## 0.0.13
+
+### Breaking
+
+- **Typed public values**: callback payloads, terminal geometry, decoded images,
+  and X11 colors use named, immutable classes. Replace record literals with the
+  corresponding class constructors.
+- **Kitty placement types**: `Placement` and `RenderInfo` are replaced by
+  `KittyPlacement` and `KittyPlacementRenderInfo`.
+- **Cursor types**: `Cursor` is renamed to `RenderStateCursor`. It replaces
+  `position` and `shape` with `viewportX`, `viewportY`, and `visualStyle`, and
+  adds `viewportHasValue`, `wideTail`, `blinking`, and `passwordInput`.
+  Terminal cursor configuration uses `TerminalCursorShape`.
+- **Selection gesture options**: `SelectionGestureEvent.clear()` is replaced
+  by nullable setters such as `setRef(null)` and
+  `setWordBoundaryCodepoints(null)`. Use `clearPosition()` to clear the pointer
+  position.
+- **Exception constructors**: messages and operation context use the named
+  `message` and `operation` arguments.
+- **Kitty pixel data**: `KittyImage.pixelData` is replaced by
+  `copyPixelDataInto()`, which copies into caller-owned storage and returns the
+  written byte count.
+
+### Added
+
+- **Terminal snapshots**: `Terminal.encodeSnapshot()` and `SnapshotDecoder`
+  support complete or incremental state restoration on native and Wasm targets.
+- **Terminal parsing controls**: `writeUntilGround()`, `isVtGround`,
+  `isCursorAtPrompt`, and `terminfoName` expose VT parsing, prompt state, and
+  terminal capability configuration.
+- **Unknown sequences**: `unknownSequenceMaxBytes` and `onUnknownSequence`
+  expose unsupported binary-safe terminal sequences with truncation metadata.
+
+### Changed
+
+- **Kitty graphics geometry**: source rectangles are clipped to image bounds
+  before destination sizing.
+- **Render traversal**: bulk Wasm cell reads and dirty-row iteration reduce
+  binding calls during incremental rendering.
+- **Error details**: libghostty exceptions include the result code and operation
+  context. Unknown result codes are preserved by `UnknownResultException`.
+- **Native and Wasm consistency**: both targets expose the same public behavior,
+  including error handling and resource lifetime semantics.
+
+### Fixed
+
+- **Package analysis**: generated Wasm documentation no longer emits invalid
+  HTML lints.
+
 ## 0.0.12
 
 ### Breaking

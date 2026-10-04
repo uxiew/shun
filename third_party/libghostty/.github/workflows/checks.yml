@@ -4,6 +4,7 @@ on:
   workflow_call:
 
 env:
+  FLUTTER_VERSION: "3.47.5"
   ZIG_VERSION: "0.16.0"
 
 jobs:
@@ -16,7 +17,7 @@ jobs:
       ptyx: ${{ steps.filter.outputs.ptyx }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
           filters: |
@@ -220,7 +221,7 @@ jobs:
       - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
         with:
           version: ${{ env.ZIG_VERSION }}
-      - uses: browser-actions/setup-chrome@2e1d749697dd1612b833dba4a722266286fbefcd # v2.1.2
+      - uses: browser-actions/setup-chrome@48ad923757ca74d66703209fe939badbdf80f2f4 # v2.2.0
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
           path: ~/.pub-cache
@@ -246,29 +247,27 @@ jobs:
       - name: isolate from repo git
         run: touch ghostty/.git
       - run: flutter pub get
-      - run: dart pub global activate very_good_cli
       - name: build wasm
         working-directory: packages/libghostty
         run: dart run tool/build_wasm.dart
       - name: run wasm tests
         working-directory: packages/libghostty
-        run: very_good test --platform=chrome test/wasm
+        run: dart test --platform=chrome test --exclude-tags=ffi
 
   test-flterm-golden:
     name: test-flterm-linux-golden
     needs: [analyze-flterm, changes]
     if: needs.changes.outputs.flterm == 'true'
     runs-on: ubuntu-latest
-    # Goldens run inside the cirruslabs Flutter image so the
-    # libfreetype/libpng/skia stack matches local Docker development. When the
-    # `stable` tag is republished, regenerate them with
-    # `packages/flterm/tool/update_goldens.sh`.
-    container:
-      image: ghcr.io/cirruslabs/flutter:stable
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-tags: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
       - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
         with:
           version: ${{ env.ZIG_VERSION }}

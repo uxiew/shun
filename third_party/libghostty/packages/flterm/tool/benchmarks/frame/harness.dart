@@ -1,6 +1,7 @@
 import 'dart:typed_data';
 
-import 'package:flterm/src/rendering/terminal_render_cache.dart';
+import 'package:flterm/src/rendering/atlas_pool.dart';
+import 'package:flutter/foundation.dart' show AsyncCallback, ValueNotifier;
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -45,10 +46,18 @@ final class FrameBenchmarkHarness {
         (
           terminal: Terminal(cols: benchmarkColumns, rows: benchmarkRows)
             ..write(state),
-          cache: TerminalRenderCache(),
+          atlasPool: AtlasPool(),
         ),
     ];
-    final retainedAtlases = <TerminalAtlasHandle>[];
+    final frameChanges = [for (final _ in resources) ValueNotifier(0)];
+    final terminalListeners = [
+      for (var index = 0; index < resources.length; index++)
+        () => frameChanges[index].value++,
+    ];
+    for (var index = 0; index < resources.length; index++) {
+      resources[index].terminal.addListener(terminalListeners[index]);
+    }
+    final retainedAtlasLeases = <AtlasLease>[];
     try {
       await _tester.pumpWidget(const SizedBox.shrink());
       await _binding.watchPerformance(() async {
@@ -59,13 +68,14 @@ final class FrameBenchmarkHarness {
               BenchmarkTerminalSurface(
                 key: ValueKey(sample),
                 terminal: resource.terminal,
-                cache: resource.cache,
+                frameChanges: frameChanges[sample],
+                atlasPool: resource.atlasPool,
               ),
             ),
           );
           _binding.scheduleFrame();
           await _binding.endOfFrame;
-          retainedAtlases.add(retainBenchmarkAtlas(resource.cache));
+          retainedAtlasLeases.add(retainBenchmarkAtlas(resource.atlasPool));
         }
       }, reportKey: _firstFrameReportKey);
       final summary = Map<String, Object?>.from(
@@ -77,11 +87,15 @@ final class FrameBenchmarkHarness {
       );
     } finally {
       await _tester.pumpWidget(const SizedBox.shrink());
-      for (final handle in retainedAtlases) {
-        handle.release();
+      for (final lease in retainedAtlasLeases) {
+        lease.release();
+      }
+      for (var index = 0; index < resources.length; index++) {
+        resources[index].terminal.removeListener(terminalListeners[index]);
+        frameChanges[index].dispose();
       }
       for (final resource in resources) {
-        resource.cache.dispose();
+        resource.atlasPool.dispose();
         resource.terminal.dispose();
       }
     }
@@ -99,13 +113,24 @@ final class FrameBenchmarkHarness {
     List<Uint8List>? updates,
   }) async {
     final terminal = Terminal(cols: benchmarkColumns, rows: benchmarkRows);
-    final cache = TerminalRenderCache();
+    final frameChanges = ValueNotifier(0);
+    void onTerminalChanged() => frameChanges.value++;
+    terminal.addListener(onTerminalChanged);
+    final atlasPool = AtlasPool();
     addTearDown(terminal.dispose);
-    addTearDown(cache.dispose);
+    addTearDown(() {
+      terminal.removeListener(onTerminalChanged);
+      frameChanges.dispose();
+    });
+    addTearDown(atlasPool.dispose);
     addTearDown(() => _tester.pumpWidget(const SizedBox.shrink()));
 
     await _tester.pumpWidget(
-      BenchmarkTerminalSurface(terminal: terminal, cache: cache),
+      BenchmarkTerminalSurface(
+        terminal: terminal,
+        frameChanges: frameChanges,
+        atlasPool: atlasPool,
+      ),
     );
     terminal.write(TerminalBenchmarkFixture.fullFrames(count: 1).single);
     await _tester.pump();
@@ -123,7 +148,7 @@ final class FrameBenchmarkHarness {
     return framePerformanceResult(workload: workload, summary: summary);
   }
 
-  Future<Map<String, Object?>> _capture(Future<void> Function() action) async {
+  Future<Map<String, Object?>> _capture(AsyncCallback action) async {
     await _binding.watchPerformance(action, reportKey: _reportKey);
     return Map<String, Object?>.from(
       _reportData.remove(_reportKey)! as Map<Object?, Object?>,
@@ -135,12 +160,23 @@ final class FrameBenchmarkHarness {
     required List<Uint8List> updates,
   }) async {
     final terminal = Terminal(cols: benchmarkColumns, rows: benchmarkRows);
-    final cache = TerminalRenderCache();
+    final frameChanges = ValueNotifier(0);
+    void onTerminalChanged() => frameChanges.value++;
+    terminal.addListener(onTerminalChanged);
+    final atlasPool = AtlasPool();
     addTearDown(terminal.dispose);
-    addTearDown(cache.dispose);
+    addTearDown(() {
+      terminal.removeListener(onTerminalChanged);
+      frameChanges.dispose();
+    });
+    addTearDown(atlasPool.dispose);
     addTearDown(() => _tester.pumpWidget(const SizedBox.shrink()));
     await _tester.pumpWidget(
-      BenchmarkTerminalSurface(terminal: terminal, cache: cache),
+      BenchmarkTerminalSurface(
+        terminal: terminal,
+        frameChanges: frameChanges,
+        atlasPool: atlasPool,
+      ),
     );
 
     final summary = await _capture(() async {

@@ -18,9 +18,7 @@ hooks:
       #   pinned `ghostty.version`.
       # - `prebuilt`: Download from GitHub Releases. Skips the Zig
       #   toolchain requirement.
-      # xwshun: 我们暂不改原生代码，本机也没装 Zig，所以用上游发布的预编译库（按包内 SHA256 表校验，
-      # 和 App 构建时拿到的是同一份）。要改原生代码时装 Zig、改回 compile，见 third_party/README.md。
-      source: prebuilt
+      source: compile
       # Source download method when `source: compile`.
       # - `tarball` (default): GitHub Release tarball.
       # - `git`: Clone from GitHub.

@@ -1,6 +1,5 @@
 import 'package:flterm/src/links/link_settings.dart' show LinkRule, LinkType;
-import 'package:flterm/src/links/terminal_logical_line.dart'
-    show TerminalLogicalLine;
+import 'package:flterm/src/links/logical_line.dart' show LogicalLine;
 import 'package:flterm/src/links/text_link_detector.dart' show TextLinkDetector;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:libghostty/libghostty.dart' show Position;
@@ -13,11 +12,11 @@ void main() {
       detector = TextLinkDetector();
     });
 
-    TerminalLogicalLine line(String text) {
+    LogicalLine line(String text) {
       final cells = [
         for (var i = 0; i < text.length; i++) Position(row: 0, col: i),
       ];
-      return TerminalLogicalLine(
+      return LogicalLine(
         text,
         cells,
         cells,

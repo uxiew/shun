@@ -1,4 +1,5 @@
 import 'package:flterm/src/foundation.dart';
+import 'package:flutter/widgets.dart' show TextMagnifierConfiguration;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:libghostty/libghostty.dart';
 
@@ -14,6 +15,8 @@ void main() {
         expect(settings.longPressSelectionShape, TerminalSelectionShape.normal);
         expect(settings.lineSelectMode, LineSelectMode.content);
         expect(settings.selectionBehaviors, SelectionGestureBehaviors.standard);
+        expect(settings.touchSelectionHandles, isTrue);
+        expect(settings.magnifierConfiguration, isNull);
         expect(settings.wordBoundaries, isNull);
       });
 
@@ -31,6 +34,23 @@ void main() {
         expect(settings.blockSelectionModifier, isNull);
       });
 
+      test('stores disabled touch selection handles', () {
+        const settings = TerminalGestureSettings(touchSelectionHandles: false);
+
+        expect(settings.touchSelectionHandles, isFalse);
+      });
+
+      test('stores a disabled magnifier', () {
+        const settings = TerminalGestureSettings(
+          magnifierConfiguration: TextMagnifierConfiguration.disabled,
+        );
+
+        expect(
+          settings.magnifierConfiguration,
+          same(TextMagnifierConfiguration.disabled),
+        );
+      });
+
       test('stores word boundaries', () {
         const settings = TerminalGestureSettings(wordBoundaries: '/🙂');
 
@@ -45,6 +65,12 @@ void main() {
         const differentDrag = TerminalGestureSettings(dragSelection: false);
         const differentLongPressSelection = TerminalGestureSettings(
           longPressSelection: false,
+        );
+        const differentTouchSelectionHandles = TerminalGestureSettings(
+          touchSelectionHandles: false,
+        );
+        const differentMagnifier = TerminalGestureSettings(
+          magnifierConfiguration: TextMagnifierConfiguration.disabled,
         );
         const differentSelectAll = TerminalGestureSettings(
           selectAllShortcut: false,
@@ -73,6 +99,8 @@ void main() {
         expect(a.hashCode, equals(b.hashCode));
         expect(a, isNot(equals(differentDrag)));
         expect(a, isNot(equals(differentLongPressSelection)));
+        expect(a, isNot(equals(differentTouchSelectionHandles)));
+        expect(a, isNot(equals(differentMagnifier)));
         expect(a, isNot(equals(differentSelectAll)));
         expect(a, isNot(equals(differentModifier)));
         expect(a, isNot(equals(differentLongPress)));

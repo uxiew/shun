@@ -26,7 +26,7 @@ jobs:
       ptyx: ${{ steps.filter.outputs.ptyx }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4.0.3
         id: filter
         with:
           filters: |
@@ -76,9 +76,11 @@ jobs:
             runner: macos-15
             ext: dylib
           - target: aarch64-ios
+            build_target: aarch64-ios.13.0
             runner: macos-15
             ext: dylib
           - target: aarch64-ios-simulator
+            build_target: aarch64-ios.13.0-simulator
             runner: macos-15
             ext: dylib
             extra_args: -Dcpu=apple_a17
@@ -137,7 +139,7 @@ jobs:
           rm ghostty.tar.gz
       - name: compile
         working-directory: ghostty-src
-        run: zig build -Demit-lib-vt=true --release=fast -Dtarget=${{ matrix.target }} ${{ matrix.extra_args }}
+        run: zig build -Demit-lib-vt=true --release=fast -Dtarget=${{ matrix.build_target || matrix.target }} ${{ matrix.extra_args }}
       - name: prepare artifact
         id: artifact
         run: |

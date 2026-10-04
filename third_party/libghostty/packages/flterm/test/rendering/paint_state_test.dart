@@ -3,13 +3,13 @@ import 'package:flterm/src/rendering/paint_state.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
-  group('TerminalPaintState', () {
+  group('PaintState', () {
     final theme = TerminalTheme.dark();
     const metrics = CellMetrics(cellWidth: 8, cellHeight: 16, baseline: 12);
 
     group('constructor', () {
       test('computes derived fields from theme', () {
-        final state = TerminalPaintState(theme, metrics);
+        final state = PaintState(theme, metrics);
 
         expect(state.theme, theme);
         expect(state.metrics, metrics);
@@ -21,7 +21,7 @@ void main() {
 
     group('updateTheme', () {
       test('recomputes derived fields', () {
-        final state = TerminalPaintState(theme, metrics);
+        final state = PaintState(theme, metrics);
         final light = TerminalTheme.light();
 
         state.updateTheme(light);
@@ -31,7 +31,7 @@ void main() {
       });
 
       test('faintAlpha reflects new faintOpacity', () {
-        final state = TerminalPaintState(theme, metrics);
+        final state = PaintState(theme, metrics);
 
         state.updateTheme(theme.copyWith(faintOpacity: 0.0));
         expect(state.faintAlpha, 0);
@@ -43,7 +43,7 @@ void main() {
 
     group('mutable state', () {
       test('starts with default frame state', () {
-        final state = TerminalPaintState(theme, metrics);
+        final state = PaintState(theme, metrics);
 
         expect(state.rows, 0);
         expect(state.cols, 0);

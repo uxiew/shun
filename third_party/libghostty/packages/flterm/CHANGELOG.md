@@ -1,5 +1,75 @@
 # Changelog
 
+## Unreleased
+
+### Breaking
+
+- **Renderer-neutral controller**: focus and soft-keyboard APIs move from
+  `TerminalController` to `TerminalView`. Pass a `FocusNode` for imperative
+  focus control and configure soft-keyboard access with `showKeyboard`.
+- **Controller contract**: `TerminalController` supports one attached
+  `TerminalView`. A second concurrent attachment throws `StateError`.
+- **Callback configuration**: `onBell`, `onOutput`, `onPwdChanged`, `onResize`,
+  and `onTitleChanged` are setter-only. Retain callback references if their
+  identity is needed elsewhere.
+- **Removed public types**: `KeyboardState` and `TerminalScrollPosition` are no
+  longer exported. Use `FocusNode`, `TerminalView.showKeyboard`, and the
+  standard `ScrollPosition` interface.
+
+### Added
+
+- **Terminal snapshots**: `TerminalController.snapshot()` captures libghostty
+  state, and `TerminalController.fromSnapshot()` restores it progressively or
+  synchronously. `restoration` exposes lifecycle state, while the
+  `restored` future reports completion and late errors. Continuation tracking
+  supports captures between VT or UTF-8 fragments; view integration preserves
+  snapshot colors and defers resizing while scrollback loads.
+- **Terminal search**: `TerminalController.search` manages incremental searches,
+  match navigation, scroll policy, and automatic viewport highlighting.
+  `TerminalTheme.search` styles ordinary and selected matches, while
+  `TerminalView.overlayBuilder` and `TerminalViewGeometry` support custom,
+  cell-aware search interfaces.
+- **Touch selection handles**: Android and iOS long-press selections expose
+  draggable platform-styled endpoint handles with adaptive magnifiers and edge
+  autoscroll. Toggling the configured block-selection modifier while dragging
+  switches between normal and rectangular selection. Configure or disable
+  magnification through `TerminalGestureSettings`.
+
+### Changed
+
+- **Incremental rendering**: frame building uses libghostty's dirty-row
+  iteration and bulk cleanup to reduce row scans and binding calls.
+- **Resize lifecycle**: `onResize` reports only after `TerminalView` commits a
+  measured grid; assigning it later immediately reports that grid.
+  Cell-pixel-only changes skip the callback, and in-band output is emitted
+  first.
+
+### Fixed
+
+- **Ctrl+Space**: Space now reports its unshifted codepoint, so Ctrl+Space
+  encodes as NUL in legacy mode and as a Kitty CSI u chord instead of a
+  plain space. Neovim and other applications can receive the completion
+  mapping without changing unmodified Space or other Ctrl chords.
+- **Cursor viewport state**: cursor and IME preedit rendering honor whether
+  the cursor has a valid viewport position and use its reported visual style.
+- **Text input recovery**: terminal clients reconnect when another input client
+  takes the platform text input connection, including while composition is
+  active.
+- **Keyboard and IME input**: AltGr printable input no longer emits synthetic
+  Control or Alt bytes, Kitty keyboard reports include Caps Lock and Num Lock,
+  and newline/deletion deduplication no longer duplicates or suppresses input.
+- **Pointer input**: mouse and stylus button changes remain accurate during a
+  gesture, stylus drags select text, and a gesture no longer switches between
+  selection and terminal mouse reporting.
+- **View updates**: controller swaps transfer terminal focus correctly, and
+  changing `TerminalView.fontData` refreshes cell metrics.
+- **Terminal glyph rendering**: Nerd Font symbols use common fallback families,
+  fit their cell without distortion, and preserve adjacent spacing. Operator
+  ligatures remain stable across complete runs.
+- **Kitty graphics rendering**: unchanged and replacing images remain drawable,
+  decode pressure is bounded, replacement pixels and geometry publish
+  atomically, and placement geometry refreshes during layout and resizing.
+
 ## 0.0.5
 
 ### Added

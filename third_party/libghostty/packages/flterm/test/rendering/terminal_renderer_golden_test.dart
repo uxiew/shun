@@ -5,9 +5,10 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flterm/src/foundation.dart';
-import 'package:flterm/src/links/link_snapshot.dart';
+import 'package:flterm/src/links/link_interaction.dart';
+import 'package:flterm/src/links/link_settings.dart';
 import 'package:flterm/src/rendering.dart';
-import 'package:flterm/src/rendering/terminal_render_cache.dart';
+import 'package:flterm/src/rendering/atlas_pool.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -59,10 +60,10 @@ void main() {
       return (0.299 * c.r * 255 + 0.587 * c.g * 255 + 0.114 * c.b * 255) < 128;
     }
 
-    TerminalRenderCache renderCache() {
-      final cache = TerminalRenderCache();
-      addTearDown(cache.dispose);
-      return cache;
+    AtlasPool atlasPool() {
+      final pool = AtlasPool();
+      addTearDown(pool.dispose);
+      return pool;
     }
 
     void writeUtf8(Terminal terminal, String text) {
@@ -79,10 +80,25 @@ void main() {
       bool focused = true,
       bool blinkVisible = true,
       String preeditText = '',
-      LinkSnapshot linkSnapshot = LinkSnapshot.empty,
-      OnResize? onResize,
+      LinkInteraction? links,
+      List<Selection> searchMatches = const [],
+      Selection? selectedSearchMatch,
+      ValueChanged<SurfaceMeasurement>? onGeometryChanged,
     }) {
+      final resolvedTheme =
+          theme ??
+          TerminalTheme.dark().copyWith(
+            fontFamilyFallback: bundledFontFamilyFallback,
+          );
+      applyTerminalTheme(terminal, resolvedTheme);
       selection?.applyTo(terminal);
+      final frameChanges = ChangeNotifier();
+      void onTerminalChanged() => frameChanges.notifyListeners();
+      terminal.addListener(onTerminalChanged);
+      addTearDown(() {
+        terminal.removeListener(onTerminalChanged);
+        frameChanges.dispose();
+      });
       final width = maxWidth ?? defaultCols * metrics.cellWidth;
       final height = maxHeight ?? defaultRows * metrics.cellHeight;
       return Directionality(
@@ -94,19 +110,30 @@ void main() {
             child: RepaintBoundary(
               child: TerminalRenderer(
                 terminal: terminal,
-                theme:
-                    theme ??
-                    TerminalTheme.dark().copyWith(
-                      fontFamilyFallback: bundledFontFamilyFallback,
-                    ),
+                frameChanges: frameChanges,
+                theme: resolvedTheme,
                 metrics: metrics,
                 offset: ViewportOffset.zero(),
-                renderCache: renderCache(),
-                renderObserver: _TestRenderObserver(hasFocus: focused),
+                atlasPool: atlasPool(),
+                focused: focused,
                 blinkVisible: blinkVisible,
                 preeditText: preeditText,
-                linkSnapshot: linkSnapshot,
-                onResize: onResize,
+                links: links,
+                searchMatches: searchMatches,
+                selectedSearchMatch: selectedSearchMatch,
+                onGeometryChanged: (measurement) {
+                  final geometry = SurfaceGeometry.tryFrom(measurement);
+                  if (geometry == null) return null;
+                  terminal.resize(
+                    cols: geometry.cols,
+                    rows: geometry.rows,
+                    cellWidthPx: geometry.cellWidthPx,
+                    cellHeightPx: geometry.cellHeightPx,
+                  );
+                  onGeometryChanged?.call(measurement);
+                  return geometry;
+                },
+                onViewportRowChanged: (_) {},
               ),
             ),
           ),
@@ -136,7 +163,9 @@ void main() {
       WidgetTester tester, {
       TerminalTheme? overrideTheme,
       TestSelection? selection,
-      LinkSnapshot linkSnapshot = LinkSnapshot.empty,
+      LinkInteraction? links,
+      List<Selection> searchMatches = const [],
+      Selection? selectedSearchMatch,
     }) async {
       tester.view.devicePixelRatio = 1.0;
       await tester.pumpWidget(
@@ -145,7 +174,9 @@ void main() {
           theme: overrideTheme ?? theme,
           selection: selection,
           metrics: goldenMetrics,
-          linkSnapshot: linkSnapshot,
+          links: links,
+          searchMatches: searchMatches,
+          selectedSearchMatch: selectedSearchMatch,
         ),
       );
     }
@@ -163,7 +194,7 @@ void main() {
           '\x1b[2mFaint text\x1b[0m\r\n'
           '\x1b[7mInverse text\x1b[0m\r\n'
           '\x1b[42;30m BG color \x1b[0m\r\n'
-          'a => b != c === d',
+          '== === !== != -> =>',
         );
         tester.view.devicePixelRatio = 1.0;
         await tester.pumpWidget(
@@ -178,6 +209,31 @@ void main() {
         await expectLater(
           find.byType(TerminalRenderer),
           matchesGoldenFile('goldens/text_styles.png'),
+        );
+        terminal.dispose();
+      });
+
+      testWidgets('Nerd Font symbol spacing', (tester) async {
+        const cols = 7;
+        const rows = 1;
+        final terminal = Terminal(cols: cols, rows: rows);
+        writeUtf8(terminal, '\x1b[34m\uE5FF\x1b[0m fvm');
+        final nerdTheme = theme.copyWith(
+          fontFamilyFallback: bundledNerdFontFamilyFallback,
+        );
+        tester.view.devicePixelRatio = 1.0;
+        await tester.pumpWidget(
+          wrap(
+            terminal,
+            theme: nerdTheme,
+            metrics: goldenMetrics,
+            maxWidth: cols * goldenMetrics.cellWidth,
+            maxHeight: rows * goldenMetrics.cellHeight,
+          ),
+        );
+        await expectLater(
+          find.byType(TerminalRenderer),
+          matchesGoldenFile('goldens/text_nerd_font_symbol_spacing.png'),
         );
         terminal.dispose();
       });
@@ -251,16 +307,25 @@ void main() {
         tester,
       ) async {
         writeUtf8(terminal, 'https://a.test tail');
-
-        await pump(
-          tester,
-          linkSnapshot: LinkSnapshot.highlighted(
-            const CellRange(
-              start: Position(row: 0, col: 0),
-              end: Position(row: 0, col: 13),
-            ),
+        final links = LinkInteraction();
+        addTearDown(links.dispose);
+        links.update(
+          context: LinkContext(
+            terminal: terminal,
+            rows: defaultRows,
+            cols: defaultCols,
+            cwd: null,
           ),
+          settings: LinkSettings(modifier: .none, onActivate: (_) {}),
+          idleStyle: theme.hyperlink.idle,
         );
+        links.handleHover(
+          localPosition: const Offset(4, 8),
+          metrics: goldenMetrics,
+          virtualMods: const Mods.none(),
+        );
+
+        await pump(tester, links: links);
 
         await expectLater(
           find.byType(TerminalRenderer),
@@ -594,6 +659,82 @@ void main() {
         await expectLater(
           find.byType(TerminalRenderer),
           matchesGoldenFile('goldens/selection_beyond_bounds.png'),
+        );
+      });
+    });
+
+    group('search', () {
+      testWidgets('renders distinct search match states', (tester) async {
+        final search = Search(terminal);
+        addTearDown(search.dispose);
+        writeUtf8(
+          terminal,
+          'alpha beta gamma\r\n'
+          'beta delta beta\r\n'
+          'omega beta sigma',
+        );
+        search.setNeedle('beta');
+        search.run();
+        search.selectNext();
+
+        await pump(
+          tester,
+          overrideTheme: theme.copyWith(
+            search: const SearchTheme(
+              match: SelectionTheme(
+                background: DynamicColor.fixed(Color(0xFFF0C674)),
+                foreground: DynamicColor.fixed(Color(0xFF1D1F21)),
+              ),
+              selectedMatch: SelectionTheme(
+                background: DynamicColor.fixed(Color(0xFFE64A3B)),
+                foreground: DynamicColor.fixed(Color(0xFFFFFFFF)),
+              ),
+            ),
+          ),
+          searchMatches: search.viewportMatches,
+          selectedSearchMatch: search.selectedMatch,
+        );
+        await expectLater(
+          find.byType(TerminalRenderer),
+          matchesGoldenFile('goldens/search_match_states.png'),
+        );
+      });
+
+      testWidgets('renders the visible part of a multiline match', (
+        tester,
+      ) async {
+        const cols = 12;
+        const rows = 3;
+        final terminal = Terminal(cols: cols, rows: rows);
+        addTearDown(terminal.dispose);
+        final search = Search(terminal);
+        addTearDown(search.dispose);
+        writeUtf8(
+          terminal,
+          'multiline-match\r\n'
+          'second line\r\n'
+          'third line\r\n'
+          'fourth line',
+        );
+        search.setNeedle('multiline-match');
+        search.run();
+        terminal.scrollToRow(1);
+        search.run();
+
+        tester.view.devicePixelRatio = 1.0;
+        await tester.pumpWidget(
+          wrap(
+            terminal,
+            theme: theme,
+            metrics: goldenMetrics,
+            maxWidth: cols * goldenMetrics.cellWidth,
+            maxHeight: rows * goldenMetrics.cellHeight,
+            searchMatches: search.viewportMatches,
+          ),
+        );
+        await expectLater(
+          find.byType(TerminalRenderer),
+          matchesGoldenFile('goldens/search_multiline_clipped.png'),
         );
       });
     });
@@ -977,17 +1118,4 @@ void main() {
       });
     });
   });
-}
-
-class _TestRenderObserver implements TerminalRenderObserver {
-  @override
-  final bool hasFocus;
-
-  const _TestRenderObserver({this.hasFocus = true});
-
-  @override
-  void addListener(VoidCallback listener) {}
-
-  @override
-  void removeListener(VoidCallback listener) {}
 }

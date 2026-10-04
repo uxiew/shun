@@ -10,13 +10,19 @@ import 'lanes/text_lane.dart';
 /// Lookup key for a cached text glyph. Two glyphs with the same text, bold,
 /// and italic state share the same atlas entry.
 typedef TextAtlasKey = ({String text, bool bold, bool italic});
-typedef _CodepointKey = ({int codepoint, bool bold, bool italic, int span});
+typedef _CodepointKey = ({
+  int codepoint,
+  bool bold,
+  bool italic,
+  int span,
+  bool centerInFirstCell,
+});
 typedef _TextKey = ({
   String text,
   bool bold,
   bool italic,
   int span,
-  double sourcePadding,
+  bool centerInFirstCell,
 });
 typedef _SpriteKey = ({int codepoint, int span});
 
@@ -39,7 +45,8 @@ class AtlasCache {
   final DecorationLane _decorationLane;
 
   final Map<_TextKey, AtlasEntry> _text = {};
-  final Map<_TextKey, AtlasEntry> _emoji = {};
+  final Map<({String text, bool bold, bool italic, int span}), AtlasEntry>
+  _emoji = {};
   final Map<_SpriteKey, AtlasEntry> _sprites = {};
   final Map<_CodepointKey, AtlasEntry> _codepoints = {};
   final Map<UnderlineStyle, AtlasEntry> _decorations = {};
@@ -75,6 +82,7 @@ class AtlasCache {
     required bool bold,
     required bool italic,
     int span = 1,
+    bool centerInFirstCell = false,
   }) {
     if (span == 1 &&
         !bold &&
@@ -94,15 +102,21 @@ class AtlasCache {
       if (sprite != null) return sprite;
     }
 
-    final key = (codepoint: codepoint, bold: bold, italic: italic, span: span);
+    final key = (
+      codepoint: codepoint,
+      bold: bold,
+      italic: italic,
+      span: span,
+      centerInFirstCell: centerInFirstCell,
+    );
     final existing = _codepoints[key];
     if (existing != null) return existing;
 
-    final entry = _addText((
-      text: String.fromCharCode(codepoint),
-      bold: bold,
-      italic: italic,
-    ), span: span);
+    final entry = _addText(
+      (text: String.fromCharCode(codepoint), bold: bold, italic: italic),
+      span: span,
+      centerInFirstCell: centerInFirstCell,
+    );
     _codepoints[key] = entry;
     return entry;
   }
@@ -142,7 +156,6 @@ class AtlasCache {
       bold: key.bold,
       italic: key.italic,
       span: span,
-      sourcePadding: 0.0,
     );
     return _emoji[cacheKey] ??= _emojiLane.rasterizeEmoji(
       key.text,
@@ -160,21 +173,25 @@ class AtlasCache {
     return _sprites[key] ??= _spriteLane.rasterizeSprite(glyph, span: span);
   }
 
-  AtlasEntry _addText(TextAtlasKey key, {int span = 1}) {
-    final sourcePadding = _textSourcePadding(key.text, span: span);
+  AtlasEntry _addText(
+    TextAtlasKey key, {
+    int span = 1,
+    bool centerInFirstCell = false,
+  }) {
     final cacheKey = (
       text: key.text,
       bold: key.bold,
       italic: key.italic,
       span: span,
-      sourcePadding: sourcePadding,
+      centerInFirstCell: centerInFirstCell,
     );
     return _text[cacheKey] ??= _textLane.rasterizeText(
       key.text,
       bold: key.bold,
       italic: key.italic,
       span: span,
-      sourcePadding: sourcePadding,
+      centerInFirstCell: centerInFirstCell,
+      sourcePadding: _textSourcePadding(key.text, span: span),
     );
   }
 

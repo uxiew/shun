@@ -24,7 +24,7 @@ void main() {
       final decoded = img.decodePng(bytes);
       if (decoded == null) return null;
       final rgba = decoded.convert(format: img.Format.uint8, numChannels: 4);
-      return (
+      return DecodedImage(
         width: rgba.width,
         height: rgba.height,
         rgba: Uint8List.fromList(rgba.toUint8List()),
@@ -86,8 +86,8 @@ void main() {
       return out;
     }
 
-    TerminalPaintState stateFor({required int cols, required int rows}) {
-      return TerminalPaintState(
+    PaintState stateFor({required int cols, required int rows}) {
+      return PaintState(
           TerminalTheme.dark(),
           const CellMetrics(cellWidth: 1, cellHeight: 1, baseline: 1),
         )
@@ -183,6 +183,62 @@ void main() {
       );
     });
 
+    testWidgets('does not draw stale pixels for replacement geometry', (
+      tester,
+    ) async {
+      late ui.Image captured;
+      await tester.runAsync(() async {
+        final cache = KittyImageCache(onImageReady: () {});
+        addTearDown(cache.dispose);
+        cache.putReady(
+          1,
+          await imageFromRgba(
+            Uint8List.fromList([0xff, 0x00, 0x00, 0xff]),
+            1,
+            1,
+          ),
+          generation: 1,
+        );
+        cache.putReady(
+          2,
+          await imageFromRgba(
+            Uint8List.fromList([0x00, 0xff, 0x00, 0xff]),
+            1,
+            1,
+          ),
+          generation: 2,
+        );
+
+        const snapshots = <KittyPlacementSnapshot>[
+          KittyPlacementSnapshot(
+            imageId: 1,
+            imageGeneration: 2,
+            dst: Rect.fromLTWH(0, 0, 80, 80),
+            src: Rect.fromLTWH(0, 0, 1, 1),
+            z: 0,
+          ),
+          KittyPlacementSnapshot(
+            imageId: 2,
+            imageGeneration: 2,
+            dst: Rect.fromLTWH(24, 24, 32, 32),
+            src: Rect.fromLTWH(0, 0, 1, 1),
+            z: 1,
+          ),
+        ];
+        final painter = KittyGraphicsPainter(
+          state: stateFor(cols: 80, rows: 80),
+          cache: cache,
+          snapshots: snapshots,
+        );
+
+        captured = await paint(width: 80, height: 80, draw: painter.paint);
+      });
+      await expectLater(
+        captured,
+        matchesGoldenFile('goldens/kitty_stale_replacement.png'),
+      );
+    });
+
     testWidgets('routes a PNG through the full pipeline', (tester) async {
       late ui.Image captured;
       await tester.runAsync(() async {
@@ -201,12 +257,14 @@ void main() {
         final image = KittyGraphics.of(terminal)!.image(1)!;
         expect(image.width, 64);
         expect(image.height, 64);
+        final pixels = Uint8List(image.width * image.height * 4);
+        image.copyPixelDataInto(pixels);
 
         final cache = KittyImageCache(onImageReady: () {});
         addTearDown(cache.dispose);
         cache.putReady(
           image.id,
-          await imageFromRgba(image.pixelData, image.width, image.height),
+          await imageFromRgba(pixels, image.width, image.height),
         );
 
         final snapshots = [

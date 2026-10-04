@@ -139,7 +139,7 @@ final class NativeSession implements PtySession {
   Future<void> _closeOutput() async {
     if (_outputDone) return;
     _outputDone = true;
-    return _outputController.close();
+    await _outputController.close();
   }
 
   void _completeExitCodeError(PtyException error) {

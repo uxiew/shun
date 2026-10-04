@@ -1,53 +1,78 @@
 import 'package:flutter/rendering.dart';
+import 'package:flutter/services.dart'
+    show
+        MouseCursor,
+        MouseTrackerAnnotation,
+        PointerEnterEventListener,
+        PointerExitEventListener,
+        SystemMouseCursors;
 import 'package:flutter/widgets.dart';
-import 'package:libghostty/libghostty.dart';
+import 'package:libghostty/libghostty.dart' hide Listenable;
 import 'package:meta/meta.dart';
 
 import '../foundation.dart';
-import '../links/link_snapshot.dart';
-import 'atlas/atlas_config.dart';
-import 'paint_state.dart';
-import 'terminal_render_cache.dart';
-import 'terminal_render_pipeline.dart';
+import '../input/text_input_session.dart' show TextInputGeometryChanged;
+import '../links/link_interaction.dart';
+import '../view/terminal_scroll_controller.dart';
+import 'atlas_pool.dart';
+import 'terminal_surface.dart';
 
 /// Renders a terminal screen with cell backgrounds, styled text, cursors,
 /// and selection overlays.
 ///
 /// This is the core rendering widget used internally by [TerminalView].
-/// It owns a [TerminalRenderBox] that orchestrates layout (grid sizing,
-/// terminal resize), frame sync, and a paint stack.
+/// It owns a [TerminalRenderBox] that orchestrates grid measurement, geometry
+/// intent reporting, frame sync, and surface painting. The controller, not the
+/// renderer, validates and commits resize intents to the terminal engine.
 ///
 /// Sizing is determined by the parent constraints and cell metrics: the
 /// widget computes how many columns and rows fit, then sizes itself to
-/// exactly that grid. When the grid dimensions change, the terminal is
-/// resized and [onResize] fires.
+/// exactly that grid. When the grid, physical cell dimensions, or surface
+/// padding change, [onGeometryChanged] reports the geometry intent to the
+/// owner.
 ///
 /// ```dart
 /// TerminalRenderer(
-///   terminal: myTerminal,
+///   terminal: terminal,
+///   frameChanges: frameChanges,
 ///   theme: TerminalTheme.dark(),
 ///   metrics: measureCellMetrics(fontFamily: 'monospace', fontSize: 14),
 ///   offset: ViewportOffset.zero(),
-///   renderObserver: controller,
+///   focused: true,
 /// )
 /// ```
 @internal
-class TerminalRenderer extends LeafRenderObjectWidget {
-  /// The terminal whose screen is rendered.
+final class TerminalRenderer extends LeafRenderObjectWidget {
+  /// Terminal state borrowed from the owning session.
   final Terminal terminal;
+
+  /// Publishes frame changes after the owning session updates its state.
+  final Listenable frameChanges;
+
+  /// Search matches intersecting the viewport.
+  final List<Selection> searchMatches;
+
+  /// Search match selected by navigation, if any.
+  final Selection? selectedSearchMatch;
 
   /// Visual style applied to the terminal.
   ///
-  /// When changed, theme colors are pushed to the terminal (foreground,
-  /// background, palette, cursor color), the glyph atlas is updated if
-  /// font properties changed, and a full repaint is scheduled.
+  /// When changed, the glyph atlas is updated if font properties changed and
+  /// a full repaint is scheduled. The owning view applies terminal colors.
   final TerminalTheme theme;
 
   /// Cell pixel dimensions used for grid sizing and coordinate conversion.
   ///
-  /// When changed, the glyph atlas is cleared and layout is recalculated.
-  /// A grid dimension change triggers terminal resize and [onResize].
+  /// When changed, layout is recalculated and a matching glyph atlas is
+  /// selected. A geometry change triggers [onGeometryChanged].
   final CellMetrics metrics;
+
+  /// Padding around the rendered terminal surface in logical pixels.
+  ///
+  /// This is carried to the resize callback so surface-space mouse
+  /// coordinates can be converted consistently with the terminal engine's
+  /// physical surface size.
+  final EdgeInsets surfacePadding;
 
   /// Scroll offset provided by a [Scrollable] ancestor.
   ///
@@ -55,52 +80,72 @@ class TerminalRenderer extends LeafRenderObjectWidget {
   /// At `pixels == maxScrollExtent`, the live screen is visible.
   final ViewportOffset offset;
 
-  /// Observable focus state.
+  /// Whether the terminal view currently has focus.
   ///
-  /// Listened to by the render box. Changes trigger a repaint to update
-  /// cursor appearance (filled vs hollow).
-  final TerminalRenderObserver renderObserver;
+  /// The owning view supplies this value from its [FocusNode]. Changes
+  /// trigger a repaint to update cursor appearance.
+  final bool focused;
 
   /// Whether the cursor blink is currently in the visible phase.
   ///
   /// When false, the cursor and blinking text (SGR 5) are hidden.
-  /// Toggled by a timer in [TerminalView].
+  /// Toggled by the owning view's attachment.
   final bool blinkVisible;
+
+  /// Whether layout preserves the terminal grid while reporting view geometry.
+  final bool resizeDeferred;
 
   /// IME preedit text to draw at the cursor before it is committed.
   final String preeditText;
 
-  /// Visible link styling state prepared by the view layer.
-  final LinkSnapshot linkSnapshot;
+  /// Supplies link state when the render object prepares a frame.
+  @internal
+  final LinkInteraction? links;
 
-  /// Called when the terminal grid dimensions change during layout.
+  /// Whether the platform cursor is hidden while terminal input is active.
+  @internal
+  final bool mouseCursorHidden;
+
+  /// Reports terminal geometry changes discovered during layout.
   ///
-  /// Fires after the terminal has been resized. Use this to notify the
-  /// backend (PTY, SSH) of the new dimensions.
-  final OnResize? onResize;
+  /// The callback receives the complete measured geometry. The owner must
+  /// apply the transaction before notifying its backend.
+  final SurfaceGeometryCallback onGeometryChanged;
 
-  /// Internal render cache used to share compatible atlas state.
-  final TerminalRenderCache renderCache;
+  /// Device pixel ratio of the Flutter view hosting this renderer.
+  final double devicePixelRatio;
 
-  /// Reports viewport movement that bypasses [Terminal] listeners.
-  ///
-  /// Scrolling may change [Terminal.compressionActivity] by making previously
-  /// visible scrollback eligible for compression.
-  final VoidCallback? onViewportChanged;
+  /// Publishes the final render geometry to the focused platform input owner.
+  @internal
+  final TextInputGeometryChanged? onTextInputGeometryChanged;
+
+  /// Internal atlas pool used to share compatible rendering state.
+  final AtlasPool atlasPool;
+
+  /// Requests a terminal viewport row derived from Flutter scroll layout.
+  final ValueChanged<int> onViewportRowChanged;
 
   const TerminalRenderer({
     super.key,
     required this.terminal,
+    required this.frameChanges,
+    this.searchMatches = const [],
+    this.selectedSearchMatch,
     required this.theme,
     required this.metrics,
+    this.surfacePadding = EdgeInsets.zero,
     required this.offset,
-    required this.renderObserver,
-    required this.renderCache,
+    required this.focused,
+    required this.atlasPool,
+    this.devicePixelRatio = 1,
     this.blinkVisible = true,
+    this.resizeDeferred = false,
     this.preeditText = '',
-    this.linkSnapshot = .empty,
-    this.onResize,
-    this.onViewportChanged,
+    this.links,
+    this.mouseCursorHidden = false,
+    required this.onGeometryChanged,
+    required this.onViewportRowChanged,
+    this.onTextInputGeometryChanged,
   });
 
   @override
@@ -109,14 +154,22 @@ class TerminalRenderer extends LeafRenderObjectWidget {
       theme: theme,
       offset: offset,
       metrics: metrics,
+      surfacePadding: surfacePadding,
       terminal: terminal,
-      renderCache: renderCache,
-      onResize: onResize,
-      onViewportChanged: onViewportChanged,
+      frameChanges: frameChanges,
+      searchMatches: searchMatches,
+      selectedSearchMatch: selectedSearchMatch,
+      atlasPool: atlasPool,
+      devicePixelRatio: devicePixelRatio,
+      onGeometryChanged: onGeometryChanged,
+      onViewportRowChanged: onViewportRowChanged,
       blinkVisible: blinkVisible,
+      resizeDeferred: resizeDeferred,
       preeditText: preeditText,
-      linkSnapshot: linkSnapshot,
-      renderObserver: renderObserver,
+      links: links,
+      mouseCursorHidden: mouseCursorHidden,
+      focused: focused,
+      onTextInputGeometryChanged: onTextInputGeometryChanged,
     );
   }
 
@@ -145,16 +198,24 @@ class TerminalRenderer extends LeafRenderObjectWidget {
   ) {
     renderObject
       ..terminal = terminal
+      ..frameChanges = frameChanges
+      ..searchMatches = searchMatches
+      ..selectedSearchMatch = selectedSearchMatch
       ..theme = theme
-      ..renderCache = renderCache
+      ..atlasPool = atlasPool
       ..offset = offset
       ..metrics = metrics
-      ..onResize = onResize
-      ..onViewportChanged = onViewportChanged
-      ..renderObserver = renderObserver
+      ..surfacePadding = surfacePadding
+      ..devicePixelRatio = devicePixelRatio
+      ..onGeometryChanged = onGeometryChanged
+      ..onViewportRowChanged = onViewportRowChanged
+      ..focused = focused
       ..blinkVisible = blinkVisible
+      ..resizeDeferred = resizeDeferred
       ..preeditText = preeditText
-      ..linkSnapshot = linkSnapshot;
+      ..links = links
+      ..mouseCursorHidden = mouseCursorHidden
+      ..onTextInputGeometryChanged = onTextInputGeometryChanged;
   }
 }
 
@@ -163,189 +224,211 @@ class TerminalRenderer extends LeafRenderObjectWidget {
 /// Three phases per frame:
 ///
 /// 1. **Layout**: computes grid size from constraints and [CellMetrics],
-///    configures the glyph atlas for the current DPR, resizes the terminal
-///    if the grid changed, and updates scroll extents.
+///    configures the glyph atlas for the current DPR, reports geometry intent
+///    when measurements change, and updates scroll extents.
 ///
 /// 2. **Sync** (start of paint): snapshots terminal cells, resolves colors
 ///    (including OSC 10/11 overrides, bold-is-bright, inverse, faint),
 ///    builds frame data for text/backgrounds/decorations, resolves
 ///    the cursor cell glyph, and collects Kitty graphics placements.
 ///
-/// 3. **Paint**: delegates to a paint stack that owns painter instances,
+/// 3. **Paint**: delegates to [TerminalSurface], which owns painter instances,
 ///    Kitty image snapshots, and z-order.
 ///
 /// Created and managed by [TerminalRenderer]. Not intended for direct use.
 @internal
-class TerminalRenderBox extends RenderBox {
-  Terminal _terminal;
-  ViewportOffset _offset;
-  TerminalRenderObserver _renderObserver;
-  OnResize? _onResize;
-  VoidCallback? _onViewportChanged;
-  TerminalRenderCache _renderCache;
-  late TerminalAtlasHandle _atlasHandle;
-  var _performingLayout = false;
-  var _needsFrameSync = false;
-  var _stickToBottom = true;
-  var _lastScrollbackRows = 0;
-  var _preeditText = '';
-  LinkSnapshot _linkSnapshot;
+final class TerminalRenderBox extends RenderBox
+    implements MouseTrackerAnnotation {
+  late final TerminalSurface _surface;
 
-  final TerminalPaintState _paintState;
-  late final TerminalRenderPipeline _pipeline;
+  Terminal _terminal;
+  Listenable _frameChanges;
+  LinkInteraction? _links;
+  var _mouseCursorHidden = false;
+  TextInputGeometryChanged? _onTextInputGeometryChanged;
+  VoidCallback? _cancelTextInputCompositionCallback;
+  late TerminalViewportCoordinator _viewport;
+  SurfaceGeometryCallback _onGeometryChanged;
+  ValueChanged<int> _onViewportRowChanged;
+  var _performingLayout = false;
+
+  var _surfacePadding = EdgeInsets.zero;
 
   TerminalRenderBox({
     required this._terminal,
+    required this._frameChanges,
+    List<Selection> searchMatches = const [],
+    Selection? selectedSearchMatch,
     required TerminalTheme theme,
     required CellMetrics metrics,
-    required this._offset,
-    required this._renderObserver,
-    required this._renderCache,
+    this._surfacePadding = EdgeInsets.zero,
+    required ViewportOffset offset,
+    required bool focused,
+    required AtlasPool atlasPool,
+    required double devicePixelRatio,
     bool blinkVisible = true,
-    this._linkSnapshot = .empty,
-    this._preeditText = '',
-    this._onResize,
-    this._onViewportChanged,
-  }) : _paintState = TerminalPaintState(theme, metrics)
-         ..blinkVisible = blinkVisible
-         ..cursorFocused = _renderObserver.hasFocus {
-    _atlasHandle = _renderCache.acquireAtlas(
-      .fromTheme(
-        theme: theme,
-        metrics: metrics,
-        devicePixelRatio: _currentDevicePixelRatio,
-      ),
-    );
-    final atlas = _atlasHandle.atlas;
-    _pipeline = TerminalRenderPipeline(
-      atlas: atlas,
-      state: _paintState,
+    bool resizeDeferred = false,
+    LinkInteraction? links,
+    bool mouseCursorHidden = false,
+    String preeditText = '',
+    required this._onGeometryChanged,
+    required ValueChanged<int> onViewportRowChanged,
+    this._onTextInputGeometryChanged,
+  }) : _onViewportRowChanged = onViewportRowChanged {
+    _viewport = TerminalViewportCoordinator.bind(offset, onViewportRowChanged);
+    _links = links;
+    _mouseCursorHidden = mouseCursorHidden;
+    _surface = TerminalSurface(
+      atlasPool: atlasPool,
+      theme: theme,
+      metrics: metrics,
+      devicePixelRatio: devicePixelRatio,
+      searchMatches: searchMatches,
+      selectedSearchMatch: selectedSearchMatch,
+      preeditText: preeditText,
+      focused: focused,
+      blinkVisible: blinkVisible,
+      resizeDeferred: resizeDeferred,
       onImageReady: markNeedsPaint,
     );
-
-    _applyTerminalThemeColors();
   }
 
-  bool get blinkVisible => _paintState.blinkVisible;
+  set atlasPool(AtlasPool value) {
+    if (_surface.updateAtlasPool(value)) _markFrameDirty();
+  }
+
+  bool get blinkVisible => _surface.blinkVisible;
 
   set blinkVisible(bool value) {
-    if (_paintState.blinkVisible == value) return;
-    _paintState.blinkVisible = value;
-    _pipeline.markAllRowsDirty();
-    _pipeline.refreshCursorGlyph();
-    markNeedsPaint();
+    if (_surface.updateBlinkVisible(visible: value)) markNeedsPaint();
   }
 
-  set preeditText(String value) {
-    if (_preeditText == value) return;
-    _preeditText = value;
-    markNeedsPaint();
+  @override
+  MouseCursor get cursor {
+    return _mouseCursorHidden || _links?.highlighted == null
+        ? MouseCursor.defer
+        : SystemMouseCursors.click;
   }
 
-  set linkSnapshot(LinkSnapshot value) {
-    if (_linkSnapshot == value) return;
-    final previous = _linkSnapshot;
-    _linkSnapshot = value;
-    if (identical(previous.matches, value.matches)) {
-      _markLinkRowsDirty(previous.highlighted);
-      _markLinkRowsDirty(value.highlighted);
-    } else {
-      _markLinkSnapshotRowsDirty(previous);
-      _markLinkSnapshotRowsDirty(value);
+  @visibleForTesting
+  ({int cols, int rows}) get debugGridSize =>
+      (cols: _surface.cols, rows: _surface.rows);
+
+  set devicePixelRatio(double value) {
+    if (_surface.updateDevicePixelRatio(value)) markNeedsLayout();
+  }
+
+  bool get focused => _surface.focused;
+
+  set focused(bool value) {
+    if (!_surface.updateFocused(focused: value)) return;
+    if (!value) {
+      _cancelTextInputCompositionCallback?.call();
+      _cancelTextInputCompositionCallback = null;
     }
     markNeedsPaint();
+  }
+
+  set frameChanges(Listenable value) {
+    if (identical(_frameChanges, value)) return;
+    if (attached) _frameChanges.removeListener(_onFrameChanged);
+    _frameChanges = value;
+    if (attached) _frameChanges.addListener(_onFrameChanged);
+    _surface.requestTerminalSync();
+    markNeedsLayout();
   }
 
   @override
   bool get isRepaintBoundary => true;
 
-  /// Current terminal input caret rect in this render box's local coordinates.
-  Rect get textInputCaretRect {
-    final metrics = _paintState.metrics;
-    final rows = _paintState.rows;
-    final cols = _paintState.cols;
-    if (rows <= 0 || cols <= 0) {
-      return Offset.zero & Size(metrics.cellWidth, metrics.cellHeight);
-    }
-
-    final cursor = _paintState.cursor;
-    final row = cursor.position.row.clamp(0, rows - 1);
-    final rawCol = cursor.wideTail && cursor.position.col > 0
-        ? cursor.position.col - 1
-        : cursor.position.col;
-    final col = rawCol.clamp(0, cols - 1);
-    return metrics.cellRect(Position(row: row, col: col), .zero);
+  set links(LinkInteraction? value) {
+    if (identical(_links, value)) return;
+    if (attached) _links?.removeListener(_onLinksChanged);
+    _links = value;
+    if (attached) _links?.addListener(_onLinksChanged);
+    markNeedsPaint();
   }
+
+  set metrics(CellMetrics value) {
+    if (_surface.updateMetrics(value)) markNeedsLayout();
+  }
+
+  set mouseCursorHidden(bool value) {
+    if (_mouseCursorHidden == value) return;
+    _mouseCursorHidden = value;
+    markNeedsPaint();
+  }
+
+  set offset(ViewportOffset value) {
+    if (_viewport.wraps(value)) return;
+    if (attached) _viewport.offset.removeListener(_onScroll);
+    _viewport.releaseBinding();
+    _viewport = TerminalViewportCoordinator.bind(value, _onViewportRowChanged);
+    if (attached) _viewport.offset.addListener(_onScroll);
+    markNeedsLayout();
+  }
+
+  @override
+  PointerEnterEventListener? get onEnter => null;
+
+  @override
+  PointerExitEventListener? get onExit => null;
+
+  set onGeometryChanged(SurfaceGeometryCallback value) {
+    _onGeometryChanged = value;
+  }
+
+  set onTextInputGeometryChanged(TextInputGeometryChanged? value) {
+    if (identical(_onTextInputGeometryChanged, value)) return;
+    _cancelTextInputCompositionCallback?.call();
+    _cancelTextInputCompositionCallback = null;
+    _onTextInputGeometryChanged = value;
+    markNeedsPaint();
+  }
+
+  set onViewportRowChanged(ValueChanged<int> value) {
+    _onViewportRowChanged = value;
+    _viewport.onViewportRowChanged = value;
+  }
+
+  set preeditText(String value) {
+    if (_surface.updatePreeditText(value)) markNeedsPaint();
+  }
+
+  set resizeDeferred(bool value) {
+    if (!_surface.updateResizeDeferred(deferred: value)) return;
+    markNeedsLayout();
+  }
+
+  set searchMatches(List<Selection> value) {
+    if (_surface.updateSearchMatches(value)) markNeedsPaint();
+  }
+
+  set selectedSearchMatch(Selection? value) {
+    if (_surface.updateSelectedSearchMatch(value)) markNeedsPaint();
+  }
+
+  set surfacePadding(EdgeInsets value) {
+    if (_surfacePadding == value) return;
+    _surfacePadding = value;
+    markNeedsLayout();
+  }
+
+  set terminal(Terminal value) {
+    if (identical(_terminal, value)) return;
+    _terminal = value;
+    _viewport.reset(_terminal.activeScreen);
+    _surface.invalidateGeometry();
+    markNeedsLayout();
+  }
+
+  /// Current terminal input caret rect in this render box's local coordinates.
+  Rect get textInputCaretRect => _surface.textInputCaretRect;
 
   /// Current terminal composing rect in this render box's local coordinates.
   Rect get textInputComposingRect => textInputCaretRect;
 
-  void _markLinkRowsDirty(CellRange? range) {
-    if (range == null) return;
-    final rows = _paintState.rows;
-    if (rows <= 0) return;
-
-    var start = range.start.row;
-    var end = range.end.row + 1;
-    if (start < 0) start = 0;
-    if (end > rows) end = rows;
-    if (start >= end) return;
-
-    _pipeline.markRowsDirty(start, end);
-  }
-
-  void _markLinkSnapshotRowsDirty(LinkSnapshot snapshot) {
-    _markLinkRowsDirty(snapshot.highlighted);
-    for (final match in snapshot.matches) {
-      _markLinkRowsDirty(match.link.range);
-    }
-  }
-
-  set metrics(CellMetrics value) {
-    if (_paintState.metrics == value) return;
-    _paintState.metrics = value;
-    markNeedsLayout();
-  }
-
-  set offset(ViewportOffset value) {
-    if (_offset == value) return;
-    if (attached) _offset.removeListener(_onScroll);
-    _offset = value;
-    if (attached) _offset.addListener(_onScroll);
-    markNeedsLayout();
-  }
-
-  set onResize(OnResize? value) => _onResize = value;
-
-  set onViewportChanged(VoidCallback? value) => _onViewportChanged = value;
-
-  set renderObserver(TerminalRenderObserver value) {
-    if (_renderObserver == value) return;
-    if (attached) _renderObserver.removeListener(_onRenderObserverChanged);
-    _renderObserver = value;
-    if (attached) _renderObserver.addListener(_onRenderObserverChanged);
-    _onRenderObserverChanged();
-  }
-
-  set renderCache(TerminalRenderCache value) {
-    if (identical(value, _renderCache)) return;
-
-    _renderCache = value;
-    final atlasChanged = _acquireAtlasForCurrentConfig(force: true);
-    if (atlasChanged) _markFrameDirty();
-  }
-
-  set terminal(Terminal value) {
-    if (_terminal == value) return;
-    if (attached) _terminal.removeListener(_onTerminalChanged);
-    _terminal = value;
-    if (attached) _terminal.addListener(_onTerminalChanged);
-    _applyTerminalThemeColors();
-    _needsFrameSync = true;
-    markNeedsLayout();
-  }
-
-  TerminalTheme get theme => _paintState.theme;
+  TerminalTheme get theme => _surface.theme;
 
   /// Updates the theme, clearing the atlas only if font properties changed.
   ///
@@ -354,17 +437,8 @@ class TerminalRenderBox extends RenderBox {
   /// family) use markNeedsLayout which reconfigures the atlas, re-measures
   /// the grid, and pre-seeds glyphs.
   set theme(TerminalTheme value) {
-    if (_paintState.theme == value) return;
-    final oldTheme = _paintState.theme;
-    final fontChanged =
-        oldTheme.fontSize != value.fontSize ||
-        oldTheme.fontWeight != value.fontWeight ||
-        oldTheme.fontFamily != value.fontFamily ||
-        !_listEquals(oldTheme.fontFamilyFallback, value.fontFamilyFallback);
-    _paintState.updateTheme(value);
-    _applyTerminalThemeColors();
-    _pipeline.markAllRowsDirty();
-    _needsFrameSync = true;
+    if (_surface.theme == value) return;
+    final fontChanged = _surface.updateTheme(value);
 
     if (fontChanged) {
       markNeedsLayout();
@@ -374,11 +448,14 @@ class TerminalRenderBox extends RenderBox {
   }
 
   @override
+  bool get validForMouseTracker => attached;
+
+  @override
   void attach(PipelineOwner owner) {
     super.attach(owner);
-    _offset.addListener(_onScroll);
-    _renderObserver.addListener(_onRenderObserverChanged);
-    _terminal.addListener(_onTerminalChanged);
+    _viewport.offset.addListener(_onScroll);
+    _frameChanges.addListener(_onFrameChanged);
+    _links?.addListener(_onLinksChanged);
     markNeedsLayout();
   }
 
@@ -386,39 +463,35 @@ class TerminalRenderBox extends RenderBox {
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
     properties
-      ..add(IntProperty('cols', _paintState.cols))
-      ..add(IntProperty('rows', _paintState.rows))
-      ..add(DiagnosticsProperty<TerminalTheme>('theme', _paintState.theme))
-      ..add(DiagnosticsProperty<CellMetrics>('metrics', _paintState.metrics))
+      ..add(IntProperty('cols', _surface.cols))
+      ..add(IntProperty('rows', _surface.rows))
+      ..add(DiagnosticsProperty<TerminalTheme>('theme', _surface.theme))
+      ..add(DiagnosticsProperty<CellMetrics>('metrics', _surface.metrics))
       ..add(
         FlagProperty(
           'blinkVisible',
-          value: _paintState.blinkVisible,
+          value: _surface.blinkVisible,
           ifTrue: 'cursor visible',
-        ),
-      )
-      ..add(
-        DiagnosticsProperty<TerminalRenderObserver?>(
-          'renderObserver',
-          _renderObserver,
         ),
       );
   }
 
   @override
   void detach() {
-    _offset.removeListener(_onScroll);
-    _renderObserver.removeListener(_onRenderObserverChanged);
-    _terminal.removeListener(_onTerminalChanged);
+    _cancelTextInputCompositionCallback?.call();
+    _cancelTextInputCompositionCallback = null;
+    _viewport.offset.removeListener(_onScroll);
+    _frameChanges.removeListener(_onFrameChanged);
+    _links?.removeListener(_onLinksChanged);
     super.detach();
   }
 
   @override
   void dispose() {
-    _paintState.rows = 0;
-    _paintState.cols = 0;
-    _pipeline.dispose();
-    _atlasHandle.release();
+    _cancelTextInputCompositionCallback?.call();
+    _cancelTextInputCompositionCallback = null;
+    _surface.dispose();
+    _viewport.releaseBinding();
     super.dispose();
   }
 
@@ -427,145 +500,65 @@ class TerminalRenderBox extends RenderBox {
 
   @override
   void paint(PaintingContext context, Offset offset) {
-    _syncFrameState();
+    final onTextInputGeometryChanged = _onTextInputGeometryChanged;
+    if (onTextInputGeometryChanged != null && _surface.focused) {
+      _cancelTextInputCompositionCallback ??= context.addCompositionCallback((
+        _,
+      ) {
+        if (!attached || !hasSize || !_surface.focused) return;
+        onTextInputGeometryChanged(
+          editableSize: size,
+          transform: getTransformTo(null),
+          caretRect: _surface.textInputCaretRect,
+          composingRect: _surface.textInputCaretRect,
+        );
+      });
+    }
 
     final canvas = context.canvas;
 
     canvas.save();
     canvas.translate(offset.dx, offset.dy);
-    _pipeline.paint(canvas);
+    _surface.draw(
+      canvas,
+      _terminal,
+      linkSnapshot: _links?.snapshot() ?? .empty,
+    );
     canvas.restore();
   }
 
   @override
   void performLayout() {
     _performingLayout = true;
+    try {
+      final metrics = _surface.metrics;
+      size = _surface.computeSize(constraints);
+      final needsPaint = _surface.layout(
+        terminal: _terminal,
+        constraints: constraints,
+        surfacePadding: _surfacePadding,
+        onGeometryChanged: _onGeometryChanged,
+      );
+      final scrollbar = _terminal.scrollbar;
+      _viewport.submitLayout(
+        screen: _terminal.activeScreen,
+        viewportRow: scrollbar.offset,
+        scrollbackRows: scrollbar.total - scrollbar.visible,
+        cellHeight: metrics.cellHeight,
+        viewportDimension: size.height,
+      );
 
-    final maxW = constraints.hasBoundedWidth ? constraints.maxWidth : 0.0;
-    final maxH = constraints.hasBoundedHeight ? constraints.maxHeight : 0.0;
-    final (newCols, newRows) = _paintState.metrics.gridSize(maxW, maxH);
-
-    size = constraints.constrain(
-      Size(
-        newCols * _paintState.metrics.cellWidth,
-        newRows * _paintState.metrics.cellHeight,
-      ),
-    );
-
-    final dpr = _currentDevicePixelRatio;
-    final atlasReconfigured = _acquireAtlasForCurrentConfig(dpr: dpr);
-
-    final gridChanged =
-        newCols != _paintState.cols || newRows != _paintState.rows;
-    if (gridChanged) {
-      _paintState.cols = newCols;
-      _paintState.rows = newRows;
-      _paintState.devicePixelRatio = dpr;
-      if (newCols > 0 && newRows > 0) {
-        _pipeline.configureGrid(newRows, newCols);
-        // Cell size is reported in physical pixels so size-report
-        // escapes and Kitty graphics geometry match a native terminal
-        // at the same DPI.
-        _terminal.resize(
-          cols: newCols,
-          rows: newRows,
-          cellWidthPx: (_paintState.metrics.cellWidth * dpr).round(),
-          cellHeightPx: (_paintState.metrics.cellHeight * dpr).round(),
-        );
-        _onResize?.call(newCols, newRows);
+      if (needsPaint) {
+        markNeedsPaint();
       }
-    } else if (_paintState.devicePixelRatio != dpr) {
-      _paintState.devicePixelRatio = dpr;
+    } finally {
+      _performingLayout = false;
     }
-
-    _syncScrollLayout();
-
-    // Grid changes invalidate every row's sprite slot layout. Atlas
-    // rebinding invalidates atlas references inside the pipeline.
-    if (gridChanged) _pipeline.markAllRowsDirty();
-
-    if (gridChanged || atlasReconfigured) _markFrameDirty();
-
-    _performingLayout = false;
-  }
-
-  void _applyTerminalThemeColors() {
-    _terminal.foreground = _paintState.theme.foreground.toRgbColor();
-    _terminal.background = _paintState.theme.background.toRgbColor();
-    // Sentinel cursor colors (cellForeground/cellBackground) can't be
-    // reported as a single RGB, so we only push a fixed color down to
-    // libghostty; the flterm cursor painter resolves sentinels locally.
-    _terminal.cursorColor = _paintState.theme.cursor.color?.fixedColor
-        ?.toRgbColor();
-    _terminal.palette = [
-      for (var i = 0; i < 256; i++) _paintState.theme.palette[i].toRgbColor(),
-    ];
-  }
-
-  bool _acquireAtlasForCurrentConfig({double? dpr, bool force = false}) {
-    final config = AtlasConfig.fromTheme(
-      theme: _paintState.theme,
-      metrics: _paintState.metrics,
-      devicePixelRatio: dpr ?? _currentDevicePixelRatio,
-    );
-    if (!force && config == _atlasHandle.config) return false;
-
-    final previousHandle = _atlasHandle;
-    _atlasHandle = _renderCache.acquireAtlas(config);
-    _pipeline.bindAtlas(_atlasHandle.atlas);
-    previousHandle.release();
-    return true;
-  }
-
-  double get _currentDevicePixelRatio {
-    return WidgetsBinding
-        .instance
-        .platformDispatcher
-        .views
-        .first
-        .devicePixelRatio;
-  }
-
-  static bool _listEquals(List<String> a, List<String> b) {
-    if (identical(a, b)) return true;
-    if (a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (a[i] != b[i]) return false;
-    }
-    return true;
   }
 
   void _markFrameDirty() {
-    _needsFrameSync = true;
+    _surface.requestTerminalSync();
     markNeedsPaint();
-  }
-
-  void _onRenderObserverChanged() {
-    _paintState.cursorFocused = _renderObserver.hasFocus;
-    _pipeline.refreshCursorGlyph();
-    markNeedsPaint();
-  }
-
-  void _onScroll() {
-    if (_performingLayout) return;
-    if (_paintState.rows == 0 || _paintState.metrics.cellHeight <= 0) return;
-
-    final scrollbar = _terminal.scrollbar;
-    final scrollbackLen = scrollbar.total - scrollbar.visible;
-    if (scrollbackLen <= 0) return;
-
-    final cellHeight = _paintState.metrics.cellHeight;
-    final maxExtent = scrollbackLen * cellHeight;
-    final pixels = _offset.pixels.clamp(0.0, maxExtent);
-
-    _stickToBottom = maxExtent <= 0 || pixels >= maxExtent - cellHeight;
-
-    final targetRow = (pixels / cellHeight).floor();
-    if (targetRow == scrollbar.offset) return;
-
-    _terminal.scrollToRow(targetRow);
-    _onViewportChanged?.call();
-    _markFrameDirty();
   }
 
   // Handles terminal change notifications.
@@ -573,11 +566,18 @@ class TerminalRenderBox extends RenderBox {
   // When scrollback length changes, a layout pass is needed because scroll
   // extents must be recalculated. For normal output (same scrollback
   // length), only a repaint is needed.
-  void _onTerminalChanged() {
-    if (_paintState.rows == 0 || _performingLayout) return;
-
-    if (_terminal.scrollbackRows != _lastScrollbackRows) {
-      _needsFrameSync = true;
+  void _onFrameChanged() {
+    if (_surface.rows == 0 || _performingLayout) return;
+    final scrollbar = _terminal.scrollbar;
+    final scrollbackLen = scrollbar.total - scrollbar.visible;
+    final needsLayout = _viewport.submitFrame(
+      screen: _terminal.activeScreen,
+      viewportRow: scrollbar.offset,
+      scrollbackRows: scrollbackLen,
+      cellHeight: _surface.metrics.cellHeight,
+    );
+    if (needsLayout) {
+      _surface.requestTerminalSync();
       markNeedsLayout();
       return;
     }
@@ -585,67 +585,10 @@ class TerminalRenderBox extends RenderBox {
     _markFrameDirty();
   }
 
-  // Maintains scroll position and content dimensions.
-  //
-  // "Stick to bottom" keeps the viewport pinned to the latest output,
-  // which is the normal mode when the user hasn't scrolled up. Once the
-  // user scrolls away from the bottom, new output no longer forces the
-  // viewport down. Stick-to-bottom re-engages when the user scrolls
-  // back to within one cell of the bottom edge.
-  void _syncScrollLayout() {
-    _offset.applyViewportDimension(size.height);
+  void _onLinksChanged() => markNeedsPaint();
 
-    if (_terminal.activeScreen == .alternate) {
-      _offset.applyContentDimensions(0, 0);
-      _lastScrollbackRows = 0;
-      _stickToBottom = true;
-      return;
-    }
-
-    final scrollbar = _terminal.scrollbar;
-    final scrollbackLen = scrollbar.total - scrollbar.visible;
-    final cellHeight = _paintState.metrics.cellHeight;
-    final maxExtent = scrollbackLen * cellHeight;
-
-    // Detect if the terminal was scrolled to bottom externally.
-    if (!_stickToBottom &&
-        scrollbackLen > 0 &&
-        scrollbar.offset >= scrollbackLen) {
-      _stickToBottom = true;
-    }
-
-    if (_stickToBottom && maxExtent > 0) {
-      final correction = maxExtent - _offset.pixels;
-      if (correction.abs() > 0.01) _offset.correctBy(correction);
-      if (scrollbar.offset < scrollbackLen) {
-        _terminal.scrollToBottom();
-        _onViewportChanged?.call();
-      }
-    }
-    _offset.applyContentDimensions(0, maxExtent);
-    _lastScrollbackRows = scrollbackLen;
-    _stickToBottom = maxExtent <= 0 || _offset.pixels >= maxExtent - cellHeight;
+  void _onScroll() {
+    if (_performingLayout) return;
+    _markFrameDirty();
   }
-
-  // Syncs terminal state into paint-ready frame buffers.
-  void _syncFrameState() {
-    if (_paintState.rows == 0) return;
-
-    final terminalDirty = _needsFrameSync;
-    _needsFrameSync = false;
-    _pipeline.sync(
-      _terminal,
-      terminalDirty: terminalDirty,
-      preeditText: _preeditText,
-      linkSnapshot: _linkSnapshot,
-    );
-  }
-}
-
-extension on Color {
-  RgbColor toRgbColor() => RgbColor(
-    (r * 255.0).round().clamp(0, 255),
-    (g * 255.0).round().clamp(0, 255),
-    (b * 255.0).round().clamp(0, 255),
-  );
 }

@@ -81,7 +81,14 @@ class Atlas {
     required bool bold,
     required bool italic,
     int span = 1,
-  }) => _cache.addCodepoint(codepoint, bold: bold, italic: italic, span: span);
+    bool centerInFirstCell = false,
+  }) => _cache.addCodepoint(
+    codepoint,
+    bold: bold,
+    italic: italic,
+    span: span,
+    centerInFirstCell: centerInFirstCell,
+  );
 
   /// Returns or creates a decoration sprite for the given underline [style].
   AtlasEntry addDecoration(UnderlineStyle style) => _cache.addDecoration(style);
