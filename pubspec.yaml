@@ -14,6 +14,9 @@ dependencies:
   cupertino_icons: ^1.0.8
   dartssh2: ^2.22.3
   xterm2: 5.2.0
+  # Ghostty 终端引擎：自己维护的 fork（上游 main + 我们的补丁），说明见 third_party/README.md。
+  flterm:
+    path: third_party/libghostty/packages/flterm
   flutter_riverpod: ^2.6.1
   go_router: ^16.0.0
   flutter_secure_storage: ^9.2.4
@@ -36,6 +39,11 @@ dependencies:
   plugin_api:
     path: packages/plugin_api
 
+dependency_overrides:
+  # flterm 声明的是 pub 上的 libghostty ^0.0.12，不 override 会拉 pub 上的旧版，和 fork 的 flterm 对不上。
+  libghostty:
+    path: third_party/libghostty/packages/libghostty
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
@@ -52,3 +60,11 @@ flutter:
     - assets/
     - assets/distro/
     - assets/docker/
+
+hooks:
+  user_defines:
+    libghostty:
+      # 原生库必须从源码编（要 Zig 0.16，../.toolchain/env.sh 已带上）。不设就按版本号 0.0.12 下载上游
+      # 预编译库，那是旧 Ghostty 源码编的，新绑定调它会在创建终端时报
+      # "Invalid value provided. (operation: ghostty_terminal_new, code: -2)"。
+      source: compile
