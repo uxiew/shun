@@ -7,8 +7,9 @@
 ///   session 名字、启动命令这类自由文本从 stdin 进去，从不拼进命令行（SEC11）。
 /// - 远端输出先用 `head`/`cut` 截短，App 这边读取时再按字节数封顶（[tmuxProbeMaxBytes]）。
 ///
-/// 查询只读：先看 socket 文件在不在，不在就不调用 tmux——`tmux list-sessions` 在没有 server 时
-/// 虽然不会起 server，但会先建 `/tmp/tmux-UID` 目录（实测 3.5a）。
+/// 查询只读：一律用 `-S 路径` 指定 socket。不带 `-S` 时，`tmux list-sessions` 在没有 server 的情况下
+/// 虽然不起 server，却会先建 `/tmp/tmux-UID` 目录（实测 3.5a）；带 `-S` 不建。另外先看 socket 文件在不在，
+/// 不在就不调用 tmux，直接回答「没有 server」，不用去认各版本不同的报错文字。
 library;
 
 import 'dart:convert';
