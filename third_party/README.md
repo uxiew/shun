@@ -4,20 +4,38 @@
 
 ## libghostty / flterm（`libghostty/`）
 
-上游 [elias8/libghostty](https://github.com/elias8/libghostty)（MIT），起点 `609ee318`：flterm 0.0.5；里面的 libghostty 包和 `libghostty-v0.0.12` 标签逐字节相同。
+上游 [elias8/libghostty](https://github.com/elias8/libghostty)（MIT），起点 `9e40b11`：2026-10-04 的 main，还没发版，包里的版本号仍是 flterm 0.0.5 / libghostty 0.0.12。
+Ghostty 源码固定在 `packages/libghostty/ghostty.version`（`349f0260`），源码包的 SHA256 在旁边的 `ghostty.sha256`。
 目标：修 bug、补功能，和原项目（Netcatty 用的 xterm2）的终端能力看齐。
 
 ```bash
+source ../.toolchain/env.sh                           # 带上 Zig 0.16，见下一节
 cd third_party/libghostty
-flutter pub get                                       # 要联网：ptyx 的 ffigen 不在本机缓存
+flutter pub get
 dart analyze packages/flterm/lib packages/libghostty/lib
-../fetch-libghostty-assets.sh                         # 只有跑 flterm 渲染测试、示例程序时才要（51.5 MB）
-(cd packages/flterm && flutter test)                  # 682 条
-(cd packages/libghostty && dart test)                 # 412 条
+../fetch-libghostty-assets.sh                         # 只有跑 flterm 测试、示例程序时才要（51.6 MB）
+(cd packages/flterm && flutter test)                  # 1083 条
+(cd packages/libghostty && dart test)                 # 511 条；第一次要下 Ghostty 源码再用 Zig 编，约 1 分钟
 ```
 
-App 里用：pubspec 写 path 依赖 `third_party/libghostty/packages/flterm` 和 `.../packages/libghostty`（R17 起主 App 这么接；spike 的用法见它的 README）。
-原生库：App 不设 `hooks.user_defines` 时，构建会下载上游预编译的 `.so` 并按包内 SHA256 表核对。
+`dart analyze` 在 Flutter 3.44 下报 3 条 `discarded_futures`：上游 CI 用最新 stable，不报，不影响编译。
+
+App 里用：照抄 `spikes/terminal_spike/pubspec.yaml`。flterm 写 path 依赖；libghostty 用 `dependency_overrides` 指到 fork（flterm 声明的是 pub 上的 `^0.0.12`，不 override 会拉旧版）；`hooks.user_defines.libghostty.source` 设 `compile`。
+
+### 原生库：从源码编，要 Zig 0.16
+
+上游 main 换了 Ghostty 源码、重新生成了 FFI 绑定，版本号却没变。不设 `source: compile` 时构建按版本号下载 0.0.12 的预编译库，那是旧源码编的，新绑定调它会在创建终端时报 `Invalid value provided. (operation: ghostty_terminal_new, code: -2)`。
+
+- 装：`brew install zig@0.16`。别用 brew 默认的 `zig`（现在是 0.17）：Ghostty 的构建脚本要求大、小版本号都对上，不对会在编译时报 "Your Zig version … does not meet the required build version of v0.16.0"（报错文字取自 Ghostty 源码 `src/build/zig.zig`，没拿 0.17 实跑过）。
+- `../.toolchain/env.sh` 把 `../.toolchain/bin/zig` 放在 PATH 最前。它是个包装：指向 zig@0.16；去掉代理变量（Zig 经本机代理取依赖报 "400 Bad Request"，直连正常）；缓存放 `../.toolchain/zig-cache`（构建钩子会过滤环境变量，不在包装里设，缓存会落到 `~/.cache/zig`）。
+- 没装 Xcode、只有 Command Line Tools 也能编：fork 让钩子不打 xcframework（67e2b70）。
+- 第一次编要下 Ghostty 源码包（39 MB，按 `ghostty.sha256` 核对）和 Zig 依赖。实测 macOS 约 1 分钟；spike 的 Android arm64 release 包整个构建 60 秒。
+
+撞墙时：
+
+- **换了依赖来源（pub ↔ fork、预编译 ↔ 源码）后报上面的 code -2**：构建钩子沿用了 `.dart_tool/hooks_runner` 里旧的原生库（spike 撞上时，旧库的 sha256 和 0.0.12 预编译版一模一样）。删掉 `.dart_tool/hooks_runner` 再构建。
+- **"Ghostty source SHA256 mismatch"**：下来的源码包和 `ghostty.sha256` 对不上。换了 `ghostty.version` 没换 hash 就会这样；如果没换，可能是 GitHub 改了打包方式，先 `git archive` 同一提交对比内容，确认没被篡改再更新 hash。
+- **已缓存的原生库被改了不会被发现**（R04 问题 5）：钩子只在下载、编译时核对。发布构建前删 `.dart_tool`。
 
 ### 和上游差在哪
 
@@ -25,50 +43,54 @@ App 里用：pubspec 写 path 依赖 `third_party/libghostty/packages/flterm` �
 
 | 提交 | 改了什么 | 为什么 |
 |---|---|---|
-| aad782f | 引入上游 `609ee318`，不搬示例/测试字体和示例 wasm | 那些共 51.5 MB，本仓库才 8 MB；要用时 `fetch-libghostty-assets.sh` 取回并核对 SHA256 |
-| 04df082 | flterm：输入框类型 multiline → emailAddress；scanCode=0 的键按逻辑键兜底；这类键处理后让输入法重新对齐 | 不改的话 Gboard 打不了中文、微信输入法每次回到英文、软键盘退格 0 字节、删拼音漏字母（R04 问题 2、4） |
-| 8caeb73 | workspace 的原生库来源 compile → prebuilt | 本机没装 Zig；暂不改原生代码 |
-| 761264e | `.gitignore` 加上取回的字体、wasm | 防止 51.5 MB 被误提交 |
+| aad782f、4a7ed9c | 引入上游（起初 `609ee318`，10-04 同步到 `9e40b11`），不搬示例/测试字体和示例 wasm | 那些共 51.6 MB，本仓库才 8 MB；要用时 `fetch-libghostty-assets.sh` 取回并核对 SHA256 |
+| 761264e | `.gitignore` 加上取回的字体、wasm | 防止 51.6 MB 被误提交 |
+| 67e2b70 | libghostty 钩子：源码编译时不打 xcframework | 只装 Command Line Tools 时构建报 "xcframework ghostty-vt failure" |
+| 6018a4a | libghostty 钩子：Ghostty 源码包按 `ghostty.sha256` 核对再编 | 上游下来就编、不核对；预编译那条路有 SHA256 表，改走源码不能丢这道校验 |
+| 1dda0c8 | flterm：输入框类型 multiline → emailAddress；scanCode=0 的键按逻辑键兜底；这类键处理后让输入法重新对齐 | 不改的话 Gboard 打不了中文、微信输入法每次回到英文、软键盘退格 0 字节、删拼音漏字母（R04 问题 2、4） |
+| 2c41ed9 | flterm：已有焦点时点终端也叫回键盘 | 按返回收起键盘后点终端叫不回来（R04 问题 3）；上游 main 也有这个问题 |
+
+0.0.5 时期的 04df082（输入法补丁）、8caeb73（改用预编译库）已被同步覆盖，补丁移进了 1dda0c8。
 
 ### 同步上游
 
+上游会大改目录（这次 `widgets/` 拆成了 `controller/`、`input/`、`view/`），补丁常常对不上路径。办法是：先存下我们的改动，用上游原样覆盖、单独提交，再把改动放回去。
+
 ```bash
-git clone --filter=blob:none https://github.com/elias8/libghostty.git /tmp/libghostty-up
-cd /tmp/libghostty-up
+LAST=4a7ed9c          # 上次「同步到上游」的提交；它之后 third_party/libghostty 里的改动都是我们的
 NEW=<上游新提交>
-git diff --binary 609ee318 $NEW -- . ':!packages/flterm/example/assets/fonts' \
-  ':!packages/flterm/test/fixtures/fonts' ':!*.wasm' > /tmp/libghostty-up.patch
-cd -    # 回到本仓库根目录
-git apply --3way --directory=third_party/libghostty /tmp/libghostty-up.patch
+git diff $LAST HEAD -- third_party/libghostty > /tmp/xwshun-ours.patch
+git clone -q --filter=blob:none https://github.com/elias8/libghostty.git /tmp/libghostty-up
+rm -rf /tmp/libghostty-tree && mkdir /tmp/libghostty-tree
+git -C /tmp/libghostty-up archive $NEW | tar -x -C /tmp/libghostty-tree
+rm -rf /tmp/libghostty-tree/packages/flterm/example/assets/fonts /tmp/libghostty-tree/packages/flterm/test/fixtures/fonts \
+  /tmp/libghostty-tree/packages/flterm/example/assets/*.wasm
+rsync -a --delete --exclude .gitignore /tmp/libghostty-tree/ third_party/libghostty/
+git add -A third_party/libghostty && git commit -m "fork：libghostty 同步到上游 main $NEW"
+git apply --3way /tmp/xwshun-ours.patch     # 返回非 0 会列出合不进的文件，照 xwshun: 注释手工移植
 ```
 
-冲突会出在标了 `xwshun:` 的地方，`git apply` 返回非 0、列出合不进的文件，手工把我们的改动移植过去。
-合完把本文件、`fetch-libghostty-assets.sh` 里的起点提交换成 `$NEW`，跑完上面的测试再提交。上游字体有变化时，脚本里的 SHA256 也要更新，否则它会报「对不上」。
+合完还要：
 
-**上游 main 的现状（2026-10-04 查，`9e40b11`）**：比起点多 105 个提交、还没发版（pubspec 仍是 flterm 0.0.5 / libghostty 0.0.12）。
-有我们要的：触摸选区手柄和放大镜、可设滚动区上限、失联输入连接恢复、转发桌面通知和进度。但有两个坑：
-
-- 输入层重构了。用上面的命令试合：177 个文件干净合入，`terminal_controller_impl.dart`（我们的输入法补丁在这里）合不进，`test/input/text_input_session_test.dart` 有冲突。
-- `ghostty.version` 从 `15484b60` 换成了 `349f0260`，FFI 绑定也重新生成了，但版本号没变。这时按 0.0.12 下载的预编译库是旧源码编的，和新绑定可能对不上——**同步到 main 就得装 Zig 从源码编**。
-
-R17 开工时先决定：在 0.0.5 上补齐，还是先同步到上游 main 再移植我们的改动。
-
-### 要改原生代码时
-
-装 Zig，把 `libghostty/pubspec.yaml` 的 `source: prebuilt` 改回 `compile`；Ghostty 源码版本由 `packages/libghostty/ghostty.version` 固定。
-App 也要在自己的 pubspec 里设 `hooks.user_defines.libghostty.source: compile`，否则 App 构建拿到的还是上游预编译库，不是你改过的。
-发布构建前删掉 `.dart_tool`：已缓存的原生库副本被改了不会被发现（R04 问题 5）。
+- 上游 `.gitignore` 变了就手工合（上面 rsync 跳过了它，因为我们加了几行）。
+- `ghostty.version` 变了就重算 hash：`curl -fsSL https://github.com/ghostty-org/ghostty/archive/$(cat third_party/libghostty/packages/libghostty/ghostty.version).tar.gz | shasum -a 256`，写进 `ghostty.sha256`。
+- `fetch-libghostty-assets.sh` 里的提交和 SHA256 换成新的（上游字体变了脚本会报「对不上」）。
+- 本文件的起点、`LAST`、差异表更新；跑完上面的测试，再在 Android 上用 spike 验一遍（`spikes/terminal_spike/README.md`）。
 
 ### 待办：和 xterm2 对齐（R17、R18）
 
 逐项对照主 App 现在的终端（`lib/presentation/terminal/xterm_terminal_view.dart`），对齐一项勾一项、写进 R17/R18 证据：
 
-- 选区：拖动手柄选择、复制；备用屏（vim、tmux）长按出复制快照
+- 选区：拖动手柄选择、复制（上游 main 已有触摸手柄和放大镜）；备用屏（vim、tmux）长按出复制快照
 - 鼠标：tmux 打开鼠标报告时滚动交给 tmux，手指滑动不变成方向键、点按不误发点击
-- 键盘：软键盘退格（`deleteDetection`）、敏感输入走 visiblePassword、收起后点终端叫回、快捷键栏的 Ctrl/Alt/Esc
+- 键盘：软键盘退格（`deleteDetection`）、敏感输入走 visiblePassword、快捷键栏的 Ctrl/Alt/Esc
 - 外观：主题色、字号、透明背景
 - 和 App 其他部分的接口：画中画文字、AI 上下文（适配器的 `lineAt` / `allText`）
-- R04 已知问题：dispose 后 write 段错误（问题 1）、组合字符缺重音（6）、默认资源上限过大（7）、**语音输入整段重复发送（8）**、裸 DEL 画成方格（9）
+- R04 已知问题：
+  - 已解决：收起后叫不回键盘（3，fork 修）；dispose 后 write 段错误（1，上游改成抛 StateError，适配器仍要挡住迟到的数据）
+  - 还在：组合字符缺重音（6，10-04 模拟器截图）、**语音输入整段重复发送（8，每次提交后重置编辑区的逻辑没变）**、裸 DEL 画成方格（9）
+  - 要 R17 处理：默认资源上限过大（7，上游 main 已能设滚动区上限）
+  - 新看到的：Gboard 弹着时，注入的 Esc 被输入法拿去收键盘，终端收不到（模拟器；硬件键盘的情况归 TER04）
 
 ## 其他依赖
 
