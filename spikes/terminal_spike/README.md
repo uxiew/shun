@@ -28,16 +28,14 @@ adb logcat -s flutter | grep SPIKE_     # 手点软键盘时边点边看
 `lib/android_key_fallback.dart`（软键盘退格等 scanCode=0 的键）和 `lib/keyboard_reshow.dart`
 （收起后点终端叫回键盘）是对 flterm 0.0.5 的适配层补丁，原因写在各自文件头。
 
-### 中文输入要给 flterm 打补丁
+### 中文输入要用 fork 里的 flterm
 
-不打补丁时 Gboard 把终端当密码框，只给英文键盘，**打不了中文**。`patches/flterm-0.0.5-android-ime.patch`
-是验证过的修法，只在实验时用，不进依赖：
+不改 flterm 时 Gboard 把终端当密码框，只给英文键盘，**打不了中文**。修法已并进自己维护的 fork
+（`third_party/libghostty`，见 `third_party/README.md`）。spike 默认仍用 pub 上的原版（R04 的对照基线），
+要用 fork 时：
 
 ```bash
-T=/Users/fodelf/xdw/xwshun/.toolchain
-cp -R $T/pub-cache/hosted/pub.dev/flterm-0.0.5 $T/src/flterm-patched && chmod -R u+w $T/src/flterm-patched
-(cd $T/src/flterm-patched && patch -p1 < "$OLDPWD/patches/flterm-0.0.5-android-ime.patch")
-printf 'dependency_overrides:\n  flterm:\n    path: %s\n' "$T/src/flterm-patched" > pubspec_overrides.yaml
+printf 'dependency_overrides:\n  flterm:\n    path: ../../third_party/libghostty/packages/flterm\n  libghostty:\n    path: ../../third_party/libghostty/packages/libghostty\n' > pubspec_overrides.yaml
 flutter pub get --offline && rm -rf build/app/intermediates/flutter && flutter build apk --release
 # 用完：rm pubspec_overrides.yaml && flutter pub get --offline && rm -rf build/app/intermediates/flutter
 ```
