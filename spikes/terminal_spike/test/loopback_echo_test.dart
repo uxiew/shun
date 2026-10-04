@@ -1,5 +1,4 @@
 import 'package:flterm/flterm.dart';
-import 'package:flutter/material.dart' hide Key;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:terminal_spike/main.dart';
 
