@@ -847,6 +847,27 @@ void main() {
       expect(await lines('~/startup.log'), 1, reason: 'Restore 不得重跑 startup');
     }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
 
+    test('R16 恢复后新 shell 的窗口大小就是终端现在的大小，不停在 80x24', () async {
+      await controller.connect(edgeHost({}), verifyByLogicalName);
+      final old = controller.state.sessions.single;
+      // 视图布局后量出的尺寸。新 PTY 按 80x24 打开，尺寸没变时引擎不会再通知，
+      // 以前恢复后远端就一直是 80x24，vim、htop 排版错到屏幕尺寸再变一次为止。
+      (old.terminal as XtermTerminalAdapter).terminal.resize(132, 43);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      controller.sendToSession(old.id, 'stty size > ~/r16-size', enter: true);
+      await Future<void>.delayed(const Duration(milliseconds: 800));
+      expect(await remote('cat ~/r16-size'), '43 132');
+
+      await dropAndRestore(old);
+      final restored =
+          controller.state.sessions.singleWhere((s) => s.id == old.id);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      controller.sendToSession(restored.id, 'stty size > ~/r16-size',
+          enter: true);
+      await Future<void>.delayed(const Duration(milliseconds: 1500));
+      expect(await remote('cat ~/r16-size'), '43 132');
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
     test('托管终端：管理命令只执行一次，恢复后不重跑', () async {
       await controller.connect(edgeHost({}), verifyByLogicalName);
       final parent = controller.state.sessions.single;
