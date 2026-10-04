@@ -73,6 +73,7 @@ android {
 
     sourceSets.getByName("main") {
         jniLibs.srcDir("build-native/jniLibs")
+        assets.srcDir("build-native/assets")   // 许可证原文，见 LICENSES.md
         res.srcDir(generatedRes)
     }
 

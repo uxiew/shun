@@ -162,6 +162,15 @@ BIN="$W/build/mosh-$ABI/src/frontend/mosh-client"
 cp "$BIN" "$OUT/libmoshclient.so"
 "$TC/bin/llvm-strip" --strip-unneeded "$OUT/libmoshclient.so"
 
+# 许可证原文随 APK 一起分发（assets/licenses/），对应的源码和我们的补丁在本仓库 plugins/mosh/native/。
+LIC="$HERE/../build-native/assets/licenses"
+mkdir -p "$LIC"
+tar xzf "$W/src/mosh-1.4.0.tar.gz" -O mosh-1.4.0/COPYING > "$LIC/mosh-COPYING.txt"
+tar xzf "$W/src/protobuf-cpp-3.21.12.tar.gz" -O protobuf-3.21.12/LICENSE > "$LIC/protobuf-LICENSE.txt"
+tar xzf "$W/src/openssl-3.5.4.tar.gz" -O openssl-3.5.4/LICENSE.txt > "$LIC/openssl-LICENSE.txt"
+tar xzf "$W/src/ncurses-6.5.tar.gz" -O ncurses-6.5/COPYING > "$LIC/ncurses-COPYING.txt"
+cp "$HERE/../LICENSES.md" "$LIC/README.md"
+
 # ---- 5. 核对：ABI、16 KiB 对齐、动态依赖只有系统库 ----
 RE="$TC/bin/llvm-readelf"
 # 先存进变量再查：grep -q 提前关管道，pipefail 下会把 readelf 的 SIGPIPE 当成失败。
