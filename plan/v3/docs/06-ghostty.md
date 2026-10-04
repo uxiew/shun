@@ -2,7 +2,7 @@
 
 ## 选择与边界
 
-使用用户指定elias8仓库的Dart/native `libghostty`和Flutter组件`flterm`。后者已有controller、view、输入与选择API，不应从零绘制每个单元格，也不默认套SagerNet Compose/PlatformView。VT核心来自Ghostty，不意味着复制了桌面Ghostty GPU渲染器，性能收益需要测量。[S16](13-sources.md#s16) [S17](13-sources.md#s17) [S19](13-sources.md#s19)
+使用用户指定elias8仓库的Dart/native `libghostty`和Flutter组件`flterm`；2026-10-04所有者定自己维护fork（`third_party/libghostty`），修bug、补功能、对齐原项目xterm能力，差异与同步见`third_party/README.md`。后者已有controller、view、输入与选择API，不应从零绘制每个单元格，也不默认套SagerNet Compose/PlatformView。VT核心来自Ghostty，不意味着复制了桌面Ghostty GPU渲染器，性能收益需要测量。[S16](13-sources.md#s16) [S17](13-sources.md#s17) [S19](13-sources.md#s19)
 
 当前观察 `flterm 0.0.5` + `libghostty 0.0.12`，有Android预编译清单和SHA256检查，不能说Android尚无支持；同样不能把清单当成用户手机已稳定运行。锁定pub包、Git依赖SHA、Ghostty源pin、asset hash及SDK，禁止浮动main。[S17](13-sources.md#s17) [S18](13-sources.md#s18) [S20](13-sources.md#s20) [S21](13-sources.md#s21)
 

@@ -2,7 +2,7 @@
 
 日期：2026-10-04。已执行首批（R00–R04、X00）、网络路由三项（R05、R06、R07）、连接代次（R08）、凭据与入口统一（R09）、连接路径编辑器（R10）、插件注册表（X01）、只读 Tailscale 目录的 HTTP 适配（R11）、Android 独立插件发现与双向签名（X02）、目录缓存与非破坏合并（R12）、插件会话字节流与故障处理（X03）、目录页与批量导入（R13）、插件管理与授权界面（X04）、Tailscale 目录接入内置 provider（X05）、UU 远程适配（X06）、RustDesk 外部客户端联动（X07）、显式 Tailscale SSH 外部认证（R14）、目录到三类路由的端到端验收（R15）和会话与 xterm2 解耦（R16）；09-30 所有者同意用 arm64 模拟器补测，并定"最低兼容到安卓七八"；10-04 所有者提供真机（Pixel 9 Pro，接在 xdwmbp 上），R04 真机补测后 DONE。
 
-- 基座：kmh1145/Netcatty-mobile `495f5d31`（v1.4.7），本机 fork `xwshun/v3`，不 push。GPL-3.0-or-later 个人隔离实验；applicationId `top.xdwa.xwshun`。
+- 基座：kmh1145/Netcatty-mobile `495f5d31`（v1.4.7），fork 分支 `xwshun/v3`，`origin` = `uxiew/xwshun`，所有者说推之前不 push。GPL-3.0-or-later 个人隔离实验；applicationId `top.xdwa.xwshun`。
 - 任务：DONE 25（R00 R01 R02 R03 R04 R05 R06 R07 R08 R09 R10 R11 R12 R13 R14 R15 R16 X00 X01 X02 X03 X04 X05 X06 X07）、NOT_STARTED 21、DEFERRED 7。
 - 用例（共 142）：PASS 72、FAIL 3、BLOCKED 6、NOT_RUN 61。每条的实际动作和观察在 `evidence/`。
 - 门禁：G0 **PASS**（Ghostty Android 可行性有真机证据；TER02、GST01 两个硬门禁用例仍 FAIL，归 R17，G3 必须过）；其余门禁 NOT_RUN。插件基础 GX0 的出口条件（X00–X03）在模拟器上都已满足，只差真机复核，所以仍记 NOT_RUN；Tailscale 的 G2（R15）同理，另外还差官方 Tailscale 的 check 和直连。离 CORE_READY / FULL_READY 都还很远。
@@ -55,10 +55,16 @@ R04 其他要带进 R17 的发现：dispose 后 write 段错误、软键盘退�
 计划外修复（2026-09-30，所有者要求）：导入保险库原先直接整库替换、不提示，文件里没有的主机连同凭据被删（上游行为）。
 现在先弹框说明会新增、更新、删除什么，默认合并，替换要明确选；确认期间本机有增删就拒绝写入。单元与 widget 测试 16 条；模拟器上走过确认框和合并，合并后原有主机用原密码照常连上（见 evidence/R13.md）。
 
+## 10-04 所有者的决定
+
+- libghostty / flterm 自己维护一份：已放进 `third_party/libghostty`（上游 `609ee318`，即 flterm 0.0.5 / libghostty 0.0.12），R04 的输入法补丁已并入，flterm 682、libghostty 412 条测试全过；目标是修 bug、补功能、和原项目的 xterm 能力看齐，待办和同步办法见 `third_party/README.md`。其他依赖同理，卡住时 fork 进 `third_party/`。
+- remote：清掉原项目的 upstream，`origin` = `uxiew/xwshun`。GitHub 上这个仓库现在还看不到（gh 登录的是 fodelf），没有 push。
+- README 只留常用命令和索引，细节在 `docs/`。
+
 ## 下一批
 
 `lizhi` 开着时，本项目模拟器用 `-port 5580` 起、adb 都带 `-s emulator-5580`（写在 docs/xwshun/README.md 第 7 节）。
-**依赖已满足、可以开工的**：R17（flterm 生产适配与 native 生命周期）、X08（Mosh 运行时选择与独立 APK 可行性）。R17 要带上 R04 问题清单和 R16 证据末尾「给 R17 的话」（和 xterm2 逐项对齐的功能清单）。
+**依赖已满足、可以开工的**：R17（flterm 生产适配与 native 生命周期）、X08（Mosh 运行时选择与独立 APK 可行性）。R17 要带上 R04 问题清单和 R16 证据末尾「给 R17 的话」（和 xterm2 逐项对齐的功能清单），开工先定：在 fork 的 0.0.5 上补齐，还是先同步上游 main（多 105 个提交，有触摸选区、滚动区上限等，但输入层重构、要装 Zig 自己编原生库，见 `third_party/README.md`）。
 真机只接在 xdwmbp 上，用法和撞墙见 `tool/remote-device/README.md`；装着中文输入法的真机上别用 adb 注入按键（会把输入法弄进实体键盘模式，恢复办法在 `docs/xwshun/README.md` 第 7 节）。
 R14、R15 的测试环境：仿制 Tailscale SSH 服务器和 Headscale + 真 tailscaled（R15 加了远程 SOCKS 和跳板两个节点），用法见 `tool/tailscale-ssh-fixture/README.md`。
 设备关联：目录的存在主机上，UU 的存在 UU 自己的加密存储里（记主机 id），RustDesk 的存在 RustDesk 这边的加密存储里，`deviceLinksOf` 把三样拼起来。
@@ -69,7 +75,6 @@ X04 留下的：App 启动时不自动发现插件（只有插件页触发），
 
 ## 等所有者决定或提供
 
-- flterm 补丁的去向：fork 进仓库自己维护，还是先向上游提 issue/PR 再 pin 新版本（R17 前要定）。语音输入重复的修法也要进这份补丁。
 - R17 修好语音输入后，要你在真机上用微信输入法语音再说几句（TER02 复测，没法自动化）。
 - 发布包的 ABI：armeabi-v7a、x86_64 没有设备能测（这台 Apple Silicon Mac 跑不了 x86_64 镜像），是找设备还是只发 arm64（REL03）。
 - 应用正式名称、正式签名、分发形态（BAS03 的"签名不同"、BAS04/REL01 许可结论依赖它）。
