@@ -841,11 +841,18 @@ void main() {
           reason: '退出 vim 后的输出接在原来内容下面，没有覆盖旧屏');
     }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
 
-    test('TER10 约 4.9 MB 连续输出：一行不丢、按顺序，滚动区按上限回收', () async {
+    test('TER10 约 4.9 MB 连续输出、中途卡住 3 次：一行不丢、按顺序，内存有界', () async {
       final terminal = await ghostty();
       final rssBefore = ProcessInfo.currentRss;
       final watch = Stopwatch()..start();
       terminal.sendText('seq 1 700000; echo DONE-\$((6*7))\r');
+      // 故意让消费变慢：Flutter 里画面和喂终端在同一个 isolate，画得慢就是这样一段一段卡住。
+      // 卡住时 SSH 数据留在 socket 和 SSH 窗口里（有上限），不是在 App 里排成无界队列。
+      for (var i = 0; i < 3; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+        final stall = Stopwatch()..start();
+        while (stall.elapsedMilliseconds < 1500) {}
+      }
       await waitUntil(() => terminal.allText().contains('DONE-42'),
           timeout: const Duration(seconds: 120));
       watch.stop();
