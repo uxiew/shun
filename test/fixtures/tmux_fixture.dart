@@ -112,5 +112,10 @@ class TmuxFixture {
         user: user,
       );
     }
+    // kill-server 返回时 server 进程可能还没退完（上千个会话时要一会儿），下一个测试的「没有 tmux 进程」会误报。
+    await run(
+      node,
+      'i=0; while pgrep tmux >/dev/null && [ \$i -lt 100 ]; do sleep 0.1; i=\$((i+1)); done; true',
+    );
   }
 }
