@@ -118,11 +118,15 @@ $P plan/v3/scripts/validate_plan.py   # 只查计划本身，不测 App
 | `gradle-home/caches/9.1.0/transforms` | 1–3.5 GB | 下次构建在本机重建（spike release 17 秒→45 秒），构建一次又长回来。先 `(cd android && ./gradlew --stop)` |
 | `gradle-home/` 整个 | 2.5–6 GB | 下次构建要联网重新下依赖 |
 | `avd/<名字>.avd/*.img`、`*.qcow2` | 1–3 GB/台 | 关机后删；下次启动是空系统，装过的 App、Gboard 拼音设置都没了 |
+| `avd/<名字>.avd/snapshots/` | 约 2.5 GB/台 | 快速启动的快照。我们都用 `-no-snapshot` 冷启动，删了没影响，装过的 App 和设置都在 |
 | `baseline-495f5d31/` | 0.1 GB | 原版代码的 worktree，2026-09-29 已删。要重新构建原版时：`git worktree add ../.toolchain/baseline-495f5d31 495f5d3`，再 `chmod +x android/gradlew`（上游仓库里它没有可执行位，不加会报 Permission denied）。删用 `git worktree remove --force`，直接 rm 会留下失效记录 |
 | `artifacts/` | 0.25 GB | 原版 debug APK（sha256 `339f4932…`，测原版共存、插件页「看不到这个包」诊断要用）；Tailscale 官方 OpenAPI 原件 `tailscale-openapi-b416d98e.yaml`（244 KB，删了就没法离线核对官方规范变没变，见 `plan/v3/docs/05`）；UU 远程的官方接入文档和官方 4.42.0 APK（`uuremote-*`，27 MB，App 里固定的官方证书就是从这个 APK 读的，删了没法复核，见 `plan/v3/docs/17`）；RustDesk 1.4.9 的清单、链接处理源码和 GitHub 发行版 APK（`rustdesk-*`，27 MB，固定的发行证书从这个 APK 读，同上） |
 | `zig-cache/` | 0.1 GB 起 | Zig 编 Ghostty 的缓存，每多编一个平台涨一些。删了下次编要重新下 Zig 依赖 |
 | `plugin-keys/` | 8 KB | X02 测试插件的两把签名密钥。删了下次 `plugins/build-fixtures.sh` 会生成新的，设备上已批准的测试插件随之变「已拒绝（换签）」，在插件页撤销旧批准重新核对即可 |
 | 整个 `.toolchain/` | — | 回到安装前，只剩下面 SDK 里的东西 |
+
+仓库里能删的（都在 `.gitignore` 里）：`build/`（约 1 GB）、`.dart_tool/flutter_build`（2–3 GB），下次构建重新生成；
+`.dart_tool/hooks_runner`（约 0.5 GB）是终端原生库的构建缓存，删了下次构建要用 Zig 重编，多一两分钟。
 
 共享 Android SDK 里为本项目装的：
 
