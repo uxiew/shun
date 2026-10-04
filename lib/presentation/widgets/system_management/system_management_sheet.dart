@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
 
+import '../../../application/session_controller.dart';
 import '../../../domain/models/host.dart';
+import '../../../domain/tmux/tmux_target.dart';
 import '../../../infrastructure/ssh/ssh_service.dart';
 import '../../../infrastructure/ssh/system_management_service.dart';
 import 'caddy_manager_panel.dart';
@@ -10,7 +13,7 @@ import 'process_manager_panel.dart';
 import 'service_manager_panel.dart';
 import 'tmux_manager_panel.dart';
 
-class SystemManagementSheet extends StatefulWidget {
+class SystemManagementSheet extends ConsumerStatefulWidget {
   const SystemManagementSheet({
     super.key,
     required this.session,
@@ -25,10 +28,11 @@ class SystemManagementSheet extends StatefulWidget {
   final ValueChanged<String> onOpenSftp;
 
   @override
-  State<SystemManagementSheet> createState() => _SystemManagementSheetState();
+  ConsumerState<SystemManagementSheet> createState() =>
+      _SystemManagementSheetState();
 }
 
-class _SystemManagementSheetState extends State<SystemManagementSheet>
+class _SystemManagementSheetState extends ConsumerState<SystemManagementSheet>
     with SingleTickerProviderStateMixin {
   late final TabController _tabs;
   final _service = SystemManagementService();
@@ -48,6 +52,18 @@ class _SystemManagementSheetState extends State<SystemManagementSheet>
   Future<void> _runInteractive(String label, String command) async {
     Navigator.of(context).pop();
     await widget.onOpenTerminal(label, command);
+  }
+
+  /// 在新标签里附着 tmux 目标。先关面板；附着失败时（目标已经不在了之类）等待卡片会写明原因，这里再提示一句。
+  Future<void> _attachTmux(TmuxTarget target) async {
+    final controller = ref.read(sessionControllerProvider.notifier);
+    final messenger = ScaffoldMessenger.of(context);
+    Navigator.of(context).pop();
+    try {
+      await controller.openTmuxTerminal(widget.session, target);
+    } catch (error) {
+      messenger.showSnackBar(SnackBar(content: LText('$error')));
+    }
   }
 
   void _openSftp(String filePath) {
@@ -133,9 +149,8 @@ class _SystemManagementSheetState extends State<SystemManagementSheet>
                   ),
                   TmuxManagerPanel(
                     session: widget.session,
-                    service: _service,
                     snippets: widget.snippets,
-                    onOpenTerminal: _runInteractive,
+                    onAttach: _attachTmux,
                   ),
                 ],
               ),

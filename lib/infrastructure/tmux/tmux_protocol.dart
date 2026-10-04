@@ -1,6 +1,6 @@
 /// tmux 远端命令的构造和输出解析（R21）。纯函数，不碰网络，方便逐条测。
 ///
-/// 所有命令都长一个样：`sh -c '固定脚本' xwshun '参数1' '参数2' …`。
+/// 所有命令都长一个样：sh -c 加单引号里的固定脚本，再跟 xwshun 和若干个单引号包着的参数。
 /// - 脚本是写死的常量：不含单引号、`!`、连续反斜杠和换行，所以不管远端登录 shell 是 sh、bash、zsh、
 ///   fish 还是 csh，单引号里的内容都原样交给 sh（fish 的单引号只认 `\'` 和 `\\`，csh 会在单引号里展开 `!`）。
 /// - 会变的东西只作为位置参数进去，而且事先按白名单校验过（socket 名/路径、uid、`$3` 这种 ID、纯数字）。
@@ -239,6 +239,14 @@ const tmuxDetachScript = '$_socketSnippet $_guardSnippet '
     r'tmux -S "$s" list-clients -t "$5" -F "#{client_tty}:#{client_pid}" 2>/dev/null | grep -x -F -q -- "$6:$7" || exit 98; '
     r'exec tmux -S "$s" detach-client -t "$6"';
 
+/// 一个 session 的窗口和客户端（只读，按 ID，先核对身份）。参数同 [tmuxKillScript]。
+const tmuxDetailsScript = '$_socketSnippet $_guardSnippet '
+    r'{ tmux -u -S "$s" list-windows -t "$5" -F "W'
+    '$tmuxRowSeparator#{window_index}$tmuxRowSeparator#{window_panes}$tmuxRowSeparator#{window_active}$tmuxRowSeparator#{window_name}'
+    r'" 2>&1; tmux -u -S "$s" list-clients -t "$5" -F "C'
+    '$tmuxRowSeparator#{client_pid}$tmuxRowSeparator#{client_tty}'
+    r'" 2>&1; } | head -n 401 | cut -c 1-512';
+
 /// 附着脚本，在带 PTY 的 exec 通道里跑，不经交互式 shell（用户 .bashrc 里的自动 tmux 碰不到它，也不进 shell 历史）。
 ///
 /// 1. 核对 uid 和目标身份，不对就退出（95/96/97），不附着、不新建。
@@ -283,10 +291,10 @@ const tmuxStartupMaxLength = 4096;
 
 /// 一条 `sh -c` 命令。[arguments] 必须都已校验过。
 String _command(String script, List<String> arguments) {
-  assert(isPortableScript(script), 'tmux 脚本里出现了跨 shell 不安全的字符');
+  assert(isPortableScript(script), 'tmux script is not portable across shells');
   for (final value in arguments) {
     if (!_safeArgument.hasMatch(value)) {
-      throw ArgumentError.value(value, 'argument', '含有不允许的字符');
+      throw ArgumentError.value(value, 'argument', 'character not allowed');
     }
   }
   return "sh -c '$script' xwshun ${arguments.map((value) => "'$value'").join(' ')}";
@@ -340,6 +348,9 @@ String tmuxMouseCommand(TmuxTarget target, {required bool enable}) => _command(
 
 String tmuxAttachCommand(TmuxTarget target) =>
     _command(tmuxAttachScript, _targetArguments(target));
+
+String tmuxDetailsCommand(TmuxTarget target) =>
+    _command(tmuxDetailsScript, _targetArguments(target));
 
 String tmuxDetachCommand(TmuxClientBinding binding) {
   if (!_clientTty.hasMatch(binding.clientTty) || binding.clientPid <= 0) {
@@ -437,7 +448,7 @@ TmuxProbe parseTmuxProbe(String raw, {bool truncated = false}) {
       TmuxAvailability.unsupported,
       problem: version == null
           ? '认不出 tmux 版本（$versionLine）'
-          : 'tmux $version 比实测过的最老版本 $tmuxOldestTested 还老',
+          : 'tmux $version 早于实测过的最老版本 $tmuxOldestTested',
     );
   }
   if (end == 'noserver') return result(TmuxAvailability.noServer);
@@ -505,6 +516,53 @@ TmuxSessionRow? parseCreatedSession(String raw, List<String> messages) {
     }
   }
   return row;
+}
+
+class TmuxWindowRow {
+  const TmuxWindowRow({
+    required this.index,
+    required this.panes,
+    required this.active,
+    required this.name,
+  });
+
+  final int index;
+  final int panes;
+  final bool active;
+  final String name;
+}
+
+class TmuxClientRow {
+  const TmuxClientRow({required this.pid, required this.tty});
+
+  final int pid;
+  final String tty;
+}
+
+/// 解析 [tmuxDetailsScript] 的输出；认不出的行丢掉。
+({List<TmuxWindowRow> windows, List<TmuxClientRow> clients}) parseTmuxDetails(
+    String raw) {
+  final windows = <TmuxWindowRow>[];
+  final clients = <TmuxClientRow>[];
+  for (final line in const LineSplitter().convert(raw)) {
+    final fields = line.split(tmuxRowSeparator);
+    if (fields.first == 'W' && fields.length >= 5) {
+      final index = int.tryParse(fields[1]);
+      final panes = int.tryParse(fields[2]);
+      if (index == null || panes == null) continue;
+      windows.add(TmuxWindowRow(
+        index: index,
+        panes: panes,
+        active: fields[3] == '1',
+        name: displaySafe(fields.sublist(4).join(tmuxRowSeparator), max: 120),
+      ));
+    } else if (fields.first == 'C' && fields.length == 3) {
+      final pid = _positive(fields[1]);
+      if (pid == null || !_clientTty.hasMatch(fields[2])) continue;
+      clients.add(TmuxClientRow(pid: pid, tty: fields[2]));
+    }
+  }
+  return (windows: windows, clients: clients);
 }
 
 TmuxSessionRow? _parseRow(List<String> fields, String socketPath) {

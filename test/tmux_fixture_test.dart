@@ -8,7 +8,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/application/session_controller.dart';
 import 'package:netcatty_mobile/domain/tmux/tmux_target.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/system_management_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/tmux/tmux_protocol.dart';
@@ -296,6 +295,18 @@ void main() {
       await f.reset('faketmux');
     }, skip: skip);
 
+    test('App 这边的字节上限：远端不截断也只读这么多', () async {
+      final client = await appClient('tmux35');
+      final result = await service.runBounded(
+        client,
+        'head -c 5000000 /dev/zero',
+        timeout: const Duration(seconds: 5),
+        maxBytes: 100000,
+      );
+      expect(result.truncated, isTrue);
+      expect(result.output.length, 100000);
+    }, skip: skip);
+
     test('tmux 报错：如实显示原因', () async {
       final f = fixture!;
       await f.reset('faketmux');
@@ -401,9 +412,10 @@ void main() {
         'tmux35',
         "tmux list-sessions -F '#{session_name}\t#{session_windows}\t#{session_attached}\t#{session_created}\t#{session_activity}\t#{session_group}'",
       );
+      // 基座的 parseTmuxSessions：按 Tab 拆，少于 5 段的行丢掉。tmux 把格式里的 Tab 换成了 _，一行都拆不出来。
       expect(raw, startsWith('alpha_'));
-      expect(SystemManagementService().parseTmuxSessions(raw), isEmpty,
-          reason: 'tmux 把格式里的 Tab 换成了 _，基座按 Tab 拆不出任何一行');
+      expect(raw.split('\n').where((line) => line.split('\t').length >= 5),
+          isEmpty);
       await f.reset('tmux35');
     }, skip: skip);
   });
@@ -682,6 +694,15 @@ void main() {
       );
       expect(await clientsOf('tmux30', s1.sessionId), hasLength(2));
       expect(b.connected, isTrue);
+
+      // 面板展开会话时的详情：按 ID 只读查询，能认出哪个客户端是本标签。
+      final details = await service.details(parent.sshClient!, s1);
+      expect(details.windows, hasLength(1));
+      expect(details.clients.map((c) => '${c.tty}:${c.pid}'),
+          contains(clientKey(b)));
+      await f.run('tmux30', 'tmux kill-session -t s2');
+      await expectLater(service.details(parent.sshClient!, s2),
+          throwsA(isA<TmuxTargetGoneException>()));
       await f.reset('tmux30');
     }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
 

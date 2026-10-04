@@ -42,7 +42,6 @@ class CaddySudoPasswordRequired implements Exception {
   String toString() => message;
 }
 
-const tmuxNotFoundMessage = '未找到 tmux 命令，请先安装 tmux 后再重试。';
 const caddyNotFoundMessage = '未检测到 Caddy，请先安装 Caddy 后再重试。';
 
 enum ProcessSignal { stop, cont, term, kill }
@@ -835,170 +834,6 @@ class SystemManagementService {
     return '${_interactiveDockerPrefix(session)} logs -f --tail 200 $id';
   }
 
-  Future<String> tmuxVersion(ActiveTerminalSession session) async {
-    final result = await _executeTmuxSession(session, 'tmux -V');
-    return result.stdout.trim();
-  }
-
-  Future<List<TmuxSessionInfo>> listTmuxSessions(
-    ActiveTerminalSession session,
-  ) async {
-    const format = '#{session_name}\t#{session_windows}\t'
-        '#{session_attached}\t#{session_created}\t'
-        '#{session_activity}\t#{session_group}';
-    final output = await _executeTmuxSession(
-      session,
-      'tmux list-sessions -F ${shellQuote(format)}',
-      acceptedExitCodes: const {0, 1},
-    );
-    if (output.exitCode == 1 &&
-        output.stderr.toLowerCase().contains('no server running')) {
-      return const [];
-    }
-    if (output.exitCode == 1 &&
-        output.stderr.toLowerCase().contains('no sessions')) {
-      return const [];
-    }
-    if (output.exitCode != 0) {
-      throw RemoteCommandException(
-        output.stderr.trim().isEmpty
-            ? '无法读取 tmux session'
-            : output.stderr.trim(),
-        exitCode: output.exitCode,
-      );
-    }
-    return parseTmuxSessions(output.stdout);
-  }
-
-  List<TmuxSessionInfo> parseTmuxSessions(String raw) {
-    final result = <TmuxSessionInfo>[];
-    for (final line in const LineSplitter().convert(raw)) {
-      final parts = line.split('\t');
-      if (parts.length < 5) continue;
-      result.add(
-        TmuxSessionInfo(
-          name: parts[0],
-          windowCount: int.tryParse(parts[1]) ?? 0,
-          attachedClients: int.tryParse(parts[2]) ?? 0,
-          createdAt: _epoch(parts[3]),
-          activityAt: _epoch(parts[4]),
-          group: parts.length > 5 ? parts[5] : '',
-        ),
-      );
-    }
-    return result;
-  }
-
-  Future<TmuxSessionDetails> tmuxSessionDetails(
-    ActiveTerminalSession session,
-    String name,
-  ) async {
-    const windowFormat = '#{window_index}\t#{window_name}\t'
-        '#{window_panes}\t#{window_active}\t#{window_layout}';
-    const clientFormat = '#{client_name}\t#{client_tty}\t'
-        '#{client_session}\t#{client_activity}';
-    final windowsOutput = await _executeTmuxSession(
-      session,
-      'tmux list-windows -t ${shellQuote(name)} -F ${shellQuote(windowFormat)}',
-    );
-    final clientsOutput = await _executeTmuxSession(
-      session,
-      'tmux list-clients -t ${shellQuote(name)} -F ${shellQuote(clientFormat)}',
-      acceptedExitCodes: const {0, 1},
-    );
-    final windows = <TmuxWindowInfo>[];
-    for (final line in const LineSplitter().convert(windowsOutput.stdout)) {
-      final parts = line.split('\t');
-      if (parts.length < 5) continue;
-      windows.add(
-        TmuxWindowInfo(
-          index: int.tryParse(parts[0]) ?? 0,
-          name: parts[1],
-          paneCount: int.tryParse(parts[2]) ?? 0,
-          active: parts[3] == '1',
-          layout: parts[4],
-        ),
-      );
-    }
-    final clients = <TmuxClientInfo>[];
-    for (final line in const LineSplitter().convert(clientsOutput.stdout)) {
-      final parts = line.split('\t');
-      if (parts.length < 4) continue;
-      clients.add(
-        TmuxClientInfo(
-          name: parts[0],
-          tty: parts[1],
-          session: parts[2],
-          activityAt: _epoch(parts[3]),
-        ),
-      );
-    }
-    return TmuxSessionDetails(windows: windows, clients: clients);
-  }
-
-  Future<void> createTmuxSession(
-    ActiveTerminalSession session, {
-    required String name,
-    String? startupCommand,
-  }) async {
-    final value = name.trim();
-    if (value.isEmpty || value.length > 80 || value.contains(RegExp(r'[:.]'))) {
-      throw const FormatException('session 名称不能为空，且不能包含冒号或句点');
-    }
-    var command = 'tmux new-session -d -s ${shellQuote(value)}';
-    final startup = startupCommand?.trim() ?? '';
-    if (startup.isNotEmpty) {
-      command += ' && tmux send-keys -t ${shellQuote(value)} '
-          '${shellQuote(startup)} C-m';
-    }
-    await _executeTmuxSession(session, command);
-  }
-
-  Future<void> killTmuxSession(
-    ActiveTerminalSession session,
-    String name,
-  ) =>
-      _executeTmuxSession(
-        session,
-        'tmux kill-session -t ${shellQuote(name)}',
-      ).then((_) {});
-
-  String tmuxAttachCommand(String name) {
-    // set-option resolves a target-pane, not a target-session. The colon is
-    // essential: without it "=name" is parsed as a pane/window name and the
-    // exact-session marker is never stripped before the session fallback.
-    final target = shellQuote('=$name:');
-    return 'tmux set-option -t $target mouse on '
-        r'\; '
-        'attach-session -t $target';
-  }
-
-  Future<_RemoteResult> _executeTmuxSession(
-    ActiveTerminalSession session,
-    String command, {
-    String? stdinText,
-    Duration timeout = const Duration(seconds: 15),
-    Set<int> acceptedExitCodes = const {0},
-  }) async {
-    try {
-      return await _executeSession(
-        session,
-        command,
-        stdinText: stdinText,
-        timeout: timeout,
-        acceptedExitCodes: acceptedExitCodes,
-      );
-    } on RemoteCommandException catch (error) {
-      if (isTmuxCommandMissing(error.message, exitCode: error.exitCode)) {
-        throw RemoteCommandException(
-          tmuxNotFoundMessage,
-          exitCode: error.exitCode,
-        );
-      }
-      rethrow;
-    }
-  }
-
   Future<_DockerComposeBackend> _dockerComposeBackend(
     ActiveTerminalSession session,
   ) async {
@@ -1505,12 +1340,6 @@ class SystemManagementService {
     return result;
   }
 
-  static DateTime? _epoch(String value) {
-    final seconds = int.tryParse(value);
-    if (seconds == null || seconds <= 0) return null;
-    return DateTime.fromMillisecondsSinceEpoch(seconds * 1000);
-  }
-
   static void _validatePid(int pid) {
     if (pid <= 0) throw const FormatException('PID 必须大于 0');
   }
@@ -1566,16 +1395,6 @@ class SystemManagementService {
       }
     }
   }
-}
-
-bool isTmuxCommandMissing(String message, {int? exitCode}) {
-  if (exitCode == 127) return true;
-  final value = message.toLowerCase();
-  if (!value.contains('tmux')) return false;
-  return value.contains('command not found') ||
-      value.contains('not found') ||
-      value.contains('not recognized') ||
-      value.contains('no such file or directory');
 }
 
 class _RemoteResult {

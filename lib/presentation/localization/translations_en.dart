@@ -503,6 +503,39 @@ const englishTranslations = <String, String>{
   'Compose 配置': 'Compose configuration',
   '完整命令': 'Full command',
   '新建 tmux session': 'New tmux session',
+  // R21：tmux 面板与恢复。整句（只单独出现在一个文本控件里的）。
+  '分离本标签': 'Detach this tab',
+  '已分离本标签；tmux 会话还在远端':
+      'Detached this tab; the tmux session is still on the remote',
+  '换 socket': 'Change socket',
+  '更多': 'More',
+  '附着': 'Attach',
+  '在新标签里附着': 'Attach in a new tab',
+  '默认': 'Default',
+  '默认 socket': 'default socket',
+  '新建 tmux 会话': 'New tmux session',
+  '结束 tmux 会话？': 'Terminate tmux session?',
+  '结束会话': 'Terminate session',
+  '取消设置': 'Remove setting',
+  '搜索会话': 'Search sessions',
+  '会话名称': 'Session name',
+  '例如 work': 'e.g. work',
+  '例如 /run/user/1000/tmux.sock': 'e.g. /run/user/1000/tmux.sock',
+  'socket 名称': 'Socket name',
+  'socket 路径': 'Socket path',
+  '-L 名称': '-L name',
+  '-S 路径': '-S path',
+  '用哪个 tmux server': 'Which tmux server',
+  '没有 tmux': 'No tmux',
+  '没有 tmux 会话': 'No tmux sessions',
+  '这里没有可操作的 tmux 会话': 'No tmux sessions you can act on here',
+  '已附着的客户端': 'Attached clients',
+  '没有客户端附着': 'No clients attached',
+  '启动命令太长': 'The startup command is too long',
+  '默认是 tmux 不带参数时用的那个（/tmp/tmux-你的 uid/default）。':
+      'Default is the one tmux uses without arguments (/tmp/tmux-<your uid>/default).',
+  '如果你在 shell 配置里改了 TMUX_TMPDIR，这里看不到，请填 -S 路径。':
+      'If your shell config changes TMUX_TMPDIR, it is not visible here; enter the -S path instead.',
   'session 名称': 'Session name',
   '启动命令（可选）': 'Startup command (optional)',
   '从命令片段选择（可选）': 'Choose a command snippet (optional)',
@@ -1187,6 +1220,156 @@ const englishReplacements = <(String, String)>[
   ('终端引擎设置保存失败：', 'Failed to save terminal engine setting: '),
   ('终端引擎 ', 'Terminal engine '),
   (' 无法启动：', ' could not start: '),
+  // R21：tmux 的报错、提示和带插值的句子，按片段翻。都比较长，放在通用片段前面，免得被「会话」「附着」之类拆碎。
+  (
+    '原来的 tmux 会话已经不在了（被结束、server 重启过，或者只剩同名/同号的另一个会话）。',
+    'The original tmux session is gone (terminated, the server restarted, or only another session with the same name or number is left). '
+  ),
+  (
+    '没有按名字附着别的会话，也没有新建；请在 tmux 面板里重新选择',
+    'No other session was attached by name and nothing was created; choose again in the tmux panel'
+  ),
+  (
+    '现在登录的 Unix 用户不是这个 tmux 会话的用户，没有附着；请在 tmux 面板里重新选择',
+    'The Unix user logged in now is not the user of this tmux session, so it was not attached; choose again in the tmux panel'
+  ),
+  (
+    'tmux 客户端已退出（分离了，或会话已结束）。不会自动重新附着；',
+    'The tmux client exited (detached, or the session ended). It will not be re-attached automatically; '
+  ),
+  (
+    ' 还在，可在「系统管理 → tmux」里重新附着。',
+    ' still exists, you can re-attach it from “System management → tmux”.'
+  ),
+  ('如果会话 ', 'if session '),
+  (
+    '这个标签的 tmux 客户端已经不在了，没有分离任何别的客户端',
+    'This tab\'s tmux client is already gone; no other client was detached'
+  ),
+  (
+    '远端 15 秒内没有完成 tmux 附着前的核对，已放弃',
+    'The remote did not finish the pre-attach check within 15 s; gave up'
+  ),
+  (
+    '远端报回的 tmux 客户端信息无法识别，没有附着',
+    'The tmux client info reported by the remote was not recognized; not attached'
+  ),
+  (
+    '附着前远端输出了太多内容，没有附着',
+    'The remote printed too much before attaching; not attached'
+  ),
+  ('tmux 附着脚本意外结束', 'The tmux attach script ended unexpectedly'),
+  ('附着 tmux 失败', ' attaching tmux failed'),
+  (
+    ' 秒内没有完成，已放弃（远端命令可能还卡着）',
+    ' s; gave up (the remote command may still be stuck)'
+  ),
+  ('远端 tmux 在 ', 'Remote tmux did not finish within '),
+  (' 秒内没有回应，已放弃', ' s; gave up'),
+  ('远端在 ', 'The remote did not respond within '),
+  ('远端命令没有报告结果就结束了', 'The remote command ended without reporting a result'),
+  (
+    '远端没有 tmux。没有自动安装；这个标签照常是普通 SSH。',
+    'The remote has no tmux. Nothing was installed; this tab stays a plain SSH session.'
+  ),
+  ('远端没有 tmux（没有自动安装）', 'The remote has no tmux (nothing was installed)'),
+  ('远端输出被截断，没读到用户信息', 'The remote output was cut off before the user info'),
+  ('远端输出无法识别', 'The remote output was not recognized'),
+  ('查询中途断了，列表不完整', 'The query was cut off; the list is incomplete'),
+  ('这个 tmux 目标不是在这台主机上查到的', 'This tmux target was not found on this host'),
+  (
+    'session 名称只能用字母、数字、_ 和 -（中间可以有空格），最长 64 个字符；',
+    'Session names may only use letters, digits, _ and - (spaces allowed in the middle), up to 64 characters; '
+  ),
+  ('不能含 # : . 引号、分号或换行', 'no # : . quotes, semicolons or line breaks'),
+  (
+    'socket 名称只能用字母、数字和 _ . -，最长 64 个字符',
+    'Socket names may only use letters, digits and _ . -, up to 64 characters'
+  ),
+  (
+    'socket 路径必须是绝对路径，只能用字母、数字和 _ . / + @ -，最长 240 个字符',
+    'The socket path must be absolute and may only use letters, digits and _ . / + @ -, up to 240 characters'
+  ),
+  (' 早于实测过的最老版本 ', ' is older than the oldest tested version '),
+  ('认不出 tmux 版本（', 'Unrecognized tmux version ('),
+  ('tmux 列表读取失败（退出码 ', 'Failed to read the tmux list (exit code '),
+  ('tmux 列表读取失败：', 'Failed to read the tmux list: '),
+  ('tmux 命令失败（退出码 ', 'tmux command failed (exit code '),
+  ('tmux 命令失败：', 'tmux command failed: '),
+  ('tmux 输出里出现了 ', 'The tmux output shows '),
+  (
+    ' 个不同的 server，无法确定目标',
+    ' different servers; cannot tell which one is the target'
+  ),
+  (
+    'tmux 输出里同一个 session ID 出现了多次，无法确定目标',
+    'The tmux output lists the same session ID more than once; cannot tell which one is the target'
+  ),
+  ('新建 tmux 会话失败', 'Failed to create the tmux session'),
+  ('启动命令太长（最多 ', 'The startup command is too long (at most '),
+  (' 个字符）', ' characters)'),
+  ('。只在 tmux ', '. Only tested on tmux '),
+  (' 上实测过，', '; '),
+  (
+    '这里不提供附着、新建和结束；在终端里照常可以自己用 tmux。',
+    'attach, create and terminate are not offered here; you can still use tmux yourself in the terminal.'
+  ),
+  (
+    ' 上没有在运行的 tmux server（查询不会启动它）。新建会话时才会启动。',
+    ' has no running tmux server (checking does not start one). One starts only when you create a session.'
+  ),
+  ('读不了 tmux 会话列表：', 'Cannot read the tmux session list: '),
+  ('。为安全起见不提供任何操作。', '. For safety, no actions are offered.'),
+  ('会话太多，只显示了前 ', 'Too many sessions; showing only the first '),
+  (' 个会话。', ' sessions.'),
+  ('有些输出认不出来，已忽略（共 ', 'Some output was not recognized and was ignored ('),
+  (' 行）。', ' lines).'),
+  ('本标签附着在 ', 'This tab is attached to '),
+  ('客户端 ', 'client '),
+  ('新会话 ', 'New session '),
+  ('）已建好，没有附着', ') created, not attached'),
+  (
+    '里的所有窗口和程序都会被终止，不能撤销。',
+    ': all its windows and programs will be terminated. This cannot be undone. '
+  ),
+  (
+    '只结束这一个：按 ID 核对后才结束，名字相近的其他会话不受影响。',
+    'Only this one is terminated, after its ID is checked; sessions with similar names are not affected.'
+  ),
+  (
+    '：只改这一个会话的 mouse 选项，不改 tmux.conf，',
+    ': only this session\'s mouse option changes, not tmux.conf '
+  ),
+  (
+    '也不改全局设置；tmux server 重启后失效。打开后在这个会话里滑动、点按会交给 tmux 处理。',
+    'and not the global setting; it is lost when the tmux server restarts. Once on, swipes and taps in this session go to tmux.'
+  ),
+  (
+    '：去掉这个会话自己的 mouse 设置，回到全局设置',
+    ': remove this session\'s own mouse setting and fall back to the global setting'
+  ),
+  (
+    '（全局如果是开着的，鼠标仍然开着）。不改 tmux.conf。',
+    ' (if the global setting is on, the mouse stays on). tmux.conf is not changed.'
+  ),
+  ('为这个会话打开鼠标', 'Turn on mouse for this session'),
+  ('取消这个会话的鼠标设置', 'Remove this session\'s mouse setting'),
+  ('只新建、不附着。', 'Creates only, does not attach. '),
+  (' 上还没有 tmux server，', ' has no tmux server yet; '),
+  (
+    '新建会启动它（会读你的 tmux.conf）。',
+    'creating starts one (it reads your tmux.conf). '
+  ),
+  (
+    '启动命令会原样输入新会话的 shell 并回车一次。',
+    'The startup command is typed as-is into the new session\'s shell, followed by one Enter.'
+  ),
+  (' 个窗格', ' panes'),
+  ('前缀键 ', 'prefix '),
+  ('鼠标开', 'mouse on'),
+  ('鼠标关', 'mouse off'),
+  ('默认 socket', 'default socket'),
+  ('本标签', 'this tab'),
   // R14：Tailscale SSH 报错、来源说明、check 卡片里带插值或多段拼接的句子，按片段翻。
   (
     '到 Tailscale 后台检查访问策略里的 ssh 规则：来源要包含这次连接的来源节点（经代理时是代理出口那台，不是手机），',

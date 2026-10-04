@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../../domain/tmux/tmux_target.dart';
 import '../ssh/ssh_service.dart';
@@ -96,6 +97,20 @@ class TmuxService {
   }) =>
       _action(client, tmuxMouseCommand(target, enable: enable));
 
+  /// 一个 session 的窗口和客户端，只读。目标不在了抛 [TmuxTargetGoneException]。
+  Future<({List<TmuxWindowRow> windows, List<TmuxClientRow> clients})> details(
+      SSHClient client, TmuxTarget target) async {
+    final result = await _run(
+      client,
+      tmuxDetailsCommand(target),
+      timeout: probeTimeout,
+      maxBytes: 256 * 1024,
+    );
+    final error = tmuxExitError(result.exitCode, result.output);
+    if (error != null) throw error;
+    return parseTmuxDetails(result.output);
+  }
+
   /// 分离一个确定的 tmux 客户端（标签附着时远端报回来的终端和 pid 都对上才分离）。
   Future<void> detach(SSHClient client, TmuxClientBinding binding) =>
       _action(client, tmuxDetachCommand(binding));
@@ -112,6 +127,18 @@ class TmuxService {
     final error = tmuxExitError(result.exitCode, result.output);
     if (error != null) throw error;
   }
+
+  /// 执行一条远端命令：到期限就关通道，输出读到 [maxBytes] 就停（远端吐 20 MB 也只占这么多内存）。
+  /// 只给本类和测试用。
+  @visibleForTesting
+  Future<({String output, int? exitCode, bool truncated})> runBounded(
+    SSHClient client,
+    String command, {
+    String? stdin,
+    required Duration timeout,
+    required int maxBytes,
+  }) =>
+      _run(client, command, stdin: stdin, timeout: timeout, maxBytes: maxBytes);
 
   Future<({String output, int? exitCode, bool truncated})> _run(
     SSHClient client,

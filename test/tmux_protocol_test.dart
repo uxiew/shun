@@ -306,6 +306,19 @@ void main() {
     expect(displaySafe('中文\u0085'), r'中文\x85');
   });
 
+  test('会话详情：窗口和客户端，认不出的行丢掉', () {
+    final details = parseTmuxDetails([
+      ['W', 0, 2, 1, 'editor'].join(sep),
+      ['W', 'x', 1, 0, 'bad'].join(sep),
+      ['C', 4321, '/dev/pts/3'].join(sep),
+      ['C', 1, 'not a tty'].join(sep),
+      'garbage',
+    ].join('\n'));
+    expect(details.windows.single.name, 'editor');
+    expect(details.windows.single.panes, 2);
+    expect(details.clients.single.tty, '/dev/pts/3');
+  });
+
   test('附着握手那一行', () {
     expect(parseAttachMarker('$tmuxAttachMarker /dev/pts/3 4567'),
         (tty: '/dev/pts/3', pid: 4567));

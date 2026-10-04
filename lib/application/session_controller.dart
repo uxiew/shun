@@ -575,7 +575,7 @@ class SessionController extends StateNotifier<SessionState> {
       session.abort();
       session.terminal.showNotice(
         '\r\n\x1b[33mtmux 客户端已退出（分离了，或会话已结束）。不会自动重新附着；'
-        '会话 ${tmux.target.sessionId} 如果还在，可在「系统管理 → tmux」里重新附着。\x1b[0m\r\n',
+        '如果会话 ${tmux.target.sessionId} 还在，可在「系统管理 → tmux」里重新附着。\x1b[0m\r\n',
       );
       if (!mounted) return;
       state = state.copyWith(sessions: [...state.sessions]);
