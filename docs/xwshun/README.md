@@ -86,6 +86,8 @@ flutter build apk --release --target-platform android-arm64 \
 - 包用 `~/.android/debug.keystore` 签名；换台电脑构建的包签名不同，`adb install` 报 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`，要先卸载（会清掉 App 数据）才能装。
 - AI、云同步、检查更新默认关闭且不显示，开关在 `lib/application/fork_features.dart`。
 
+手机接在另一台电脑上（现在的真机 Pixel 9 Pro 只接在 xdwmbp 上）：用 `tool/remote-device/`，见那里的 README。
+
 装好之后怎么用，看 [使用手册](../user/README.md)。测试插件怎么构建、插件会话怎么在设备上验证，看 `plugins/README.md`。
 
 ## 5. 改任务状态
@@ -138,6 +140,13 @@ API 35 镜像是你原有的，`lizhi` 模拟器在用，**不要卸**。
   `emulator -avd xwshun-a35-4k -port 5580 -no-window -no-snapshot -gpu host &`（X06 后半段这样跑的，构建时空闲内存 36%–47%，没再被关）。
 - **跑过 `flutter test integration_test/...` 之后再 `adb install build/app/outputs/flutter-apk/app-debug.apk`，App 一打开就「isn't responding」**：
   集成测试会用测试入口重新构建并覆盖同一个 `app-debug.apk`，装的其实是测试包；而且测试跑完会把 App 卸掉（数据清空）。先重新 `flutter build apk --debug --target-platform android-arm64` 再装。
+- **用 adb 注入按键（`input keyevent` / `input text`）之后，微信输入法的软键盘不出来了，只剩底部「收起」和「切换输入法」**：
+  微信输入法收到注入的键就当接了实体键盘，切进实体键盘模式，重开 App、回桌面都不恢复，换到别的 App 打字也一样。
+  在它的中文模式下，注入的字母还会先进拼音组字区：一行最多剩 60 字节，`_` 变成「——」，回车被拿去提交组字，Esc 被它吃掉。
+  所以装着中文输入法的真机上，别用 adb 注入按键测终端（`spikes/terminal_spike/tool/adb_key_check.sh` 只适合 Gboard 或没弹键盘时）。
+  恢复要用**一条**命令：`adb shell 'am force-stop com.tencent.wetype; ime set com.tencent.wetype/.plugin.hld.WxHldService'`。
+  只 force-stop 的话，系统会把默认输入法换成 Gboard（R04 时发生过一次，马上改回了）。改之前后各跑一次
+  `settings get secure default_input_method`（还有 `selected_input_method_subtype`、`enabled_input_methods`）对比，确认没变。
 - **模拟器里按电脑的 Esc，App 退回上一页**：模拟器键位表把 Esc 映射成了返回键，真机蓝牙键盘不会这样。用终端快捷键栏的 Esc。
 - **Android 8.1 及更早的模拟器上 `adb logcat -c` 清不掉日志**（8.0 直接报 `failed to clear the 'main' log`）：
   按日志核对结果时别依赖清空，按"操作前已有几行"截取（`spikes/terminal_spike/tool/adb_key_check.sh` 就是这么做的）。
