@@ -288,7 +288,10 @@ final class ViewAttachment extends ChangeNotifier {
     };
     if (action == null) return .ignored;
 
-    final key = keyFromPhysical(event.physicalKey);
+    var key = keyFromPhysical(event.physicalKey);
+    final synthetic =
+        key == .unidentified && isSyntheticPhysicalKey(event.physicalKey);
+    if (synthetic) key = keyFromLogicalFallback(event.logicalKey) ?? key;
     final unshiftedCodepoint = unshiftedCodepointForKey(key);
     final character = _encoderCharacter(event.character);
     final virtualMods = _controller._virtualMods;
@@ -328,6 +331,9 @@ final class ViewAttachment extends ChangeNotifier {
       input,
       deferToTextInput: routeToTextInput,
     );
+    // xwshun: 这类键被终端吞掉后编辑区没变，输入法不知道光标在哪，之后组字区间会错一位、
+    // 删拼音时漏发字母（R04 问题 4）。
+    if (synthetic && result == .handled) _textInput.resyncAfterKeyEdit();
     return switch (result) {
       .ignored => .ignored,
       .deferred => .skipRemainingHandlers,

@@ -1,4 +1,5 @@
-import 'package:flutter/services.dart' show PhysicalKeyboardKey;
+import 'package:flutter/services.dart'
+    show LogicalKeyboardKey, PhysicalKeyboardKey;
 import 'package:libghostty/libghostty.dart' show Key;
 
 final Map<int, Key> _codepointToKey = {
@@ -214,6 +215,40 @@ Key? keyFromCodepoint(int codepoint) => _codepointToKey[codepoint];
 Key keyFromPhysical(PhysicalKeyboardKey physical) {
   return _keyMap[physical] ?? .unidentified;
 }
+
+/// xwshun: Android 软键盘、adb 发来的键 scanCode=0，Flutter 给的物理键是合成值
+/// （0x11_0000_0000 + keyCode），[keyFromPhysical] 认不出，软键盘退格、方向键就成了
+/// 0 字节（R04 问题 2）。是这种合成值时返回 true，调用方改用 [keyFromLogicalFallback]。
+bool isSyntheticPhysicalKey(PhysicalKeyboardKey physical) =>
+    (physical.usbHidUsage & 0xFF00000000) == 0x1100000000;
+
+/// xwshun: 物理键认不出时按逻辑键找终端按键。只收常用的编辑、导航键和小写字母，
+/// 其余返回 null 交还原路径——多收的键没在真机上验证过。
+Key? keyFromLogicalFallback(LogicalKeyboardKey logical) {
+  if (_logicalFallback[logical] case final key?) return key;
+  final id = logical.keyId;
+  if (id >= LogicalKeyboardKey.keyA.keyId &&
+      id <= LogicalKeyboardKey.keyZ.keyId) {
+    return Key.values.byName(String.fromCharCode(id));
+  }
+  return null;
+}
+
+final Map<LogicalKeyboardKey, Key> _logicalFallback = {
+  LogicalKeyboardKey.backspace: Key.backspace,
+  LogicalKeyboardKey.enter: Key.enter,
+  LogicalKeyboardKey.tab: Key.tab,
+  LogicalKeyboardKey.escape: Key.escape,
+  LogicalKeyboardKey.arrowUp: Key.arrowUp,
+  LogicalKeyboardKey.arrowDown: Key.arrowDown,
+  LogicalKeyboardKey.arrowLeft: Key.arrowLeft,
+  LogicalKeyboardKey.arrowRight: Key.arrowRight,
+  LogicalKeyboardKey.home: Key.home,
+  LogicalKeyboardKey.end: Key.end,
+  LogicalKeyboardKey.pageUp: Key.pageUp,
+  LogicalKeyboardKey.pageDown: Key.pageDown,
+  LogicalKeyboardKey.delete: Key.delete,
+};
 
 /// Returns the lowercase ASCII codepoint for [key], or 0 for non-character
 /// keys. Punctuation keys report their US-layout unshifted codepoint.

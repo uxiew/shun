@@ -87,5 +87,48 @@ void main() {
         expect(unshiftedCodepointForKey(Key.f1), 0);
       });
     });
+
+    // xwshun: Android 软键盘、adb 发来的键（scanCode=0）物理键是 0x11_0000_0000 + keyCode。
+    group('synthetic Android keys', () {
+      const syntheticBackspace = PhysicalKeyboardKey(0x1100000043);
+
+      test('recognizes the synthetic Android plane only', () {
+        expect(keyFromPhysical(syntheticBackspace), Key.unidentified);
+        expect(isSyntheticPhysicalKey(syntheticBackspace), isTrue);
+        expect(isSyntheticPhysicalKey(PhysicalKeyboardKey.backspace), isFalse);
+        expect(
+          isSyntheticPhysicalKey(const PhysicalKeyboardKey(0x1200000043)),
+          isFalse,
+        );
+      });
+
+      test('falls back to editing and navigation keys', () {
+        expect(
+          keyFromLogicalFallback(LogicalKeyboardKey.backspace),
+          Key.backspace,
+        );
+        expect(keyFromLogicalFallback(LogicalKeyboardKey.delete), Key.delete);
+        expect(keyFromLogicalFallback(LogicalKeyboardKey.enter), Key.enter);
+        expect(
+          keyFromLogicalFallback(LogicalKeyboardKey.arrowLeft),
+          Key.arrowLeft,
+        );
+        expect(
+          keyFromLogicalFallback(LogicalKeyboardKey.pageDown),
+          Key.pageDown,
+        );
+      });
+
+      test('falls back to lowercase letters', () {
+        expect(keyFromLogicalFallback(LogicalKeyboardKey.keyA), Key.a);
+        expect(keyFromLogicalFallback(LogicalKeyboardKey.keyZ), Key.z);
+      });
+
+      test('leaves other keys to the original path', () {
+        expect(keyFromLogicalFallback(LogicalKeyboardKey.digit1), isNull);
+        expect(keyFromLogicalFallback(LogicalKeyboardKey.f1), isNull);
+        expect(keyFromLogicalFallback(LogicalKeyboardKey.space), isNull);
+      });
+    });
   });
 }

@@ -105,7 +105,9 @@ final class TextInputSession with DeltaTextInputClient {
     return TextInputConfiguration(
       viewId: viewId,
       autocorrect: false,
-      inputType: .multiline,
+      // xwshun: multiline 加关掉建议，会被 Flutter 引擎标成「可见密码」，Gboard 只给英文键盘、
+      // 微信输入法每次弹出都回到英文；emailAddress 落成 Filter 类型，两种输入法都直接给中文（R04 问题 4）。
+      inputType: .emailAddress,
       inputAction: .newline,
       smartDashesType: .disabled,
       smartQuotesType: .disabled,
@@ -133,6 +135,21 @@ final class TextInputSession with DeltaTextInputClient {
   }
 
   void detach() => _closeConnection();
+
+  /// xwshun: 输入法发来的删除、方向键被终端吞掉后编辑区不变，平台不会通知输入法光标位置，
+  /// Gboard 按「已删一个字」估算，之后组字区间错一位、删拼音时漏发字母。推两次不同的编辑状态，
+  /// 逼平台发 updateSelection 让输入法重新对齐（R04 实测 A/B：去掉它 3/3 漏发，加上 0/3）。
+  void resyncAfterKeyEdit() {
+    final connection = _connection;
+    if (connection == null || !connection.attached || hasActiveComposition) {
+      return;
+    }
+    connection.setEditingState(
+      const TextEditingValue(text: ' ', selection: .collapsed(offset: 0)),
+    );
+    _value = _sentinel;
+    connection.setEditingState(_value);
+  }
 
   @override
   void didChangeInputControl(TextInputControl? _, TextInputControl? _) {}

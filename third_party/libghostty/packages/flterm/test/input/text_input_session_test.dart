@@ -1082,9 +1082,10 @@ void main() {
         expect(config['enableIMEPersonalizedLearning'], isFalse);
         expect(config['enableInlinePrediction'], isFalse);
         expect(config['enableDeltaModel'], isTrue);
+        // xwshun: multiline 会被 Android 引擎当可见密码框，中文输入法只给英文键盘（R04 问题 4）。
         expect(
           (config['inputType']! as Map<String, Object?>)['name'],
-          'TextInputType.multiline',
+          'TextInputType.emailAddress',
         );
         expect(config['inputAction'], TextInputAction.newline.toString());
         expect(config['keyboardAppearance'], Brightness.light.toString());
@@ -1196,6 +1197,60 @@ void main() {
         handler.detach();
 
         expect(handler.isAttached, isFalse);
+      });
+    });
+
+    // xwshun: R04 问题 4，终端吞掉软键盘的键以后逼平台把光标位置重新告诉输入法。
+    group('resyncAfterKeyEdit', () {
+      List<Object?> editingStates(List<MethodCall> calls) => [
+        for (final call in calls)
+          if (call.method == 'TextInput.setEditingState')
+            (call.arguments! as Map<String, Object?>)['selectionBase'],
+      ];
+
+      test('pushes two different states ending on the sentinel', () {
+        final calls = recordTextInputCalls();
+        handler.ensureAttached();
+        calls.clear();
+
+        handler.resyncAfterKeyEdit();
+
+        expect(editingStates(calls), [0, 1]);
+        expect(
+          handler.currentTextEditingValue,
+          const TextEditingValue(
+            text: ' ',
+            selection: TextSelection.collapsed(offset: 1),
+          ),
+        );
+      });
+
+      test('does nothing while the IME is composing', () {
+        final calls = recordTextInputCalls();
+        handler
+          ..ensureAttached()
+          ..updateEditingValueWithDeltas([
+            const TextEditingDeltaInsertion(
+              oldText: ' ',
+              textInserted: 'n',
+              insertionOffset: 1,
+              selection: TextSelection.collapsed(offset: 2),
+              composing: TextRange(start: 1, end: 2),
+            ),
+          ]);
+        calls.clear();
+
+        handler.resyncAfterKeyEdit();
+
+        expect(editingStates(calls), isEmpty);
+      });
+
+      test('does nothing without a connection', () {
+        final calls = recordTextInputCalls();
+
+        handler.resyncAfterKeyEdit();
+
+        expect(calls, isEmpty);
       });
     });
   });
