@@ -46,6 +46,10 @@ final class TerminalSession extends TerminalController with ChangeNotifier {
   ClipboardWriteCallback? _onClipboardWrite;
   ClipboardReadCallback? _onClipboardRead;
   ValueChanged<Uint8List>? _onOutput;
+
+  /// xwshun: 输入没经输入法编辑区就发了出去（[sendText]、[sendKey]、[paste]、IME 文字被虚拟修饰键
+  /// 变成了控制键）。挂着的视图据此清掉编辑区里留着的字，见 TextInputSession.discardRetainedText。
+  VoidCallback? _onInputBypassedTextInput;
   VoidCallback? _onPwdChanged;
   OnResize? _onResize;
   var _pwd = '';
@@ -550,6 +554,7 @@ final class TerminalSession extends TerminalController with ChangeNotifier {
     if (text.isEmpty) return;
     final bracketed = _terminal.modeGet(const .bracketedPaste());
     if (!_emitOutput(pasteEncode(text, bracketed: bracketed))) return;
+    _onInputBypassedTextInput?.call();
     _scrollToBottomOnInput();
   }
 
@@ -622,6 +627,7 @@ final class TerminalSession extends TerminalController with ChangeNotifier {
     _checkNotDisposed();
     if (text.isEmpty) return;
     if (!_emitOutput(utf8.encode(text))) return;
+    _onInputBypassedTextInput?.call();
     clearVirtualMods();
   }
 

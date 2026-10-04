@@ -21,6 +21,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:libghostty/libghostty.dart'
     as vt
     show ColorScheme, ColorSchemeReportEncode;
+import 'package:libghostty/libghostty.dart' as ghostty show Key;
 import 'package:libghostty/libghostty.dart' hide ColorScheme, KeyEvent;
 import 'package:material_ui/material_ui.dart';
 
@@ -528,6 +529,123 @@ void main() {
       );
     });
 
+    // xwshun: R04 问题 8。输入法提交后编辑区留着已发的字，好让输入法回头改字时能按差异补发；
+    // 输入从别的路（快捷键栏 sendText/sendKey、粘贴、硬件键）发出去后，远端那一行对不上了，要清空。
+    group('retained IME text', () {
+      Future<List<MethodCall>> commitThroughIme(
+        WidgetTester tester,
+        List<Uint8List> output,
+      ) async {
+        final calls = recordTextInputCalls();
+        controller.onOutput = output.add;
+        await tester.pumpWidget(
+          wrapInApp(controller: controller, autofocus: true),
+        );
+        await tester.pump();
+        await sendTextInputDeltas([
+          {
+            'oldText': ' ',
+            'deltaText': 'ab',
+            'deltaStart': 1,
+            'deltaEnd': 1,
+            'selectionBase': 3,
+            'selectionExtent': 3,
+            'selectionAffinity': 'TextAffinity.downstream',
+            'selectionIsDirectional': false,
+            'composingBase': -1,
+            'composingExtent': -1,
+          },
+        ]);
+        await tester.pump();
+        expect(utf8.decode(output.expand((bytes) => bytes).toList()), 'ab');
+        calls.clear();
+        output.clear();
+        return calls;
+      }
+
+      List<Object?> editingTexts(List<MethodCall> calls) => [
+        for (final call in calls)
+          if (call.method == 'TextInput.setEditingState')
+            (call.arguments! as Map<String, Object?>)['text'],
+      ];
+
+      testWidgets('commit keeps the editor text for the IME', (tester) async {
+        final calls = await commitThroughIme(tester, <Uint8List>[]);
+        await tester.pump();
+
+        expect(editingTexts(calls), isEmpty);
+      });
+
+      testWidgets('sendText clears the editor', (tester) async {
+        final output = <Uint8List>[];
+        final calls = await commitThroughIme(tester, output);
+
+        controller.sendText('\t');
+        await tester.pump();
+
+        expect(output.single, utf8.encode('\t'));
+        expect(editingTexts(calls), [' ']);
+      });
+
+      testWidgets('sendKey clears the editor', (tester) async {
+        final output = <Uint8List>[];
+        final calls = await commitThroughIme(tester, output);
+
+        controller.sendKey(ghostty.Key.arrowUp);
+        await tester.pump();
+
+        expect(output, hasLength(1));
+        expect(editingTexts(calls), [' ']);
+      });
+
+      testWidgets('paste clears the editor', (tester) async {
+        final output = <Uint8List>[];
+        final calls = await commitThroughIme(tester, output);
+
+        controller.paste('x');
+        await tester.pump();
+
+        expect(output, hasLength(1));
+        expect(editingTexts(calls), [' ']);
+      });
+
+      testWidgets('hardware key clears the editor', (tester) async {
+        final output = <Uint8List>[];
+        final calls = await commitThroughIme(tester, output);
+
+        await tester.sendKeyEvent(LogicalKeyboardKey.arrowUp);
+        await tester.pump();
+
+        expect(output, hasLength(1));
+        expect(editingTexts(calls), [' ']);
+      });
+
+      testWidgets('IME backspace after a commit deletes one character', (
+        tester,
+      ) async {
+        final output = <Uint8List>[];
+        await commitThroughIme(tester, output);
+
+        await sendTextInputDeltas([
+          {
+            'oldText': ' ab',
+            'deltaText': '',
+            'deltaStart': 2,
+            'deltaEnd': 3,
+            'selectionBase': 2,
+            'selectionExtent': 2,
+            'selectionAffinity': 'TextAffinity.downstream',
+            'selectionIsDirectional': false,
+            'composingBase': -1,
+            'composingExtent': -1,
+          },
+        ]);
+        await tester.pump();
+
+        expect(output.single, [0x7f]);
+      });
+    });
+
     // xwshun: R04 问题 3，系统收起软键盘后焦点还在终端上。
     testWidgets('tap while focused shows the keyboard again', (tester) async {
       final focusNode = FocusNode();
@@ -779,9 +897,10 @@ void main() {
       );
       await tester.pump();
 
+      // xwshun: 平台编辑区开头总是哨兵空格，删掉它就是「编辑区空着时按退格」。
       await sendTextInputDeltas([
         {
-          'oldText': 'x',
+          'oldText': ' ',
           'deltaText': '',
           'deltaStart': 0,
           'deltaEnd': 1,
@@ -1245,9 +1364,10 @@ void main() {
           expect(handled, isTrue);
           expect(output, hasLength(1));
 
+          // xwshun: 平台编辑区开头总是哨兵空格，删掉它就是「编辑区空着时按退格」。
           await sendTextInputDeltas([
             {
-              'oldText': 'x',
+              'oldText': ' ',
               'deltaText': '',
               'deltaStart': 0,
               'deltaEnd': 1,

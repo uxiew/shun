@@ -145,6 +145,7 @@ extension on TerminalSession {
     final result = _encoder.encodeKeyPress(key, mods: mods | _virtualMods);
     if (result.isEmpty) return;
     if (!_emitOutput(utf8.encode(result))) return;
+    _onInputBypassedTextInput?.call();
     clearVirtualMods();
   }
 

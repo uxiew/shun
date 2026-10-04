@@ -45,6 +45,7 @@ final class ViewAttachment extends ChangeNotifier {
       ..onDelete = _controller._handleTextDeleted
       ..onNewline = _controller._handleTextNewline
       ..onPreeditChanged = _handlePreeditChanged;
+    _controller._onInputBypassedTextInput = _textInput.discardRetainedText;
     selectionInput = _controller.createSelectionInteraction();
     _interaction = ValueNotifier(_readInteractionState());
     _compressionScheduler = CompressionScheduler(
@@ -181,6 +182,10 @@ final class ViewAttachment extends ChangeNotifier {
     if (!_controller.isDisposed) {
       _controller.removeListener(_handleControllerChanged);
       _controller._frameChanges.removeListener(_handleTerminalChanged);
+      if (_controller._onInputBypassedTextInput ==
+          _textInput.discardRetainedText) {
+        _controller._onInputBypassedTextInput = null;
+      }
     }
     _scrollController?.removeListener(_handleScrollChanged);
     links.dispose();
@@ -331,9 +336,13 @@ final class ViewAttachment extends ChangeNotifier {
       input,
       deferToTextInput: routeToTextInput,
     );
-    // xwshun: 这类键被终端吞掉后编辑区没变，输入法不知道光标在哪，之后组字区间会错一位、
-    // 删拼音时漏发字母（R04 问题 4）。
-    if (synthetic && result == .handled) _textInput.resyncAfterKeyEdit();
+    // xwshun: 软键盘发来的键被终端吞掉后编辑区没变，输入法不知道光标在哪，之后组字区间会错一位、
+    // 删拼音时漏发字母（R04 问题 4）。硬件键盘的键也绕过了编辑区，编辑区里留着的字对不上远端了。
+    if (result == .handled) {
+      synthetic
+          ? _textInput.resyncAfterKeyEdit()
+          : _textInput.discardRetainedText();
+    }
     return switch (result) {
       .ignored => .ignored,
       .deferred => .skipRemainingHandlers,
