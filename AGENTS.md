@@ -9,7 +9,7 @@
 
 硬规矩（详见 plan/v3/AGENTS.md）：
 
-- 不 push、不发布。`upstream` 的 push 地址被故意改成了无效值，`git push` 会直接报错——这是防手滑，不是配置坏了。
+- 不 push、不发布，除非所有者开口。remote 只有 `origin` = `uxiew/xwshun`（原项目的 upstream 已清掉，基座 SHA 见 `docs/architecture/base-decision.md`）。
 - applicationId 是 `top.xdwa.xwshun`，不得改回 `app.netcatty.mobile`，否则会覆盖手机上的原版 Netcatty 及其数据。
 - 没真机/没授权的用例写 NOT_RUN 或 BLOCKED，不许拿 mock、参考 App 或计划校验冒充通过。
 

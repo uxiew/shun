@@ -7,20 +7,20 @@
 | 项 | 决定 |
 |---|---|
 | 基座 | kmh1145/Netcatty-mobile，锁定 `495f5d3174d6b3825fc9edefa7ebe345f3399734`（tag `v1.4.7`，提交时间 2026-09-19） |
-| 仓库位置 | 本机 `/Users/fodelf/xdw/xwshun/netcatty-mobile`，分支 `xwshun/v3`；**不建 GitHub fork，不 push** |
+| 仓库位置 | 本机 `/Users/fodelf/xdw/xwshun/netcatty-mobile`，分支 `xwshun/v3`；remote 只有 `origin` = `git@github.com:uxiew/xwshun.git`（2026-10-04 所有者定）。**所有者说推之前不 push** |
 | 许可 | GPL-3.0-or-later，**个人隔离实验**。对外分发（给任何其他人装）之前必须另做许可审核，见下文 |
 | applicationId | `top.xdwa.xwshun`（所有者指定）。R01 落地；上游是 `app.netcatty.mobile`，不得复用 |
 | 替代方案 | Conduit（Apache-2.0）不启用，不同时维护两条产品分支 |
 
 ## 锁定的输入
 
-- 克隆时工作区干净（`git status` 无输出），上游 remote 名为 `upstream`，push 地址已改成无效值防手滑。
+- 克隆时工作区干净（`git status` 无输出），上游 remote 名为 `upstream`，push 地址已改成无效值防手滑。2026-10-04 按所有者要求删掉了 `upstream`（连同它的远程分支引用），基座 `495f5d31` 仍在本分支历史里，本地 `main` 也还停在它上面。
 - `pubspec.yaml` sha256 `528a0c909227faaf79d27bbc2bc9fef7d082b0996b29ffe05336da0c1ae3377a`
 - `pubspec.lock` sha256 `ad69d656445fa16606c1ee962c1b7cad25b1f4724885ef5263776490af5a1140`，lock 要求 Dart ≥3.12.0、Flutter ≥3.44.0
 - Flutter SDK：3.44.4 stable，取自上游 CI（`.github/workflows/mobile.yml`），装在仓库外 `../.toolchain/flutter`
 - 上游版本号 `1.4.7+26`。**版本号不是锁定依据，SHA 才是**：上游以后往 main 推新提交不会影响本 fork。
 
-以后要同步上游：`git fetch upstream` 后显式 merge 某个 SHA，并在本文件追加一行记录，不跟随浮动的 main。
+以后要同步上游：不再常驻 upstream remote，临时拉指定提交——`git fetch https://github.com/kmh1145/Netcatty-mobile.git <SHA>`，再显式 merge 这个 SHA，并在本文件追加一行记录，不跟随浮动的 main。
 
 ## 许可义务：现在要做的和分发前要做的
 
@@ -41,5 +41,5 @@
 
 ## 撞墙时
 
-- `git push` 报 `NO_PUSH_see_plan_v3` 相关错误：这是故意的。真要推到某个远程，先经所有者同意，再单独加一个新 remote，不要改回 upstream 的 push 地址。
+- `git push` 报 `Repository not found`：`uxiew/xwshun` 在 GitHub 上还没建，或者本机这个 SSH 钥匙对它没有写权限（2026-10-04 查过：仓库看不到，gh 登录的是 fodelf）。建仓库、推送都等所有者说。
 - 如果以后决定不接受 GPL 分发条件：不能在本 fork 上改许可证。要另起 Conduit 基座并写替代 ADR（`plan/v3/docs/11-conduit-alternative.md`），本 fork 的代码不能搬过去。

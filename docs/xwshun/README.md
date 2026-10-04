@@ -125,7 +125,7 @@ API 35 镜像是你原有的，`lizhi` 模拟器在用，**不要卸**。
 
 ## 7. 撞墙时
 
-- **`git push` 报 `NO_PUSH_see_plan_v3`**：故意的，这个 fork 不 push。
+- **`git push` 报 `Repository not found`**：`uxiew/xwshun` 在 GitHub 上还没建，或者这把 SSH 钥匙没有写权限。推送等所有者说，见 `docs/architecture/base-decision.md`。
 - **zsh 里把命令存进变量再执行，报 `command not found: adb -s ...`**：zsh 不按空格拆变量，改用 `bash -c '...'` 或函数。`export ANDROID_SERIAL=emulator-5580` 后 adb 默认就打到那台，最省事。
 - **`adb shell input text` 打字，分号后面的东西在模拟器上被当成命令执行了**：参数是交给模拟器的 shell 解释的，`;`、`$` 都会生效。整段用单引号包起来再传（`adb shell input text "'echo%s\$HOME'"`，`%s` 是空格），或者一次只打一条不带分号的命令。
 - **新 AVD 起不来，日志 `FATAL | Not enough space to create userdata partition ... need 7372.80 MB`**：
