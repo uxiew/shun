@@ -381,6 +381,57 @@ final class TerminalSession extends TerminalController with ChangeNotifier {
     );
   }
 
+  @override
+  List<({String text, bool wrapped})> tailRows(int count) {
+    _checkNotDisposed();
+    final total = _terminal.totalRows;
+    if (count <= 0 || total <= 0) return const [];
+    final start = total > count ? total - count : 0;
+    final rows = total - start;
+    bool rowWraps(int row) => GridRef.at(
+      _terminal,
+      Position(row: row, col: 0),
+      pointTag: .screen,
+    ).rowWrap;
+    String format(int first, int last) {
+      final formatter = Formatter(
+        terminal: _terminal,
+        format: .plain,
+        selection: Selection.fromRefs(
+          start: GridRef.at(
+            _terminal,
+            Position(row: first, col: 0),
+            pointTag: .screen,
+          ),
+          end: GridRef.at(
+            _terminal,
+            Position(row: last, col: _terminal.geometry.cols - 1),
+            pointTag: .screen,
+          ),
+        ),
+      );
+      try {
+        return formatter.format();
+      } finally {
+        formatter.dispose();
+      }
+    }
+
+    // 一段范围格式化一次，每个物理行一行；末尾的空行可能被省掉，按空串补上。
+    // 行数比范围还多说明对不上，退回逐行格式化，慢但不会错位。
+    var lines = format(start, total - 1).split('\n');
+    if (lines.length > rows) {
+      lines = [for (var row = start; row < total; row++) format(row, row)];
+    }
+    final result = <({String text, bool wrapped})>[];
+    var continued = start > 0 && rowWraps(start - 1);
+    for (var i = 0; i < rows; i++) {
+      result.add((text: i < lines.length ? lines[i] : '', wrapped: continued));
+      if (i + 1 < rows) continued = rowWraps(start + i);
+    }
+    return result;
+  }
+
   SelectionInteraction createSelectionInteraction() {
     _checkNotDisposed();
     if (_viewToken == null) {

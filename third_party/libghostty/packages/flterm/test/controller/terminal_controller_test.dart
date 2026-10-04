@@ -2,6 +2,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flterm/src/controller/terminal_controller.dart';
@@ -2267,6 +2268,85 @@ void main() {
         controller.sendText('');
 
         expect(controller.virtualMods.hasCtrl, isTrue);
+      });
+    });
+
+    // xwshun: App 的画中画和 AI 上下文只读最近几百行（tailRows）。
+    group('tailRows', () {
+      void writeText(TerminalController target, String text) =>
+          target.write(Uint8List.fromList(utf8.encode(text)));
+
+      test('returns the last rows oldest first, keeping blank rows', () {
+        final small = TerminalController(
+          config: const TerminalConfig(cols: 10, rows: 4),
+        );
+        addTearDown(small.dispose);
+        writeText(small, 'one\r\n\r\nthree\r\nfour\r\nfive\r\nsix');
+
+        expect(small.tailRows(3).map((row) => row.text), [
+          'four',
+          'five',
+          'six',
+        ]);
+        expect(small.tailRows(100).map((row) => row.text), [
+          'one',
+          '',
+          'three',
+          'four',
+          'five',
+          'six',
+        ]);
+      });
+
+      test('marks soft-wrapped continuation rows, wide text included', () {
+        final small = TerminalController(
+          config: const TerminalConfig(cols: 10, rows: 4),
+        );
+        addTearDown(small.dispose);
+        writeText(small, 'head\r\nbbbbbbbbbbbbbbb\r\n中文中文中文\r\nend');
+
+        expect(small.tailRows(5), [
+          (text: 'bbbbbbbbbb', wrapped: false),
+          (text: 'bbbbb', wrapped: true),
+          (text: '中文中文中', wrapped: false),
+          (text: '文', wrapped: true),
+          (text: 'end', wrapped: false),
+        ]);
+      });
+
+      test('first row reports whether it continues a row above the window', () {
+        final small = TerminalController(
+          config: const TerminalConfig(cols: 10, rows: 4),
+        );
+        addTearDown(small.dispose);
+        writeText(small, 'x\r\ny\r\nbbbbbbbbbbbbbbb');
+
+        expect(small.tailRows(1).single, (text: 'bbbbb', wrapped: true));
+      });
+
+      test('pads rows below the written content with empty text', () {
+        writeText(controller, 'only');
+
+        final rows = controller.tailRows(24);
+
+        expect(rows, hasLength(24));
+        expect(rows.first.text, 'only');
+        expect(rows.skip(1).every((row) => row.text.isEmpty), isTrue);
+      });
+
+      test('reads the alternate screen while it is active', () {
+        writeText(controller, 'main\x1b[?1049h\x1b[Hfull screen');
+
+        expect(controller.tailRows(24).first.text, 'full screen');
+      });
+
+      test('returns nothing for a non-positive count', () {
+        expect(controller.tailRows(0), isEmpty);
+      });
+
+      test('throws after dispose', () {
+        final disposed = TerminalController()..dispose();
+        expect(() => disposed.tailRows(1), throwsStateError);
       });
     });
   });

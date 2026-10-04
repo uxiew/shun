@@ -489,6 +489,18 @@ sealed class TerminalController implements Listenable {
   /// ```
   Uint8List snapshot();
 
+  /// xwshun: The last [count] physical rows of the active screen, scrollback
+  /// included, oldest first.
+  ///
+  /// `wrapped` is true when the row continues the previous row because it did
+  /// not fit (a soft wrap), matching xterm2's `BufferLine.isWrapped`. Reading
+  /// does not change the selection or the viewport. Rows past the end of the
+  /// written content are empty strings.
+  ///
+  /// 给 App 的画中画小窗和 AI 上下文用：它们只看最近几百行。逐格用 GridRef 读滚动区
+  /// 每次都要从头遍历分页，这里改成对整段范围格式化一次。
+  List<({String text, bool wrapped})> tailRows(int count);
+
   /// Toggles a virtual modifier on or off.
   void toggleMod(Mods mod);
 
