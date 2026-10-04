@@ -57,14 +57,15 @@ R04 其他要带进 R17 的发现：dispose 后 write 段错误、软键盘退�
 
 ## 10-04 所有者的决定
 
-- libghostty / flterm 自己维护一份：已放进 `third_party/libghostty`（上游 `609ee318`，即 flterm 0.0.5 / libghostty 0.0.12），R04 的输入法补丁已并入，flterm 682、libghostty 412 条测试全过；目标是修 bug、补功能、和原项目的 xterm 能力看齐，待办和同步办法见 `third_party/README.md`。其他依赖同理，卡住时 fork 进 `third_party/`。
+- libghostty / flterm 自己维护一份，放在 `third_party/libghostty`；目标是修 bug、补功能、和原项目的 xterm 能力看齐，待办和同步办法见 `third_party/README.md`。其他依赖同理，卡住时 fork 进 `third_party/`。
+- fork 跟到上游 main（所有者让我自己择优）：起点从 0.0.5（`609ee318`）换成未发版的 main `9e40b11`，因为多出的 105 个提交里有 R17/R18 要的触摸选区、滚动区上限、搜索、快照、剪贴板等，留在 0.0.5 等于重写。代价是原生库要用 Zig 0.16 从源码编（brew `zig@0.16`，`env.sh` 已带上），Ghostty 源码包按 SHA256 核对。R04 的输入法补丁已移到新输入层，另修了收起后叫不回键盘；flterm 1083、libghostty 511 条全过，spike 在项目模拟器上验过（见 evidence/R04.md 末节）。
 - remote：清掉原项目的 upstream，`origin` = `uxiew/xwshun`。GitHub 上这个仓库现在还看不到（gh 登录的是 fodelf），没有 push。
 - README 只留常用命令和索引，细节在 `docs/`。
 
 ## 下一批
 
 `lizhi` 开着时，本项目模拟器用 `-port 5580` 起、adb 都带 `-s emulator-5580`（写在 docs/xwshun/README.md 第 7 节）。
-**依赖已满足、可以开工的**：R17（flterm 生产适配与 native 生命周期）、X08（Mosh 运行时选择与独立 APK 可行性）。R17 要带上 R04 问题清单和 R16 证据末尾「给 R17 的话」（和 xterm2 逐项对齐的功能清单），开工先定：在 fork 的 0.0.5 上补齐，还是先同步上游 main（多 105 个提交，有触摸选区、滚动区上限等，但输入层重构、要装 Zig 自己编原生库，见 `third_party/README.md`）。
+**依赖已满足、可以开工的**：R17（flterm 生产适配与 native 生命周期）、X08（Mosh 运行时选择与独立 APK 可行性）。R17 要带上 R04 问题清单（10-04 复核后的状态在 evidence/R04.md 末节）和 R16 证据末尾「给 R17 的话」（和 xterm2 逐项对齐的功能清单）。fork 已同步到上游 main，主 App 接 Ghostty 照抄 spike 的 pubspec（path 依赖 + override + `source: compile`），换依赖后先删 `.dart_tool/hooks_runner`，见 `third_party/README.md`。
 真机只接在 xdwmbp 上，用法和撞墙见 `tool/remote-device/README.md`；装着中文输入法的真机上别用 adb 注入按键（会把输入法弄进实体键盘模式，恢复办法在 `docs/xwshun/README.md` 第 7 节）。
 R14、R15 的测试环境：仿制 Tailscale SSH 服务器和 Headscale + 真 tailscaled（R15 加了远程 SOCKS 和跳板两个节点），用法见 `tool/tailscale-ssh-fixture/README.md`。
 设备关联：目录的存在主机上，UU 的存在 UU 自己的加密存储里（记主机 id），RustDesk 的存在 RustDesk 这边的加密存储里，`deviceLinksOf` 把三样拼起来。
