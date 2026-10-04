@@ -75,9 +75,16 @@ class _LoopbackPageState extends State<LoopbackPage> {
     );
   }
 
-  /// 回车只回显成换行，其余原样回显，模拟一个开着 echo 的 PTY。
+  /// 模拟一个开着 echo 的 PTY：回车回显成换行，退格（0x7f）回显成"退一格、空格、再退一格"，
+  /// 其余原样回显。退格原先原样回显，Ghostty 会把 DEL 画成方格（真机上被当成 bug 报过）；
+  /// 真实 PTY 不回送 0x7f。中文占两格时这里只擦一格，和 Linux 行规程一样，只是回环演示。
   static Uint8List _echo(Uint8List bytes) => Uint8List.fromList([
-    for (final b in bytes) ...(b == 13 ? const [13, 10] : [b]),
+    for (final b in bytes)
+      ...switch (b) {
+        13 => const [13, 10],
+        0x7f => const [8, 32, 8],
+        _ => [b],
+      },
   ]);
 
   static String _describe(Uint8List bytes) {
