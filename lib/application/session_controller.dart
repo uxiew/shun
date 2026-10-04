@@ -8,6 +8,7 @@ import '../domain/models/host.dart';
 import '../infrastructure/ssh/ssh_login_watch.dart';
 import '../infrastructure/ssh/ssh_service.dart';
 import '../infrastructure/ssh/server_monitor_service.dart';
+import '../infrastructure/terminal/terminal_session_adapter.dart';
 import 'credential_availability.dart';
 import 'terminal_engine.dart';
 import 'vault_controller.dart';
@@ -212,9 +213,12 @@ class SessionController extends StateNotifier<SessionState> {
       activePendingId: sessionId,
       error: null,
     );
-    final terminal = newTerminal();
+    TerminalSessionAdapter? terminal;
     var handedOver = false;
     try {
+      // 终端先建：引擎（Ghostty 的原生库）建不起来时连接照常失败，失败页写清是哪个引擎，
+      // 不先拨号再发现没地方显示，也不换成别的引擎凑合。
+      terminal = newTerminal();
       final vault = await vaultController.ready();
       // 等保险库解锁时用户可能已经点了终止：此时一个连接都还没拨，直接放弃。
       attempt.throwIfCancelled();
@@ -315,7 +319,7 @@ class SessionController extends StateNotifier<SessionState> {
       rethrow;
     } finally {
       // 没进标签的终端（失败、取消、迟到的成功）没有别人会用，就地释放。
-      if (!handedOver) terminal.dispose();
+      if (!handedOver) terminal?.dispose();
     }
   }
 

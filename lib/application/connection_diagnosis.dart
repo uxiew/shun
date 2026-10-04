@@ -7,6 +7,7 @@ import '../domain/connection_route.dart';
 import '../infrastructure/ssh/ssh_identity.dart';
 import '../infrastructure/ssh/ssh_login_watch.dart';
 import '../infrastructure/ssh/ssh_service.dart';
+import '../infrastructure/terminal/terminal_session_adapter.dart';
 import '../infrastructure/transport/proxy_transport.dart';
 
 /// 连接失败后给一句「下一步怎么办」（UX04）。
@@ -17,6 +18,9 @@ String? connectionHint(Object error) {
   final cause = error is RouteHopException ? error.cause : error;
   return switch (cause) {
     RouteConfigException() => '路线配置有问题：到主机编辑器的「连接路径」里改，保存前会检查。',
+    // 还没拨号就停了，和服务器、网络无关。
+    TerminalEngineUnavailableException() =>
+      '是这台手机上的终端引擎没能启动，还没开始连服务器。到「设置 → 外观」把终端引擎改回 xterm2 再连。',
     // 放在 dartssh2 的错误前面：Tailscale 拒绝时 dartssh2 报的是「认证前连接被关闭」，
     // 按那条提示会让人去查端口填错没有。
     TailscaleLoginDenied() =>

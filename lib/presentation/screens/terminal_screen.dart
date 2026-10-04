@@ -9,6 +9,7 @@ import '../../application/fork_features.dart';
 import '../../application/session_controller.dart';
 import '../../application/home_navigation.dart';
 import '../../application/settings_controller.dart';
+import '../../application/terminal_engine.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/route_description.dart';
 import '../../infrastructure/ai/ai_service.dart';
@@ -204,10 +205,11 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                                                 ? Colors.greenAccent
                                                 : Colors.orangeAccent,
                                           ),
+                                          // 默认引擎不标；用设置里选的实验引擎开的标签标出来，
+                                          // 改了设置以后哪个标签用的是哪个引擎一眼能看出来。
                                           label: LText(
-                                            duplicateCount > 1
-                                                ? '${session.host.label} #$occurrence'
-                                                : session.host.label,
+                                            '${duplicateCount > 1 ? '${session.host.label} #$occurrence' : session.host.label}'
+                                            '${session.terminal.engine == defaultTerminalEngineName ? '' : ' · ${session.terminal.engine}'}',
                                           ),
                                           onPressed: () => ref
                                               .read(

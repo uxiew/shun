@@ -1,6 +1,15 @@
 enum SyncProviderType { webdav, githubGist, s3 }
 
 const minTerminalFontSize = 6.0;
+
+/// 终端引擎的设置值。R17 起 Ghostty 可以在设置里选，默认仍是 xterm2：
+/// Ghostty 的中文输入、快捷键栏、选区等迁移在 R18、R19，门禁在 R20 过了才改默认（docs/06 E 步）。
+const terminalEngineXterm2 = 'xterm2';
+const terminalEngineGhostty = 'ghostty';
+const supportedTerminalEngines = <String>{
+  terminalEngineXterm2,
+  terminalEngineGhostty,
+};
 const maxTerminalFontSize = 24.0;
 const defaultAiModel = 'gpt-4.1-mini';
 const maxAiChatHistoryMessages = 30;
@@ -57,6 +66,7 @@ class AppSettings {
     this.serverViewMode = 'grid',
     this.terminalFontSize = 14,
     this.terminalSecureKeyboard = false,
+    this.terminalEngine = terminalEngineXterm2,
     this.sftpSyntaxHighlight = true,
     this.customBackgroundEnabled = false,
     this.customBackgroundPath = '',
@@ -112,6 +122,9 @@ class AppSettings {
           .clamp(minTerminalFontSize, maxTerminalFontSize)
           .toDouble(),
       terminalSecureKeyboard: json['terminalSecureKeyboard'] == true,
+      terminalEngine: supportedTerminalEngines.contains(json['terminalEngine'])
+          ? json['terminalEngine'] as String
+          : terminalEngineXterm2,
       sftpSyntaxHighlight: json['sftpSyntaxHighlight'] != false,
       customBackgroundEnabled: json['customBackgroundEnabled'] == true,
       customBackgroundPath: json['customBackgroundPath']?.toString() ?? '',
@@ -145,6 +158,9 @@ class AppSettings {
   final String serverViewMode;
   final double terminalFontSize;
   final bool terminalSecureKeyboard;
+
+  /// 之后新开的终端用哪个引擎（[supportedTerminalEngines]）。已经开着的终端不换。
+  final String terminalEngine;
   final bool sftpSyntaxHighlight;
   final bool customBackgroundEnabled;
   final String customBackgroundPath;
@@ -167,6 +183,7 @@ class AppSettings {
     String? serverViewMode,
     double? terminalFontSize,
     bool? terminalSecureKeyboard,
+    String? terminalEngine,
     bool? sftpSyntaxHighlight,
     bool? customBackgroundEnabled,
     String? customBackgroundPath,
@@ -190,6 +207,7 @@ class AppSettings {
         terminalFontSize: terminalFontSize ?? this.terminalFontSize,
         terminalSecureKeyboard:
             terminalSecureKeyboard ?? this.terminalSecureKeyboard,
+        terminalEngine: terminalEngine ?? this.terminalEngine,
         sftpSyntaxHighlight: sftpSyntaxHighlight ?? this.sftpSyntaxHighlight,
         customBackgroundEnabled:
             customBackgroundEnabled ?? this.customBackgroundEnabled,
@@ -218,6 +236,7 @@ class AppSettings {
         'serverViewMode': serverViewMode,
         'terminalFontSize': terminalFontSize,
         'terminalSecureKeyboard': terminalSecureKeyboard,
+        'terminalEngine': terminalEngine,
         'sftpSyntaxHighlight': sftpSyntaxHighlight,
         'customBackgroundEnabled': customBackgroundEnabled,
         'customBackgroundPath': customBackgroundPath,

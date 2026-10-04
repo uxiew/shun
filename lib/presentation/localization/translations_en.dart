@@ -565,6 +565,12 @@ const englishTranslations = <String, String>{
       'Unable to connect to GitHub. Check the network and retry.',
   '系统安全键盘': 'System secure keyboard',
   '安全键盘设置保存失败：': 'Failed to save secure keyboard setting: ',
+  '终端引擎': 'Terminal engine',
+  'Ghostty（实验）': 'Ghostty (experimental)',
+  '只影响之后新开的终端。Ghostty 还在迁移：快捷键栏、方向键模式、中文输入法和选区复制以 xterm2 为准':
+      'Affects only terminals opened from now on. Ghostty is still being migrated: the shortcut bar, cursor-key mode, Chinese input methods and selection copy follow xterm2 for now.',
+  '是这台手机上的终端引擎没能启动，还没开始连服务器。到「设置 → 外观」把终端引擎改回 xterm2 再连。':
+      'The terminal engine on this phone failed to start; no connection to the server was attempted. Switch the terminal engine back to xterm2 in Settings → Appearance and connect again.',
   "Catty Agent', '使用 OpenAI 兼容接口生成命令，执行前始终确认":
       "Catty Agent', 'Generate commands with an OpenAI-compatible API and always confirm before execution",
   "Catty Agent', '使用 OpenAI 兼容接口连续对话，命令执行前始终确认":
@@ -1178,6 +1184,9 @@ const englishTranslations = <String, String>{
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  ('终端引擎设置保存失败：', 'Failed to save terminal engine setting: '),
+  ('终端引擎 ', 'Terminal engine '),
+  (' 无法启动：', ' could not start: '),
   // R14：Tailscale SSH 报错、来源说明、check 卡片里带插值或多段拼接的句子，按片段翻。
   (
     '到 Tailscale 后台检查访问策略里的 ssh 规则：来源要包含这次连接的来源节点（经代理时是代理出口那台，不是手机），',
