@@ -92,10 +92,11 @@ class TmuxFixture {
   }
 
   /// 把某个 tmux 客户端所在的那条 SSH 连接在服务器那头直接杀掉（等于断网），只断这一条。
+  /// 进程名带空格（`(tmux: client)`），所以按最后一个 `) ` 之后的字段取父进程号。
   Future<void> dropConnectionOf(String node, int clientPid) => dockerExec(
         node,
-        'child=\$(awk "{print \\\$4}" /proc/$clientPid/stat); '
-        'monitor=\$(awk "{print \\\$4}" /proc/\$child/stat); '
+        'ppid() { sed "s/.*) //" /proc/\$1/stat | cut -d" " -f2; }; '
+        'child=\$(ppid $clientPid); monitor=\$(ppid \$child); '
         'kill -9 \$child \$monitor',
       );
 
