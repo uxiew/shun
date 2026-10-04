@@ -443,6 +443,11 @@ class SessionController extends StateNotifier<SessionState> {
     if (_backgrounded == backgrounded) return;
     _backgrounded = backgrounded;
     if (backgrounded) {
+      // 快捷键栏按下的 Ctrl/Alt 只管下一次输入；切到后台再回来还亮着，用户早忘了，
+      // 下一个字就成了控制键（TER04）。
+      for (final session in state.sessions) {
+        session.terminal.input.clearModifiers();
+      }
       _ensureBackgroundMaintenance();
       unawaited(_maintainBackgroundConnections());
       return;

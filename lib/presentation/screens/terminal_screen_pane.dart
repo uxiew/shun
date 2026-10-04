@@ -242,12 +242,20 @@ class _TerminalPane extends StatefulWidget {
     required this.secureKeyboard,
     required this.pictureInPicture,
     required this.transparentBackground,
+    this.onFocused,
+    this.inputTarget = false,
   });
   final ActiveTerminalSession session;
   final double fontSize;
   final bool secureKeyboard;
   final bool pictureInPicture;
   final bool transparentBackground;
+
+  /// 这一格的终端拿到焦点（用户点了它）。分屏时据此决定快捷键栏发给谁。
+  final ValueChanged<String>? onFocused;
+
+  /// 分屏时输入正发往这一格：描一圈边。另一格没有边，不只靠颜色区分。
+  final bool inputTarget;
 
   @override
   State<_TerminalPane> createState() => _TerminalPaneState();
@@ -322,16 +330,40 @@ class _TerminalPaneState extends State<_TerminalPane> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return ColoredBox(
-      color: widget.transparentBackground ? Colors.transparent : scheme.surface,
-      child: terminalViewFor(
-        _terminal,
-        TerminalViewOptions(
-          fontSize: widget.fontSize,
-          secureKeyboard: widget.secureKeyboard,
-          interactive: !widget.pictureInPicture,
-          transparentBackground: widget.transparentBackground,
-        ),
+    return Focus(
+      canRequestFocus: false,
+      skipTraversal: true,
+      onFocusChange: (focused) {
+        if (focused) widget.onFocused?.call(widget.session.id);
+      },
+      // 描边叠在终端上面、不接手势；终端那一层的结构不随描边变，换格时不会把终端视图卸下重挂。
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          ColoredBox(
+            color: widget.transparentBackground
+                ? Colors.transparent
+                : scheme.surface,
+            child: terminalViewFor(
+              _terminal,
+              TerminalViewOptions(
+                fontSize: widget.fontSize,
+                secureKeyboard: widget.secureKeyboard,
+                interactive: !widget.pictureInPicture,
+                transparentBackground: widget.transparentBackground,
+              ),
+            ),
+          ),
+          if (widget.inputTarget)
+            IgnorePointer(
+              child: DecoratedBox(
+                key: const ValueKey('terminal-pane-input-target'),
+                decoration: BoxDecoration(
+                  border: Border.all(color: scheme.primary, width: 2),
+                ),
+              ),
+            ),
+        ],
       ),
     );
   }

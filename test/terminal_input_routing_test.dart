@@ -1,11 +1,26 @@
 import 'dart:convert';
 
+import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:netcatty_mobile/application/session_controller.dart';
+import 'package:netcatty_mobile/application/vault_controller.dart';
+import 'package:netcatty_mobile/domain/connection_route.dart';
+import 'package:netcatty_mobile/domain/models/host.dart';
+import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
+import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/presentation/screens/terminal_screen.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flterm/flterm.dart' as flterm show TerminalView;
+import 'package:xterm2/xterm.dart' as xterm show TerminalView;
 
-// R18：快捷键栏的功能键交给引擎编码（跟远端的光标键模式走）。两个引擎各跑一遍。
+// R18：快捷键栏的功能键交给引擎编码（跟远端的光标键模式走）、修饰键不粘、
+// 分屏时输入只发给用户点过的那一格。两个引擎各跑一遍。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -74,5 +89,188 @@ void main() {
         expect(sent, isEmpty);
       });
     });
+
+    group('$engine 终端页', () {
+      testWidgets('分屏：快捷键栏的键和修饰键只发给点过的那一格，换格时上一格的修饰键清掉', (tester) async {
+        final page = await _Page.open(tester, newTerminal);
+        final engineView =
+            engine == 'Ghostty' ? flterm.TerminalView : xterm.TerminalView;
+        await tester.tap(find.byKey(const ValueKey('terminal-action-split')));
+        await page.settle();
+        expect(find.byType(engineView), findsNWidgets(2));
+
+        // 没点过哪一格时输入跟当前标签走。
+        await tester.tap(find.text('↑'));
+        await page.settle();
+        expect(page.sent['first'], ['\x1b[A']);
+        expect(page.sent['second'], isEmpty);
+
+        // 点第二格：描边挪过去，快捷键栏改发给它。
+        await tester.tap(find.byType(engineView).last);
+        await page.settle();
+        expect(
+          tester.getRect(find.byKey(
+            const ValueKey('terminal-pane-input-target'),
+          )),
+          tester.getRect(find.byType(engineView).last),
+        );
+        await tester.tap(find.text('↑'));
+        await tester.tap(find.text('Ctrl'));
+        await page.settle();
+        expect(page.sent['first'], ['\x1b[A']);
+        expect(page.sent['second'], ['\x1b[A']);
+        expect(page.second.terminal.input.modifiers, {'ctrl'});
+        expect(page.first.terminal.input.modifiers, isEmpty);
+
+        // 回到第一格：第二格挂着的 Ctrl 清掉，不会等用户回去时把下一个字变成控制键。
+        await tester.tap(find.byType(engineView).first);
+        await page.settle();
+        expect(page.second.terminal.input.modifiers, isEmpty);
+        await tester.tap(find.text('→'));
+        await page.settle();
+        expect(page.sent['first'], ['\x1b[A', '\x1b[C']);
+        expect(page.sent['second'], ['\x1b[A']);
+      });
+
+      testWidgets('切标签、切到后台：修饰键清掉', (tester) async {
+        final page = await _Page.open(tester, newTerminal);
+        await tester.tap(find.text('Alt'));
+        await page.settle();
+        expect(page.first.terminal.input.modifiers, {'alt'});
+
+        page.controller.activate(1);
+        await page.settle();
+        expect(page.first.terminal.input.modifiers, isEmpty);
+
+        await tester.tap(find.text('Ctrl'));
+        await page.settle();
+        expect(page.second.terminal.input.modifiers, {'ctrl'});
+        page.controller.setBackgrounded(true);
+        expect(page.second.terminal.input.modifiers, isEmpty);
+        page.controller.setBackgrounded(false);
+      });
+    });
   }
+}
+
+/// 两个标签的终端页，终端都绑着记录用的 sink（像连着一样），不建真连接。
+class _Page {
+  _Page(this.tester, this.controller, this.first, this.second, this.sent);
+
+  final WidgetTester tester;
+  final SessionController controller;
+  final ActiveTerminalSession first;
+  final ActiveTerminalSession second;
+  final Map<String, List<String>> sent;
+
+  static Future<_Page> open(
+    WidgetTester tester,
+    TerminalSessionAdapterBase Function() newTerminal,
+  ) async {
+    SharedPreferences.setMockInitialValues({});
+    final repository = await VaultRepository.open();
+    final messenger = tester.binding.defaultBinaryMessenger;
+    const pip = MethodChannel('app.netcatty.mobile/picture_in_picture');
+    messenger.setMockMethodCallHandler(pip, (call) async => null);
+    addTearDown(() => messenger.setMockMethodCallHandler(pip, null));
+    tester.view.physicalSize = const Size(1080, 2400);
+    tester.view.devicePixelRatio = 2.625;
+    addTearDown(tester.view.reset);
+    // flterm 在终端闲下来 250ms 后排一个「空闲优先级」任务压缩滚动区；有动画在跑（点按钮的水波纹）时
+    // 调度器推迟它，用零延时计时器反复重试。真机上帧照常出、动画结束就放行；测试的假时钟在一次
+    // pump(时长) 里不出帧，这个重试就成了死循环（vm_service 抓到的栈停在 SchedulerBinding._runTasks）。
+    // 这里让空闲任务不等动画，和终端页逻辑无关。
+    final strategy = tester.binding.schedulingStrategy;
+    tester.binding.schedulingStrategy =
+        ({required int priority, required SchedulerBinding scheduler}) => true;
+    addTearDown(() => tester.binding.schedulingStrategy = strategy);
+
+    final sent = <String, List<String>>{};
+    ActiveTerminalSession session(String id) {
+      final terminal = newTerminal();
+      sent[id] = [];
+      terminal.bind((Uint8List bytes) => sent[id]!.add(latin1.decode(bytes)));
+      return ActiveTerminalSession(
+        id: id,
+        host: HostProfile.create(
+          id: id,
+          label: id,
+          hostname: '$id.example.com',
+          username: 'root',
+        ),
+        terminal: terminal,
+        verifyHostKey: (_, __, ___) async => true,
+        keyboardInteractive: null,
+      );
+    }
+
+    final first = session('first');
+    final second = session('second');
+    final container = ProviderContainer(overrides: [
+      vaultRepositoryProvider.overrideWithValue(repository),
+      sessionControllerProvider.overrideWith(
+        (ref) => _SeededSessionController(
+          ref.read(vaultControllerProvider.notifier),
+          ref,
+          SessionState(sessions: [first, second]),
+        ),
+      ),
+    ]);
+    addTearDown(container.dispose);
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(home: Scaffold(body: TerminalScreen())),
+    ));
+    final page = _Page(
+      tester,
+      container.read(sessionControllerProvider.notifier),
+      first,
+      second,
+      sent,
+    );
+    await page.settle();
+    // 终端挂上时的协议回应（焦点事件之类）不算快捷键栏发的。
+    for (final list in sent.values) {
+      list.clear();
+    }
+    return page;
+  }
+
+  /// 隔开两次点按，免得被当成双击（双击是选词）；Ghostty 换手要多等一两帧。
+  Future<void> settle() async {
+    for (var i = 0; i < 4; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await tester.pump(const Duration(milliseconds: 400));
+    expect(tester.takeException(), isNull);
+  }
+}
+
+class _SeededSessionController extends SessionController {
+  _SeededSessionController(
+    VaultController vaultController,
+    Ref ref,
+    SessionState initialState,
+  ) : super(_NoNetworkSshService(), vaultController, ref) {
+    state = initialState;
+  }
+}
+
+/// 前后台切换会让会话控制器去重连没连着的标签；测试里一律失败，不碰网络。
+class _NoNetworkSshService extends SshService {
+  @override
+  Future<ActiveTerminalSession> connect({
+    required String sessionId,
+    required HostProfile host,
+    List<HostProfile> hosts = const [],
+    List<SshKeyProfile> keys = const [],
+    List<ProxyProfile> proxyProfiles = const [],
+    RoutePlan? routePlan,
+    required HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    required TerminalSessionAdapter terminal,
+    ConnectionPurpose purpose = ConnectionPurpose.fresh,
+    ConnectionAttempt? attempt,
+  }) async =>
+      throw StateError('测试不连网络');
 }
