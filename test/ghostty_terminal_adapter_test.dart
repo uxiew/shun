@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flterm/flterm.dart';
 import 'package:flutter/services.dart';
@@ -233,6 +234,41 @@ void main() {
       );
     });
   });
+
+  // LIFE06（引擎部分）：建、写、读、释放（含「视图还挂着时释放」那条推迟的路），一轮轮做下去
+  // 原生内存不能逐轮涨。对照实测：100 个终端各写 95 KB 不释放，RSS 涨 209.5 MiB（约 2.1 MiB 一个）；
+  // 正常释放 1000 轮只涨约 2 MiB。所以 300 轮涨不过 32 MiB，就说明没有一轮漏掉一个终端。
+  test('LIFE06 300 轮建、写、读、释放，RSS 不逐轮增长', () async {
+    final chunk = _bytes(List.generate(
+      3000,
+      (i) => '\x1b[3${i % 8}mline $i 中文 🙂\x1b[0m',
+    ).join('\r\n'));
+    Future<void> cycle(int i) async {
+      final terminal = GhosttyTerminalAdapter();
+      terminal.bind((_) {});
+      final view = Object();
+      if (i.isEven) terminal.retainEngineView(view);
+      terminal.feed(chunk);
+      terminal.recentLines(200);
+      terminal.allText();
+      terminal.dispose();
+      if (i.isEven) terminal.releaseEngineView(view);
+      await Future<void>.delayed(Duration.zero);
+      expect(terminal.engineReleased, isTrue);
+    }
+
+    for (var i = 0; i < 100; i++) {
+      await cycle(i);
+    }
+    final before = ProcessInfo.currentRss;
+    for (var i = 0; i < 300; i++) {
+      await cycle(i);
+    }
+    final growth = (ProcessInfo.currentRss - before) / (1 << 20);
+    // ignore: avoid_print
+    print('LIFE06：300 轮 RSS 增长 ${growth.toStringAsFixed(1)} MiB');
+    expect(growth, lessThan(32));
+  }, timeout: const Timeout(Duration(minutes: 2)));
 
   group('输入动作', () {
     test('快捷键栏的修饰键作用于下一次输入，然后复位', () {

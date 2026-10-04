@@ -22,6 +22,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'fixtures/docker_fixture.dart';
 import 'fixtures/net/socks5_fixture.dart';
 import 'fixtures/net/trap_server.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
 
@@ -788,6 +789,99 @@ void main() {
     final text = screen();
     expect(text, isNot(contains('�')));
     expect('测'.allMatches(text).length, greaterThanOrEqualTo(2000));
+  }, skip: skip);
+
+  group('R17 Ghostty 走真实 SSH', () {
+    // 远端命令里用 $((...)) 算出要找的标记，命令回显里只有算式、没有结果，
+    // 等到结果就说明命令真跑完了，不会被回显骗过去。
+    Future<GhosttyTerminalAdapter> ghostty() async {
+      final terminal = GhosttyTerminalAdapter();
+      final session = await connect(edgeHost({}), terminal: terminal);
+      addTearDown(() async {
+        await session.close();
+        terminal.dispose();
+      });
+      await waitUntil(() => terminal.allText().trim().isNotEmpty);
+      return terminal;
+    }
+
+    test('TER01 大段中文、emoji 原样到屏幕，没有替换符', () async {
+      final terminal = await ghostty();
+      terminal.sendText(
+        r"i=0; while [ $i -lt 2000 ]; do printf '中文字符测试🙂'; i=$((i+1)); done; echo; echo END-$((1+1))"
+        '\r',
+      );
+      await waitUntil(() => terminal.allText().contains('END-2'),
+          timeout: const Duration(seconds: 20));
+      final text = terminal.allText();
+      expect(text, isNot(contains('�')));
+      expect('测'.allMatches(text).length, greaterThanOrEqualTo(2000));
+    }, skip: skip);
+
+    test('TER03 vim 进出备用屏：退出后原来的屏幕还在、后面的输出接在下面', () async {
+      final terminal = await ghostty();
+      terminal.sendText('clear; echo MAIN-\$((40+2))\r');
+      await waitUntil(() => terminal.allText().contains('MAIN-42'));
+      expect(terminal.isAlternateScreen, isFalse);
+
+      terminal.sendText('vim -u NONE -N /tmp/ter03.txt\r');
+      await waitUntil(() => terminal.isAlternateScreen);
+      terminal.sendText('iINSIDE-VIM');
+      await waitUntil(() => terminal.allText().contains('INSIDE-VIM'));
+      expect(terminal.allText(), isNot(contains('MAIN-42')),
+          reason: '备用屏里看不到主屏的内容');
+
+      terminal.sendText('\x1b:q!\r');
+      await waitUntil(() => !terminal.isAlternateScreen);
+      terminal.sendText('echo AFTER-\$((2+3))\r');
+      await waitUntil(() => terminal.allText().contains('AFTER-5'));
+      final text = terminal.allText();
+      expect(text, isNot(contains('INSIDE-VIM')), reason: '备用屏的内容不该留在主屏');
+      expect(text.indexOf('MAIN-42'), lessThan(text.indexOf('AFTER-5')),
+          reason: '退出 vim 后的输出接在原来内容下面，没有覆盖旧屏');
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
+    test('TER10 约 4.9 MB 连续输出：一行不丢、按顺序，滚动区按上限回收', () async {
+      final terminal = await ghostty();
+      final rssBefore = ProcessInfo.currentRss;
+      final watch = Stopwatch()..start();
+      terminal.sendText('seq 1 700000; echo DONE-\$((6*7))\r');
+      await waitUntil(() => terminal.allText().contains('DONE-42'),
+          timeout: const Duration(seconds: 120));
+      watch.stop();
+      final lines = [
+        for (final line in terminal.recentLines(1 << 20))
+          if (RegExp(r'^\d+$').hasMatch(line.text)) int.parse(line.text),
+      ];
+      // 留下来的是最后几千行，而且是连续的：中间丢过字节就会断号或混行。
+      expect(lines.last, 700000);
+      expect(lines.length, inInclusiveRange(4000, 5024));
+      for (var i = 1; i < lines.length; i++) {
+        expect(lines[i], lines[i - 1] + 1, reason: '第 $i 行断号');
+      }
+      final rssGrowth = (ProcessInfo.currentRss - rssBefore) / (1 << 20);
+      // ignore: avoid_print
+      print('TER10：${watch.elapsedMilliseconds} ms，RSS 增长 '
+          '${rssGrowth.toStringAsFixed(1)} MiB，保留 ${lines.length} 行');
+      expect(rssGrowth, lessThan(64), reason: '滚动区有上限，内存不该跟着输出一直涨');
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 180)));
+  });
+
+  test('TER06 连续改 20 次尺寸：远端最后的尺寸就是终端现在的尺寸', () async {
+    final terminal = XtermTerminalAdapter();
+    final session = await connect(edgeHost({}), terminal: terminal);
+    addTearDown(session.close);
+    await waitUntil(() => terminal.allText().trim().isNotEmpty);
+    // 像键盘弹出动画那样一帧少一行，再像旋转那样换一次宽度。
+    for (var rows = 50; rows > 30; rows--) {
+      terminal.terminal.resize(100, rows);
+      await Future<void>.delayed(const Duration(milliseconds: 5));
+    }
+    terminal.terminal.resize(140, 31);
+    await Future<void>.delayed(const Duration(milliseconds: 300));
+    terminal.sendText('stty size; echo SIZE-\$((1+1))\r');
+    await waitUntil(() => terminal.allText().contains('SIZE-2'));
+    expect(terminal.allText(), contains('31 140'));
   }, skip: skip);
 
   group('REG02 / NET11 断线恢复不重跑 startup、不重放输入', () {
