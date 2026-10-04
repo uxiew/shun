@@ -134,6 +134,11 @@ abstract class TerminalSessionAdapterBase implements TerminalSessionAdapter {
   @override
   bool get isDisposed => _disposed;
 
+  /// 最后一次发给远端的尺寸（列, 行）。只给测试和设备验证核对「远端尺寸跟上了没有」。
+  @visibleForTesting
+  (int, int)? get sentSize =>
+      _sentSize == null ? null : (_sentSize!.columns, _sentSize!.rows);
+
   /// 现在有没有视图占着这个终端。只给测试核对「旧视图晚销毁没有把新视图的占用释放掉」。
   @visibleForTesting
   bool get hasActiveView => !_disposed && _view != 0;
