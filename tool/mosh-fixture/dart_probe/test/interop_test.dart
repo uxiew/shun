@@ -1,5 +1,6 @@
 // X08：Dart 候选 dart_mosh 0.0.4 对真实 mosh-server 1.4.0（Alpine 打包）的互操作与安全探测。
 // 跑法见 ../README.md。每条都在本机真连容器里的 mosh-server，不是 mock。
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dart_mosh/dart_mosh.dart';
@@ -83,7 +84,7 @@ void main() {
     test('vim 交互：开文件、移动、删行、退出', () async {
       final run = await DartMoshRun.start(fixture!, 'sh');
       run.type(
-        'printf "a1\\nb2\\nc3\\nd4\\n" > /tmp/x08.txt; vim -u NONE -N /tmp/x08.txt\r',
+        'printf "a1\\nb2\\nc3\\nd4\\n" > /tmp/x08.txt; vim -u NONE -N -n /tmp/x08.txt\r',
       );
       var screen = await run.settle();
       expect(screen, contains('a1'));
@@ -91,7 +92,9 @@ void main() {
       screen = await run.settle();
       expect(screen.split('\n').take(3).toList(), ['a1', 'c3', 'd4']);
       run.type(':wq\r');
-      run.type('cat /tmp/x08.txt\r');
+      // 等 vim 退出、回到 shell 再敲下一条：连着敲的话后面的字会被还没退出的 vim 吃掉（测试自己的时序，不是协议问题）。
+      await waitFor(() => !run.screen.text().contains('~\n~'));
+      run.type('clear; cat /tmp/x08.txt\r');
       screen = await run.settle();
       await run.close();
       expect(screen, contains('a1\nc3\nd4'));
@@ -206,6 +209,96 @@ void main() {
         skip: skip,
       );
     }
+  });
+
+  group('对照：官方 mosh-client（同一版本源码，就是 native 候选）经同一个中继', () {
+    // 容器里的官方客户端经 host.docker.internal 连 Mac 上的中继，中继再转给 mosh-server。
+    Future<(UdpRelay, String)> start() async {
+      final (port, key) = await fixture!.bootstrapRaw('sh');
+      final relay = await UdpRelay.start(
+        InternetAddress.loopbackIPv4,
+        port,
+        bind: InternetAddress.anyIPv4,
+      );
+      await fixture.startOfficialClient(key, relay.port);
+      return (relay, key);
+    }
+
+    Future<String> settleOfficial() async {
+      var last = '';
+      for (var i = 0; i < 40; i++) {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        final now = await fixture!.officialScreen();
+        if (now == last && now.contains(r'$')) return now;
+        last = now;
+      }
+      return last;
+    }
+
+    tearDown(() async => fixture?.stopOfficialClient());
+
+    for (final reflect in [false, true]) {
+      test(reflect ? '同样的反射：官方客户端丢掉反射包，输入照常送达' : '对照：断开输入方向再恢复', () async {
+        final (relay, _) = await start();
+        await fixture!.officialType('echo warm-\$((6*7))\n');
+        expect(await settleOfficial(), contains('warm-42'));
+        relay.drop = (toServer, _) => toServer;
+        await fixture.officialType('echo lost-');
+        await Future<void>.delayed(const Duration(milliseconds: 600));
+        if (reflect) {
+          for (final p in List.of(relay.clientToServer)) {
+            relay.injectToClient(p);
+          }
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        relay.drop = null;
+        await fixture.officialType('\$((6*7))\n');
+        final screen = await settleOfficial();
+        relay.close();
+        expect(screen, contains('lost-42'), reason: screen);
+      }, skip: skip);
+    }
+
+    test('丢 30%、每包发两次、4 个一组倒序：官方客户端同样收敛', () async {
+      final (relay, _) = await start();
+      var n = 0;
+      relay.drop = (_, _) => (n++ % 10) < 3;
+      relay.copies = 2;
+      relay.reorderWindow = 4;
+      await fixture!.officialType('seq 1 3000\n');
+      final sw = Stopwatch()..start();
+      var screen = '';
+      while (sw.elapsed < const Duration(seconds: 40) &&
+          !screen.contains('3000\n')) {
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        screen = await fixture.officialScreen();
+      }
+      // ignore: avoid_print
+      print(
+        'X08 官方客户端 丢包/重复/乱序下 ${sw.elapsedMilliseconds} ms 看到 3000，丢了 ${relay.dropped} 个包',
+      );
+      relay.close();
+      expect(screen, contains('2999\n3000'));
+    }, skip: skip);
+
+    test('客户端被 SIGHUP（插件关会话的做法）：通知服务器，mosh-server 退出', () async {
+      final (relay, _) = await start();
+      await fixture!.officialType('echo hup\n');
+      await settleOfficial();
+      await fixture.run('pkill -HUP -x mosh-client');
+      final sw = Stopwatch()..start();
+      var left = await fixture.serverProcessCount();
+      while (left > 0 && sw.elapsed < const Duration(seconds: 20)) {
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        left = await fixture.serverProcessCount();
+      }
+      relay.close();
+      // ignore: avoid_print
+      print(
+        'X08 官方客户端 SIGHUP 后 ${sw.elapsedMilliseconds} ms，mosh-server 剩 $left 个',
+      );
+      expect(left, 0);
+    }, skip: skip);
   });
 
   group('生命周期', () {

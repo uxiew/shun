@@ -26,8 +26,16 @@ class UdpRelay {
     });
   }
 
-  static Future<UdpRelay> start(InternetAddress server, int serverPort) async {
-    final front = await RawDatagramSocket.bind(InternetAddress.loopbackIPv4, 0);
+  /// [bind]：客户端那一侧监听哪个地址。默认只听本机；容器里的客户端要连进来时给 anyIPv4。
+  static Future<UdpRelay> start(
+    InternetAddress server,
+    int serverPort, {
+    InternetAddress? bind,
+  }) async {
+    final front = await RawDatagramSocket.bind(
+      bind ?? InternetAddress.loopbackIPv4,
+      0,
+    );
     final back = await RawDatagramSocket.bind(InternetAddress.loopbackIPv4, 0);
     return UdpRelay._(front, back, server, serverPort);
   }
@@ -53,9 +61,12 @@ class UdpRelay {
   /// 每个包发几次（重复）。
   int copies = 1;
 
-  /// 乱序：攒够 [reorderWindow] 个包后倒序发出。1 表示不乱序。
+  /// 乱序：攒够 [reorderWindow] 个包、或最早那个已经压了 [reorderHold]，就倒序发出。1 表示不乱序。
+  /// 有时间上限：只按个数攒的话，流量稀的时候（空闲时每 3 秒一个确认包）包会被压几十秒，测的就不是乱序而是断网了。
   int reorderWindow = 1;
+  Duration reorderHold = const Duration(milliseconds: 50);
   final List<(bool, Uint8List)> _held = [];
+  Timer? _flushTimer;
 
   int dropped = 0;
 
@@ -70,14 +81,20 @@ class UdpRelay {
     final out = mutate?.call(toServer, packet) ?? packet;
     if (reorderWindow > 1) {
       _held.add((toServer, out));
-      if (_held.length < reorderWindow) return;
-      for (final (dir, p) in _held.reversed) {
-        _send(p, toServer: dir);
-      }
-      _held.clear();
+      _flushTimer ??= Timer(reorderHold, _flush);
+      if (_held.length >= reorderWindow) _flush();
       return;
     }
     _send(out, toServer: toServer);
+  }
+
+  void _flush() {
+    _flushTimer?.cancel();
+    _flushTimer = null;
+    for (final (dir, p) in _held.reversed) {
+      _send(p, toServer: dir);
+    }
+    _held.clear();
   }
 
   void _send(Uint8List packet, {required bool toServer}) {
@@ -100,6 +117,7 @@ class UdpRelay {
       _back.send(packet, _server, _serverPort);
 
   void close() {
+    _flushTimer?.cancel();
     _front.close();
     _back.close();
   }

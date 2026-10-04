@@ -114,6 +114,37 @@ class MoshFixture {
     return lines.join('\n');
   }
 
+  /// 官方 mosh-client 经本机中继连：先 bootstrap 一个 mosh-server，返回 (端口, key)，由调用方起中继，
+  /// 再用 [startOfficialClient] 让容器里的官方客户端连到中继。
+  Future<(int, String)> bootstrapRaw(String program) async {
+    final out = await startServer(program);
+    final m = RegExp(
+      r'^MOSH CONNECT (\d+) ([A-Za-z0-9+/]{22})\r?$',
+      multiLine: true,
+    ).firstMatch(out)!;
+    return (int.parse(m.group(1)!), m.group(2)!);
+  }
+
+  /// 容器里起官方 mosh-client（tmux 会话 oracle），连 Mac 上 [relayPort]（容器经 host.docker.internal 到 Mac）。
+  Future<void> startOfficialClient(
+    String key,
+    int relayPort, {
+    int cols = 80,
+    int rows = 24,
+  }) => run(
+    [
+      'H=\$(getent hosts host.docker.internal | cut -d" " -f1)',
+      'tmux new-session -d -s oracle -x $cols -y $rows "env MOSH_KEY=$key LANG=en_US.UTF-8 mosh-client \$H $relayPort"',
+    ].join('; '),
+  );
+
+  Future<void> officialType(String keys) =>
+      run("tmux send-keys -t oracle -l -- '${keys.replaceAll("'", r"'\''")}'");
+
+  Future<String> officialScreen() => run('tmux capture-pane -p -t oracle');
+
+  Future<void> stopOfficialClient() => run('tmux kill-server; true');
+
   /// 远端还剩几个 mosh-server 进程（看清理是否到位）。
   Future<int> serverProcessCount() async {
     final out = await run('pgrep -x mosh-server | wc -l');

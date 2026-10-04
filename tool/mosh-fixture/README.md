@@ -24,11 +24,12 @@ ssh -F /dev/null -o IdentityAgent=none -o IdentitiesOnly=yes -i .run/client/id_e
 ## Dart 候选探针（`dart_probe/`）
 
 用 `dart_mosh 0.0.4` 连这里的 mosh-server，和容器里官方 mosh-client 在 tmux 里画出的屏幕逐字比较；
-中间可以夹一个本机 UDP 中继做丢包、重复、乱序、篡改、重放、反射。
+中间可以夹一个本机 UDP 中继做丢包、重复、乱序、篡改、重放、反射。官方客户端也经同一个中继跑同样的反射、丢包和 SIGHUP，
+当 native 候选的协议对照（它和插件里的运行时是同一版本源码；插件自己的 Android 构建在设备上另测）。
 
 ```bash
 ./up.sh
-cd dart_probe && flutter pub get && flutter test     # 19 条，约 1.5 分钟；没起 up.sh 时全部跳过
+cd dart_probe && flutter pub get && flutter test     # 23 条，约 2 分钟；没起 up.sh 时全部跳过
 ```
 
 结果和结论见 `plan/v3/evidence/X08.md`、`docs/architecture/mosh-runtime-decision.md`。
@@ -42,5 +43,9 @@ cd dart_probe && flutter pub get && flutter test     # 19 条，约 1.5 分钟�
 
 - **`mosh-server` 报 `needs a UTF-8 native locale`**：Alpine 的 musl 对 `LC_ALL=C` 也给 UTF-8，这台容器上测不出这条；
   glibc 系统才会这样。宿主 bootstrap 的解析要能认出它（见 X08 的 MOS08）。
+- **某个端口上 dart_mosh 一直连不上（中继计数显示服务器一个包都没回），换个端口就好**：OrbStack 的 UDP 端口转发卡住了。
+  X08 时撞上过一次（当时中继按个数攒包、流量稀时把包压了几十秒）。`./down.sh && ./up.sh` 重建就好。
+- **`flutter test` 跑到一半报 `Shell subprocess crashed with SIGTERM`**：测试进程被外面杀了（同时有别的代理在跑 flutter test 时撞上过），
+  不是测试失败。单独重跑那一组。
 - **容器里残留很多 mosh-server**：客户端不发关闭就走（比如 dart_mosh 的 `close()`），mosh-server 会一直等。
   `ssh … 'pkill -x mosh-server'` 清掉；`down.sh` 也会一起清。
