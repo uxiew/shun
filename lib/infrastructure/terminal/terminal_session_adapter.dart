@@ -195,3 +195,14 @@ abstract class TerminalSessionAdapterBase implements TerminalSessionAdapter {
     input.dispose();
   }
 }
+
+/// 终端引擎建不起来（原生库加载失败、ABI 不支持等）。连接照常失败，错误里写清是哪个引擎。
+class TerminalEngineUnavailableException implements Exception {
+  TerminalEngineUnavailableException(this.engine, this.cause);
+
+  final String engine;
+  final Object cause;
+
+  @override
+  String toString() => '终端引擎 $engine 无法启动：$cause';
+}
