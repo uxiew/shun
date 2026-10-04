@@ -1,0 +1,15 @@
+# Mosh 互操作测试环境（X08）。和 ../fixture-environment 是两个独立的 compose 项目，互不影响。
+# 端口只绑 127.0.0.1：SSH 22301/tcp，mosh-server 的 UDP 60101–60108（bootstrap 时用 -p 60101:60108 让它只在这里挑）。
+name: xwshun-mosh
+
+services:
+  mosh:
+    build: .
+    image: xwshun-mosh-fixture:alpine3.22
+    hostname: mosh-fixture
+    volumes:
+      - ./.run/secrets:/run-secrets:ro
+      - ./.run/hostkeys:/run-hostkeys
+    ports:
+      - "127.0.0.1:22301:22"
+      - "127.0.0.1:60101-60108:60101-60108/udp"

@@ -1,0 +1,4 @@
+# 独立小工程，不继承根目录的 flutter_lints（这里没有那个依赖）。
+linter:
+  rules:
+    prefer_single_quotes: true
