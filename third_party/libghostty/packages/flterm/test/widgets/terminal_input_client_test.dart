@@ -959,9 +959,11 @@ void main() {
         expect(config['enableIMEPersonalizedLearning'], isFalse);
         expect(config['enableInlinePrediction'], isFalse);
         expect(config['enableDeltaModel'], isTrue);
+        // xwshun: multiline + 关建议会被 Android 引擎标成可见密码，输入法给不了中文，
+        // 所以改成 emailAddress（见 TerminalInputClient._configuration）。
         expect(
           (config['inputType']! as Map<String, Object?>)['name'],
-          'TextInputType.multiline',
+          'TextInputType.emailAddress',
         );
         expect(config['inputAction'], TextInputAction.newline.toString());
         expect(config['keyboardAppearance'], Brightness.light.toString());

@@ -299,7 +299,14 @@ class TerminalControllerImpl extends TerminalController
       if (_extendSelection(event.logicalKey)) return .handled;
     }
 
-    final key = keyFromPhysical(event.physicalKey);
+    var key = keyFromPhysical(event.physicalKey);
+    // xwshun: 软键盘、adb 发来的键 scanCode=0，Flutter 给的物理键是合成值
+    // （0x11_0000_0000 + keyCode），按物理键查表认不出，软键盘退格、方向键
+    // 会变成 0 字节。认不出时按逻辑键兜底（R04 问题 2）。
+    final synthetic =
+        key == vt.Key.unidentified &&
+        (event.physicalKey.usbHidUsage & 0xFF00000000) == 0x1100000000;
+    if (synthetic) key = _keyFromLogicalFallback(event.logicalKey) ?? key;
     final KeyAction? action = switch (event) {
       KeyDownEvent() => .press,
       KeyUpEvent() => .release,
@@ -353,6 +360,8 @@ class TerminalControllerImpl extends TerminalController
     );
     _emitOutput(utf8.encode(result));
     _onTextInput();
+    // xwshun: 这类键被终端吞掉后编辑区没变，输入法不知道光标在哪，之后组字区间会错一位（R04 问题 4）。
+    if (synthetic) _textInput.resyncAfterKeyEdit();
 
     return forwardToPlatformIme ? .skipRemainingHandlers : .handled;
   }
@@ -1055,4 +1064,29 @@ class TerminalControllerImpl extends TerminalController
     if (code >= _macFunctionKeyStart && code <= _macFunctionKeyEnd) return null;
     return character;
   }
+}
+
+/// xwshun: 物理键认不出时，按逻辑键找终端按键。只收常用的编辑、导航键和小写字母，其余交还原路径。
+vt.Key? _keyFromLogicalFallback(LogicalKeyboardKey k) {
+  const named = {
+    0x100000008: vt.Key.backspace,
+    0x10000000d: vt.Key.enter,
+    0x100000009: vt.Key.tab,
+    0x10000001b: vt.Key.escape,
+    0x100000304: vt.Key.arrowUp,
+    0x100000301: vt.Key.arrowDown,
+    0x100000302: vt.Key.arrowLeft,
+    0x100000303: vt.Key.arrowRight,
+    0x100000306: vt.Key.home,
+    0x100000305: vt.Key.end,
+    0x100000308: vt.Key.pageUp,
+    0x100000307: vt.Key.pageDown,
+    0x10000007f: vt.Key.delete,
+  };
+  final id = k.keyId;
+  if (named[id] case final key?) return key;
+  if (id >= 0x61 && id <= 0x7a) {
+    return vt.Key.values.byName(String.fromCharCode(id));
+  }
+  return null;
 }
