@@ -8,6 +8,7 @@ App 怎么用看 [使用手册](../user/README.md)；做什么、做到哪看 `p
 ```bash
 source ../.toolchain/env.sh     # 每开一个终端都要做；只影响当前终端
 flutter --version               # 应为 3.44.4
+zig version                     # 应为 0.16.0；终端引擎（libghostty）的原生库要它从源码编
 ```
 
 不做的后果：`flutter test` 全部在 loading 阶段报 `HttpException: Connection closed before full header was received`
@@ -29,7 +30,6 @@ flutter test test/integration_ssh_fixture_test.dart
 ```
 
 - 只用 `down.sh` 收尾，**别 `orb stop`**：OrbStack 里还跑着你别的项目。
-- 已知失败或会崩进程的用例默认跳过，要看现场加 `XWSHUN_RUN_KNOWN_FAILS=1`。
 - 测试环境细节见 `tool/fixture-environment/README.md`，终端引擎验证工程见 `spikes/terminal_spike/README.md`。
 - Tailscale SSH 的测试（`test/tailscale_ssh_login_test.dart`）要 Go：会自己构建、起停仿制服务器，没装 Go 时整组跳过。仿制服务器和「Headscale + 真 tailscaled」环境的用法见 `tool/tailscale-ssh-fixture/README.md`。
 - 目录设备经四条路线连接的设备测试（R15，`integration_test/catalog_route_matrix_test.dart`）只在模拟器/真机上跑：`./up.sh routes` 后用同目录的 `route-matrix.sh`，见上面那份 README 的「R15」一节。
@@ -110,6 +110,7 @@ $P plan/v3/scripts/validate_plan.py   # 只查计划本身，不测 App
 | `avd/<名字>.avd/*.img`、`*.qcow2` | 1–3 GB/台 | 关机后删；下次启动是空系统，装过的 App、Gboard 拼音设置都没了 |
 | `baseline-495f5d31/` | 0.1 GB | 原版代码的 worktree，2026-09-29 已删。要重新构建原版时：`git worktree add ../.toolchain/baseline-495f5d31 495f5d3`，再 `chmod +x android/gradlew`（上游仓库里它没有可执行位，不加会报 Permission denied）。删用 `git worktree remove --force`，直接 rm 会留下失效记录 |
 | `artifacts/` | 0.25 GB | 原版 debug APK（sha256 `339f4932…`，测原版共存、插件页「看不到这个包」诊断要用）；Tailscale 官方 OpenAPI 原件 `tailscale-openapi-b416d98e.yaml`（244 KB，删了就没法离线核对官方规范变没变，见 `plan/v3/docs/05`）；UU 远程的官方接入文档和官方 4.42.0 APK（`uuremote-*`，27 MB，App 里固定的官方证书就是从这个 APK 读的，删了没法复核，见 `plan/v3/docs/17`）；RustDesk 1.4.9 的清单、链接处理源码和 GitHub 发行版 APK（`rustdesk-*`，27 MB，固定的发行证书从这个 APK 读，同上） |
+| `zig-cache/` | 0.1 GB 起 | Zig 编 Ghostty 的缓存，每多编一个平台涨一些。删了下次编要重新下 Zig 依赖 |
 | `plugin-keys/` | 8 KB | X02 测试插件的两把签名密钥。删了下次 `plugins/build-fixtures.sh` 会生成新的，设备上已批准的测试插件随之变「已拒绝（换签）」，在插件页撤销旧批准重新核对即可 |
 | 整个 `.toolchain/` | — | 回到安装前，只剩下面 SDK 里的东西 |
 
@@ -122,6 +123,9 @@ $S/sdkmanager --uninstall "ndk;28.2.13676358" "platforms;android-36" "build-tool
 ```
 
 API 35 镜像是你原有的，`lizhi` 模拟器在用，**不要卸**。
+
+brew 为本项目装的（2026-10-04）：`zig@0.16` 和它依赖的 `llvm@21`、`lld@21`，共约 1.8 GB。
+卸了（`brew uninstall zig@0.16 lld@21 llvm@21`）就编不了 libghostty 的原生库，主 App 接上 Ghostty 后连 App 都构建不了。
 
 ## 7. 撞墙时
 
