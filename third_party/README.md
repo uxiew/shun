@@ -50,6 +50,8 @@ dart analyze packages/flterm/lib packages/libghostty/lib
 | 1dda0c8 | flterm：输入框类型 multiline → emailAddress；scanCode=0 的键按逻辑键兜底；这类键处理后让输入法重新对齐 | 不改的话 Gboard 打不了中文、微信输入法每次回到英文、软键盘退格 0 字节、删拼音漏字母（R04 问题 2、4） |
 | 2c41ed9 | flterm：已有焦点时点终端也叫回键盘 | 按返回收起键盘后点终端叫不回来（R04 问题 3）；上游 main 也有这个问题 |
 | c3a8b40 | flterm：TerminalController 加 `tailRows(count)`，读最近几行带折行标记 | App 的画中画和 AI 上下文只看最近几百行；公开接口拿不到 Terminal，逐格读滚动区每次都要从头遍历分页 |
+| 8711b1a | flterm：输入法提交后编辑区留着已发的字，输入法改写时按差异补发（先退格再发新尾巴）；输入从别的路发出（sendText/sendKey/paste、硬件键）时清空编辑区 | 上游提交即清空，微信输入法语音把同一句话整段重复发 9 次（R04 问题 8，TER02）。上游 8 条测试的编辑不带哨兵，改成真实形状 |
+| 0de868c | flterm：TerminalView 加 `secureTextInput`，敏感输入时输入框改成可见密码 | App 设置里的「安全键盘」在 Ghostty 下没效果（输入框类型写死） |
 
 0.0.5 时期的 04df082（输入法补丁）、8caeb73（改用预编译库）已被同步覆盖，补丁移进了 1dda0c8。
 
