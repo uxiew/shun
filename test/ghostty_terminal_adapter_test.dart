@@ -295,6 +295,17 @@ void main() {
       expect(terminal.input.modifiers, isEmpty);
     });
 
+    test('整屏文字把自动折行接回去：复制出来的长网址不断成两行', () {
+      final terminal = _terminal();
+      final url = 'https://example.com/${'a' * 100}';
+      terminal.feed(_bytes('$url\r\nnext'));
+      expect(terminal.recentLines(24).take(2).map((line) => line.wrapped), [
+        false,
+        true,
+      ]);
+      expect(terminal.allText(), startsWith('$url\nnext'));
+    });
+
     test('App 自己的提示直接显示，不发给远端', () {
       final terminal = _terminal();
       final sink = _Sink();

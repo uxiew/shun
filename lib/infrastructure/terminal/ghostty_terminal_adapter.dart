@@ -168,7 +168,11 @@ final class GhosttyTerminalAdapter extends TerminalSessionAdapterBase {
   @override
   String allText() {
     if (isDisposed) return '';
-    final formatter = controller.createFormatter(format: FormatterFormat.plain);
+    // 自动折行接回去：复制面板里的长网址、长命令不断成两行（xterm2 取整屏文字时也是这样）。
+    final formatter = controller.createFormatter(
+      format: FormatterFormat.plain,
+      unwrap: true,
+    );
     try {
       return formatter.format();
     } finally {
