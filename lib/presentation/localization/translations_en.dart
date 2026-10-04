@@ -1243,6 +1243,19 @@ const englishReplacements = <(String, String)>[
   ),
   ('如果会话 ', 'if session '),
   (
+    '只分离这个标签的 tmux 客户端：tmux 会话 ',
+    'Only this tab\'s tmux client is detached: tmux session '
+  ),
+  ('和里面的程序留在远端，', ' and its programs stay on the remote; '),
+  (
+    '不发送 Ctrl-C，也不结束会话。',
+    'no Ctrl-C is sent and the session is not terminated.'
+  ),
+  (
+    '没在 tmux 之类工具里运行的程序，通常会随连接一起结束。',
+    'Programs not running inside tmux or a similar tool usually end with the connection.'
+  ),
+  (
     '这个标签的 tmux 客户端已经不在了，没有分离任何别的客户端',
     'This tab\'s tmux client is already gone; no other client was detached'
   ),
