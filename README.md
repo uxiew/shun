@@ -13,7 +13,7 @@ flutter analyze && dart format --set-exit-if-changed lib test integration_test
 flutter test -j 4                         # 没起 Docker 测试环境时，真实 SSH 用例自动跳过
 tool/fixture-environment/up.sh            # 起真实 SSH/代理/跳板环境，用完 down.sh
 flutter run -d <设备ID>                    # 设备 ID 用 flutter devices 查
-flutter build apk --release --target-platform android-arm64
+tool/build-release.sh                     # 发布用的包：终端原生库从核对过的源码重编，只打 arm64
 ```
 
 手机接在另一台电脑上：`tool/remote-device/`。模拟器、装真机、清磁盘：[docs/xwshun/README.md](docs/xwshun/README.md)。

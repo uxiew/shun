@@ -17,7 +17,7 @@ zig version                     # 应为 0.16.0；终端引擎（libghostty）�
 ## 2. 测试
 
 ```bash
-flutter test -j 4     # 全量约 790 条（R14 时开着测试环境 793 条通过、1 条只在 Windows 跑），约 2.5 分钟；没起测试环境时真实 SSH 那 44 条自动跳过。刚关模拟器、内存紧时不加 -j 4 可能被系统杀掉
+flutter test -j 4     # 全量约 850 条（R17 时开着测试环境 847 条通过、1 条只在 Windows 跑），约 2.5 分钟；没起测试环境时真实 SSH 的用例自动跳过。刚关模拟器、内存紧时不加 -j 4 可能被系统杀掉
 flutter analyze       # 应为 No issues found（连 spikes/、packages/ 一起查）
 ```
 
@@ -30,6 +30,12 @@ flutter test test/integration_ssh_fixture_test.dart
 ```
 
 - 只用 `down.sh` 收尾，**别 `orb stop`**：OrbStack 里还跑着你别的项目。
+- 测试环境的镜像里有 vim、less、htop、tmux（终端引擎的全屏程序用例要用），改了 `Dockerfile` 后 `up.sh` 会重新构建。
+- 第一次跑测试会用 Zig 编 Ghostty 的原生库，多一分钟左右；`zig version` 不是 0.16 就会编译失败，见第 1 节。
+- Ghostty 在设备上的验证（R17，`integration_test/ghostty_engine_test.dart`）：起好上面的测试环境，再
+  `adb -s <设备> reverse tcp:22201 tcp:22201`，然后
+  `flutter test integration_test/ghostty_engine_test.dart -d <设备> --dart-define=R17_SSH="$(python3 tool/fixture-environment/r17_config.py)"`。
+  每次 `up.sh` 都换密码，参数要重新取。
 - 测试环境细节见 `tool/fixture-environment/README.md`，终端引擎验证工程见 `spikes/terminal_spike/README.md`。
 - Tailscale SSH 的测试（`test/tailscale_ssh_login_test.dart`）要 Go：会自己构建、起停仿制服务器，没装 Go 时整组跳过。仿制服务器和「Headscale + 真 tailscaled」环境的用法见 `tool/tailscale-ssh-fixture/README.md`。
 - 目录设备经四条路线连接的设备测试（R15，`integration_test/catalog_route_matrix_test.dart`）只在模拟器/真机上跑：`./up.sh routes` 后用同目录的 `route-matrix.sh`，见上面那份 README 的「R15」一节。
@@ -78,9 +84,13 @@ adb emu kill; $S/avdmanager delete avd -n xwshun-tmp; $S/sdkmanager --uninstall 
 
 ```bash
 flutter run -d <设备ID>                    # 调试着用，改代码能热重载
-flutter build apk --release --target-platform android-arm64 \
-  && adb install -r build/app/outputs/flutter-apk/app-release.apk   # 只装不调试；没配正式签名时用 debug 证书签
+tool/build-release.sh && adb install -r build/app/outputs/flutter-apk/app-release.apk   # 只装不调试；没配正式签名时用 debug 证书签
 ```
+
+- 发布用的包一律走 `tool/build-release.sh`，别直接 `flutter build apk --release`：直接打会沿用缓存里的终端原生库，
+  缓存被改了也照样打进包（实测翻一个字节，构建照常成功）。脚本先丢掉缓存、从核对过 SHA256 的源码重编，
+  再查每个 `.so` 都是 16 KiB 对齐。要联网，比平时慢一两分钟。
+- 包里只有 arm64-v8a：只有它在设备上测过，别的 ABI 在 `android/app/build.gradle.kts` 里排除了。
 
 - 包名 `top.xdwa.xwshun`，和原版 Netcatty（`app.netcatty.mobile`）并存、数据互不影响。**别把 applicationId 改回去**，会覆盖原版。
 - 包用 `~/.android/debug.keystore` 签名；换台电脑构建的包签名不同，`adb install` 报 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`，要先卸载（会清掉 App 数据）才能装。
@@ -164,7 +174,7 @@ brew 为本项目装的（2026-10-04）：`zig@0.16` 和它依赖的 `llvm@21`�
 | `packages/plugin_api/` | 插件契约 v1（Dart 端） |
 | `plugins/` | 插件的 Android 契约与 SDK，加上只用于测试的插件 APK |
 | `third_party/` | 自己维护的上游 fork（现在是 libghostty / flterm），说明见 `third_party/README.md` |
-| `tool/` | 测试工具：真实 SSH / 代理 / 跳板的 Docker 环境、Tailscale 测试环境、假 Tailscale API、远程真机（`remote-device/`） |
-| `spikes/` | 终端引擎验证工程（R04），不进 App |
+| `tool/` | 发布构建脚本（`build-release.sh`）；测试工具：真实 SSH / 代理 / 跳板的 Docker 环境、Tailscale 测试环境、假 Tailscale API、远程真机（`remote-device/`） |
+| `spikes/` | 终端引擎验证工程（R04，现在用来在 Android 上验 fork），不进 App |
 | `plan/v3/` | 计划、任务、用例、每批的实测证据 |
 | `docs/` | 使用手册（`user/`）、本机手册（本文件）、基座决定（`architecture/`），其余是上游原来的开发文档 |
