@@ -107,7 +107,7 @@
 | TSC09 | 本地db、诊断、备份、同步、clipboard和错误对象搜索目录secret。 | secret只在受控存储/内存和官方请求；导出无secret；token不送SSH/代理。 | PASS |
 | TSC10 | 两目录来源使用别名tailnet和同名主机、删除凭据再刷新。 | 来源隔离；未知canonical不误合并；删凭据不会误删手动编辑主机。 | PASS |
 | GST01 | 锁定包/native hash构建，篡改缓存库、缺ABI制品，再用16KiB设备运行。 | hash错误阻断；不动态跳过校验；只声明实测ABI/页面大小。 | FAIL |
-| GST02 | 切标签/旋转/预览重复附着controller，销毁时触发迟到回调。 | 单view所有权，不double free/use-after-free，UI重建不新建SSH。 | NOT_RUN |
+| GST02 | 切标签/旋转/预览重复附着controller，销毁时触发迟到回调。 | 单view所有权，不double free/use-after-free，UI重建不新建SSH。 | PASS |
 | GST03 | 输入终端查询、onOutput回调和快速resize，再注入重入尝试。 | 协议回应保序不循环；不重入write；代次关闭后不发送。 | PASS |
 | GST04 | 多行paste、普通sendText、按键编码和OSC effect各自测试。 | 语义分离；不把paste清洗宣传为阻止执行；危险effect不默认允许。 | NOT_RUN |
 | GST05 | 移除生产xterm2引用后构建，强制Ghostty初始化错误。 | 支持列表真实；无静默伪回退；完整READY必须使用已验Ghostty目标。 | NOT_RUN |

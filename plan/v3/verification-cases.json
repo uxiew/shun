@@ -101,7 +101,8 @@
       "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R08.md"
+        "evidence/R08.md",
+        "evidence/R16.md"
       ]
     },
     {
@@ -238,7 +239,9 @@
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R16.md"
+      ]
     },
     {
       "id": "SEC10",
@@ -279,7 +282,8 @@
       "inherited_from": "2026-09-28",
       "evidence": [
         "evidence/R03.md",
-        "evidence/R04.md"
+        "evidence/R04.md",
+        "evidence/R16.md"
       ]
     },
     {
@@ -956,8 +960,10 @@
       "action": "切标签/旋转/预览重复附着controller，销毁时触发迟到回调。",
       "expected": "单view所有权，不double free/use-after-free，UI重建不新建SSH。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R16.md"
+      ],
       "inherited_from": null
     },
     {

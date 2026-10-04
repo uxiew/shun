@@ -339,7 +339,7 @@
 
 ## R16 Session与xterm2解耦
 
-阶段：P3；状态：NOT_STARTED；依赖：R04, R05, X01；角色：终端代理。
+阶段：P3；状态：DONE；依赖：R04, R05, X01；角色：终端代理。
 
 **范围**：提取最薄TerminalSessionAdapter，保持现有UI状态；字节流和输入动作标准化，避免大范围架构重写。
 

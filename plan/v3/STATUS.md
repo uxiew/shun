@@ -1,10 +1,10 @@
 # 当前状态 V3
 
-日期：2026-10-04。已执行首批（R00–R04、X00）、网络路由三项（R05、R06、R07）、连接代次（R08）、凭据与入口统一（R09）、连接路径编辑器（R10）、插件注册表（X01）、只读 Tailscale 目录的 HTTP 适配（R11）、Android 独立插件发现与双向签名（X02）、目录缓存与非破坏合并（R12）、插件会话字节流与故障处理（X03）、目录页与批量导入（R13）、插件管理与授权界面（X04）、Tailscale 目录接入内置 provider（X05）、UU 远程适配（X06）、RustDesk 外部客户端联动（X07）、显式 Tailscale SSH 外部认证（R14）和目录到三类路由的端到端验收（R15）；09-30 所有者同意用 arm64 模拟器补测，并定"最低兼容到安卓七八"；10-04 所有者提供真机（Pixel 9 Pro，接在 xdwmbp 上），R04 真机补测后 DONE。
+日期：2026-10-04。已执行首批（R00–R04、X00）、网络路由三项（R05、R06、R07）、连接代次（R08）、凭据与入口统一（R09）、连接路径编辑器（R10）、插件注册表（X01）、只读 Tailscale 目录的 HTTP 适配（R11）、Android 独立插件发现与双向签名（X02）、目录缓存与非破坏合并（R12）、插件会话字节流与故障处理（X03）、目录页与批量导入（R13）、插件管理与授权界面（X04）、Tailscale 目录接入内置 provider（X05）、UU 远程适配（X06）、RustDesk 外部客户端联动（X07）、显式 Tailscale SSH 外部认证（R14）、目录到三类路由的端到端验收（R15）和会话与 xterm2 解耦（R16）；09-30 所有者同意用 arm64 模拟器补测，并定"最低兼容到安卓七八"；10-04 所有者提供真机（Pixel 9 Pro，接在 xdwmbp 上），R04 真机补测后 DONE。
 
 - 基座：kmh1145/Netcatty-mobile `495f5d31`（v1.4.7），本机 fork `xwshun/v3`，不 push。GPL-3.0-or-later 个人隔离实验；applicationId `top.xdwa.xwshun`。
-- 任务：DONE 24（R00 R01 R02 R03 R04 R05 R06 R07 R08 R09 R10 R11 R12 R13 R14 R15 X00 X01 X02 X03 X04 X05 X06 X07）、NOT_STARTED 22、DEFERRED 7。
-- 用例（共 142）：PASS 71、FAIL 3、BLOCKED 6、NOT_RUN 62。每条的实际动作和观察在 `evidence/`。
+- 任务：DONE 25（R00 R01 R02 R03 R04 R05 R06 R07 R08 R09 R10 R11 R12 R13 R14 R15 R16 X00 X01 X02 X03 X04 X05 X06 X07）、NOT_STARTED 21、DEFERRED 7。
+- 用例（共 142）：PASS 72、FAIL 3、BLOCKED 6、NOT_RUN 61。每条的实际动作和观察在 `evidence/`。
 - 门禁：G0 **PASS**（Ghostty Android 可行性有真机证据；TER02、GST01 两个硬门禁用例仍 FAIL，归 R17，G3 必须过）；其余门禁 NOT_RUN。插件基础 GX0 的出口条件（X00–X03）在模拟器上都已满足，只差真机复核，所以仍记 NOT_RUN；Tailscale 的 G2（R15）同理，另外还差官方 Tailscale 的 check 和直连。离 CORE_READY / FULL_READY 都还很远。
 - 设备：arm64 模拟器实测过 API 24–28、35（4 KiB）、36（16 KiB），测完即删，只留 `xwshun-a35-4k` 的配置。真机一台：所有者的 Pixel 9 Pro（Android 17 / API 37，4 KiB 页），只接在 xdwmbp 上，本机经 `tool/remote-device/` 借它的 adb；10-04 只装过 spike 测试包、测完已卸载，为恢复微信输入法 force-stop 过它两次（第一次默认输入法被系统换成 Gboard，几秒内改回，三项输入法设置复核一致，见 evidence/R04.md）。只装过本项目自己的 APK（含 `plugins/` 的测试插件、假 UU、假 RustDesk）、原版 Netcatty、官方 UU 远程 4.42.0（所有者提供并同意安装，没有登录）和 GitHub 发行版 RustDesk 1.4.9（所有者同意安装，只连了不存在的 ID）；测试 App、假浏览器、UU、RustDesk 测完都已从 `xwshun-a35-4k` 卸载；R14、R15 在本机 Docker 里起过 Headscale + 官方 tailscale 镜像的隔离测试环境（不连任何真实账号，已 down）；没有连接任何用户真实主机/账号/VPN，没有 push 或发布。
 
@@ -33,6 +33,7 @@
 - Android 独立插件（X02）：「设置 → 插件（实验）」列出声明了本 App 插件接口的 App，批准前不启动它们；批准时核对证书。插件和宿主在每次 Binder 调用里互相核对对方的 UID 和证书——模拟器上实测：流氓 App 拿到 Binder 也调不动插件，拿到转交来的宿主回调也调不进宿主；同包名换签、冒用内置 ID、调试证书签的插件进 release 宿主都被拒。echo 只是测试插件，不是 Mosh。
 - 插件契约 v1 落成 `packages/plugin_api`（X00）。
 - 主 App 接入轻量插件注册表（X01）：内置 SSH/路由构造时即可用，不等任何插件发现；外部包冒用内置 ID、自称内置、同 ID 抢位都被拒；停用/撤销/换签/卸载只关该插件自己的会话。顺带补了契约漏洞：单独安装的包自称 `bundled` 原先能跳过用户批准和证书核验。
+- 会话与终端引擎解耦（R16）：连接层只送原始字节、不再认识 xterm2；终端归标签，由会话控制器创建和释放，切标签、分屏、旋转、画中画、整页重装都不新建连接；同一时刻只有一个视图、只有当前代次的连接收得到输入。xterm2 退成适配器 + 视图两个文件，仍是默认引擎和对照基线。顺带修了断线恢复后远端窗口停在 80x24（真实 OpenSSH 上 `stty size` 验证）。
 - terminal spike 补了 Android 适配层和一份 flterm 中文输入补丁（R04，只在 spike 里）。真机上：集成测试通过，所有者的微信输入法打字全对，**语音输入会把同一句话整段重复发送**（flterm 每次提交就清空编辑区，输入法改写不了已出现的字），交给 R17。
 
 ## 三个 FAIL（都已定位到负责任务）
@@ -57,7 +58,7 @@ R04 其他要带进 R17 的发现：dispose 后 write 段错误、软键盘退�
 ## 下一批
 
 `lizhi` 开着时，本项目模拟器用 `-port 5580` 起、adb 都带 `-s emulator-5580`（写在 docs/xwshun/README.md 第 7 节）。
-**依赖已满足、可以开工的**：R16（Session 与 xterm2 解耦）、X08（Mosh 运行时选择与独立 APK 可行性）。R17（Ghostty 接入主 App）在 R16 之后，开工前要你定 flterm 补丁的去向（下一节）。
+**依赖已满足、可以开工的**：R17（flterm 生产适配与 native 生命周期）、X08（Mosh 运行时选择与独立 APK 可行性）。R17 要带上 R04 问题清单和 R16 证据末尾「给 R17 的话」（和 xterm2 逐项对齐的功能清单）。
 真机只接在 xdwmbp 上，用法和撞墙见 `tool/remote-device/README.md`；装着中文输入法的真机上别用 adb 注入按键（会把输入法弄进实体键盘模式，恢复办法在 `docs/xwshun/README.md` 第 7 节）。
 R14、R15 的测试环境：仿制 Tailscale SSH 服务器和 Headscale + 真 tailscaled（R15 加了远程 SOCKS 和跳板两个节点），用法见 `tool/tailscale-ssh-fixture/README.md`。
 设备关联：目录的存在主机上，UU 的存在 UU 自己的加密存储里（记主机 id），RustDesk 的存在 RustDesk 这边的加密存储里，`deviceLinksOf` 把三样拼起来。

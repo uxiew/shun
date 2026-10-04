@@ -753,7 +753,7 @@
       "id": "R16",
       "phase": "P3",
       "title": "Session与xterm2解耦",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R04",
         "R05",
@@ -783,8 +783,10 @@
       ],
       "stop_condition": "不能只换import却保留大量xterm专用访问穿透。",
       "owner_role": "终端代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R16.md"
+      ],
+      "commit": "5de6e88"
     },
     {
       "id": "R17",
