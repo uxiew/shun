@@ -59,11 +59,11 @@ abstract interface class TerminalSessionAdapter implements Listenable {
   /// 可见行数。
   int get viewRows;
 
-  /// 缓冲区总行数（含滚动区）。
-  int get lineCount;
-
-  /// 第 [index] 行，0 是最旧的一行。
-  TerminalTextLine lineAt(int index);
+  /// 最近 [count] 个物理行（含滚动区），最旧的在前。
+  ///
+  /// 画中画小窗、AI 上下文只看最近几百行。不提供按序号读任意一行：Ghostty 读滚动区里的行
+  /// 每次都要从头遍历分页，逐行读几百行就是几百次遍历（R17）。
+  List<TerminalTextLine> recentLines(int count);
 
   /// 整个缓冲区的纯文本（复制快照用）。
   String allText();

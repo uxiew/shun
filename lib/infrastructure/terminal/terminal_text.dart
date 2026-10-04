@@ -8,13 +8,12 @@ String terminalPictureInPictureText(
   int maxLines = 18,
   int maxColumns = 96,
 }) {
-  final total = terminal.lineCount;
-  if (total == 0 || maxLines <= 0 || maxColumns <= 0) return '';
-  final scanCount = math.max(terminal.viewRows, maxLines * 3);
-  final start = math.max(0, total - scanCount);
+  if (maxLines <= 0 || maxColumns <= 0) return '';
+  final lines = terminal.recentLines(math.max(terminal.viewRows, maxLines * 3));
+  if (lines.isEmpty) return '';
   final result = <String>[];
-  for (var index = start; index < total; index++) {
-    var text = terminal.lineAt(index).text.trimRight();
+  for (final line in lines) {
+    var text = line.text.trimRight();
     if (text.length > maxColumns) text = text.substring(0, maxColumns);
     result.add(text);
   }
@@ -30,6 +29,8 @@ String terminalPictureInPictureText(
   return result.every((line) => line.isEmpty) ? '等待终端输出…' : result.join('\n');
 }
 
+const _wrapLookBehind = 64;
+
 /// Returns a bounded snapshot of recent terminal output for Catty Agent.
 ///
 /// Physical lines that were soft-wrapped are joined back together. The
@@ -41,20 +42,20 @@ String terminalAiContextText(
   int maxColumns = 240,
   int maxCharacters = 12000,
 }) {
-  final total = terminal.lineCount;
-  if (total == 0 || maxLines <= 0 || maxColumns <= 0 || maxCharacters <= 0) {
-    return '';
-  }
+  if (maxLines <= 0 || maxColumns <= 0 || maxCharacters <= 0) return '';
 
   final scanCount = math.max(terminal.viewRows * 2, maxLines * 4);
-  var start = math.max(0, total - scanCount);
-  while (start > 0 && terminal.lineAt(start).wrapped) {
+  // 多取一些：窗口第一行可能是一个长行折下来的后半截，往前补到这一长行的开头。
+  // 补的行数有上限，超长的一行（比如几千列的 JSON）就从窗口里能看到的部分开始。
+  final lines = terminal.recentLines(scanCount + _wrapLookBehind);
+  if (lines.isEmpty) return '';
+  var start = math.max(0, lines.length - scanCount);
+  while (start > 0 && lines[start].wrapped) {
     start--;
   }
 
   final result = <String>[];
-  for (var index = start; index < total; index++) {
-    final line = terminal.lineAt(index);
+  for (final line in lines.skip(start)) {
     var text = line.text.trimRight();
     if (text.length > maxColumns) {
       text = text.substring(0, maxColumns);

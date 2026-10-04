@@ -67,12 +67,16 @@ final class XtermTerminalAdapter extends TerminalSessionAdapterBase {
   int get viewRows => terminal.viewHeight;
 
   @override
-  int get lineCount => terminal.buffer.lines.length;
-
-  @override
-  TerminalTextLine lineAt(int index) {
-    final line = terminal.buffer.lines[index];
-    return TerminalTextLine(line.getText(), wrapped: line.isWrapped);
+  List<TerminalTextLine> recentLines(int count) {
+    final lines = terminal.buffer.lines;
+    final start = count >= lines.length ? 0 : lines.length - count;
+    return [
+      for (var index = start; index < lines.length; index++)
+        TerminalTextLine(
+          lines[index].getText(),
+          wrapped: lines[index].isWrapped,
+        ),
+    ];
   }
 
   @override

@@ -217,8 +217,9 @@ void main() {
     addTearDown(terminal.dispose);
     terminal.feed(_bytes('line1\r\nline2'));
     expect(terminal.engine, 'xterm2');
-    expect(terminal.lineCount, greaterThanOrEqualTo(2));
-    expect(terminal.lineAt(0).text.trimRight(), 'line1');
+    final lines = terminal.recentLines(100);
+    expect(lines.first.text.trimRight(), 'line1');
+    expect(lines[1].text.trimRight(), 'line2');
     expect(terminal.isAlternateScreen, isFalse);
     terminal.feed(_bytes('\x1b[?1049h'));
     expect(terminal.isAlternateScreen, isTrue);
