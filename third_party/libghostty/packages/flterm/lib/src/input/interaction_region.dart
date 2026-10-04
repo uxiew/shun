@@ -54,9 +54,14 @@ final class InteractionRegion extends StatefulWidget {
   final ValueChanged<ActivatedLink>? onLinkActivate;
   final ValueListenable<TerminalInteractionState> interaction;
 
+  /// xwshun: 每次点按抬起（不含点链接）时调用。视图在这里叫回软键盘：内层的点按识别器
+  /// 总会赢下手势竞争，外层 GestureDetector 的 onTap 收不到终端区域里的点按。
+  final VoidCallback? onTap;
+
   const InteractionRegion({
     super.key,
     this.onLinkActivate,
+    this.onTap,
     required this.child,
     required this.links,
     required this.metrics,
@@ -404,6 +409,7 @@ final class _InteractionRegionState extends State<InteractionRegion> {
   }
 
   void _handleTapUp(TapUpDetails details) {
+    if (!_linkPressActive) widget.onTap?.call();
     if (_linkPressActive) {
       _linkPressActive = false;
       final link = widget.links.handleRelease(

@@ -528,6 +528,53 @@ void main() {
       );
     });
 
+    // xwshun: R04 问题 3，系统收起软键盘后焦点还在终端上。
+    testWidgets('tap while focused shows the keyboard again', (tester) async {
+      final focusNode = FocusNode();
+      addTearDown(focusNode.dispose);
+      final calls = recordTextInputCalls();
+      await tester.pumpWidget(
+        wrapInApp(controller: controller, focusNode: focusNode),
+      );
+      await tester.tap(find.byType(TerminalView));
+      await tester.pumpAndSettle();
+      // 隔开两次点按，免得被当成双击（双击是选词）。
+      await tester.pump(const Duration(seconds: 1));
+      calls.clear();
+
+      await tester.tap(find.byType(TerminalView));
+      await tester.pumpAndSettle();
+
+      expect(focusNode.hasFocus, isTrue);
+      expect(
+        calls.where((call) => call.method == 'TextInput.show'),
+        isNotEmpty,
+      );
+    });
+
+    testWidgets('tap while focused keeps the keyboard hidden when disabled', (
+      tester,
+    ) async {
+      final focusNode = FocusNode();
+      addTearDown(focusNode.dispose);
+      final calls = recordTextInputCalls();
+      await tester.pumpWidget(
+        wrapInApp(
+          controller: controller,
+          focusNode: focusNode,
+          showKeyboard: false,
+        ),
+      );
+      await tester.tap(find.byType(TerminalView));
+      await tester.pumpAndSettle();
+      await tester.pump(const Duration(seconds: 1));
+      await tester.tap(find.byType(TerminalView));
+      await tester.pumpAndSettle();
+
+      expect(focusNode.hasFocus, isTrue);
+      expect(calls.where((call) => call.method == 'TextInput.show'), isEmpty);
+    });
+
     testWidgets('alternate screen keeps soft keyboard enabled', (tester) async {
       final calls = recordTextInputCalls();
       await tester.pumpWidget(
