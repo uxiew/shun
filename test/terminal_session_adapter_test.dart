@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
@@ -224,4 +225,109 @@ void main() {
     terminal.feed(_bytes('\x1b[?1049h'));
     expect(terminal.isAlternateScreen, isTrue);
   });
+
+  group('尺寸发给远端：不发 0、不刮风暴（TER06）', () {
+    test('0 行或 0 列不发', () {
+      final terminal = _SizeOnlyEngine();
+      addTearDown(terminal.dispose);
+      final sink = _Sink();
+      terminal.bind(sink.input, resize: sink.resize);
+      terminal.resize(0, 24);
+      terminal.resize(80, 0);
+      terminal.resize(-1, -1);
+      expect(sink.sizes, isEmpty);
+    });
+
+    test('键盘动画那样连着变：第一个立刻发，100 毫秒内的合并成最后一个', () {
+      fakeAsync((async) {
+        final terminal = _SizeOnlyEngine();
+        final sink = _Sink();
+        terminal.bind(sink.input, resize: sink.resize);
+        for (var rows = 40; rows >= 25; rows--) {
+          terminal.resize(80, rows); // 每帧少一行
+          async.elapse(const Duration(milliseconds: 5));
+        }
+        expect(sink.sizes, [(80, 40)], reason: '第一个立刻发');
+        async.elapse(TerminalSessionAdapterBase.resizeInterval);
+        expect(sink.sizes, [(80, 40), (80, 25)], reason: '中间的不发，到点补最后一个');
+        async.elapse(const Duration(seconds: 1));
+        expect(sink.sizes, hasLength(2));
+        terminal.dispose();
+      });
+    });
+
+    test('隔得够久的两次各发一次；尺寸没变不重复发', () {
+      fakeAsync((async) {
+        final terminal = _SizeOnlyEngine();
+        final sink = _Sink();
+        terminal.bind(sink.input, resize: sink.resize);
+        terminal.resize(80, 24);
+        async.elapse(const Duration(milliseconds: 300));
+        terminal.resize(80, 24);
+        async.elapse(const Duration(milliseconds: 300));
+        terminal.resize(132, 43);
+        async.elapse(const Duration(milliseconds: 300));
+        expect(sink.sizes, [(80, 24), (132, 43)]);
+        terminal.dispose();
+      });
+    });
+
+    test('换代次时新连接立刻拿到最新尺寸，旧代次不再收到补发', () {
+      fakeAsync((async) {
+        final terminal = _SizeOnlyEngine();
+        final old = _Sink();
+        terminal.bind(old.input, resize: old.resize);
+        terminal.resize(80, 40);
+        terminal.resize(80, 30); // 等着补发
+        final current = _Sink();
+        terminal.bind(current.input, resize: current.resize);
+        async.elapse(const Duration(seconds: 1));
+        expect(old.sizes, [(80, 40)]);
+        expect(current.sizes, [(80, 30)]);
+        terminal.dispose();
+      });
+    });
+
+    test('释放后不留定时器、不再发', () {
+      fakeAsync((async) {
+        final terminal = _SizeOnlyEngine();
+        final sink = _Sink();
+        terminal.bind(sink.input, resize: sink.resize);
+        terminal.resize(80, 40);
+        terminal.resize(80, 30);
+        terminal.dispose();
+        expect(async.pendingTimers, isEmpty);
+        async.elapse(const Duration(seconds: 1));
+        expect(sink.sizes, [(80, 40)]);
+      });
+    });
+  });
+}
+
+/// 只会报尺寸的最小引擎，用来单测基类的尺寸规矩。
+final class _SizeOnlyEngine extends TerminalSessionAdapterBase {
+  void resize(int columns, int rows) => emitResize(columns, rows, 0, 0);
+
+  @override
+  String get engine => 'test';
+  @override
+  void feed(Uint8List bytes) {}
+  @override
+  void showNotice(String text) {}
+  @override
+  void sendText(String text) {}
+  @override
+  bool get isAlternateScreen => false;
+  @override
+  int get viewRows => 0;
+  @override
+  List<TerminalTextLine> recentLines(int count) => const [];
+  @override
+  String allText() => '';
+  @override
+  void addListener(VoidCallback listener) {}
+  @override
+  void removeListener(VoidCallback listener) {}
+  @override
+  void disposeEngine() {}
 }

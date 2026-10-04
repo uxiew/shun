@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import 'terminal_input_controller.dart';
@@ -121,7 +123,13 @@ abstract class TerminalSessionAdapterBase implements TerminalSessionAdapter {
   TerminalInputSink? _inputSink;
   TerminalResizeSink? _resizeSink;
   ({int columns, int rows, int pixelWidth, int pixelHeight})? _size;
+  ({int columns, int rows, int pixelWidth, int pixelHeight})? _sentSize;
+  Timer? _resizeThrottle;
   var _disposed = false;
+
+  /// 两次把尺寸发给远端之间至少隔这么久（TER06）。软键盘弹出、收起的动画有十几帧，
+  /// 每帧行数都不一样；不节流就是十几个 window-change，远端的 vim、htop 跟着重画十几次。
+  static const resizeInterval = Duration(milliseconds: 100);
 
   @override
   bool get isDisposed => _disposed;
@@ -137,10 +145,11 @@ abstract class TerminalSessionAdapterBase implements TerminalSessionAdapter {
     _inputSink = input;
     _resizeSink = resize;
     onRebind();
-    final size = _size;
-    if (size != null) {
-      resize?.call(size.columns, size.rows, size.pixelWidth, size.pixelHeight);
-    }
+    // 新代次立刻拿到最新尺寸，旧代次没发完的那次不用再补。
+    _resizeThrottle?.cancel();
+    _resizeThrottle = null;
+    _sentSize = null;
+    _sendSize();
     return TerminalBinding._(this, _binding);
   }
 
@@ -148,6 +157,8 @@ abstract class TerminalSessionAdapterBase implements TerminalSessionAdapter {
     _binding = 0;
     _inputSink = null;
     _resizeSink = null;
+    _resizeThrottle?.cancel();
+    _resizeThrottle = null;
   }
 
   @override
@@ -165,16 +176,31 @@ abstract class TerminalSessionAdapterBase implements TerminalSessionAdapter {
   }
 
   /// 引擎量出了新尺寸。记下来，换代次时补发。
+  ///
+  /// 0 行或 0 列不发（布局还没完成、窗口被压扁时会量出来），远端 PTY 收到会把程序挤坏。
+  /// 第一次立刻发；之后 [resizeInterval] 内的变化合并，到点只补发最后一个（TER06）。
   @protected
   void emitResize(int columns, int rows, int pixelWidth, int pixelHeight) {
-    if (_disposed) return;
+    if (_disposed || columns <= 0 || rows <= 0) return;
     _size = (
       columns: columns,
       rows: rows,
       pixelWidth: pixelWidth,
       pixelHeight: pixelHeight,
     );
-    _resizeSink?.call(columns, rows, pixelWidth, pixelHeight);
+    if (_resizeThrottle == null) _sendSize();
+  }
+
+  void _sendSize() {
+    final size = _size;
+    final sink = _resizeSink;
+    if (_disposed || size == null || sink == null || size == _sentSize) return;
+    _sentSize = size;
+    sink(size.columns, size.rows, size.pixelWidth, size.pixelHeight);
+    _resizeThrottle = Timer(resizeInterval, () {
+      _resizeThrottle = null;
+      _sendSize();
+    });
   }
 
   /// 换了代次。引擎在这里丢掉上一代没处理完的状态（比如被切开的半个字符）。
