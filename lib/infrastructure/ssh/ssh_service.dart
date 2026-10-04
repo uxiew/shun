@@ -4,12 +4,13 @@ import 'dart:io';
 
 import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/foundation.dart';
-import 'package:xterm2/xterm.dart';
 
 import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/server_stats.dart';
 import '../../domain/tailscale_ssh.dart';
+import '../terminal/terminal_input_controller.dart';
+import '../terminal/terminal_session_adapter.dart';
 import '../transport/proxy_transport.dart';
 import 'server_monitor_service.dart';
 import 'ssh_identity.dart';
@@ -120,49 +121,6 @@ typedef TcpDialer = Future<Socket> Function(
 Future<Socket> _systemDial(String host, int port, {Duration? timeout}) =>
     Socket.connect(host, port, timeout: timeout);
 
-/// Applies one-shot toolbar modifiers to the next system-keyboard input.
-/// This bridges Flutter's soft keyboard and the terminal toolbar, which do
-/// not share hardware modifier state on Android or iOS.
-class TerminalInputController extends ChangeNotifier {
-  Set<String> modifiers = const {};
-
-  void setModifiers(Iterable<String> value) {
-    final next = Set<String>.unmodifiable(value);
-    if (setEquals(next, modifiers)) return;
-    modifiers = next;
-    notifyListeners();
-  }
-
-  void clearModifiers() => setModifiers(const {});
-
-  String consume(String value) {
-    final active = modifiers;
-    if (active.isEmpty || value.isEmpty) return value;
-    modifiers = const {};
-    notifyListeners();
-    final shift = active.contains('shift');
-    final alt = active.contains('alt');
-    final ctrl = active.contains('ctrl');
-    final parameter = 1 + (shift ? 1 : 0) + (alt ? 2 : 0) + (ctrl ? 4 : 0);
-    var result = value;
-    if (result.length == 3 &&
-        result.startsWith('\x1b[') &&
-        'ABCDHF'.contains(result[2])) {
-      result = '\x1b[1;$parameter${result[2]}';
-    } else {
-      if (shift && result.length == 1) result = result.toUpperCase();
-      if (ctrl && result.length == 1) {
-        final code = result.toUpperCase().codeUnitAt(0);
-        if (code >= 64 && code <= 95) {
-          result = String.fromCharCode(code & 0x1f);
-        }
-      }
-      if (alt) result = '\x1b$result';
-    }
-    return result;
-  }
-}
-
 class ActiveTerminalSession {
   ActiveTerminalSession({
     required this.id,
@@ -170,21 +128,27 @@ class ActiveTerminalSession {
     required this.terminal,
     required this.verifyHostKey,
     required this.keyboardInteractive,
-    TerminalInputController? input,
     this.sshClients = const [],
     this.sshSession,
     this.telnetSocket,
     this.routePlan,
+    TerminalBinding? binding,
     List<StreamSubscription<Object?>> outputSubscriptions = const [],
-  })  : input = input ?? TerminalInputController(),
+  })  : _binding = binding,
         _outputSubscriptions = outputSubscriptions;
 
   final String id;
   final HostProfile host;
-  final Terminal terminal;
+
+  /// 这个标签的终端。断线恢复时新旧连接共用它；它归标签（会话控制器）管，
+  /// 关连接不销毁它，页面重建也不碰它（GST02）。
+  final TerminalSessionAdapter terminal;
   final HostKeyVerifier verifyHostKey;
   final KeyboardInteractiveHandler? keyboardInteractive;
-  final TerminalInputController input;
+  TerminalInputController get input => terminal.input;
+
+  /// 终端输入交给这条连接的绑定。恢复时新连接一绑定，这条就失效，旧代次再发不出字节。
+  final TerminalBinding? _binding;
   final List<SSHClient> sshClients;
   final SSHSession? sshSession;
   final Socket? telnetSocket;
@@ -194,7 +158,7 @@ class ActiveTerminalSession {
   /// 手工构造的会话（测试）可能没有，恢复时再按保险库现算。
   final RoutePlan? routePlan;
 
-  /// 远端输出写进 [terminal] 的订阅。恢复时新旧连接共用同一个 terminal，
+  /// 远端输出送进 [terminal] 的订阅。恢复时新旧连接共用同一个 terminal，
   /// 旧连接释放时必须先断开这里，旧通道迟到的字节才不会混进新 shell 的画面。
   final List<StreamSubscription<Object?>> _outputSubscriptions;
   bool connected = true;
@@ -204,7 +168,6 @@ class ActiveTerminalSession {
   bool autoRestoreBlocked = false;
   bool _released = false;
   bool _outputDetached = false;
-  bool _inputDisposed = false;
   ServerSystemInfo? systemInfo;
   SessionMonitor? monitor;
 
@@ -243,28 +206,28 @@ class ActiveTerminalSession {
     telnetSocket?.destroy();
   }
 
-  /// 不再把这条连接的远端输出写进 [terminal]。可以重复调用。
+  /// 不再把这条连接的远端输出送进 [terminal]，也不再把终端输入交给它。可以重复调用。
   ///
   /// 恢复时新旧连接共用同一个 terminal：换上新连接前必须先调它，
   /// 旧通道迟到的字节才不会混进新 shell 的画面（NET09）。
+  /// 输入绑定只解除自己这一代：新连接已经绑上时什么都不动。
   void detachOutput() {
     if (_outputDetached) return;
     _outputDetached = true;
+    _binding?.release();
     for (final subscription in _outputSubscriptions) {
       unawaited(subscription.cancel());
     }
   }
 
-  /// 用户关标签：断开输出、释放网络资源、销毁输入控制器。重复调用无副作用。
+  /// 用户关标签：断开输出和输入、释放网络资源。重复调用无副作用。
   ///
-  /// [abort] 不销毁输入控制器：断线后页面可能还挂着它，销毁了再触碰会在 debug 下断言失败。
+  /// 不销毁 [terminal]：恢复中途被放弃的新连接和标签共用同一个终端，
+  /// 终端由会话控制器在标签真正关掉时销毁。
   Future<void> close() async {
     closedByUser = true;
     detachOutput();
     abort();
-    if (_inputDisposed) return;
-    _inputDisposed = true;
-    input.dispose();
   }
 }
 
@@ -290,6 +253,9 @@ class SshService {
   /// 新开连接传保险库里的 [hosts]、[keys]、[proxyProfiles]，由这里现算路线；
   /// 恢复连接传原来的 [routePlan]，沿用同一条路线，不重新读配置（NET10）。
   ///
+  /// [terminal] 由调用方创建并持有（恢复时传标签原来的那个），这里只绑定、送字节，从不创建或销毁它：
+  /// 连接层不知道用的是哪个终端引擎（R16）。
+  ///
   /// [attempt] 由调用方创建并持有，调用方在这里开始之前就能取消它（比如还在等保险库解锁时）。
   /// 不传就内部新建一个，仍可用 [cancelConnection] 按 [sessionId] 取消。
   /// 失败或取消时，这次尝试已经建好的 socket、每一跳 client、转发通道全部关掉；
@@ -303,7 +269,7 @@ class SshService {
     RoutePlan? routePlan,
     required HostKeyVerifier verifyHostKey,
     KeyboardInteractiveHandler? keyboardInteractive,
-    Terminal? terminal,
+    required TerminalSessionAdapter terminal,
     ConnectionPurpose purpose = ConnectionPurpose.fresh,
     ConnectionAttempt? attempt,
   }) async {
@@ -446,7 +412,7 @@ class SshService {
     RoutePlan plan,
     HostKeyVerifier verifyHostKey,
     KeyboardInteractiveHandler? keyboardInteractive,
-    Terminal? terminal,
+    TerminalSessionAdapter terminal,
     ConnectionPurpose purpose,
     ConnectionAttempt pending,
   ) async {
@@ -587,7 +553,7 @@ class SshService {
     List<SSHClient> clients,
     HostKeyVerifier verifyHostKey,
     KeyboardInteractiveHandler? keyboardInteractive,
-    Terminal? terminal,
+    TerminalSessionAdapter terminal,
     ConnectionPurpose purpose,
     ConnectionAttempt pending,
   ) async {
@@ -609,17 +575,17 @@ class SshService {
       ),
     );
     pending.shell = session;
-    final output = terminal ?? Terminal(maxLines: 10000);
-    final input = TerminalInputController();
-    output.onOutput = (value) => session.write(
-          Uint8List.fromList(utf8.encode(input.consume(value))),
-        );
-    output.onResize = (width, height, pixelWidth, pixelHeight) {
-      session.resizeTerminal(width, height, pixelWidth, pixelHeight);
-    };
+    // 先绑定再收输出：标签在恢复途中被关、终端已释放时，绑定直接失败，一个订阅都不留。
+    final binding = terminal.bind(
+      session.write,
+      resize: session.resizeTerminal,
+    );
+    // 远端字节原样送进终端，不在网络分包处转成字符串（TER01）。
+    // 带 PTY 的会话里远端已把 stderr 并进 stdout，stderr 通道基本是空的；两路共用终端的同一条字节流，
+    // 和真实终端只有一条输入流一样。
     final subscriptions = [
-      decodeTerminalText(session.stdout).listen(output.write),
-      decodeTerminalText(session.stderr).listen(output.write),
+      session.stdout.listen(terminal.feed),
+      session.stderr.listen(terminal.feed),
     ];
     final startup = target.startupCommand;
     if (startup != null &&
@@ -630,13 +596,13 @@ class SshService {
     return ActiveTerminalSession(
       id: sessionId,
       host: host,
-      terminal: output,
+      terminal: terminal,
       verifyHostKey: verifyHostKey,
       keyboardInteractive: keyboardInteractive,
-      input: input,
       sshClients: clients,
       sshSession: session,
       routePlan: plan,
+      binding: binding,
       outputSubscriptions: subscriptions,
     );
   }
@@ -845,7 +811,7 @@ class SshService {
     RoutePlan plan,
     HostKeyVerifier verifyHostKey,
     KeyboardInteractiveHandler? keyboardInteractive,
-    Terminal? existingTerminal,
+    TerminalSessionAdapter terminal,
     ConnectionAttempt pending,
   ) async {
     final endpoint = plan.target.endpoint;
@@ -860,14 +826,8 @@ class SshService {
     );
     pending.telnetSocket = socket;
     pending.throwIfCancelled();
-    final terminal = existingTerminal ?? Terminal(maxLines: 10000);
-    final input = TerminalInputController();
-    terminal.onOutput =
-        (value) => socket.add(utf8.encode(input.consume(value)));
-    // 同一个解码器跨 chunk 使用：多字节字符被网络切开时，前半截留到下一块再拼。
-    final text = StreamController<List<int>>();
-    final output = decodeTerminalText(text.stream).listen(terminal.write);
-    socket.listen(
+    final binding = terminal.bind(socket.add);
+    final output = socket.listen(
       (bytes) {
         final visible = <int>[];
         for (var i = 0; i < bytes.length; i++) {
@@ -880,10 +840,9 @@ class SshService {
             visible.add(bytes[i]);
           }
         }
-        text.add(visible);
+        terminal.feed(Uint8List.fromList(visible));
       },
-      onDone: text.close,
-      onError: (Object _) => text.close(),
+      onError: (Object _) {},
     );
     return ActiveTerminalSession(
       id: sessionId,
@@ -891,25 +850,13 @@ class SshService {
       terminal: terminal,
       verifyHostKey: verifyHostKey,
       keyboardInteractive: keyboardInteractive,
-      input: input,
       telnetSocket: socket,
       routePlan: plan,
+      binding: binding,
       outputSubscriptions: [output],
     );
   }
 }
-
-/// 把远端字节流解成终端文本，整个流共用一个 UTF-8 解码器。
-///
-/// 以前每个网络 chunk 单独 `utf8.decode`：一个汉字（3 字节）或 emoji（4 字节）
-/// 恰好被切在两个 chunk 之间时，两半各自变成 U+FFFD（�），中文输出随机乱码（A03 / TER01）。
-/// xterm2 只收 String，所以这里仍要解码；换 Ghostty 后终端直接吃原始字节，不再经过这一步。
-///
-/// 用 bind 而不是 `bytes.transform(...)`：dartssh2 的 stdout 运行时是 `Stream<Uint8List>`，
-/// transform 会因泛型协变在运行时报
-/// `Utf8Decoder is not a subtype of StreamTransformer<Uint8List, String>`。
-Stream<String> decodeTerminalText(Stream<List<int>> bytes) =>
-    const Utf8Decoder(allowMalformed: true).bind(bytes);
 
 const _connectionCancelledMarker = Object();
 

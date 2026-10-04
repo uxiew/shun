@@ -540,6 +540,10 @@ const englishTranslations = <String, String>{
   '确认命令': 'Confirm command',
   '执行': 'Run',
   '目标终端会话已关闭': 'The target terminal session has been closed',
+  '终端已释放，不能再绑定连接':
+      'The terminal was released and cannot be bound to a connection',
+  '终端已释放，不能再显示': 'The terminal was released and cannot be displayed',
+  '这个版本不支持这个终端引擎': 'This version does not support this terminal engine',
   '目标终端连接已断开': 'The target terminal connection is disconnected',
   'AI 返回格式不正确': 'The AI response format is invalid',
   'AI 没有返回有效回复': 'The AI did not return a valid response',

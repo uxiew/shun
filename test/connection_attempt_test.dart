@@ -6,9 +6,9 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/domain/models/host.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:xterm2/xterm.dart';
 
 import 'fixtures/net/socks5_fixture.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 
 // R08：一次连接尝试的资源所有权——取消/失败关掉半成品、成功后归会话、会话关闭可重复调用。
 void main() {
@@ -63,6 +63,7 @@ void main() {
       Object? error;
       try {
         await SshService().connect(
+          terminal: XtermTerminalAdapter(),
           sessionId: 'bad-key',
           host: target,
           hosts: [target],
@@ -107,6 +108,7 @@ void main() {
       final attempt = ConnectionAttempt(onStage: (s) => stages.add(s.step));
       final outcome = SshService()
           .connect(
+            terminal: XtermTerminalAdapter(),
             sessionId: 'stall',
             host: target,
             hosts: [target],
@@ -130,7 +132,7 @@ void main() {
       final session = ActiveTerminalSession(
         id: 's',
         host: host,
-        terminal: Terminal(),
+        terminal: XtermTerminalAdapter(),
         verifyHostKey: accept,
         keyboardInteractive: null,
       );

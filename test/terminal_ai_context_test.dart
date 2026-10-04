@@ -1,14 +1,19 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/terminal_picture_in_picture_service.dart';
-import 'package:xterm2/xterm.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/terminal_text.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+
+XtermTerminalAdapter _terminal(int columns, int rows) =>
+    XtermTerminalAdapter()..terminal.resize(columns, rows);
 
 void main() {
   test('terminal AI context joins wrapped lines and keeps recent output', () {
-    final terminal = Terminal()..resize(8, 3);
-    terminal.write('old line\r\n');
-    terminal.write('another old line\r\n');
-    terminal.write('abcdefghij\r\n');
-    terminal.write('new result\r\n');
+    final terminal = _terminal(8, 3);
+    terminal.feed(utf8.encode('old line\r\n'));
+    terminal.feed(utf8.encode('another old line\r\n'));
+    terminal.feed(utf8.encode('abcdefghij\r\n'));
+    terminal.feed(utf8.encode('new result\r\n'));
 
     final context = terminalAiContextText(
       terminal,
@@ -22,8 +27,9 @@ void main() {
   });
 
   test('terminal AI context enforces its character limit', () {
-    final terminal = Terminal()..resize(20, 3);
-    terminal.write('first output\r\nsecond output\r\nlatest output');
+    final terminal = _terminal(20, 3);
+    terminal
+        .feed(utf8.encode('first output\r\nsecond output\r\nlatest output'));
 
     final context = terminalAiContextText(terminal, maxCharacters: 13);
 

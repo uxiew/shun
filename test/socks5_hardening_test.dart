@@ -16,6 +16,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fixtures/net/scripted_proxy.dart';
 import 'fixtures/net/socks5_fixture.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 
 // R06：SOCKS5 CONNECT 生产加固。
 // 传输层直接对"剧本代理"做握手（NET05/06/08、SOX02/03）；
@@ -357,6 +358,7 @@ void main() {
     Future<ActiveTerminalSession> connect(SshService service, HostProfile host,
             {String id = 's'}) =>
         service.connect(
+          terminal: XtermTerminalAdapter(),
           sessionId: id,
           host: host,
           hosts: [host],

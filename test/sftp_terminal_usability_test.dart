@@ -12,13 +12,13 @@ import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/sftp_service.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/file_selection.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/zip_selection.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/terminal_picture_in_picture_service.dart';
 import 'package:netcatty_mobile/presentation/home_shell.dart';
 import 'package:netcatty_mobile/presentation/screens/sftp_screen.dart';
 import 'package:netcatty_mobile/presentation/widgets/terminal_special_keys.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:xterm2/xterm.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/terminal_text.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/terminal_input_controller.dart';
 
 void main() {
   testWidgets('unavailable server copy requires explicit phone-relay consent',
@@ -599,8 +599,8 @@ void main() {
   });
 
   test('terminal PiP text keeps only the most recent visible lines', () {
-    final terminal = Terminal(maxLines: 100);
-    terminal.write('one\r\ntwo\r\nthree\r\nfour');
+    final terminal = XtermTerminalAdapter(maxLines: 100);
+    terminal.feed(utf8.encode('one\r\ntwo\r\nthree\r\nfour'));
 
     expect(
       terminalPictureInPictureText(terminal, maxLines: 3),

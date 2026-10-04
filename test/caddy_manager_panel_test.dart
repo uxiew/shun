@@ -5,7 +5,7 @@ import 'package:netcatty_mobile/domain/models/system_management.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/system_management_service.dart';
 import 'package:netcatty_mobile/presentation/widgets/system_management/caddy_manager_panel.dart';
-import 'package:xterm2/xterm.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 
 void main() {
   ActiveTerminalSession session() => ActiveTerminalSession(
@@ -15,7 +15,7 @@ void main() {
           'hostname': 'example.invalid',
           'username': 'tester',
         }),
-        terminal: Terminal(),
+        terminal: XtermTerminalAdapter(),
         verifyHostKey: (_, __, ___) async => true,
         keyboardInteractive: null,
       );

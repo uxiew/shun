@@ -12,7 +12,8 @@ import 'package:netcatty_mobile/domain/models/vault.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:xterm2/xterm.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
 
 // SEC06：安全存储里某条凭据解不开（设备密钥失效、密文被改）时——
 // 其余照常加载；用到它的连接在拨号前拒绝并说清原因；无关的保存不删那条密文；重新填写后恢复。
@@ -249,7 +250,7 @@ class _RecordingService extends SshService {
     RoutePlan? routePlan,
     required HostKeyVerifier verifyHostKey,
     KeyboardInteractiveHandler? keyboardInteractive,
-    Terminal? terminal,
+    required TerminalSessionAdapter terminal,
     ConnectionPurpose purpose = ConnectionPurpose.fresh,
     ConnectionAttempt? attempt,
   }) async {
@@ -263,7 +264,7 @@ class _NeverDone extends ActiveTerminalSession {
       : super(
           id: id,
           host: host,
-          terminal: Terminal(),
+          terminal: XtermTerminalAdapter(),
           verifyHostKey: (_, __, ___) async => true,
           keyboardInteractive: null,
         );

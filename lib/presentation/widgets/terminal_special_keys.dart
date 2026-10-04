@@ -7,7 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/settings_controller.dart';
 import '../../domain/models/settings.dart';
-import '../../infrastructure/ssh/ssh_service.dart';
+import '../../infrastructure/terminal/terminal_input_controller.dart';
 
 class TerminalSpecialKeys extends ConsumerStatefulWidget {
   const TerminalSpecialKeys({

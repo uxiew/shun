@@ -12,6 +12,7 @@ import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_export_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 
 // REG03：假秘密不从 toString、报错、导出里漏出去；导出→导入在同一台设备上不丢凭据；
 // 改了登录目标的导入文件拿不到本机保存的密码；受管字段和不认识的字段原样保留。
@@ -113,6 +114,7 @@ void main() {
       Object? error;
       try {
         await SshService().connect(
+          terminal: XtermTerminalAdapter(),
           sessionId: 's',
           host: host,
           hosts: [host],

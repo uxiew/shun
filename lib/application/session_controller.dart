@@ -9,6 +9,7 @@ import '../infrastructure/ssh/ssh_login_watch.dart';
 import '../infrastructure/ssh/ssh_service.dart';
 import '../infrastructure/ssh/server_monitor_service.dart';
 import 'credential_availability.dart';
+import 'terminal_engine.dart';
 import 'vault_controller.dart';
 
 enum PendingConnectionPhase { connecting, failed }
@@ -116,16 +117,26 @@ final sessionControllerProvider =
     ref.watch(sshServiceProvider),
     ref.watch(vaultControllerProvider.notifier),
     ref,
+    newTerminal: ref.watch(terminalAdapterFactoryProvider),
   ),
 );
 
 class SessionController extends StateNotifier<SessionState> {
-  SessionController(this.service, this.vaultController, this.ref)
-      : super(const SessionState());
+  SessionController(
+    this.service,
+    this.vaultController,
+    this.ref, {
+    TerminalAdapterFactory? newTerminal,
+  })  : newTerminal = newTerminal ?? defaultTerminalAdapter,
+        super(const SessionState());
 
   final SshService service;
   final VaultController vaultController;
   final Ref ref;
+
+  /// 新标签用的终端。终端归标签：这里创建，标签关掉（或新开的连接没进标签）时这里销毁；
+  /// 断线恢复沿用原来那个。连接层和页面都不创建、不销毁终端（R16，GST02）。
+  final TerminalAdapterFactory newTerminal;
   bool _reconnecting = false;
   bool _backgrounded = false;
   bool _backgroundMaintenanceRunning = false;
@@ -201,6 +212,8 @@ class SessionController extends StateNotifier<SessionState> {
       activePendingId: sessionId,
       error: null,
     );
+    final terminal = newTerminal();
+    var handedOver = false;
     try {
       final vault = await vaultController.ready();
       // 等保险库解锁时用户可能已经点了终止：此时一个连接都还没拨，直接放弃。
@@ -239,6 +252,7 @@ class SessionController extends StateNotifier<SessionState> {
         routePlan: plan,
         verifyHostKey: verifyHostKey,
         keyboardInteractive: keyboardInteractive,
+        terminal: terminal,
         attempt: attempt,
       );
       if (!_isCurrent(sessionId, attempt)) {
@@ -248,6 +262,7 @@ class SessionController extends StateNotifier<SessionState> {
         return false;
       }
       _endAttempt(sessionId, attempt);
+      handedOver = true;
       final sessions = [...state.sessions, session];
       final wasSelected = state.activePendingId == sessionId;
       state = state.copyWith(
@@ -298,6 +313,9 @@ class SessionController extends StateNotifier<SessionState> {
         error: error,
       );
       rethrow;
+    } finally {
+      // 没进标签的终端（失败、取消、迟到的成功）没有别人会用，就地释放。
+      if (!handedOver) terminal.dispose();
     }
   }
 
@@ -344,7 +362,7 @@ class SessionController extends StateNotifier<SessionState> {
           final plan = old.routePlan;
           final vault = plan == null ? await vaultController.ready() : null;
           attempt.throwIfCancelled();
-          old.terminal.write('\r\n\x1b[33m正在恢复连接…\x1b[0m\r\n');
+          old.terminal.showNotice('\r\n\x1b[33m正在恢复连接…\x1b[0m\r\n');
           final replacement = await service.connect(
             sessionId: old.id,
             host: old.host,
@@ -374,7 +392,7 @@ class SessionController extends StateNotifier<SessionState> {
           old.detachOutput();
           old.abort();
           if (old.host.startupCommand?.isNotEmpty == true) {
-            old.terminal.write(
+            old.terminal.showNotice(
               '\x1b[33m已恢复为新的 shell，启动命令不会在恢复时重新执行。\x1b[0m\r\n',
             );
           }
@@ -398,7 +416,7 @@ class SessionController extends StateNotifier<SessionState> {
             // 后台每隔几秒重试一次的话，每次都会让 Tailscale 再生成一条 check 请求。停在这里等用户。
             old.autoRestoreBlocked = true;
           }
-          old.terminal.write('\r\n\x1b[31m恢复连接失败：$error\x1b[0m\r\n');
+          old.terminal.showNotice('\r\n\x1b[31m恢复连接失败：$error\x1b[0m\r\n');
           state = state.copyWith(error: error);
         }
       }
@@ -498,7 +516,7 @@ class SessionController extends StateNotifier<SessionState> {
     // 目标和各跳板的 SSH 连接可能还开着；不关的话每次断线恢复都会多留一整条链路（LIFE06）。
     // 借用这条连接的 SFTP、转发随之失效，不会被悄悄改走别的路线（docs/03）。
     session.abort();
-    session.terminal.write(
+    session.terminal.showNotice(
       _backgrounded
           ? '\r\n\x1b[33m连接已断开，正在后台自动恢复…\x1b[0m\r\n'
           : '\r\n\x1b[33m连接已断开，返回前台后将自动重连。\x1b[0m\r\n',
@@ -622,6 +640,7 @@ class SessionController extends StateNotifier<SessionState> {
       _backgroundMaintenanceTimer = null;
     }
     await removed.close();
+    removed.terminal.dispose();
   }
 
   void send(String text, {bool enter = false}) {
@@ -639,7 +658,7 @@ class SessionController extends StateNotifier<SessionState> {
     if (!session.connected) {
       throw StateError('目标终端连接已断开');
     }
-    session.terminal.textInput(enter ? '$text\r' : text);
+    session.terminal.sendText(enter ? '$text\r' : text);
   }
 
   /// controller 销毁（应用退出、测试结束）时：所有进行中的尝试失效并关掉半成品，
@@ -652,6 +671,7 @@ class SessionController extends StateNotifier<SessionState> {
     _attempts.clear();
     for (final session in state.sessions) {
       unawaited(session.close());
+      session.terminal.dispose();
     }
     _backgroundMaintenanceTimer?.cancel();
     super.dispose();

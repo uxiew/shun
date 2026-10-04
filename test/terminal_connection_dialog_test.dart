@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -15,6 +16,8 @@ import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:netcatty_mobile/presentation/screens/terminal_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:xterm2/xterm.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -70,8 +73,10 @@ void main() {
     final repository = await VaultRepository.open();
     final firstOutput = <String>[];
     final secondOutput = <String>[];
-    final firstTerminal = Terminal()..onOutput = firstOutput.add;
-    final secondTerminal = Terminal()..onOutput = secondOutput.add;
+    final firstTerminal = XtermTerminalAdapter()
+      ..bind((bytes) => firstOutput.add(utf8.decode(bytes)));
+    final secondTerminal = XtermTerminalAdapter()
+      ..bind((bytes) => secondOutput.add(utf8.decode(bytes)));
     final first = ActiveTerminalSession(
       id: 'session-first',
       host: HostProfile.create(
@@ -125,14 +130,14 @@ void main() {
     final first = ActiveTerminalSession(
       id: 'session-first',
       host: _host('first', 'First'),
-      terminal: Terminal(),
+      terminal: XtermTerminalAdapter(),
       verifyHostKey: _acceptHostKey,
       keyboardInteractive: null,
     );
     final second = ActiveTerminalSession(
       id: 'session-second',
       host: _host('second', 'Second'),
-      terminal: Terminal(),
+      terminal: XtermTerminalAdapter(),
       verifyHostKey: _acceptHostKey,
       keyboardInteractive: null,
     );
@@ -190,11 +195,11 @@ void main() {
       final existing = ActiveTerminalSession(
         id: 'session-1',
         host: existingHost,
-        terminal: Terminal(),
+        terminal: XtermTerminalAdapter(),
         verifyHostKey: _acceptHostKey,
         keyboardInteractive: null,
       );
-      existing.terminal.write('alpha beta gamma');
+      existing.terminal.feed(utf8.encode('alpha beta gamma'));
       final pending = PendingTerminalConnection(
         id: 'pending-1',
         host: pendingHost,
@@ -321,8 +326,8 @@ void main() {
       // tmux uses the alternate screen. A swipe must never become arrow keys,
       // including when the remote application has not enabled mouse reporting.
       final sent = <String>[];
-      existing.terminal.onOutput = sent.add;
-      existing.terminal.write('\x1b[?1049h\x1b[Halpha beta gamma');
+      existing.terminal.bind((bytes) => sent.add(utf8.decode(bytes)));
+      existing.terminal.feed(utf8.encode('\x1b[?1049h\x1b[Halpha beta gamma'));
       await tester.pump();
       sent.clear();
       await tester.drag(find.byType(TerminalView), const Offset(0, -100));
@@ -331,7 +336,7 @@ void main() {
 
       // With tmux mouse reporting enabled, scroll events still reach tmux,
       // but touching text does not send a remote click that disrupts selection.
-      existing.terminal.write('\x1b[?1000h\x1b[?1006h');
+      existing.terminal.feed(utf8.encode('\x1b[?1000h\x1b[?1006h'));
       await tester.pump();
       final viewBeforeScroll =
           tester.widget<TerminalView>(find.byType(TerminalView));
@@ -346,7 +351,7 @@ void main() {
       sent.clear();
       final hold = await tester.startGesture(wordPosition);
       await tester.pump(const Duration(milliseconds: 200));
-      existing.terminal.write('\x1b[Halpha beta updated');
+      existing.terminal.feed(utf8.encode('\x1b[Halpha beta updated'));
       await tester.pump(const Duration(milliseconds: 400));
       await hold.up();
       await tester.pumpAndSettle();
@@ -372,7 +377,7 @@ void main() {
       // Snapshot is captured after recognizing a hold, not on every touch-down.
       expect(captured, contains('alpha beta updated'));
       // A tmux redraw must not change the text being selected/copied.
-      existing.terminal.write('\x1b[2J\x1b[Hnew tmux output');
+      existing.terminal.feed(utf8.encode('\x1b[2J\x1b[Hnew tmux output'));
       await tester.pump();
       expect(snapshot.controller!.text, captured);
       snapshot.controller!.selection =
@@ -393,7 +398,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('copy-terminal-snapshot')));
       await tester.pumpAndSettle();
       expect(copiedText, updated);
-      existing.terminal.write('\x1b[?1000l\x1b[?1006l\x1b[?1049l');
+      existing.terminal.feed(utf8.encode('\x1b[?1000l\x1b[?1006l\x1b[?1049l'));
       await tester.pump();
 
       expect(
@@ -438,7 +443,7 @@ void main() {
         final session = ActiveTerminalSession(
           id: 'transparent-${brightness.name}',
           host: _host('transparent', '透明终端'),
-          terminal: Terminal(),
+          terminal: XtermTerminalAdapter(),
           verifyHostKey: _acceptHostKey,
           keyboardInteractive: null,
         );
@@ -498,7 +503,7 @@ void main() {
     final session = ActiveTerminalSession(
       id: 'secure-session',
       host: host,
-      terminal: Terminal(),
+      terminal: XtermTerminalAdapter(),
       verifyHostKey: _acceptHostKey,
       keyboardInteractive: null,
     );
@@ -585,7 +590,7 @@ class _TrackingSshService extends SshService {
     RoutePlan? routePlan,
     required HostKeyVerifier verifyHostKey,
     KeyboardInteractiveHandler? keyboardInteractive,
-    Terminal? terminal,
+    required TerminalSessionAdapter terminal,
     ConnectionPurpose purpose = ConnectionPurpose.fresh,
     ConnectionAttempt? attempt,
   }) {

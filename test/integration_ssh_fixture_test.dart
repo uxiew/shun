@@ -18,11 +18,12 @@ import 'package:netcatty_mobile/infrastructure/ssh/system_management_service.dar
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:netcatty_mobile/infrastructure/transport/proxy_transport.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:xterm2/xterm.dart';
 
 import 'fixtures/docker_fixture.dart';
 import 'fixtures/net/socks5_fixture.dart';
 import 'fixtures/net/trap_server.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
 
 // 依赖 tool/fixture-environment 的真实 OpenSSH / dante。没起 fixture 时整组 skip，
 // 证据里记 NOT_RUN，不算通过。
@@ -150,7 +151,7 @@ void main() {
   Future<ActiveTerminalSession> connect(
     HostProfile host, {
     TcpDialer? dialer,
-    Terminal? terminal,
+    TerminalSessionAdapter? terminal,
   }) =>
       SshService(dialer: dialer).connect(
         sessionId: 'it',
@@ -159,7 +160,7 @@ void main() {
         keys: const [],
         proxyProfiles: const [],
         verifyHostKey: verifyByLogicalName,
-        terminal: terminal,
+        terminal: terminal ?? XtermTerminalAdapter(),
       );
 
   /// 容器里 sshd（22 端口）上 ESTABLISHED 的 TCP 连接数。直接读内核连接表，不经 SSH 登录，
@@ -269,6 +270,7 @@ void main() {
           },
         });
         final session = await SshService().connect(
+          terminal: XtermTerminalAdapter(),
           sessionId: 'it',
           host: host,
           hosts: [host],
@@ -311,6 +313,7 @@ void main() {
       });
       await expectLater(
         SshService().connect(
+          terminal: XtermTerminalAdapter(),
           sessionId: 'it',
           host: host,
           hosts: [host],
@@ -391,6 +394,7 @@ void main() {
         },
       });
       final session = await SshService(dialer: dialer.call).connect(
+        terminal: XtermTerminalAdapter(),
         sessionId: 'jmp',
         host: target,
         hosts: [...jumps, target],
@@ -456,6 +460,7 @@ void main() {
     }) async {
       try {
         final session = await SshService(dialer: dialer).connect(
+          terminal: XtermTerminalAdapter(),
           sessionId: 'jmp',
           host: target,
           hosts: [...jumps, target],
@@ -506,6 +511,7 @@ void main() {
       for (final purpose in ConnectionPurpose.values) {
         final dialer = RecordingDialer();
         final session = await SshService(dialer: dialer.call).connect(
+          terminal: XtermTerminalAdapter(),
           sessionId: 'jmp-$purpose',
           host: target,
           hosts: [...jumps, target],
@@ -578,6 +584,7 @@ void main() {
         final path = jumps();
         final target = targetVia(path, viaProxy());
         final session = await SshService(dialer: dialer.call).connect(
+          terminal: XtermTerminalAdapter(),
           sessionId: 'jmp4',
           host: target,
           hosts: [...path, target],
@@ -658,6 +665,7 @@ void main() {
           if (port == f.socksAuthPort) 'password': f.socksPassword,
         });
         final session = await SshService().connect(
+          terminal: XtermTerminalAdapter(),
           sessionId: 'sec1',
           host: host,
           hosts: [host],
@@ -764,11 +772,11 @@ void main() {
   }, skip: skip);
 
   test('TER01 真实 SSH 大段中文输出没有替换符', () async {
-    final terminal = Terminal(maxLines: 20000);
+    // 真实 sshd 的输出按网络分包，经连接层原样送进终端适配器（R16：连接层不再转字符串）。
+    final terminal = XtermTerminalAdapter(maxLines: 20000);
     final session = await connect(edgeHost({}), terminal: terminal);
     addTearDown(session.close);
-    String screen() =>
-        terminal.lines.toList().map((line) => line.getText()).join('\n');
+    String screen() => terminal.allText();
     await Future<void>.delayed(const Duration(milliseconds: 500));
     session.sshSession!.write(utf8.encode(
       r"i=0; while [ $i -lt 2000 ]; do printf '中文字符测试🙂'; i=$((i+1)); done; echo; echo __END__"
@@ -1437,6 +1445,7 @@ void main() {
         });
         try {
           final session = await SshService(dialer: dialer.call).connect(
+            terminal: XtermTerminalAdapter(),
             sessionId: 'sec06',
             host: host,
             hosts: [host],
@@ -1482,6 +1491,7 @@ void main() {
       Future<void> connectAs(Map<String, Object?> extra) async {
         final host = edgeHost(extra);
         final session = await SshService().connect(
+          terminal: XtermTerminalAdapter(),
           sessionId: 'sec04',
           host: host,
           hosts: [host],

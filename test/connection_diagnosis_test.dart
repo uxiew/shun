@@ -19,6 +19,7 @@ import 'package:netcatty_mobile/presentation/screens/terminal_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fixtures/net/socks5_fixture.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 
 // R10 / UX04：失败后给出对应真实失败类型的下一步；路线描述只写 App 自己做的事。
 void main() {
@@ -81,6 +82,7 @@ void main() {
     Future<Object> failure(HostProfile target) async {
       try {
         await SshService().connect(
+          terminal: XtermTerminalAdapter(),
           sessionId: 'r15-relayed',
           host: target,
           hosts: [target],

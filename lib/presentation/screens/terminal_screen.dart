@@ -1,11 +1,8 @@
 import 'dart:async';
-import 'package:flutter/gestures.dart';
 
 import 'package:flutter/material.dart';
 import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
-import 'package:xterm2/xterm.dart';
 
 import '../../application/connection_diagnosis.dart';
 import '../../application/fork_features.dart';
@@ -19,6 +16,8 @@ import '../widgets/ai_panel.dart';
 import '../widgets/ai_providers_page.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import '../../infrastructure/ssh/terminal_picture_in_picture_service.dart';
+import '../../infrastructure/terminal/terminal_session_adapter.dart';
+import '../../infrastructure/terminal/terminal_text.dart';
 import '../../infrastructure/storage/vault_repository.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/custom_background.dart';
@@ -30,6 +29,7 @@ import '../widgets/server_monitor_sheet.dart';
 import '../widgets/terminal_special_keys.dart';
 import '../widgets/system_management/system_management_sheet.dart';
 import '../widgets/tailscale_check_card.dart';
+import '../terminal/terminal_view.dart';
 
 part 'terminal_screen_pane.dart';
 

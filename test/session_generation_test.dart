@@ -12,7 +12,8 @@ import 'package:netcatty_mobile/domain/models/vault.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:xterm2/xterm.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
 
 // R08：连接代次（generation）与取消。用假的 SshService 精确控制「结果什么时候到」，
 // 真实 OpenSSH 上的同类场景在 integration_ssh_fixture_test.dart 的 R08 组。
@@ -306,7 +307,7 @@ class _ScriptedSshService extends SshService {
     RoutePlan? routePlan,
     required HostKeyVerifier verifyHostKey,
     KeyboardInteractiveHandler? keyboardInteractive,
-    Terminal? terminal,
+    required TerminalSessionAdapter terminal,
     ConnectionPurpose purpose = ConnectionPurpose.fresh,
     ConnectionAttempt? attempt,
   }) {
@@ -321,7 +322,7 @@ class _FakeSession extends ActiveTerminalSession {
       : super(
           id: id,
           host: host,
-          terminal: Terminal(),
+          terminal: XtermTerminalAdapter(),
           verifyHostKey: (_, __, ___) async => true,
           keyboardInteractive: null,
         );
