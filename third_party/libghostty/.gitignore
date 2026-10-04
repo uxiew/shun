@@ -5,3 +5,8 @@
 build/
 pubspec.lock
 packages/ptyx/native/target/
+
+# xwshun: 引入 fork 时没搬的字体和示例 wasm（51.5 MB），按需用 third_party/fetch-libghostty-assets.sh 取回，不提交。
+packages/flterm/example/assets/fonts/
+packages/flterm/test/fixtures/fonts/
+packages/flterm/example/assets/*.wasm
