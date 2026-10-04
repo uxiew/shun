@@ -30,4 +30,15 @@ interface IXwshunProvider {
     void resizeSession(String handle, long generation, int cols, int rows);
     // 幂等：已关或不存在的会话直接返回。
     void closeSession(String handle, long generation);
+
+    // ---- Mosh 会话（X08）。只在末尾追加；不认识它的旧插件被调用时 Binder 报未实现，宿主当作不支持。----
+    //
+    // 和 openSession 一样建会话，另带宿主这次 bootstrap 得到的临时材料（docs/16 运行流程第 4 步）：
+    // udpHost：宿主按路由解析好的数字 IP（IPv4/IPv6 字面量）。插件不做 DNS，非数字直接拒绝。
+    // udpPort：mosh-server 报的 UDP 端口，1–65535。
+    // printableKey：mosh-server 报的 22 个 base64 字符（ASCII 字节）。是秘密：插件只放内存、只交给运行时，
+    //               不写盘、不进日志、不进命令行参数，用完清零。宿主这边同样。
+    // 只有声明了 own-session-ephemeral-secret 且被批准的插件，宿主才会调这个方法。
+    void openMoshSession(String handle, long generation, int cols, int rows, in ParcelFileDescriptor stream,
+            String udpHost, int udpPort, in byte[] printableKey);
 }
