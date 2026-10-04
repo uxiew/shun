@@ -237,10 +237,11 @@
       "action": "对终端适配层注入伪造sessionId、失效generation、重复view绑定、超长控制序列及恶意native effect回调。",
       "expected": "终端没有secret或dial权限；不越权读写文件/剪贴板；旧代次不发送；FFI对象不会释放后使用。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R16.md"
+        "evidence/R16.md",
+        "evidence/R17.md"
       ]
     },
     {
@@ -302,9 +303,11 @@
       "action": "测试 alternate screen、光标定位、清屏、样式切换及退出全屏。",
       "expected": "主/备用缓冲状态正确；退出后内容/光标正常，没有覆盖旧屏错误。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R17.md"
+      ]
     },
     {
       "id": "TER04",
@@ -329,9 +332,11 @@
       "action": "快速尺寸变更，记录 SSH window-change；恢复后使用全屏程序。",
       "expected": "没有 0 行/0 列、过期尺寸和 resize 风暴；最终尺寸与真实可见区域一致。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "FAIL",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R17.md"
+      ]
     },
     {
       "id": "TER07",
@@ -365,9 +370,11 @@
       "action": "输入大于高水位的流式数据，故意让渲染消费变慢。",
       "expected": "背压或明确终止；不能任意丢 VT 字节继续假正常，不发生无界队列。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R17.md"
+      ]
     },
     {
       "id": "TER11",
@@ -521,7 +528,8 @@
       "result": "NOT_RUN",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R08.md"
+        "evidence/R08.md",
+        "evidence/R17.md"
       ]
     },
     {
@@ -949,9 +957,10 @@
       "action": "锁定包/native hash构建，篡改缓存库、缺ABI制品，再用16KiB设备运行。",
       "expected": "hash错误阻断；不动态跳过校验；只声明实测ABI/页面大小。",
       "level": "硬门禁",
-      "result": "FAIL",
+      "result": "PASS",
       "evidence": [
-        "evidence/R04.md"
+        "evidence/R04.md",
+        "evidence/R17.md"
       ],
       "inherited_from": null
     },
@@ -962,7 +971,8 @@
       "level": "硬门禁",
       "result": "PASS",
       "evidence": [
-        "evidence/R16.md"
+        "evidence/R16.md",
+        "evidence/R17.md"
       ],
       "inherited_from": null
     },
@@ -973,7 +983,8 @@
       "level": "硬门禁",
       "result": "PASS",
       "evidence": [
-        "evidence/R04.md"
+        "evidence/R04.md",
+        "evidence/R17.md"
       ],
       "inherited_from": null
     },

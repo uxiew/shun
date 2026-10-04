@@ -359,7 +359,7 @@
 
 ## R17 flterm生产适配与native生命周期
 
-阶段：P3；状态：NOT_STARTED；依赖：R16；角色：终端代理。
+阶段：P3；状态：DONE；依赖：R16；角色：终端代理。
 
 **范围**：安装双向byte callback、终端view、theme、resize、资源释放；先核对真实包API签名。
 

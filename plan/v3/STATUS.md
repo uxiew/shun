@@ -1,12 +1,12 @@
 # 当前状态 V3
 
-日期：2026-10-04。已执行首批（R00–R04、X00）、网络路由三项（R05、R06、R07）、连接代次（R08）、凭据与入口统一（R09）、连接路径编辑器（R10）、插件注册表（X01）、只读 Tailscale 目录的 HTTP 适配（R11）、Android 独立插件发现与双向签名（X02）、目录缓存与非破坏合并（R12）、插件会话字节流与故障处理（X03）、目录页与批量导入（R13）、插件管理与授权界面（X04）、Tailscale 目录接入内置 provider（X05）、UU 远程适配（X06）、RustDesk 外部客户端联动（X07）、显式 Tailscale SSH 外部认证（R14）、目录到三类路由的端到端验收（R15）和会话与 xterm2 解耦（R16）；09-30 所有者同意用 arm64 模拟器补测，并定"最低兼容到安卓七八"；10-04 所有者提供真机（Pixel 9 Pro，接在 xdwmbp 上），R04 真机补测后 DONE。
+日期：2026-10-04。已执行首批（R00–R04、X00）、网络路由三项（R05、R06、R07）、连接代次（R08）、凭据与入口统一（R09）、连接路径编辑器（R10）、插件注册表（X01）、只读 Tailscale 目录的 HTTP 适配（R11）、Android 独立插件发现与双向签名（X02）、目录缓存与非破坏合并（R12）、插件会话字节流与故障处理（X03）、目录页与批量导入（R13）、插件管理与授权界面（X04）、Tailscale 目录接入内置 provider（X05）、UU 远程适配（X06）、RustDesk 外部客户端联动（X07）、显式 Tailscale SSH 外部认证（R14）、目录到三类路由的端到端验收（R15）、会话与 xterm2 解耦（R16）和 Ghostty 接进主 App（R17）；09-30 所有者同意用 arm64 模拟器补测，并定"最低兼容到安卓七八"；10-04 所有者提供真机（Pixel 9 Pro，接在 xdwmbp 上），R04 真机补测后 DONE。
 
 - 基座：kmh1145/Netcatty-mobile `495f5d31`（v1.4.7），fork 分支 `xwshun/v3`，`origin` = `uxiew/xwshun`，所有者说推之前不 push。GPL-3.0-or-later 个人隔离实验；applicationId `top.xdwa.xwshun`。
-- 任务：DONE 25（R00 R01 R02 R03 R04 R05 R06 R07 R08 R09 R10 R11 R12 R13 R14 R15 R16 X00 X01 X02 X03 X04 X05 X06 X07）、NOT_STARTED 21、DEFERRED 7。
-- 用例（共 142）：PASS 72、FAIL 3、BLOCKED 6、NOT_RUN 61。每条的实际动作和观察在 `evidence/`。
-- 门禁：G0 **PASS**（Ghostty Android 可行性有真机证据；TER02、GST01 两个硬门禁用例仍 FAIL，归 R17，G3 必须过）；其余门禁 NOT_RUN。插件基础 GX0 的出口条件（X00–X03）在模拟器上都已满足，只差真机复核，所以仍记 NOT_RUN；Tailscale 的 G2（R15）同理，另外还差官方 Tailscale 的 check 和直连。离 CORE_READY / FULL_READY 都还很远。
-- 设备：arm64 模拟器实测过 API 24–28、35（4 KiB）、36（16 KiB），测完即删，只留 `xwshun-a35-4k` 的配置。真机一台：所有者的 Pixel 9 Pro（Android 17 / API 37，4 KiB 页），只接在 xdwmbp 上，本机经 `tool/remote-device/` 借它的 adb；10-04 只装过 spike 测试包、测完已卸载，为恢复微信输入法 force-stop 过它两次（第一次默认输入法被系统换成 Gboard，几秒内改回，三项输入法设置复核一致，见 evidence/R04.md）。只装过本项目自己的 APK（含 `plugins/` 的测试插件、假 UU、假 RustDesk）、原版 Netcatty、官方 UU 远程 4.42.0（所有者提供并同意安装，没有登录）和 GitHub 发行版 RustDesk 1.4.9（所有者同意安装，只连了不存在的 ID）；测试 App、假浏览器、UU、RustDesk 测完都已从 `xwshun-a35-4k` 卸载；R14、R15 在本机 Docker 里起过 Headscale + 官方 tailscale 镜像的隔离测试环境（不连任何真实账号，已 down）；没有连接任何用户真实主机/账号/VPN，没有 push 或发布。
+- 任务：DONE 26（R00 R01 R02 R03 R04 R05 R06 R07 R08 R09 R10 R11 R12 R13 R14 R15 R16 R17 X00 X01 X02 X03 X04 X05 X06 X07）、NOT_STARTED 20、DEFERRED 7。
+- 用例（共 142）：PASS 76、FAIL 3、BLOCKED 6、NOT_RUN 57。每条的实际动作和观察在 `evidence/`。
+- 门禁：G0 **PASS**（Ghostty Android 可行性有真机证据；GST01 在 R17 改成 PASS，TER02、TER06 两个硬门禁用例仍 FAIL，归 R18，G3 必须过）；其余门禁 NOT_RUN。插件基础 GX0 的出口条件（X00–X03）在模拟器上都已满足，只差真机复核，所以仍记 NOT_RUN；Tailscale 的 G2（R15）同理，另外还差官方 Tailscale 的 check 和直连。离 CORE_READY / FULL_READY 都还很远。
+- 设备：arm64 模拟器实测过 API 24–28、35（4 KiB）、36（16 KiB），测完即删，只留 `xwshun-a35-4k` 的配置；R17 又临时建过 API 24 和 API 36（16 KiB）两台跑 Ghostty 设备测试，连同镜像已删，主 App 测完已从 `xwshun-a35-4k` 卸载。真机一台：所有者的 Pixel 9 Pro（Android 17 / API 37，4 KiB 页），只接在 xdwmbp 上，本机经 `tool/remote-device/` 借它的 adb；10-04 只装过 spike 测试包、测完已卸载，为恢复微信输入法 force-stop 过它两次（第一次默认输入法被系统换成 Gboard，几秒内改回，三项输入法设置复核一致，见 evidence/R04.md）。只装过本项目自己的 APK（含 `plugins/` 的测试插件、假 UU、假 RustDesk）、原版 Netcatty、官方 UU 远程 4.42.0（所有者提供并同意安装，没有登录）和 GitHub 发行版 RustDesk 1.4.9（所有者同意安装，只连了不存在的 ID）；测试 App、假浏览器、UU、RustDesk 测完都已从 `xwshun-a35-4k` 卸载；R14、R15 在本机 Docker 里起过 Headscale + 官方 tailscale 镜像的隔离测试环境（不连任何真实账号，已 down）；没有连接任何用户真实主机/账号/VPN，没有 push 或发布。
 
 ## 已做的代码改动
 
@@ -34,6 +34,7 @@
 - 插件契约 v1 落成 `packages/plugin_api`（X00）。
 - 主 App 接入轻量插件注册表（X01）：内置 SSH/路由构造时即可用，不等任何插件发现；外部包冒用内置 ID、自称内置、同 ID 抢位都被拒；停用/撤销/换签/卸载只关该插件自己的会话。顺带补了契约漏洞：单独安装的包自称 `bundled` 原先能跳过用户批准和证书核验。
 - 会话与终端引擎解耦（R16）：连接层只送原始字节、不再认识 xterm2；终端归标签，由会话控制器创建和释放，切标签、分屏、旋转、画中画、整页重装都不新建连接；同一时刻只有一个视图、只有当前代次的连接收得到输入。xterm2 退成适配器 + 视图两个文件，仍是默认引擎和对照基线。顺带修了断线恢复后远端窗口停在 80x24（真实 OpenSSH 上 `stty size` 验证）。
+- Ghostty 接进主 App（R17）：设置 → 外观与终端 → 终端引擎能选 Ghostty（实验），默认仍是 xterm2，只影响之后新开的终端，标签名后标「· Ghostty」。远端字节原样进引擎，回调先接再喂、写入期间再来的排队；换代次时打断旧连接没写完的控制序列；剪贴板、通知、链接这类远端效果一概不执行；关标签时视图还挂着就推迟释放原生对象（flterm 绘制不查是否已释放）；滚动区 5000 行、不收图像。Ghostty 起不来时连接如实失败、不换引擎凑合。终端尺寸 0 不发、连着的变化合并。发布包改用 `tool/build-release.sh`：丢缓存从核对过的源码重编原生库、查 16 KiB 对齐，只带 arm64-v8a。Android 15、16 KiB 页的 Android 16、Android 7.0 三台模拟器上走真实 SSH 都过；没上真机。
 - terminal spike 补了 Android 适配层和一份 flterm 中文输入补丁（R04，只在 spike 里）。真机上：集成测试通过，所有者的微信输入法打字全对，**语音输入会把同一句话整段重复发送**（flterm 每次提交就清空编辑区，输入法改写不了已出现的字），交给 R17。
 
 ## 三个 FAIL（都已定位到负责任务）
@@ -41,10 +42,11 @@
 | 用例 | 问题 | 归属 |
 |---|---|---|
 | NET11 | 断线时不确定是否送达的输入没有标"结果未知" | R23 |
-| GST01 | libghostty 已缓存的库副本被篡改后构建不报错，篡改库进了 APK | R17（打包前校验）；发布构建先删 `.dart_tool` |
-| TER02 | 语音输入整段重复发送（真机微信输入法）；flterm 0.0.5 原样在 Gboard 上打不了中文、在微信输入法上每次要手动切中文。打补丁后模拟器 Gboard、真机微信输入法打字全流程通过 | R17（补丁去向 + 语音修法，修完要所有者真机语音复测） |
+| TER02 | 语音输入整段重复发送（真机微信输入法）。输入法补丁已在 fork 里（上游 main 新输入层），打字全流程模拟器 Gboard、真机微信输入法通过 | R18（语音修法，修完要所有者真机语音复测） |
+| TER06 | 软键盘弹着时横屏，终端几乎被键盘挡住，远端却还算 6–7 行（两种引擎都这样）；0 行、尺寸风暴、恢复后过期尺寸都已解决 | R18（键盘不遮挡） |
 
-R04 其他要带进 R17 的发现：dispose 后 write 段错误、软键盘退格 0 字节、收起后叫不回键盘、内联组字漏字、组合字符缺重音、默认资源上限过大、Ghostty 把裸 DEL 画成方格、中文输入法会拦截按键（硬件键盘 + 中文输入法时 Esc/方向键可能到不了终端，TER04）。详见 `evidence/R04.md`。
+R04 的发现到 R17 为止：dispose 后 write 段错误（上游改成抛错）、软键盘退格 0 字节和打不了中文（补丁在 fork）、收起后叫不回键盘（fork 修了）、默认资源上限过大（R17 设了上限）、缓存的库被篡改不报错（发布脚本重编）已处理；
+组合字符缺重音、裸 DEL 画成方格、语音整段重复、中文输入法拦截按键（TER04）还在。详见 `evidence/R04.md` 末节和 `evidence/R17.md`。
 
 ## 要知道的行为变化
 
@@ -65,7 +67,10 @@ R04 其他要带进 R17 的发现：dispose 后 write 段错误、软键盘退�
 ## 下一批
 
 `lizhi` 开着时，本项目模拟器用 `-port 5580` 起、adb 都带 `-s emulator-5580`（写在 docs/xwshun/README.md 第 7 节）。
-**依赖已满足、可以开工的**：R17（flterm 生产适配与 native 生命周期）、X08（Mosh 运行时选择与独立 APK 可行性）。R17 要带上 R04 问题清单（10-04 复核后的状态在 evidence/R04.md 末节）和 R16 证据末尾「给 R17 的话」（和 xterm2 逐项对齐的功能清单）。fork 已同步到上游 main，主 App 接 Ghostty 照抄 spike 的 pubspec（path 依赖 + override + `source: compile`），换依赖后先删 `.dart_tool/hooks_runner`，见 `third_party/README.md`。
+**依赖已满足、可以开工的**：R18（中文 IME 与软硬键盘迁移）、R21（tmux 能力整理与安全恢复目标）、X08（Mosh 运行时选择与独立 APK 可行性）。
+R18 先看 evidence/R17.md 末尾「给 R18 的话」：输入入口在哪、语音重复的根因、横屏键盘遮挡；TER02 的语音复测要所有者在真机上说话。
+Ghostty 设备测试的跑法写在 docs/xwshun/README.md 第 2 节（测试环境 + adb reverse + `r17_config.py`）。
+R17 时撞上、归 R22 的：系统返回手势把 Activity 结束后会话全没了，前台保活服务和常驻通知却还在（evidence/R17.md「发现的问题 2」）。
 真机只接在 xdwmbp 上，用法和撞墙见 `tool/remote-device/README.md`；装着中文输入法的真机上别用 adb 注入按键（会把输入法弄进实体键盘模式，恢复办法在 `docs/xwshun/README.md` 第 7 节）。
 R14、R15 的测试环境：仿制 Tailscale SSH 服务器和 Headscale + 真 tailscaled（R15 加了远程 SOCKS 和跳板两个节点），用法见 `tool/tailscale-ssh-fixture/README.md`。
 设备关联：目录的存在主机上，UU 的存在 UU 自己的加密存储里（记主机 id），RustDesk 的存在 RustDesk 这边的加密存储里，`deviceLinksOf` 把三样拼起来。

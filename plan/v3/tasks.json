@@ -792,7 +792,7 @@
       "id": "R17",
       "phase": "P3",
       "title": "flterm生产适配与native生命周期",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R16"
       ],
@@ -823,8 +823,10 @@
       ],
       "stop_condition": "native crash不能承诺无缝catch回退；缺资源清理证据不进入默认。",
       "owner_role": "终端代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R17.md"
+      ],
+      "commit": "f70f4d0"
     },
     {
       "id": "R18",

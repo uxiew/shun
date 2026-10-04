@@ -38,20 +38,20 @@
 | SEC06 | 加密私钥正确/错误口令，密文篡改，Keystore key 失效，删除后重读。 | 正确成功；其他失败关闭；无明文降级、无伪恢复、无可解密残留。 | PASS |
 | SEC07 | 设备锁定/应用锁定、身份 lease 到期、进程重启时尝试新认证。 | 按策略需解锁；不为后台恢复永久缓存秘密；已建立连接策略有明确 UI。 | NOT_RUN |
 | SEC08 | 远端输出 OSC 52、恶意 OSC 标题/目录/URL、控制字符、超长序列。 | 不读/静默写剪贴板，不执行本地操作，不自动打开恶意 scheme；内存有界。 | NOT_RUN |
-| SEC09 | 对终端适配层注入伪造sessionId、失效generation、重复view绑定、超长控制序列及恶意native effect回调。 | 终端没有secret或dial权限；不越权读写文件/剪贴板；旧代次不发送；FFI对象不会释放后使用。 | NOT_RUN |
+| SEC09 | 对终端适配层注入伪造sessionId、失效generation、重复view绑定、超长控制序列及恶意native effect回调。 | 终端没有secret或dial权限；不越权读写文件/剪贴板；旧代次不发送；FFI对象不会释放后使用。 | PASS |
 | SEC10 | 粘贴多行、控制字符与引号到不同目标模式；随后切标签/断网。 | 先预览风险，目标绑定正确；默认不追加 Enter；不宣称 bracketed paste 对所有程序阻止执行。 | NOT_RUN |
 | SEC11 | tmux 名称、路径和配置含分号、引号、换行、Tab、格式表达式及超长输出。 | 无 shell/tmux 注入；解析有界；查询不会意外创建目标或运行命令。 | NOT_RUN |
 | SEC12 | 导出诊断、触发认证失败与崩溃；检查日志/通知/Intent/截图模板。 | 无代理密码、私钥、按键和完整终端原文；导出前可预览；没有自动上传。 | NOT_RUN |
 | TER01 | 将同一 UTF-8/CJK/ANSI 数据按不同字节边界随机分包给内核。 | 结果与完整输入一致；不存在按包转 String 的替换符/字符损坏。 | PASS |
 | TER02 | 中文输入法拼音候选、撤销 composing、混排、删除、语音输入到普通编辑区。 | 只有确定提交进入终端，中文不重复不丢失；不得自动申请 App 麦克风权限。 | FAIL |
-| TER03 | 测试 alternate screen、光标定位、清屏、样式切换及退出全屏。 | 主/备用缓冲状态正确；退出后内容/光标正常，没有覆盖旧屏错误。 | NOT_RUN |
+| TER03 | 测试 alternate screen、光标定位、清屏、样式切换及退出全屏。 | 主/备用缓冲状态正确；退出后内容/光标正常，没有覆盖旧屏错误。 | PASS |
 | TER04 | 软键盘、硬件键盘各测 Ctrl-C/Ctrl-D/Alt/Esc/Tab/方向键及修饰键复位。 | 一次物理操作生成一次正确输入；切标签或后台无粘滞 Ctrl/Alt。 | NOT_RUN |
 | TER05 | 中文候选栏、软键盘显示隐藏、横竖屏、分屏、大字体、硬件键盘。 | 光标不被遮挡，触控可达，布局/焦点保持；不将输入送往错误标签。 | NOT_RUN |
-| TER06 | 快速尺寸变更，记录 SSH window-change；恢复后使用全屏程序。 | 没有 0 行/0 列、过期尺寸和 resize 风暴；最终尺寸与真实可见区域一致。 | NOT_RUN |
+| TER06 | 快速尺寸变更，记录 SSH window-change；恢复后使用全屏程序。 | 没有 0 行/0 列、过期尺寸和 resize 风暴；最终尺寸与真实可见区域一致。 | FAIL |
 | TER07 | 普通 shell、大量历史、全屏鼠标模式、tmux copy-mode 下分别滚动。 | 手势语义正确，选择不会误发按键；历史只按既定上限裁剪。 | NOT_RUN |
 | TER08 | 选择跨 CJK/emoji/组合字符的文本，复制并点击与拖动链接。 | 复制内容正确；拖动不打开链接；不把相邻无关内容静默合并。 | NOT_RUN |
 | TER09 | 多行编辑默认粘贴、显式发送回车、bracketed paste 开/关、网络中断。 | 行为符合文案；不自动重发，不因编辑 Enter 直接运行远端命令。 | NOT_RUN |
-| TER10 | 输入大于高水位的流式数据，故意让渲染消费变慢。 | 背压或明确终止；不能任意丢 VT 字节继续假正常，不发生无界队列。 | NOT_RUN |
+| TER10 | 输入大于高水位的流式数据，故意让渲染消费变慢。 | 背压或明确终止；不能任意丢 VT 字节继续假正常，不发生无界队列。 | PASS |
 | TER11 | 固定 VT 工作负载、多个标签、100 次创建/销毁，测完整进程树资源。 | 无 crash/ANR、持续泄漏或无法回收；达到已冻结性能预算，未达需解释/修复。 | NOT_RUN |
 | TER12 | 强制候选引擎初始化失败、模拟回退或下次启动安全模式。 | requested/effective/failureReason真实；不热换不兼容状态；仅旧引擎可用不能宣布Ghostty替换完成。 | NOT_RUN |
 | TER13 | 用户授权后运行实际远端 Claude Code/Codex 或其当前使用 CLI，记录版本与环境。 | 可操作提示/选择/中断/流式输出；说明已测版本与消耗，未授权则 NOT_RUN。 | NOT_RUN |
@@ -106,7 +106,7 @@
 | TSC08 | 外部auth check批准、拒绝、超时、取消、未知或恶意URL。 | 先host trust，用户确认后外部浏览器；不自动访问，不以返回App当授权成功。 | PASS |
 | TSC09 | 本地db、诊断、备份、同步、clipboard和错误对象搜索目录secret。 | secret只在受控存储/内存和官方请求；导出无secret；token不送SSH/代理。 | PASS |
 | TSC10 | 两目录来源使用别名tailnet和同名主机、删除凭据再刷新。 | 来源隔离；未知canonical不误合并；删凭据不会误删手动编辑主机。 | PASS |
-| GST01 | 锁定包/native hash构建，篡改缓存库、缺ABI制品，再用16KiB设备运行。 | hash错误阻断；不动态跳过校验；只声明实测ABI/页面大小。 | FAIL |
+| GST01 | 锁定包/native hash构建，篡改缓存库、缺ABI制品，再用16KiB设备运行。 | hash错误阻断；不动态跳过校验；只声明实测ABI/页面大小。 | PASS |
 | GST02 | 切标签/旋转/预览重复附着controller，销毁时触发迟到回调。 | 单view所有权，不double free/use-after-free，UI重建不新建SSH。 | PASS |
 | GST03 | 输入终端查询、onOutput回调和快速resize，再注入重入尝试。 | 协议回应保序不循环；不重入write；代次关闭后不发送。 | PASS |
 | GST04 | 多行paste、普通sendText、按键编码和OSC effect各自测试。 | 语义分离；不把paste清洗宣传为阻止执行；危险effect不默认允许。 | NOT_RUN |
