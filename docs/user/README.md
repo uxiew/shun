@@ -457,3 +457,5 @@ ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
 | 没有 RustDesk 联动 | 能给主机填 RustDesk ID，点一下交给手机上的 RustDesk 去连 | 远控在 RustDesk 里进行；RustDesk 不回报，本 App 只写「已交给」 |
 | 服务器一个密码私钥都不要就放行（none 认证），照样连上 | 普通 SSH 下断开并提示 | 开着 Tailscale SSH 的机器就是这样被悄悄用 tailnet 身份登录的，你却以为用的是密码 |
 | 没有 Tailscale SSH 设置 | 编辑器里明确选「Tailscale SSH」才用，只发 none，check 在浏览器里做 | 用哪种身份登录要你自己定，不按地址猜 |
+| 没有独立插件 | 「设置 → 插件（实验）」能接单独安装的插件 App，每次调用都互相核对签名 | 插件代码不进本 App；换签、冒名的一律拒绝 |
+| 包名 `app.netcatty.mobile` | 包名 `top.xdwa.xwshun` | 两个能装在同一台手机上，数据互不影响 |

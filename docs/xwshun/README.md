@@ -1,6 +1,6 @@
 # xwshun 本机手册
 
-Netcatty-mobile 的本地实验 fork（分支 `xwshun/v3`，不 push）。这里只讲在这台 Mac 上怎么跑、怎么测、怎么装、怎么清理。
+Netcatty-mobile 的实验 fork（分支 `xwshun/v3`，remote `origin` = `uxiew/xwshun`，所有者说推之前不 push）。这里只讲在这台 Mac 上怎么跑、怎么测、怎么装、怎么清理。
 App 怎么用看 [使用手册](../user/README.md)；做什么、做到哪看 `plan/v3/STATUS.md`。命令都在仓库根目录执行。
 
 ## 1. 先 source 环境
@@ -150,3 +150,17 @@ API 35 镜像是你原有的，`lizhi` 模拟器在用，**不要卸**。
 - **模拟器里按电脑的 Esc，App 退回上一页**：模拟器键位表把 Esc 映射成了返回键，真机蓝牙键盘不会这样。用终端快捷键栏的 Esc。
 - **Android 8.1 及更早的模拟器上 `adb logcat -c` 清不掉日志**（8.0 直接报 `failed to clear the 'main' log`）：
   按日志核对结果时别依赖清空，按"操作前已有几行"截取（`spikes/terminal_spike/tool/adb_key_check.sh` 就是这么做的）。
+
+## 8. 仓库里有什么
+
+| 目录 | 内容 |
+|---|---|
+| `lib/` | App 本体（Flutter + Riverpod + dartssh2）。终端引擎只经 `lib/infrastructure/terminal/` 的适配层接入 |
+| `android/` | Android 工程和原生代码：SSH 保活前台服务、画中画、手机目录授权、插件桥 |
+| `packages/plugin_api/` | 插件契约 v1（Dart 端） |
+| `plugins/` | 插件的 Android 契约与 SDK，加上只用于测试的插件 APK |
+| `third_party/` | 自己维护的上游 fork（现在是 libghostty / flterm），说明见 `third_party/README.md` |
+| `tool/` | 测试工具：真实 SSH / 代理 / 跳板的 Docker 环境、Tailscale 测试环境、假 Tailscale API、远程真机（`remote-device/`） |
+| `spikes/` | 终端引擎验证工程（R04），不进 App |
+| `plan/v3/` | 计划、任务、用例、每批的实测证据 |
+| `docs/` | 使用手册（`user/`）、本机手册（本文件）、基座决定（`architecture/`），其余是上游原来的开发文档 |
