@@ -14,13 +14,13 @@ cd third_party/libghostty
 flutter pub get
 dart analyze packages/flterm/lib packages/libghostty/lib
 ../fetch-libghostty-assets.sh                         # 只有跑 flterm 测试、示例程序时才要（51.6 MB）
-(cd packages/flterm && flutter test)                  # 1083 条
+(cd packages/flterm && flutter test)                  # 1090 条
 (cd packages/libghostty && dart test)                 # 511 条；第一次要下 Ghostty 源码再用 Zig 编，约 1 分钟
 ```
 
 `dart analyze` 在 Flutter 3.44 下报 3 条 `discarded_futures`：上游 CI 用最新 stable，不报，不影响编译。
 
-App 里用：照抄 `spikes/terminal_spike/pubspec.yaml`。flterm 写 path 依赖；libghostty 用 `dependency_overrides` 指到 fork（flterm 声明的是 pub 上的 `^0.0.12`，不 override 会拉旧版）；`hooks.user_defines.libghostty.source` 设 `compile`。
+主 App 已经这样接上（R17，见根目录 `pubspec.yaml`）：flterm 写 path 依赖；libghostty 用 `dependency_overrides` 指到 fork（flterm 声明的是 pub 上的 `^0.0.12`，不 override 会拉旧版）；`hooks.user_defines.libghostty.source` 设 `compile`。App 里只有 `lib/infrastructure/terminal/ghostty_terminal_adapter.dart` 和 `lib/presentation/terminal/ghostty_terminal_view.dart` 认识 flterm（分层测试管着）。
 
 ### 原生库：从源码编，要 Zig 0.16
 
@@ -35,7 +35,7 @@ App 里用：照抄 `spikes/terminal_spike/pubspec.yaml`。flterm 写 path 依�
 
 - **换了依赖来源（pub ↔ fork、预编译 ↔ 源码）后报上面的 code -2**：构建钩子沿用了 `.dart_tool/hooks_runner` 里旧的原生库（spike 撞上时，旧库的 sha256 和 0.0.12 预编译版一模一样）。删掉 `.dart_tool/hooks_runner` 再构建。
 - **"Ghostty source SHA256 mismatch"**：下来的源码包和 `ghostty.sha256` 对不上。换了 `ghostty.version` 没换 hash 就会这样；如果没换，可能是 GitHub 改了打包方式，先 `git archive` 同一提交对比内容，确认没被篡改再更新 hash。
-- **已缓存的原生库被改了不会被发现**（R04 问题 5）：钩子只在下载、编译时核对。发布构建前删 `.dart_tool`。
+- **已缓存的原生库被改了不会被发现**（R04 问题 5）：钩子只在下载、编译时核对，翻一个字节普通构建照常成功。发布用 `tool/build-release.sh`，它丢掉缓存、从核对过的源码重编，再查每个 `.so` 的 16 KiB 对齐。
 
 ### 和上游差在哪
 
@@ -49,6 +49,7 @@ App 里用：照抄 `spikes/terminal_spike/pubspec.yaml`。flterm 写 path 依�
 | 6018a4a | libghostty 钩子：Ghostty 源码包按 `ghostty.sha256` 核对再编 | 上游下来就编、不核对；预编译那条路有 SHA256 表，改走源码不能丢这道校验 |
 | 1dda0c8 | flterm：输入框类型 multiline → emailAddress；scanCode=0 的键按逻辑键兜底；这类键处理后让输入法重新对齐 | 不改的话 Gboard 打不了中文、微信输入法每次回到英文、软键盘退格 0 字节、删拼音漏字母（R04 问题 2、4） |
 | 2c41ed9 | flterm：已有焦点时点终端也叫回键盘 | 按返回收起键盘后点终端叫不回来（R04 问题 3）；上游 main 也有这个问题 |
+| c3a8b40 | flterm：TerminalController 加 `tailRows(count)`，读最近几行带折行标记 | App 的画中画和 AI 上下文只看最近几百行；公开接口拿不到 Terminal，逐格读滚动区每次都要从头遍历分页 |
 
 0.0.5 时期的 04df082（输入法补丁）、8caeb73（改用预编译库）已被同步覆盖，补丁移进了 1dda0c8。
 
@@ -81,15 +82,19 @@ git apply --3way /tmp/xwshun-ours.patch     # 返回非 0 会列出合不进的�
 
 逐项对照主 App 现在的终端（`lib/presentation/terminal/xterm_terminal_view.dart`），对齐一项勾一项、写进 R17/R18 证据：
 
-- 选区：拖动手柄选择、复制（上游 main 已有触摸手柄和放大镜）；备用屏（vim、tmux）长按出复制快照
-- 鼠标：tmux 打开鼠标报告时滚动交给 tmux，手指滑动不变成方向键、点按不误发点击
-- 键盘：软键盘退格（`deleteDetection`）、敏感输入走 visiblePassword、快捷键栏的 Ctrl/Alt/Esc
-- 外观：主题色、字号、透明背景
-- 和 App 其他部分的接口：画中画文字、AI 上下文（适配器的 `lineAt` / `allText`）
+- [x] 外观：主题色（16 色和 xterm2 共用）、字号、透明背景（R17）
+- [x] 和 App 其他部分的接口：画中画文字、AI 上下文（适配器的 `recentLines` / `allText`，R17）
+- [x] 选区：长按后拖动、双击选词、手柄、右上角「复制」；全屏程序里「复制」弹整屏文字，自动折行接回去（R17 模拟器上走过）
+- [x] 快捷键栏的一次性 Ctrl/Alt/Shift：交给 flterm 的虚拟修饰键，软键盘下一个键用掉后快捷键栏复位（R17 模拟器上 Ctrl+L 走过）
+- [ ] 快捷键栏的方向键、Home/End 改走 `sendKey`，跟随应用光标模式（R18）
+- [ ] 敏感输入走 visiblePassword：flterm 的输入框类型写死，要在 fork 里开参数（R18）
+- [ ] 软键盘退格（xterm2 的 `deleteDetection`）在各输入法下的表现（R18）
+- [ ] 鼠标：tmux 打开鼠标报告时滚动交给 tmux，手指滑动不变成方向键、点按不误发点击（R19）
+- [ ] 链接：现在关掉了识别（远端能把任意文字标成链接，识别还会吃掉点按），规矩在 R19 定
 - R04 已知问题：
   - 已解决：收起后叫不回键盘（3，fork 修）；dispose 后 write 段错误（1，上游改成抛 StateError，适配器仍要挡住迟到的数据）
   - 还在：组合字符缺重音（6，10-04 模拟器截图）、**语音输入整段重复发送（8，每次提交后重置编辑区的逻辑没变）**、裸 DEL 画成方格（9）
-  - 要 R17 处理：默认资源上限过大（7，上游 main 已能设滚动区上限）
+  - R17 已处理：默认资源上限过大（7）：滚动区 5000 行、字节上限 8 MiB，不收 Kitty 图像和 APC 数据
   - 新看到的：Gboard 弹着时，注入的 Esc 被输入法拿去收键盘，终端收不到（模拟器；硬件键盘的情况归 TER04）
 
 ## 其他依赖
