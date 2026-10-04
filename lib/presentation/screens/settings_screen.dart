@@ -415,7 +415,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             : _setTerminalSecureKeyboard,
                       ),
                       const SizedBox(height: 8),
-                      const LText('终端引擎'),
+                      const Align(
+                        alignment: AlignmentDirectional.centerStart,
+                        child: LText('终端引擎'),
+                      ),
                       const SizedBox(height: 4),
                       SegmentedButton<String>(
                         key: const ValueKey('terminal-engine'),
