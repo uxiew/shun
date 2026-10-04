@@ -20,7 +20,7 @@ import 'package:flterm/flterm.dart' as flterm show TerminalView;
 import 'package:xterm2/xterm.dart' as xterm show TerminalView;
 
 // R18：快捷键栏的功能键交给引擎编码（跟远端的光标键模式走）、修饰键不粘、
-// 分屏时输入只发给用户点过的那一格。两个引擎各跑一遍。
+// 分屏时输入只发给用户点过的那一格、地方不够时快捷键栏收成一行。两个引擎各跑一遍。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -148,6 +148,45 @@ void main() {
         page.controller.setBackgrounded(true);
         expect(page.second.terminal.input.modifiers, isEmpty);
         page.controller.setBackgrounded(false);
+      });
+
+      testWidgets('横屏收成一行，弹键盘时再收起标签条；终端始终有地方、不溢出', (tester) async {
+        final page = await _Page.open(tester, newTerminal);
+        final engineView =
+            engine == 'Ghostty' ? flterm.TerminalView : xterm.TerminalView;
+        Finder compactBar() =>
+            find.byKey(const ValueKey('terminal-special-keys-compact'));
+        Finder tabs() => find.byKey(const ValueKey('terminal-tab-strip'));
+
+        // 竖屏：两行快捷键 + 一行操作按钮。
+        expect(compactBar(), findsNothing);
+        expect(tabs(), findsOneWidget);
+
+        // 横屏（Pixel 7 横过来是 914x411dp）：一行。
+        tester.view.physicalSize = const Size(2400, 1080);
+        tester.view.devicePixelRatio = 2.625;
+        await page.settle();
+        expect(compactBar(), findsOneWidget);
+        expect(tabs(), findsOneWidget);
+        expect(
+            find.byKey(const ValueKey('terminal-action-more')), findsOneWidget);
+
+        // 再弹软键盘（模拟器上实测 261dp）：标签条也收起。
+        tester.view.viewInsets = const FakeViewPadding(bottom: 261 * 2.625);
+        await page.settle();
+        expect(tabs(), findsNothing);
+        expect(compactBar(), findsOneWidget);
+        expect(tester.getSize(find.byType(engineView)).height, greaterThan(48));
+
+        // 「更多」里的操作照样能用。
+        await tester.tap(find.byKey(const ValueKey('terminal-action-more')));
+        await page.settle();
+        await tester.tap(find.byKey(const ValueKey('terminal-action-split')));
+        await page.settle();
+        expect(find.byType(engineView), findsNWidgets(2));
+
+        tester.view.resetViewInsets();
+        await page.settle();
       });
     });
   }

@@ -28,6 +28,7 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
     required this.split,
     required this.onSplit,
     this.transparentBackground = false,
+    this.compact = false,
   });
 
   final List<String> order;
@@ -49,6 +50,10 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
   final bool split;
   final VoidCallback? onSplit;
   final bool transparentBackground;
+
+  /// 竖着放不下两行快捷键加一行操作按钮时（横屏、小屏弹着键盘）收成一行：快捷键横排可滑动，
+  /// 操作按钮收进「更多」，「收起键盘」留在行尾（TER05、TER06）。
+  final bool compact;
 
   @override
   ConsumerState<TerminalSpecialKeys> createState() =>
@@ -80,6 +85,7 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
         (value) => !widget.order.contains(value),
       ),
     ];
+    if (widget.compact) return _compactBar(context, normalized, definitions);
     return AnimatedBuilder(
       animation: widget.inputController,
       builder: (context, _) => Material(
@@ -178,6 +184,116 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
           ),
         ),
       ),
+    );
+  }
+
+  /// 一行的样式：每个键 48dp 高，横排放不下就左右滑。
+  Widget _compactBar(
+    BuildContext context,
+    List<String> order,
+    Map<String, _QuickKey> definitions,
+  ) {
+    return AnimatedBuilder(
+      animation: widget.inputController,
+      builder: (context, _) => Material(
+        key: const ValueKey('terminal-special-keys-surface'),
+        color: widget.transparentBackground
+            ? Colors.transparent
+            : Theme.of(context).colorScheme.surface,
+        child: SizedBox(
+          height: 48,
+          child: Row(
+            children: [
+              Expanded(
+                child: ListView(
+                  key: const ValueKey('terminal-special-keys-compact'),
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 4),
+                  children: [
+                    for (final id in order)
+                      SizedBox(
+                        width: 56,
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 2),
+                          child: _keyButton(definitions[id]!),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              _moreActions(context, order),
+              IconButton(
+                key: const ValueKey('terminal-action-hide-keyboard'),
+                tooltip: localized('收起键盘'),
+                onPressed: () => FocusManager.instance.primaryFocus?.unfocus(),
+                icon: const Icon(Icons.keyboard_hide_outlined),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _moreActions(BuildContext context, List<String> order) {
+    final actions = <(String, String, IconData, VoidCallback?)>[
+      if (widget.onAi != null)
+        ('ai', localized('Catty Agent'), Icons.auto_awesome, widget.onAi),
+      (
+        'port-forward',
+        localized('端口转发'),
+        Icons.swap_horiz,
+        widget.onPortForward,
+      ),
+      (
+        'system-management',
+        localized('系统管理'),
+        Icons.admin_panel_settings_outlined,
+        widget.onSystemManagement,
+      ),
+      (
+        'picture-in-picture',
+        widget.pictureInPicture ? '退出画中画' : '画中画',
+        Icons.picture_in_picture,
+        widget.onPictureInPicture,
+      ),
+      (
+        'fullscreen',
+        widget.fullscreen ? '退出全屏' : '全屏',
+        widget.fullscreen ? Icons.fullscreen_exit : Icons.fullscreen,
+        widget.onFullscreen,
+      ),
+      (
+        'split',
+        localized('分屏'),
+        Icons.vertical_split_outlined,
+        widget.onSplit,
+      ),
+      (
+        'edit',
+        localized('编辑快捷键'),
+        Icons.tune,
+        () => _customize(context, order),
+      ),
+    ];
+    return PopupMenuButton<VoidCallback>(
+      key: const ValueKey('terminal-action-more'),
+      tooltip: localized('更多'),
+      icon: const Icon(Icons.more_horiz),
+      onSelected: (action) => action(),
+      itemBuilder: (context) => [
+        for (final (id, label, icon, onPressed) in actions)
+          PopupMenuItem<VoidCallback>(
+            key: ValueKey('terminal-action-$id'),
+            value: onPressed,
+            enabled: onPressed != null,
+            child: ListTile(
+              leading: Icon(icon),
+              title: LText(label),
+              contentPadding: EdgeInsets.zero,
+            ),
+          ),
+      ],
     );
   }
 

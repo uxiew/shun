@@ -46,6 +46,14 @@ class TerminalScreen extends ConsumerStatefulWidget {
   ConsumerState<TerminalScreen> createState() => _TerminalScreenState();
 }
 
+/// 终端页的高度（键盘弹出后剩下的）低于这个就把快捷键栏收成一行（TER05、TER06）。
+/// 竖屏弹着键盘的普通手机（914dp 高、键盘 336dp）剩 550dp，不收；横屏 411dp 高，收。
+const _compactTerminalHeight = 480.0;
+
+/// 低于这个连标签条也收起来，只留终端和一行快捷键：横屏弹键盘时只剩 120dp 左右，
+/// 标签条 52dp 加两行快捷键会把终端挤成 0 行，远端还停在旧尺寸（R17 发现的问题 1）。
+const _tightTerminalHeight = 260.0;
+
 class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   var _split = false;
 
@@ -134,19 +142,23 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                 .firstOrNull ??
             visibleSession;
     return SafeArea(
-      child: _buildPage(
-        context,
-        state: state,
-        settings: settings,
-        snippets: snippets,
-        selectedPending: selectedPending,
-        visibleSession: visibleSession,
-        inputSession: inputSession,
-        splitShown: splitShown,
-        fullscreen: fullscreen,
-        pictureInPicture: pictureInPicture,
-        customBackground: customBackground,
-        tabHosts: tabHosts,
+      child: LayoutBuilder(
+        builder: (context, constraints) => _buildPage(
+          context,
+          state: state,
+          settings: settings,
+          snippets: snippets,
+          selectedPending: selectedPending,
+          visibleSession: visibleSession,
+          inputSession: inputSession,
+          splitShown: splitShown,
+          fullscreen: fullscreen,
+          pictureInPicture: pictureInPicture,
+          customBackground: customBackground,
+          tabHosts: tabHosts,
+          compact: constraints.maxHeight < _compactTerminalHeight,
+          tight: constraints.maxHeight < _tightTerminalHeight,
+        ),
       ),
     );
   }
@@ -164,13 +176,15 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     required bool pictureInPicture,
     required bool customBackground,
     required List<HostProfile> tabHosts,
+    required bool compact,
+    required bool tight,
   }) {
     return Stack(
       children: [
         Positioned.fill(
           child: Column(
             children: [
-              if (!fullscreen && !pictureInPicture)
+              if (!fullscreen && !pictureInPicture && !tight)
                 SizedBox(
                   key: const ValueKey('terminal-tab-strip'),
                   height: 52,
@@ -413,6 +427,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                   onKey: (key) => ref
                       .read(sessionControllerProvider.notifier)
                       .pressKey(inputSession.id, key),
+                  compact: compact,
                   onAi: ref.watch(forkFeaturesProvider).ai
                       ? () => _openAi(visibleSession)
                       : null,
