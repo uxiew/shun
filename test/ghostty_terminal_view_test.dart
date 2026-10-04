@@ -146,4 +146,40 @@ void main() {
     expect(calls.where((call) => call.method == 'TextInput.show'), isEmpty);
     expect(find.byKey(const ValueKey('copy-terminal-selection')), findsNothing);
   });
+
+  // R18：设置里的「安全键盘」在 Ghostty 下也生效（R17 时输入框类型写死 emailAddress）。
+  testWidgets('安全键盘：输入框按可见密码处理，关掉后换回', (tester) async {
+    final terminal = GhosttyTerminalAdapter();
+    addTearDown(terminal.dispose);
+    final types = <String?>[];
+    tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
+      SystemChannels.textInput,
+      (call) async {
+        final config = switch (call.method) {
+          'TextInput.setClient' => (call.arguments as List)[1] as Map,
+          'TextInput.updateConfig' => call.arguments as Map,
+          _ => null,
+        };
+        if (config != null) types.add((config['inputType'] as Map)['name']);
+        return null;
+      },
+    );
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(SystemChannels.textInput, null));
+    const secure = TerminalViewOptions(
+      fontSize: 14,
+      secureKeyboard: true,
+      interactive: true,
+      transparentBackground: false,
+    );
+
+    await tester
+        .pumpWidget(_app(terminal, [const ValueKey('a')], options: secure));
+    await tester.pump();
+    expect(types.last, 'TextInputType.visiblePassword');
+
+    await tester.pumpWidget(_app(terminal, [const ValueKey('a')]));
+    await tester.pump();
+    expect(types.last, 'TextInputType.emailAddress');
+  });
 }

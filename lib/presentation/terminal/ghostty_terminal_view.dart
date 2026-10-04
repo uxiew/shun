@@ -145,6 +145,8 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
                   theme: theme,
                   autofocus: interactive,
                   showKeyboard: interactive,
+                  // 设置里的「安全键盘」：输入法按可见密码框处理，不联想、不学习。
+                  secureTextInput: options.secureKeyboard,
                   // 远端能把任意文字标成链接（OSC 8），点了打开什么由远端说了算；
                   // 链接识别也会吃掉点按，点终端叫不回键盘。识别和打开链接留给 R19 定规矩。
                   linkSettings: const LinkSettings(types: {}),
