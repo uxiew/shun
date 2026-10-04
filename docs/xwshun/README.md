@@ -37,6 +37,8 @@ flutter test test/integration_ssh_fixture_test.dart
   `flutter test integration_test/ghostty_engine_test.dart -d <设备> --dart-define=R17_SSH="$(python3 tool/fixture-environment/r17_config.py)"`。
   每次 `up.sh` 都换密码，参数要重新取。
 - 测试环境细节见 `tool/fixture-environment/README.md`，终端引擎验证工程见 `spikes/terminal_spike/README.md`。
+- tmux 的测试（R21，`test/tmux_fixture_test.dart`）用另一套环境：四个真实 tmux 版本（2.4、2.7、3.0a、3.5a）加「没有 tmux」「假 tmux」两台，
+  `(cd tool/tmux-fixture && ./up.sh)` 起、`./down.sh` 关，和上面那套互不影响、可以同时开；没起时整组跳过。细节见 `tool/tmux-fixture/README.md`。
 - Tailscale SSH 的测试（`test/tailscale_ssh_login_test.dart`）要 Go：会自己构建、起停仿制服务器，没装 Go 时整组跳过。仿制服务器和「Headscale + 真 tailscaled」环境的用法见 `tool/tailscale-ssh-fixture/README.md`。
 - 目录设备经四条路线连接的设备测试（R15，`integration_test/catalog_route_matrix_test.dart`）只在模拟器/真机上跑：`./up.sh routes` 后用同目录的 `route-matrix.sh`，见上面那份 README 的「R15」一节。
 
@@ -178,7 +180,7 @@ brew 为本项目装的（2026-10-04）：`zig@0.16` 和它依赖的 `llvm@21`�
 | `packages/plugin_api/` | 插件契约 v1（Dart 端） |
 | `plugins/` | 插件的 Android 契约与 SDK，加上只用于测试的插件 APK |
 | `third_party/` | 自己维护的上游 fork（现在是 libghostty / flterm），说明见 `third_party/README.md` |
-| `tool/` | 发布构建脚本（`build-release.sh`）；测试工具：真实 SSH / 代理 / 跳板的 Docker 环境、Tailscale 测试环境、假 Tailscale API、远程真机（`remote-device/`） |
+| `tool/` | 发布构建脚本（`build-release.sh`）；测试工具：真实 SSH / 代理 / 跳板的 Docker 环境、多版本 tmux 环境（`tmux-fixture/`）、Tailscale 测试环境、假 Tailscale API、远程真机（`remote-device/`） |
 | `spikes/` | 终端引擎验证工程（R04，现在用来在 Android 上验 fork），不进 App |
 | `plan/v3/` | 计划、任务、用例、每批的实测证据 |
 | `docs/` | 使用手册（`user/`）、本机手册（本文件）、基座决定（`architecture/`），其余是上游原来的开发文档 |
