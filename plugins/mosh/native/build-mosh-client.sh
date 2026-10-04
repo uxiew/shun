@@ -6,7 +6,8 @@
 # 由插件用 PTY 拉起。Android 10 起不许 exec App 可写目录里的文件（docs/13 S54），可执行文件只能随 APK
 # 装进 nativeLibraryDir（只读、系统安装时解出），所以名字必须是 lib*.so，APK 里要 extractNativeLibs。
 #
-# 用法：source ../../../../.toolchain/env.sh 后直接跑，约 10 分钟（第一次要下载源码）。可以重复跑，已编好的阶段跳过。
+# 用法：source ../../../../.toolchain/env.sh 后直接跑。从零约 2 分钟（10 核，不算下载 60 MB 源码）。
+# 可以重复跑，已编好的阶段跳过；编译目录可以删（腾磁盘），装好的库和本机工具在 prefix-*/、host/ 里。
 #   FORCE=1 ./build-mosh-client.sh     全部重编
 # 产物：../build-native/jniLibs/arm64-v8a/libmoshclient.so（不进 git）
 set -euo pipefail
@@ -59,7 +60,9 @@ CXX_A="$TC/bin/$TRIPLE$API-clang++"
 LD16="-Wl,-z,max-page-size=16384 -Wl,-z,common-page-size=16384"
 
 # ---- 1. protobuf：本机 protoc（生成 mosh 的 .pb.cc）+ Android 静态库 ----
-unpack protobuf-3.21.12 protobuf-cpp-3.21.12.tar.gz
+if [[ ! -x "$HOST/bin/protoc" || ! -f "$PREFIX/lib/libprotobuf.a" ]]; then
+  unpack protobuf-3.21.12 protobuf-cpp-3.21.12.tar.gz
+fi
 if [[ ! -x "$HOST/bin/protoc" ]]; then
   cmake -S "$W/build/protobuf-3.21.12" -B "$W/build/pb-host" -G Ninja -DCMAKE_BUILD_TYPE=Release \
     -Dprotobuf_BUILD_TESTS=OFF -Dprotobuf_BUILD_SHARED_LIBS=OFF -DCMAKE_INSTALL_PREFIX="$HOST" >/dev/null
@@ -76,8 +79,8 @@ fi
 echo "protobuf：$("$HOST/bin/protoc" --version)，$(ls "$PREFIX"/lib/libprotobuf*.a | xargs -n1 basename | tr '\n' ' ')"
 
 # ---- 2. OpenSSL：只编 libcrypto 静态库 ----
-unpack openssl-3.5.4 openssl-3.5.4.tar.gz
 if [[ ! -f "$PREFIX/lib/libcrypto.a" ]]; then
+  unpack openssl-3.5.4 openssl-3.5.4.tar.gz
   (
     cd "$W/build/openssl-3.5.4"
     export ANDROID_NDK_ROOT="$NDK"
@@ -124,10 +127,13 @@ if [[ ! -f "$PREFIX/lib/libncurses.a" ]]; then
     make -C include install >/dev/null && make -C ncurses install >/dev/null
   )
 fi
+# 编译目录被清掉（腾磁盘）时跳过这两项检查：库是上次检查通过后才装进 prefix 的。
+if [[ -d "$W/build/nc-$ABI" ]]; then
 grep -q xterm_256color "$W/build/nc-$ABI/ncurses/fallback.c" || { echo "ncurses 没把 xterm-256color 编进 fallback" >&2; exit 1; }
 grep -q "static short xterm_256color_number_data" "$W/build/nc-$ABI/ncurses/fallback.c" \
   && grep -q "short \*Numbers" "$W/build/nc-$ABI/include/term.h" && ! grep -q "int \*Numbers" "$W/build/nc-$ABI/include/term.h" \
   || { echo "ncurses fallback 的数值类型和库不一致（见上面 NC_ABI 的说明）" >&2; exit 1; }
+fi
 echo "ncurses：$(ls "$PREFIX"/lib/libncurses*.a | xargs -n1 basename | tr '\n' ' ')，fallback xterm-256color"
 
 # ---- 4. mosh-client ----
