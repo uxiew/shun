@@ -441,7 +441,6 @@ class SessionController extends StateNotifier<SessionState> {
               '\x1b[33m已恢复为新的 shell，启动命令不会在恢复时重新执行。\x1b[0m\r\n',
             );
           }
-
           final sessions = [...state.sessions];
           sessions[current] = replacement;
           state = state.copyWith(
