@@ -106,22 +106,22 @@ class _XtermTerminalViewState extends State<XtermTerminalView> {
       selection: scheme.primary.withValues(alpha: 0.35),
       foreground: scheme.onSurface,
       background: scheme.surface,
-      black: const Color(0xff1d1f21),
-      red: const Color(0xffcc6666),
-      green: const Color(0xffb5bd68),
-      yellow: const Color(0xfff0c674),
-      blue: const Color(0xff81a2be),
-      magenta: const Color(0xffb294bb),
-      cyan: const Color(0xff8abeb7),
-      white: const Color(0xffc5c8c6),
-      brightBlack: const Color(0xff666666),
-      brightRed: const Color(0xffd54e53),
-      brightGreen: const Color(0xffb9ca4a),
-      brightYellow: const Color(0xffe7c547),
-      brightBlue: const Color(0xff7aa6da),
-      brightMagenta: const Color(0xffc397d8),
-      brightCyan: const Color(0xff70c0b1),
-      brightWhite: const Color(0xffeaeaea),
+      black: terminalAnsiColors[0],
+      red: terminalAnsiColors[1],
+      green: terminalAnsiColors[2],
+      yellow: terminalAnsiColors[3],
+      blue: terminalAnsiColors[4],
+      magenta: terminalAnsiColors[5],
+      cyan: terminalAnsiColors[6],
+      white: terminalAnsiColors[7],
+      brightBlack: terminalAnsiColors[8],
+      brightRed: terminalAnsiColors[9],
+      brightGreen: terminalAnsiColors[10],
+      brightYellow: terminalAnsiColors[11],
+      brightBlue: terminalAnsiColors[12],
+      brightMagenta: terminalAnsiColors[13],
+      brightCyan: terminalAnsiColors[14],
+      brightWhite: terminalAnsiColors[15],
       searchHitBackground: scheme.tertiaryContainer,
       searchHitBackgroundCurrent: scheme.primaryContainer,
       searchHitForeground: scheme.onSurface,
@@ -238,12 +238,7 @@ class _XtermTerminalViewState extends State<XtermTerminalView> {
     _copySnapshotOpen = true;
     final text = widget.adapter.allText();
     try {
-      await showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        useSafeArea: true,
-        builder: (_) => _TerminalCopySheet(text: text),
-      );
+      await showTerminalCopySheet(context, text);
     } finally {
       _copySnapshotOpen = false;
     }
@@ -347,70 +342,6 @@ class _XtermTerminalViewState extends State<XtermTerminalView> {
       ),
     );
   }
-}
-
-class _TerminalCopySheet extends StatefulWidget {
-  const _TerminalCopySheet({required this.text});
-  final String text;
-  @override
-  State<_TerminalCopySheet> createState() => _TerminalCopySheetState();
-}
-
-class _TerminalCopySheetState extends State<_TerminalCopySheet> {
-  late final _text = TextEditingController(text: widget.text);
-  @override
-  void dispose() {
-    _text.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => FractionallySizedBox(
-        heightFactor: .8,
-        child: Column(children: [
-          Row(children: [
-            const SizedBox(width: 16),
-            const Expanded(child: LText('选择并复制')),
-            ValueListenableBuilder<TextEditingValue>(
-              valueListenable: _text,
-              builder: (_, value, child) => TextButton(
-                key: const ValueKey('copy-terminal-snapshot'),
-                onPressed: () async {
-                  final selection = value.selection;
-                  final text = selection.isValid && !selection.isCollapsed
-                      ? selection.textInside(value.text)
-                      : value.text;
-                  await Clipboard.setData(ClipboardData(text: text));
-                  if (context.mounted) Navigator.pop(context);
-                },
-                child: LText(
-                    value.selection.isValid && !value.selection.isCollapsed
-                        ? '复制'
-                        : '复制全部'),
-              ),
-            ),
-            IconButton(
-                tooltip: localized('关闭'),
-                onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close)),
-          ]),
-          Expanded(
-              child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TextField(
-              key: const ValueKey('terminal-copy-snapshot'),
-              controller: _text,
-              readOnly: true,
-              showCursor: false,
-              expands: true,
-              maxLines: null,
-              minLines: null,
-              style: const TextStyle(fontFamily: 'monospace'),
-              decoration: const InputDecoration(border: InputBorder.none),
-            ),
-          )),
-        ]),
-      );
 }
 
 class _TerminalSelectionHandle extends StatelessWidget {

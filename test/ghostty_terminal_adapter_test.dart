@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flterm/flterm.dart';
-import 'package:flutter/services.dart' hide Key;
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';

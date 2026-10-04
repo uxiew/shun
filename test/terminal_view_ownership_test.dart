@@ -10,18 +10,45 @@ import 'package:netcatty_mobile/domain/connection_route.dart';
 import 'package:netcatty_mobile/domain/models/host.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 import 'package:netcatty_mobile/presentation/screens/terminal_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:xterm2/xterm.dart' show TerminalView;
+import 'package:flterm/flterm.dart' as flterm show TerminalView;
+import 'package:xterm2/xterm.dart' as xterm show TerminalView;
 
-// GST02（xterm2 路径）：切标签、分屏、旋转、进出画中画、整页卸掉再装回，
-// 视图跟着重建，终端和连接不动；旧视图晚一步销毁不影响新视图；只有关标签才释放终端。
+// GST02：切标签、分屏、旋转、进出画中画、整页卸掉再装回，视图跟着重建，终端和连接不动；
+// 旧视图晚一步销毁不影响新视图；只有关标签才释放终端。两个引擎各跑一遍。
+//
+// Ghostty 多两条：flterm 一个控制器同一时刻只能挂一个 flterm 视图，第二个来挂直接抛 StateError，
+// 所以全程不能有异常；关标签后原生控制器要等视图卸下才释放，但最后一定释放（R17）。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('页面怎么重建都不新建连接、不释放终端；关标签才释放', (tester) async {
+  testWidgets('xterm2：页面怎么重建都不新建连接、不释放终端；关标签才释放', (tester) async {
+    await _ownership(
+      tester,
+      newTerminal: XtermTerminalAdapter.new,
+      engineView: xterm.TerminalView,
+    );
+  });
+
+  testWidgets('Ghostty：同上，并且 flterm 视图不重复挂、关标签后原生控制器释放', (tester) async {
+    await _ownership(
+      tester,
+      newTerminal: GhosttyTerminalAdapter.new,
+      engineView: flterm.TerminalView,
+    );
+  });
+}
+
+Future<void> _ownership(
+  WidgetTester tester, {
+  required TerminalSessionAdapterBase Function() newTerminal,
+  required Type engineView,
+}) async {
+  {
     SharedPreferences.setMockInitialValues({});
     final repository = await VaultRepository.open();
     final messenger = tester.binding.defaultBinaryMessenger;
@@ -37,7 +64,7 @@ void main() {
 
     final service = _CountingSshService();
     ActiveTerminalSession session(String id) {
-      final terminal = XtermTerminalAdapter();
+      final terminal = newTerminal();
       terminal.feed(utf8.encode('marker-$id\r\n'));
       return ActiveTerminalSession(
         id: id,
@@ -69,11 +96,24 @@ void main() {
           child: const MaterialApp(home: Scaffold(body: TerminalScreen())),
         );
 
+    // Ghostty 换手可能要多等一两帧（旧视图先卸下 flterm 视图，新视图下一帧再挂）。
+    Future<void> settle() async {
+      for (var i = 0; i < 4; i++) {
+        await tester.pump();
+      }
+      expect(tester.takeException(), isNull);
+    }
+
     void expectViews(Iterable<ActiveTerminalSession> shown) {
+      expect(find.byType(engineView), findsNWidgets(shown.length));
       for (final s in [first, second]) {
-        expect((s.terminal as XtermTerminalAdapter).hasActiveView,
-            shown.contains(s),
+        final terminal = s.terminal as TerminalSessionAdapterBase;
+        expect(terminal.hasActiveView, shown.contains(s),
             reason: '${s.id} 的显示权不对');
+        if (terminal is GhosttyTerminalAdapter) {
+          expect(terminal.hasEngineView, shown.contains(s),
+              reason: '${s.id} 的 flterm 视图挂得不对');
+        }
       }
     }
 
@@ -87,65 +127,67 @@ void main() {
     }
 
     await tester.pumpWidget(screen());
-    await tester.pump();
-    expect(find.byType(TerminalView), findsOneWidget);
+    await settle();
     expectViews([first]);
     expectUntouched();
 
     // 切标签
     controller.activate(1);
-    await tester.pump();
-    expect(find.byType(TerminalView), findsOneWidget);
+    await settle();
     expectViews([second]);
     expectUntouched();
 
     // 分屏：两个标签各一个视图
     await tester.tap(find.byKey(const ValueKey('terminal-action-split')));
-    await tester.pump();
-    expect(find.byType(TerminalView), findsNWidgets(2));
+    await settle();
     expectViews([first, second]);
     expectUntouched();
 
     // 旋转：分屏从上下变左右，两个视图都重建。新视图先挂上、旧视图后销毁，
     // 旧视图释放显示权时不能把新视图的也释放掉，否则新视图会变成空白。
     tester.view.physicalSize = const Size(2340, 1080);
-    await tester.pump();
-    await tester.pump();
-    expect(find.byType(TerminalView), findsNWidgets(2));
+    await settle();
     expectViews([first, second]);
     expectUntouched();
 
     // 进出画中画
     container.read(terminalPictureInPictureProvider.notifier).state = true;
-    await tester.pump();
-    expect(find.byType(TerminalView), findsOneWidget);
+    await settle();
     expectViews([second]);
     container.read(terminalPictureInPictureProvider.notifier).state = false;
-    await tester.pump();
-    expect(find.byType(TerminalView), findsNWidgets(2));
+    await settle();
     expectViews([first, second]);
     expectUntouched();
 
     // 整个终端页卸掉（切到别的页）再装回来
     await tester.pumpWidget(const SizedBox());
-    await tester.pump();
+    await settle();
     expectViews([]);
     expectUntouched();
     await tester.pumpWidget(screen());
-    await tester.pump();
+    await settle();
     // 分屏开关是页面自己的状态，重装后回到不分屏，只显示当前标签。
-    expect(find.byType(TerminalView), findsOneWidget);
     expectViews([second]);
     expectUntouched();
 
     // 关标签才释放终端；另一个标签不受影响。
     await controller.close(0);
-    await tester.pump();
+    await settle();
     expect(first.terminal.isDisposed, isTrue);
     expect(second.terminal.isDisposed, isFalse);
-    expect(find.byType(TerminalView), findsOneWidget);
+    expect(find.byType(engineView), findsOneWidget);
     expect(service.connects, 0);
-  });
+    if (first.terminal case final GhosttyTerminalAdapter ghostty) {
+      expect(ghostty.engineReleased, isTrue, reason: '视图卸下后原生控制器要释放');
+    }
+
+    // 收尾：关掉剩下的标签，Ghostty 的原生控制器同样要等视图卸下后释放。
+    await controller.close(0);
+    await settle();
+    if (second.terminal case final GhosttyTerminalAdapter ghostty) {
+      expect(ghostty.engineReleased, isTrue);
+    }
+  }
 }
 
 class _SeededSessionController extends SessionController {

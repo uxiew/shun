@@ -3,7 +3,7 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 
 // R16 的分层约束，按源码检查。目的是防止"只换了 import、xterm 专用访问照样穿透到各层"（R16 停止条件）：
-// 以后谁在连接层、会话控制器、终端页里直接用 xterm2，这里就失败。
+// 以后谁在连接层、会话控制器、终端页里直接用 xterm2 或 Ghostty（flterm），这里就失败。
 
 List<File> _dartFiles(String dir) => Directory(dir)
     .listSync(recursive: true)
@@ -27,12 +27,25 @@ void main() {
     ]);
   });
 
+  test('App 里只有 Ghostty 适配器和它的视图认识 flterm、libghostty（R17）', () {
+    final users = [
+      for (final file in _dartFiles('lib'))
+        if (RegExp(r'package:(flterm|libghostty)/').hasMatch(_read(file)))
+          _relative(file),
+    ]..sort();
+    expect(users, [
+      'lib/infrastructure/terminal/ghostty_terminal_adapter.dart',
+      'lib/presentation/terminal/ghostty_terminal_view.dart',
+    ]);
+  });
+
   test('连接层、会话控制器、终端页不依赖具体引擎', () {
     final engineSpecific = RegExp(
-      r'xterm_terminal_adapter\.dart|xterm_terminal_view\.dart|XtermTerminalAdapter|XtermTerminalView',
+      r'(xterm|ghostty)_terminal_(adapter|view)\.dart|'
+      r'(Xterm|Ghostty)Terminal(Adapter|View)\b',
     );
     final allowed = {
-      // 选默认引擎的唯一位置（R17 在这里换 Ghostty）。
+      // 按设置建终端的唯一位置。
       'lib/application/terminal_engine.dart',
       // 按适配器类型挑视图的唯一位置。
       'lib/presentation/terminal/terminal_view.dart',
