@@ -1140,6 +1140,40 @@ void main() {
       });
     });
 
+    // xwshun: App 设置里的「安全键盘」。
+    group('secure', () {
+      test('switches the active connection to a visible password field', () {
+        final calls = recordTextInputCalls();
+        handler.ensureAttached();
+        calls.clear();
+
+        handler.secure = true;
+
+        expect(
+          (textInputUpdateConfig(calls)['inputType']!
+              as Map<String, Object?>)['name'],
+          'TextInputType.visiblePassword',
+        );
+        expect(
+          textInputUpdateConfig(calls)['enableIMEPersonalizedLearning'],
+          isFalse,
+        );
+      });
+
+      test('uses the secure type for new connections', () {
+        final calls = recordTextInputCalls();
+        handler.secure = true;
+
+        handler.ensureAttached();
+
+        expect(
+          (textInputConfig(calls)['inputType']!
+              as Map<String, Object?>)['name'],
+          'TextInputType.visiblePassword',
+        );
+      });
+    });
+
     group('keyboardAppearance', () {
       test('updates the active config', () {
         final calls = recordTextInputCalls();

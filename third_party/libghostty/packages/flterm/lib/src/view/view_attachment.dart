@@ -79,6 +79,9 @@ final class ViewAttachment extends ChangeNotifier {
 
   set mouseAutoHide(MouseAutoHide value) => _mouseAutoHide = value;
 
+  /// xwshun: 见 TerminalView.secureTextInput。
+  set secureTextInput(bool value) => _textInput.secure = value;
+
   MouseCursor get mouseCursor {
     if (_mouseCursorHidden) return SystemMouseCursors.none;
     return _controller.mouseTracking == .none

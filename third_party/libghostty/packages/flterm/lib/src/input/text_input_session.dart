@@ -63,6 +63,7 @@ final class TextInputSession with DeltaTextInputClient {
   /// 这期间编辑区从第 0 个字起都是终端的字。
   var _hasSentinel = true;
   var _resetRequested = false;
+  var _secure = false;
 
   @override
   AutofillScope? get currentAutofillScope => null;
@@ -91,6 +92,16 @@ final class TextInputSession with DeltaTextInputClient {
   }
 
   set onDelete(ValueChanged<int>? callback) => _onDelete = callback;
+
+  /// xwshun: 敏感输入，输入框类型改成可见密码。已连上的输入法立即换配置。
+  set secure(bool value) {
+    if (_secure == value) return;
+    _secure = value;
+    final connection = _connection;
+    if (connection != null && connection.attached) {
+      connection.updateConfig(_configuration);
+    }
+  }
 
   set onNewline(VoidCallback? callback) => _onNewline = callback;
 
@@ -123,7 +134,8 @@ final class TextInputSession with DeltaTextInputClient {
       autocorrect: false,
       // xwshun: multiline 加关掉建议，会被 Flutter 引擎标成「可见密码」，Gboard 只给英文键盘、
       // 微信输入法每次弹出都回到英文；emailAddress 落成 Filter 类型，两种输入法都直接给中文（R04 问题 4）。
-      inputType: .emailAddress,
+      // 用户要的就是「可见密码」时（安全键盘）才用它。
+      inputType: _secure ? .visiblePassword : .emailAddress,
       inputAction: .newline,
       smartDashesType: .disabled,
       smartQuotesType: .disabled,

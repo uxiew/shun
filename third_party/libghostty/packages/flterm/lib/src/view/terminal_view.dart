@@ -67,6 +67,10 @@ class TerminalView extends StatefulWidget {
   /// and IME composition while focused.
   final bool showKeyboard;
 
+  /// xwshun: 敏感输入。为 true 时让输入法按可见密码框处理：不联想、不学习，
+  /// 多数中文输入法只给英文键盘（App 设置里的「安全键盘」）。改了立即对已连上的输入法生效。
+  final bool secureTextInput;
+
   /// When to auto-hide the mouse cursor.
   final MouseAutoHide mouseAutoHide;
 
@@ -149,6 +153,7 @@ class TerminalView extends StatefulWidget {
     this.overlayBuilder,
     this.autofocus = false,
     this.showKeyboard = true,
+    this.secureTextInput = false,
     this.padding = const .all(8),
     this.mouseAutoHide = .onInput,
     this.linkSettings = const LinkSettings(),
@@ -434,6 +439,7 @@ final class _TerminalViewState extends State<TerminalView>
     _attachment = ViewAttachment(_controller);
     _attachment.applyTheme(_theme, initial: initial);
     _attachment.mouseAutoHide = widget.mouseAutoHide;
+    _attachment.secureTextInput = widget.secureTextInput;
     _resizeDeferred = _attachment.resizeDeferred;
     _attachment.addListener(_onControllerChanged);
     _bindViewListenables();
@@ -485,6 +491,7 @@ final class _TerminalViewState extends State<TerminalView>
 
   void _syncAppearance(TerminalView oldWidget, bool controllerChanged) {
     _attachment.mouseAutoHide = widget.mouseAutoHide;
+    _attachment.secureTextInput = widget.secureTextInput;
     final oldTheme = _theme;
     final themeChanged = widget.theme != oldWidget.theme;
     if (themeChanged) {
