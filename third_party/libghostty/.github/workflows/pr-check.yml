@@ -1,0 +1,30 @@
+name: pr-check
+run-name: pr-check
+
+on:
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'packages/**'
+      - 'analysis_options.yaml'
+      - 'all_lint_rules.yaml'
+      - 'pubspec.yaml'
+      - 'pubspec.lock'
+      - '.github/workflows/pr-check.yml'
+      - '.github/workflows/checks.yml'
+      - '.github/workflows/build.yml'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/release-flterm.yml'
+      - '.github/dependabot.yml'
+      - '.github/FUNDING.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    uses: ./.github/workflows/checks.yml

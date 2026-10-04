@@ -1,0 +1,25 @@
+name: libghostty_workspace
+repository: https://github.com/elias8/libghostty
+
+environment:
+  sdk: ^3.10.0
+
+workspace:
+  - packages/libghostty
+  - packages/flterm
+  - packages/flterm/example
+  - packages/ptyx
+
+hooks:
+  user_defines:
+    libghostty:
+      # How to obtain the native library binary.
+      # - `compile` (default): Build from source using Zig against the
+      #   pinned `ghostty.version`.
+      # - `prebuilt`: Download from GitHub Releases. Skips the Zig
+      #   toolchain requirement.
+      source: compile
+      # Source download method when `source: compile`.
+      # - `tarball` (default): GitHub Release tarball.
+      # - `git`: Clone from GitHub.
+      download: tarball

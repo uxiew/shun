@@ -1,0 +1,64 @@
+name: release-flterm
+run-name: release ${{ github.ref_name }}
+
+on:
+  push:
+    tags: [ "flterm-v[0-9]*.[0-9]*.[0-9]*" ]
+
+concurrency:
+  group: release-flterm
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: check tag matches pubspec version
+        run: |
+          TAG_VERSION="${GITHUB_REF_NAME#flterm-v}"
+          PUBSPEC_VERSION=$(grep '^version:' packages/flterm/pubspec.yaml | awk '{print $2}')
+
+          if [ "$TAG_VERSION" != "$PUBSPEC_VERSION" ]; then
+            echo "::error::pubspec version ($PUBSPEC_VERSION) != tag ($TAG_VERSION). Update pubspec.yaml to match tag."
+            exit 1
+          fi
+
+  github-release:
+    name: github-release
+    needs: [validate]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: extract release notes from CHANGELOG
+        run: |
+          VERSION="${GITHUB_REF_NAME#flterm-v}"
+          CHANGELOG="packages/flterm/CHANGELOG.md"
+          ./.github/scripts/extract-changelog.sh --skip-header $CHANGELOG "$VERSION" > release-notes.md
+          cat release-notes.md
+      - name: create github release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION="${GITHUB_REF_NAME#flterm-v}"
+          PRERELEASE=""
+          if echo "$VERSION" | grep -q '-'; then
+            PRERELEASE="--prerelease"
+          fi
+          gh release create "${{ github.ref_name }}" \
+            --title "flterm v${VERSION}" \
+            --notes-file release-notes.md \
+            $PRERELEASE
+
+  publish:
+    needs: [github-release]
+    permissions:
+      id-token: write
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
+    with:
+      environment: pub.dev
+      working-directory: packages/flterm

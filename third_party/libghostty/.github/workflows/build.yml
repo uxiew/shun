@@ -1,0 +1,380 @@
+name: build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'packages/libghostty/**'
+      - '!packages/libghostty/lib/src/hook/asset_hashes.dart'
+      - 'packages/ptyx/**'
+      - '.github/workflows/build.yml'
+      - '.github/workflows/checks.yml'
+
+concurrency:
+  group: build-native
+  cancel-in-progress: false
+
+env:
+  ZIG_VERSION: "0.16.0"
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    outputs:
+      libghostty: ${{ steps.filter.outputs.libghostty }}
+      ptyx: ${{ steps.filter.outputs.ptyx }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
+        id: filter
+        with:
+          filters: |
+            libghostty:
+              - 'packages/libghostty/**'
+              - '!packages/libghostty/lib/src/hook/asset_hashes.dart'
+              - '.github/workflows/build.yml'
+              - '.github/workflows/checks.yml'
+            ptyx:
+              - 'packages/ptyx/**'
+              - '.github/workflows/build.yml'
+              - '.github/workflows/checks.yml'
+
+  validate:
+    name: validate
+    needs: [changes]
+    if: needs.changes.outputs.libghostty == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: check ghostty commit exists
+        run: |
+          COMMIT=$(cat packages/libghostty/ghostty.version)
+          curl -fsSL -o /dev/null "https://github.com/ghostty-org/ghostty/archive/$COMMIT.tar.gz"
+
+  checks:
+    needs: [changes, validate]
+    if: always() && !contains(needs.*.result, 'failure') && !contains(needs.*.result, 'cancelled')
+    uses: ./.github/workflows/checks.yml
+
+  build-native:
+    name: build-${{ matrix.target }}
+    needs: [changes, checks]
+    if: needs.changes.outputs.libghostty == 'true'
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-macos
+            runner: macos-15
+            ext: dylib
+          - target: x86_64-macos
+            runner: macos-15
+            ext: dylib
+          - target: aarch64-ios
+            runner: macos-15
+            ext: dylib
+          - target: aarch64-ios-simulator
+            runner: macos-15
+            ext: dylib
+            extra_args: -Dcpu=apple_a17
+          - target: x86_64-ios-simulator
+            runner: macos-15
+            ext: dylib
+          - target: x86_64-linux-gnu
+            runner: ubuntu-latest
+            ext: so
+          - target: aarch64-linux-gnu
+            runner: ubuntu-latest
+            ext: so
+          - target: x86_64-linux-musl
+            runner: ubuntu-latest
+            ext: so
+          - target: x86_64-windows
+            runner: windows-latest
+            ext: dll
+          - target: aarch64-linux-android
+            runner: ubuntu-latest
+            ext: so
+          - target: x86_64-linux-android
+            runner: ubuntu-latest
+            ext: so
+          - target: arm-linux-androideabi
+            runner: ubuntu-latest
+            ext: so
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          ZIG_CACHE_DIR="$(pwd -W)/.zig-cache"
+          echo "ZIG_GLOBAL_CACHE_DIR=$ZIG_CACHE_DIR" >> "$GITHUB_ENV"
+          echo "ZIG_LOCAL_CACHE_DIR=$ZIG_CACHE_DIR" >> "$GITHUB_ENV"
+      - name: resolve ghostty source
+        id: ghostty
+        run: |
+          COMMIT=$(cat packages/libghostty/ghostty.version)
+          echo "full=$COMMIT" >> "$GITHUB_OUTPUT"
+          echo "short=${COMMIT:0:7}" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: ghostty-cache
+        with:
+          path: ghostty-src
+          key: ghostty-src-${{ steps.ghostty.outputs.full }}
+      - name: download ghostty source
+        if: steps.ghostty-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL "https://github.com/ghostty-org/ghostty/archive/${{ steps.ghostty.outputs.full }}.tar.gz" -o ghostty.tar.gz
+          mkdir -p ghostty-src
+          tar xzf ghostty.tar.gz -C ghostty-src --strip-components=1
+          rm ghostty.tar.gz
+      - name: compile
+        working-directory: ghostty-src
+        run: zig build -Demit-lib-vt=true --release=fast -Dtarget=${{ matrix.target }} ${{ matrix.extra_args }}
+      - name: prepare artifact
+        id: artifact
+        run: |
+          FILENAME="libghostty-${{ matrix.target }}.${{ matrix.ext }}"
+          cp ghostty-src/zig-out/*/*ghostty-vt.${{ matrix.ext }} "$FILENAME"
+          echo "filename=$FILENAME" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.artifact.outputs.filename }}
+          path: ${{ steps.artifact.outputs.filename }}
+          retention-days: 1
+
+  build-wasm:
+    name: build-wasm
+    needs: [changes, checks]
+    if: needs.changes.outputs.libghostty == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - name: resolve ghostty source
+        id: ghostty
+        run: |
+          COMMIT=$(cat packages/libghostty/ghostty.version)
+          echo "full=$COMMIT" >> "$GITHUB_OUTPUT"
+          echo "short=${COMMIT:0:7}" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: ghostty-cache
+        with:
+          path: ghostty-src
+          key: ghostty-src-${{ steps.ghostty.outputs.full }}
+      - name: download ghostty source
+        if: steps.ghostty-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL "https://github.com/ghostty-org/ghostty/archive/${{ steps.ghostty.outputs.full }}.tar.gz" -o ghostty.tar.gz
+          mkdir -p ghostty-src
+          tar xzf ghostty.tar.gz -C ghostty-src --strip-components=1
+          rm ghostty.tar.gz
+      - name: compile wasm
+        working-directory: ghostty-src
+        run: zig build -Demit-lib-vt=true -Dtarget=wasm32-freestanding -Doptimize=ReleaseSmall
+      - name: prepare artifact
+        id: artifact
+        run: |
+          FILENAME="libghostty-wasm32-freestanding.wasm"
+          cp ghostty-src/zig-out/bin/ghostty-vt.wasm "$FILENAME"
+          echo "filename=$FILENAME" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.artifact.outputs.filename }}
+          path: ${{ steps.artifact.outputs.filename }}
+          retention-days: 1
+
+  build-ptyx-native:
+    name: build-ptyx-${{ matrix.target }}
+    needs: [changes, checks]
+    if: needs.changes.outputs.ptyx == 'true'
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-macos
+            runner: macos-latest
+            rust_target: aarch64-apple-darwin
+            library: libptyx.dylib
+          - target: x86_64-macos
+            runner: macos-latest
+            rust_target: x86_64-apple-darwin
+            library: libptyx.dylib
+          - target: x86_64-linux-gnu
+            runner: ubuntu-latest
+            rust_target: x86_64-unknown-linux-gnu
+            library: libptyx.so
+          - target: aarch64-linux-gnu
+            runner: ubuntu-latest
+            rust_target: aarch64-unknown-linux-gnu
+            library: libptyx.so
+            apt: true
+            apt_packages: gcc-aarch64-linux-gnu
+            linker: aarch64-linux-gnu-gcc
+            cargo_linker_env: CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER
+            cc_env: CC_aarch64_unknown_linux_gnu
+          - target: x86_64-windows
+            runner: windows-latest
+            rust_target: x86_64-pc-windows-msvc
+            library: ptyx.dll
+          - target: aarch64-linux-android
+            runner: ubuntu-latest
+            rust_target: aarch64-linux-android
+            library: libptyx.so
+            android: true
+            android_linker: aarch64-linux-android21-clang
+            cargo_linker_env: CARGO_TARGET_AARCH64_LINUX_ANDROID_LINKER
+            cc_env: CC_aarch64_linux_android
+            ar_env: AR_aarch64_linux_android
+          - target: x86_64-linux-android
+            runner: ubuntu-latest
+            rust_target: x86_64-linux-android
+            library: libptyx.so
+            android: true
+            android_linker: x86_64-linux-android21-clang
+            cargo_linker_env: CARGO_TARGET_X86_64_LINUX_ANDROID_LINKER
+            cc_env: CC_x86_64_linux_android
+            ar_env: AR_x86_64_linux_android
+          - target: arm-linux-androideabi
+            runner: ubuntu-latest
+            rust_target: arm-linux-androideabi
+            library: libptyx.so
+            android: true
+            android_linker: armv7a-linux-androideabi21-clang
+            cargo_linker_env: CARGO_TARGET_ARM_LINUX_ANDROIDEABI_LINKER
+            cc_env: CC_arm_linux_androideabi
+            ar_env: AR_arm_linux_androideabi
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-tags: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/git
+            ~/.cargo/registry
+            target/ptyx
+          key: build-ptyx-${{ matrix.target }}-${{ hashFiles('packages/ptyx/native/Cargo.lock') }}
+          restore-keys: build-ptyx-${{ matrix.target }}-
+      - name: install system packages
+        if: matrix.apt == true
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ${{ matrix.apt_packages }}
+      - name: install rust target
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add ${{ matrix.rust_target }}
+      - name: configure dart sdk
+        run: |
+          SDK="$(dirname "$(dirname "$(command -v dart)")")"
+          if command -v cygpath >/dev/null 2>&1; then
+            SDK="$(cygpath -w "$SDK")"
+          fi
+          printf 'DART_SDK=%s\n' "$SDK" >> "$GITHUB_ENV"
+          printf 'PTYX_DART_SDK=%s\n' "$SDK" >> "$GITHUB_ENV"
+      - name: configure target linker
+        if: matrix.apt == true
+        run: |
+          LINKER="$(command -v ${{ matrix.linker }})"
+          printf '${{ matrix.cargo_linker_env }}=%s\n' "$LINKER" >> "$GITHUB_ENV"
+          printf '${{ matrix.cc_env }}=%s\n' "$LINKER" >> "$GITHUB_ENV"
+      - name: configure android linker
+        if: matrix.android == true
+        run: |
+          NDK="${ANDROID_NDK_HOME:-${ANDROID_NDK_ROOT:-}}"
+          if [[ -z "$NDK" ]]; then
+            echo "Android NDK was not found."
+            exit 1
+          fi
+          TOOLCHAIN="$NDK/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          LINKER="$TOOLCHAIN/${{ matrix.android_linker }}"
+          ARCHIVER="$TOOLCHAIN/llvm-ar"
+          if [[ ! -x "$LINKER" ]]; then
+            echo "Android linker was not found: $LINKER"
+            exit 1
+          fi
+          if [[ ! -x "$ARCHIVER" ]]; then
+            echo "Android archiver was not found: $ARCHIVER"
+            exit 1
+          fi
+          printf '${{ matrix.cargo_linker_env }}=%s\n' "$LINKER" >> "$GITHUB_ENV"
+          printf '${{ matrix.cc_env }}=%s\n' "$LINKER" >> "$GITHUB_ENV"
+          printf '${{ matrix.ar_env }}=%s\n' "$ARCHIVER" >> "$GITHUB_ENV"
+      - name: compile
+        run: |
+          cargo build \
+            --manifest-path packages/ptyx/native/Cargo.toml \
+            --release \
+            --target ${{ matrix.rust_target }} \
+            --target-dir target/ptyx/${{ matrix.target }}
+      - name: prepare artifact
+        id: artifact
+        run: |
+          EXT="${{ matrix.library }}"
+          EXT="${EXT##*.}"
+          FILENAME="libptyx-${{ matrix.target }}.$EXT"
+          cp "target/ptyx/${{ matrix.target }}/${{ matrix.rust_target }}/release/${{ matrix.library }}" "$FILENAME"
+          echo "filename=$FILENAME" >> "$GITHUB_OUTPUT"
+      - uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: ${{ steps.artifact.outputs.filename }}
+          path: ${{ steps.artifact.outputs.filename }}
+          retention-days: 1
+
+  update-hashes:
+    name: update-hashes
+    needs: [changes, build-native, build-wasm]
+    if: needs.changes.outputs.libghostty == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          path: artifacts
+          merge-multiple: true
+      - name: download ghostty source
+        run: |
+          COMMIT=$(cat packages/libghostty/ghostty.version)
+          curl -fsSL "https://github.com/ghostty-org/ghostty/archive/$COMMIT.tar.gz" -o ghostty.tar.gz
+          mkdir -p ghostty
+          tar xzf ghostty.tar.gz -C ghostty --strip-components=1
+          rm ghostty.tar.gz
+      - name: isolate from repo git
+        run: touch ghostty/.git
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          cache: true
+      - name: generate asset hashes
+        working-directory: packages/libghostty
+        run: |
+          flutter pub get
+          dart run tool/generate_binary_hash.dart ../../artifacts
+      - name: upload asset hashes
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: asset-hashes
+          path: packages/libghostty/lib/src/hook/asset_hashes.dart
+          retention-days: 1

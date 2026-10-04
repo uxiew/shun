@@ -1,0 +1,523 @@
+name: checks
+
+on:
+  workflow_call:
+
+env:
+  ZIG_VERSION: "0.16.0"
+
+jobs:
+  changes:
+    name: changes
+    runs-on: ubuntu-latest
+    outputs:
+      libghostty: ${{ steps.filter.outputs.libghostty }}
+      flterm: ${{ steps.filter.outputs.flterm }}
+      ptyx: ${{ steps.filter.outputs.ptyx }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: dorny/paths-filter@7b450fff21473bca461d4b92ce414b9d0420d706 # v4.0.2
+        id: filter
+        with:
+          filters: |
+            libghostty:
+              - 'packages/libghostty/**'
+              - '!packages/libghostty/**/*.md'
+              - 'analysis_options.yaml'
+              - 'all_lint_rules.yaml'
+              - 'pubspec.yaml'
+              - 'pubspec.lock'
+              - '.github/workflows/pr-check.yml'
+              - '.github/workflows/checks.yml'
+              - '.github/workflows/build.yml'
+            flterm:
+              - 'packages/libghostty/**'
+              - '!packages/libghostty/**/*.md'
+              - 'packages/flterm/**'
+              - '!packages/flterm/**/*.md'
+              - 'analysis_options.yaml'
+              - 'all_lint_rules.yaml'
+              - 'pubspec.yaml'
+              - 'pubspec.lock'
+              - '.github/workflows/pr-check.yml'
+              - '.github/workflows/checks.yml'
+              - '.github/workflows/build.yml'
+            ptyx:
+              - 'packages/ptyx/**'
+              - '!packages/ptyx/**/*.md'
+              - 'analysis_options.yaml'
+              - 'all_lint_rules.yaml'
+              - 'pubspec.yaml'
+              - 'pubspec.lock'
+              - '.github/workflows/pr-check.yml'
+              - '.github/workflows/checks.yml'
+              - '.github/workflows/build.yml'
+
+  analyze-libghostty:
+    name: analyze-libghostty
+    needs: [changes]
+    if: needs.changes.outputs.libghostty == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+      - name: check ghostty commit exists
+        run: |
+          COMMIT=$(cat packages/libghostty/ghostty.version)
+          curl -fsSL -o /dev/null "https://github.com/ghostty-org/ghostty/archive/$COMMIT.tar.gz"
+      - run: flutter pub get
+      - run: dart format --set-exit-if-changed packages/libghostty
+      - run: dart analyze packages/libghostty
+      - name: publish dry run libghostty
+        working-directory: packages/libghostty
+        run: dart pub publish --dry-run
+
+  analyze-flterm:
+    name: analyze-flterm
+    needs: [changes]
+    if: needs.changes.outputs.flterm == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+      - run: flutter pub get
+      - run: dart format --set-exit-if-changed packages/flterm
+      - run: dart analyze packages/flterm
+      - name: publish dry run flterm
+        working-directory: packages/flterm
+        run: dart pub publish --dry-run
+
+  analyze-ptyx:
+    name: analyze-ptyx
+    needs: [changes]
+    if: needs.changes.outputs.ptyx == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+      - run: flutter pub get
+      - run: dart format --set-exit-if-changed packages/ptyx
+      - run: dart analyze packages/ptyx
+      - name: publish dry run ptyx
+        working-directory: packages/ptyx
+        run: dart pub publish --dry-run
+
+  analyze:
+    name: analyze
+    if: always()
+    needs:
+      - analyze-libghostty
+      - analyze-flterm
+      - analyze-ptyx
+    runs-on: ubuntu-latest
+    steps:
+      - name: verify package analysis
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more package analysis checks failed or were cancelled."
+            exit 1
+          fi
+
+  test-libghostty-native:
+    name: test-libghostty-${{ matrix.os }}
+    needs: [analyze-libghostty, changes]
+    if: needs.changes.outputs.libghostty == 'true'
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: macos-arm64
+            runner: macos-15
+          - os: linux-x64
+            runner: ubuntu-latest
+          - os: windows-x64
+            runner: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-tags: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          cache: true
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - if: runner.os == 'Windows'
+        shell: bash
+        run: |
+          ZIG_CACHE_DIR="$(pwd -W)/.zig-cache"
+          echo "ZIG_GLOBAL_CACHE_DIR=$ZIG_CACHE_DIR" >> "$GITHUB_ENV"
+          echo "ZIG_LOCAL_CACHE_DIR=$ZIG_CACHE_DIR" >> "$GITHUB_ENV"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+      - name: resolve ghostty source
+        id: ghostty
+        shell: bash
+        run: |
+          COMMIT=$(cat packages/libghostty/ghostty.version)
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: ghostty-cache
+        with:
+          path: ghostty
+          key: ghostty-src-${{ steps.ghostty.outputs.commit }}
+      - name: download ghostty source
+        if: steps.ghostty-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          curl -fsSL "https://github.com/ghostty-org/ghostty/archive/${{ steps.ghostty.outputs.commit }}.tar.gz" -o ghostty.tar.gz
+          mkdir -p ghostty
+          tar xzf ghostty.tar.gz -C ghostty --strip-components=1
+          rm ghostty.tar.gz
+      - run: flutter pub get
+      - run: dart pub global activate very_good_cli
+      - name: run tests
+        working-directory: packages/libghostty
+        run: very_good test --no-optimization
+
+  test-libghostty-wasm:
+    name: test-libghostty-wasm
+    needs: [analyze-libghostty, changes]
+    if: needs.changes.outputs.libghostty == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-tags: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          cache: true
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - uses: browser-actions/setup-chrome@2e1d749697dd1612b833dba4a722266286fbefcd # v2.1.2
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+      - name: resolve ghostty source
+        id: ghostty
+        run: |
+          COMMIT=$(cat packages/libghostty/ghostty.version)
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: ghostty-cache
+        with:
+          path: ghostty
+          key: ghostty-src-${{ steps.ghostty.outputs.commit }}
+      - name: download ghostty source
+        if: steps.ghostty-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL "https://github.com/ghostty-org/ghostty/archive/${{ steps.ghostty.outputs.commit }}.tar.gz" -o ghostty.tar.gz
+          mkdir -p ghostty
+          tar xzf ghostty.tar.gz -C ghostty --strip-components=1
+          rm ghostty.tar.gz
+      - name: isolate from repo git
+        run: touch ghostty/.git
+      - run: flutter pub get
+      - run: dart pub global activate very_good_cli
+      - name: build wasm
+        working-directory: packages/libghostty
+        run: dart run tool/build_wasm.dart
+      - name: run wasm tests
+        working-directory: packages/libghostty
+        run: very_good test --platform=chrome test/wasm
+
+  test-flterm-golden:
+    name: test-flterm-linux-golden
+    needs: [analyze-flterm, changes]
+    if: needs.changes.outputs.flterm == 'true'
+    runs-on: ubuntu-latest
+    # Goldens run inside the cirruslabs Flutter image so the
+    # libfreetype/libpng/skia stack matches local Docker development. When the
+    # `stable` tag is republished, regenerate them with
+    # `packages/flterm/tool/update_goldens.sh`.
+    container:
+      image: ghcr.io/cirruslabs/flutter:stable
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-tags: false
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.pub-cache
+          key: pub-flterm-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: pub-flterm-
+      - name: resolve ghostty source
+        id: ghostty
+        shell: bash
+        run: |
+          COMMIT=$(cat packages/libghostty/ghostty.version)
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: ghostty-cache
+        with:
+          path: ghostty
+          key: ghostty-src-${{ steps.ghostty.outputs.commit }}
+      - name: download ghostty source
+        if: steps.ghostty-cache.outputs.cache-hit != 'true'
+        shell: bash
+        run: |
+          curl -fsSL "https://github.com/ghostty-org/ghostty/archive/${{ steps.ghostty.outputs.commit }}.tar.gz" -o ghostty.tar.gz
+          mkdir -p ghostty
+          tar xzf ghostty.tar.gz -C ghostty --strip-components=1
+          rm ghostty.tar.gz
+      - run: flutter pub get
+      - name: run golden tests
+        working-directory: packages/flterm
+        run: flutter test --tags golden
+
+  test-flterm-desktop:
+    name: test-flterm-${{ matrix.os }}
+    needs: [analyze-flterm, changes]
+    if: needs.changes.outputs.flterm == 'true'
+    runs-on: ${{ matrix.runner }}
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: linux-x64
+            runner: ubuntu-latest
+          - os: macos-arm64
+            runner: macos-15
+          - os: windows-x64
+            runner: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-tags: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          cache: true
+      - uses: mlugg/setup-zig@d1434d08867e3ee9daa34448df10607b98908d29 # v2.2.1
+        with:
+          version: ${{ env.ZIG_VERSION }}
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.pub-cache
+          key: pub-flterm-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: pub-flterm-${{ runner.os }}-
+      - name: resolve ghostty source
+        id: ghostty
+        run: |
+          COMMIT=$(cat packages/libghostty/ghostty.version)
+          echo "commit=$COMMIT" >> "$GITHUB_OUTPUT"
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        id: ghostty-cache
+        with:
+          path: ghostty
+          key: ghostty-src-${{ steps.ghostty.outputs.commit }}
+      - name: download ghostty source
+        if: steps.ghostty-cache.outputs.cache-hit != 'true'
+        run: |
+          curl -fsSL "https://github.com/ghostty-org/ghostty/archive/${{ steps.ghostty.outputs.commit }}.tar.gz" -o ghostty.tar.gz
+          mkdir -p ghostty
+          tar xzf ghostty.tar.gz -C ghostty --strip-components=1
+          rm ghostty.tar.gz
+      - run: flutter pub get
+      - name: run tests
+        working-directory: packages/flterm
+        run: flutter test --exclude-tags golden
+
+  test-flterm-web:
+    name: test-flterm-web-wasm
+    needs: [analyze-flterm, changes]
+    if: needs.changes.outputs.flterm == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-tags: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.pub-cache
+          key: pub-flterm-web-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: pub-flterm-web-
+      - run: flutter pub get
+      - name: build WebAssembly example
+        working-directory: packages/flterm/example
+        run: flutter build web --release --wasm
+
+  test-ptyx-dart:
+    name: test-ptyx-dart-${{ matrix.os }}
+    needs: [analyze-ptyx, changes]
+    if: needs.changes.outputs.ptyx == 'true'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: macos-arm64
+            runner: macos-latest
+          - os: linux-x64
+            runner: ubuntu-latest
+          - os: windows-x64
+            runner: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-tags: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.pub-cache
+          key: pub-${{ runner.os }}-${{ hashFiles('**/pubspec.lock') }}
+          restore-keys: pub-${{ runner.os }}-
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/git
+            ~/.cargo/registry
+            packages/ptyx/native/target
+          key: cargo-ptyx-dart-${{ runner.os }}-${{ hashFiles('packages/ptyx/native/Cargo.lock') }}
+          restore-keys: cargo-ptyx-dart-${{ runner.os }}-
+      - name: install rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+      - name: configure dart sdk
+        run: |
+          SDK="$(dirname "$(dirname "$(command -v dart)")")"
+          if command -v cygpath >/dev/null 2>&1; then
+            SDK="$(cygpath -w "$SDK")"
+          fi
+          printf 'DART_SDK=%s\n' "$SDK" >> "$GITHUB_ENV"
+          printf 'PTYX_DART_SDK=%s\n' "$SDK" >> "$GITHUB_ENV"
+      - run: flutter pub get
+      - name: run tests
+        working-directory: packages/ptyx
+        run: dart test
+
+  test-ptyx-rust:
+    name: test-ptyx-rust-${{ matrix.os }}
+    needs: [analyze-ptyx, changes]
+    if: needs.changes.outputs.ptyx == 'true'
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    strategy:
+      fail-fast: true
+      matrix:
+        include:
+          - os: macos-arm64
+            runner: macos-latest
+          - os: linux-x64
+            runner: ubuntu-latest
+          - os: windows-x64
+            runner: windows-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-tags: false
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          channel: stable
+          cache: true
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            ~/.cargo/git
+            ~/.cargo/registry
+            packages/ptyx/native/target
+          key: cargo-ptyx-rust-${{ runner.os }}-${{ hashFiles('packages/ptyx/native/Cargo.lock') }}
+          restore-keys: cargo-ptyx-rust-${{ runner.os }}-
+      - name: install rust
+        run: |
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup component add rustfmt
+      - name: configure dart sdk
+        run: |
+          SDK="$(dirname "$(dirname "$(command -v dart)")")"
+          if command -v cygpath >/dev/null 2>&1; then
+            SDK="$(cygpath -w "$SDK")"
+          fi
+          printf 'DART_SDK=%s\n' "$SDK" >> "$GITHUB_ENV"
+          printf 'PTYX_DART_SDK=%s\n' "$SDK" >> "$GITHUB_ENV"
+      - name: check rust formatting
+        run: cargo fmt --manifest-path packages/ptyx/native/Cargo.toml -- --check
+      - name: run rust tests
+        run: cargo test --manifest-path packages/ptyx/native/Cargo.toml
+      - name: build rust docs
+        run: cargo doc --manifest-path packages/ptyx/native/Cargo.toml --no-deps
+
+  # Single required status that aggregates every job above.
+  # Branch protection requires only this context, which lets the matrix
+  # and path-filtered jobs skip without blocking merges. Fails if any
+  # dependency failed or was cancelled; succeeds when they all passed
+  # or were skipped by `needs.changes`.
+  checks-passed:
+    name: checks-passed
+    if: always()
+    needs:
+      - changes
+      - analyze
+      - analyze-libghostty
+      - analyze-flterm
+      - analyze-ptyx
+      - test-libghostty-native
+      - test-libghostty-wasm
+      - test-flterm-golden
+      - test-flterm-desktop
+      - test-flterm-web
+      - test-ptyx-dart
+      - test-ptyx-rust
+    runs-on: ubuntu-latest
+    steps:
+      - name: verify required checks
+        run: |
+          if [[ "${{ contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled') }}" == "true" ]]; then
+            echo "One or more required checks failed or were cancelled."
+            exit 1
+          fi
