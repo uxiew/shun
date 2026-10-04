@@ -63,6 +63,18 @@ android {
     }
 }
 
+// 发布包只带 arm64-v8a：只有它在设备上测过（REL03、GST01）。不排除的话插件自带的 armeabi-v7a、
+// x86_64 库会进包，32 位手机能装上却没有对应的 Flutter 引擎，一打开就崩。在 buildTypes.release 里写
+// ndk.abiFilters 没用：Flutter 插件把 defaultConfig 设成了三种 ABI，两边取并集。
+// 要加 ABI，先在那种设备上跑过 integration_test/ghostty_engine_test.dart。
+androidComponents {
+    onVariants(selector().withBuildType("release")) { variant ->
+        variant.packaging.jniLibs.excludes.addAll(
+            listOf("lib/armeabi-v7a/**", "lib/x86_64/**", "lib/x86/**"),
+        )
+    }
+}
+
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
