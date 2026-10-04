@@ -16,7 +16,7 @@
         "R04"
       ],
       "exit": "已冻结基座；旧路径可构建；危险默认有回归；Ghostty Android可行性有实际证据",
-      "status": "BLOCKED"
+      "status": "PASS"
     },
     "P1": {
       "title": "连接路线复用与加固",
@@ -265,7 +265,7 @@
       "id": "R04",
       "phase": "P0",
       "title": "flterm Android可行性门禁",
-      "status": "BLOCKED",
+      "status": "DONE",
       "depends_on": [
         "R01",
         "R02"
@@ -297,7 +297,7 @@
       "evidence": [
         "evidence/R04.md"
       ],
-      "commit": null
+      "commit": "4ad07cc"
     },
     {
       "id": "R05",

@@ -100,7 +100,7 @@
 
 ## R04 flterm Android可行性门禁
 
-阶段：P0；状态：BLOCKED；依赖：R01, R02；角色：终端代理。
+阶段：P0；状态：DONE；依赖：R01, R02；角色：终端代理。
 
 **范围**：用固定libghostty/flterm和Android SDK做最小字节回环、IME、native打包实验；基准不是Flutter页面截图。
 
