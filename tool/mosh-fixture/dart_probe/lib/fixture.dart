@@ -18,7 +18,8 @@ class MoshFixture {
     final dir = Directory.systemTemp.createTempSync('mosh-probe-');
     final knownHosts = File('${dir.path}/known_hosts')
       ..writeAsStringSync(
-          '[127.0.0.1]:${json['sshPort']} ${json['keyType']} ${json['publicKeyBase64']}\n');
+        '[127.0.0.1]:${json['sshPort']} ${json['keyType']} ${json['publicKeyBase64']}\n',
+      );
     return MoshFixture._(json, knownHosts);
   }
 
@@ -27,41 +28,69 @@ class MoshFixture {
   int get lastUdpPort => (_json['udpPorts'] as List)[1] as int;
 
   List<String> _sshArgs({bool tty = false}) => [
-        '-F', '/dev/null',
-        '-o', 'IdentityAgent=none',
-        '-o', 'IdentitiesOnly=yes',
-        '-o', 'BatchMode=yes',
-        '-o', 'StrictHostKeyChecking=yes',
-        '-o', 'UserKnownHostsFile=${_knownHosts.path}',
-        '-o', 'LogLevel=ERROR',
-        '-i', _json['privateKeyPath'] as String,
-        '-p', '${_json['sshPort']}',
-        if (tty) '-tt',
-        '${_json['user']}@${_json['host']}',
-      ];
+    '-F',
+    '/dev/null',
+    '-o',
+    'IdentityAgent=none',
+    '-o',
+    'IdentitiesOnly=yes',
+    '-o',
+    'BatchMode=yes',
+    '-o',
+    'StrictHostKeyChecking=yes',
+    '-o',
+    'UserKnownHostsFile=${_knownHosts.path}',
+    '-o',
+    'LogLevel=ERROR',
+    '-i',
+    _json['privateKeyPath'] as String,
+    '-p',
+    '${_json['sshPort']}',
+    if (tty) '-tt',
+    '${_json['user']}@${_json['host']}',
+  ];
 
   /// 不分配 PTY 执行一条命令，返回 stdout + stderr。
-  Future<String> run(String command, {Duration timeout = const Duration(seconds: 20)}) async {
-    final result = await Process.run('ssh', [..._sshArgs(), command],
-            stdoutEncoding: utf8, stderrEncoding: utf8)
-        .timeout(timeout);
+  Future<String> run(
+    String command, {
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
+    final result = await Process.run(
+      'ssh',
+      [..._sshArgs(), command],
+      stdoutEncoding: utf8,
+      stderrEncoding: utf8,
+    ).timeout(timeout);
     return '${result.stdout}${result.stderr}';
   }
 
   /// 起一个 mosh-server，跑 [program]（固定字符串，测试自己写的），返回原始 bootstrap 输出。
   /// 尺寸要在 mosh-server 启动前就定：它在客户端连上之前就会按 80x24 起子进程。
-  Future<String> startServer(String program, {String locale = 'LANG=en_US.UTF-8'}) {
+  Future<String> startServer(
+    String program, {
+    String locale = 'LANG=en_US.UTF-8',
+  }) {
     final quoted = "'${program.replaceAll("'", r"'\''")}'";
-    return run('mosh-server new -c 256 -l $locale -p $firstUdpPort:$lastUdpPort -- sh -c $quoted');
+    return run(
+      'mosh-server new -c 256 -l $locale -p $firstUdpPort:$lastUdpPort -- sh -c $quoted',
+    );
   }
 
   /// 对照：容器里的官方 mosh-client（Alpine 打包的 1.4.0）在 tmux 里连同一种 mosh-server 跑 [program]，
   /// 返回 tmux 抓到的屏幕。这就是「官方客户端用户看到的样子」。[keys] 在连上后经 tmux 发给客户端。
-  Future<String> officialClientScreen(String program,
-      {int cols = 80, int rows = 24, List<String> keys = const [], int settleSeconds = 3}) async {
+  Future<String> officialClientScreen(
+    String program, {
+    int cols = 80,
+    int rows = 24,
+    List<String> keys = const [],
+    int settleSeconds = 3,
+  }) async {
     final b64 = base64.encode(utf8.encode(program));
     final keyCmds = keys
-        .map((k) => "tmux send-keys -t oracle -l -- '${k.replaceAll("'", r"'\''")}'; sleep 1;")
+        .map(
+          (k) =>
+              "tmux send-keys -t oracle -l -- '${k.replaceAll("'", r"'\''")}'; sleep 1;",
+        )
         .join(' ');
     final script = [
       'P=\$(echo $b64 | base64 -d)',

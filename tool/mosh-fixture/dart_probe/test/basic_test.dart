@@ -11,7 +11,9 @@ void main() {
   final skip = fixture == null ? '没起 ../up.sh' : null;
 
   test('dart_mosh 和真 mosh-server 1.4.0 能连上、看到输出', () async {
-    final out = await fixture!.startServer('printf "hello-%s\\n" mosh; sleep 30');
+    final out = await fixture!.startServer(
+      'printf "hello-%s\\n" mosh; sleep 30',
+    );
     final server = MoshServerConfig.parse(out, host: '127.0.0.1');
     final session = await MoshSession.connect(
       server: server,

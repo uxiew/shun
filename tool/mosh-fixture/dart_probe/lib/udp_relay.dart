@@ -60,7 +60,9 @@ class UdpRelay {
   int dropped = 0;
 
   void _forward(Uint8List packet, {required bool toServer}) {
-    (toServer ? clientToServer : serverToClient).add(Uint8List.fromList(packet));
+    (toServer ? clientToServer : serverToClient).add(
+      Uint8List.fromList(packet),
+    );
     if (drop?.call(toServer, packet) ?? false) {
       dropped++;
       return;
@@ -94,7 +96,8 @@ class UdpRelay {
     _front.send(packet, _client!, _clientPort!);
   }
 
-  void injectToServer(Uint8List packet) => _back.send(packet, _server, _serverPort);
+  void injectToServer(Uint8List packet) =>
+      _back.send(packet, _server, _serverPort);
 
   void close() {
     _front.close();
@@ -103,8 +106,10 @@ class UdpRelay {
 }
 
 /// 等到 [condition] 成立或超时。超时返回 false，不抛错，测试自己断言。
-Future<bool> waitFor(bool Function() condition,
-    {Duration timeout = const Duration(seconds: 10)}) async {
+Future<bool> waitFor(
+  bool Function() condition, {
+  Duration timeout = const Duration(seconds: 10),
+}) async {
   final deadline = DateTime.now().add(timeout);
   while (!condition()) {
     if (DateTime.now().isAfter(deadline)) return false;

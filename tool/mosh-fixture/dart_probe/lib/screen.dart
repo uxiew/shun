@@ -12,8 +12,9 @@ class Screen {
   final int cols;
   final int rows;
   final Terminal terminal;
-  late final _decoder = const Utf8Decoder(allowMalformed: true)
-      .startChunkedConversion(_StringSink(terminal.write));
+  late final _decoder = const Utf8Decoder(
+    allowMalformed: true,
+  ).startChunkedConversion(_StringSink(terminal.write));
   int bytes = 0;
 
   void feed(List<int> data) {
@@ -28,7 +29,8 @@ class Screen {
   List<String> lines() {
     final buffer = terminal.buffer;
     return [
-      for (var i = 0; i < terminal.viewHeight; i++) _row(buffer.lines[buffer.scrollBack + i]),
+      for (var i = 0; i < terminal.viewHeight; i++)
+        _row(buffer.lines[buffer.scrollBack + i]),
     ];
   }
 

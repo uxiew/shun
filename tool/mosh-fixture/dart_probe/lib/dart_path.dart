@@ -30,7 +30,11 @@ class DartMoshRun {
     var target = server;
     if (viaRelay) {
       relay = await UdpRelay.start(InternetAddress.loopbackIPv4, server.port);
-      target = MoshServerConfig(host: server.host, port: relay.port, key: server.key);
+      target = MoshServerConfig(
+        host: server.host,
+        port: relay.port,
+        key: server.key,
+      );
     }
     final session = await MoshSession.connect(
       server: target,
@@ -49,7 +53,10 @@ class DartMoshRun {
   void type(String text) => session.send(utf8.encode(text));
 
   /// 等屏幕安静 [quiet] 不变（Mosh 只送最终状态，中间帧可能被跳过）。
-  Future<String> settle({Duration quiet = const Duration(milliseconds: 1200), Duration timeout = const Duration(seconds: 20)}) async {
+  Future<String> settle({
+    Duration quiet = const Duration(milliseconds: 1200),
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
     final deadline = DateTime.now().add(timeout);
     var last = screen.text();
     var lastBytes = screen.bytes;
