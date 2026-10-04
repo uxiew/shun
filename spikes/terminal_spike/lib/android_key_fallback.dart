@@ -11,7 +11,8 @@ const _planeMask = 0xFF00000000;
 ///
 /// 为什么要有：flterm 0.0.5 只按物理键查表（keyFromPhysical），合成值一律认不出，
 /// 编码结果为空就直接 ignored——实测 Gboard 点退格 0 字节（用户删不了字），
-/// adb 注入的方向键/Esc/Tab/Ctrl 组合 0 字节。
+/// adb 注入的方向键/Esc/Tab/Ctrl 组合 0 字节。fork 已把编辑、导航键和字母的兜底并进 flterm，
+/// 这里留着兜 Ctrl/Alt+数字等 fork 没收的键，也保持 R04 测过的组合。
 ///
 /// 只接管合成物理键：真实硬件键盘带 scanCode，仍由 flterm 处理，避免同一次按键发两遍。
 /// 带字符且无 Ctrl/Alt 的键（adb `input text`）flterm 按字符能编码，也不接管。

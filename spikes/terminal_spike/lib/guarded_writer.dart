@@ -31,8 +31,8 @@ class GuardedWriter {
 
   /// 必须在 controller.dispose() 之前调用。
   ///
-  /// flterm 0.0.5 在 dispose 之后再 write 会段错误、整个进程崩溃（R04 实测），
-  /// 不会抛 StateError。所以迟到的数据只能在 Dart 这层丢掉。
+  /// dispose 之后再 write：flterm 0.0.5 会段错误、整个进程崩溃（R04 实测）；上游 main 起改成抛
+  /// StateError，不崩了，但 SSH 迟到的数据照样会抛。所以迟到的数据在 Dart 这层丢掉。
   void close() {
     _closed = true;
     _queue.clear();

@@ -10,10 +10,17 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # 精确锁版本，不用 ^：终端引擎和它下载的 native 库（libghostty-v0.0.12 的 SHA256 表）
-  # 必须一一对应，浮动升级会让 hash 表和证据对不上（GST01 / SUP01）。
-  flterm: 0.0.5
-  libghostty: 0.0.12
+  # 用自己维护的 fork（上游 main + 我们的补丁，见 third_party/README.md）。
+  # R04 的结论是在 pub 上的 flterm 0.0.5 / libghostty 0.0.12 上测的；用 pub 版的最后一版 spike 是提交 f82c00a。
+  flterm:
+    path: ../../third_party/libghostty/packages/flterm
+  libghostty: ^0.0.12 # 实际用的是下面 override 的 fork
+
+dependency_overrides:
+  # flterm 声明的是 pub 上的 libghostty ^0.0.12，出了 fork 的 workspace 就会去拉 pub 上的旧版，
+  # 和 fork 的 flterm 对不上。
+  libghostty:
+    path: ../../third_party/libghostty/packages/libghostty
 
 dev_dependencies:
   flutter_test:
@@ -24,3 +31,10 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+
+hooks:
+  user_defines:
+    libghostty:
+      # 必须从源码编（要 Zig 0.16，见 third_party/README.md）。不设就按版本号 0.0.12 下载上游
+      # 预编译库，那是旧 Ghostty 源码编的，和 fork 里按新源码生成的 FFI 绑定对不上。
+      source: compile

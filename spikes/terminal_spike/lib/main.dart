@@ -7,7 +7,6 @@ import 'package:flutter/services.dart' show HardwareKeyboard;
 
 import 'android_key_fallback.dart';
 import 'guarded_writer.dart';
-import 'keyboard_reshow.dart';
 
 /// R04 spike：没有 SSH，用"回环"代替 PTY——终端发出的字节（按键、输入法提交、协议回应）
 /// 原样写回终端显示，底部同时列出最近发出的原始字节，真机上用来核对：
@@ -99,7 +98,7 @@ class _LoopbackPageState extends State<LoopbackPage> {
   @override
   void dispose() {
     HardwareKeyboard.instance.removeHandler(_logKey);
-    writer.close(); // 先关写入口：flterm 0.0.5 在 dispose 后 write 会段错误
+    writer.close(); // 先关写入口：dispose 后 write 会抛 StateError（0.0.5 时直接段错误）
     controller.dispose();
     super.dispose();
   }
@@ -115,10 +114,7 @@ class _LoopbackPageState extends State<LoopbackPage> {
               canRequestFocus: false,
               skipTraversal: true,
               onKeyEvent: (_, e) => androidKeyFallback(controller, e),
-              child: KeyboardReshow(
-                controller: controller,
-                child: TerminalView(controller: controller),
-              ),
+              child: TerminalView(controller: controller),
             ),
           ),
           Container(

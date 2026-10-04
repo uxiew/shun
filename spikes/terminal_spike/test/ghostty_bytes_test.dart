@@ -10,7 +10,7 @@ import 'package:terminal_spike/guarded_writer.dart';
 // 与主工程共用同一份 VT 素材，一件事只放一处。
 import '../../../test/fixtures/vt/vt_samples.dart';
 
-// 本机（macOS arm64）加载 libghostty-v0.0.12 的原生库直接跑 VT 内核。
+// 本机（macOS arm64）加载 fork 从源码编的 Ghostty 原生库直接跑 VT 内核。
 // 这证明的是"引擎行为"，不是 Android 真机证据。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -65,7 +65,7 @@ void main() {
     });
 
     // 真机上按退格，回环页回显的 0x7f 显示成一个方格。VT100 收到 DEL 应当忽略（xterm 也是），
-    // Ghostty 0.0.12 却把它当可打印字符存进格子。远端程序真输出 0x7f 时也会出方格。
+    // Ghostty 却把它当可打印字符存进格子（0.0.12 和上游 main 的 349f0260 都是）。远端程序真输出 0x7f 时也会出方格。
     // 这里固定的是"现状"：换库版本后这条失败，说明行为变了，去复核 R04 证据和 R17 的过滤。
     test('已知差异：裸 DEL（0x7f）被存进格子，VT100 会忽略它', () {
       final result = feed([
@@ -118,18 +118,15 @@ void main() {
       expect(writer.droppedAfterClose, 1);
     });
 
-    test(
-      '已知问题：flterm 0.0.5 在 dispose 后 write 会让进程段错误',
-      () {
-        final controller = TerminalController()..dispose();
-        controller.write(Uint8List.fromList([0x41]));
-      },
-      // 跑这条会直接打崩测试进程（TestDeviceException: segmentation fault），
-      // 默认跳过；XWSHUN_RUN_KNOWN_FAILS=1 时单独运行以复现，证据见 plan/v3/evidence/R04.md。
-      skip: Platform.environment['XWSHUN_RUN_KNOWN_FAILS'] == '1'
-          ? false
-          : '会让测试进程段错误；XWSHUN_RUN_KNOWN_FAILS=1 可复现',
-    );
+    // R04 问题 1：flterm 0.0.5 这里直接段错误、整个进程崩掉（证据见 plan/v3/evidence/R04.md）。
+    // 上游 main 改成抛 StateError，能接住了，但 SSH 迟到的数据照样会抛，所以仍要 GuardedWriter 挡住。
+    test('dispose 后 write 抛 StateError，不再段错误', () {
+      final controller = TerminalController()..dispose();
+      expect(
+        () => controller.write(Uint8List.fromList([0x41])),
+        throwsStateError,
+      );
+    });
   });
 
   testWidgets('GST03：快速 resize 穿插终端查询，回应保序不丢不重；关闭后不再发送', (tester) async {

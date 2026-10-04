@@ -65,6 +65,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "3.0.7"
+  cupertino_ui:
+    dependency: transitive
+    description:
+      name: cupertino_ui
+      sha256: e9dfe7fac704028f8928cbe4028a0be5e8a709498e8daf8247de99e99a32aef3
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.2"
   fake_async:
     dependency: transitive
     description:
@@ -92,10 +100,9 @@ packages:
   flterm:
     dependency: "direct main"
     description:
-      name: flterm
-      sha256: "41c4dff517de37abcff66b5ee1481d838b5f2952c02d547c7b6db1cf3ff25c14"
-      url: "https://pub.dev"
-    source: hosted
+      path: "../../third_party/libghostty/packages/flterm"
+      relative: true
+    source: path
     version: "0.0.5"
   flutter:
     dependency: "direct main"
@@ -115,6 +122,11 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.0.0"
+  flutter_localizations:
+    dependency: transitive
+    description: flutter
+    source: sdk
+    version: "0.0.0"
   flutter_test:
     dependency: "direct dev"
     description: flutter
@@ -146,6 +158,14 @@ packages:
     description: flutter
     source: sdk
     version: "0.0.0"
+  intl:
+    dependency: transitive
+    description:
+      name: intl
+      sha256: "3df61194eb431efc39c4ceba583b95633a403f46c9fd341e550ce0bfa50e9aa5"
+      url: "https://pub.dev"
+    source: hosted
+    version: "0.20.2"
   leak_tracker:
     dependency: transitive
     description:
@@ -173,10 +193,9 @@ packages:
   libghostty:
     dependency: "direct main"
     description:
-      name: libghostty
-      sha256: "1f09c91ec45559d8e660906121bee6ef4a83bc67f2e8141ee9070388d63e5bd2"
-      url: "https://pub.dev"
-    source: hosted
+      path: "../../third_party/libghostty/packages/libghostty"
+      relative: true
+    source: path
     version: "0.0.12"
   lints:
     dependency: transitive
@@ -186,6 +205,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "6.1.0"
+  listen:
+    dependency: transitive
+    description:
+      name: listen
+      sha256: "47501a08016a43fcad79252439d723f50f14f88fa7bfd8a177e0a417e5c9e1f2"
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.0.1"
   logging:
     dependency: transitive
     description:
@@ -210,6 +237,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "0.13.0"
+  material_ui:
+    dependency: transitive
+    description:
+      name: material_ui
+      sha256: fbfb53cab6c4629438feeade5f3d305f72944bc9d9f25786b19106d32b80ec45
+      url: "https://pub.dev"
+    source: hosted
+    version: "1.2.0"
   meta:
     dependency: transitive
     description:
