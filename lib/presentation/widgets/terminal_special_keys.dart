@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/settings_controller.dart';
 import '../../domain/models/settings.dart';
 import '../../infrastructure/terminal/terminal_input_controller.dart';
+import '../../infrastructure/terminal/terminal_session_adapter.dart';
 
 class TerminalSpecialKeys extends ConsumerStatefulWidget {
   const TerminalSpecialKeys({
@@ -15,6 +16,7 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
     required this.order,
     required this.customKeys,
     required this.onSend,
+    required this.onKey,
     required this.inputController,
     required this.onAi,
     required this.onPortForward,
@@ -31,6 +33,9 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
   final List<String> order;
   final List<TerminalCustomKey> customKeys;
   final void Function(String, {bool enter}) onSend;
+
+  /// 内置的功能键（Esc、Tab、方向键、Home/End）交给引擎编码，见 [TerminalSpecialKey]。
+  final void Function(TerminalSpecialKey key) onKey;
   final TerminalInputController inputController;
 
   /// 为 null 时隐藏 AI 按钮（本 fork 默认关闭 AI，见 ForkFeatures）。
@@ -312,6 +317,11 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
       widget.inputController.setModifiers(next);
       return;
     }
+    final special = key.specialKey;
+    if (special != null) {
+      widget.onKey(special);
+      return;
+    }
     if (key.type == _QuickKeyType.paste) {
       widget.inputController.clearModifiers();
       final data = await Clipboard.getData(Clipboard.kTextPlain);
@@ -537,6 +547,7 @@ class _QuickKey {
     this.modifierId,
     this.icon,
     this.repeatable = false,
+    this.specialKey,
   });
 
   final String label;
@@ -545,10 +556,13 @@ class _QuickKey {
   final String? modifierId;
   final IconData? icon;
   final bool repeatable;
+
+  /// 有值时按功能键发（跟远端的键盘模式走），[value] 只作说明。
+  final TerminalSpecialKey? specialKey;
 }
 
 const _quickKeys = <String, _QuickKey>{
-  'escape': _QuickKey('Esc', '\x1b'),
+  'escape': _QuickKey('Esc', '\x1b', specialKey: TerminalSpecialKey.escape),
   'alt': _QuickKey(
     'Alt',
     null,
@@ -567,13 +581,33 @@ const _quickKeys = <String, _QuickKey>{
     type: _QuickKeyType.modifier,
     modifierId: 'shift',
   ),
-  'tab': _QuickKey('Tab', '\t'),
-  'arrowUp': _QuickKey('↑', '\x1b[A', repeatable: true),
-  'arrowDown': _QuickKey('↓', '\x1b[B', repeatable: true),
-  'arrowLeft': _QuickKey('←', '\x1b[D', repeatable: true),
-  'arrowRight': _QuickKey('→', '\x1b[C', repeatable: true),
-  'home': _QuickKey('Home', '\x1b[H'),
-  'end': _QuickKey('End', '\x1b[F'),
+  'tab': _QuickKey('Tab', '\t', specialKey: TerminalSpecialKey.tab),
+  'arrowUp': _QuickKey(
+    '↑',
+    '\x1b[A',
+    repeatable: true,
+    specialKey: TerminalSpecialKey.arrowUp,
+  ),
+  'arrowDown': _QuickKey(
+    '↓',
+    '\x1b[B',
+    repeatable: true,
+    specialKey: TerminalSpecialKey.arrowDown,
+  ),
+  'arrowLeft': _QuickKey(
+    '←',
+    '\x1b[D',
+    repeatable: true,
+    specialKey: TerminalSpecialKey.arrowLeft,
+  ),
+  'arrowRight': _QuickKey(
+    '→',
+    '\x1b[C',
+    repeatable: true,
+    specialKey: TerminalSpecialKey.arrowRight,
+  ),
+  'home': _QuickKey('Home', '\x1b[H', specialKey: TerminalSpecialKey.home),
+  'end': _QuickKey('End', '\x1b[F', specialKey: TerminalSpecialKey.end),
   'paste': _QuickKey(
     '粘贴',
     null,

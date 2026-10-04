@@ -317,6 +317,8 @@ final class _SizeOnlyEngine extends TerminalSessionAdapterBase {
   @override
   void sendText(String text) {}
   @override
+  void sendKey(TerminalSpecialKey key) {}
+  @override
   bool get isAlternateScreen => false;
   @override
   int get viewRows => 0;

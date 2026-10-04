@@ -19,6 +19,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_text.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_input_controller.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
 
 void main() {
   testWidgets('unavailable server copy requires explicit phone-relay consent',
@@ -465,6 +466,7 @@ void main() {
                   customKeys: [],
                   inputController: TerminalInputController(),
                   onSend: _ignoreSend,
+                  onKey: (_) {},
                   onAi: _ignore,
                   onPortForward: null,
                   onSystemManagement: null,
@@ -553,7 +555,8 @@ void main() {
   testWidgets(
       'direction keys repeat while held and stop immediately on release',
       (tester) async {
-    final sent = <String>[];
+    // R18 起方向键按功能键发（由引擎按远端键盘模式编码），这里记下按的是哪个键。
+    final sent = <TerminalSpecialKey>[];
     await tester.pumpWidget(
       ProviderScope(
         child: MaterialApp(
@@ -562,7 +565,8 @@ void main() {
               order: defaultTerminalQuickKeys,
               customKeys: const [],
               inputController: TerminalInputController(),
-              onSend: (value, {bool enter = false}) => sent.add(value),
+              onSend: (value, {bool enter = false}) => fail('方向键不该按文字发'),
+              onKey: sent.add,
               onAi: _ignore,
               onPortForward: null,
               onSystemManagement: null,
@@ -583,7 +587,7 @@ void main() {
     await tester.pump(const Duration(milliseconds: 399));
     expect(sent, isEmpty);
     await tester.pump(const Duration(milliseconds: 1));
-    expect(sent, ['\x1b[A']);
+    expect(sent, [TerminalSpecialKey.arrowUp]);
     await tester.pump(const Duration(milliseconds: 210));
     expect(sent.length, greaterThanOrEqualTo(4));
 

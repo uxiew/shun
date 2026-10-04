@@ -325,7 +325,12 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                     order: settings.terminalQuickKeys,
                     customKeys: settings.terminalCustomKeys,
                     inputController: visibleSession.input,
-                    onSend: ref.read(sessionControllerProvider.notifier).send,
+                    onSend: (text, {bool enter = false}) => ref
+                        .read(sessionControllerProvider.notifier)
+                        .typeInto(visibleSession.id, enter ? '$text\r' : text),
+                    onKey: (key) => ref
+                        .read(sessionControllerProvider.notifier)
+                        .pressKey(visibleSession.id, key),
                     onAi: ref.watch(forkFeaturesProvider).ai
                         ? () => _openAi(visibleSession)
                         : null,

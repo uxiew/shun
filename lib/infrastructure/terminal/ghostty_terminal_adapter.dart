@@ -114,9 +114,26 @@ final class GhosttyTerminalAdapter extends TerminalSessionAdapterBase {
   @override
   void sendText(String text) {
     if (isDisposed || text.isEmpty) return;
-    // 快捷键栏、片段发来的是现成的字符串（方向键也是 "\x1b[A" 这种），和 xterm2 时一样
-    // 先套上一次性修饰键再发。按键编码（应用光标模式等）的迁移在 R18。
+    // 片段、自定义快捷键发来的是现成的字符串，和 xterm2 时一样先套上一次性修饰键再发。
     controller.sendText(input.consume(text));
+  }
+
+  /// 修饰键已经同步成 flterm 的虚拟修饰键，flterm 编码时套上、用完清掉（快捷键栏跟着灭）。
+  @override
+  void sendKey(TerminalSpecialKey key) {
+    if (isDisposed) return;
+    controller.sendKey(switch (key) {
+      TerminalSpecialKey.escape => Key.escape,
+      TerminalSpecialKey.tab => Key.tab,
+      TerminalSpecialKey.arrowUp => Key.arrowUp,
+      TerminalSpecialKey.arrowDown => Key.arrowDown,
+      TerminalSpecialKey.arrowLeft => Key.arrowLeft,
+      TerminalSpecialKey.arrowRight => Key.arrowRight,
+      TerminalSpecialKey.home => Key.home,
+      TerminalSpecialKey.end => Key.end,
+      TerminalSpecialKey.pageUp => Key.pageUp,
+      TerminalSpecialKey.pageDown => Key.pageDown,
+    });
   }
 
   /// 快捷键栏的一次性修饰键交给 flterm 的虚拟修饰键：软键盘、输入法发来的下一个键由 flterm 自己

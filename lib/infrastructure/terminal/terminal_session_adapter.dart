@@ -15,6 +15,23 @@ typedef TerminalResizeSink = void Function(
   int pixelHeight,
 );
 
+/// 快捷键栏上的功能键（R18）。
+///
+/// 按键怎么编码交给引擎：远端程序打开「应用光标键」（vim、less、tmux 常这样）后，方向键要发
+/// `ESC O A` 而不是 `ESC [ A`，Home/End 同理；快捷键栏以前写死字符串，在这些程序里方向键会乱跳。
+enum TerminalSpecialKey {
+  escape,
+  tab,
+  arrowUp,
+  arrowDown,
+  arrowLeft,
+  arrowRight,
+  home,
+  end,
+  pageUp,
+  pageDown,
+}
+
 /// 缓冲区里的一行（含滚动区）。[wrapped] 表示它是上一行放不下自动折过来的，不是新的一行。
 @immutable
 class TerminalTextLine {
@@ -54,6 +71,9 @@ abstract interface class TerminalSessionAdapter implements Listenable {
 
   /// 当作键盘输入发出去（快捷键栏、片段、AI 插入的命令）。经过修饰键，和真按键一样。
   void sendText(String text);
+
+  /// 发一个功能键，套上快捷键栏的一次性修饰键，按远端当前的键盘模式编码。
+  void sendKey(TerminalSpecialKey key);
 
   /// 全屏程序（vim、tmux、less）切到了备用屏。
   bool get isAlternateScreen;

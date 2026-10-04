@@ -60,6 +60,44 @@ final class XtermTerminalAdapter extends TerminalSessionAdapterBase {
     terminal.textInput(text);
   }
 
+  /// xterm2 的按键表 keyInput 编修饰键有错（Alt+↑ 编成了 Ctrl 的 ESC[1;5A，Alt+Tab 丢掉 Alt），
+  /// 不用它。这里按远端的光标键模式挑前缀，修饰键照旧由输出回调里的 consume 套：
+  /// 不带修饰键时应用光标键模式发 ESC O A，带修饰键一律用 ESC [ 1;n A（xterm 的规矩）。
+  @override
+  void sendKey(TerminalSpecialKey key) {
+    if (isDisposed) return;
+    final cursorLetter = switch (key) {
+      TerminalSpecialKey.arrowUp => 'A',
+      TerminalSpecialKey.arrowDown => 'B',
+      TerminalSpecialKey.arrowRight => 'C',
+      TerminalSpecialKey.arrowLeft => 'D',
+      TerminalSpecialKey.home => 'H',
+      TerminalSpecialKey.end => 'F',
+      _ => null,
+    };
+    final String text;
+    if (cursorLetter != null) {
+      text = input.modifiers.isEmpty && terminal.cursorKeysMode
+          ? '\x1bO$cursorLetter'
+          : '\x1b[$cursorLetter';
+    } else {
+      text = switch (key) {
+        TerminalSpecialKey.escape => '\x1b',
+        TerminalSpecialKey.tab => '\t',
+        TerminalSpecialKey.pageUp => '\x1b[5~',
+        TerminalSpecialKey.pageDown => '\x1b[6~',
+        _ => throw StateError('$key'),
+      };
+    }
+    // Shift+Tab 是反向 Tab（ESC [ Z），consume 不认识，这里先换掉。
+    if (key == TerminalSpecialKey.tab && input.modifiers.contains('shift')) {
+      input.setModifiers(input.modifiers.difference(const {'shift'}));
+      terminal.textInput('\x1b[Z');
+      return;
+    }
+    terminal.textInput(text);
+  }
+
   @override
   bool get isAlternateScreen => terminal.isUsingAltBuffer;
 

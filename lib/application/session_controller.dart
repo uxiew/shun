@@ -653,6 +653,21 @@ class SessionController extends StateNotifier<SessionState> {
     sendToSession(session.id, text, enter: enter);
   }
 
+  /// 快捷键栏的输入：和软键盘打字一样直接交给终端。没连着时终端没有绑定，字就丢掉，
+  /// 不像 [sendToSession] 那样抛错（按一下 Esc 不该弹红屏）。
+  void typeInto(String sessionId, String text) {
+    final session =
+        state.sessions.where((value) => value.id == sessionId).firstOrNull;
+    session?.terminal.sendText(text);
+  }
+
+  /// 快捷键栏的功能键，见 [TerminalSpecialKey]。规矩同 [typeInto]。
+  void pressKey(String sessionId, TerminalSpecialKey key) {
+    final session =
+        state.sessions.where((value) => value.id == sessionId).firstOrNull;
+    session?.terminal.sendKey(key);
+  }
+
   void sendToSession(String sessionId, String text, {bool enter = false}) {
     final session =
         state.sessions.where((value) => value.id == sessionId).firstOrNull;
