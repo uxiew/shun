@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plugin_api/plugin_api.dart';
 import 'package:uuid/uuid.dart';
 
+import '../domain/plugins/mosh_bootstrap.dart';
 import '../infrastructure/plugins/android_plugin_bridge.dart';
 import 'plugin_discovery.dart';
 import 'plugin_registry.dart';
@@ -213,10 +214,27 @@ class PluginSessionManager {
 
   /// provider 必须是 Ready 且声明了 terminal-session，否则在这里就抛错，不去碰插件。
   /// 调用方要先 [PluginDiscovery.check]/connect 过这个插件（连接由桥维护）。
+  ///
+  /// [mosh] 给了就是 Mosh 会话（X08）：插件必须申请了 own-session-ephemeral-secret，才把这次 bootstrap 的
+  /// 临时 key 交给它。无论成败，返回前都清掉宿主这边的 key（[MoshBootstrapResult.wipe]）。
   Future<PluginTerminalSession> open(
     PluginEntry entry, {
     int cols = 80,
     int rows = 24,
+    MoshSessionTarget? mosh,
+  }) async {
+    try {
+      return await _open(entry, cols: cols, rows: rows, mosh: mosh);
+    } finally {
+      mosh?.material.wipe();
+    }
+  }
+
+  Future<PluginTerminalSession> _open(
+    PluginEntry entry, {
+    required int cols,
+    required int rows,
+    MoshSessionTarget? mosh,
   }) async {
     final id = entry.pluginId;
     final package = entry.packageName;
@@ -225,6 +243,16 @@ class PluginSessionManager {
       throw PluginUnavailable(package ?? '?', null, reason);
     }
     _registry.require(id, Capability.terminalSession);
+    if (mosh != null &&
+        !(_registry
+                .readyEntry(id)
+                ?.descriptor
+                ?.permissions
+                .contains(Permission.ownSessionEphemeralSecret) ??
+            false)) {
+      throw PluginUnavailable(
+          id, PluginStatus.ready, '插件没有申请临时会话密钥权限，不能交给它 Mosh 会话材料');
+    }
     final session = PluginTerminalSession._(
       this,
       package,
@@ -240,6 +268,9 @@ class PluginSessionManager {
         generation: session.generation,
         cols: cols,
         rows: rows,
+        moshHost: mosh?.udpHost,
+        moshPort: mosh?.material.port,
+        moshKey: mosh?.material.printableKey,
       );
     } on Object {
       _sessions.remove(session.handle);

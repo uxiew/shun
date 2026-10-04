@@ -371,6 +371,9 @@ class PluginBridge(
      * 打开一个终端会话：宿主建 socketpair，自己留一端，另一端交给插件。
      * 句柄和代次由 Dart 生成；插件把它们和宿主 UID 绑在一起（ProviderSessions）。
      * 插件拒绝或进程已死时，本端立刻关掉，不留半个会话。
+     *
+     * 带 udpHost/udpPort/key 时是 Mosh 会话（X08），调插件的 openMoshSession。key 是这次 bootstrap 的临时会话密钥：
+     * 不记日志，交出去之后（无论成败）立刻清零。Dart 侧是否允许交给这个插件（权限）在 PluginSessionManager 判过。
      */
     private fun openSession(call: MethodCall, result: MethodChannel.Result) {
         val connection = connections[call.argument<String>("package") ?: ""]
@@ -378,11 +381,21 @@ class PluginBridge(
         val generation = call.argument<Number>("generation")?.toLong() ?: 0L
         val cols = call.argument<Int>("cols") ?: 80
         val rows = call.argument<Int>("rows") ?: 24
+        val udpHost = call.argument<String>("udpHost")
+        val udpPort = call.argument<Int>("udpPort") ?: 0
+        val key = call.argument<ByteArray>("key")
         if (connection?.provider == null) {
+            key?.fill(0)
             result.error("NOT_CONNECTED", "没有连着这个插件", null)
             return
         }
+        if ((udpHost != null || key != null) && (udpHost == null || key == null || key.size != 22 || udpPort !in 1..65535)) {
+            key?.fill(0)
+            result.error("BAD_ARGS", "Mosh 目标或材料无效", null)
+            return
+        }
         if (!HANDLE.matches(handle) || generation <= 0 || connection.sessions.containsKey(handle)) {
+            key?.fill(0)
             result.error("BAD_ARGS", "会话句柄或代次无效", null)
             return
         }
@@ -395,9 +408,16 @@ class PluginBridge(
                 connection.sessions.remove(handle)
                 session.close()
             },
-            always = { runCatching { pair[1].close() } }, // Binder 已把它复制给插件，本进程这份立刻关
+            always = {
+                runCatching { pair[1].close() } // Binder 已把它复制给插件，本进程这份立刻关
+                key?.fill(0)
+            },
         ) {
-            it.openSession(handle, generation, cols, rows, pair[1])
+            if (udpHost != null && key != null) {
+                it.openMoshSession(handle, generation, cols, rows, pair[1], udpHost, udpPort, key)
+            } else {
+                it.openSession(handle, generation, cols, rows, pair[1])
+            }
             main.post { session.start() }
             null
         }
