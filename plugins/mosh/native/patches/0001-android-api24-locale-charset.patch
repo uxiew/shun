@@ -1,0 +1,16 @@
+--- a/src/util/locale_utils.cc
++++ b/src/util/locale_utils.cc
+@@ -72,7 +72,13 @@
+   static const char ASCII_name[] = "US-ASCII";
+ 
+   /* Produce more pleasant name of US-ASCII */
++#if defined( __ANDROID__ ) && __ANDROID_API__ < 26
++  /* xwshun: bionic only declares nl_langinfo() from API 26. bionic's own CODESET answer
++     is ( MB_CUR_MAX == 1 ) ? "ASCII" : "UTF-8" (libc/bionic/langinfo.cpp); same test here. */
++  const char *ret = ( MB_CUR_MAX == 1 ) ? ASCII_name : "UTF-8";
++#else
+   const char *ret = nl_langinfo( CODESET );
++#endif
+ 
+   if ( strcmp( ret, "ANSI_X3.4-1968" ) == 0 ) {
+     ret = ASCII_name;
