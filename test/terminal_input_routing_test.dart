@@ -9,6 +9,7 @@ import 'package:netcatty_mobile/application/session_controller.dart';
 import 'package:netcatty_mobile/application/vault_controller.dart';
 import 'package:netcatty_mobile/domain/connection_route.dart';
 import 'package:netcatty_mobile/domain/models/host.dart';
+import 'package:netcatty_mobile/domain/tmux/tmux_target.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
@@ -337,6 +338,7 @@ class _NoNetworkSshService extends SshService {
     required TerminalSessionAdapter terminal,
     ConnectionPurpose purpose = ConnectionPurpose.fresh,
     ConnectionAttempt? attempt,
+    TmuxTarget? tmuxAttach,
   }) async =>
       throw StateError('测试不连网络');
 }
