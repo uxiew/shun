@@ -52,6 +52,7 @@ dart analyze packages/flterm/lib packages/libghostty/lib
 | c3a8b40 | flterm：TerminalController 加 `tailRows(count)`，读最近几行带折行标记 | App 的画中画和 AI 上下文只看最近几百行；公开接口拿不到 Terminal，逐格读滚动区每次都要从头遍历分页 |
 | 8711b1a | flterm：输入法提交后编辑区留着已发的字，输入法改写时按差异补发（先退格再发新尾巴）；输入从别的路发出（sendText/sendKey/paste、硬件键）时清空编辑区 | 上游提交即清空，微信输入法语音把同一句话整段重复发 9 次（R04 问题 8，TER02）。上游 8 条测试的编辑不带哨兵，改成真实形状 |
 | 0de868c | flterm：TerminalView 加 `secureTextInput`，敏感输入时输入框改成可见密码 | App 设置里的「安全键盘」在 Ghostty 下没效果（输入框类型写死） |
+| b63c843 | flterm：组字中收到空的编辑列表当组字结束；清空编辑区后、平台跟上前，oldText 对不上的编辑只按增量处理；软键盘回车键参与回车去重 | Flutter Android 的 delta 模式里 finishComposingText 不记编辑（只删 span），组字区的字拖到下一次改文字才提交；回车键后紧跟的提交按输入法旧编辑区算，整行被重发（8711b1a 引入的回退） |
 
 0.0.5 时期的 04df082（输入法补丁）、8caeb73（改用预编译库）已被同步覆盖，补丁移进了 1dda0c8。
 
