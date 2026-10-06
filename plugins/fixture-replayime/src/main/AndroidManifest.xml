@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 没有 INTERNET、RECORD_AUDIO 权限：只按脚本操作输入连接。 -->
+    <application android:label="Replay IME (xwshun test only)" android:allowBackup="false">
+        <service
+            android:name="example.xwshun.fixture.replayime.ReplayIme"
+            android:exported="true"
+            android:label="Replay IME (xwshun test only)"
+            android:permission="android.permission.BIND_INPUT_METHOD">
+            <intent-filter>
+                <action android:name="android.view.InputMethod" />
+            </intent-filter>
+            <meta-data android:name="android.view.im" android:resource="@xml/method" />
+        </service>
+    </application>
+</manifest>

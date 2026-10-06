@@ -64,3 +64,5 @@ build fakerd-custom     fixture-fakerustdesk -PsignWith=impostor -PfakeRdAppId=e
 build fakerd-custom-hostonly fixture-fakerustdesk -PsignWith=author -PfakeRdAppId=example.xwshun.fixture.fakerustdesk -PfakeRdHostOnly=true
 # R14「假浏览器」：临时设成默认浏览器，接住 Tailscale check 链接只记日志、不联网。
 build fakebrowser       fixture-fakebrowser -PsignWith=author
+# R18「回放输入法」：按脚本对输入连接做真实输入法那样的调用（不是插件，只是测试 App）。用法见 plugins/README.md。
+build replayime         fixture-replayime    -PsignWith=author

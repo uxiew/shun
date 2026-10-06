@@ -156,6 +156,30 @@ adb logcat -d -s XwshunFakeRd    # 应当只有一行：pkg=example.xwshun.fixtu
 
 它证明不了的：真实 RustDesk 收到链接后连不连得上、要不要密码、连的是哪台服务器。那些要装真实的 RustDesk 和一台被控电脑。
 
+## R18 回放输入法
+
+不是插件，是一个只认 adb 广播的输入法（`fixture-replayime`）：按脚本对当前输入连接做真实输入法那样的调用
+（`setComposingText`、`commitText`、`setComposingRegion`、`finishComposingText`、`deleteSurroundingText`、回车键），
+用来在模拟器上复现微信输入法语音那种「结束组字又圈回去改」的序列，看 App 发给远端的字节对不对。
+脚本内容和来由写在 `ReplayIme.java` 里，期望结果在 `integration_test/r18_ime_replay_test.dart`。
+
+```bash
+cd plugins && ./build-fixtures.sh && cd ..            # 产出 plugins/out/replayime.apk
+(cd tool/fixture-environment && ./up.sh)              # 已经起着就不用
+tool/ime-replay.sh emulator-5580 Ghostty              # 不写引擎就两个都跑；xterm2 只报告不断言
+```
+
+`tool/ime-replay.sh` 会临时把模拟器的默认输入法换成它，跑完（含失败）换回原来的并卸载；只认模拟器，真机上拒绝跑
+（换默认输入法会动到所有者的设置）。手动试单段脚本：
+
+```bash
+adb shell am broadcast -a example.xwshun.fixture.replayime.RUN -p example.xwshun.fixture.replayime --es script wechat_voice
+adb logcat -d -s ReplayIme      # START / STEP / DONE 每步一行
+```
+
+它证明不了的：真实微信输入法、Gboard 语音到底按什么顺序调用（这里回放的是 R04 真机日志里看到的）；
+真机上的语音输入还要所有者亲自说话复测。
+
 ## 撞墙时
 
 - **`defaultConfig contains custom resource values, but the feature is disabled`**：AGP 9 默认关了 resValue，模块里要 `buildFeatures { resValues = true }`。
@@ -165,3 +189,4 @@ adb logcat -d -s XwshunFakeRd    # 应当只有一行：pkg=example.xwshun.fixtu
 - **`flutter test integration_test/...` 在 loading 就失败、没有任何报错细节**：X03 时遇到两次，原因没查清，重跑一次都好了。连着失败再看 `adb logcat`。
 - **跑着跑着 `waiting for device`**：Mac 内存太紧时 adb 会短暂断开，模拟器其实还在。等 `adb shell getprop sys.boot_completed` 为 1 后重跑。
 - **强杀插件后会话被记成「中断」而不是「插件死亡」**：宿主读到 EOF 比 Binder 死亡通知早。现在桥上等 300 ms 再上报 EOF；如果还是看到「中断」，先确认装的是新宿主包。
+- **`ime enable` 报 `Unknown input method ... cannot be enabled`**：刚 `adb install` 完系统还没扫描到新输入法。等 `adb shell ime list -a -s` 里出现它再 enable（`tool/ime-replay.sh` 已经这样做）。
