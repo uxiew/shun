@@ -522,6 +522,10 @@ class PluginBridge(
                         main.post { onError(); result?.error("REFUSED", "插件拒绝：${e.message}", null) }
                     } catch (e: RemoteException) {
                         main.post { onError(); result?.error("DEAD", "插件进程已不在", null) }
+                    } catch (e: RuntimeException) {
+                        // Binder 会把插件抛的 UnsupportedOperationException、NullPointerException 等原样带回来。
+                        // 不接住的话它在这个线程上未捕获，整个宿主进程被系统杀掉——插件一句 throw 就能让宿主崩（X08 发现）。
+                        main.post { onError(); result?.error("REFUSED", "插件出错：${e.javaClass.simpleName} ${e.message ?: ""}".trim(), null) }
                     } finally {
                         always()
                     }
