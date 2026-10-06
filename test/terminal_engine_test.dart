@@ -7,6 +7,7 @@ import 'package:netcatty_mobile/application/terminal_engine.dart';
 import 'package:netcatty_mobile/domain/connection_route.dart';
 import 'package:netcatty_mobile/domain/models/host.dart';
 import 'package:netcatty_mobile/domain/models/settings.dart';
+import 'package:netcatty_mobile/domain/tmux/tmux_target.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
@@ -119,6 +120,7 @@ class _RecordingService extends SshService {
     required TerminalSessionAdapter terminal,
     ConnectionPurpose purpose = ConnectionPurpose.fresh,
     ConnectionAttempt? attempt,
+    TmuxTarget? tmuxAttach,
   }) {
     connected.add(host.id);
     throw StateError('不该拨号');

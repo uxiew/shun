@@ -5,10 +5,13 @@ import 'package:uuid/uuid.dart';
 
 import '../domain/connection_route.dart';
 import '../domain/models/host.dart';
+import '../domain/tmux/tmux_target.dart';
 import '../infrastructure/ssh/ssh_login_watch.dart';
 import '../infrastructure/ssh/ssh_service.dart';
 import '../infrastructure/ssh/server_monitor_service.dart';
 import '../infrastructure/terminal/terminal_session_adapter.dart';
+import '../infrastructure/tmux/tmux_protocol.dart';
+import '../infrastructure/tmux/tmux_service.dart';
 import 'credential_availability.dart';
 import 'terminal_engine.dart';
 import 'vault_controller.dart';
@@ -182,10 +185,15 @@ class SessionController extends StateNotifier<SessionState> {
 
   /// 新开一个终端连接。返回 true 表示连接已进标签；被取消、或结果迟到被关掉时返回 false。
   /// 调用方只有拿到 true 才能说「已连接」——以前取消后也正常返回，界面照样弹「已连接」。
+  ///
+  /// [routePlan] 给了就沿用这条冻结的路线（附着 tmux 的新标签用来源标签的路线，保证还是同一台主机、同一套身份），
+  /// 不再按保险库现算。[tmuxAttach] 给了就不开 shell，而是附着这个 tmux 目标（R21）。
   Future<bool> connect(
     HostProfile host,
     HostKeyVerifier verifyHostKey, {
     KeyboardInteractiveHandler? keyboardInteractive,
+    RoutePlan? routePlan,
+    TmuxTarget? tmuxAttach,
   }) async {
     final sessionId = const Uuid().v4();
     final attempt = _beginAttempt(sessionId);
@@ -229,12 +237,13 @@ class SessionController extends StateNotifier<SessionState> {
               orElse: () => host,
             );
       // 路线在这里一次算好：配置有错此时就报，算好的路线存进等待卡片，失败页据此显示实际路径。
-      final plan = resolveRoutePlan(
-        connectionHost,
-        hosts: vault.hosts,
-        proxyProfiles: vault.proxyProfiles,
-        keys: vault.keys,
-      );
+      final plan = routePlan ??
+          resolveRoutePlan(
+            connectionHost,
+            hosts: vault.hosts,
+            proxyProfiles: vault.proxyProfiles,
+            keys: vault.keys,
+          );
       if (mounted) {
         state = state.copyWith(
           pendingConnections: [
@@ -243,12 +252,14 @@ class SessionController extends StateNotifier<SessionState> {
           ],
         );
       }
-      // 要用的凭据解不开就在拨号前拒绝，不拿空密码去试（SEC06）。
-      final problem = unreadableCredentialProblem(
-        connectionHost,
-        vault,
-        vaultController.repository.unreadableSecrets,
-      );
+      // 要用的凭据解不开就在拨号前拒绝，不拿空密码去试（SEC06）。冻结的路线自带建连时的凭据副本，不再查保险库。
+      final problem = routePlan != null
+          ? null
+          : unreadableCredentialProblem(
+              connectionHost,
+              vault,
+              vaultController.repository.unreadableSecrets,
+            );
       if (problem != null) throw CredentialUnavailableException(problem);
       final session = await service.connect(
         sessionId: sessionId,
@@ -258,6 +269,7 @@ class SessionController extends StateNotifier<SessionState> {
         keyboardInteractive: keyboardInteractive,
         terminal: terminal,
         attempt: attempt,
+        tmuxAttach: tmuxAttach,
       );
       if (!_isCurrent(sessionId, attempt)) {
         // 迟到的成功：尝试已被取消或 controller 已销毁。连接此刻归这里，立刻关掉，不进标签。
@@ -342,6 +354,33 @@ class SessionController extends StateNotifier<SessionState> {
     );
   }
 
+  /// 在新标签里附着一个 tmux 目标（R21）。只附着这个确定的目标：远端先核对它还在、还是同一个，
+  /// 不在就失败（等待卡片写明原因），不按名字找替身、不新建。不带 -d，不踢掉别的客户端。
+  ///
+  /// 用来源标签冻结的路线连过去：目标是在那条连接上查到的，换条路线可能到了另一台机器。
+  Future<bool> openTmuxTerminal(
+    ActiveTerminalSession parent,
+    TmuxTarget target,
+  ) {
+    if (target.hostKey != tmuxHostKeyOf(parent)) {
+      throw StateError('这个 tmux 目标不是在这台主机上查到的');
+    }
+    final data = {...parent.host.data}..remove('startupCommand');
+    final host = HostProfile({
+      ...data,
+      'id': 'tmux-${const Uuid().v4()}',
+      'label': 'tmux: ${target.displayName}',
+      '_ephemeralTerminal': true,
+    });
+    return connect(
+      host,
+      parent.verifyHostKey,
+      keyboardInteractive: parent.keyboardInteractive,
+      routePlan: parent.routePlan,
+      tmuxAttach: target,
+    );
+  }
+
   Future<void> reconnectDisconnected() async {
     if (_reconnecting ||
         state.pendingConnections.any(
@@ -381,6 +420,8 @@ class SessionController extends StateNotifier<SessionState> {
             // 管理命令（比如重启服务），断线重连时重跑会造成真实副作用（REG02）。
             purpose: ConnectionPurpose.restore,
             attempt: attempt,
+            // tmux 标签只重新附着原来那个目标，远端核对不过就失败，不新建（TMX04/TMX05）。
+            tmuxAttach: old.tmux?.target,
           );
           if (!_isCurrent(old.id, attempt) || !_owns(old)) {
             // 恢复期间标签被关、这次恢复被取消或 controller 已销毁：
@@ -418,6 +459,12 @@ class SessionController extends StateNotifier<SessionState> {
           if (error is RouteHopException &&
               error.cause is TailscaleCheckNeedsUser) {
             // 后台每隔几秒重试一次的话，每次都会让 Tailscale 再生成一条 check 请求。停在这里等用户。
+            old.autoRestoreBlocked = true;
+          }
+          if (error is TmuxTargetGoneException ||
+              (error is TmuxCommandException &&
+                  error.exitCode == TmuxExit.missing)) {
+            // 原来的 tmux 目标不在了：再试也一样，停下等用户在面板里自己选（TMX04/TMX05）。
             old.autoRestoreBlocked = true;
           }
           old.terminal.showNotice('\r\n\x1b[31m恢复连接失败：$error\x1b[0m\r\n');
@@ -519,6 +566,23 @@ class SessionController extends StateNotifier<SessionState> {
     if (!mounted || !_owns(session)) {
       // 已被替换或已不在标签里的旧连接迟到的断开事件：只释放它自己，不碰界面状态。
       session.abort();
+      return;
+    }
+    final tmux = session.tmux;
+    final ssh = session.sshSession;
+    if (tmux != null &&
+        ssh != null &&
+        (ssh.exitCode != null || ssh.exitSignal != null)) {
+      // tmux 客户端自己退出了（分离、会话结束、server 退出）：这不是断线，不自动重新附着。
+      // tmux 会话本身（如果还在）不受影响；要回去由用户在面板里明确再附着一次。
+      session.autoRestoreBlocked = true;
+      session.abort();
+      session.terminal.showNotice(
+        '\r\n\x1b[33mtmux 客户端已退出（分离了，或会话已结束）。不会自动重新附着；'
+        '如果会话 ${tmux.target.sessionId} 还在，可在「系统管理 → tmux」里重新附着。\x1b[0m\r\n',
+      );
+      if (!mounted) return;
+      state = state.copyWith(sessions: [...state.sessions]);
       return;
     }
     // 断了就把这一代的网络资源全部释放。shell 通道结束（比如输入了 exit）时，

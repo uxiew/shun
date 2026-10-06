@@ -1,16 +1,18 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
-import 'package:flutter/foundation.dart';
 
 import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/server_stats.dart';
 import '../../domain/tailscale_ssh.dart';
+import '../../domain/tmux/tmux_target.dart';
 import '../terminal/terminal_input_controller.dart';
 import '../terminal/terminal_session_adapter.dart';
+import '../tmux/tmux_protocol.dart';
 import '../transport/proxy_transport.dart';
 import 'server_monitor_service.dart';
 import 'ssh_identity.dart';
@@ -132,6 +134,7 @@ class ActiveTerminalSession {
     this.sshSession,
     this.telnetSocket,
     this.routePlan,
+    this.tmux,
     TerminalBinding? binding,
     List<StreamSubscription<Object?>> outputSubscriptions = const [],
   })  : _binding = binding,
@@ -157,6 +160,12 @@ class ActiveTerminalSession {
   /// 自动恢复只能走同一条路线，不能因为用户期间改了配置就悄悄换代理、换身份（NET10，docs/07）。
   /// 手工构造的会话（测试）可能没有，恢复时再按保险库现算。
   final RoutePlan? routePlan;
+
+  /// 这个标签附着的 tmux 客户端（R21）；普通 shell 标签为 null。
+  ///
+  /// 断线恢复按其中的目标重新附着：远端先核对 uid、socket、server 代次、session ID 和创建时间，
+  /// 对不上就停下，不按名字找替身、不新建（TMX04/TMX05）。
+  final TmuxClientBinding? tmux;
 
   /// 远端输出送进 [terminal] 的订阅。恢复时新旧连接共用同一个 terminal，
   /// 旧连接释放时必须先断开这里，旧通道迟到的字节才不会混进新 shell 的画面。
@@ -272,6 +281,7 @@ class SshService {
     required TerminalSessionAdapter terminal,
     ConnectionPurpose purpose = ConnectionPurpose.fresh,
     ConnectionAttempt? attempt,
+    TmuxTarget? tmuxAttach,
   }) async {
     final pending = attempt ?? ConnectionAttempt();
     final previous = _pendingConnections[sessionId];
@@ -310,6 +320,7 @@ class SshService {
               terminal,
               purpose,
               pending,
+              tmuxAttach,
             );
       pending.handOver();
       return session;
@@ -415,6 +426,7 @@ class SshService {
     TerminalSessionAdapter terminal,
     ConnectionPurpose purpose,
     ConnectionAttempt pending,
+    TmuxTarget? tmuxAttach,
   ) async {
     final clients = await _establishSsh(
       plan,
@@ -423,6 +435,19 @@ class SshService {
       pending,
       purpose,
     );
+    if (tmuxAttach != null) {
+      return _openTmuxAttach(
+        sessionId,
+        host,
+        plan,
+        clients,
+        verifyHostKey,
+        keyboardInteractive,
+        terminal,
+        pending,
+        tmuxAttach,
+      );
+    }
     return _openShell(
       sessionId,
       host,
@@ -602,6 +627,135 @@ class SshService {
       sshClients: clients,
       sshSession: session,
       routePlan: plan,
+      binding: binding,
+      outputSubscriptions: subscriptions,
+    );
+  }
+
+  /// 附着一个 tmux 目标：带 PTY 的 exec 通道直接跑附着脚本（[tmuxAttachScript]），不开交互式 shell、
+  /// 不往 shell 里打字，也就不受用户 .bashrc 里自动 tmux 的影响、不进 shell 历史。新开和恢复走同一条路：
+  /// 恢复时远端照样先核对目标身份，对不上就以 [TmuxTargetGoneException] 失败，不新建、不按名字附着。
+  ///
+  /// 握手：脚本核对通过后报一行本客户端的终端设备和 pid，再关回显等 App 回一个换行。
+  /// 那一行之前的字节（比如登录脚本的输出）不进终端；App 收到后先绑定终端（把当前尺寸发过去），
+  /// 再回换行，tmux 一附着就是正确的大小。
+  Future<ActiveTerminalSession> _openTmuxAttach(
+    String sessionId,
+    HostProfile host,
+    RoutePlan plan,
+    List<SSHClient> clients,
+    HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    TerminalSessionAdapter terminal,
+    ConnectionAttempt pending,
+    TmuxTarget target,
+  ) async {
+    final client = clients.last;
+    pending.report(const ConnectionStage(ConnectionStep.shell));
+    final session = await _atHop(
+      plan,
+      plan.hops.length - 1,
+      '附着 tmux 失败',
+      () => pending.waitFor(
+        client.execute(
+          tmuxAttachCommand(target),
+          pty:
+              const SSHPtyConfig(type: 'xterm-256color', width: 80, height: 24),
+          environment: _environment(plan.target.host),
+        ),
+        onCancelled: (value) => value.close(),
+      ),
+    );
+    pending.shell = session;
+
+    final greeting = BytesBuilder(copy: false);
+    final ready = Completer<({String tty, int pid, Uint8List rest})>();
+    void Function(Uint8List chunk)? forward;
+    final stdout = session.stdout.listen(
+      (chunk) {
+        final deliver = forward;
+        if (deliver != null) {
+          deliver(chunk);
+          return;
+        }
+        if (ready.isCompleted) return;
+        greeting.add(chunk);
+        final bytes = greeting.toBytes();
+        final text = latin1.decode(bytes);
+        final at = text.indexOf(tmuxAttachMarker);
+        final end = at < 0 ? -1 : text.indexOf(RegExp(r'[\r\n]'), at);
+        if (end >= 0) {
+          final marker = parseAttachMarker(text.substring(at, end));
+          if (marker == null) {
+            ready.completeError(
+              const TmuxCommandException('远端报回的 tmux 客户端信息无法识别，没有附着'),
+            );
+            return;
+          }
+          var restAt = end;
+          while (restAt < bytes.length &&
+              (bytes[restAt] == 0x0d || bytes[restAt] == 0x0a)) {
+            restAt++;
+          }
+          ready.complete((
+            tty: marker.tty,
+            pid: marker.pid,
+            rest: Uint8List.sublistView(bytes, restAt),
+          ));
+        } else if (bytes.length > 16 * 1024) {
+          ready.completeError(
+            const TmuxCommandException('附着前远端输出了太多内容，没有附着'),
+          );
+        }
+      },
+      onDone: () {
+        if (!ready.isCompleted) {
+          ready.completeError(const _AttachEndedEarly());
+        }
+      },
+      onError: (Object error) {
+        if (!ready.isCompleted) ready.completeError(error);
+      },
+    );
+    final ({String tty, int pid, Uint8List rest}) marker;
+    try {
+      marker = await pending.waitFor(
+        ready.future.timeout(const Duration(seconds: 15)),
+      );
+    } on _AttachEndedEarly {
+      await stdout.cancel();
+      // 脚本在核对时就退出了：按约定的退出码说清楚（不在了 / 换了用户 / 没有 tmux）。
+      await session.done.timeout(const Duration(seconds: 2), onTimeout: () {});
+      throw tmuxExitError(session.exitCode, '') ??
+          const TmuxCommandException('tmux 附着脚本意外结束');
+    } on TimeoutException {
+      await stdout.cancel();
+      throw const TmuxCommandException('远端 15 秒内没有完成 tmux 附着前的核对，已放弃');
+    } catch (_) {
+      await stdout.cancel();
+      rethrow;
+    }
+    // 先绑定（新代次一绑定就把终端当前尺寸发过去），再放行 tmux。
+    final binding =
+        terminal.bind(session.write, resize: session.resizeTerminal);
+    forward = terminal.feed;
+    if (marker.rest.isNotEmpty) terminal.feed(marker.rest);
+    final subscriptions = [stdout, session.stderr.listen(terminal.feed)];
+    session.write(Uint8List.fromList(const [0x0a]));
+    return ActiveTerminalSession(
+      id: sessionId,
+      host: host,
+      terminal: terminal,
+      verifyHostKey: verifyHostKey,
+      keyboardInteractive: keyboardInteractive,
+      sshClients: clients,
+      sshSession: session,
+      routePlan: plan,
+      tmux: TmuxClientBinding(
+        target: target,
+        clientTty: marker.tty,
+        clientPid: marker.pid,
+      ),
       binding: binding,
       outputSubscriptions: subscriptions,
     );
@@ -968,4 +1122,9 @@ class ConnectionAttempt {
     }
     return (winner as _PendingConnectionResult<T>).value;
   }
+}
+
+/// 附着脚本在报出客户端信息之前就结束了（核对没通过）。只在 [SshService] 内部用来换成具体的说法。
+class _AttachEndedEarly implements Exception {
+  const _AttachEndedEarly();
 }

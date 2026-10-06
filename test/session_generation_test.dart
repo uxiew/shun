@@ -9,6 +9,7 @@ import 'package:netcatty_mobile/application/vault_controller.dart';
 import 'package:netcatty_mobile/domain/connection_route.dart';
 import 'package:netcatty_mobile/domain/models/host.dart';
 import 'package:netcatty_mobile/domain/models/vault.dart';
+import 'package:netcatty_mobile/domain/tmux/tmux_target.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -310,6 +311,7 @@ class _ScriptedSshService extends SshService {
     required TerminalSessionAdapter terminal,
     ConnectionPurpose purpose = ConnectionPurpose.fresh,
     ConnectionAttempt? attempt,
+    TmuxTarget? tmuxAttach,
   }) {
     final call = _Call(sessionId, attempt!, purpose, routePlan);
     calls.add(call);

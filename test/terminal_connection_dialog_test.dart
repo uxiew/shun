@@ -11,6 +11,7 @@ import 'package:netcatty_mobile/application/vault_controller.dart';
 import 'package:netcatty_mobile/domain/connection_route.dart';
 import 'package:netcatty_mobile/domain/models/host.dart';
 import 'package:netcatty_mobile/domain/models/settings.dart';
+import 'package:netcatty_mobile/domain/tmux/tmux_target.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:netcatty_mobile/presentation/screens/terminal_screen.dart';
@@ -593,6 +594,7 @@ class _TrackingSshService extends SshService {
     required TerminalSessionAdapter terminal,
     ConnectionPurpose purpose = ConnectionPurpose.fresh,
     ConnectionAttempt? attempt,
+    TmuxTarget? tmuxAttach,
   }) {
     attempts.add(attempt!);
     return result.future;

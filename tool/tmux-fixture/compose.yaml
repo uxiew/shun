@@ -1,0 +1,54 @@
+# R21 tmux 测试环境：每台一个真实 tmux 版本，外加「没有 tmux」和「假 tmux」两台。
+# 端口只绑 127.0.0.1。和 tool/fixture-environment 互不相干（项目名、端口、凭据都分开），
+# 可以同时开着；用自己的 up.sh / down.sh 起停。
+name: xwshun-tmux-fixture
+
+x-node: &node
+  volumes:
+    - ./.run/secrets:/run-secrets:ro
+    - ./.run/hostkeys:/run-hostkeys
+
+services:
+  tmux24:
+    <<: *node
+    build: { context: ., args: { ALPINE: "3.6" } }
+    image: xwshun-tmux-fixture:alpine3.6
+    hostname: tmux24
+    ports: ["127.0.0.1:22311:22"]
+
+  tmux27:
+    <<: *node
+    build: { context: ., args: { ALPINE: "3.8" } }
+    image: xwshun-tmux-fixture:alpine3.8
+    hostname: tmux27
+    ports: ["127.0.0.1:22312:22"]
+
+  tmux30:
+    <<: *node
+    build: { context: ., args: { ALPINE: "3.11" } }
+    image: xwshun-tmux-fixture:alpine3.11
+    hostname: tmux30
+    ports: ["127.0.0.1:22313:22"]
+
+  tmux35:
+    <<: *node
+    build: { context: ., args: { ALPINE: "3.22" } }
+    image: xwshun-tmux-fixture:alpine3.22
+    hostname: tmux35
+    ports: ["127.0.0.1:22314:22"]
+
+  notmux:
+    <<: *node
+    image: xwshun-tmux-fixture:alpine3.22
+    hostname: notmux
+    environment: { TMUX_MODE: none }
+    ports: ["127.0.0.1:22315:22"]
+    depends_on: [tmux35]
+
+  faketmux:
+    <<: *node
+    image: xwshun-tmux-fixture:alpine3.22
+    hostname: faketmux
+    environment: { TMUX_MODE: fake }
+    ports: ["127.0.0.1:22316:22"]
+    depends_on: [tmux35]

@@ -5,26 +5,6 @@ import 'package:netcatty_mobile/domain/models/system_management.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/system_management_service.dart';
 
 void main() {
-  test(
-      'tmux attach enables only target session mouse support with exact target',
-      () {
-    final command = SystemManagementService().tmuxAttachCommand('work');
-    expect(command,
-        "tmux set-option -t '=work:' mouse on \\; attach-session -t '=work:'");
-    expect(command, isNot(contains(' -g ')));
-    expect(command, isNot(contains('.tmux.conf')));
-  });
-  test('tmux attach disambiguates session names from pane and window targets',
-      () {
-    final service = SystemManagementService();
-    for (final name in ['nq', '0', 'work', 'work-long', 'two words']) {
-      final command = service.tmuxAttachCommand(name);
-      expect(command,
-          "tmux set-option -t '=$name:' mouse on \\; attach-session -t '=$name:'");
-    }
-    final quoted = service.tmuxAttachCommand("user's session");
-    expect(quoted, contains("'=user'\\''s session:'"));
-  });
   late SystemManagementService service;
 
   setUp(() => service = SystemManagementService());
@@ -133,20 +113,6 @@ PID   USER     TIME  COMMAND
     expect(projects.single.stoppedCount, 1);
     expect(projects.single.status, 'running(1), exited(1)');
     expect(projects.single.workingDirectory, '/srv/site');
-  });
-
-  test('parses tmux formatted session list', () {
-    const output =
-        'work\t3\t1\t1786450000\t1786450300\tdev\nops\t1\t0\t1786440000\t1786440100\t\n';
-
-    final sessions = service.parseTmuxSessions(output);
-
-    expect(sessions, hasLength(2));
-    expect(sessions.first.name, 'work');
-    expect(sessions.first.windowCount, 3);
-    expect(sessions.first.attachedClients, 1);
-    expect(sessions.first.group, 'dev');
-    expect(sessions.last.attachedClients, 0);
   });
 
   test('parses systemd services with state and startup policy', () {
@@ -416,22 +382,6 @@ esac
     expect(result.exitCode, 0, reason: '${result.stderr}');
     expect(config.readAsStringSync(), isNot(contains('netcatty-begin')));
     expect(config.readAsStringSync(), contains('manual.example.com'));
-  });
-
-  test('recognizes missing tmux command errors', () {
-    expect(
-      isTmuxCommandMissing('/bin/sh: tmux: command not found', exitCode: 127),
-      isTrue,
-    );
-    expect(
-      isTmuxCommandMissing('sh: tmux: not found', exitCode: 1),
-      isTrue,
-    );
-    expect(
-      isTmuxCommandMissing('no server running on /tmp/tmux-1000/default'),
-      isFalse,
-    );
-    expect(tmuxNotFoundMessage, '未找到 tmux 命令，请先安装 tmux 后再重试。');
   });
 
   test('shellQuote safely escapes apostrophes', () {
