@@ -294,7 +294,7 @@
       "action": "中文输入法拼音候选、撤销 composing、混排、删除、语音输入到普通编辑区。",
       "expected": "只有确定提交进入终端，中文不重复不丢失；不得自动申请 App 麦克风权限。",
       "level": "硬门禁",
-      "result": "BLOCKED",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
         "evidence/R04.md",
