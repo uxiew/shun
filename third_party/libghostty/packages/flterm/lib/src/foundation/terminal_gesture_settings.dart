@@ -116,6 +116,19 @@ final class TerminalGestureSettings {
   /// as one word.
   final String? wordBoundaries;
 
+  /// xwshun: Whether touch taps and long presses are reported as mouse clicks
+  /// while a terminal program enables mouse tracking.
+  ///
+  /// Defaults to true (upstream behavior). When false, touch scrolling is
+  /// still reported as wheel events, but taps and long presses behave as if
+  /// tracking were off: a tap focuses the view or activates a link, a long
+  /// press starts a local selection, and nothing is sent to the program.
+  /// Mouse and stylus input are unaffected.
+  ///
+  /// 手机上手指点终端多半是想叫键盘、点链接或长按选字；tmux 开着 mouse 时上游把这些都发成鼠标点击，
+  /// tmux 换窗格、htop 选中一行，长按也选不了字（R19，TER07）。
+  final bool touchMouseClicks;
+
   const TerminalGestureSettings({
     this.dragSelection = true,
     this.selectAllShortcut = true,
@@ -127,10 +140,12 @@ final class TerminalGestureSettings {
     this.selectionBehaviors = .standard,
     this.longPressSelectionShape = .normal,
     this.wordBoundaries,
+    this.touchMouseClicks = true,
   });
 
   @override
   int get hashCode => Object.hash(
+    touchMouseClicks,
     selectionBehaviors.singleClick,
     selectionBehaviors.doubleClick,
     selectionBehaviors.tripleClick,
@@ -149,6 +164,7 @@ final class TerminalGestureSettings {
   bool operator ==(Object other) =>
       identical(this, other) ||
       other is TerminalGestureSettings &&
+          touchMouseClicks == other.touchMouseClicks &&
           selectionBehaviors.singleClick ==
               other.selectionBehaviors.singleClick &&
           selectionBehaviors.doubleClick ==

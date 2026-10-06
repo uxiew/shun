@@ -449,7 +449,11 @@ final class _InteractionRegionState extends State<InteractionRegion> {
 
   void _handleTrackedDown(PointerDownEvent event) {
     if (_activePointers.containsKey(event.pointer)) return;
-    final tracked = _isMouseTracked();
+    // xwshun: 手指不当鼠标点（见 TerminalGestureSettings.touchMouseClicks）。滚动不走这里，
+    // 由 ScrollGestureRegion 照常发滚轮。
+    final tracked =
+        _isMouseTracked() &&
+        (event.kind != .touch || widget.settings.touchMouseClicks);
     final button = tracked ? _buttonForDownEvent(event) : null;
     if (_interactionPointer == null) {
       _interactionPointer = event.pointer;

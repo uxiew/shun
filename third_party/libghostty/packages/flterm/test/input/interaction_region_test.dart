@@ -3376,6 +3376,95 @@ void main() {
         expect(sgrCodes(events), [0, 0]);
       });
 
+      // xwshun: touchMouseClicks: false（R19）。
+      group('touch clicks disabled', () {
+        const settings = TerminalGestureSettings(touchMouseClicks: false);
+
+        testWidgets('tap sends nothing', (tester) async {
+          enableAnySgrMouseTracking(controller);
+          final events = <Uint8List>[];
+          controller.onOutput = events.add;
+
+          await tester.pumpWidget(
+            buildHandler(controller: controller, gestureSettings: settings),
+          );
+          await tester.tapAt(const Offset(24, 16));
+          await tester.pump(kDoubleTapTimeout);
+
+          expect(events, isEmpty);
+        });
+
+        testWidgets('long press selects locally and sends nothing', (
+          tester,
+        ) async {
+          enableAnySgrMouseTracking(controller);
+          writeToTerminal(controller, 'hello world');
+          final events = <Uint8List>[];
+          controller.onOutput = events.add;
+
+          await tester.pumpWidget(
+            buildHandler(controller: controller, gestureSettings: settings),
+          );
+          final gesture = await tester.startGesture(
+            const Offset(4, 8),
+            pointer: 1113,
+          );
+          await tester.pump(
+            kLongPressTimeout + const Duration(milliseconds: 1),
+          );
+          await gesture.moveTo(const Offset(36, 8));
+          await gesture.up();
+
+          expect(controller.hasSelection, isTrue);
+          expect(controller.selectedText(), startsWith('hell'));
+          expect(events, isEmpty);
+        });
+
+        testWidgets('scroll is still reported as wheel events', (tester) async {
+          enableAnySgrMouseTracking(controller);
+          final events = <Uint8List>[];
+          controller.onOutput = events.add;
+
+          await tester.pumpWidget(
+            buildHandler(controller: controller, gestureSettings: settings),
+          );
+          final pointer = TestPointer(1114);
+          const start = Offset(24, 200);
+          await sendPointerEvent(tester, pointer.down(start));
+          await sendPointerEvent(
+            tester,
+            pointer.move(
+              start.translate(0, 64),
+              timeStamp: const Duration(milliseconds: 8),
+            ),
+          );
+          await sendPointerEvent(
+            tester,
+            pointer.up(timeStamp: const Duration(milliseconds: 16)),
+          );
+
+          expect(sgrCodes(events), allOf(isNotEmpty, everyElement(equals(64))));
+        });
+
+        testWidgets('mouse clicks are still reported', (tester) async {
+          enableSgrMouseTracking(controller);
+          final events = <Uint8List>[];
+          controller.onOutput = events.add;
+
+          await tester.pumpWidget(
+            buildHandler(controller: controller, gestureSettings: settings),
+          );
+          final gesture = await mouseDown(
+            tester,
+            const Offset(24, 16),
+            pointer: 1115,
+          );
+          await gesture.up();
+
+          expect(sgrCodes(events), [0, 0]);
+        });
+      });
+
       testWidgets('tracked touch scroll keeps its first contact position', (
         tester,
       ) async {

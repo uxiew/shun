@@ -18,6 +18,7 @@ void main() {
         expect(settings.touchSelectionHandles, isTrue);
         expect(settings.magnifierConfiguration, isNull);
         expect(settings.wordBoundaries, isNull);
+        expect(settings.touchMouseClicks, isTrue);
       });
 
       test('stores disabled affordances', () {
@@ -94,6 +95,10 @@ void main() {
         const differentWordBoundaries = TerminalGestureSettings(
           wordBoundaries: '_',
         );
+        // xwshun
+        const differentTouchMouseClicks = TerminalGestureSettings(
+          touchMouseClicks: false,
+        );
 
         expect(a, equals(b));
         expect(a.hashCode, equals(b.hashCode));
@@ -107,6 +112,7 @@ void main() {
         expect(a, isNot(equals(differentLineSelect)));
         expect(a, isNot(equals(differentBehaviors)));
         expect(a, isNot(equals(differentWordBoundaries)));
+        expect(a, isNot(equals(differentTouchMouseClicks)));
       });
     });
   });
