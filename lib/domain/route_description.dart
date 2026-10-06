@@ -39,9 +39,14 @@ List<RouteLeg> describeRoute(RoutePlan plan) {
   legs.add(RouteLeg(
     RouteLegKind.target,
     '目标“${target.host.label}”',
-    plan.protocol == HostProtocol.telnet
-        ? 'Telnet ${target.endpoint.authority}'
-        : 'SSH ${target.host.username}@${target.endpoint.authority}',
+    switch (plan.protocol) {
+      HostProtocol.telnet => 'Telnet ${target.endpoint.authority}',
+      // 两段走的不是同一条路：SSH 只用来启动 mosh-server，之后的会话是手机直发的 UDP（MOS03）。
+      HostProtocol.mosh =>
+        'SSH ${target.host.username}@${target.endpoint.authority} 启动 mosh-server，之后 Mosh 会话走 UDP 直连',
+      HostProtocol.ssh =>
+        'SSH ${target.host.username}@${target.endpoint.authority}',
+    },
   ));
   return legs;
 }

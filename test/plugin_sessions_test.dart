@@ -348,6 +348,27 @@ void main() {
       expect(() => t.material.printableKey, throwsStateError);
     });
 
+    test('X09 插件报 failed:exit-N：立刻收尾为中断并记下原因，不等 EOF；之后的事件不复活', () async {
+      final s = await manager.open(ready('example.a', 'p.a'));
+      bridge.state(s, 1, 'active');
+      bridge.state(s, 2, 'failed:exit-1');
+      expect(s.phase, SessionPhase.interrupted);
+      expect(s.failure, 'exit-1');
+      expect(s.stopConfirmed, isNull);
+      bridge.state(s, 3, 'active');
+      expect(s.phase, SessionPhase.interrupted);
+    });
+
+    test('X09 宿主在关、运行时报失败退出：算确认停止（进程确实没了），原因照样记下', () async {
+      final s = await manager.open(ready('example.a', 'p.a'));
+      bridge.state(s, 1, 'active');
+      unawaited(s.close());
+      bridge.state(s, 2, 'failed:exit-137');
+      expect(s.phase, SessionPhase.closed);
+      expect(s.stopConfirmed, isTrue);
+      expect(s.failure, 'exit-137');
+    });
+
     test('没申请临时密钥权限：不发给插件，key 也清掉', () async {
       final e = ready('example.echo', 'p.echo');
       final t = target();

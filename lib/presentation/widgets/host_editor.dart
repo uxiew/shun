@@ -8,6 +8,7 @@ import '../../application/vault_controller.dart';
 import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/vault.dart';
+import '../../domain/plugins/mosh_route.dart';
 import '../../domain/tailscale_ssh.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import 'catalog_source_section.dart';
@@ -56,6 +57,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   late final TextEditingController keepalive;
   late final TextEditingController connectTimeout;
   late final TextEditingController authTimeout;
+  late final TextEditingController moshPorts;
   late HostProtocol protocol;
   late HostAuthMethod authMethod;
   late SshLoginMode loginMode;
@@ -102,6 +104,9 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     authTimeout = TextEditingController(
       text: ((host?.data['sshAuthReadyTimeoutSeconds'] as num?)?.toInt() ?? 30)
           .toString(),
+    );
+    moshPorts = TextEditingController(
+      text: host?.data[moshPortsKey]?.toString() ?? '',
     );
     protocol = host?.protocol ?? HostProtocol.ssh;
     authMethod = host?.authMethod ?? HostAuthMethod.auto;
@@ -159,6 +164,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
       keepalive,
       connectTimeout,
       authTimeout,
+      moshPorts,
     ]) {
       controller.dispose();
     }
@@ -218,8 +224,6 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                   value: HostProtocol.mosh,
                   label: LText('Mosh'),
                   icon: Icon(Icons.wifi_tethering),
-                  // Mosh 由独立插件提供（X08–X10），插件还没有：新建时不能选，不列出没实现的功能（UX04）。
-                  enabled: false,
                 ),
               ],
               selected: {protocol},
@@ -231,12 +235,14 @@ class _HostEditorState extends ConsumerState<HostEditor> {
               }),
             ),
             if (protocol == HostProtocol.mosh)
-              const Padding(
-                padding: EdgeInsets.only(top: 8),
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
                 child: LText(
-                  'Mosh 由独立插件提供，目前还没有这个插件：这台主机暂时连不上，可以先改用 SSH。',
-                  key: ValueKey('mosh-unavailable'),
-                  style: TextStyle(color: Colors.redAccent, fontSize: 12),
+                  'Mosh 先用 SSH 登录这台主机、在上面启动 mosh-server，然后断开 SSH，改由 Mosh 插件经 UDP 直连。'
+                  '要先装好 Mosh 插件并在「设置 → 插件（实验）」批准；服务器上要装好 mosh，本 App 不会替你装。'
+                  '只能直连：UDP 走不了代理和跳板机。',
+                  key: const ValueKey('mosh-note'),
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
             _section('基本信息'),
@@ -601,8 +607,24 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
               ],
+              if (protocol == HostProtocol.mosh) ...[
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const ValueKey('mosh-ports'),
+                  controller: moshPorts,
+                  decoration: LInputDecoration(
+                    labelText: 'Mosh UDP 端口范围（可选）',
+                    hintText: '60001:60999',
+                    helperText: 'mosh-server 只在这个范围里挑 UDP 端口。服务器或防火墙只放行了某几个端口时填它，比如 60001 或 60001:60010。',
+                    helperMaxLines: 3,
+                  ),
+                  validator: _validMoshPorts,
+                ),
+              ],
               _routePreview(preview),
-              if (widget.verifyHostKey != null)
+              // 测试连接只走 SSH、只查 PTY，测不了 Mosh 的 UDP 那一段：给 Mosh 主机一个「测试通过」反而误导。
+              if (widget.verifyHostKey != null &&
+                  protocol != HostProtocol.mosh)
                 Align(
                   alignment: Alignment.centerRight,
                   child: OutlinedButton.icon(
@@ -749,6 +771,15 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     return parsed == null || parsed < 1 || parsed > 65535 ? '端口无效' : null;
   }
 
+  String? _validMoshPorts(String? value) {
+    try {
+      parseMoshPorts(value);
+      return null;
+    } on RouteConfigException catch (error) {
+      return error.message;
+    }
+  }
+
   Future<void> _openKeychain() => showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
@@ -796,6 +827,12 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     _setOrRemove(data, 'group', group.text.trim());
     _setOrRemove(data, 'identityFileId', identityFileId);
     _setOrRemove(data, 'startupCommand', startupCommand.text.trim());
+    // 只有 Mosh 主机才留端口范围；切回 SSH 时去掉，免得留一份看不见的设置。
+    _setOrRemove(
+      data,
+      moshPortsKey,
+      protocol == HostProtocol.mosh ? moshPorts.text.trim() : null,
+    );
     if (unlinkCatalog) data.remove(CatalogBinding.key);
     if (protocol != HostProtocol.telnet &&
         loginMode == SshLoginMode.tailscale) {
@@ -853,6 +890,14 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         proxyProfiles: vault.proxyProfiles,
         keys: vault.keys,
       );
+      // Mosh 只能直连：存下来也连不上，保存前就拦住（docs/02：不支持的路线不让保存）。
+      // 从桌面端同步来的、已经配了代理的 Mosh 主机，连接时同样在任何网络动作之前拒绝。
+      if (plan.protocol == HostProtocol.mosh) {
+        final unsupported = moshRouteProblem(plan);
+        if (unsupported != null) {
+          return (plan: plan, error: unsupported.toString(), warnings: const []);
+        }
+      }
       final warnings = <String>[];
       final entry = plan.entry;
       if (entry is ProxyEntry) {

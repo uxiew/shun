@@ -4,11 +4,14 @@ import 'dart:io';
 import 'package:dartssh2/dartssh2.dart';
 
 import '../domain/connection_route.dart';
+import '../domain/plugins/mosh_bootstrap.dart';
+import '../domain/plugins/mosh_route.dart';
 import '../infrastructure/ssh/ssh_identity.dart';
 import '../infrastructure/ssh/ssh_login_watch.dart';
 import '../infrastructure/ssh/ssh_service.dart';
 import '../infrastructure/terminal/terminal_session_adapter.dart';
 import '../infrastructure/transport/proxy_transport.dart';
+import 'mosh_session.dart';
 
 /// 连接失败后给一句「下一步怎么办」（UX04）。
 ///
@@ -17,6 +20,17 @@ import '../infrastructure/transport/proxy_transport.dart';
 String? connectionHint(Object error) {
   final cause = error is RouteHopException ? error.cause : error;
   return switch (cause) {
+    // Mosh（X09）：都还没做任何远端动作，或者只做到了 SSH 那一段。
+    MoshRouteUnsupported() =>
+      '要经代理或跳板机，把这台主机的协议改回 SSH（想断线后接着用，可以配合 tmux）；要用 Mosh，把连接路径改成「直连」。',
+    MoshPluginUnavailable() => 'Mosh 插件在「设置 → 插件（实验）」里管理。这一步只查了本机，还没连服务器。',
+    MoshBootstrapException(failure: MoshBootstrapFailure.serverMissing) =>
+      '请服务器管理员安装 mosh（Debian/Ubuntu：apt install mosh；Alpine：apk add mosh-server）。'
+          '本 App 不会替你安装，也不会用 sudo。SSH 这一段是通的。',
+    MoshBootstrapException(failure: MoshBootstrapFailure.localeUnsupported) =>
+      '在服务器上生成一个 UTF-8 语言环境（比如 locale-gen en_US.UTF-8），再连。',
+    MoshBootstrapException() =>
+      '服务器上的 mosh-server 给出的连接信息不可信，没有用它；SSH 这一段是通的。检查服务器登录脚本有没有往输出里打东西。',
     RouteConfigException() => '路线配置有问题：到主机编辑器的「连接路径」里改，保存前会检查。',
     // 还没拨号就停了，和服务器、网络无关。
     TerminalEngineUnavailableException() =>

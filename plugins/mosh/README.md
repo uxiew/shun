@@ -4,8 +4,9 @@
 里面是官方 mosh-client 1.4.0 的 Android 交叉编译版，每个会话一个子进程，经 PTY 接到宿主给的 socketpair 上。
 为什么选它、不选 Dart 的 dart_mosh，见 `docs/architecture/mosh-runtime-decision.md`；来源、许可、ABI 见同目录 `LICENSES.md`。
 
-**现在只做到 X08**：运行时能装、能和真 mosh-server 互通、生命周期不拖垮宿主。主 App 里还没有「用 Mosh 连接」的入口——
-受控 bootstrap、路由判定（只许直连）、界面是 X09。
+X08 做了运行时（能装、能和真 mosh-server 互通、生命周期不拖垮宿主）；X09 在主 App 里接上了：主机协议选 Mosh 后，
+宿主经 SSH 受控启动 mosh-server（只许直连），把数字 IP、端口、临时 key 交给本插件。怎么用见使用手册第 17 节「用 Mosh 连接」，
+宿主那边的设备测试见 `integration_test/mosh_session_test.dart`。后台存活、网络切换是 X10。
 
 ## 构建
 
@@ -68,5 +69,8 @@ flutter test integration_test/mosh_runtime_test.dart -d emulator-5580 \
 - **会话打开就失败 `运行时起不来`**：先看 `adb logcat -s XwshunMosh`。`不可执行` 说明 APK 没解出运行时（见上）。
 - **会话 active 了但一直没有画面**：mosh-client 收不到服务器的 UDP。它自己会在屏幕顶上显示
   `mosh: Nothing received from server on UDP port …`。查 UDP 通路，别查 SSH。
-- **关会话后远端还留着 mosh-server**：只有插件被强杀（SIGKILL 不给 mosh-client 发关闭的机会）时会这样，
-  这是 mosh 的设计（服务器等客户端回来），界面要提示「远端可能还有旧会话」（X09/X10）。
+- **关会话后远端还留着 mosh-server**：插件被强杀时可能会这样（mosh 的设计：服务器等客户端回来）。
+  实测多数时候不留：插件一死 PTY 主端被关，内核给 mosh-client 发 SIGHUP，它还来得及通知服务器（X08、X09 都是 3 秒内远端归零）；
+  但不保证，所以宿主在标签里提示「远端可能还有旧会话」。
+- **宿主报「mosh-client 没能正常收尾（退出码 1）」**：mosh-client 自己的「没能正常收尾」，最常见是 UDP 到不了服务器——
+  它等 15 秒没收到服务器的包就开始退出（模拟器上从打开到退出约 20 秒）。终端里它自己打印的 `mosh did not make a successful connection` 更具体。

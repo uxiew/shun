@@ -54,6 +54,13 @@ class PluginTerminalSession implements PluginSessionHandle {
   /// 宿主丢弃的属于这个会话的事件数（旧代次、会话已关、序号不增）。
   int droppedEvents = 0;
 
+  /// 插件回报的失败，去掉 `failed:` 前缀，例如 Mosh 插件的 `exit-1`（运行时退出码 1）。没有失败为 null。
+  String? failure;
+
+  /// 交给插件的输入：调用 [write] 的次数和字节数。设备验证用它核对「一次提交只写一次、没有重复编码」（MOS05）。
+  int writeCount = 0;
+  int bytesWritten = 0;
+
   SessionPhase get phase => _state.phase;
   Stream<SessionPhase> get phases => _phases.stream;
   Stream<Uint8List> get output => _output.stream;
@@ -65,6 +72,8 @@ class PluginTerminalSession implements PluginSessionHandle {
     if (phase != SessionPhase.active && phase != SessionPhase.opening) {
       throw StateError('会话已结束');
     }
+    writeCount++;
+    bytesWritten += bytes.length;
     return _manager._bridge
         .writeSession(packageName, handle, generation, bytes);
   }
@@ -139,6 +148,25 @@ class PluginTerminalSession implements PluginSessionHandle {
       }
       if (phase == SessionPhase.closing) stopConfirmed = true;
       _finish(SessionPhase.closed);
+      return;
+    }
+    if (state.startsWith('failed:')) {
+      // 插件里的运行时已经退出（Mosh 插件报 failed:exit-<码>），随后插件会关掉它那一端。
+      // 立刻收尾并记下原因：等到 EOF 再收尾的话只剩一个「中断」，界面说不出是哪种失败（X09）。
+      if (phase.isTerminal) return;
+      _state = _state.apply(generation, sequence, _state.phase);
+      if (identical(before, _state)) {
+        droppedEvents++;
+        return;
+      }
+      failure = state.substring('failed:'.length);
+      if (phase == SessionPhase.closing) {
+        // 我们在关，运行时也确实退了，只是没正常收尾（比如等服务器确认超时）。
+        stopConfirmed = true;
+        _finish(SessionPhase.closed);
+      } else {
+        _finish(SessionPhase.interrupted);
+      }
       return;
     }
     if (phase.isTerminal || phase == SessionPhase.closing) {

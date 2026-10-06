@@ -29,7 +29,11 @@ void main() {
 
   HostProfile? result;
 
-  Future<void> open(WidgetTester tester, {HostProfile? host}) async {
+  Future<void> open(
+    WidgetTester tester, {
+    HostProfile? host,
+    bool verify = false,
+  }) async {
     tester.view.physicalSize = const Size(900, 4000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -60,7 +64,13 @@ void main() {
               onPressed: () async {
                 result = await Navigator.push<HostProfile>(
                   context,
-                  MaterialPageRoute(builder: (_) => HostEditor(host: host)),
+                  MaterialPageRoute(
+                    builder: (_) => HostEditor(
+                      host: host,
+                      verifyHostKey:
+                          verify ? (_, __, ___) async => false : null,
+                    ),
+                  ),
                 );
               },
               child: const Text('open'),
@@ -224,7 +234,7 @@ void main() {
     expect(preview(tester), contains('3. 跳板机“edge”'));
   });
 
-  testWidgets('Mosh 新建时不能选（插件还没有）；Telnet 注明只能直连，保存去掉代理', (tester) async {
+  testWidgets('Mosh 可以选（X09 起有插件）；Telnet 注明只能直连，保存去掉代理', (tester) async {
     await open(
       tester,
       host: saved('old-telnet', extra: {
@@ -238,10 +248,75 @@ void main() {
             find.byType(SegmentedButton<HostProtocol>))
         .segments
         .firstWhere((segment) => segment.value == HostProtocol.mosh);
-    expect(mosh.enabled, isFalse);
+    expect(mosh.enabled, isTrue);
     expect(find.byKey(const ValueKey('telnet-direct-only')), findsOneWidget);
     expect(find.widgetWithText(TextFormField, 'Telnet 端口'), findsOneWidget);
     await save(tester);
     expect(result!.data.containsKey('proxyConfig'), isFalse);
+  });
+
+  group('X09 Mosh 主机', () {
+    Future<void> chooseMosh(WidgetTester tester) async {
+      await tester.tap(find.text('Mosh'));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('只能直连：选了代理或跳板，摘要说明原因，保存被拒绝；不会悄悄去掉代理改成直连', (tester) async {
+      await open(tester);
+      await fillTarget(tester);
+      await chooseMosh(tester);
+      expect(find.byKey(const ValueKey('mosh-note')), findsOneWidget);
+      await tester.tap(find.text('经代理'));
+      await tester.pumpAndSettle();
+      await fill(tester, '代理地址', '127.0.0.1');
+      await fill(tester, '代理端口', '1055');
+      expect(preview(tester), contains('Mosh 只能直连'));
+      expect(preview(tester), contains('经SOCKS5 代理 127.0.0.1:1055'));
+      await save(tester);
+      expect(result, isNull, reason: '存下来也连不上：保存前就拦住');
+
+      await tester.tap(find.text('经跳板机'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('add-jump-host')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('edge').last);
+      await tester.pumpAndSettle();
+      expect(preview(tester), contains('经跳板机 “edge”'));
+      await save(tester);
+      expect(result, isNull);
+    });
+
+    testWidgets('直连：摘要写明两段（SSH 启动 mosh-server、之后 UDP），端口范围存进主机；没有「测试连接」', (tester) async {
+      await open(tester, verify: true);
+      await fillTarget(tester);
+      expect(find.byKey(const ValueKey('test-connection')), findsOneWidget);
+      await chooseMosh(tester);
+      expect(find.byKey(const ValueKey('test-connection')), findsNothing,
+          reason: '测试连接只测 SSH 那段，给 Mosh 主机一个「通过」会误导');
+      expect(preview(tester), contains('启动 mosh-server，之后 Mosh 会话走 UDP 直连'));
+      await tester.enterText(find.byKey(const ValueKey('mosh-ports')), '60001:70000');
+      await save(tester);
+      expect(result, isNull);
+      expect(find.textContaining('Mosh UDP 端口范围写得不对'), findsOneWidget);
+      await tester.enterText(find.byKey(const ValueKey('mosh-ports')), '60101:60108');
+      await save(tester);
+      expect(result!.protocol, HostProtocol.mosh);
+      expect(result!.data['xwshunMoshPorts'], '60101:60108');
+    });
+
+    testWidgets('切回 SSH：端口范围不留在主机上', (tester) async {
+      await open(
+        tester,
+        host: saved('old-mosh', extra: {
+          'protocol': 'mosh',
+          'xwshunMoshPorts': '60001',
+        }),
+      );
+      await tester.tap(find.text('SSH'));
+      await tester.pumpAndSettle();
+      await save(tester);
+      expect(result!.protocol, HostProtocol.ssh);
+      expect(result!.data.containsKey('xwshunMoshPorts'), isFalse);
+    });
   });
 }

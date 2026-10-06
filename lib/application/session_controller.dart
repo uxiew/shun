@@ -14,6 +14,7 @@ import '../infrastructure/terminal/terminal_session_adapter.dart';
 import '../infrastructure/tmux/tmux_protocol.dart';
 import '../infrastructure/tmux/tmux_service.dart';
 import 'credential_availability.dart';
+import 'mosh_session.dart';
 import 'terminal_engine.dart';
 import 'vault_controller.dart';
 
@@ -262,16 +263,28 @@ class SessionController extends StateNotifier<SessionState> {
               vaultController.repository.unreadableSecrets,
             );
       if (problem != null) throw CredentialUnavailableException(problem);
-      final session = await service.connect(
-        sessionId: sessionId,
-        host: connectionHost,
-        routePlan: plan,
-        verifyHostKey: verifyHostKey,
-        keyboardInteractive: keyboardInteractive,
-        terminal: terminal,
-        attempt: attempt,
-        tmuxAttach: tmuxAttach,
-      );
+      // Mosh 主机：SSH 只用来启动 mosh-server，会话由插件经 UDP 承载（X09）。路线不是直连在这里面第一步就拒绝。
+      final session = connectionHost.protocol == HostProtocol.mosh
+          ? await MoshBootstrapCoordinator(service, ref.read(moshRuntimeProvider))
+              .connect(
+              sessionId: sessionId,
+              host: connectionHost,
+              plan: plan,
+              verifyHostKey: verifyHostKey,
+              keyboardInteractive: keyboardInteractive,
+              terminal: terminal,
+              attempt: attempt,
+            )
+          : await service.connect(
+              sessionId: sessionId,
+              host: connectionHost,
+              routePlan: plan,
+              verifyHostKey: verifyHostKey,
+              keyboardInteractive: keyboardInteractive,
+              terminal: terminal,
+              attempt: attempt,
+              tmuxAttach: tmuxAttach,
+            );
       if (!_isCurrent(sessionId, attempt)) {
         // 迟到的成功：尝试已被取消或 controller 已销毁。连接此刻归这里，立刻关掉，不进标签。
         _endAttempt(sessionId, attempt);
@@ -396,6 +409,7 @@ class SessionController extends StateNotifier<SessionState> {
         if (old.connected ||
             old.closedByUser ||
             old.autoRestoreBlocked ||
+            old.plugin != null ||
             !_owns(old)) {
           continue;
         }
@@ -567,6 +581,16 @@ class SessionController extends StateNotifier<SessionState> {
     if (!mounted || !_owns(session)) {
       // 已被替换或已不在标签里的旧连接迟到的断开事件：只释放它自己，不碰界面状态。
       session.abort();
+      return;
+    }
+    if (session.plugin case final plugin?) {
+      // Mosh 会话结束了就是结束了，不自动重连：重连等于在服务器上再起一个 mosh-server、开一个新 shell，
+      // 冒充不了原来那个会话（docs/16 第 6 步）；断开前的输入也不重发。要不要再连由用户决定。
+      session.autoRestoreBlocked = true;
+      session.abort();
+      session.terminal.showNotice(plugin.endNotice ?? '');
+      if (!mounted) return;
+      state = state.copyWith(sessions: [...state.sessions]);
       return;
     }
     final tmux = session.tmux;

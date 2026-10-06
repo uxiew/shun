@@ -11,8 +11,9 @@ import 'package:integration_test/integration_test.dart';
 
 import 'r18_remote_capture.dart';
 
-/// 每段脚本远端应该得到什么。
-final _expectations = <String, void Function(List<int> bytes)>{
+/// 每段脚本远端应该得到什么。X09 的 Mosh 回放（mosh_session_test.dart 的 ime 场景）也按这一份核对：
+/// 经 Mosh 插件到远端的字节应当和经 SSH 的一模一样。
+final imeReplayExpectations = <String, void Function(List<int> bytes)>{
   // 「，你谁」→「啊，你谁」删 3 个，「你谁」→「你是谁？」删 1 个；没有整句重发。
   'wechat_voice': (bytes) {
     final r = replay(bytes);
@@ -53,7 +54,8 @@ void main() {
           what: '输入法弹出');
 
       final failures = <String>[];
-      for (final MapEntry(key: script, value: check) in _expectations.entries) {
+      for (final MapEntry(key: script, value: check)
+          in imeReplayExpectations.entries) {
         final bytes = await captureRemote(
           tester,
           terminal,
