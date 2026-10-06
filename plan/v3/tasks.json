@@ -2048,7 +2048,7 @@
       "id": "X09",
       "phase": "E2",
       "title": "Mosh受控bootstrap与终端session接入",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "X08",
         "R17",
@@ -2080,8 +2080,10 @@
       ],
       "stop_condition": "不自动安装远端mosh-server，不直连绕过用户选定代理。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/X09.md"
+      ],
+      "commit": "06a2de1"
     },
     {
       "id": "X10",

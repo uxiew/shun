@@ -944,7 +944,7 @@
 
 ## X09 Mosh受控bootstrap与终端session接入
 
-阶段：E2；状态：NOT_STARTED；依赖：X08, R17, R08；角色：实施代理。
+阶段：E2；状态：DONE；依赖：X08, R17, R08；角色：实施代理。
 
 **范围**：宿主SSH核验与受控mosh-server启动，临时key通过IPC，VT接flterm，Direct route capability前置检查。
 
