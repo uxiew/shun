@@ -55,8 +55,21 @@ flutter test test/integration_ssh_fixture_test.dart
   `(cd tool/tmux-fixture && ./up.sh)` 起、`./down.sh` 关，和上面那套互不影响、可以同时开；没起时整组跳过。细节见 `tool/tmux-fixture/README.md`。
 - Tailscale SSH 的测试（`test/tailscale_ssh_login_test.dart`）要 Go：会自己构建、起停仿制服务器，没装 Go 时整组跳过。仿制服务器和「Headscale + 真 tailscaled」环境的用法见 `tool/tailscale-ssh-fixture/README.md`。
 - 目录设备经四条路线连接的设备测试（R15，`integration_test/catalog_route_matrix_test.dart`）只在模拟器/真机上跑：`./up.sh routes` 后用同目录的 `route-matrix.sh`，见上面那份 README 的「R15」一节。
-- Mosh（X08）有自己独立的测试环境 `tool/mosh-fixture`（compose 项目 `xwshun-mosh`，SSH 22301、UDP 60101–60108），和上面那套互不影响。
-  Dart 候选的探针、官方客户端对照怎么跑见那里的 README；Mosh 插件 APK 怎么编、设备上怎么验见 `plugins/mosh/README.md`。
+- Mosh（X08、X09）有自己独立的测试环境 `tool/mosh-fixture`（compose 项目 `xwshun-mosh`，SSH 22301、UDP 60101–60108，
+  另有一台没装 mosh 的 22302），和上面那套互不影响。Mosh 插件 APK 怎么编见 `plugins/mosh/README.md`。
+  - 桌面上（不要模拟器）：`(cd tool/mosh-fixture && ./up.sh)` 后 `flutter test test/mosh_fixture_test.dart`，13 条，约 10 秒。
+    真实 OpenSSH + mosh-server 上的引导、指纹、密码错、缺 mosh-server、五种路线拒绝，计数来自测试环境的记账（`counts.sh`）。没起环境时整组跳过。
+  - 模拟器上（X09，用户点「连接」的那条路 + 真插件）：先**关掉模拟器的 Wi-Fi**（原因见第 3 节「别用 10.0.2.2 连 TCP」那段），装插件，再跑：
+    ```bash
+    adb -s emulator-5580 shell svc wifi disable
+    adb -s emulator-5580 install -r plugins/mosh/build/outputs/apk/release/mosh-release.apk
+    flutter test integration_test/mosh_session_test.dart -d emulator-5580 \
+      --dart-define=X09_MOSH="$(python3 tool/mosh-fixture/x08_config.py)" --dart-define=X09_SCENARIO=all
+    adb -s emulator-5580 shell svc wifi enable      # 测完开回来
+    ```
+    `all` 约 45 秒（不算构建）；另有 `cycles`、`kill`（打出 `X09 kill.READY` 后在电脑上强杀插件）、`ime`（经 `tool/ime-replay.sh`，
+    额外参数放 `IME_REPLAY_DEFINES`，写法见脚本开头）。加 `--dart-define=X09_ENGINE=xterm2` 换旧引擎对照。
+    多行的报告（阶段、屏幕）只有第一行带 `X09 ` 前缀，grep 时带上 `-A`。
 
 ## 3. 模拟器
 
@@ -70,7 +83,10 @@ adb -s emulator-5554 emu kill               # 关机
 ```
 
 在模拟器里连本机的测试环境：先 `adb reverse tcp:22201 tcp:22201`（SOCKS 再加 21080、21081），App 里地址填 `127.0.0.1`。
-别用 `10.0.2.2`：它连 OrbStack 转发的端口能建 TCP 但收不到任何数据，App 会报「对方在登录前断开」，看着像配置错，其实是模拟器网络的问题。
+别用 `10.0.2.2` 连 TCP：模拟器的默认网络是虚拟 Wi-Fi，经它连 `10.0.2.2` 的 TCP 能建上但收不到数据（Mac 上一个普通的 Python HTTP 服务也一样，
+不是 OrbStack 的问题，X09 查实），App 会报「对方在登录前断开」，看着像配置错。UDP 经 `10.0.2.2` 是通的。
+**Mosh 例外**：UDP 必须发往 SSH 实际连上的那个 IP，SSH 走 adb reverse 就成了 127.0.0.1，UDP 会发到模拟器自己身上。
+这时 `adb shell svc wifi disable` 关掉 Wi-Fi，默认网络换成模拟器的蜂窝那张网卡，经 `10.0.2.2` 的 TCP 就正常了；测完 `svc wifi enable`。
 
 **别在模拟器或本机上直连 `100.x`。** 这台 Mac 自己在真实 tailnet 上（`utun4`，`100.64/10` 走它），模拟器发出的连接也是 Mac 发的，
 直连 100.x 等于往你的真实 tailnet 里拨号（R13 曾这样连过 `100.64.0.10`，那里恰好没有设备）。测试用的 tailnet 只经 SOCKS 或跳板去连，见 `tool/tailscale-ssh-fixture/README.md`。
@@ -197,6 +213,10 @@ brew 为本项目装的（2026-10-04）：`zig@0.16` 和它依赖的 `llvm@21`�
   （真机上帧照常出，动画结束就放行，不会卡）。只用 `pump()` 不推进时间的测试碰不上；要推进时间的，在测试里设
   `tester.binding.schedulingStrategy = ({required priority, required scheduler}) => true`（`test/terminal_input_routing_test.dart` 有）。
   查这种卡死：`flutter test --start-paused`，用 vm_service 的 `getStack` 看卡在哪（R18 就是这么找到的）。
+- **模拟器里连 `10.0.2.2` 的 SSH 报 `Connection closed before authentication`，测试环境的 sshd 日志里却根本没有这条连接**：
+  模拟器的虚拟 Wi-Fi 吃掉了发往 `10.0.2.2` 的 TCP（`toybox nc` 偶尔能收到一行版本号，换成真的 SSH 握手就断）。
+  X09 先以为是 OrbStack，在 Mac 上垫了一个 TCP 中继、又起了个 Python HTTP 服务，都一样收不到；`adb shell svc wifi disable` 之后立刻正常。
+  刚开机、Wi-Fi 还没接管默认网络的那十几秒里是通的，所以第一次试可能骗过你。见第 3 节。
 - **Android 8.1 及更早的模拟器上 `adb logcat -c` 清不掉日志**（8.0 直接报 `failed to clear the 'main' log`）：
   按日志核对结果时别依赖清空，按"操作前已有几行"截取（`spikes/terminal_spike/tool/adb_key_check.sh` 就是这么做的）。
 
