@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
-import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/settings_controller.dart';
@@ -17,6 +16,8 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
     required this.customKeys,
     required this.onSend,
     required this.onKey,
+    this.onPaste,
+    this.onCompose,
     required this.inputController,
     required this.onAi,
     required this.onPortForward,
@@ -37,6 +38,12 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
 
   /// 内置的功能键（Esc、Tab、方向键、Home/End）交给引擎编码，见 [TerminalSpecialKey]。
   final void Function(TerminalSpecialKey key) onKey;
+
+  /// 「粘贴」：终端页读剪贴板、按内容决定直接粘贴还是先预览（R19）。为 null 时这个键不响应。
+  final VoidCallback? onPaste;
+
+  /// 长按「粘贴」：打开空白的多行编辑框，写好了再发（R19）。
+  final VoidCallback? onCompose;
   final TerminalInputController inputController;
 
   /// 为 null 时隐藏 AI 按钮（本 fork 默认关闭 AI，见 ForkFeatures）。
@@ -329,9 +336,11 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
   Widget _keyButton(_QuickKey key) {
     final selected = key.type == _QuickKeyType.modifier &&
         widget.inputController.modifiers.contains(key.modifierId);
+    final paste = key.type == _QuickKeyType.paste;
     return Semantics(
       button: true,
       selected: selected,
+      onLongPressHint: paste ? localized('多行编辑') : null,
       child: Listener(
         behavior: HitTestBehavior.opaque,
         onPointerDown: key.repeatable
@@ -343,6 +352,7 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
             key.repeatable ? (event) => _endRepeating(event.pointer) : null,
         child: TextButton(
           onPressed: () => _handleTap(key),
+          onLongPress: paste ? widget.onCompose : null,
           style: TextButton.styleFrom(
             minimumSize: Size.zero,
             padding: const EdgeInsets.symmetric(horizontal: 4),
@@ -368,6 +378,8 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                 )
               : Tooltip(
                   message: key.label,
+                  // 「粘贴」的长按留给多行编辑，提示不抢长按。
+                  triggerMode: paste ? TooltipTriggerMode.manual : null,
                   child: Icon(key.icon, size: 20),
                 ),
         ),
@@ -433,10 +445,9 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
       return;
     }
     if (key.type == _QuickKeyType.paste) {
+      // 不再按打字发（换行就是回车、多行逐行执行）：交给终端页走粘贴（R19）。
       widget.inputController.clearModifiers();
-      final data = await Clipboard.getData(Clipboard.kTextPlain);
-      final text = data?.text;
-      if (text?.isNotEmpty == true) widget.onSend(text!);
+      widget.onPaste?.call();
       return;
     }
     final value = decodeTerminalKeyEscapes(key.value ?? '');

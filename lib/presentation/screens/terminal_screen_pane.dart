@@ -243,6 +243,7 @@ class _TerminalPane extends StatefulWidget {
     required this.pictureInPicture,
     required this.transparentBackground,
     this.onFocused,
+    this.onPaste,
     this.inputTarget = false,
   });
   final ActiveTerminalSession session;
@@ -253,6 +254,9 @@ class _TerminalPane extends StatefulWidget {
 
   /// 这一格的终端拿到焦点（用户点了它）。分屏时据此决定快捷键栏发给谁。
   final ValueChanged<String>? onFocused;
+
+  /// 硬件键盘在这一格里按了粘贴快捷键（[TerminalPasteIntent]）。
+  final ValueChanged<ActiveTerminalSession>? onPaste;
 
   /// 分屏时输入正发往这一格：描一圈边。另一格没有边，不只靠颜色区分。
   final bool inputTarget;
@@ -349,13 +353,23 @@ class _TerminalPaneState extends State<_TerminalPane> {
                 color: widget.transparentBackground
                     ? Colors.transparent
                     : scheme.surface,
-                child: terminalViewFor(
-                  _terminal,
-                  TerminalViewOptions(
-                    fontSize: widget.fontSize,
-                    secureKeyboard: widget.secureKeyboard,
-                    interactive: !widget.pictureInPicture,
-                    transparentBackground: widget.transparentBackground,
+                child: Actions(
+                  actions: {
+                    TerminalPasteIntent: CallbackAction<TerminalPasteIntent>(
+                      onInvoke: (_) {
+                        widget.onPaste?.call(widget.session);
+                        return null;
+                      },
+                    ),
+                  },
+                  child: terminalViewFor(
+                    _terminal,
+                    TerminalViewOptions(
+                      fontSize: widget.fontSize,
+                      secureKeyboard: widget.secureKeyboard,
+                      interactive: !widget.pictureInPicture,
+                      transparentBackground: widget.transparentBackground,
+                    ),
                   ),
                 ),
               ),

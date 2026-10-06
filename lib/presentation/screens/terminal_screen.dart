@@ -29,6 +29,7 @@ import '../widgets/host_system_icon.dart';
 import '../widgets/port_forward_sheet.dart';
 import '../widgets/route_legs_view.dart';
 import '../widgets/server_monitor_sheet.dart';
+import '../widgets/terminal_paste_sheet.dart';
 import '../widgets/terminal_special_keys.dart';
 import '../widgets/system_management/system_management_sheet.dart';
 import '../widgets/tailscale_check_card.dart';
@@ -85,6 +86,10 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     _sessionById(_inputSessionId)?.terminal.input.clearModifiers();
     setState(() => _inputSessionId = sessionId);
   }
+
+  /// 硬件键盘在某一格里按了粘贴快捷键：发给那一格，走和快捷键栏一样的预览（R19）。
+  void _pasteInto(ActiveTerminalSession session) =>
+      unawaited(pasteClipboardInto(context, ref, session));
 
   ActiveTerminalSession? _sessionById(String? id) => id == null
       ? null
@@ -377,6 +382,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                                   transparentBackground:
                                       customBackground && !pictureInPicture,
                                   onFocused: _focusPane,
+                                  onPaste: _pasteInto,
                                 );
                               }
                               final secondIndex = (state.activeIndex + 1) %
@@ -392,6 +398,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                                     pictureInPicture: false,
                                     transparentBackground: customBackground,
                                     onFocused: _focusPane,
+                                    onPaste: _pasteInto,
                                     inputTarget:
                                         inputSession?.id == state.active!.id,
                                   ),
@@ -408,6 +415,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                                     pictureInPicture: false,
                                     transparentBackground: customBackground,
                                     onFocused: _focusPane,
+                                    onPaste: _pasteInto,
                                     inputTarget: inputSession?.id ==
                                         state.sessions[secondIndex].id,
                                   ),
@@ -433,6 +441,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                   onKey: (key) => ref
                       .read(sessionControllerProvider.notifier)
                       .pressKey(inputSession.id, key),
+                  onPaste: () => pasteClipboardInto(context, ref, inputSession),
+                  onCompose: () =>
+                      showTerminalPasteSheet(context, target: inputSession),
                   compact: compact,
                   onAi: ref.watch(forkFeaturesProvider).ai
                       ? () => _openAi(visibleSession)

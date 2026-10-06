@@ -1174,6 +1174,44 @@ const englishTranslations = <String, String>{
   '没能打开 RustDesk：': 'Could not open RustDesk: ',
   '已交给 RustDesk。它不向本 App 回报结果：连没连上、什么时候断开，请看 RustDesk。':
       'Handed to RustDesk. It reports nothing back to this app: check RustDesk to see whether it connected and when it disconnected.',
+  // R19：粘贴预览、多行编辑（terminal_paste_sheet.dart、session_controller.dart）。整句精确匹配。
+  '粘贴到': 'Paste into',
+  '行': 'lines',
+  '字': 'chars',
+  '多行编辑': 'Multi-line edit',
+  '没有发送：目标标签已经关了': 'Not sent: the target tab was closed',
+  '没有发送：目标连接已断开': 'Not sent: the target connection is down',
+  '没有发送：连接已经恢复成新的 shell，原来那条收不到了':
+      'Not sent: the connection was restored as a new shell; the original one can no longer receive',
+  '连接已断开：不会发送，恢复后也不会自动补发。内容留在这里，可以复制。':
+      'The connection is down: nothing will be sent, and nothing is resent after it comes back. The text stays here and can be copied.',
+  '连接已经恢复成新的 shell：原来那条收不到了，不会自动改发。要发到新连接请点「改发到新连接」。':
+      'The connection was restored as a new shell: the original one can no longer receive, and nothing is redirected automatically. Tap "Send to new connection" to send there.',
+  '标签已经关了：不会发送。内容留在这里，可以复制。':
+      'The tab was closed: nothing will be sent. The text stays here and can be copied.',
+  '改发到新连接': 'Send to new connection',
+  '多行。远端程序现在开着 bracketed paste（粘贴标记）：多数新版 shell 会把整段放进输入行，等你按回车才执行。但这是远端程序自己的约定，App 保证不了，有的程序照样逐行执行。':
+      'Multiple lines. The remote program has bracketed paste on: most recent shells put the whole block on the input line and wait for Enter. That is only a convention of the remote program; the app cannot guarantee it, and some programs still run it line by line.',
+  '多行。远端程序现在没开 bracketed paste：每个换行都等于按一次回车，除了最后一行，前面各行会在粘贴的同时执行。':
+      'Multiple lines. The remote program has bracketed paste off: every line break is an Enter, so every line except the last runs as it is pasted.',
+  '末尾的换行不会发出去：粘贴完不会自动执行最后一行。要执行就点「粘贴并回车」，或者回到终端自己按回车。':
+      'Trailing line breaks are not sent, so the last line does not run by itself. To run it, tap "Paste and Enter" or press Enter in the terminal.',
+  '去掉了控制字符（在终端里它们是按键，不是文字）：':
+      'Removed control characters (in a terminal they are keystrokes, not text):',
+  '有看不见的排版字符（零宽字符、改变文字方向的字符）：屏幕上看到的顺序可能和实际发出去的不一样。':
+      'Contains invisible formatting characters (zero-width or direction-changing): what you see may be in a different order from what is sent.',
+  '含 Tab：远端没开 bracketed paste 时，shell 会把它当补全键。':
+      'Contains Tab: with bracketed paste off, the shell treats it as the completion key.',
+  '内容很长，请确认整段都是你要发的。':
+      'This is long; make sure all of it is what you want to send.',
+  '在这里编辑。按回车只是换行，不会发送':
+      'Edit here. Enter only adds a line break and sends nothing',
+  '复制内容': 'Copy text',
+  '粘贴并回车': 'Paste and Enter',
+  '粘贴（会逐行执行）': 'Paste (runs line by line)',
+  '已粘贴并发送回车到': 'Pasted and sent Enter to',
+  '已粘贴到（没有回车）': 'Pasted without Enter into',
+  '已复制，没有发送': 'Copied, not sent',
   // R14 Tailscale SSH
   'Tailscale SSH（不发密码和私钥）':
       'Tailscale SSH (no password or private key is sent)',

@@ -224,6 +224,15 @@ class _XtermTerminalViewState extends State<XtermTerminalView> {
                 ? TextInputType.visiblePassword
                 : TextInputType.emailAddress,
             deleteDetection: true,
+            // xterm2 给了 shortcuts 就整个替换默认的：复制、全选照抄它在 Android 上的默认，
+            // 粘贴换成 App 的（先预览，SEC10），不让 xterm2 直接把剪贴板粘进终端。
+            shortcuts: const {
+              SingleActivator(LogicalKeyboardKey.keyC,
+                  control: true, shift: true): CopySelectionTextIntent.copy,
+              SingleActivator(LogicalKeyboardKey.keyA, control: true):
+                  SelectAllTextIntent(SelectionChangedCause.keyboard),
+              ...terminalPasteShortcuts,
+            },
             autofocus: widget.options.interactive,
             padding: const EdgeInsets.all(8),
             textStyle: TerminalStyle(

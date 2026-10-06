@@ -28,6 +28,21 @@ class TerminalViewOptions {
   final bool transparentBackground;
 }
 
+/// 硬件键盘的粘贴快捷键（R19）。两个引擎自带的快捷键都是直接把剪贴板粘进终端、不预览；
+/// 各引擎视图把 Ctrl+V（以及 Ctrl+Shift+V、Meta+V）改成发这个意图，由终端页接住，走和快捷键栏
+/// 「粘贴」同一套预览（SEC10）。没人接（比如单独挂一个终端视图）时这个键原样交给终端，按的就是 Ctrl+V。
+class TerminalPasteIntent extends Intent {
+  const TerminalPasteIntent();
+}
+
+const terminalPasteShortcuts = <ShortcutActivator, Intent>{
+  SingleActivator(LogicalKeyboardKey.keyV, control: true):
+      TerminalPasteIntent(),
+  SingleActivator(LogicalKeyboardKey.keyV, control: true, shift: true):
+      TerminalPasteIntent(),
+  SingleActivator(LogicalKeyboardKey.keyV, meta: true): TerminalPasteIntent(),
+};
+
 /// 按终端实际用的引擎选视图。终端页只调这里，不认识任何引擎的类型（R16）。
 Widget terminalViewFor(
   TerminalSessionAdapter terminal,

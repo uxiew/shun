@@ -749,6 +749,43 @@ class SessionController extends StateNotifier<SessionState> {
     session.terminal.sendText(enter ? '$text\r' : text);
   }
 
+  /// [target] 现在还能不能收；能收返回 null（R19，SEC10）。
+  ///
+  /// 认的是用户动手那一刻的连接对象本身，不是标签 id：期间标签被关、连接断了，
+  /// 或者断线恢复换成了一条新连接（同一个标签、新的 shell），都算目标变了。
+  TerminalTargetProblem? targetProblem(ActiveTerminalSession target) {
+    final current =
+        state.sessions.where((value) => value.id == target.id).firstOrNull;
+    if (current == null) return TerminalTargetProblem.closed;
+    if (!identical(current, target)) return TerminalTargetProblem.replaced;
+    if (!target.connected) return TerminalTargetProblem.disconnected;
+    return null;
+  }
+
+  /// 同一个标签现在那条连着的连接（恢复后的新连接），没有就是 null。粘贴预览里「改发到新连接」用。
+  ActiveTerminalSession? liveSessionFor(ActiveTerminalSession target) {
+    final current =
+        state.sessions.where((value) => value.id == target.id).firstOrNull;
+    return current != null && current.connected ? current : null;
+  }
+
+  /// 把 [text] 当粘贴发给 [target]（见 [TerminalSessionAdapter.paste]：不套修饰键、按远端的
+  /// bracketed paste 包标记，末尾不加回车）。
+  ///
+  /// 目标变了（见 [targetProblem]）就不发，抛 [TerminalTargetChangedException]：不改发给现在的标签，
+  /// 也不等恢复以后补发（TER09「不自动重发」）。[enter] 只在用户明确点了「粘贴并回车」时为 true，
+  /// 粘贴完再单独发一个回车。
+  void pasteInto(
+    ActiveTerminalSession target,
+    String text, {
+    bool enter = false,
+  }) {
+    final problem = targetProblem(target);
+    if (problem != null) throw TerminalTargetChangedException(problem);
+    target.terminal.paste(text);
+    if (enter) target.terminal.sendText('\r');
+  }
+
   /// controller 销毁（应用退出、测试结束）时：所有进行中的尝试失效并关掉半成品，
   /// 已建立的连接全部释放。以前只停监控，SSH 连接和跳板连接会一直留着没人管（LIFE06）。
   @override
@@ -764,4 +801,29 @@ class SessionController extends StateNotifier<SessionState> {
     _backgroundMaintenanceTimer?.cancel();
     super.dispose();
   }
+}
+
+/// 粘贴、发送的目标为什么收不到了（R19，SEC10）。
+enum TerminalTargetProblem {
+  /// 标签关了。
+  closed,
+
+  /// 连接断了，还没恢复。
+  disconnected,
+
+  /// 断线后恢复成了一条新连接：同一个标签，但已经是新的 shell，原来那条收不到了。
+  replaced,
+}
+
+class TerminalTargetChangedException implements Exception {
+  const TerminalTargetChangedException(this.problem);
+
+  final TerminalTargetProblem problem;
+
+  @override
+  String toString() => switch (problem) {
+        TerminalTargetProblem.closed => '没有发送：目标标签已经关了',
+        TerminalTargetProblem.disconnected => '没有发送：目标连接已断开',
+        TerminalTargetProblem.replaced => '没有发送：连接已经恢复成新的 shell，原来那条收不到了',
+      };
 }
