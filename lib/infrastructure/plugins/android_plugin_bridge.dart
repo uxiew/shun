@@ -270,20 +270,39 @@ class AndroidPluginBridge {
     }
   }
 
+  /// [moshHost]/[moshPort]/[moshKey] 三个一起给时走插件的 openMoshSession（X08）：
+  /// 目标必须是数字 IP（插件不做 DNS），key 是 22 个 base64 字符的字节。key 经平台通道传过去后，
+  /// Kotlin 那边用完就清零；这一侧由调用方清（[MoshBootstrapResult.wipe]）。
   Future<void> openSession({
     required String packageName,
     required String handle,
     required int generation,
     required int cols,
     required int rows,
-  }) =>
-      _invoke<void>('openSession', {
-        'package': packageName,
-        'handle': handle,
-        'generation': generation,
-        'cols': cols,
-        'rows': rows,
-      });
+    String? moshHost,
+    int? moshPort,
+    Uint8List? moshKey,
+  }) {
+    final mosh = moshHost != null || moshPort != null || moshKey != null;
+    if (mosh &&
+        (moshHost == null ||
+            InternetAddress.tryParse(moshHost) == null ||
+            moshPort == null ||
+            moshPort < 1 ||
+            moshPort > 65535 ||
+            moshKey == null ||
+            moshKey.length != 22)) {
+      throw const PluginBridgeException('BAD_ARGS', 'Mosh 目标或材料无效');
+    }
+    return _invoke<void>('openSession', {
+      'package': packageName,
+      'handle': handle,
+      'generation': generation,
+      'cols': cols,
+      'rows': rows,
+      if (mosh) ...{'udpHost': moshHost, 'udpPort': moshPort, 'key': moshKey},
+    });
+  }
 
   Future<void> resizeSession(
     String packageName,

@@ -52,5 +52,9 @@ public final class RogueProviderService extends Service {
 
         @Override
         public void closeSession(String handle, long generation) {}
+
+        @Override
+        public void openMoshSession(String handle, long generation, int cols, int rows, ParcelFileDescriptor stream,
+                String udpHost, int udpPort, byte[] printableKey) {}
     };
 }

@@ -143,6 +143,22 @@ public final class EchoProviderService extends Service {
             EchoSession session = sessions.remove(handle, uid, generation);
             if (session != null) session.close(); // 读线程随即结束并回报 closed
         }
+
+        @Override
+        public void openMoshSession(String handle, long generation, int cols, int rows, ParcelFileDescriptor stream,
+                String udpHost, int udpPort, byte[] printableKey) {
+            requireHost("openMoshSession");
+            // echo 不是 Mosh：不收秘密材料。宿主不该调到这里（描述符没申请 own-session-ephemeral-secret）。
+            if (printableKey != null) java.util.Arrays.fill(printableKey, (byte) 0);
+            if (stream != null) {
+                try {
+                    stream.close();
+                } catch (IOException ignored) {
+                    // 已关
+                }
+            }
+            throw new UnsupportedOperationException("echo 不提供 Mosh 会话");
+        }
     };
 
     private void sendSessionEvent(EchoSession session, String state) {

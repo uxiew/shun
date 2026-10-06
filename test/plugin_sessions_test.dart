@@ -7,13 +7,16 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/application/plugin_registry.dart';
 import 'package:netcatty_mobile/application/plugin_sessions.dart';
 import 'package:netcatty_mobile/domain/plugins/builtin_plugins.dart';
+import 'package:netcatty_mobile/domain/plugins/mosh_bootstrap.dart';
 import 'package:netcatty_mobile/infrastructure/plugins/android_plugin_bridge.dart';
 import 'package:plugin_api/plugin_api.dart';
 
 // X03 宿主侧会话状态机。桥是假的：这里测的是 Dart 这一层怎么对待插件发来的事件和字节。
 // 真实的 FD、Binder、插件进程在模拟器上用 integration_test 验证，见 evidence/X03.md。
 
-String descriptor(String id, String package) => jsonEncode({
+String descriptor(String id, String package,
+        {List<String> permissions = const ['own-session-input-output']}) =>
+    jsonEncode({
       'schemaVersion': 1,
       'pluginId': id,
       'displayName': id,
@@ -24,7 +27,7 @@ String descriptor(String id, String package) => jsonEncode({
       'capabilities': ['terminal-session'],
       'supportedRoutes': ['system-default'],
       'platforms': ['android'],
-      'permissions': ['own-session-input-output'],
+      'permissions': permissions,
       'packageName': package,
       'serviceClass': '$package.S',
     });
@@ -34,6 +37,8 @@ class FakeBridge extends AndroidPluginBridge {
   final control = StreamController<SessionBridgeEvent>.broadcast(sync: true);
   final calls = <String>[];
   var acks = 0;
+  Uint8List? moshKeySeen;
+  String? moshKeyAtCall;
 
   @override
   Stream<SessionDataEvent> get sessionData => data.stream;
@@ -47,8 +52,19 @@ class FakeBridge extends AndroidPluginBridge {
     required int generation,
     required int cols,
     required int rows,
-  }) async =>
-      calls.add('open $packageName $generation');
+    String? moshHost,
+    int? moshPort,
+    Uint8List? moshKey,
+  }) async {
+    if (moshKey != null) {
+      // 记下调用那一刻的内容（之后应被宿主清零），和对象本身（看是不是同一份被清）。
+      moshKeyAtCall = ascii.decode(moshKey);
+      moshKeySeen = moshKey;
+    }
+    calls.add(moshHost == null
+        ? 'open $packageName $generation'
+        : 'openMosh $packageName $generation $moshHost:$moshPort');
+  }
 
   @override
   Future<bool> closeSession(String p, String h, int g) async {
@@ -79,11 +95,12 @@ void main() {
   late PluginRegistry registry;
   late PluginSessionManager manager;
 
-  PluginEntry ready(String id, String package) {
+  PluginEntry ready(String id, String package,
+      {List<String> permissions = const ['own-session-input-output']}) {
     registry
       ..offerInstalled(
         packageName: package,
-        descriptorJson: descriptor(id, package),
+        descriptorJson: descriptor(id, package, permissions: permissions),
         signerDigests: {'cert-$package'},
         serviceClass: '$package.S',
       )
@@ -308,6 +325,37 @@ void main() {
           ),
         );
       expect(a.phase, SessionPhase.interrupted);
+    });
+  });
+
+  group('Mosh 会话材料（X08）', () {
+    const key = 'v450/k6rhyS3hwDL4ejCIQ';
+    MoshSessionTarget target() => MoshSessionTarget(
+          '10.0.2.2',
+          MoshBootstrap.parse(utf8.encode('MOSH CONNECT 60101 $key\n')),
+        );
+
+    test('申请了临时密钥权限：材料交给插件，交完宿主这边的 key 清零', () async {
+      final e = ready('example.mosh', 'p.mosh', permissions: [
+        'own-session-input-output',
+        'own-session-ephemeral-secret',
+      ]);
+      final t = target();
+      await manager.open(e, mosh: t);
+      expect(bridge.calls, ['openMosh p.mosh 1 10.0.2.2:60101']);
+      expect(bridge.moshKeyAtCall, key);
+      expect(bridge.moshKeySeen!.every((b) => b == 0), isTrue);
+      expect(() => t.material.printableKey, throwsStateError);
+    });
+
+    test('没申请临时密钥权限：不发给插件，key 也清掉', () async {
+      final e = ready('example.echo', 'p.echo');
+      final t = target();
+      final keyBytes = t.material.printableKey;
+      await expectLater(
+          manager.open(e, mosh: t), throwsA(isA<PluginUnavailable>()));
+      expect(bridge.calls, isEmpty);
+      expect(keyBytes.every((b) => b == 0), isTrue);
     });
   });
 }

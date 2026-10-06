@@ -1,0 +1,20 @@
+name: mosh_dart_probe
+description: X08 Dart 候选（dart_mosh）对真实 mosh-server 的互操作探针。只在本机跑，不进 App。
+publish_to: none
+version: 0.0.0
+
+environment:
+  sdk: ^3.9.0
+  flutter: ">=3.44.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # 被评估的 Dart 候选，钉死版本（pub.dev 归档 sha256 3301f3c6…，见 docs/architecture/mosh-runtime-decision.md）。
+  dart_mosh: 0.0.4
+  # 只用来把两条路径收到的字节画成屏幕文字再比较；和主 App 用同一个版本。
+  xterm2: 5.2.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter

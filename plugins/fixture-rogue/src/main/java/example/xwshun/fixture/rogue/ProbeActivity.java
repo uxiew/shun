@@ -17,7 +17,9 @@ import top.xdwa.xwshun.plugin.v1.PluginContract;
  * 冒充宿主去调 echo 插件：Intent 里伪造「我是 top.xdwa.xwshun」，拿到 Binder 后逐个调用每个方法。
  * 结果打到 logcat（tag XwshunRogue），每个方法一行：ACCEPTED 就是插件鉴权有洞。
  *
- * adb shell am start -n example.xwshun.fixture.rogue/.ProbeActivity [--es target <插件包名>]
+ * adb shell am start -n example.xwshun.fixture.rogue/.ProbeActivity [--es target <插件包名>] [--es service <服务类名>]
+ *
+ * 探 Mosh 插件：--es target top.xdwa.xwshun.mosh --es service top.xdwa.xwshun.mosh.MoshProviderService
  */
 public final class ProbeActivity extends Activity {
     private static final String TAG = "XwshunRogue";
@@ -27,8 +29,10 @@ public final class ProbeActivity extends Activity {
         super.onCreate(savedInstanceState);
         String target = getIntent().getStringExtra("target");
         if (target == null) target = "example.xwshun.fixture.echo";
+        String service = getIntent().getStringExtra("service");
+        if (service == null) service = "example.xwshun.fixture.echo.EchoProviderService";
         Intent intent = new Intent(PluginContract.ACTION_PROVIDER)
-                .setComponent(new ComponentName(target, "example.xwshun.fixture.echo.EchoProviderService"))
+                .setComponent(new ComponentName(target, service))
                 .putExtra("calling_package", "top.xdwa.xwshun")
                 .putExtra(Intent.EXTRA_PACKAGE_NAME, "top.xdwa.xwshun")
                 .putExtra("signing_sha256", "trust-me");
@@ -49,6 +53,17 @@ public final class ProbeActivity extends Activity {
                         ParcelFileDescriptor[] pair = ParcelFileDescriptor.createSocketPair();
                         try {
                             provider.openSession("rogue-0001", 1, 80, 24, pair[1]);
+                            return "opened";
+                        } finally {
+                            pair[0].close();
+                            pair[1].close();
+                        }
+                    });
+                    probe("openMoshSession", () -> {
+                        ParcelFileDescriptor[] pair = ParcelFileDescriptor.createSocketPair();
+                        try {
+                            provider.openMoshSession("rogue-0002", 1, 80, 24, pair[1], "127.0.0.1", 60001,
+                                    "AAAAAAAAAAAAAAAAAAAAAA".getBytes(java.nio.charset.StandardCharsets.US_ASCII));
                             return "opened";
                         } finally {
                             pair[0].close();

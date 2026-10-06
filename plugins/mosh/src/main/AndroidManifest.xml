@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- mosh-client 自己收发 UDP。插件拿了 INTERNET，宿主就管不住它往哪连（docs/15 §6），授权页要说明。 -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
+    <!-- 看得到宿主（核对宿主证书）。不申请 QUERY_ALL_PACKAGES。 -->
+    <queries>
+        <package android:name="top.xdwa.xwshun" />
+    </queries>
+
+    <!-- extractNativeLibs：运行时是要 exec 的文件，必须由系统解出到 nativeLibraryDir。不设 sharedUserId。 -->
+    <application
+        android:label="xwshun Mosh"
+        android:allowBackup="false"
+        android:extractNativeLibs="true">
+        <service
+            android:name=".MoshProviderService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="top.xdwa.xwshun.plugin.action.PROVIDER_V1" />
+            </intent-filter>
+            <meta-data
+                android:name="top.xdwa.xwshun.plugin.DESCRIPTOR"
+                android:resource="@raw/xwshun_plugin" />
+        </service>
+    </application>
+</manifest>
