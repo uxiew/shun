@@ -569,14 +569,18 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
             title: const LText('关闭 SSH 标签页？'),
             // 不承诺普通 shell 里的程序还活着（TMX08）：断开时它们通常会收到挂断信号一起结束；
             // tmux 标签只是分离客户端，会话和里面的程序还在。
+            // 已经断开的标签什么都不会再发：不能再说「会话留在远端」——恢复时可能已经查明它不在了。
             content: LText(
-              switch (session.tmux) {
-                final tmux? => '只分离这个标签的 tmux 客户端：tmux 会话 '
+              switch ((session.tmux, session.connected)) {
+                (final tmux?, true) => '只分离这个标签的 tmux 客户端：tmux 会话 '
                     '${tmux.target.displayName}（${tmux.target.sessionId}）和里面的程序留在远端，'
                     '不发送 Ctrl-C，也不结束会话。',
-                null => '将断开 ${session.host.label} '
+                (final tmux?, false) => '这个标签已经断开，关掉只是把它移走。tmux 会话 '
+                    '${tmux.target.displayName}（${tmux.target.sessionId}）如果还在，不受影响。',
+                (null, true) => '将断开 ${session.host.label} '
                     '(${session.host.username}@${session.host.hostname}) 的当前会话。'
                     '没在 tmux 之类工具里运行的程序，通常会随连接一起结束。',
+                (null, false) => '这个标签已经断开，关掉只是把它移走。',
               },
             ),
             actions: [

@@ -1241,6 +1241,15 @@ const englishReplacements = <(String, String)>[
     ' 还在，可在「系统管理 → tmux」里重新附着。',
     ' still exists, you can re-attach it from “System management → tmux”.'
   ),
+  (
+    '这个标签已经断开，关掉只是把它移走。tmux 会话 ',
+    'This tab is already disconnected; closing it only removes it. tmux session '
+  ),
+  (
+    '这个标签已经断开，关掉只是把它移走。',
+    'This tab is already disconnected; closing it only removes it.'
+  ),
+  ('如果还在，不受影响。', ' is not affected if it still exists.'),
   ('如果会话 ', 'if session '),
   (
     '只分离这个标签的 tmux 客户端：tmux 会话 ',
