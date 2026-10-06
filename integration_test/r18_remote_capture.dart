@@ -98,6 +98,10 @@ enum CaptureEnd {
 /// 远端逐字节收：raw 模式下退格、回车、控制字符原样到 dd。先打印就绪标记、等远端真开始收，
 /// 再调 [act]（让主机按键、广播给回放输入法，或在页面上点快捷键栏），收完把字节读回来。
 /// [prelude] 是收之前先执行的 shell 命令（比如在屏幕上打出给真人看的说明），要以分号结尾。
+/// [postlude] 在收完、打出结果之前执行，同样以分号结尾。prelude 切到了备用屏的（R19 测全屏程序）要在这里切回来：
+/// 备用屏没有滚动区，结果比屏幕长时开头被挤掉，读回来的字节缺一截，看着像远端少收了。
+/// 返回的字节是从屏幕上抄回来的；xterm2 退出备用屏后抄回来的还会有缺有错（R19 撞上的），
+/// 要准确的字节另开 exec 通道读 /tmp/r18.bin（R19 的设备测试就是这么做的）。
 Future<List<int>> captureRemote(
   WidgetTester tester,
   TerminalSessionAdapter terminal,
@@ -105,6 +109,7 @@ Future<List<int>> captureRemote(
   CaptureEnd end = CaptureEnd.ctrlC,
   int seconds = 8,
   String prelude = '',
+  String postlude = '',
 }) async {
   final n = 1000 + ++_captures;
   final mode = end == CaptureEnd.ctrlC ? 'isig noflsh' : '-isig';
@@ -124,7 +129,7 @@ Future<List<int>> captureRemote(
   };
   // 标记用算术展开：回显的命令行里是 $((...))，只有输出里才是数字，不会被命令行本身误命中。
   terminal.sendText(
-    '${prelude}echo R18R\$(($n)); stty raw -echo $mode; $read; stty sane; '
+    '${prelude}echo R18R\$(($n)); stty raw -echo $mode; $read; stty sane; $postlude'
     'echo R18B\$(($n)); od -An -tx1 -v /tmp/r18.bin; echo R18E\$(($n))\r',
   );
   await waitFor(tester, () => terminal.allText().contains('R18R$n'),
