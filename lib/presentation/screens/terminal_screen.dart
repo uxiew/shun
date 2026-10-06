@@ -566,12 +566,18 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
           context: context,
           builder: (context) => AlertDialog(
             icon: const Icon(Icons.warning_amber_outlined),
-            title: const LText('关闭 SSH 标签页？'),
+            title: LText(
+              session.plugin == null ? '关闭 SSH 标签页？' : '关闭 Mosh 标签页？',
+            ),
             // 不承诺普通 shell 里的程序还活着（TMX08）：断开时它们通常会收到挂断信号一起结束；
             // tmux 标签只是分离客户端，会话和里面的程序还在。
             // 已经断开的标签什么都不会再发：不能再说「会话留在远端」——恢复时可能已经查明它不在了。
             content: LText(
               switch ((session.tmux, session.connected)) {
+                // Mosh：插件让 mosh-client 按协议通知服务器关闭，远端的 mosh-server 和 shell 随之退出。
+                _ when session.plugin != null && session.connected =>
+                  '将断开 ${session.host.label} 的 Mosh 会话：服务器上这次的 mosh-server 和里面的 shell 会一起退出，'
+                      '没在 tmux 之类工具里运行的程序也会结束。',
                 (final tmux?, true) => '只分离这个标签的 tmux 客户端：tmux 会话 '
                     '${tmux.target.displayName}（${tmux.target.sessionId}）和里面的程序留在远端，'
                     '不发送 Ctrl-C，也不结束会话。',
