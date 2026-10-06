@@ -1556,6 +1556,79 @@ void main() {
         expect(handler.currentTextEditingValue.text, ' ');
       });
 
+      // Flutter Android 的 delta 模式里 finishComposingText 只带来一个空的编辑列表。
+      test('empty delta batch while composing commits the preedit', () {
+        final preedit = <String>[];
+        handler.onPreeditChanged = preedit.add;
+        ime.setComposingText('你好');
+
+        handler.updateEditingValueWithDeltas(const []);
+
+        expect(commits, ['你好']);
+        expect(preedit.last, '');
+        expect(handler.hasActiveComposition, isFalse);
+      });
+
+      test('empty delta batch without a composition does nothing', () {
+        ime.commitText('ab');
+
+        handler.updateEditingValueWithDeltas(const []);
+
+        expect(commits, ['ab']);
+        expect(deletes, isEmpty);
+      });
+
+      test('stale edit after a reset sends only its own change', () {
+        handler.ensureAttached();
+        ime.commitText('echo');
+        final imeView = handler.currentTextEditingValue;
+        handler.resyncAfterKeyEdit();
+
+        // 输入法还按它旧的编辑区（' echo'）接着打字、删字。
+        ime.commitText('x', on: imeView);
+        handler.updateEditingValueWithDeltas([
+          TextEditingDeltaDeletion(
+            oldText: ' echox',
+            deletedRange: const TextRange(start: 5, end: 6),
+            selection: const TextSelection.collapsed(offset: 5),
+            composing: TextRange.empty,
+          ),
+        ]);
+
+        expect(commits, ['echo', 'x']);
+        expect(deletes, [1]);
+        expect(handler.currentTextEditingValue.text, ' ');
+
+        // 平台跟上之后（编辑按清空后的编辑区算），照常按差异处理。
+        ime.commitText('y');
+        ime.deleteSurroundingText(1);
+        expect(commits, ['echo', 'x', 'y']);
+        expect(deletes, [1, 1]);
+      });
+
+      test('stale composing edit after a reset is dropped', () {
+        handler.ensureAttached();
+        ime.commitText('ab');
+        final imeView = handler.currentTextEditingValue;
+        handler.resyncAfterKeyEdit();
+
+        handler.updateEditingValueWithDeltas([
+          TextEditingDeltaInsertion(
+            oldText: imeView.text,
+            textInserted: 'n',
+            insertionOffset: imeView.text.length,
+            selection: TextSelection.collapsed(offset: imeView.text.length + 1),
+            composing: TextRange(
+              start: imeView.text.length,
+              end: imeView.text.length + 1,
+            ),
+          ),
+        ]);
+
+        expect(commits, ['ab']);
+        expect(handler.hasActiveComposition, isFalse);
+      });
+
       test('committed text stays in the editor for the IME', () {
         handler.ensureAttached();
         ime.commitText('你好');

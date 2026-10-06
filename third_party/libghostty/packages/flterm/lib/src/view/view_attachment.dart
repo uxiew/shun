@@ -345,6 +345,11 @@ final class ViewAttachment extends ChangeNotifier {
       synthetic
           ? _textInput.resyncAfterKeyEdit()
           : _textInput.discardRetainedText();
+      if (synthetic &&
+          (key == .enter || key == .numpadEnter) &&
+          input.action == .press) {
+        _textInput.noteNewlineKey();
+      }
     }
     return switch (result) {
       .ignored => .ignored,

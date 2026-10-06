@@ -82,5 +82,60 @@ void main() {
       expect(selections, [0, 1]);
       attachment.detach();
     });
+
+    // xwshun: R18。软键盘的回车键由按键那条路发出 CR，并清空编辑区；输入法紧跟着补的换行编辑
+    // 是按它自己还留着字的编辑区算的。那一整行不能再发一遍，换行也只算一次。
+    testWidgets('Enter key followed by a late newline edit sends one CR', (
+      tester,
+    ) async {
+      final focusNode = FocusNode();
+      final scrollController = ScrollController();
+      addTearDown(focusNode.dispose);
+      addTearDown(scrollController.dispose);
+      await tester.pumpWidget(
+        Focus(focusNode: focusNode, child: const SizedBox()),
+      );
+      attachment.attach(focusNode, scrollController, viewId: 0);
+      focusNode.requestFocus();
+      await tester.pump();
+      tester.testTextInput.updateEditingValue(
+        const TextEditingValue(
+          text: ' ls',
+          selection: TextSelection.collapsed(offset: 3),
+        ),
+      );
+      await tester.pump();
+
+      press(66, LogicalKeyboardKey.enter);
+      await tester.binding.defaultBinaryMessenger.handlePlatformMessage(
+        SystemChannels.textInput.name,
+        SystemChannels.textInput.codec.encodeMethodCall(
+          const MethodCall('TextInputClient.updateEditingStateWithDeltas', [
+            -1,
+            {
+              'deltas': [
+                {
+                  'oldText': ' ls',
+                  'deltaText': '\n',
+                  'deltaStart': 3,
+                  'deltaEnd': 3,
+                  'selectionBase': 4,
+                  'selectionExtent': 4,
+                  'selectionAffinity': 'TextAffinity.downstream',
+                  'selectionIsDirectional': false,
+                  'composingBase': -1,
+                  'composingExtent': -1,
+                },
+              ],
+            },
+          ]),
+        ),
+        (_) {},
+      );
+      await tester.pump();
+
+      expect(utf8.decode(output), 'ls\r');
+      attachment.detach();
+    });
   });
 }

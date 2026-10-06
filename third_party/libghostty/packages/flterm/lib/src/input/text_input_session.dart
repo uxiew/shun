@@ -63,6 +63,10 @@ final class TextInputSession with DeltaTextInputClient {
   /// 这期间编辑区从第 0 个字起都是终端的字。
   var _hasSentinel = true;
   var _resetRequested = false;
+
+  /// xwshun: 这边刚把编辑区清回哨兵、平台还没确认。这期间输入法发来的编辑可能是按它自己旧的编辑区
+  /// 算的（平台先处理了它，后处理我们的清空），见 [_applyStaleDelta]。
+  var _awaitingPlatformReset = false;
   var _secure = false;
 
   @override
@@ -269,12 +273,66 @@ final class TextInputSession with DeltaTextInputClient {
   @override
   void updateEditingValueWithDeltas(List<TextEditingDelta> deltas) {
     final wasComposing = _hadVisiblePreeditText || hasActiveComposition;
+    if (deltas.isEmpty) {
+      // xwshun: Flutter Android 的 delta 模式只为改文字（replace）和加 span（setSpan）记编辑。
+      // 输入法用 finishComposingText 结束组字时只是删掉组字 span，平台照样通知框架，带的编辑却是空的
+      // （engine/.../ListenableEditingState.java，R18 在模拟器上用回放输入法核实）。不处理的话组字区
+      // 里的字要等下一次改文字才提交，用户这时按的回车会被当成组字中的键吞掉。
+      // 删 span 能改的只有组字区和选区，选区的改动走 setSpan、有编辑记录；所以组字中收到空编辑，
+      // 就是组字结束了。
+      if (!hasActiveComposition) return;
+      _value = _value.copyWith(composing: .empty);
+      _reconcile(deletedPastStart: 0, wasComposing: true);
+      return;
+    }
     var deletedPastStart = 0;
     for (final delta in deltas) {
+      if (_awaitingPlatformReset) {
+        if (delta.oldText != _value.text) {
+          _applyStaleDelta(delta);
+          continue;
+        }
+        _awaitingPlatformReset = false;
+      }
       deletedPastStart += _deletedSentinel(delta);
       _value = delta.apply(_value);
     }
     _reconcile(deletedPastStart: deletedPastStart, wasComposing: wasComposing);
+  }
+
+  /// xwshun: 平台上「输入法的编辑」排在「我们的清空」前面：这条编辑是按输入法旧的编辑区算的，之后平台
+  /// 又被我们清回哨兵。不能拿它的结果和已发的字比（已发的已经清零，会把旧编辑区里的字整段重发，
+  /// 模拟器上回车键后紧跟一次提交就把整条命令发了两遍），只按它自己的增量处理，和上游一样：
+  /// 不在组字的插入、替换发新字，删除发同样个数的退格，组字中的编辑丢掉（输入法会按清空后的状态重来）。
+  void _applyStaleDelta(TextEditingDelta delta) {
+    final composing = delta.composing;
+    if (composing.isValid && !composing.isCollapsed) return;
+    switch (delta) {
+      case TextEditingDeltaInsertion(:final textInserted)
+          when textInserted.isNotEmpty:
+        _commitText(textInserted);
+      case TextEditingDeltaReplacement(:final replacementText)
+          when replacementText.isNotEmpty:
+        _commitText(replacementText);
+      case TextEditingDeltaDeletion(:final textDeleted)
+          when textDeleted.isNotEmpty:
+        // 桌面输入法提交候选后的第一个退格已经由按键那条路发过了（consumeCommittedCompositionEdit）。
+        if (_committedCompositionEdit == .suppressNextDeletionDelta) {
+          _clearCommittedCompositionEdit();
+          return;
+        }
+        _clearNewlineActionSuppression();
+        _onDelete?.call(textDeleted.runes.length);
+      default:
+        break;
+    }
+  }
+
+  /// xwshun: 软键盘发来的回车键已经由按键那条路发出去了。有的输入法随后还补一个换行编辑，
+  /// 和回车动作一样去重，一次回车只发一个。
+  void noteNewlineKey() {
+    _newlineDeltasToSuppress++;
+    _armNewlineActionDedupeTimer();
   }
 
   @override
@@ -378,6 +436,7 @@ final class TextInputSession with DeltaTextInputClient {
     _sent = '';
     _hasSentinel = true;
     _resetRequested = false;
+    _awaitingPlatformReset = false;
     connection.setEditingState(_value);
   }
 
@@ -486,6 +545,7 @@ final class TextInputSession with DeltaTextInputClient {
     _value = _sentinel;
     final connection = _connection;
     if (connection == null || !connection.attached) return;
+    _awaitingPlatformReset = !unchanged;
     if (unchanged) {
       connection.setEditingState(
         const TextEditingValue(text: ' ', selection: .collapsed(offset: 0)),
@@ -502,6 +562,7 @@ final class TextInputSession with DeltaTextInputClient {
     _sent = '';
     _hasSentinel = true;
     _resetRequested = false;
+    _awaitingPlatformReset = false;
     _clearNewlineActionSuppression();
     _clearCommittedCompositionEdit();
     _hadVisiblePreeditText = false;
