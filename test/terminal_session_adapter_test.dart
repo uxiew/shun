@@ -133,8 +133,9 @@ void main() {
       final terminal = XtermTerminalAdapter();
       addTearDown(terminal.dispose);
       final xterm = terminal.terminal;
-      expect(xterm.onClipboardStore, isNull);
-      expect(xterm.onClipboardQuery, isNull);
+      // 剪贴板两个回调接的是「什么都不做」，不是 null（null 会被 xterm2 的视图换成真读写，
+      // 挂着视图的情况见 terminal_remote_effects_test.dart）。
+      expect(xterm.onClipboardQuery!('c'), isNull);
       expect(xterm.onOpenUrl, isNull);
       expect(xterm.onNotification, isNull);
       expect(xterm.onCurrentDirectoryChange, isNull);

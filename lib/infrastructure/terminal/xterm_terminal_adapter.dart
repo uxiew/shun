@@ -13,11 +13,16 @@ import 'terminal_session_adapter.dart';
 final class XtermTerminalAdapter extends TerminalSessionAdapterBase {
   XtermTerminalAdapter({int maxLines = 10000, super.input})
       : terminal = Terminal(maxLines: maxLines) {
-    // 只接输入和尺寸。xterm2 的剪贴板读写（OSC 52）、打开链接、通知、颜色查询等效果回调
-    // 一个都不接，保持 null：远端发来的这些请求就没人执行，剪贴板查询也不会有应答（SEC09）。
-    terminal.onOutput = (data) =>
-        emitInput(Uint8List.fromList(utf8.encode(input.consume(data))));
-    terminal.onResize = emitResize;
+    // 只接输入和尺寸。打开链接、通知、工作目录这些效果回调保持 null，远端的请求没人执行（SEC09）。
+    // 剪贴板两个回调不能留 null：xterm2 的 TerminalView 挂上时见它们是 null 就接上自己的实现，
+    // 终端有焦点时真去读写手机剪贴板，读到的内容还 base64 回给远端（R19 挂着视图测出来的，
+    // R16/R17 只测了不挂视图的适配器）。所以这里接成「什么都不做」，视图就不会再接。
+    terminal
+      ..onOutput = ((data) =>
+          emitInput(Uint8List.fromList(utf8.encode(input.consume(data)))))
+      ..onResize = emitResize
+      ..onClipboardStore = _ignoreClipboardWrite
+      ..onClipboardQuery = _refuseClipboardRead;
     _decoder = _newDecoder();
   }
 
@@ -26,6 +31,11 @@ final class XtermTerminalAdapter extends TerminalSessionAdapterBase {
   final Terminal terminal;
 
   late ByteConversionSink _decoder;
+
+  static void _ignoreClipboardWrite(String selector, String text) {}
+
+  /// 返回 null：xterm2 不应答这次查询。
+  static String? _refuseClipboardRead(String selector) => null;
 
   ByteConversionSink _newDecoder() =>
       const Utf8Decoder(allowMalformed: true).startChunkedConversion(
