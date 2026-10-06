@@ -37,7 +37,7 @@ flutter test test/integration_ssh_fixture_test.dart
   `flutter test integration_test/ghostty_engine_test.dart -d <设备> --dart-define=R17_SSH="$(python3 tool/fixture-environment/r17_config.py)"`。
   每次 `up.sh` 都换密码，参数要重新取。
 - 测试环境细节见 `tool/fixture-environment/README.md`，终端引擎验证工程见 `spikes/terminal_spike/README.md`。
-- 键盘和输入法的设备测试（R18，三份，都要上面的测试环境、都只在模拟器上跑）：
+- 键盘和输入法的设备测试（R18，前三份只在模拟器上跑，第四份要真人在真机上，都要上面的测试环境）：
   - 横竖屏 + 真软键盘下终端不被挡、远端尺寸对（`integration_test/r18_keyboard_test.dart`）：跑法同上一条（`adb reverse` + `R17_SSH`），
     另开一个终端先预授权通知，不然一连上就弹「允许通知」挡住键盘：
     `until adb -s emulator-5580 shell pm grant top.xdwa.xwshun android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done`
@@ -47,6 +47,10 @@ flutter test test/integration_ssh_fixture_test.dart
     `../.toolchain/avd/xwshun-a35-4k.avd/config.ini` 的 `hw.keyboard = no` 改成 `yes`，重新起，再
     `tool/ime-replay.sh emulator-5580 "" integration_test/r18_keys_test.dart`；**测完改回 `no` 再重起**，
     不然软键盘默认不弹，别的设备测试会等不到键盘。
+  - 真人在真机上用自己的输入法打拼音、说话（`integration_test/r18_voice_device_test.dart`，TER02）：要所有者当次同意、本人拿着手机。
+    `tool/r18-real-device.sh xdwmbp /opt/homebrew/share/android-commandlinetools/platform-tools/adb 47131FDAP0040E`，
+    约 4 分钟（构建安装 1 分多钟，6 项每项半分钟）。手机上出现「点一下这里叫出键盘」后照屏幕说明做，每项按一次回车。
+    脚本不碰手机的输入法设置，开始结束各记一次默认输入法；测完 App 被卸掉。
 - tmux 的测试（R21，`test/tmux_fixture_test.dart`）用另一套环境：四个真实 tmux 版本（2.4、2.7、3.0a、3.5a）加「没有 tmux」「假 tmux」两台，
   `(cd tool/tmux-fixture && ./up.sh)` 起、`./down.sh` 关，和上面那套互不影响、可以同时开；没起时整组跳过。细节见 `tool/tmux-fixture/README.md`。
 - Tailscale SSH 的测试（`test/tailscale_ssh_login_test.dart`）要 Go：会自己构建、起停仿制服务器，没装 Go 时整组跳过。仿制服务器和「Headscale + 真 tailscaled」环境的用法见 `tool/tailscale-ssh-fixture/README.md`。

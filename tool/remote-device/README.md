@@ -31,7 +31,7 @@ tool/remote-device/down.sh xdwmbp         # 用完拆掉
 - **`adb: failed to check server version: cannot connect to daemon at tcp:127.0.0.1:15037`**：隧道没起或断了，重新 `up.sh`。
 - **用过之后直接 `./gradlew` 报 `SDK location not found`**：flutter 构建时把 `android/local.properties` 的 `sdk.dir` 写成了假 SDK，
   `down.sh` 之后它已经不在了。随便跑一次正常环境下的 `flutter build` 就会写回来，或者手动改回 `$HOME/Library/Android/sdk`。
-- **`adb reverse`（手机连电脑上的测试服务，R15 那种）**：反向转发会落到接手机的那台电脑上，不是本机。脚本没处理，没测过。
+- **`adb reverse`（手机连本机的测试服务）**：反向转发本来会落到接手机的那台电脑上，不是本机。包装脚本在 reverse 时再开一条 `ssh -R`，把那台电脑的同一个端口接回本机（R18 真机复测时手机连本机 22201 跑通）。那台电脑上这个端口已被占用时 reverse 直接失败，报「没能在 xdwmbp 上开 22201 端口接回本机」，先在那边 `lsof -nP -iTCP:22201 -sTCP:LISTEN` 看是谁占着。
 - **真机 `adb logcat` 按"之前有几行"截取会漏行**：真机日志多，main 缓冲区只有 256 KiB，很快滚动。
   用 `adb logcat -d -v epoch` 按时间戳截，或者测试期间后台一直 `adb logcat ... >> 文件`。
 - **测完 `flutter test` 会把被测 App 卸掉**（数据清空），这是 flutter 的行为，和远程无关。
