@@ -150,6 +150,33 @@ void main() {
         page.controller.setBackgrounded(false);
       });
 
+      testWidgets('UX02：竖屏、横屏、横屏弹键盘，触控目标 48dp、可点的都有标签、文字对比度够', (
+        tester,
+      ) async {
+        final semantics = tester.ensureSemantics();
+        final page = await _Page.open(tester, newTerminal);
+        Future<void> expectGuidelines(String layout) async {
+          for (final guideline in [
+            androidTapTargetGuideline,
+            labeledTapTargetGuideline,
+            textContrastGuideline,
+          ]) {
+            final result = await guideline.evaluate(tester);
+            expect(result.passed, isTrue, reason: '$layout：${result.reason}');
+          }
+        }
+
+        await expectGuidelines('竖屏');
+        tester.view.physicalSize = const Size(2400, 1080);
+        await page.settle();
+        await expectGuidelines('横屏');
+        tester.view.viewInsets = const FakeViewPadding(bottom: 261 * 2.625);
+        await page.settle();
+        await expectGuidelines('横屏弹键盘');
+        tester.view.resetViewInsets();
+        semantics.dispose();
+      });
+
       testWidgets('横屏收成一行，弹键盘时再收起标签条；终端始终有地方、不溢出', (tester) async {
         final page = await _Page.open(tester, newTerminal);
         final engineView =

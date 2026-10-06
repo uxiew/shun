@@ -227,10 +227,13 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                                         'pending-terminal-tab-${pending.id}',
                                       ),
                                       padding: const EdgeInsets.symmetric(
-                                        vertical: 7,
+                                        vertical: 2,
                                         horizontal: 2,
                                       ),
                                       child: InputChip(
+                                        // 看着 38dp，能点的是 48dp（UX02）。
+                                        materialTapTargetSize:
+                                            MaterialTapTargetSize.padded,
                                         selected:
                                             state.activePendingId == pending.id,
                                         showCheckmark: false,
@@ -277,10 +280,13 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                                     index: index,
                                     child: Padding(
                                       padding: const EdgeInsets.symmetric(
-                                        vertical: 7,
+                                        vertical: 2,
                                         horizontal: 2,
                                       ),
                                       child: InputChip(
+                                        // 看着 38dp，能点的是 48dp（UX02）。
+                                        materialTapTargetSize:
+                                            MaterialTapTargetSize.padded,
                                         selected: state.activeIndex == index,
                                         showCheckmark: false,
                                         avatar: Icon(

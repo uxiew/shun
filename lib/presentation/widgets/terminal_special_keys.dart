@@ -107,7 +107,6 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                   if (widget.onAi != null)
                     IconButton(
                       key: const ValueKey('terminal-action-ai'),
-                      visualDensity: VisualDensity.compact,
                       tooltip: localized('Catty Agent'),
                       onPressed: widget.onAi,
                       icon: Icon(
@@ -117,21 +116,18 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                     ),
                   IconButton(
                     key: const ValueKey('terminal-action-port-forward'),
-                    visualDensity: VisualDensity.compact,
                     tooltip: localized('端口转发'),
                     onPressed: widget.onPortForward,
                     icon: const Icon(Icons.swap_horiz),
                   ),
                   IconButton(
                     key: const ValueKey('terminal-action-system-management'),
-                    visualDensity: VisualDensity.compact,
                     tooltip: localized('系统管理'),
                     onPressed: widget.onSystemManagement,
                     icon: const Icon(Icons.admin_panel_settings_outlined),
                   ),
                   IconButton(
                     key: const ValueKey('terminal-action-picture-in-picture'),
-                    visualDensity: VisualDensity.compact,
                     tooltip: widget.pictureInPicture ? '退出画中画' : '画中画',
                     isSelected: widget.pictureInPicture,
                     onPressed: widget.onPictureInPicture,
@@ -143,7 +139,6 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                   ),
                   IconButton(
                     key: const ValueKey('terminal-action-fullscreen'),
-                    visualDensity: VisualDensity.compact,
                     tooltip: widget.fullscreen ? '退出全屏' : '全屏',
                     isSelected: widget.fullscreen,
                     onPressed: widget.onFullscreen,
@@ -155,7 +150,6 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                   ),
                   IconButton(
                     key: const ValueKey('terminal-action-split'),
-                    visualDensity: VisualDensity.compact,
                     tooltip: localized('分屏'),
                     isSelected: widget.split,
                     onPressed: widget.onSplit,
@@ -163,14 +157,12 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                   ),
                   IconButton(
                     key: const ValueKey('terminal-action-edit'),
-                    visualDensity: VisualDensity.compact,
                     tooltip: localized('编辑快捷键'),
                     onPressed: () => _customize(context, normalized),
                     icon: const Icon(Icons.tune, size: 20),
                   ),
                   IconButton(
                     key: const ValueKey('terminal-action-hide-keyboard'),
-                    visualDensity: VisualDensity.compact,
                     tooltip: localized('收起键盘'),
                     onPressed: () =>
                         FocusManager.instance.primaryFocus?.unfocus(),
@@ -302,7 +294,8 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
     Map<String, _QuickKey> definitions,
   ) {
     const columnCount = 6;
-    const rowHeight = 38.0;
+    // 48dp：Android 的最小触控目标（UX02）。原来 38dp 高的行里按钮按内容收缩、只有约 20dp 能点到。
+    const rowHeight = 48.0;
     final rowCount = (order.length / columnCount).ceil();
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -312,6 +305,7 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
           SizedBox(
             height: rowHeight,
             child: Row(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 for (var column = 0; column < columnCount; column++)
                   Expanded(
