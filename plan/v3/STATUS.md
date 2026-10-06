@@ -1,12 +1,13 @@
 # 当前状态 V3
 
-日期：2026-10-06。已执行首批（R00–R04、X00）、网络路由三项（R05、R06、R07）、连接代次（R08）、凭据与入口统一（R09）、连接路径编辑器（R10）、插件注册表（X01）、只读 Tailscale 目录的 HTTP 适配（R11）、Android 独立插件发现与双向签名（X02）、目录缓存与非破坏合并（R12）、插件会话字节流与故障处理（X03）、目录页与批量导入（R13）、插件管理与授权界面（X04）、Tailscale 目录接入内置 provider（X05）、UU 远程适配（X06）、RustDesk 外部客户端联动（X07）、显式 Tailscale SSH 外部认证（R14）、目录到三类路由的端到端验收（R15）、会话与 xterm2 解耦（R16）、Ghostty 接进主 App（R17）、中文输入法与软硬键盘（R18）、tmux 安全恢复目标（R21）和 Mosh 运行时选择（X08）；09-30 所有者同意用 arm64 模拟器补测，并定"最低兼容到安卓七八"；10-04 所有者提供真机（Pixel 9 Pro，接在 xdwmbp 上），R04 真机补测后 DONE；10-06 所有者在真机上用微信输入法复测语音输入（TER02）通过。
+日期：2026-10-06。已执行首批（R00–R04、X00）、网络路由三项（R05、R06、R07）、连接代次（R08）、凭据与入口统一（R09）、连接路径编辑器（R10）、插件注册表（X01）、只读 Tailscale 目录的 HTTP 适配（R11）、Android 独立插件发现与双向签名（X02）、目录缓存与非破坏合并（R12）、插件会话字节流与故障处理（X03）、目录页与批量导入（R13）、插件管理与授权界面（X04）、Tailscale 目录接入内置 provider（X05）、UU 远程适配（X06）、RustDesk 外部客户端联动（X07）、显式 Tailscale SSH 外部认证（R14）、目录到三类路由的端到端验收（R15）、会话与 xterm2 解耦（R16）、Ghostty 接进主 App（R17）、中文输入法与软硬键盘（R18）、滚动选择与粘贴、远端效果约束（R19）、tmux 安全恢复目标（R21）、Mosh 运行时选择（X08）和 Mosh 接进主 App（X09）；09-30 所有者同意用 arm64 模拟器补测，并定"最低兼容到安卓七八"；10-04 所有者提供真机（Pixel 9 Pro，接在 xdwmbp 上），R04 真机补测后 DONE；10-06 所有者在真机上用微信输入法复测语音输入（TER02）通过。
 
 - 基座：kmh1145/Netcatty-mobile `495f5d31`（v1.4.7），fork 分支 `xwshun/v3`，`origin` = `uxiew/xwshun`，所有者说推之前不 push。GPL-3.0-or-later 个人隔离实验；applicationId `top.xdwa.xwshun`。
-- 任务：DONE 29（R00 R01 R02 R03 R04 R05 R06 R07 R08 R09 R10 R11 R12 R13 R14 R15 R16 R17 R18 R21 X00 X01 X02 X03 X04 X05 X06 X07 X08）、NOT_STARTED 17、DEFERRED 7。
-- 用例（共 142）：PASS 92、FAIL 1、BLOCKED 6、NOT_RUN 43。每条的实际动作和观察在 `evidence/`。
-- 门禁：G0 **PASS**（Ghostty Android 可行性有真机证据；GST01 在 R17 改成 PASS；原来 FAIL 的 TER02（真机复测）、TER06（模拟器）在 R18 改成 PASS）；其余门禁 NOT_RUN。插件基础 GX0 的出口条件（X00–X03）在模拟器上都已满足，只差真机复核，所以仍记 NOT_RUN；Tailscale 的 G2（R15）同理，另外还差官方 Tailscale 的 check 和直连。离 CORE_READY / FULL_READY 都还很远。
-- 设备：arm64 模拟器实测过 API 24–28、35（4 KiB）、36（16 KiB），测完即删，只留 `xwshun-a35-4k` 的配置；R17 又临时建过 API 24 和 API 36（16 KiB）两台跑 Ghostty 设备测试，连同镜像已删，主 App 测完已从 `xwshun-a35-4k` 卸载。真机一台：所有者的 Pixel 9 Pro（Android 17 / API 37，4 KiB 页），只接在 xdwmbp 上，本机经 `tool/remote-device/` 借它的 adb；10-04 只装过 spike 测试包、10-06 为 TER02 复测装过主 App 的 debug 包（所有者当次同意、本人操作），都测完即卸载、没改输入法设置，为恢复微信输入法 force-stop 过它两次（第一次默认输入法被系统换成 Gboard，几秒内改回，三项输入法设置复核一致，见 evidence/R04.md）。只装过本项目自己的 APK（含 `plugins/` 的测试插件、假 UU、假 RustDesk）、原版 Netcatty、官方 UU 远程 4.42.0（所有者提供并同意安装，没有登录）和 GitHub 发行版 RustDesk 1.4.9（所有者同意安装，只连了不存在的 ID）；测试 App、假浏览器、UU、RustDesk、R18 的回放输入法、X08 的 Mosh 插件测完都已从 `xwshun-a35-4k` 卸载；R14、R15 在本机 Docker 里起过 Headscale + 官方 tailscale 镜像的隔离测试环境（不连任何真实账号，已 down）；没有连接任何用户真实主机/账号/VPN，没有 push 或发布。
+- 任务：DONE 31（R00 R01 R02 R03 R04 R05 R06 R07 R08 R09 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R21 X00 X01 X02 X03 X04 X05 X06 X07 X08 X09）、NOT_STARTED 15、DEFERRED 7。
+- 用例（共 142）：PASS 104、FAIL 1、BLOCKED 6、NOT_RUN 31。每条的实际动作和观察在 `evidence/`。
+- 最近一次全量（10-06 合并 R19、X09 后，三套测试环境都开着）：`flutter test -j 4` 1051 过、1 跳过（只在 Windows 跑）、0 失败；`flutter analyze` 无问题。
+- 门禁：G0 **PASS**（Ghostty Android 可行性有真机证据；GST01 在 R17 改成 PASS；原来 FAIL 的 TER02（真机复测）、TER06（模拟器）在 R18 改成 PASS）；其余门禁 NOT_RUN。插件基础 GX0 的出口条件（X00–X03）在模拟器上都已满足，只差真机复核，所以仍记 NOT_RUN；Tailscale 的 G2（R15）同理，另外还差官方 Tailscale 的 check 和直连。Ghostty 的 G3 要等 R20（成为实际默认），Mosh 的 GX2 要等 X10（移动恢复）。离 CORE_READY / FULL_READY 都还很远。
+- 设备：arm64 模拟器实测过 API 24–28、35（4 KiB）、36（16 KiB），测完即删，只留 `xwshun-a35-4k` 的配置；R17 又临时建过 API 24 和 API 36（16 KiB）两台跑 Ghostty 设备测试，连同镜像已删，主 App 测完已从 `xwshun-a35-4k` 卸载。真机一台：所有者的 Pixel 9 Pro（Android 17 / API 37，4 KiB 页），只接在 xdwmbp 上，本机经 `tool/remote-device/` 借它的 adb；10-04 只装过 spike 测试包、10-06 为 TER02 复测装过主 App 的 debug 包（所有者当次同意、本人操作），都测完即卸载、没改输入法设置，为恢复微信输入法 force-stop 过它两次（第一次默认输入法被系统换成 Gboard，几秒内改回，三项输入法设置复核一致，见 evidence/R04.md）。只装过本项目自己的 APK（含 `plugins/` 的测试插件、假 UU、假 RustDesk）、原版 Netcatty、官方 UU 远程 4.42.0（所有者提供并同意安装，没有登录）和 GitHub 发行版 RustDesk 1.4.9（所有者同意安装，只连了不存在的 ID）；测试 App、假浏览器、UU、RustDesk、R18 的回放输入法、X08 的 Mosh 插件测完都已从 `xwshun-a35-4k` 卸载；R14、R15 在本机 Docker 里起过 Headscale + 官方 tailscale 镜像的隔离测试环境（不连任何真实账号，已 down）；R19、X09（10-06）只用了 `xwshun-a35-4k`（`-port 5580`，没碰 `lizhi`），主 App、Mosh 插件、回放输入法测完都已卸载，R19 的剪贴板测试把模拟器剪贴板改成了 `phone-secret-r19`，X09 为连 `10.0.2.2` 关过模拟器 Wi-Fi、已开回；没有连接任何用户真实主机/账号/VPN，没有 push 或发布。
 
 ## 已做的代码改动
 
@@ -37,7 +38,9 @@
 - Ghostty 接进主 App（R17）：设置 → 外观与终端 → 终端引擎能选 Ghostty（实验），默认仍是 xterm2，只影响之后新开的终端，标签名后标「· Ghostty」。远端字节原样进引擎，回调先接再喂、写入期间再来的排队；换代次时打断旧连接没写完的控制序列；剪贴板、通知、链接这类远端效果一概不执行；关标签时视图还挂着就推迟释放原生对象（flterm 绘制不查是否已释放）；滚动区 5000 行、不收图像。Ghostty 起不来时连接如实失败、不换引擎凑合。终端尺寸 0 不发、连着的变化合并。发布包改用 `tool/build-release.sh`：丢缓存从核对过的源码重编原生库、查 16 KiB 对齐，只带 arm64-v8a。Android 15、16 KiB 页的 Android 16、Android 7.0 三台模拟器上走真实 SSH 都过；没上真机。
 - 中文输入法与软硬键盘（R18，改在 flterm fork 里）：输入法提交后编辑区留着已发的字，改写时只退格改了的部分再发新字，**微信输入法语音不再整段重复**（真机复测：拼音 4 项、语音 2 项远端逐字节核对全对）。快捷键栏方向键跟随 vim/less 的光标模式；分屏时点哪格发哪格（描边）；Ctrl/Alt 换格、切标签、退后台自动熄灭；安全键盘在 Ghostty 下生效；横屏弹键盘时快捷键栏收成一行、再窄收起标签条，终端不再被挤成 0 行；按键 48dp。模拟器上用「回放输入法」（`plugins/fixture-replayime`）照 R04 真机日志的调用顺序做了 8 段回放。只限 Ghostty：xterm2 仍整段重复。
 - tmux（R21）：列会话、附着、结束、新建都改成固定脚本 + 白名单参数，按 session ID 精确定位（原来按名字前缀匹配，`work` 不在时会结束 `workshop`；名字里的 `#(命令)` 会被执行；列表在 tmux 2.4–3.5a 上永远是空的）。附着走单独的 exec 通道、不进 shell 历史、不改用户的 mouse 设置；断网恢复先核对 socket、server、session 还是原来那个才附着，不对就停下说明原因，不新建。真实 tmux 2.4、2.7、3.0a、3.5a 上 31 条测试全过，模拟器走查过面板和关标签确认框。
-- Mosh 运行时（X08，还没有界面入口）：选官方 mosh-client 1.4.0 从源码交叉编译（可重现），做成独立插件 APK `top.xdwa.xwshun.mosh`（2.8 MB、只有 arm64）；dart_mosh 因不查包方向位（自己的包弹回来后输入全丢）、关闭不通知服务器被否。会话 key 经管道交给子进程（给 mosh-client 打了小补丁），不进参数、环境、日志、文件。模拟器上连真 mosh-server：命令、中文、vim、改尺寸都对，10 轮开关 fd 不涨，杀插件宿主照常。顺带修了从 X03 起就有的「插件抛一个运行时异常整个宿主崩溃」。
+- 滚动选择、粘贴与远端效果（R19）：**默认引擎 xterm2 上修了两个远端越权**——终端视图挂着时远端用 OSC 52 能读走、静默改写手机剪贴板（模拟器上实测读回了剪贴板内容），远端用 `CSI 21 t` 能把窗口标题回进 shell 输入行；原版 Netcatty 用同一个库，也有这两个问题。R16/R17 的 SEC09 只测了不挂视图的适配器，所以当时没发现。粘贴和打字分开走：快捷键栏「粘贴」、硬件 Ctrl+V、命令片段、AI 插入的命令都按粘贴发，多行、控制字符、超过 4096 字先弹可编辑预览，照实写远端开没开 bracketed paste、会不会逐行执行，默认不加回车；目标认动手那一刻的连接，断线、恢复成新 shell、关标签都不发也不补发。Ghostty 手势：全屏程序没开鼠标时滑动什么都不发（原来发方向键，在没开 mouse 的 tmux 里等于翻 shell 历史），开着鼠标只发滚轮、点按长按不发鼠标点击（fork 的 flterm 加了 `touchMouseClicks`）。Ghostty 认链接：点了只弹确认框，只把 http/https 交给浏览器，拖动、长按不触发。真 bash 5.2 上核对过：开着 bracketed paste 多行等回车、关着前面各行立刻执行、伪造的结束标记被挡掉但按回车照样执行——文案只说「远端约定，App 保证不了」。超长不结束的控制序列（48 MiB）内存只涨几 MiB。模拟器上两个引擎各 4 项设备测试过；没上真机。
+- Mosh 接进主 App（X09）：主机协议选 Mosh、路线直连，点连接 → 核对本机插件 → SSH 先核指纹再登录 → 只跑固定命令启动 mosh-server → **断开 SSH** → 把 SSH 实际连上的 IP、UDP 端口、临时 key 交给插件走 UDP。模拟器上点连接到出提示符 1.2–1.4 秒。SOCKS、TailSocks、HTTP 代理、跳板、代理 + 跳板五种路线都在任何网络动作之前拒绝（拨号、登录、远端启动、插件调用全是 0），编辑器里带代理/跳板的 Mosh 主机不让保存（不像 Telnet 那样悄悄去掉）。指纹不对、密码错、服务器没装 mosh-server 都停在 SSH，不给插件 key，不替用户安装、不 sudo（记账为 0）。输入和尺寸只有一个出口：回放输入法 8 段经 Mosh 到远端逐字节等于 R18 期望；转屏远端行列对。会话结束不自动重连、不重发输入，X08 留下的 `failed:exit-N` 说成了人话。Mosh 标签跟随终端引擎设置。
+- Mosh 运行时（X08）：选官方 mosh-client 1.4.0 从源码交叉编译（可重现），做成独立插件 APK `top.xdwa.xwshun.mosh`（2.8 MB、只有 arm64）；dart_mosh 因不查包方向位（自己的包弹回来后输入全丢）、关闭不通知服务器被否。会话 key 经管道交给子进程（给 mosh-client 打了小补丁），不进参数、环境、日志、文件。模拟器上连真 mosh-server：命令、中文、vim、改尺寸都对，10 轮开关 fd 不涨，杀插件宿主照常。顺带修了从 X03 起就有的「插件抛一个运行时异常整个宿主崩溃」。
 - terminal spike 补了 Android 适配层和一份 flterm 中文输入补丁（R04，只在 spike 里）。真机上：集成测试通过，所有者的微信输入法打字全对，**语音输入会把同一句话整段重复发送**（flterm 每次提交就清空编辑区，输入法改写不了已出现的字），R18 已修。
 
 ## 一个 FAIL
@@ -75,11 +78,16 @@ R04 的发现到 R17 为止：dispose 后 write 段错误（上游改成抛错�
 ## 下一批
 
 `lizhi` 开着时，本项目模拟器用 `-port 5580` 起、adb 都带 `-s emulator-5580`（写在 docs/xwshun/README.md 第 7 节）。
-**依赖已满足、可以开工的**：R19（滚动选择、多行编辑与远端效果约束）、X09（Mosh 受控 bootstrap 与终端会话接入）。
-X09 先看 evidence/X08.md「没做的、给 X09/X10 的话」：界面入口、主机名解析成数字 IP、插件报的 `failed:exit-N` 要映射成可读原因；现成零件是 `MoshBootstrap.command/parse`、`PluginSessionManager.open(mosh:)`。
+**依赖已满足、可以开工的**：R20（TUI/性能门禁与 Ghostty 成为默认）、R25（日用 UI、诊断与参考交互收敛）、X12（插件作者 SDK、样例和维护文档）。
+X10（Mosh 移动恢复）等 R22，R22 等 R20，所以 R20 是 Mosh 和恢复两条线的瓶颈。
+R19 留给后面的：xterm2 在「选择并复制」整屏文字框开着时远端 tmux 退出会抛 `RangeError`（库的缓冲区越界，模拟器上撞了 4 次，R20 换掉 xterm2 时一起解决）；
+硬件 Ctrl+K（Ghostty 当成清滚动区，服务器收到 `\f`）、Ctrl+A（两个引擎都当全选）发不到服务器，只在 widget 测试里按出来，等所有者定（见下）；xterm2 只选得到一行、不认链接，是旧行为没改。
+X09 留给后面的（详见 evidence/X09.md「没做的」）：在插件详情页点「连接测试」会断开 Mosh 插件正在跑的会话（Kotlin 桥重连先断旧连接，X10/X11）；Mosh 标签没有「重新连接」按钮（避开 R19 当时在改的终端页，R25 可以补）；
+Tailscale SSH 登录 + 直连的 Mosh 逻辑上允许但没测；IPv6 目标没测；插件进程被系统回收和被强杀分不出来。
 X08 留给后面的：批准只绑能力不绑权限，插件更新后多要临时会话密钥不会回到待批准（X11）；Android 12+ 后台会杀子进程（X10）。
 R21 留给后面的：恢复失败后标签里残留上一屏 tmux 状态栏、附着边界上的按键去向（R23）；App 被杀后 tmux 目标不保留（R22）。
-设备测试的跑法写在 docs/xwshun/README.md 第 2 节：Ghostty（测试环境 + adb reverse + `r17_config.py`）、R18 的输入法回放和真机输入测试、tmux（`tool/tmux-fixture`）、Mosh（`tool/mosh-fixture`）。
+设备测试的跑法写在 docs/xwshun/README.md 第 2 节：Ghostty（测试环境 + adb reverse + `r17_config.py`）、R18 的输入法回放和真机输入测试、R19 的手势/粘贴/远端效果、tmux（`tool/tmux-fixture`）、Mosh（`tool/mosh-fixture`；模拟器上要先关 Wi-Fi 才能经 `10.0.2.2` 连 TCP，见第 3 节）。
+两个代理并行时只多开一个 worktree：磁盘常年只剩几 GB，怎么腾见本机手册第 6 节。
 多个代理并行时：模拟器先拿锁（`mkdir ../.toolchain/locks/emulator`，写明是谁），别 `pkill -f flutter_tester`（会杀掉别的 worktree 的测试）。
 R17 时撞上、归 R22 的：系统返回手势把 Activity 结束后会话全没了，前台保活服务和常驻通知却还在（evidence/R17.md「发现的问题 2」）。
 真机只接在 xdwmbp 上，用法和撞墙见 `tool/remote-device/README.md`；装着中文输入法的真机上别用 adb 注入按键（会把输入法弄进实体键盘模式，恢复办法在 `docs/xwshun/README.md` 第 7 节）。
@@ -88,7 +96,7 @@ R14、R15 的测试环境：仿制 Tailscale SSH 服务器和 Headscale + 真 ta
 X05 顺带看到：连接完成前敲的字前几个被丢、后面照常送达（归 R23）。UX04 的「实际引擎」部分等 R17。
 LIFE06 只完成了连接层部分（仍记 NOT_RUN）：引擎销毁、线程、native 内存要等 R17/R22 在设备上量。
 R13 的 TSC06「设备离线」一路在模拟器上看不到（模拟器网络会先替设备接下 TCP），要真机补。
-X04 留下的：App 启动时不自动发现插件（只有插件页触发），真实插件会话接入（X08 起）前要补；已卸载插件的旧批准重启后在界面上看不到、撤销不了。
+X04 留下的：App 启动时不自动发现插件（只有插件页触发；X09 起连 Mosh 前会自己发现一遍，别的插件仍要先开插件页）；已卸载插件的旧批准重启后在界面上看不到、撤销不了。
 
 ## 等所有者决定或提供
 
@@ -101,6 +109,12 @@ X04 留下的：App 启动时不自动发现插件（只有插件页触发），
 - 官方 Tailscale 的 check（可选）：需要一台开着 Tailscale SSH、策略设 check 的机器，手机上开官方 Tailscale 或 TailSocks；你在模拟器里点开链接自己登录确认。清单见 evidence/R14.md「还差什么」。
 - 真实 Tailscale 验证（可选）：要测真实 scope 回报、限流、共享设备可见性，需要你提供一个只含 `devices:core:read` 的 OAuth client；不提供就一直只有 fixture 证据。
 - 应用锁与凭据租期（SEC07）：现在没有应用锁，凭据启动时读进内存、整个进程都在，断线自动恢复用的是建连时冻结的凭据。要不要加生物识别/应用锁、锁定后后台恢复还能不能用内存里的凭据，需要你定策略。
+- 终端交互的四个细节（R19，现在的做法都偏保守，改了要配设备复测）：
+  1. 点链接（Ghostty）现在点一下就弹确认框，这一下就叫不出键盘了。要不要改成长按出菜单，或者干脆不认链接？
+  2. 硬件键盘的 Ctrl+K（Ghostty 当成清滚动区）、Ctrl+A（两个引擎都当全选）要不要改成发给服务器（nano、emacs、tmux 前缀要用）？改的话要配真键盘一起测，和 10-06「暂不测硬件键盘」有关。
+  3. less、man 这类全屏程序里滑动要不要翻页？现在什么都不发，为的是不在没开 mouse 的 tmux 里翻出 shell 历史。
+  4. 超过 4096 字的粘贴先预览，这个阈值行不行。
+- 从桌面端同步来的、带代理或跳板的 Mosh 主机（X09，可选）：现在编辑器不让保存、连接时报「Mosh 只能直连」。要不要在编辑器里给一个「改成 SSH」的一键按钮。
 - flutter_secure_storage 9.2.4 在 Keystore 密钥失效时会静默换一份存储（R09 已能识别并提示）。是否在后续升级到 10.x（存储格式变化、需迁移），按 docs/12 需要你同意再动依赖。
 
 只能将真执行结果写入 evidence。用户 LobiShell 成功属于参考应用事实，不转移为新 App 通过；模拟器结果都标明了是模拟器。
