@@ -70,6 +70,7 @@ final class MoshSession {
                     new String[] {"mosh-client", udpHost, Integer.toString(udpPort)},
                     new String[] {
                         // mosh-client 按 TERM 查 terminfo（编进库里的只有 xterm-256color），按 LANG 判断 UTF-8。
+                        // key 不在这里：JNI 经管道交给它（MOSH_KEY_FD=3，见 moshpty.c 和 native/patches/0002）。
                         "TERM=xterm-256color",
                         "LANG=en_US.UTF-8",
                         "PATH=/system/bin",

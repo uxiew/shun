@@ -14,8 +14,8 @@ final class MoshPty {
     static native boolean isNumericAddress(String host);
 
     /**
-     * 开 PTY、fork、exec。返回 {pid, PTY 主端 fd}。key 是 22 个 base64 字符的字节，调用方用完自己清零。
-     * 环境变量和参数都不能含秘密（ps / 日志能看到参数）。
+     * 开 PTY、fork、exec。返回 {pid, PTY 主端 fd}。key 是 22 个 base64 字符的字节，经管道（子进程的 fd 3）交给
+     * mosh-client，不进环境变量和参数；调用方用完自己清零。argv、env 只能放非秘密的固定串。
      */
     static native int[] spawn(String path, String[] argv, String[] env, byte[] key, int rows, int cols)
             throws IOException;

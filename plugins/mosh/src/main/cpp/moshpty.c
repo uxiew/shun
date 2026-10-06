@@ -3,9 +3,11 @@
 // 为什么要 PTY：mosh-client 启动时 tcgetattr(stdin)，不是终端就退出；它还靠 SIGWINCH 知道窗口变了。
 // 为什么要子进程：mosh-client 是完整程序（exit()、全局单例、信号处理），放进插件进程会让一个会话带走所有会话。
 //
-// 秘密（mosh 会话 key）只经 execve 的环境变量交给子进程：不进命令行参数（ps 能看到），不写文件，不进日志。
-// 父进程里拼环境变量用的缓冲区 fork 之后立刻清零释放。子进程的 /proc/<pid>/environ 只有本插件 UID 和 root 读得到；
-// mosh-client 读完 MOSH_KEY 会 unsetenv，但内核里那份初始环境块还在，这一点写进了证据。
+// 秘密（mosh 会话 key）经一根管道交给子进程：fork 之前把 22 个字节写进管道、关掉写端，子进程从继承的 fd 3 读
+// （我们给 mosh-client 打的补丁 0002：MOSH_KEY_FD=3）。不用官方的 MOSH_KEY 环境变量，因为 mosh-client 读完虽然
+// unsetenv，内核里那份初始环境块还在，整个进程活着期间 /proc/<pid>/environ 都读得到。也不进命令行参数（ps 看得到）、
+// 不写文件、不进日志。管道里的字节被子进程读走就没了；父进程里那份 22 字节缓冲写完立刻清零。
+#define _GNU_SOURCE  // pipe2
 #include <jni.h>
 #include <android/log.h>
 #include <arpa/inet.h>
@@ -72,8 +74,9 @@ Java_top_xdwa_xwshun_mosh_MoshPty_spawn(JNIEnv *env, jclass cls, jstring jpath, 
 
     // 先把要用的东西都在父进程里准备好：fork 之后（多线程进程里）只能调异步信号安全的函数。
     char *path = NULL, *argv[9] = {0}, *envp[MAX_ENV] = {0};
-    char keyvar[sizeof "MOSH_KEY=" + KEY_LEN];
-    int master = -1, ok = 0;
+    char key[KEY_LEN];
+    char keyfd_var[] = "MOSH_KEY_FD=3";
+    int master = -1, ok = 0, keypipe[2] = {-1, -1};
     const char *s = (*env)->GetStringUTFChars(env, jpath, NULL);
     path = strdup(s);
     (*env)->ReleaseStringUTFChars(env, jpath, s);
@@ -91,13 +94,19 @@ Java_top_xdwa_xwshun_mosh_MoshPty_spawn(JNIEnv *env, jclass cls, jstring jpath, 
         (*env)->ReleaseStringUTFChars(env, a, s);
         (*env)->DeleteLocalRef(env, a);
     }
-    memcpy(keyvar, "MOSH_KEY=", 9);
-    (*env)->GetByteArrayRegion(env, jkey, 0, KEY_LEN, (jbyte *) keyvar + 9);
-    keyvar[9 + KEY_LEN] = 0;
+    (*env)->GetByteArrayRegion(env, jkey, 0, KEY_LEN, (jbyte *) key);
     for (int i = 0; i < KEY_LEN; i++) {
-        if (!is_key_char((unsigned char) keyvar[9 + i])) { throw_arg(env, "key 含非 base64 字符"); goto out; }
+        if (!is_key_char((unsigned char) key[i])) { throw_arg(env, "key 含非 base64 字符"); goto out; }
     }
-    envp[envc] = keyvar;
+    envp[envc] = keyfd_var;
+
+    // 先写好、关掉写端：子进程读到 22 字节后就是 EOF，不会卡住；22 字节远小于管道缓冲，write 不会阻塞。
+    if (pipe2(keypipe, O_CLOEXEC) != 0) { throw_io(env, "pipe2", errno); goto out; }
+    if (write(keypipe[1], key, KEY_LEN) != KEY_LEN) { throw_io(env, "write key", errno); goto out; }
+    close(keypipe[1]);
+    keypipe[1] = -1;
+    wipe(key, sizeof key);
+    if (keypipe[0] <= 3) { throw_io(env, "key pipe fd", EBADF); goto out; }  // 下面要 dup2 到 3，不能和 0–3 撞
 
     master = open("/dev/ptmx", O_RDWR | O_CLOEXEC | O_NOCTTY);
     if (master < 0) { throw_io(env, "open /dev/ptmx", errno); goto out; }
@@ -131,7 +140,8 @@ Java_top_xdwa_xwshun_mosh_MoshPty_spawn(JNIEnv *env, jclass cls, jstring jpath, 
         dup2(slave, 0);
         dup2(slave, 1);
         dup2(slave, 2);
-        for (int fd = 3; fd < maxfd; fd++) close(fd);
+        dup2(keypipe[0], 3);  // dup2 出来的 fd 不带 CLOEXEC，exec 后 mosh-client 从 3 读 key
+        for (int fd = 4; fd < maxfd; fd++) close(fd);
         execve(path, argv, envp);
         _exit(127);
     }
@@ -141,10 +151,12 @@ Java_top_xdwa_xwshun_mosh_MoshPty_spawn(JNIEnv *env, jclass cls, jstring jpath, 
     (*env)->SetIntArrayRegion(env, result, 0, 2, vals);
     __android_log_print(ANDROID_LOG_INFO, TAG, "spawned pid=%d", pid);  // 只记 pid，不记参数和环境
 out:
-    wipe(keyvar, sizeof keyvar);
+    wipe(key, sizeof key);
+    if (keypipe[0] >= 0) close(keypipe[0]);  // 父进程不留读端：子进程那份读完、关掉，管道就没了
+    if (keypipe[1] >= 0) close(keypipe[1]);
     free(path);
     for (int i = 0; argv[i]; i++) free(argv[i]);
-    for (int i = 0; i < MAX_ENV && envp[i]; i++) if (envp[i] != keyvar) free(envp[i]);
+    for (int i = 0; i < MAX_ENV && envp[i]; i++) if (envp[i] != keyfd_var) free(envp[i]);
     if (!ok) {
         if (master >= 0) close(master);
         return NULL;

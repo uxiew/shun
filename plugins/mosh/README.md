@@ -21,6 +21,13 @@ cd .. && ../android/gradlew -p . -q :mosh:assembleRelease \
 - 编译目录在仓库外 `../../../.toolchain/mosh-build/`，可以删（见本机手册第 6 节）；`FORCE=1` 全部重编。
 - 签名现在用测试作者密钥（`plugin-keys/fixture-author.jks`），正式签名等所有者定。宿主第一次看到它要用户批准证书。
 
+## 会话 key 怎么交给 mosh-client
+
+宿主 bootstrap 拿到 key → Binder（`openMoshSession` 的 byte[]，宿主和插件两边用完都清零）→ JNI 在 fork 之前把 22 个字节
+写进一根管道、关掉写端 → 子进程把读端放到 fd 3 → mosh-client 按 `MOSH_KEY_FD=3` 读走、关掉（补丁 0002）。
+不进命令行参数，不进环境变量，不写文件，不进日志。剩下的风险：mosh-client 进程内存里有 key（它要用）；
+Binder、平台通道自己的缓冲我们清不到。
+
 ## 为什么运行时叫 `libmoshclient.so`
 
 它其实是可执行文件。Android 10 起 App 不能 exec 自己可写目录里的文件；能 exec 的只有系统安装时解出的

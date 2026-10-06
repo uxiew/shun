@@ -26,10 +26,13 @@
 
 ## 我们对上游的改动
 
-只有一处，在 `native/patches/`：
+两处，都在 `native/patches/`：
 
 - `0001-android-api24-locale-charset.patch`：Android 8.0（API 26）以前 bionic 没有 `nl_langinfo()`，mosh 用它判断终端是不是 UTF-8。
   改成和 bionic 自己的 `nl_langinfo(CODESET)` 同一个判断（`MB_CUR_MAX == 1` 才是 ASCII）。只在 API < 26 的编译目标上生效。
+- `0002-key-from-inherited-fd.patch`：会话 key 可以从继承的文件描述符读（`MOSH_KEY_FD=<fd>`，正好 22 个字符，读完关掉）。
+  官方只认 `MOSH_KEY` 环境变量；mosh-client 读完会 `unsetenv`，但进程的初始环境块不会被擦，整个会话期间
+  `/proc/<pid>/environ` 都读得到。设了 `MOSH_KEY` 时行为和官方完全一样。
 
 ## 许可结论（给所有者看的，不是法律意见）
 

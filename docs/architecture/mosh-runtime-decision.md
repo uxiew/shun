@@ -53,8 +53,9 @@
   `exit()`、全局单例、信号都要改，代价大）。
 - **每会话一个子进程**：Android 12 起系统会限制 App 的子进程（phantom process），后台时可能被杀。会话被杀等于运行时退出，
   按 docs/16 显示「原会话丢失」，不自动重放输入。后台存活和移动网络恢复是 X10 的事。
-- **key 经环境变量交给子进程**：不进命令行参数（`ps` 看得到参数），mosh-client 读完就 `unsetenv`（`src/frontend/mosh-client.cc:168–184`）；但 `/proc/<pid>/environ`
-  里的初始环境块还在，只有插件自己的 UID 和 root 读得到。
+- **key 怎么交给子进程**：官方 mosh-client 只从 `MOSH_KEY` 环境变量读，读完 `unsetenv`（`src/frontend/mosh-client.cc:168–184`），
+  但初始环境块不会被擦，`/proc/<pid>/environ` 整个会话期间都读得到。所以打了一个小补丁（`plugins/mosh/native/patches/0002`）：
+  key 走继承的管道（fd 3），读完就关。不进参数、不进环境变量；剩下的是 mosh-client 自己内存里那份（它要用）。
 - **强杀插件**（SIGKILL）时 mosh-client 来不及通知服务器，远端会留下 mosh-server，这是 mosh 的设计（服务器等客户端回来）。
 - **GPL 义务**：插件按 GPL-3.0-or-later 分发，要能提供对应源码（本仓库 + 上游源码包 + 补丁 + 构建脚本）。
 - **只有 arm64-v8a**：其他 ABI 没设备测过，不打进包。
