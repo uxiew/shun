@@ -12,7 +12,7 @@ import 'terminal_session_adapter.dart';
 /// 两半各变成 U+FFFD，中文随机乱码（A03 / TER01）。
 final class XtermTerminalAdapter extends TerminalSessionAdapterBase {
   XtermTerminalAdapter({int maxLines = 10000, super.input})
-      : terminal = Terminal(maxLines: maxLines) {
+      : terminal = _Terminal(maxLines: maxLines) {
     // 只接输入和尺寸。打开链接、通知、工作目录这些效果回调保持 null，远端的请求没人执行（SEC09）。
     // 剪贴板两个回调不能留 null：xterm2 的 TerminalView 挂上时见它们是 null 就接上自己的实现，
     // 终端有焦点时真去读写手机剪贴板，读到的内容还 base64 回给远端（R19 挂着视图测出来的，
@@ -155,6 +155,16 @@ final class XtermTerminalAdapter extends TerminalSessionAdapterBase {
     terminal.onResize = null;
     terminal.dispose();
   }
+}
+
+/// 不回报窗口标题（CSI 21 t）。远端可以先把标题设成一段命令、再要求终端「报一下标题」，
+/// 终端回的字节就进了 shell 的输入，等于远端替用户打了字（老牌的标题回显注入）。
+/// xterm、Ghostty 默认都不回，xterm2 无条件回（R19 测出来的，SEC08）。
+class _Terminal extends Terminal {
+  _Terminal({super.maxLines});
+
+  @override
+  void reportTitle() {}
 }
 
 class _TerminalWriter implements StringSink {
