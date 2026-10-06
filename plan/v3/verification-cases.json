@@ -228,9 +228,11 @@
       "action": "远端输出 OSC 52、恶意 OSC 标题/目录/URL、控制字符、超长序列。",
       "expected": "不读/静默写剪贴板，不执行本地操作，不自动打开恶意 scheme；内存有界。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R19.md"
+      ]
     },
     {
       "id": "SEC09",
@@ -241,7 +243,8 @@
       "inherited_from": "2026-09-28",
       "evidence": [
         "evidence/R16.md",
-        "evidence/R17.md"
+        "evidence/R17.md",
+        "evidence/R19.md"
       ]
     },
     {
@@ -249,9 +252,11 @@
       "action": "粘贴多行、控制字符与引号到不同目标模式；随后切标签/断网。",
       "expected": "先预览风险，目标绑定正确；默认不追加 Enter；不宣称 bracketed paste 对所有程序阻止执行。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R19.md"
+      ]
     },
     {
       "id": "SEC11",
@@ -351,27 +356,33 @@
       "action": "普通 shell、大量历史、全屏鼠标模式、tmux copy-mode 下分别滚动。",
       "expected": "手势语义正确，选择不会误发按键；历史只按既定上限裁剪。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R19.md"
+      ]
     },
     {
       "id": "TER08",
       "action": "选择跨 CJK/emoji/组合字符的文本，复制并点击与拖动链接。",
       "expected": "复制内容正确；拖动不打开链接；不把相邻无关内容静默合并。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R19.md"
+      ]
     },
     {
       "id": "TER09",
       "action": "多行编辑默认粘贴、显式发送回车、bracketed paste 开/关、网络中断。",
       "expected": "行为符合文案；不自动重发，不因编辑 Enter 直接运行远端命令。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R19.md"
+      ]
     },
     {
       "id": "TER10",
@@ -593,9 +604,11 @@
       "action": "粘贴/发送/取消、切换目标、关闭标签与断开 SSH。",
       "expected": "文案与真实副作用一致；危险动作不是默认动作。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R19.md"
+      ]
     },
     {
       "id": "UX04",
@@ -1019,8 +1032,10 @@
       "action": "多行paste、普通sendText、按键编码和OSC effect各自测试。",
       "expected": "语义分离；不把paste清洗宣传为阻止执行；危险effect不默认允许。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R19.md"
+      ],
       "inherited_from": null
     },
     {

@@ -870,7 +870,7 @@
       "id": "R19",
       "phase": "P3",
       "title": "滚动选择、多行编辑与远端effect约束",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R18"
       ],
@@ -902,8 +902,10 @@
       ],
       "stop_condition": "不把bracketed paste或库清洗视为阻止远端执行保证。",
       "owner_role": "终端代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R19.md"
+      ],
+      "commit": "dc1d12a"
     },
     {
       "id": "R20",

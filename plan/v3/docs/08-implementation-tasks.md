@@ -399,7 +399,7 @@
 
 ## R19 滚动选择、多行编辑与远端effect约束
 
-阶段：P3；状态：NOT_STARTED；依赖：R18；角色：终端代理。
+阶段：P3；状态：DONE；依赖：R18；角色：终端代理。
 
 **范围**：迁移选择/scrollback/tmux鼠标语义，区分sendKey/sendText/paste；保留编辑预览并约束剪贴板/URL/图像。
 
