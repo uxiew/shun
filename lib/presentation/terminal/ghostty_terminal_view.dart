@@ -147,6 +147,10 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
                   showKeyboard: interactive,
                   // 设置里的「安全键盘」：输入法按可见密码框处理，不联想、不学习。
                   secureTextInput: options.secureKeyboard,
+                  // 远端开着鼠标报告（tmux mouse on、htop）时，手指只有滑动发成滚轮；点按照样叫键盘，
+                  // 长按照样在本地选字，都不发鼠标点击（TER07，和 xterm2 一样）。
+                  gestureSettings:
+                      const TerminalGestureSettings(touchMouseClicks: false),
                   // 远端能把任意文字标成链接（OSC 8），点了打开什么由远端说了算；
                   // 链接识别也会吃掉点按，点终端叫不回键盘。识别和打开链接留给 R19 定规矩。
                   linkSettings: const LinkSettings(types: {}),

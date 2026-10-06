@@ -19,6 +19,21 @@ const ghosttyTerminalConfig = TerminalConfig(
   // 不支持终端里显示图像：远端发来的 Kitty 图像和 APC 数据直接丢，不占内存。
   kittyImageStorageLimit: 0,
   apcBufferLimit: 0,
+  // 全屏程序里（备用屏、没开鼠标报告）手指滑动不变成方向键（R19，TER07）。flterm 默认开着 1007，
+  // tmux 没开 mouse 时一滑就把 ↑ 发给 shell，翻出上一条历史命令，再按回车就执行了。
+  // 和 xterm2 一样不翻译；远端程序自己发 CSI ? 1007 h 要这个行为时照它的。
+  // 其余照抄 TerminalConfig.defaultModes（const map 里展开再覆盖同一个键，分析器报错），
+  // 测试核对过两边只差这一项，同步上游后对不上会挂。
+  modes: {
+    TerminalMode.srm(): true,
+    TerminalMode.autoWrap(): true,
+    TerminalMode.cursorBlinking(): true,
+    TerminalMode.cursorVisible(): true,
+    TerminalMode.alternateScroll(): false,
+    TerminalMode.numlockKeypad(): true,
+    TerminalMode.altEscPrefix(): true,
+    TerminalMode.graphemeCluster(): true,
+  },
 );
 
 /// Ghostty 引擎（libghostty + flterm）的适配器（R17，docs/06 C 步）。

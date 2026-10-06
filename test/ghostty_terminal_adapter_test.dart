@@ -217,6 +217,17 @@ void main() {
       expect(config.apcBufferLimit, 0);
     });
 
+    test('终端模式：只有「备用屏里滚动翻译成方向键」（1007）和 flterm 默认不同（R19）', () {
+      final modes = ghosttyTerminalConfig.modes;
+      expect(modes[const TerminalMode.alternateScroll()], isFalse);
+      expect(
+        {...modes}..remove(const TerminalMode.alternateScroll()),
+        {...TerminalConfig.defaultModes}
+          ..remove(const TerminalMode.alternateScroll()),
+        reason: '同步上游后 flterm 的默认模式变了，照着改 ghosttyTerminalConfig',
+      );
+    });
+
     test('写两万行以后滚动区按上限回收，最新的行都在', () {
       final terminal = _terminal();
       final lines = StringBuffer();
