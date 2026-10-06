@@ -292,10 +292,11 @@
       "action": "中文输入法拼音候选、撤销 composing、混排、删除、语音输入到普通编辑区。",
       "expected": "只有确定提交进入终端，中文不重复不丢失；不得自动申请 App 麦克风权限。",
       "level": "硬门禁",
-      "result": "FAIL",
+      "result": "BLOCKED",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R04.md"
+        "evidence/R04.md",
+        "evidence/R18.md"
       ]
     },
     {
@@ -314,28 +315,33 @@
       "action": "软键盘、硬件键盘各测 Ctrl-C/Ctrl-D/Alt/Esc/Tab/方向键及修饰键复位。",
       "expected": "一次物理操作生成一次正确输入；切标签或后台无粘滞 Ctrl/Alt。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R18.md"
+      ]
     },
     {
       "id": "TER05",
       "action": "中文候选栏、软键盘显示隐藏、横竖屏、分屏、大字体、硬件键盘。",
       "expected": "光标不被遮挡，触控可达，布局/焦点保持；不将输入送往错误标签。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R18.md"
+      ]
     },
     {
       "id": "TER06",
       "action": "快速尺寸变更，记录 SSH window-change；恢复后使用全屏程序。",
       "expected": "没有 0 行/0 列、过期尺寸和 resize 风暴；最终尺寸与真实可见区域一致。",
       "level": "硬门禁",
-      "result": "FAIL",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R17.md"
+        "evidence/R17.md",
+        "evidence/R18.md"
       ]
     },
     {
@@ -560,7 +566,9 @@
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R18.md"
+      ]
     },
     {
       "id": "UX03",
