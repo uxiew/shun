@@ -3,6 +3,8 @@
 - `provider-sdk/`：宿主与插件共用的 AIDL 契约和认人工具（`CallerVerifier`、`SignerDigests`）。宿主工程和这里的测试工程引用同一份。
 - `fixture-echo/`、`fixture-rogue/`：X02–X04 的测试 APK。**只用于测试**：echo 连上不代表 Mosh 或任何真实 provider 可用。
 - `fixture-fakeuu/`、`fixture-fakerustdesk/`：X06、X07 的「假 UU 远程」「假 RustDesk」，扮演外部远控 App 接请求。它们不是真的，和它们走通不代表真实 App 能用。
+- `mosh/`：**真实插件**，不是测试用的。Mosh 运行时（官方 mosh-client 交叉编译，X08）。要先编运行时再构建，见 `mosh/README.md`；
+  `build-fixtures.sh` 不构建它。
 
 ## 构建
 
