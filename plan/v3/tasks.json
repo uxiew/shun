@@ -950,7 +950,7 @@
       "id": "R21",
       "phase": "P4",
       "title": "已有tmux能力整理与安全恢复目标",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R08",
         "R17"
@@ -984,8 +984,10 @@
       ],
       "stop_condition": "不支持版本/自定义配置先退到普通SSH，不自动修改远端配置。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R21.md"
+      ],
+      "commit": "1dcadaa"
     },
     {
       "id": "R22",

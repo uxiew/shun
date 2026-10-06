@@ -40,7 +40,7 @@
 | SEC08 | 远端输出 OSC 52、恶意 OSC 标题/目录/URL、控制字符、超长序列。 | 不读/静默写剪贴板，不执行本地操作，不自动打开恶意 scheme；内存有界。 | NOT_RUN |
 | SEC09 | 对终端适配层注入伪造sessionId、失效generation、重复view绑定、超长控制序列及恶意native effect回调。 | 终端没有secret或dial权限；不越权读写文件/剪贴板；旧代次不发送；FFI对象不会释放后使用。 | PASS |
 | SEC10 | 粘贴多行、控制字符与引号到不同目标模式；随后切标签/断网。 | 先预览风险，目标绑定正确；默认不追加 Enter；不宣称 bracketed paste 对所有程序阻止执行。 | NOT_RUN |
-| SEC11 | tmux 名称、路径和配置含分号、引号、换行、Tab、格式表达式及超长输出。 | 无 shell/tmux 注入；解析有界；查询不会意外创建目标或运行命令。 | NOT_RUN |
+| SEC11 | tmux 名称、路径和配置含分号、引号、换行、Tab、格式表达式及超长输出。 | 无 shell/tmux 注入；解析有界；查询不会意外创建目标或运行命令。 | PASS |
 | SEC12 | 导出诊断、触发认证失败与崩溃；检查日志/通知/Intent/截图模板。 | 无代理密码、私钥、按键和完整终端原文；导出前可预览；没有自动上传。 | NOT_RUN |
 | TER01 | 将同一 UTF-8/CJK/ANSI 数据按不同字节边界随机分包给内核。 | 结果与完整输入一致；不存在按包转 String 的替换符/字符损坏。 | PASS |
 | TER02 | 中文输入法拼音候选、撤销 composing、混排、删除、语音输入到普通编辑区。 | 只有确定提交进入终端，中文不重复不丢失；不得自动申请 App 麦克风权限。 | BLOCKED |
@@ -55,14 +55,14 @@
 | TER11 | 固定 VT 工作负载、多个标签、100 次创建/销毁，测完整进程树资源。 | 无 crash/ANR、持续泄漏或无法回收；达到已冻结性能预算，未达需解释/修复。 | NOT_RUN |
 | TER12 | 强制候选引擎初始化失败、模拟回退或下次启动安全模式。 | requested/effective/failureReason真实；不热换不兼容状态；仅旧引擎可用不能宣布Ghostty替换完成。 | NOT_RUN |
 | TER13 | 用户授权后运行实际远端 Claude Code/Codex 或其当前使用 CLI，记录版本与环境。 | 可操作提示/选择/中断/流式输出；说明已测版本与消耗，未授权则 NOT_RUN。 | NOT_RUN |
-| TMX01 | 测试有/无 tmux、不同实际版本、非默认 socket、异常输出和超时。 | 能力结果准确；普通 SSH 可用；无自动安装和查询副作用。 | NOT_RUN |
-| TMX02 | 列表有同名显示、恶意名称、空列表、大量会话以及 server 不存在。 | 以稳定 ID 和真实作用域解析，输出限制生效；不意外启动 server。 | NOT_RUN |
-| TMX03 | 从两个客户端附着既有目标，再显式创建一个新目标。 | 不会踢掉其他客户端；新建需明确动作；不自动执行 agent。 | NOT_RUN |
-| TMX04 | 断线后目标被删除；重连前另建同名目标。 | 显示旧目标缺失，不按同名静默附着或重建。 | NOT_RUN |
-| TMX05 | 重启 tmux server、重复 ID、切 Unix 用户/主机/socket 后恢复。 | 不把重用 ID 当同一任务；身份不足时请用户选择。 | NOT_RUN |
-| TMX06 | 多个本地标签与外部客户端共用 tmux，分别切窗口/缩放/分屏。 | 只控制明确绑定的 client/pane；不靠最近客户端猜测。 | NOT_RUN |
-| TMX07 | 自定义 prefix、mouse 关闭、copy-mode；执行手机快捷操作。 | 尊重已知配置，修改作用域明确；不修改 tmux.conf 或全局配置。 | NOT_RUN |
-| TMX08 | 关闭标签、断开 SSH、tmux detach、停止整个 App。 | 不发送 kill-session/Ctrl-C；界面不承诺无 tmux shell 中的进程存活。 | NOT_RUN |
+| TMX01 | 测试有/无 tmux、不同实际版本、非默认 socket、异常输出和超时。 | 能力结果准确；普通 SSH 可用；无自动安装和查询副作用。 | PASS |
+| TMX02 | 列表有同名显示、恶意名称、空列表、大量会话以及 server 不存在。 | 以稳定 ID 和真实作用域解析，输出限制生效；不意外启动 server。 | PASS |
+| TMX03 | 从两个客户端附着既有目标，再显式创建一个新目标。 | 不会踢掉其他客户端；新建需明确动作；不自动执行 agent。 | PASS |
+| TMX04 | 断线后目标被删除；重连前另建同名目标。 | 显示旧目标缺失，不按同名静默附着或重建。 | PASS |
+| TMX05 | 重启 tmux server、重复 ID、切 Unix 用户/主机/socket 后恢复。 | 不把重用 ID 当同一任务；身份不足时请用户选择。 | PASS |
+| TMX06 | 多个本地标签与外部客户端共用 tmux，分别切窗口/缩放/分屏。 | 只控制明确绑定的 client/pane；不靠最近客户端猜测。 | PASS |
+| TMX07 | 自定义 prefix、mouse 关闭、copy-mode；执行手机快捷操作。 | 尊重已知配置，修改作用域明确；不修改 tmux.conf 或全局配置。 | PASS |
+| TMX08 | 关闭标签、断开 SSH、tmux detach、停止整个 App。 | 不发送 kill-session/Ctrl-C；界面不承诺无 tmux shell 中的进程存活。 | PASS |
 | LIFE01 | 按目标 API 检查实际 FGS 类型/权限、前后台启动与通知限制。 | 用户触发且类型合法；禁止伪报媒体/短信；发布审核状态真实。 | NOT_RUN |
 | LIFE02 | 通知停止、系统停止服务、App force-stop，再触发网络事件。 | 不复活、不重新认证、不重放；用户重新打开后才提供恢复入口。 | NOT_RUN |
 | LIFE03 | 活动连接下 Wi-Fi↔蜂窝切换 20 次；包含存活和真正断开两种流。 | 不因通知无条件断开；失效流按策略恢复；不直连、不无限重试。 | NOT_RUN |

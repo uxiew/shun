@@ -258,9 +258,11 @@
       "action": "tmux 名称、路径和配置含分号、引号、换行、Tab、格式表达式及超长输出。",
       "expected": "无 shell/tmux 注入；解析有界；查询不会意外创建目标或运行命令。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R21.md"
+      ]
     },
     {
       "id": "SEC12",
@@ -414,72 +416,88 @@
       "action": "测试有/无 tmux、不同实际版本、非默认 socket、异常输出和超时。",
       "expected": "能力结果准确；普通 SSH 可用；无自动安装和查询副作用。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R21.md"
+      ]
     },
     {
       "id": "TMX02",
       "action": "列表有同名显示、恶意名称、空列表、大量会话以及 server 不存在。",
       "expected": "以稳定 ID 和真实作用域解析，输出限制生效；不意外启动 server。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R21.md"
+      ]
     },
     {
       "id": "TMX03",
       "action": "从两个客户端附着既有目标，再显式创建一个新目标。",
       "expected": "不会踢掉其他客户端；新建需明确动作；不自动执行 agent。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R21.md"
+      ]
     },
     {
       "id": "TMX04",
       "action": "断线后目标被删除；重连前另建同名目标。",
       "expected": "显示旧目标缺失，不按同名静默附着或重建。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R21.md"
+      ]
     },
     {
       "id": "TMX05",
       "action": "重启 tmux server、重复 ID、切 Unix 用户/主机/socket 后恢复。",
       "expected": "不把重用 ID 当同一任务；身份不足时请用户选择。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R21.md"
+      ]
     },
     {
       "id": "TMX06",
       "action": "多个本地标签与外部客户端共用 tmux，分别切窗口/缩放/分屏。",
       "expected": "只控制明确绑定的 client/pane；不靠最近客户端猜测。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R21.md"
+      ]
     },
     {
       "id": "TMX07",
       "action": "自定义 prefix、mouse 关闭、copy-mode；执行手机快捷操作。",
       "expected": "尊重已知配置，修改作用域明确；不修改 tmux.conf 或全局配置。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R21.md"
+      ]
     },
     {
       "id": "TMX08",
       "action": "关闭标签、断开 SSH、tmux detach、停止整个 App。",
       "expected": "不发送 kill-session/Ctrl-C；界面不承诺无 tmux shell 中的进程存活。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R21.md"
+      ]
     },
     {
       "id": "LIFE01",
