@@ -1760,4 +1760,110 @@ void main() {
       expect(await sshdConnections('ssh-edge'), 0);
     }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
   });
+
+  // R19 / TER09、GST04、SEC10：粘贴在真实 OpenSSH + 真 bash（readline）上到底会不会执行，核对粘贴预览里的说法：
+  // bracketed paste 开着时 bash 等回车；关着时前面各行粘贴即执行；断线、恢复后不补发。
+  // 放在这个文件里而不是单独一个文件：同一个测试环境，并行跑时别的测试数 ssh-edge 的连接、读它的日志，会被这里的会话搅乱。
+  group('R19 粘贴到真 bash', () {
+    /// 登录后换成 bash（登录 shell 是 busybox sh，不支持 bracketed paste），等提示符出来。
+    Future<void> startBash(TerminalSessionAdapter terminal) async {
+      await waitUntil(() => terminal.allText().trim().isNotEmpty);
+      terminal.sendText("exec bash --norc --noprofile; PS1='r19\$ '\r");
+      terminal.sendText('echo BASH-\$((40+2))\r');
+      await waitUntil(() => terminal.allText().contains('BASH-42'));
+    }
+
+    Future<String> files() =>
+        remote('cd; ls r19-* 2>/dev/null | tr "\\n" " "').then((v) => v.trim());
+
+    for (final MapEntry(key: engine, value: newTerminal)
+        in <String, TerminalSessionAdapter Function()>{
+      'Ghostty': GhosttyTerminalAdapter.new,
+      'xterm2': XtermTerminalAdapter.new,
+    }.entries) {
+      Future<TerminalSessionAdapter> bash() async {
+        await remote('rm -f ~/r19-*');
+        final terminal = newTerminal();
+        final session = await connect(edgeHost({}), terminal: terminal);
+        addTearDown(() async {
+          await session.close();
+          terminal.dispose();
+        });
+        await startBash(terminal);
+        return terminal;
+      }
+
+      test('$engine：bracketed paste 开着（bash 默认）：多行进了输入行、没执行；按回车才执行', () async {
+        final terminal = await bash();
+        await waitUntil(() => terminal.bracketedPasteMode);
+        terminal.paste('touch ~/r19-a\ntouch ~/r19-b');
+        await Future<void>.delayed(const Duration(milliseconds: 1500));
+        expect(await files(), isEmpty, reason: 'bash 等着回车，没执行');
+
+        terminal.sendText('\r');
+        await Future<void>.delayed(const Duration(milliseconds: 1500));
+        expect(await files(), 'r19-a r19-b');
+      }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
+      test('$engine：bracketed paste 关着：除了最后一行，前面各行粘贴即执行', () async {
+        final terminal = await bash();
+        terminal.sendText("bind 'set enable-bracketed-paste off'\r");
+        terminal.sendText('echo OFF-\$((40+3))\r');
+        await waitUntil(() => terminal.allText().contains('OFF-43'));
+        await waitUntil(() => !terminal.bracketedPasteMode);
+
+        terminal.paste('touch ~/r19-c\ntouch ~/r19-d');
+        await Future<void>.delayed(const Duration(milliseconds: 1500));
+        expect(await files(), 'r19-c', reason: '第一行粘贴时就执行了');
+      }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
+      test('$engine：伪造的结束标记、Ctrl-C 被挡掉；但这只是清洗，按回车照样执行', () async {
+        final terminal = await bash();
+        await waitUntil(() => terminal.bracketedPasteMode);
+        terminal.paste('touch ~/r19-e\x1b[201~\ntouch ~/r19-f\x03');
+        await Future<void>.delayed(const Duration(milliseconds: 1500));
+        expect(await files(), isEmpty, reason: '伪造的结束标记没能提前结束粘贴');
+        terminal.sendText('\r');
+        await Future<void>.delayed(const Duration(milliseconds: 1500));
+        expect(await files(), contains('r19-e'), reason: '按了回车照样执行：粘贴清洗不等于不执行');
+      }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+    }
+
+    test('断线：发不出去；恢复成新连接后不补发；旧目标再发也不行', () async {
+      SharedPreferences.setMockInitialValues({});
+      final repository = await VaultRepository.open();
+      final container = ProviderContainer(overrides: [
+        vaultRepositoryProvider.overrideWithValue(repository),
+      ]);
+      addTearDown(container.dispose);
+      final controller = container.read(sessionControllerProvider.notifier);
+      await remote('rm -f ~/r19-*');
+      await controller.connect(edgeHost({}), verifyByLogicalName);
+      final old = controller.state.sessions.single;
+      addTearDown(() async {
+        for (final session in [...controller.state.sessions]) {
+          await session.close();
+        }
+      });
+      await startBash(old.terminal);
+
+      await killEdgeSessions();
+      await waitUntil(() => !old.connected);
+      expect(
+        () => controller.pasteInto(old, 'touch ~/r19-lost', enter: true),
+        throwsA(isA<TerminalTargetChangedException>()),
+      );
+
+      await controller.reconnectDisconnected();
+      await waitUntil(() => controller.state.sessions
+          .any((s) => s.id == old.id && s.connected && !identical(s, old)));
+      await Future<void>.delayed(const Duration(seconds: 2));
+      expect(await files(), isEmpty, reason: '恢复后没有补发断线时的粘贴');
+      expect(
+        () => controller.pasteInto(old, 'touch ~/r19-lost', enter: true),
+        throwsA(isA<TerminalTargetChangedException>().having(
+            (e) => e.problem, 'problem', TerminalTargetProblem.replaced)),
+      );
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+  });
 }

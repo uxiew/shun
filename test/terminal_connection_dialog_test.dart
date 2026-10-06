@@ -117,7 +117,8 @@ void main() {
     controller.send('pwd', enter: true);
 
     expect(firstOutput, ['ss -lntp']);
-    expect(secondOutput, ['pwd\r']);
+    // 片段（send）从 R19 起按粘贴发、回车单独发一次，所以是两块；这里只管发给了哪个标签。
+    expect(secondOutput.join(), 'pwd\r');
     expect(
       () => controller.sendToSession('closed-session', 'whoami'),
       throwsStateError,

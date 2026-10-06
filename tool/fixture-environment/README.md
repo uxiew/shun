@@ -21,7 +21,7 @@
 | ssh-hop3 | 不能，名字 `hop3.fixture.internal` | 多跳的第三跳（测"三个跳板 + 目标"） |
 
 SSH 用户 `fixture`，登录 shell 是 busybox 的 `sh`（不支持 bracketed paste）；镜像里另装了 bash、vim、less、htop、tmux，
-要测真 readline 的粘贴行为（R19，`test/r19_paste_fixture_test.dart`）时在会话里 `exec bash`。改了 `Dockerfile` 后 `up.sh` 会重新构建。
+要测真 readline 的粘贴行为（R19，`test/integration_ssh_fixture_test.dart` 的「R19 粘贴到真 bash」）时在会话里 `exec bash`。改了 `Dockerfile` 后 `up.sh` 会重新构建。
 
 密码和客户端私钥每次 `up.sh` 重新生成；四台 sshd 的主机密钥也每次重新生成，所以**每次 up 之后指纹都会变**——测"指纹改变必须阻断"时直接利用这一点。
 
