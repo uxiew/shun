@@ -320,6 +320,10 @@ final class _SizeOnlyEngine extends TerminalSessionAdapterBase {
   @override
   void sendKey(TerminalSpecialKey key) {}
   @override
+  void paste(String text) {}
+  @override
+  bool get bracketedPasteMode => false;
+  @override
   bool get isAlternateScreen => false;
   @override
   int get viewRows => 0;

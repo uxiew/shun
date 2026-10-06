@@ -108,6 +108,18 @@ final class XtermTerminalAdapter extends TerminalSessionAdapterBase {
     terminal.textInput(text);
   }
 
+  /// xterm2 的 paste：按远端的 2004 模式包标记或把换行换成 CR，控制字符换成空格、转义序列整段去掉。
+  /// 先清修饰键：xterm2 的输出回调里会给发出去的字套修饰键，不清的话粘贴的第一个字会变成 Ctrl/Alt 组合。
+  @override
+  void paste(String text) {
+    if (isDisposed || text.isEmpty) return;
+    input.clearModifiers();
+    terminal.paste(text);
+  }
+
+  @override
+  bool get bracketedPasteMode => !isDisposed && terminal.bracketedPasteMode;
+
   @override
   bool get isAlternateScreen => terminal.isUsingAltBuffer;
 

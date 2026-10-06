@@ -133,6 +133,19 @@ final class GhosttyTerminalAdapter extends TerminalSessionAdapterBase {
     controller.sendText(input.consume(text));
   }
 
+  /// flterm 的 paste：按远端的 2004 模式包标记或把换行换成 CR，NUL、ESC、Ctrl-C 等换成空格。
+  @override
+  void paste(String text) {
+    if (isDisposed || text.isEmpty) return;
+    // 修饰键是给下一个按键的，粘贴不用它；不清掉的话它会留着套到粘贴之后按的第一个键上。
+    input.clearModifiers();
+    controller.paste(text);
+  }
+
+  @override
+  bool get bracketedPasteMode =>
+      !isDisposed && controller.modeGet(const TerminalMode.bracketedPaste());
+
   /// 修饰键已经同步成 flterm 的虚拟修饰键，flterm 编码时套上、用完清掉（快捷键栏跟着灭）。
   @override
   void sendKey(TerminalSpecialKey key) {

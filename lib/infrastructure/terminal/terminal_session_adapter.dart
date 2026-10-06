@@ -69,11 +69,23 @@ abstract interface class TerminalSessionAdapter implements Listenable {
   /// 恢复连接时新 PTY 按默认 80x24 打开，而尺寸没变时引擎不会再通知，不补发远端就一直是 80x24。
   TerminalBinding bind(TerminalInputSink input, {TerminalResizeSink? resize});
 
-  /// 当作键盘输入发出去（快捷键栏、片段、AI 插入的命令）。经过修饰键，和真按键一样。
+  /// 当作键盘输入发出去（快捷键栏的字符键、自定义快捷键）。经过修饰键，和真按键一样；
+  /// 里面的换行就是按了回车。剪贴板、片段这类整段文字用 [paste]。
   void sendText(String text);
 
   /// 发一个功能键，套上快捷键栏的一次性修饰键，按远端当前的键盘模式编码。
   void sendKey(TerminalSpecialKey key);
+
+  /// 把一整段文字当粘贴发出去（R19，GST04）。和 [sendText] 的区别：
+  /// 不套快捷键栏的修饰键（先清掉）；远端程序打开了 bracketed paste（DEC 2004）时整段包进粘贴标记，
+  /// 没打开时换行按回车（CR）发；引擎还会把 NUL、ESC、Ctrl-C 这类控制字节换成空格或去掉。末尾不追加回车。
+  ///
+  /// 这些都**不保证远端不执行**：没开 bracketed paste 的程序收到换行就执行前面那行；开了的程序
+  /// 拿到粘贴怎么处理也由它自己决定。多行、带控制字符的内容要先让用户看过（终端页的粘贴预览）。
+  void paste(String text);
+
+  /// 远端程序现在有没有打开 bracketed paste（DEC 2004）。只用来在粘贴预览里照实告诉用户，不是安全保证。
+  bool get bracketedPasteMode;
 
   /// 全屏程序（vim、tmux、less）切到了备用屏。
   bool get isAlternateScreen;
