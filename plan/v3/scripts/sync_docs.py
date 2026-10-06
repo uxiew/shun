@@ -27,7 +27,8 @@ doc8.write_text(''.join(out))
 doc9 = ROOT / 'docs/09-verification.md'
 out = []
 for line in doc9.read_text().splitlines(keepends=True):
-    m = re.match(r'^\|\s*([A-Z]{3}\d{2})\s*\|', line)
+    # 编号有两到四个字母：UX03、TER07、LIFE01。原来只认三个字母，UX、LIFE 两组的表格一直没跟着改。
+    m = re.match(r'^\|\s*([A-Z]{2,4}\d{2})\s*\|', line)
     if m and m.group(1) in cases:
         cells = line.rstrip('\n').split('|')
         # 最后一个非空单元格是结果列
