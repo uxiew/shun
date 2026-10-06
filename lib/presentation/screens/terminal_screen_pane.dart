@@ -330,6 +330,7 @@ class _TerminalPaneState extends State<_TerminalPane> {
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
+    final terminalLabel = localized('终端');
     return Focus(
       canRequestFocus: false,
       skipTraversal: true,
@@ -343,7 +344,7 @@ class _TerminalPaneState extends State<_TerminalPane> {
           // 读屏软件把整块终端当一个控件报「终端：主机名」，点按（叫出键盘）照样能用（UX02）。
           MergeSemantics(
             child: Semantics(
-              label: '${localized('终端')}：${widget.session.host.label}',
+              label: '$terminalLabel：${widget.session.host.label}',
               child: ColoredBox(
                 color: widget.transparentBackground
                     ? Colors.transparent
