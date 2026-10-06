@@ -14,7 +14,7 @@ cd third_party/libghostty
 flutter pub get
 dart analyze packages/flterm/lib packages/libghostty/lib
 ../fetch-libghostty-assets.sh                         # 只有跑 flterm 测试、示例程序时才要（51.6 MB）
-(cd packages/flterm && flutter test)                  # 1090 条
+(cd packages/flterm && flutter test)                  # 1125 条（R19）
 (cd packages/libghostty && dart test)                 # 511 条；第一次要下 Ghostty 源码再用 Zig 编，约 1 分钟
 ```
 

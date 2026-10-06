@@ -17,7 +17,7 @@ zig version                     # 应为 0.16.0；终端引擎（libghostty）�
 ## 2. 测试
 
 ```bash
-flutter test -j 4     # 全量约 850 条（R17 时开着测试环境 847 条通过、1 条只在 Windows 跑），约 2.5 分钟；没起测试环境时真实 SSH 的用例自动跳过。刚关模拟器、内存紧时不加 -j 4 可能被系统杀掉
+flutter test -j 4     # 全量约 1020 条（R19 时开着测试环境 988 条通过、32 条跳过：31 条是 tmux 环境没起、1 条只在 Windows 跑），约 3 分钟；没起测试环境时真实 SSH 的用例自动跳过。刚关模拟器、内存紧时不加 -j 4 可能被系统杀掉
 flutter analyze       # 应为 No issues found（连 spikes/、packages/ 一起查）
 ```
 
@@ -51,6 +51,11 @@ flutter test test/integration_ssh_fixture_test.dart
     `tool/r18-real-device.sh xdwmbp /opt/homebrew/share/android-commandlinetools/platform-tools/adb 47131FDAP0040E`，
     约 4 分钟（构建安装 1 分多钟，6 项每项半分钟）。手机上出现「点一下这里叫出键盘」后照屏幕说明做，每项按一次回车。
     脚本不碰手机的输入法设置，开始结束各记一次默认输入法；测完 App 被卸掉。
+- 粘贴、滑动、选字、链接、远端效果的设备测试（R19，`integration_test/r19_terminal_test.dart`，只在模拟器上跑过）：跑法同 R17 那条
+  （测试环境 + `adb reverse` + `R17_SSH`），另开终端预授权通知（同下面 R18 那条）。加 `--dart-define=R19_ENGINE=Ghostty` 只跑一个引擎，
+  `--plain-name "Ghostty：TER07"` 只跑一项。两个引擎四项全跑约 3 分钟（不算构建）。会往模拟器剪贴板里写测试文字；打开链接换成了假的，不开浏览器。
+  用到测试环境镜像里的 bash 和 tmux（R19 起镜像带 bash，改 Dockerfile 后 `up.sh` 自己重建）。
+  真 bash 上的粘贴行为（bracketed paste 开关、断线不补发）在本机就能测：`test/integration_ssh_fixture_test.dart` 的「R19 粘贴到真 bash」。
 - tmux 的测试（R21，`test/tmux_fixture_test.dart`）用另一套环境：四个真实 tmux 版本（2.4、2.7、3.0a、3.5a）加「没有 tmux」「假 tmux」两台，
   `(cd tool/tmux-fixture && ./up.sh)` 起、`./down.sh` 关，和上面那套互不影响、可以同时开；没起时整组跳过。细节见 `tool/tmux-fixture/README.md`。
 - Tailscale SSH 的测试（`test/tailscale_ssh_login_test.dart`）要 Go：会自己构建、起停仿制服务器，没装 Go 时整组跳过。仿制服务器和「Headscale + 真 tailscaled」环境的用法见 `tool/tailscale-ssh-fixture/README.md`。
@@ -197,6 +202,15 @@ brew 为本项目装的（2026-10-04）：`zig@0.16` 和它依赖的 `llvm@21`�
   （真机上帧照常出，动画结束就放行，不会卡）。只用 `pump()` 不推进时间的测试碰不上；要推进时间的，在测试里设
   `tester.binding.schedulingStrategy = ({required priority, required scheduler}) => true`（`test/terminal_input_routing_test.dart` 有）。
   查这种卡死：`flutter test --start-paused`，用 vm_service 的 `getStack` 看卡在哪（R18 就是这么找到的）。
+- **设备测试里远端逐字节收（`captureRemote`）读回来的字节缺一截、或者夹着不该有的字节**（R19 撞上的两种）：
+  一是收之前切到了备用屏（测全屏程序），结果打在备用屏上，备用屏没有滚动区，比屏幕长的开头被挤掉——用 `postlude` 在打结果前切回来；
+  二是 xterm2 退出备用屏后从屏幕上抄回来的十六进制里混进旧行的残字（同一次收的，exec 通道读文件是干净的）。
+  要准确的字节，收完另开 exec 通道读 `/tmp/r18.bin`（`integration_test/r19_terminal_test.dart` 的 `capture`）。
+- **xterm2 设备测试里，全屏程序中长按之后的手势都落空**：xterm2 在备用屏里长按会弹出「选择并复制」整屏文字框，
+  框开着时后面的滑动、点按都点在框上。测完长按先关框（点「关闭」）。框开着时远端的 tmux 退出，xterm2 还抛过四次
+  `RangeError`（缓冲区下标越界，那一段输出没处理完），见 `plan/v3/evidence/R19.md`「发现的问题」。
+- **两个测试文件都连 `tool/fixture-environment` 时，`-j 4` 全量跑互相搅乱**：`integration_ssh_fixture_test` 会数 ssh-edge 上的连接数、
+  读 sshd 日志、pkill 全部会话，别的文件同时开会话就让它随机失败（R19 时 JMP01/JMP02、R10 两条）。连这个环境的测试都放进那一个文件。
 - **Android 8.1 及更早的模拟器上 `adb logcat -c` 清不掉日志**（8.0 直接报 `failed to clear the 'main' log`）：
   按日志核对结果时别依赖清空，按"操作前已有几行"截取（`spikes/terminal_spike/tool/adb_key_check.sh` 就是这么做的）。
 
