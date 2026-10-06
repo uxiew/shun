@@ -1,0 +1,6 @@
+#!/bin/sh
+# 测试环境的记账：sudo、apk、apt-get 之类被调用就记一行（哪个命令、什么参数），然后失败返回。
+# X09 用它证明 App 遇到「服务器上没装 mosh」时没有替用户安装、没有 sudo（MOS02）。
+printf '%s %s %s\n' "$(date +%s)" "$(basename "$0")" "$*" >> /var/log/xwshun/install-attempts.log
+echo "$(basename "$0"): disabled in this test fixture" >&2
+exit 1
