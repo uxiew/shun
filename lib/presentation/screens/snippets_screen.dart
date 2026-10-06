@@ -61,9 +61,16 @@ class SnippetsScreen extends ConsumerWidget {
                             const SnackBar(content: LText('请先建立终端会话')),
                           );
                         } else {
-                          ref
-                              .read(sessionControllerProvider.notifier)
-                              .send(snippet.command, enter: snippet.autoRun);
+                          try {
+                            ref
+                                .read(sessionControllerProvider.notifier)
+                                .send(snippet.command, enter: snippet.autoRun);
+                          } on TerminalTargetChangedException catch (error) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: LText(error.toString())),
+                            );
+                            return;
+                          }
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
                               content: LText('已发送到 ${active.host.label}'),

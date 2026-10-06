@@ -199,6 +199,21 @@ void main() {
         expect(page.sent['first'], isEmpty);
       });
 
+      testWidgets('命令片段按粘贴发：多行不加末尾回车，「自动运行」才加；断开时报错不发', (tester) async {
+        final page = await _Page.open(tester, newTerminal, clipboard: '');
+        page.controller.send('cd /tmp\nls\n');
+        expect(page.sent['first'], ['cd /tmp\rls']);
+        page.controller.send('uptime', enter: true);
+        expect(page.sent['first'], ['cd /tmp\rls', 'uptime', '\r']);
+
+        page.disconnect(page.first);
+        expect(
+          () => page.controller.send('ls'),
+          throwsA(isA<TerminalTargetChangedException>()),
+        );
+        expect(page.sent['first'], hasLength(3));
+      });
+
       testWidgets('单独挂一个终端视图、没人接粘贴意图时，Ctrl+V 原样交给终端', (tester) async {
         final terminal = newTerminal();
         addTearDown(terminal.dispose);

@@ -704,9 +704,10 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                     current.copyWith(aiReasoningEffort: effort),
                   );
             },
+            // 只发给打开助手时的那条连接：期间断线恢复成了新 shell，命令就不发（R19，按粘贴发）。
             onCommand: (command, execute) async {
-              ref.read(sessionControllerProvider.notifier).sendToSession(
-                    session.id,
+              ref.read(sessionControllerProvider.notifier).pasteInto(
+                    session,
                     command,
                     enter: execute,
                   );

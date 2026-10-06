@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 
 import '../domain/connection_route.dart';
 import '../domain/models/host.dart';
+import '../domain/terminal_paste.dart';
 import '../domain/tmux/tmux_target.dart';
 import '../infrastructure/ssh/ssh_login_watch.dart';
 import '../infrastructure/ssh/ssh_service.dart';
@@ -716,10 +717,13 @@ class SessionController extends StateNotifier<SessionState> {
     removed.terminal.dispose();
   }
 
+  /// 命令片段发到当前标签（R19）。按粘贴发，不按打字发：多行片段在远端开着 bracketed paste 时
+  /// 不会逐行执行；末尾的换行和控制字符先去掉（同粘贴预览，见 [PasteReview]），回车只看片段的
+  /// 「自动运行」[enter]。目标断开时抛 [TerminalTargetChangedException]。
   void send(String text, {bool enter = false}) {
     final session = state.active;
     if (session == null) return;
-    sendToSession(session.id, text, enter: enter);
+    pasteInto(session, PasteReview.of(text).text, enter: enter);
   }
 
   /// 快捷键栏的输入：和软键盘打字一样直接交给终端。没连着时终端没有绑定，字就丢掉，
