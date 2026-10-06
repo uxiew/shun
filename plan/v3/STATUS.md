@@ -65,6 +65,13 @@ R04 的发现到 R17 为止：dispose 后 write 段错误（上游改成抛错�
 - remote：清掉原项目的 upstream，`origin` = `uxiew/xwshun`。GitHub 上这个仓库现在还看不到（gh 登录的是 fodelf），没有 push。
 - README 只留常用命令和索引，细节在 `docs/`。
 
+## 10-06 所有者的决定
+
+- 发布包：主 App 出一个 arm64-v8a 包，覆盖测过的 Android 7.0–9（API 24–28）、15（4 KiB 页）、16（16 KiB 页）；Mosh 等插件各自单独出包。不发 32 位、不发 x86_64。REL03 按这个支持矩阵做。
+- Mosh 插件的源码以后单独建仓库，现在先放在本仓库 `plugins/mosh`。
+- 暂时不需要蓝牙/USB 键盘测试：TER04 的硬件 Esc、中文输入法开着时硬件键能不能到终端，先不测。
+- 同意并本人做了 TER02 的真机语音复测（Pixel 9 Pro，测完已卸载、输入法没动）。
+
 ## 下一批
 
 `lizhi` 开着时，本项目模拟器用 `-port 5580` 起、adb 都带 `-s emulator-5580`（写在 docs/xwshun/README.md 第 7 节）。
@@ -85,9 +92,7 @@ X04 留下的：App 启动时不自动发现插件（只有插件页触发），
 
 ## 等所有者决定或提供
 
-- 一把蓝牙或 USB 键盘（可选）：测硬件 Esc，以及微信输入法开着时 Esc、方向键能不能到终端（TER04 剩下的部分，模拟器的键位表里没有 Esc）。
-- 发布包的 ABI：armeabi-v7a、x86_64 没有设备能测（这台 Apple Silicon Mac 跑不了 x86_64 镜像），是找设备还是只发 arm64（REL03；Mosh 插件现在也只有 arm64）。
-- Mosh 插件（X08）：正式包名、pluginId、签名（现在是 `top.xdwa.xwshun.mosh` / `xwshun.mosh`、测试作者密钥）；它带着 GPL 的 mosh，单独分发也要按 GPL-3.0-or-later 附源码，独立 APK 不改变这一点。
+- Mosh 插件（X08）：正式包名、pluginId、签名（现在是 `top.xdwa.xwshun.mosh` / `xwshun.mosh`、测试作者密钥）。它带着 GPL 的 mosh，搬去单独的仓库、单独分发后也要按 GPL-3.0-or-later 附源码。
 - 应用正式名称、正式签名、分发形态（BAS03 的"签名不同"、BAS04/REL01 许可结论依赖它）。
 - Gradle 依赖是否也要锁定校验（SUP01 只完成了 pub 层）。
 - 真实 UU 账号 + 一台开着「允许被控」的 Windows/macOS 电脑（UUR03/04/05/07，本轮不测）：X06 的代码做完了，但真实绑定和远控没走过，真实回调怎么编码设备标识也没见过。要测时你在模拟器里自己登录，清单见 evidence/X06.md「还差什么」。
