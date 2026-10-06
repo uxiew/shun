@@ -1,0 +1,213 @@
+import 'dart:convert';
+
+import 'package:flutter/gestures.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:netcatty_mobile/domain/terminal_link.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/presentation/terminal/terminal_view.dart';
+import 'package:netcatty_mobile/presentation/widgets/tailscale_check_card.dart'
+    show externalLinkLauncherProvider;
+
+// R19 / TER08、SEC08：终端里的链接。点了只弹确认框，能交给浏览器的只有 http/https；
+// 拖动、长按选字不弹框也不打开；远端发不出任何东西。
+
+const _options = TerminalViewOptions(
+  fontSize: 14,
+  secureKeyboard: false,
+  interactive: true,
+  transparentBackground: false,
+);
+
+const _sheetHost = ValueKey('terminal-link-host');
+const _open = ValueKey('terminal-link-open');
+
+void main() {
+  group('哪些链接能交给浏览器', () {
+    TerminalLinkReview review(String address, {String? shown}) =>
+        TerminalLinkReview.of(shownText: shown ?? address, address: address);
+
+    test('http、https 能打开，确认框显示域名', () {
+      expect(review('https://example.com/a?b=1').canOpen, isTrue);
+      expect(review('http://example.com').canOpen, isTrue);
+      expect(review('https://example.com/a').host, 'example.com');
+    });
+
+    test('会在手机上触发本地动作的类型一律不打开', () {
+      for (final address in [
+        'intent://scan/#Intent;scheme=zxing;package=com.evil;end',
+        'file:///sdcard/Download/a.apk',
+        'javascript:alert(1)',
+        'content://com.android.contacts/contacts',
+        'tel:10086',
+        'sms:10086?body=x',
+        'market://details?id=com.evil',
+        'ssh://root@host',
+        'top.xdwa.xwshun://callback?state=x',
+        'data:text/html,<script>alert(1)</script>',
+      ]) {
+        expect(review(address).canOpen, isFalse, reason: address);
+      }
+    });
+
+    test('@ 前面带用户名的网址（https://google.com@evil.example）不打开', () {
+      final link = review('https://google.com@evil.example/');
+      expect(link.canOpen, isFalse);
+      expect(link.host, 'evil.example');
+    });
+
+    test('有空白、控制字符、超长、空的都不打开', () {
+      expect(review('https://example.com/a b').canOpen, isFalse);
+      expect(review('https://example.com/\x1b[31m').canOpen, isFalse);
+      expect(
+        review('https://example.com/${'a' * TerminalLinkReview.maxLength}')
+            .canOpen,
+        isFalse,
+      );
+      expect(review('').canOpen, isFalse);
+    });
+
+    test('显示的文字和地址不一样、域名有非英文字符，要提醒', () {
+      expect(review('https://evil.example', shown: 'docs').textDiffers, isTrue);
+      expect(review('https://example.com').textDiffers, isFalse);
+      expect(review('https://exämple.com').nonAsciiHost, isTrue);
+      expect(review('https://xn--exmple-cua.com').nonAsciiHost, isTrue);
+      expect(review('https://example.com').nonAsciiHost, isFalse);
+    });
+  });
+
+  final engines = <String, TerminalSessionAdapterBase Function()>{
+    'Ghostty': GhosttyTerminalAdapter.new,
+    'xterm2': XtermTerminalAdapter.new,
+  };
+
+  for (final MapEntry(key: engine, value: newTerminal) in engines.entries) {
+    group(engine, () {
+      late TerminalSessionAdapterBase terminal;
+      late StringBuffer sent;
+      late List<Uri> launched;
+
+      Future<void> mount(WidgetTester tester, String output) async {
+        tester.view.physicalSize = const Size(1080, 1800);
+        tester.view.devicePixelRatio = 2.625;
+        addTearDown(tester.view.reset);
+        final strategy = tester.binding.schedulingStrategy;
+        tester.binding.schedulingStrategy = (
+                {required int priority, required SchedulerBinding scheduler}) =>
+            true;
+        addTearDown(() => tester.binding.schedulingStrategy = strategy);
+        terminal = newTerminal();
+        addTearDown(terminal.dispose);
+        sent = StringBuffer();
+        launched = [];
+        terminal.bind((bytes) => sent.write(latin1.decode(bytes)));
+        terminal.feed(Uint8List.fromList(utf8.encode(output)));
+        await tester.pumpWidget(ProviderScope(
+          overrides: [
+            externalLinkLauncherProvider.overrideWithValue((uri) async {
+              launched.add(uri);
+              return true;
+            }),
+          ],
+          child: MaterialApp(
+            home: Scaffold(body: terminalViewFor(terminal, _options)),
+          ),
+        ));
+        await tester.pump();
+        sent.clear();
+      }
+
+      Future<void> settle(WidgetTester tester) async {
+        for (var i = 0; i < 6; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+      }
+
+      /// 第一行开头几个字的位置（视图四周留 8 的边）。链接都放在第一行开头。
+      Offset firstCells(WidgetTester tester) =>
+          tester.getTopLeft(find.byType(Scaffold)) + const Offset(20, 14);
+
+      testWidgets('点网址：只弹确认框，写出域名；点「用浏览器打开」才打开；远端什么都没收到', (
+        tester,
+      ) async {
+        await mount(tester, 'https://example.com/a. trailing text\r\n');
+        await tester.tapAt(firstCells(tester));
+        await settle(tester);
+        if (engine == 'xterm2') {
+          // 旧引擎不认链接（和原版一样），点了就是点终端。
+          expect(find.byKey(_sheetHost), findsNothing);
+          expect(sent.toString(), isEmpty);
+          return;
+        }
+        expect(find.byKey(_sheetHost), findsOneWidget);
+        expect(find.text('example.com'), findsOneWidget);
+        expect(find.text('https://example.com/a'), findsOneWidget,
+            reason: '句末的句号不算网址');
+        expect(launched, isEmpty, reason: '点了链接本身不打开');
+
+        await tester.tap(find.byKey(_open));
+        await settle(tester);
+        expect(launched, [Uri.parse('https://example.com/a')]);
+        expect(sent.toString(), isEmpty);
+      });
+
+      testWidgets('远端用 OSC 8 把「docs」标成 javascript: 链接：提醒文字和地址不一样，不给打开', (
+        tester,
+      ) async {
+        await mount(
+          tester,
+          '\x1b]8;;javascript:alert(document.cookie)\x1b\\docs-page\x1b]8;;\x1b\\\r\n',
+        );
+        await tester.tapAt(firstCells(tester));
+        await settle(tester);
+        if (engine == 'xterm2') {
+          expect(find.byKey(_sheetHost), findsNothing);
+          expect(find.byKey(const ValueKey('terminal-link-refused')),
+              findsNothing);
+          return;
+        }
+        expect(find.byKey(const ValueKey('terminal-link-refused')),
+            findsOneWidget);
+        expect(find.byKey(const ValueKey('terminal-link-text-differs')),
+            findsOneWidget);
+        expect(find.byKey(_open), findsNothing);
+        expect(launched, isEmpty);
+        expect(sent.toString(), isEmpty);
+      });
+
+      testWidgets('从网址上拖动、长按选字：不弹框、不打开、不发东西', (tester) async {
+        await mount(
+          tester,
+          [for (var i = 0; i < 80; i++) 'https://example.com/$i'].join('\r\n'),
+        );
+        // 拖动：手指从网址上起步往下拉（翻滚动区）。
+        await tester.timedDragFrom(
+          firstCells(tester).translate(0, 200),
+          const Offset(0, 300),
+          const Duration(milliseconds: 300),
+        );
+        await settle(tester);
+        expect(find.byKey(_sheetHost), findsNothing);
+
+        // 长按网址再拖：选字。
+        final gesture = await tester.startGesture(
+          firstCells(tester).translate(0, 200),
+          kind: PointerDeviceKind.touch,
+        );
+        await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+        await gesture.moveBy(const Offset(80, 0));
+        await tester.pump(const Duration(milliseconds: 50));
+        await gesture.up();
+        await settle(tester);
+        expect(find.byKey(_sheetHost), findsNothing);
+        expect(launched, isEmpty);
+        expect(sent.toString(), isEmpty);
+      });
+    });
+  }
+}

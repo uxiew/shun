@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flterm/flterm.dart' hide Key;
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
@@ -6,6 +8,7 @@ import 'package:flutter/services.dart';
 import '../../infrastructure/terminal/ghostty_terminal_adapter.dart';
 import '../../infrastructure/terminal/terminal_session_adapter.dart';
 import '../localization/localized_widgets.dart';
+import '../widgets/terminal_link_sheet.dart';
 import 'terminal_view.dart';
 
 /// Ghostty 引擎的终端视图（R17）。除了测试，App 里只有这个文件和适配器认识 flterm。
@@ -153,9 +156,14 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
                       const TerminalGestureSettings(touchMouseClicks: false),
                   // 粘贴快捷键换成 App 的（先预览），盖掉 flterm 在 Android 上直接粘贴的 Ctrl+V。
                   shortcuts: terminalPasteShortcuts,
-                  // 远端能把任意文字标成链接（OSC 8），点了打开什么由远端说了算；
-                  // 链接识别也会吃掉点按，点终端叫不回键盘。识别和打开链接留给 R19 定规矩。
-                  linkSettings: const LinkSettings(types: {}),
+                  // 链接（R19）：远端用 OSC 8 标的链接，和文字里的 http/https 网址。点按抬起才算点了，
+                  // 拖动、长按选字都不算；点了只弹确认框，不直接打开（SEC08、TER08）。
+                  // 不认文件路径（flterm 的 LinkType.text 会认）：远端的路径在手机上打不开，认了只会吃掉点按。
+                  linkSettings: LinkSettings(
+                    types: const {LinkType.osc8, LinkType.custom},
+                    rules: _webLinkRules,
+                    onActivate: _onLinkActivated,
+                  ),
                 ),
               ),
             ),
@@ -194,7 +202,26 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
 
   Future<void> _showCopySnapshot() =>
       showTerminalCopySheet(context, _adapter.allText());
+
+  void _onLinkActivated(ActivatedLink link) {
+    if (!mounted || !_lease.isActive) return;
+    unawaited(showTerminalLinkSheet(
+      context,
+      shownText: link.text,
+      // OSC 8 的地址解析不了时为空，确认框里会说看不懂、不给打开；不拿屏幕上的文字顶替地址。
+      address:
+          link.type == LinkType.osc8 ? link.uri?.toString() ?? '' : link.text,
+    ));
+  }
 }
+
+/// 文字里的网址：http/https 开头，到空白或引号为止；结尾的句号、逗号、右括号不算（句子里的网址常这样结尾）。
+final _webLinkRules = [
+  LinkRule.regex(
+    id: 'web',
+    pattern: RegExp(r'''https?://[^\s<>"'`]*[^\s<>"'`.,;:!?)\]}]'''),
+  ),
+];
 
 /// 在适配器那里登记「有 flterm 视图挂着」，和 flterm 自己的挂、卸时机一致：
 /// flterm 视图在 deactivate 时解绑控制器，这里也在 deactivate 时注销。

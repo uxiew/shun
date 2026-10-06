@@ -1212,6 +1212,24 @@ const englishTranslations = <String, String>{
   '已粘贴并发送回车到': 'Pasted and sent Enter to',
   '已粘贴到（没有回车）': 'Pasted without Enter into',
   '已复制，没有发送': 'Copied, not sent',
+  // R19：终端里的链接（terminal_link_sheet.dart、domain/terminal_link.dart）。
+  '终端里的链接（来自远端输出）': 'Link in the terminal (from remote output)',
+  '屏幕上显示的文字和实际地址不一样：':
+      'The text shown on screen differs from the actual address:',
+  '域名里有非英文字符，可能是仿冒知名网站的域名。':
+      'The domain contains non-English characters and may imitate a well-known site.',
+  '不能打开：': 'Cannot open:',
+  '复制链接': 'Copy link',
+  '用浏览器打开': 'Open in browser',
+  '链接地址是空的，或者解析不了': 'The link address is empty or cannot be parsed',
+  '链接太长': 'The link is too long',
+  '链接里有空白或控制字符': 'The link contains whitespace or control characters',
+  '看不懂这个地址': 'This address cannot be understood',
+  '只打开 http、https 网址；别的类型（intent:、file:、javascript: 等）可能在手机上触发本地动作':
+      'Only http and https addresses are opened; other kinds (intent:, file:, javascript:, etc.) can trigger local actions on the phone',
+  '网址里没有域名': 'The address has no domain',
+  '网址里带用户名或密码（@ 前面那段），可能是伪装':
+      'The address carries a user name or password (the part before @) and may be disguised',
   // R14 Tailscale SSH
   'Tailscale SSH（不发密码和私钥）':
       'Tailscale SSH (no password or private key is sent)',
