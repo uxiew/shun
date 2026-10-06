@@ -150,7 +150,8 @@ void main() {
             reason: '$name：远端 $rows 行放不进 ${usable.round()}dp');
         expect((rows + 1) * cellHigh!, greaterThan(usable - 0.5),
             reason: '$name：${usable.round()}dp 放得下更多行，远端只有 $rows 行');
-        expect(rows, greaterThanOrEqualTo(3), reason: '$name：终端只剩 $rows 行');
+        // 横屏弹键盘时本来就只剩两三行（xterm2 的字跟着系统大字体放大时 2 行），不为 0 就行。
+        expect(rows, greaterThanOrEqualTo(1), reason: '$name：终端被挤成 0 行');
       }
 
       Future<void> showKeyboard() async {
