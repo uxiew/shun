@@ -8,6 +8,7 @@ import 'package:dartssh2/dartssh2.dart';
 import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/server_stats.dart';
+import '../../domain/plugins/mosh_bootstrap.dart';
 import '../../domain/tailscale_ssh.dart';
 import '../../domain/tmux/tmux_target.dart';
 import '../terminal/terminal_input_controller.dart';
@@ -69,7 +70,24 @@ class ProbeOutcome {
   final String? tty;
 }
 
-enum ConnectionStep { dial, proxy, handshake, check, forward, shell, pty }
+enum ConnectionStep {
+  dial,
+  proxy,
+  handshake,
+  check,
+  forward,
+  shell,
+  pty,
+
+  /// Mosh：核对本机的 Mosh 插件（批准、证书、握手），还没碰服务器。
+  plugin,
+
+  /// Mosh 第一段：已经登录，经 SSH 在远端启动 mosh-server。
+  moshServer,
+
+  /// Mosh 第二段：SSH 已断开，材料交给插件，由它经 UDP 直连。
+  moshUdp,
+}
 
 /// 连接进行到了哪一步，给等待界面显示用。
 ///
@@ -106,6 +124,9 @@ class ConnectionStage {
       ConnectionStep.forward => '$prefix“$label”：转发到下一跳（$detail）',
       ConnectionStep.shell => '正在打开终端',
       ConnectionStep.pty => '正在检查远端终端（PTY）',
+      ConnectionStep.plugin => '正在核对本机的 Mosh 插件（还没连服务器）',
+      ConnectionStep.moshServer => '第 1 段 SSH：“$label”（$detail）已登录，正在启动 mosh-server',
+      ConnectionStep.moshUdp => '第 2 段 UDP：SSH 已断开，Mosh 插件正在直连 $detail',
     };
   }
 
@@ -123,6 +144,39 @@ typedef TcpDialer = Future<Socket> Function(
 Future<Socket> _systemDial(String host, int port, {Duration? timeout}) =>
     Socket.connect(host, port, timeout: timeout);
 
+/// 不经 SSH 通道、由插件会话承载的终端（X09 的 Mosh）。连接层只通过它等结束、关会话，不认识插件的细节。
+abstract interface class PluginTerminalLink {
+  /// 给界面看的协议名，例如 Mosh。
+  String get protocol;
+
+  /// 数据实际走哪，例如「UDP 10.0.2.2:60101」。
+  String get detail;
+
+  bool get active;
+
+  /// 会话结束（任何原因）时完成，从不出错。
+  Future<void> get ended;
+
+  /// 结束后给用户看的说明（为什么结束、远端可能留下什么、接下来怎么办）；还没结束时为 null。
+  String? get endNotice;
+
+  /// 幂等。
+  Future<void> close();
+}
+
+/// Mosh 的 SSH 引导结果：UDP 去哪、带什么 key。
+class MoshBootstrapOutcome {
+  const MoshBootstrapOutcome(this.udpHost, this.material);
+
+  /// 这次 SSH 实际连上的那个 IP（数字形式）。
+  final String udpHost;
+  final MoshBootstrapResult material;
+
+  String get authority => udpHost.contains(':')
+      ? '[$udpHost]:${material.port}'
+      : '$udpHost:${material.port}';
+}
+
 class ActiveTerminalSession {
   ActiveTerminalSession({
     required this.id,
@@ -135,6 +189,7 @@ class ActiveTerminalSession {
     this.telnetSocket,
     this.routePlan,
     this.tmux,
+    this.plugin,
     TerminalBinding? binding,
     List<StreamSubscription<Object?>> outputSubscriptions = const [],
   })  : _binding = binding,
@@ -167,6 +222,11 @@ class ActiveTerminalSession {
   /// 对不上就停下，不按名字找替身、不新建（TMX04/TMX05）。
   final TmuxClientBinding? tmux;
 
+  /// 由插件承载的终端（Mosh）；SSH、Telnet 标签为 null。
+  ///
+  /// 有它时 [sshClients] 是空的：Mosh 只在引导时用了一下 SSH，随即关掉，所以这种标签没有 SFTP、监控、端口转发。
+  final PluginTerminalLink? plugin;
+
   /// 远端输出送进 [terminal] 的订阅。恢复时新旧连接共用同一个 terminal，
   /// 旧连接释放时必须先断开这里，旧通道迟到的字节才不会混进新 shell 的画面。
   final List<StreamSubscription<Object?>> _outputSubscriptions;
@@ -183,10 +243,17 @@ class ActiveTerminalSession {
   SSHClient? get sshClient => sshClients.isEmpty ? null : sshClients.last;
   bool get isSsh => sshClient != null;
   Future<void> get done =>
-      sshSession?.done ?? telnetSocket?.done ?? Future.value();
+      sshSession?.done ??
+      telnetSocket?.done ??
+      plugin?.ended ??
+      Future.value();
 
   Future<void> ping({Duration timeout = const Duration(seconds: 8)}) async {
     if (!connected) throw StateError('SSH session is disconnected');
+    // Mosh 自己管 UDP 上的保活和重传，宿主这边只能看插件会话还在不在。
+    if (plugin case final link? when !link.active) {
+      throw StateError('Mosh 会话已结束');
+    }
     if (sshClients.isNotEmpty) {
       await Future.wait(sshClients.map((client) => client.ping()))
           .timeout(timeout);
@@ -213,6 +280,8 @@ class ActiveTerminalSession {
       client.close();
     }
     telnetSocket?.destroy();
+    // Mosh：插件给 mosh-client 发 SIGHUP，它按协议通知服务器关闭；会话已经结束时什么都不做。
+    if (plugin != null) unawaited(plugin!.close());
   }
 
   /// 不再把这条连接的远端输出送进 [terminal]，也不再把终端输入交给它。可以重复调用。
@@ -290,7 +359,9 @@ class SshService {
     try {
       pending.throwIfCancelled();
       if (host.protocol == HostProtocol.mosh) {
-        throw UnsupportedError('Mosh 需要平台原生 UDP 运行时，当前版本尚未启用。');
+        // Mosh 主机走 MoshBootstrapCoordinator（SSH 只用来启动 mosh-server）。走到这里说明调用方漏判了协议：
+        // 宁可失败，也不能悄悄给它开一个普通 SSH shell。
+        throw UnsupportedError('Mosh 主机要经 Mosh 插件连接，不能按普通 SSH 终端打开。');
       }
       // 路线在任何拨号之前一次算好：配置有问题此时就抛 RouteConfigException，一个连接都没开。
       // 之后全程只用 plan 里的快照，连接中途用户改了主机、跳板或代理，只影响下一次连接（RTE03）。
@@ -355,7 +426,7 @@ class SshService {
     try {
       attempt.throwIfCancelled();
       if (host.protocol == HostProtocol.mosh) {
-        throw UnsupportedError('Mosh 需要平台原生 UDP 运行时，当前版本尚未启用。');
+        throw UnsupportedError('Mosh 主机要经 Mosh 插件连接，不能按普通 SSH 终端打开。');
       }
       final plan = routePlan ??
           resolveRoutePlan(
@@ -413,6 +484,150 @@ class SshService {
           .timeout(const Duration(seconds: 10));
       return output.trim();
     } finally {
+      session.close();
+    }
+  }
+
+  /// Mosh 的 SSH 引导（X09，docs/16 第 2、3 步）：直连目标，先核对主机指纹、再登录，然后只执行一条固定命令
+  /// （[MoshBootstrap.command]）拉起 mosh-server，按字节解析出 UDP 端口和会话 key，最后关掉这条 SSH。
+  ///
+  /// - 只接受直连、没有跳板的路线。别的路线调用方在拨号之前就该拒绝（`moshRouteProblem`），这里再挡一次。
+  /// - UDP 目标就是这次 SSH 实际连上的那个 IP（[MoshBootstrapOutcome.udpHost]）：主机名只由系统解析一次，
+  ///   SSH 和 UDP 去的是同一台机器（官方 mosh 默认也这样）；命令里的 `-s` 让 mosh-server 也只在这个地址上收 UDP。
+  /// - 不装软件、不用 sudo、不重试：远端没有 mosh-server 就照实失败。
+  /// - 输出有上限、有期限。原始输出里有 key：解析完就清零，不进日志和报错。
+  /// - 成功、失败、取消都不交出 SSH 资源，返回前全部关掉；mosh-server 自己已经脱离了这条 SSH。
+  Future<MoshBootstrapOutcome> bootstrapMosh({
+    required RoutePlan plan,
+    required HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    required ConnectionAttempt attempt,
+    (int, int) portRange = MoshBootstrap.defaultPortRange,
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
+    try {
+      attempt.throwIfCancelled();
+      if (plan.entry is! DirectEntry || plan.jumps.isNotEmpty) {
+        throw StateError('Mosh 只能直连，不能经代理或跳板机引导');
+      }
+      final command = MoshBootstrap.command(portRange: portRange);
+      final clients = await _establishSsh(
+        plan,
+        verifyHostKey,
+        keyboardInteractive,
+        attempt,
+        ConnectionPurpose.fresh,
+      );
+      final peer = attempt.directPeer;
+      if (peer == null) {
+        throw StateError('拿不到这次 SSH 连上的 IP 地址，不知道 Mosh 的 UDP 该发往哪里');
+      }
+      final target = plan.target;
+      attempt.report(ConnectionStage(
+        ConnectionStep.moshServer,
+        label: target.host.label,
+        detail: target.endpoint.authority,
+      ));
+      final output = await _atHop(
+        plan,
+        0,
+        '启动 mosh-server 失败',
+        () => attempt.waitFor(_runBounded(clients.last, command, timeout)),
+      );
+      try {
+        return MoshBootstrapOutcome(
+          peer.address,
+          _parseMoshBootstrap(output.bytes, output.exitCode, portRange),
+        );
+      } finally {
+        output.bytes.fillRange(0, output.bytes.length, 0);
+      }
+    } finally {
+      attempt.releasePartial();
+    }
+  }
+
+  static MoshBootstrapResult _parseMoshBootstrap(
+    Uint8List output,
+    int? exitCode,
+    (int, int) portRange,
+  ) {
+    try {
+      return MoshBootstrap.parse(output, portRange: portRange);
+    } on MoshBootstrapException catch (error) {
+      // 有的 shell 找不到命令时什么都不打印，只返回 127（POSIX 约定的「命令不存在」）。
+      if (error.failure == MoshBootstrapFailure.noConnectLine &&
+          exitCode == 127) {
+        throw const MoshBootstrapException(MoshBootstrapFailure.serverMissing);
+      }
+      rethrow;
+    }
+  }
+
+  /// 不带 PTY 执行 [command]，stdout、stderr 合在一起收，最多收 [MoshBootstrap.maxOutputBytes] + 1 字节
+  /// （多出的那 1 字节让解析认出「超长」），收满就关通道不再读。[timeout] 内远端没收尾就放弃。
+  ///
+  /// 不用 PTY：不触发登录脚本里只在交互式终端才跑的东西（自动 tmux 之类），输出里也没有 PTY 加的回车。
+  /// 收到的每一块在拼好之后清零；dartssh2 自己解密用的缓冲清不到。
+  Future<({Uint8List bytes, int? exitCode})> _runBounded(
+    SSHClient client,
+    String command,
+    Duration timeout,
+  ) async {
+    const limit = MoshBootstrap.maxOutputBytes + 1;
+    final session = await client.execute(command);
+    final chunks = <Uint8List>[];
+    var received = 0;
+    var open = 2;
+    final finished = Completer<void>();
+    void finish() {
+      if (!finished.isCompleted) finished.complete();
+    }
+
+    void add(Uint8List chunk) {
+      if (received >= limit) return;
+      final take = chunk.length <= limit - received
+          ? chunk
+          : Uint8List.sublistView(chunk, 0, limit - received);
+      chunks.add(take);
+      received += take.length;
+      if (received >= limit) {
+        session.close();
+        finish();
+      }
+    }
+
+    void streamDone() {
+      if (--open == 0) finish();
+    }
+
+    final subscriptions = [
+      session.stdout.listen(add, onDone: streamDone, onError: (_) => streamDone()),
+      session.stderr.listen(add, onDone: streamDone, onError: (_) => streamDone()),
+    ];
+    try {
+      await finished.future.timeout(
+        timeout,
+        onTimeout: () => throw TimeoutException(
+          '远端 ${timeout.inSeconds} 秒内没有完成 mosh-server 的启动',
+        ),
+      );
+      // 退出码在通道关闭时才到；流已经结束，最多再等一小会儿。
+      await session.done.timeout(const Duration(seconds: 2), onTimeout: () {});
+      final bytes = Uint8List(received);
+      var at = 0;
+      for (final chunk in chunks) {
+        bytes.setRange(at, at + chunk.length, chunk);
+        at += chunk.length;
+      }
+      return (bytes: bytes, exitCode: session.exitCode);
+    } finally {
+      for (final chunk in chunks) {
+        chunk.fillRange(0, chunk.length, 0);
+      }
+      for (final subscription in subscriptions) {
+        await subscription.cancel();
+      }
       session.close();
     }
   }
@@ -917,7 +1132,9 @@ class SshService {
         label: firstHop.host.label,
         detail: first.authority,
       ));
-      return DirectSshSocket(await _dialWithin(first, timeout));
+      final socket = await _dialWithin(first, timeout);
+      pending.directPeer = _peerOf(socket);
+      return DirectSshSocket(socket);
     }
     // 只显示代理端点，不显示代理账号。
     pending.report(ConnectionStage(
@@ -939,6 +1156,15 @@ class SshService {
       if (identical(pending.handshakeSocket, socket)) {
         pending.handshakeSocket = null;
       }
+    }
+  }
+
+  /// 已连上的 socket 的对端 IP。测试替身可能不支持，拿不到就是 null。
+  static InternetAddress? _peerOf(Socket socket) {
+    try {
+      return socket.remoteAddress;
+    } on Object {
+      return null;
     }
   }
 
@@ -1041,6 +1267,10 @@ class ConnectionAttempt {
   final cancelled = Completer<void>();
   final clients = <SSHClient>[];
   SSHSocket? transport;
+
+  /// 直连时手机这条 TCP 实际连上的 IP（主机名由系统解析后的结果）。经代理时没有：手机只连了代理。
+  /// Mosh 的 UDP 就发往它（[SshService.bootstrapMosh]）。
+  InternetAddress? directPeer;
   Socket? telnetSocket;
   SSHSession? shell;
 
