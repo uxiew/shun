@@ -168,6 +168,12 @@ $P plan/v3/scripts/validate_plan.py   # 只查计划本身，不测 App
 仓库里能删的（都在 `.gitignore` 里）：`build/`（约 1 GB）、`.dart_tool/flutter_build`（2–3 GB），下次构建重新生成；
 `.dart_tool/hooks_runner`（约 0.5 GB）是终端原生库的构建缓存，删了下次构建要用 Zig 重编，多一两分钟。
 
+- `flutter_build` 越跑越大：每次 `--dart-define` 的值不同（比如 `up.sh` 换了测试密码后再跑集成测试）就多一个约 120 MB 的子目录，
+  10-06 攒到 24 个共 2.8 GB。只留最新的一个、其余删掉就行，正在构建时别删。
+- 新开 worktree 时用 `cp -cR <主仓库>/.dart_tool/hooks_runner <worktree>/.dart_tool/` 带过去：`-c` 是 APFS 克隆，不占额外空间，也省得再用 Zig 重编。
+- 空闲空间掉得比文件长得快时，看一眼 `sysctl vm.swapusage`：系统 swap 和数据盘共用同一块空间（10-06 用到 5.5 GB），
+  模拟器、Gradle、Flutter 同时开着内存一紧，磁盘就跟着掉。
+
 共享 Android SDK 里为本项目装的：
 
 ```bash
