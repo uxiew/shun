@@ -37,6 +37,16 @@ flutter test test/integration_ssh_fixture_test.dart
   `flutter test integration_test/ghostty_engine_test.dart -d <设备> --dart-define=R17_SSH="$(python3 tool/fixture-environment/r17_config.py)"`。
   每次 `up.sh` 都换密码，参数要重新取。
 - 测试环境细节见 `tool/fixture-environment/README.md`，终端引擎验证工程见 `spikes/terminal_spike/README.md`。
+- 键盘和输入法的设备测试（R18，三份，都要上面的测试环境、都只在模拟器上跑）：
+  - 横竖屏 + 真软键盘下终端不被挡、远端尺寸对（`integration_test/r18_keyboard_test.dart`）：跑法同上一条（`adb reverse` + `R17_SSH`），
+    另开一个终端先预授权通知，不然一连上就弹「允许通知」挡住键盘：
+    `until adb -s emulator-5580 shell pm grant top.xdwa.xwshun android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done`
+  - 输入法回放（`integration_test/r18_ime_replay_test.dart`）：先 `(cd plugins && ./build-fixtures.sh)`，再 `tool/ime-replay.sh emulator-5580 [Ghostty|xterm2]`。
+    脚本装回放输入法、临时设成默认、预授权通知、跑完换回原输入法并卸载，见 `plugins/README.md`「R18 回放输入法」。
+  - 硬件键和快捷键栏修饰键（`integration_test/r18_keys_test.dart`）：要模拟器有硬件键盘设备。关掉模拟器，把
+    `../.toolchain/avd/xwshun-a35-4k.avd/config.ini` 的 `hw.keyboard = no` 改成 `yes`，重新起，再
+    `tool/ime-replay.sh emulator-5580 "" integration_test/r18_keys_test.dart`；**测完改回 `no` 再重起**，
+    不然软键盘默认不弹，别的设备测试会等不到键盘。
 - tmux 的测试（R21，`test/tmux_fixture_test.dart`）用另一套环境：四个真实 tmux 版本（2.4、2.7、3.0a、3.5a）加「没有 tmux」「假 tmux」两台，
   `(cd tool/tmux-fixture && ./up.sh)` 起、`./down.sh` 关，和上面那套互不影响、可以同时开；没起时整组跳过。细节见 `tool/tmux-fixture/README.md`。
 - Tailscale SSH 的测试（`test/tailscale_ssh_login_test.dart`）要 Go：会自己构建、起停仿制服务器，没装 Go 时整组跳过。仿制服务器和「Headscale + 真 tailscaled」环境的用法见 `tool/tailscale-ssh-fixture/README.md`。
@@ -168,6 +178,18 @@ brew 为本项目装的（2026-10-04）：`zig@0.16` 和它依赖的 `llvm@21`�
   只 force-stop 的话，系统会把默认输入法换成 Gboard（R04 时发生过一次，马上改回了）。改之前后各跑一次
   `settings get secure default_input_method`（还有 `selected_input_method_subtype`、`enabled_input_methods`）对比，确认没变。
 - **模拟器里按电脑的 Esc，App 退回上一页**：模拟器键位表把 Esc 映射成了返回键，真机蓝牙键盘不会这样。用终端快捷键栏的 Esc。
+  用 sendevent 写扫描码也一样：`qwerty2.kl` 里扫描码 1 是 BACK，没有任何扫描码映射到 ESCAPE，模拟器上测不了硬件 Esc。
+- **集成测试里等软键盘超时（「等待软键盘弹出超时」），截图上是「Allow xwshun to send you notifications?」**：
+  每次 `flutter test` 都重装 App，一连上 SSH 就为前台保活服务申请通知权限，系统框挡在 App 前面，键盘出不来。按第 2 节预授权。
+- **跑着跑着 `adb reverse` 没了，App 报连不上 127.0.0.1:22201**：`adb root` 会重启 adbd，端口转发跟着清掉。先 root 再 reverse
+  （`tool/ime-replay.sh` 就是这个顺序）。
+- **别用 `pkill -f flutter_tester` 收拾卡住的测试**：它会把别的 worktree、别的代理正在跑的测试一起杀掉（R18/R21 并行时撞过，
+  对方的测试重跑四次都被中途杀掉）。只杀自己那条：`pgrep -f "flutter_tools.snapshot test <你的测试文件>"`。
+- **widget 测试在 `tester.pump(时长)` 里卡死、CPU 100%**：flterm 在终端闲 250ms 后排一个「空闲优先级」任务压缩滚动区；
+  这时如果还有动画在跑（比如刚点过按钮的水波纹），调度器推迟它、用零延时计时器反复重试，假时钟里一次 pump 不出帧，就成了死循环
+  （真机上帧照常出，动画结束就放行，不会卡）。只用 `pump()` 不推进时间的测试碰不上；要推进时间的，在测试里设
+  `tester.binding.schedulingStrategy = ({required priority, required scheduler}) => true`（`test/terminal_input_routing_test.dart` 有）。
+  查这种卡死：`flutter test --start-paused`，用 vm_service 的 `getStack` 看卡在哪（R18 就是这么找到的）。
 - **Android 8.1 及更早的模拟器上 `adb logcat -c` 清不掉日志**（8.0 直接报 `failed to clear the 'main' log`）：
   按日志核对结果时别依赖清空，按"操作前已有几行"截取（`spikes/terminal_spike/tool/adb_key_check.sh` 就是这么做的）。
 
