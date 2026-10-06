@@ -1179,6 +1179,29 @@ const englishTranslations = <String, String>{
       'The link does not look like a Tailscale check link',
   '提示里夹带了不可见的控制字符': 'The message contains invisible control characters',
   '[链接]': '[link]',
+  // X08：Mosh 引导输出的解析结果（mosh_bootstrap.dart）和交给插件时的拒绝原因。
+  'mosh-server 的输出过长，已停止解析':
+      'The mosh-server output is too long; parsing stopped',
+  'mosh-server 的输出里有多条连接信息，无法确定哪条可信':
+      'The mosh-server output contains more than one connection line; unable to tell which one to trust',
+  'mosh-server 返回的连接信息格式不对':
+      'The connection line returned by mosh-server is malformed',
+  '没有收到 mosh-server 的连接信息': 'No connection line was received from mosh-server',
+  'mosh-server 返回的端口不在请求的范围内':
+      'The port returned by mosh-server is outside the requested range',
+  'mosh-server 返回的会话密钥格式不对':
+      'The session key returned by mosh-server is malformed',
+  '远端没有可用的 UTF-8 语言环境，mosh-server 拒绝启动（需要在服务器上生成 en_US.UTF-8 等 UTF-8 locale）':
+      'The server has no usable UTF-8 locale, so mosh-server refused to start (generate a UTF-8 locale such as en_US.UTF-8 on the server)',
+  '远端没有安装 mosh-server': 'mosh-server is not installed on the server',
+  '会话密钥已清除': 'The session key has been wiped',
+  'MoshBootstrapResult(port: \$port, key: <已隐藏>)':
+      'MoshBootstrapResult(port: \$port, key: <hidden>)',
+  "\$low:\$high', 'portRange', 'UDP 端口范围无效":
+      "\$low:\$high', 'portRange', 'Invalid UDP port range",
+  "BAD_ARGS', 'Mosh 目标或材料无效": "BAD_ARGS', 'Invalid Mosh target or material",
+  '插件没有申请临时会话密钥权限，不能交给它 Mosh 会话材料':
+      'The plugin did not request the ephemeral session-key permission, so Mosh session material cannot be handed to it',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
