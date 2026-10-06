@@ -4,7 +4,11 @@
 # adb 服务在接手机的那台电脑上，所以 `adb forward` 的监听口也开在那边。
 # flutter test 建好转发会立刻去连本机 127.0.0.1:<端口>，本机没人监听就 Connection refused；
 # 慢一点的 flutter drive 则是一直等、不报错。所以这里在把端口交回调用方之前，
-# 先经同一条 SSH 主连接在本机开同一个端口。其他 adb 命令原样交给真的 adb。
+# 先经同一条 SSH 主连接在本机开同一个端口。
+#
+# `adb reverse` 反过来：手机连自己的端口，落到的是那台电脑上的同一个端口，不是本机。
+# 这里再经 SSH 把那台电脑的这个端口接回本机（ssh -R），手机就能连上本机的测试环境。
+# 其他 adb 命令原样交给真的 adb。
 REAL=@REAL@
 CTL=@CTL@
 HOST=@HOST@
@@ -14,10 +18,23 @@ fwd=0
 for a in "$@"; do
   case $a in
     forward) fwd=1 ;;
+    reverse) fwd=2 ;;
     --list | --remove | --remove-all) fwd=0 ;;
   esac
 done
-[ $fwd = 1 ] || exec "$REAL" "$@"
+[ $fwd = 0 ] && exec "$REAL" "$@"
+
+if [ $fwd = 2 ]; then
+  args=("$@")
+  port=${args[$# - 1]#tcp:} # reverse 的电脑一侧，形如 tcp:22201
+  # 那台电脑上这个端口已经有人在用时，ssh 报 "remote port forwarding failed"，手机会连到别人的服务上，所以直接失败。
+  ssh -S "$CTL" -O forward -R "$port:127.0.0.1:$port" "$HOST" ||
+    { echo "没能在 $HOST 上开 $port 端口接回本机" >&2; exit 1; }
+  "$REAL" "$@" || exit $?
+  # down.sh 撤掉手机上的反向转发（ssh -R 随主连接一起关）
+  echo "${args[$# - 2]}" >>"$STATE/reverses"
+  exit 0
+fi
 
 out=$("$REAL" "$@")
 rc=$?
