@@ -3,6 +3,8 @@
     <queries>
         <package android:name="example.xwshun.fixture.echo" />
         <package android:name="top.xdwa.xwshun" />
+        <!-- X08：也去冒充宿主调 Mosh 插件（看不到包就连 bind 都做不了，测不到插件的逐事务鉴权）。 -->
+        <package android:name="top.xdwa.xwshun.mosh" />
     </queries>
 
     <application android:label="xwshun rogue fixture" android:allowBackup="false">
