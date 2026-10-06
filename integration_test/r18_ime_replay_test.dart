@@ -11,36 +11,6 @@ import 'package:integration_test/integration_test.dart';
 
 import 'r18_remote_capture.dart';
 
-/// 按 PTY 行编辑的规矩还原远端看到的行：退格删一个字（码点），回车换行。
-({List<String> lines, int deletes}) replay(List<int> bytes) {
-  final lines = <String>[''];
-  var deletes = 0;
-  final pending = <int>[];
-  void flush() {
-    if (pending.isEmpty) return;
-    lines.last += utf8.decode(pending, allowMalformed: true);
-    pending.clear();
-  }
-
-  for (final byte in bytes) {
-    if (byte == 0x7f) {
-      flush();
-      deletes++;
-      final runes = lines.last.runes.toList();
-      if (runes.isNotEmpty) {
-        lines.last = String.fromCharCodes(runes.take(runes.length - 1));
-      }
-    } else if (byte == 0x0d) {
-      flush();
-      lines.add('');
-    } else {
-      pending.add(byte);
-    }
-  }
-  flush();
-  return (lines: lines, deletes: deletes);
-}
-
 /// 每段脚本远端应该得到什么。
 final _expectations = <String, void Function(List<int> bytes)>{
   // 「，你谁」→「啊，你谁」删 3 个，「你谁」→「你是谁？」删 1 个；没有整句重发。
@@ -48,8 +18,8 @@ final _expectations = <String, void Function(List<int> bytes)>{
     final r = replay(bytes);
     expect(r.lines, ['你好啊，你是谁？在一']);
     expect(r.deletes, 4);
-    expect(utf8.decode(bytes.where((b) => b != 0x7f).toList()),
-        '你好，你谁啊，你谁是谁？在一');
+    expect(
+        utf8.decode(bytes.where((b) => b != 0x7f).toList()), '你好，你谁啊，你谁是谁？在一');
   },
   'pinyin': (bytes) {
     final r = replay(bytes);

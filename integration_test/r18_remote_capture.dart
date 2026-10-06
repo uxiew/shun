@@ -46,7 +46,9 @@ Future<(ActiveTerminalSession, SessionController)> connectR18(
   final container = ProviderContainer(overrides: [
     vaultRepositoryProvider.overrideWithValue(repository),
     terminalAdapterFactoryProvider.overrideWithValue(
-      engine == 'Ghostty' ? GhosttyTerminalAdapter.new : XtermTerminalAdapter.new,
+      engine == 'Ghostty'
+          ? GhosttyTerminalAdapter.new
+          : XtermTerminalAdapter.new,
     ),
   ]);
   addTearDown(container.dispose);
@@ -70,8 +72,7 @@ Future<(ActiveTerminalSession, SessionController)> connectR18(
     }),
     (_, __, fingerprint) async => fingerprint == config['fingerprint'],
   );
-  await waitFor(tester, () => controller.state.sessions.isNotEmpty,
-      what: '连上');
+  await waitFor(tester, () => controller.state.sessions.isNotEmpty, what: '连上');
   expect(await connected, isTrue);
   final session = controller.state.sessions.single;
   await waitFor(tester, () => session.terminal.allText().trim().isNotEmpty,
@@ -81,27 +82,47 @@ Future<(ActiveTerminalSession, SessionController)> connectR18(
 
 var _captures = 0;
 
+/// 远端什么时候停止收。
+enum CaptureEnd {
+  /// 留着 isig，靠最后到达的 Ctrl-C 结束（dd 包在接住 SIGINT 的子 shell 里：交互式 shell 看到前台命令
+  /// 被 SIGINT 杀掉会放弃后面整串命令；noflsh 不让 Ctrl-C 清掉没读走的字）。
+  ctrlC,
+
+  /// Ctrl-C 也当数据收，收满 seconds 秒结束。
+  timeout,
+
+  /// 收到第一个回车后再收 3 秒结束（看回车后有没有多发的字），最多收 seconds 秒。真人在手机上输入时用。
+  enter,
+}
+
 /// 远端逐字节收：raw 模式下退格、回车、控制字符原样到 dd。先打印就绪标记、等远端真开始收，
 /// 再调 [act]（让主机按键、广播给回放输入法，或在页面上点快捷键栏），收完把字节读回来。
-///
-/// [untilCtrlC] 为 true 时留着 isig，靠最后到达的 Ctrl-C 结束（dd 包在接住 SIGINT 的子 shell 里：
-/// 交互式 shell 看到前台命令被 SIGINT 杀掉会放弃后面整串命令；noflsh 不让 Ctrl-C 清掉没读走的字）；
-/// 为 false 时 Ctrl-C 也当数据收，按 [seconds] 收完。
+/// [prelude] 是收之前先执行的 shell 命令（比如在屏幕上打出给真人看的说明），要以分号结尾。
 Future<List<int>> captureRemote(
   WidgetTester tester,
   TerminalSessionAdapter terminal,
   Future<void> Function() act, {
-  bool untilCtrlC = true,
+  CaptureEnd end = CaptureEnd.ctrlC,
   int seconds = 8,
+  String prelude = '',
 }) async {
   final n = 1000 + ++_captures;
-  final mode = untilCtrlC ? 'isig noflsh' : '-isig';
-  final read = untilCtrlC
-      ? '(trap : INT; dd bs=1 of=/tmp/r18.bin 2>/dev/null)'
-      : 'timeout $seconds dd bs=1 of=/tmp/r18.bin 2>/dev/null';
+  final mode = end == CaptureEnd.ctrlC ? 'isig noflsh' : '-isig';
+  final read = switch (end) {
+    CaptureEnd.ctrlC => '(trap : INT; dd bs=1 of=/tmp/r18.bin 2>/dev/null)',
+    CaptureEnd.timeout =>
+      'timeout $seconds dd bs=1 of=/tmp/r18.bin 2>/dev/null',
+    // 非交互的 sh 里放到后台的 dd 不会被作业控制停住，但标准输入默认换成 /dev/null，所以显式接 /dev/tty。
+    // 先清空文件：不然轮询会先看到上一次留下的回车，马上结束。
+    CaptureEnd.enter => ': >/tmp/r18.bin; sh -c \''
+        'timeout $seconds dd bs=1 of=/tmp/r18.bin </dev/tty 2>/dev/null & d=\$!; '
+        'while kill -0 \$d 2>/dev/null; do '
+        'if [ -n "\$(tr -dc "\\r" </tmp/r18.bin)" ]; then sleep 3; kill \$d; fi; '
+        'sleep 0.3; done\'',
+  };
   // 标记用算术展开：回显的命令行里是 $((...))，只有输出里才是数字，不会被命令行本身误命中。
   terminal.sendText(
-    'echo R18R\$(($n)); stty raw -echo $mode; $read; stty sane; '
+    '${prelude}echo R18R\$(($n)); stty raw -echo $mode; $read; stty sane; '
     'echo R18B\$(($n)); od -An -tx1 -v /tmp/r18.bin; echo R18E\$(($n))\r',
   );
   await waitFor(tester, () => terminal.allText().contains('R18R$n'),
@@ -121,3 +142,33 @@ Future<List<int>> captureRemote(
 
 String hex(List<int> bytes) =>
     bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');
+
+/// 按 PTY 行编辑的规矩还原远端看到的行：退格删一个字（码点），回车换行。
+({List<String> lines, int deletes}) replay(List<int> bytes) {
+  final lines = <String>[''];
+  var deletes = 0;
+  final pending = <int>[];
+  void flush() {
+    if (pending.isEmpty) return;
+    lines.last += utf8.decode(pending, allowMalformed: true);
+    pending.clear();
+  }
+
+  for (final byte in bytes) {
+    if (byte == 0x7f) {
+      flush();
+      deletes++;
+      final runes = lines.last.runes.toList();
+      if (runes.isNotEmpty) {
+        lines.last = String.fromCharCodes(runes.take(runes.length - 1));
+      }
+    } else if (byte == 0x0d) {
+      flush();
+      lines.add('');
+    } else {
+      pending.add(byte);
+    }
+  }
+  flush();
+  return (lines: lines, deletes: deletes);
+}

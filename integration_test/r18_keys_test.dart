@@ -26,7 +26,7 @@ void main() {
         List<int> expected,
       ) async {
         final bytes = await captureRemote(tester, terminal, act,
-            untilCtrlC: false, seconds: 6);
+            end: CaptureEnd.timeout, seconds: 6);
         report('$engine.$name', 'bytes=[${hex(bytes)}] expected=[${hex(expected)}]');
         if (!_same(bytes, expected)) failures.add(name);
       }
