@@ -6,6 +6,9 @@
 #   source ../.toolchain/env.sh
 #   (cd plugins && ./build-fixtures.sh)        # 或只编回放输入法，见 plugins/README.md
 #   tool/ime-replay.sh emulator-5580 [Ghostty|xterm2] [测试文件，默认 r18_ime_replay_test.dart]
+# 测试文件要别的参数时放进环境变量 IME_REPLAY_DEFINES，一行一个，比如 X09 的 Mosh 回放：
+#   IME_REPLAY_DEFINES="--dart-define=X09_MOSH=$(python3 tool/mosh-fixture/x08_config.py)
+#   --dart-define=X09_SCENARIO=ime" tool/ime-replay.sh emulator-5580 Ghostty integration_test/mosh_session_test.dart
 #
 # 测试打印 "R18 READY=<名字>" 时这里替它按：名字以 hw: 开头就用 sendevent 往模拟器的硬件键盘写扫描码
 # （要 AVD 的 hw.keyboard = yes 和 adb root，见 docs/xwshun/README.md），否则广播给回放输入法。
@@ -56,9 +59,14 @@ done
   sleep 0.3
 done >/dev/null 2>&1 &)
 
+# 一行一个参数：JSON 里的方括号、引号原样保留，不经 shell 再拆一遍。
+EXTRA=()
+while IFS= read -r line; do
+  [[ -n "$line" ]] && EXTRA+=("$line")
+done <<< "${IME_REPLAY_DEFINES:-}"
 flutter test "$TEST_FILE" -d "$SERIAL" \
-  --dart-define=R17_SSH="$(python3 tool/fixture-environment/r17_config.py)" \
-  --dart-define=R18_ENGINE="$ENGINE" > "$LOG" 2>&1 &
+  --dart-define=R17_SSH="$(python3 tool/fixture-environment/r17_config.py 2>/dev/null)" \
+  --dart-define=R18_ENGINE="$ENGINE" ${EXTRA[@]+"${EXTRA[@]}"} > "$LOG" 2>&1 &
 TEST=$!
 
 # 硬件键：按下/抬起都是 EV_KEY（1）+ 扫描码，每个动作后跟一个 EV_SYN（0 0 0）。扫描码见 linux input-event-codes.h。
