@@ -1,0 +1,123 @@
+// R18 两个设备测试共用：用真实 App 页面连上 Docker 里的 OpenSSH，在远端逐字节收下 App 发出的东西。
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
+import 'package:netcatty_mobile/app.dart';
+import 'package:netcatty_mobile/application/home_navigation.dart';
+import 'package:netcatty_mobile/application/session_controller.dart';
+import 'package:netcatty_mobile/application/terminal_engine.dart';
+import 'package:netcatty_mobile/domain/models/host.dart';
+import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
+import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+
+const r18Ssh = String.fromEnvironment('R17_SSH');
+
+/// 只跑这个引擎（Ghostty / xterm2），空着两个都跑。
+const r18Engine = String.fromEnvironment('R18_ENGINE');
+
+void report(String key, Object? value) => debugPrint('R18 $key=$value');
+
+/// 真实时钟下一帧一帧地等，最多 [timeout]。终端光标在闪，pumpAndSettle 等不到「静止」。
+Future<void> waitFor(
+  WidgetTester tester,
+  bool Function() condition, {
+  Duration timeout = const Duration(seconds: 30),
+  String what = '条件',
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (!condition()) {
+    if (DateTime.now().isAfter(deadline)) fail('等待$what超时');
+    await tester.pump(const Duration(milliseconds: 50));
+  }
+}
+
+/// 起真 App 页面（终端标签），用 [engine] 连上测试环境的边缘 sshd，返回会话和控制器。
+Future<(ActiveTerminalSession, SessionController)> connectR18(
+  WidgetTester tester,
+  String engine,
+) async {
+  final config = jsonDecode(r18Ssh) as Map<String, dynamic>;
+  final repository = await VaultRepository.open();
+  final container = ProviderContainer(overrides: [
+    vaultRepositoryProvider.overrideWithValue(repository),
+    terminalAdapterFactoryProvider.overrideWithValue(
+      engine == 'Ghostty' ? GhosttyTerminalAdapter.new : XtermTerminalAdapter.new,
+    ),
+  ]);
+  addTearDown(container.dispose);
+  final controller = container.read(sessionControllerProvider.notifier);
+  await tester.pumpWidget(UncontrolledProviderScope(
+    container: container,
+    child: const NetcattyApp(),
+  ));
+  container.read(homeTabProvider.notifier).state = 1;
+  final connected = controller.connect(
+    HostProfile({
+      'id': 'r18-$engine',
+      'label': 'r18',
+      'hostname': '127.0.0.1',
+      'port': config['port'],
+      'username': config['user'],
+      'password': config['password'],
+      'authMethod': 'password',
+      'protocol': 'ssh',
+      '_ephemeralTerminal': true,
+    }),
+    (_, __, fingerprint) async => fingerprint == config['fingerprint'],
+  );
+  await waitFor(tester, () => controller.state.sessions.isNotEmpty,
+      what: '连上');
+  expect(await connected, isTrue);
+  final session = controller.state.sessions.single;
+  await waitFor(tester, () => session.terminal.allText().trim().isNotEmpty,
+      what: '提示符');
+  return (session, controller);
+}
+
+var _captures = 0;
+
+/// 远端逐字节收：raw 模式下退格、回车、控制字符原样到 dd。先打印就绪标记、等远端真开始收，
+/// 再调 [act]（让主机按键、广播给回放输入法，或在页面上点快捷键栏），收完把字节读回来。
+///
+/// [untilCtrlC] 为 true 时留着 isig，靠最后到达的 Ctrl-C 结束（dd 包在接住 SIGINT 的子 shell 里：
+/// 交互式 shell 看到前台命令被 SIGINT 杀掉会放弃后面整串命令；noflsh 不让 Ctrl-C 清掉没读走的字）；
+/// 为 false 时 Ctrl-C 也当数据收，按 [seconds] 收完。
+Future<List<int>> captureRemote(
+  WidgetTester tester,
+  TerminalSessionAdapter terminal,
+  Future<void> Function() act, {
+  bool untilCtrlC = true,
+  int seconds = 8,
+}) async {
+  final n = 1000 + ++_captures;
+  final mode = untilCtrlC ? 'isig noflsh' : '-isig';
+  final read = untilCtrlC
+      ? '(trap : INT; dd bs=1 of=/tmp/r18.bin 2>/dev/null)'
+      : 'timeout $seconds dd bs=1 of=/tmp/r18.bin 2>/dev/null';
+  // 标记用算术展开：回显的命令行里是 $((...))，只有输出里才是数字，不会被命令行本身误命中。
+  terminal.sendText(
+    'echo R18R\$(($n)); stty raw -echo $mode; $read; stty sane; '
+    'echo R18B\$(($n)); od -An -tx1 -v /tmp/r18.bin; echo R18E\$(($n))\r',
+  );
+  await waitFor(tester, () => terminal.allText().contains('R18R$n'),
+      what: '远端就绪');
+  await tester.pump(const Duration(milliseconds: 500));
+  await act();
+  await waitFor(tester, () => terminal.allText().contains('R18E$n'),
+      timeout: Duration(seconds: seconds + 40), what: '远端收完');
+  final text = terminal.allText();
+  final body = text.substring(
+      text.lastIndexOf('R18B$n') + 'R18B$n'.length, text.lastIndexOf('R18E$n'));
+  return [
+    for (final m in RegExp(r'\b[0-9a-f]{2}\b').allMatches(body))
+      int.parse(m.group(0)!, radix: 16),
+  ];
+}
+
+String hex(List<int> bytes) =>
+    bytes.map((b) => b.toRadixString(16).padLeft(2, '0')).join(' ');

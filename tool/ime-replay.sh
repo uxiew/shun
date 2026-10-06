@@ -1,18 +1,23 @@
 #!/usr/bin/env bash
-# R18：在模拟器上用「回放输入法」跑 integration_test/r18_ime_replay_test.dart。
+# R18：在模拟器上用「回放输入法」和真实扫描码的硬件键跑设备测试
+# （integration_test/r18_ime_replay_test.dart、r18_keys_test.dart）。
 #
 # 先起 Docker 测试环境（tool/fixture-environment/up.sh），再：
 #   source ../.toolchain/env.sh
 #   (cd plugins && ./build-fixtures.sh)        # 或只编回放输入法，见 plugins/README.md
-#   tool/ime-replay.sh emulator-5580 [Ghostty|xterm2]
+#   tool/ime-replay.sh emulator-5580 [Ghostty|xterm2] [测试文件，默认 r18_ime_replay_test.dart]
+#
+# 测试打印 "R18 READY=<名字>" 时这里替它按：名字以 hw: 开头就用 sendevent 往模拟器的硬件键盘写扫描码
+# （要 AVD 的 hw.keyboard = yes 和 adb root，见 docs/xwshun/README.md），否则广播给回放输入法。
 #
 # 会临时把模拟器的默认输入法换成回放输入法，结束（含失败、Ctrl-C）后换回原来的输入法并卸载它。
 # 只在模拟器上用：真机上换默认输入法会动到所有者的输入法设置。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-SERIAL=${1:?用法：tool/ime-replay.sh <模拟器序列号> [Ghostty|xterm2]}
+SERIAL=${1:?用法：tool/ime-replay.sh <模拟器序列号> [Ghostty|xterm2] [测试文件]}
 ENGINE=${2:-}
+TEST_FILE=${3:-integration_test/r18_ime_replay_test.dart}
 APK=plugins/out/replayime.apk
 IME=example.xwshun.fixture.replayime/.ReplayIme
 ADB=(adb -s "$SERIAL")
@@ -21,6 +26,12 @@ ADB=(adb -s "$SERIAL")
   || { echo "$SERIAL 不是模拟器，不跑（真机上会改掉所有者的输入法设置）" >&2; exit 1; }
 [[ -f "$APK" ]] || { echo "没有 $APK，先构建回放输入法" >&2; exit 1; }
 
+# adb root 会重启 adbd（连带清掉 adb reverse），要在装包、转端口之前做；找不到键盘设备只报一句，跑到 hw: 脚本时那段会收不到字节。
+"${ADB[@]}" root >/dev/null 2>&1 || true
+"${ADB[@]}" wait-for-device
+EVENTS=$("${ADB[@]}" shell getevent -pl 2>/dev/null | tr -d '\r' || true)
+KBD=$(awk '/add device/{d=$4} /KEY_Q /{print d; exit}' <<<"$EVENTS")
+[[ -n "$KBD" ]] || echo "模拟器上没有硬件键盘设备（AVD 的 hw.keyboard 要设成 yes），hw: 脚本会跳过" >&2
 ORIGINAL=$("${ADB[@]}" shell settings get secure default_input_method | tr -d '\r')
 LOG=$(mktemp -t r18-ime-replay)
 restore() {
@@ -45,20 +56,40 @@ done
   sleep 0.3
 done >/dev/null 2>&1 &)
 
-flutter test integration_test/r18_ime_replay_test.dart -d "$SERIAL" \
+flutter test "$TEST_FILE" -d "$SERIAL" \
   --dart-define=R17_SSH="$(python3 tool/fixture-environment/r17_config.py)" \
   --dart-define=R18_ENGINE="$ENGINE" > "$LOG" 2>&1 &
 TEST=$!
 
-# 测试准备好一段脚本就打印 "R18 READY=<名字>"，这里替它按下「回放」。
+# 硬件键：按下/抬起都是 EV_KEY（1）+ 扫描码，每个动作后跟一个 EV_SYN（0 0 0）。扫描码见 linux input-event-codes.h。
+hw_keys() {
+  [[ -n "$KBD" ]] || return 0
+  local cmd="" code
+  for code in "$@"; do   # 正数按下、负数抬起
+    if (( code > 0 )); then cmd+="sendevent $KBD 1 $code 1; "; else cmd+="sendevent $KBD 1 $(( -code )) 0; "; fi
+    cmd+="sendevent $KBD 0 0 0; "
+  done
+  "${ADB[@]}" shell "$cmd"
+}
+CTRL=29; ALT=56; SHIFT=42; KC=46; KD=32; KX=45; TAB=15; UP=103; KA=30
+press() { hw_keys "$@"; }
+
+# 测试准备好一段就打印 "R18 READY=<名字>"，这里替它按。
 SEEN=0
 while kill -0 "$TEST" 2>/dev/null; do
   COUNT=$(grep -c 'R18 READY=' "$LOG" || true)
   while (( SEEN < COUNT )); do
     SEEN=$((SEEN + 1))
     SCRIPT=$(grep 'R18 READY=' "$LOG" | sed -n "${SEEN}p" | sed 's/.*R18 READY=//' | tr -d '\r')
-    "${ADB[@]}" shell am broadcast -a example.xwshun.fixture.replayime.RUN \
-      -p example.xwshun.fixture.replayime --es script "$SCRIPT" >/dev/null
+    case "$SCRIPT" in
+      hw:combo)   # Ctrl+C、Ctrl+D、Alt+x、Tab、↑、Shift+Tab、a（组合键之后不粘）。模拟器键位表里扫描码 1 是 BACK，不发 Esc
+        press $CTRL $KC -$KC -$CTRL  $CTRL $KD -$KD -$CTRL  $ALT $KX -$KX -$ALT \
+          $TAB -$TAB  $UP -$UP  $SHIFT $TAB -$TAB -$SHIFT  $KA -$KA ;;
+      hw:cc) press $KC -$KC $KC -$KC ;;
+      hw:*) echo "不认识的硬件键脚本 $SCRIPT" >&2 ;;
+      *) "${ADB[@]}" shell am broadcast -a example.xwshun.fixture.replayime.RUN \
+           -p example.xwshun.fixture.replayime --es script "$SCRIPT" >/dev/null ;;
+    esac
   done
   sleep 0.5
 done

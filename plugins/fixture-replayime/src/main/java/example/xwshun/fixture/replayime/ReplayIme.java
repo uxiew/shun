@@ -196,6 +196,10 @@ public final class ReplayIme extends InputMethodService {
                 s.add(new Step(10, "commit newline", (ic, start) -> ic.commitText("\n", 1)));
                 break;
             }
+            case "type_c":
+                // 软键盘打一个 c，不带结尾的 Ctrl-C：配合快捷键栏的 Ctrl 测「Ctrl+软键盘字母」，远端按时限收。
+                s.add(new Step(50, "commit c", (ic, start) -> ic.commitText("c", 1)));
+                return s;
             default:
                 return null;
         }
