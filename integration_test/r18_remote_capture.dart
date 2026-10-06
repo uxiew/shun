@@ -117,7 +117,9 @@ Future<List<int>> captureRemote(
     CaptureEnd.enter => ': >/tmp/r18.bin; sh -c \''
         'timeout $seconds dd bs=1 of=/tmp/r18.bin </dev/tty 2>/dev/null & d=\$!; '
         'while kill -0 \$d 2>/dev/null; do '
-        'if [ -n "\$(tr -dc "\\r" </tmp/r18.bin)" ]; then sleep 3; kill \$d; fi; '
+        // 收到回车马上在屏幕上说一声：R18 真机复测时屏幕 3 秒没反应，所有者以为没按上，连按了好几下。
+        'if [ -n "\$(tr -dc "\\r" </tmp/r18.bin)" ]; then '
+        'printf "\\r\\n收到回车，3 秒后结束\\r\\n" >/dev/tty; sleep 3; kill \$d; fi; '
         'sleep 0.3; done\'',
   };
   // 标记用算术展开：回显的命令行里是 $((...))，只有输出里才是数字，不会被命令行本身误命中。
