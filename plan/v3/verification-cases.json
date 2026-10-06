@@ -1238,9 +1238,11 @@
       "action": "检查release APK及运行时网络/文件行为。",
       "expected": "native随提供方APK打包；无下载Dart/Dex/.so到宿主执行，无sharedUserId。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X08.md"
+      ]
     },
     {
       "id": "PLG14",
@@ -1281,9 +1283,11 @@
       "action": "安装真实Mosh运行时APK，将native输出接入flterm。",
       "expected": "通过真实Mosh协议生成可操作画面，不以Echo provider冒充。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X08.md"
+      ]
     },
     {
       "id": "MOS02",
@@ -1344,9 +1348,11 @@
       "action": "bootstrap恶意输出、超长内容、非法端口/注入、locale异常。",
       "expected": "限界解析并失败关闭，临时key不入命令行日志/持久化，未支持locale明确报告。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X08.md"
+      ]
     },
     {
       "id": "UUR01",

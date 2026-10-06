@@ -2007,7 +2007,7 @@
       "id": "X08",
       "phase": "E2",
       "title": "Mosh运行时选择与独立APK可行性",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "X03",
         "R04",
@@ -2037,8 +2037,10 @@
       ],
       "stop_condition": "候选都未通过则保持阻塞；不能用echo或仅宿主内pub依赖替代独立插件，不规避Android执行限制。",
       "owner_role": "Native/Android代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/X08.md"
+      ],
+      "commit": "c6966a7"
     },
     {
       "id": "X09",

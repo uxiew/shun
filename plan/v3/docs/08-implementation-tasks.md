@@ -925,7 +925,7 @@
 
 ## X08 Mosh运行时选择与独立APK可行性
 
-阶段：E2；状态：NOT_STARTED；依赖：X03, R04, R09；角色：Native/Android代理。
+阶段：E2；状态：DONE；依赖：X03, R04, R09；角色：Native/Android代理。
 
 **范围**：先对比dart_mosh与官方native客户端的真实mosh-server互操作、包/密钥处理、VT重绘、移动恢复与独立APK成本，再冻结一种运行时。Dart候选用插件自身AOT/FlutterEngine与Kotlin bridge；native候选验证PTY/JNI/退出。不是只引pub包，也不复制binary到宿主files执行。
 

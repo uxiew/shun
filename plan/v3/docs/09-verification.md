@@ -142,18 +142,18 @@ G0基线与关键风险；G1连接路线；G2目录及外部认证支持；G3 Gh
 |PLG10|宿主进程被杀，插件仍有native会话和打开FD。|death recipient/EOF策略清理，未执行命令不被重放；无法确认停止需如实记录。|PASS|
 |PLG11|插件更新、卸载、替换签名后回到正在打开的页面。|缓存能力失效、重新核验；不自动重新授权或执行旧操作。|PASS|
 |PLG12|运行中撤销授权，提供方拒绝close或继续发事件。|宿主停止新调用/释放秘密、关闭自有FD；其他provider不受影响，停止未确认不伪报成功。|PASS|
-|PLG13|检查release APK及运行时网络/文件行为。|native随提供方APK打包；无下载Dart/Dex/.so到宿主执行，无sharedUserId。|NOT_RUN|
+|PLG13|检查release APK及运行时网络/文件行为。|native随提供方APK打包；无下载Dart/Dex/.so到宿主执行，无sharedUserId。|PASS|
 |PLG14|用测试秘密贯穿bootstrap、IPC、崩溃、导出、备份。|仅有本session临时材料进入Mosh；无SSH私钥/代理口令/Tailscale token整库授权或明文日志。|NOT_RUN|
 |PLG15|安装独立作者签名插件，拒绝信任后再显式批准；切到release。|不要求共享签名私钥；未批准不可用，release不接受万能debug信任。|PASS|
 |PLG16|前后台切换、关闭通知、系统停止、强制停止宿主和插件。|服务所有权与用户停止有效；无假媒体保活、无限自启或不断线承诺。|NOT_RUN|
-|MOS01|安装真实Mosh运行时APK，将native输出接入flterm。|通过真实Mosh协议生成可操作画面，不以Echo provider冒充。|NOT_RUN|
+|MOS01|安装真实Mosh运行时APK，将native输出接入flterm。|通过真实Mosh协议生成可操作画面，不以Echo provider冒充。|PASS|
 |MOS02|首次/改变SSH主机指纹、认证失败、缺mosh-server。|用户认证前核验主机；失败不发临时key，不自动安装或sudo。|NOT_RUN|
 |MOS03|隔离主机上Direct完成bootstrap与UDP会话，并记录两个阶段。|终端输入/resize有效；明确SSH和UDP不同数据路径。|NOT_RUN|
 |MOS04|用户选择SOCKS、TailSocks、ProxyJump及组合路线后启动Mosh。|在bootstrap前拒绝unsupported，远端启动计数和绕路UDP拨号计数都为零。|NOT_RUN|
 |MOS05|中文IME、硬件按键、旋转、随机分片VT穿过插件FD。|一次提交一次宿主写入，无双重编码，最终行列正确；不把协议内部行为说成exactly-once。|NOT_RUN|
 |MOS06|活动UDP会话Wi-Fi/蜂窝切换、临时离线后回来。|存活runtime按协议恢复；宿主不重新bootstrap、不重放输入，失败状态真实。|NOT_RUN|
 |MOS07|运行时初始化失败/退出/崩溃/用户关闭，再尝试恢复（Dart与native各按选定方案）。|无自动重启远端server/同名tmux或重发命令，资源清理且有重新连接入口。|NOT_RUN|
-|MOS08|bootstrap恶意输出、超长内容、非法端口/注入、locale异常。|限界解析并失败关闭，临时key不入命令行日志/持久化，未支持locale明确报告。|NOT_RUN|
+|MOS08|bootstrap恶意输出、超长内容、非法端口/注入、locale异常。|限界解析并失败关闭，临时key不入命令行日志/持久化，未支持locale明确报告。|PASS|
 |UUR01|UU未安装、版本不足、合法scheme但错误签名、非Windows/macOS目标。|拒绝或明确引导，不能把Linux入口假称可用。|PASS|
 |UUR02|绑定回调包含特殊字符ID、正确/错误nonce、重复参数和超长值。|严格一次解码与关联，用户确认后保存opaque引用；不解密/猜测内部ID。|PASS|
 |UUR03|window_type=0全屏发起后没有任何回调，用户返回主App。|仅显示已交给UU，不等待承诺不存在的回调，不自动标Active/失败重试。|BLOCKED|
