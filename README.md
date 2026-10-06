@@ -2,7 +2,7 @@
 
 Android 上的 SSH 终端 + SFTP，基于 [Netcatty Mobile](https://github.com/kmh1145/Netcatty-mobile) v1.4.7（`495f5d31`）改造。GPL-3.0-or-later。
 
-开发中，还没有安装包。进度看 [plan/v3/STATUS.md](plan/v3/STATUS.md)，和原版的区别看 [使用手册第 16 节](docs/user/README.md#16-和原版-netcatty-不一样的地方)。
+开发中，还没有安装包。进度看 [plan/v3/STATUS.md](plan/v3/STATUS.md)，和原版的区别看 [使用手册第 19 节](docs/user/README.md#19-和原版-netcatty-不一样的地方)。
 
 ## 常用命令
 
