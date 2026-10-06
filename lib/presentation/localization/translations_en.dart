@@ -588,8 +588,8 @@ const englishTranslations = <String, String>{
   '检查更新失败': 'Update check failed',
   '发现新版本': 'New version available',
   '更新': 'Update',
-  'Mosh 需要平台原生 UDP 运行时，当前版本尚未启用。':
-      'Mosh requires a native UDP runtime and is not enabled in this version.',
+  'Mosh 主机要经 Mosh 插件连接，不能按普通 SSH 终端打开。':
+      'Mosh hosts connect through the Mosh plugin and cannot be opened as a plain SSH terminal.',
   'PID 必须大于 0': 'PID must be greater than 0',
   'WebDAV 必须使用 HTTPS 地址': 'WebDAV must use an HTTPS address',
   'WebDAV 上传校验失败：远端文件与上传内容不一致':
@@ -1212,6 +1212,122 @@ const englishTranslations = <String, String>{
       'The link does not look like a Tailscale check link',
   '提示里夹带了不可见的控制字符': 'The message contains invisible control characters',
   '[链接]': '[link]',
+  // X09：用 Mosh 连接（mosh_route.dart、mosh_session.dart、编辑器、失败页、终端里的结束提示）。
+  // 由几段字面量拼成、又经 LText 显示的整句，整句也各配一条，界面上才是完整的英文。
+  'Mosh 只能直连，这台主机的连接路径是：\$description。':
+      'Mosh only works over a direct connection; this host\'s route is: \$description. ',
+  'Mosh 会话走 UDP，代理和跳板机只转发 TCP，承载不了；':
+      'A Mosh session runs over UDP, which proxies and jump hosts (TCP only) cannot carry; ',
+  '没有连接服务器、没有启动 mosh-server，也不会改成直连绕过你选的路线。':
+      'nothing was sent to the server, no mosh-server was started, and the route you chose was not bypassed with a direct connection.',
+  '经\$proxy': 'via \$proxy',
+  '经跳板机 \$jumps': 'via jump host \$jumps',
+  '先经\$proxy再走跳板机 \$jumps': 'via \$proxy, then jump host \$jumps',
+  'Mosh UDP 端口范围写得不对：\$text（写成 60001，或 60001:60999）':
+      'Invalid Mosh UDP port range: \$text (write 60001 or 60001:60999)',
+  'Mosh 只在 Android 上有：它由单独安装的 Mosh 插件提供。':
+      'Mosh is Android-only: it comes from the separately installed Mosh plugin.',
+  '装着的 Mosh 插件没有声明终端会话能力或临时会话密钥权限，不能用它连 Mosh。':
+      'The installed Mosh plugin does not declare the terminal-session capability or the ephemeral session-key permission, so it cannot be used for Mosh.',
+  '装着的 Mosh 插件没有声明支持直连，不能用它连 Mosh。':
+      'The installed Mosh plugin does not declare support for direct connections, so it cannot be used for Mosh.',
+  'Mosh 插件的应答不对，没有用它。':
+      'The Mosh plugin gave a wrong answer and was not used.',
+  r'Mosh 插件没有正常响应：${error.message}':
+      r'The Mosh plugin did not respond properly: ${error.message}',
+  r'连不上 Mosh 插件：${error.message}':
+      r'Could not connect to the Mosh plugin: ${error.message}',
+  '没有装 Mosh 插件（top.xdwa.xwshun.mosh）。装好后到「设置 → 插件（实验）」核对证书并批准，再连。':
+      'The Mosh plugin (top.xdwa.xwshun.mosh) is not installed. After installing it, verify its certificate and approve it in “Settings → Plugins (experimental)”, then connect again.',
+  'Mosh 插件还没批准：到「设置 → 插件（实验）」核对证书后批准，再连。':
+      'The Mosh plugin is not approved yet: verify its certificate in “Settings → Plugins (experimental)”, approve it, then connect again.',
+  'Mosh 插件被停用了：到「设置 → 插件（实验）」启用它，再连。':
+      'The Mosh plugin is disabled: enable it in “Settings → Plugins (experimental)”, then connect again.',
+  'Mosh 插件已被卸载：装回同一证书的包会直接恢复。':
+      'The Mosh plugin was uninstalled: reinstalling a package with the same certificate restores it.',
+  'Mosh 插件被拒绝了，原因见「设置 → 插件（实验）」里它的条目。':
+      'The Mosh plugin was rejected; see its entry in “Settings → Plugins (experimental)” for why.',
+  'Mosh 插件和这个 App 不兼容，原因见「设置 → 插件（实验）」里它的条目。':
+      'The Mosh plugin is incompatible with this app; see its entry in “Settings → Plugins (experimental)” for why.',
+  'Mosh 插件现在不可用。': 'The Mosh plugin is not available right now.',
+  'Mosh 会话已关闭，但插件没有确认 mosh-client 已退出。远端可能还有旧会话（mosh-server）。':
+      'The Mosh session was closed, but the plugin did not confirm that mosh-client exited. An old session (mosh-server) may still be on the server.',
+  '本 App 关掉了这个 Mosh 会话（插件被停用、撤销批准或更新），插件确认 mosh-client 已退出。':
+      'This app closed the Mosh session (the plugin was disabled, revoked or updated); the plugin confirmed that mosh-client exited.',
+  '远端 shell 已退出，Mosh 会话结束。':
+      'The remote shell exited; the Mosh session ended.',
+  'Mosh 插件关掉了这个会话，没说原因。远端可能还有旧会话（mosh-server）。':
+      'The Mosh plugin closed this session without saying why. An old session (mosh-server) may still be on the server.',
+  'Mosh 插件进程没了（被系统或手动结束）。':
+      'The Mosh plugin process is gone (ended by the system or by hand). ',
+  '远端可能还有旧会话：mosh-server 会一直等客户端回来，可以在服务器上用 pkill mosh-server 清掉。':
+      'An old session may still be on the server: mosh-server keeps waiting for the client; clean it up with pkill mosh-server on the server.',
+  'Mosh 插件被停用、撤销批准、更新或断开了连接，会话已关闭。远端可能还有旧会话（mosh-server）。':
+      'The Mosh plugin was disabled, revoked, updated or disconnected, so the session was closed. An old session (mosh-server) may still be on the server.',
+  'mosh-client 没能正常收尾（退出码 1）。最常见的是 UDP 到不了服务器：':
+      'mosh-client did not shut down cleanly (exit code 1). Most often UDP cannot reach the server: ',
+  '服务器或中间的防火墙没放行 mosh-server 用的 UDP 端口；也可能是网络断得太久、服务器一直没回应。':
+      'the server or a firewall in between does not allow the UDP port mosh-server uses; or the network was down too long and the server never answered. ',
+  '上面终端里 mosh 自己打印的说明更具体。远端可能还有旧会话（mosh-server）。':
+      'Mosh\'s own message in the terminal above is more specific. An old session (mosh-server) may still be on the server.',
+  'mosh-client 被强制结束（信号 9）：关闭时 8 秒内没退出会被插件强杀，系统内存紧张时也会这样。远端可能还有旧会话（mosh-server）。':
+      'mosh-client was killed (signal 9): the plugin kills it if it has not exited 8 seconds after closing, and the system does the same when memory is low. An old session (mosh-server) may still be on the server.',
+  'mosh-client 被信号 \$signal 结束。远端可能还有旧会话（mosh-server）。':
+      'mosh-client was ended by signal \$signal. An old session (mosh-server) may still be on the server.',
+  'mosh-client 异常退出（退出码 \$code）。远端可能还有旧会话（mosh-server）。':
+      'mosh-client exited abnormally (exit code \$code). An old session (mosh-server) may still be on the server.',
+  'Mosh 插件报告运行时失败（\$failure）。远端可能还有旧会话（mosh-server）。':
+      'The Mosh plugin reported a runtime failure (\$failure). An old session (mosh-server) may still be on the server.',
+  r'\r\n\x1b[33m[Mosh] $reason 不会自动重连。\x1b[0m\r\n':
+      r'\r\n\x1b[33m[Mosh] $reason It will not reconnect automatically.\x1b[0m\r\n',
+  r'\x1b[33m不会自动重连，也不会重发断开前的输入；断开前最后打的字有没有到远端，App 无法确认。\r\n':
+      r'\x1b[33mIt will not reconnect automatically or resend earlier input; the app cannot tell whether the last keystrokes before the disconnect reached the server.\r\n',
+  r'要再连，从保险库重新连接这台主机：会在服务器上新起一个 mosh-server，不是原来那个会话。\x1b[0m\r\n':
+      r'To connect again, open this host from the vault: that starts a new mosh-server on the server, not the old session.\x1b[0m\r\n',
+  'Mosh 只能直连，不能经代理或跳板机引导':
+      'Mosh only works over a direct connection; it cannot be bootstrapped through a proxy or jump host',
+  '拿不到这次 SSH 连上的 IP 地址，不知道 Mosh 的 UDP 该发往哪里':
+      'Could not get the IP address this SSH connection reached, so it is unclear where Mosh\'s UDP should go',
+  r'远端 ${timeout.inSeconds} 秒内没有完成 mosh-server 的启动':
+      r'The server did not finish starting mosh-server within ${timeout.inSeconds} seconds',
+  '正在核对本机的 Mosh 插件（还没连服务器）':
+      'Checking the Mosh plugin on this phone (the server has not been contacted yet)',
+  '第 1 段 SSH：“\$label”（\$detail）已登录，正在启动 mosh-server':
+      'Leg 1, SSH: logged in to “\$label” (\$detail), starting mosh-server',
+  '第 2 段 UDP：SSH 已断开，Mosh 插件正在直连 \$detail':
+      'Leg 2, UDP: SSH is closed; the Mosh plugin is connecting directly to \$detail',
+  r'SSH ${target.host.username}@${target.endpoint.authority} 启动 mosh-server，之后 Mosh 会话走 UDP 直连':
+      r'SSH ${target.host.username}@${target.endpoint.authority} starts mosh-server; the Mosh session then runs directly over UDP',
+  '要经代理或跳板机，把这台主机的协议改回 SSH（想断线后接着用，可以配合 tmux）；要用 Mosh，把连接路径改成「直连」。':
+      'To go through a proxy or jump host, switch this host back to SSH (pair it with tmux to keep working after disconnects); to use Mosh, set the route to “Direct”.',
+  'Mosh 插件在「设置 → 插件（实验）」里管理。这一步只查了本机，还没连服务器。':
+      'Manage the Mosh plugin in “Settings → Plugins (experimental)”. This step only checked the phone; the server was not contacted.',
+  '请服务器管理员安装 mosh（Debian/Ubuntu：apt install mosh；Alpine：apk add mosh-server）。':
+      'Ask the server administrator to install mosh (Debian/Ubuntu: apt install mosh; Alpine: apk add mosh-server). ',
+  '本 App 不会替你安装，也不会用 sudo。SSH 这一段是通的。':
+      'This app does not install it for you and never uses sudo. The SSH leg works.',
+  '请服务器管理员安装 mosh（Debian/Ubuntu：apt install mosh；Alpine：apk add mosh-server）。本 App 不会替你安装，也不会用 sudo。SSH 这一段是通的。':
+      'Ask the server administrator to install mosh (Debian/Ubuntu: apt install mosh; Alpine: apk add mosh-server). This app does not install it for you and never uses sudo. The SSH leg works.',
+  '在服务器上生成一个 UTF-8 语言环境（比如 locale-gen en_US.UTF-8），再连。':
+      'Generate a UTF-8 locale on the server (for example locale-gen en_US.UTF-8), then connect again.',
+  '服务器上的 mosh-server 给出的连接信息不可信，没有用它；SSH 这一段是通的。检查服务器登录脚本有没有往输出里打东西。':
+      'The connection details from mosh-server could not be trusted and were not used; the SSH leg works. Check whether the server\'s login scripts print anything.',
+  'Mosh 先用 SSH 登录这台主机、在上面启动 mosh-server，然后断开 SSH，改由 Mosh 插件经 UDP 直连。':
+      'Mosh first logs in to this host over SSH and starts mosh-server there, then closes SSH and lets the Mosh plugin connect directly over UDP. ',
+  '要先装好 Mosh 插件并在「设置 → 插件（实验）」批准；服务器上要装好 mosh，本 App 不会替你装。':
+      'Install the Mosh plugin and approve it in “Settings → Plugins (experimental)” first; mosh must be installed on the server, and this app does not install it for you. ',
+  '只能直连：UDP 走不了代理和跳板机。':
+      'Direct connections only: UDP cannot go through proxies or jump hosts.',
+  'Mosh 先用 SSH 登录这台主机、在上面启动 mosh-server，然后断开 SSH，改由 Mosh 插件经 UDP 直连。要先装好 Mosh 插件并在「设置 → 插件（实验）」批准；服务器上要装好 mosh，本 App 不会替你装。只能直连：UDP 走不了代理和跳板机。':
+      'Mosh first logs in to this host over SSH and starts mosh-server there, then closes SSH and lets the Mosh plugin connect directly over UDP. Install the Mosh plugin and approve it in “Settings → Plugins (experimental)” first; mosh must be installed on the server, and this app does not install it for you. Direct connections only: UDP cannot go through proxies or jump hosts.',
+  'Mosh UDP 端口范围（可选）': 'Mosh UDP port range (optional)',
+  'mosh-server 只在这个范围里挑 UDP 端口。服务器或防火墙只放行了某几个端口时填它，比如 60001 或 60001:60010。':
+      'mosh-server picks its UDP port only from this range. Fill it in when the server or a firewall only allows certain ports, for example 60001 or 60001:60010.',
+  '关闭 Mosh 标签页？': 'Close the Mosh tab?',
+  r'将断开 ${session.host.label} 的 Mosh 会话：服务器上这次的 mosh-server 和里面的 shell 会一起退出，':
+      r'This disconnects the Mosh session to ${session.host.label}: this mosh-server on the server exits together with its shell, ',
+  '没在 tmux 之类工具里运行的程序也会结束。':
+      'and programs not running inside something like tmux end too.',
   // X08：Mosh 引导输出的解析结果（mosh_bootstrap.dart）和交给插件时的拒绝原因。
   'mosh-server 的输出过长，已停止解析':
       'The mosh-server output is too long; parsing stopped',
@@ -2671,10 +2787,6 @@ const englishReplacements = <(String, String)>[
   ),
   ('未设置 SSH 跳板机', 'No SSH jump host configured'),
   ('添加跳板机', 'Add jump host'),
-  (
-    'Mosh 需要平台原生 UDP 运行时，当前版本尚未启用',
-    'Mosh requires a native UDP runtime and is not enabled in this version'
-  ),
   ('SSH 身份认证的最长等待时间', 'Maximum wait for SSH authentication'),
   ('建立 TCP 连接的最长等待时间', 'Maximum wait for the TCP connection'),
   ('每隔多少秒发送一次保活消息', 'Interval in seconds between keepalive messages'),
