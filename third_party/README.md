@@ -91,7 +91,7 @@ git apply --3way /tmp/xwshun-ours.patch     # 返回非 0 会列出合不进的�
 - [x] 快捷键栏的一次性 Ctrl/Alt/Shift：交给 flterm 的虚拟修饰键，软键盘下一个键用掉后快捷键栏复位（R17 模拟器上 Ctrl+L 走过）
 - [x] 快捷键栏的方向键、Home/End 改走 `sendKey`，跟随应用光标模式（R18）
 - [x] 敏感输入走 visiblePassword：fork 加了 `secureTextInput`（R18，0de868c）
-- [x] 软键盘退格（xterm2 的 `deleteDetection`）：Gboard（模拟器）、微信输入法（真机）上删字、删拼音、空编辑区退格都对（R18）
+- [x] 软键盘退格（xterm2 的 `deleteDetection`）：真机微信输入法删字、删拼音对，模拟器回放输入法空编辑区退格对（R18）；Gboard 的退格 R18 没单独测
 - [ ] 鼠标：tmux 打开鼠标报告时滚动交给 tmux，手指滑动不变成方向键、点按不误发点击（R19）
 - [ ] 链接：现在关掉了识别（远端能把任意文字标成链接，识别还会吃掉点按），规矩在 R19 定
 - R04 已知问题：
