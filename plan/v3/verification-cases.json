@@ -1133,7 +1133,8 @@
       "evidence": [
         "evidence/X00.md",
         "evidence/X01.md",
-        "evidence/X03.md"
+        "evidence/X03.md",
+        "evidence/X12.md"
       ]
     },
     {
@@ -1286,7 +1287,8 @@
       "inherited_from": null,
       "evidence": [
         "evidence/X02.md",
-        "evidence/X04.md"
+        "evidence/X04.md",
+        "evidence/X12.md"
       ]
     },
     {
@@ -1531,19 +1533,22 @@
       "action": "新作者只根据SDK/契约/示例构建独立签名测试APK。",
       "expected": "无需私有宿主源码或宿主签名私钥；能走授权、协商、流与关闭流程。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X12.md"
+      ]
     },
     {
       "id": "SDK02",
       "action": "核查SDK、native插件、fork及分发来源/许可材料。",
       "expected": "接口与实现许可区分，保留原版权；不声称独立APK自动规避GPL/AGPL。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
       "evidence": [
-        "evidence/X00.md"
+        "evidence/X00.md",
+        "evidence/X12.md"
       ]
     },
     {
@@ -1554,7 +1559,8 @@
       "result": "PASS",
       "inherited_from": null,
       "evidence": [
-        "evidence/X00.md"
+        "evidence/X00.md",
+        "evidence/X12.md"
       ]
     },
     {
@@ -1565,7 +1571,8 @@
       "result": "PASS",
       "inherited_from": null,
       "evidence": [
-        "evidence/X04.md"
+        "evidence/X04.md",
+        "evidence/X12.md"
       ]
     },
     {

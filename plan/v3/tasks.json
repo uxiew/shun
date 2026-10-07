@@ -2190,7 +2190,7 @@
       "id": "X12",
       "phase": "E3",
       "title": "插件作者SDK、样例和维护文档",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "X03",
         "X06",
@@ -2222,8 +2222,10 @@
       ],
       "stop_condition": "只写接口无样例安装/通信证据不能DONE。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/X12.md"
+      ],
+      "commit": "8879c6a"
     },
     {
       "id": "X13",

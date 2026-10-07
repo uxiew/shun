@@ -167,8 +167,8 @@ G0基线与关键风险；G1连接路线；G2目录及外部认证支持；G3 Gh
 |RDX03|外部Activity成功启动、返回、取消但没有会话回调。|只显示已发起，绝不假称connected或远端已终止。|PASS|
 |RDX04|要求使用SSH SOCKS/ProxyJump的严格远控路线。|external provider不冒充可接管网络，未支持则拒绝；独立策略由用户明确选择。|PASS|
 |RDX05|目标ID失效、自建relay未配置、外部App升级改变协议。|不自动切服务器/身份/协议，记录安装版本和支持矩阵，普通SSH不受影响。|PASS|
-|SDK01|新作者只根据SDK/契约/示例构建独立签名测试APK。|无需私有宿主源码或宿主签名私钥；能走授权、协商、流与关闭流程。|NOT_RUN|
-|SDK02|核查SDK、native插件、fork及分发来源/许可材料。|接口与实现许可区分，保留原版权；不声称独立APK自动规避GPL/AGPL。|NOT_RUN|
+|SDK01|新作者只根据SDK/契约/示例构建独立签名测试APK。|无需私有宿主源码或宿主签名私钥；能走授权、协商、流与关闭流程。|PASS|
+|SDK02|核查SDK、native插件、fork及分发来源/许可材料。|接口与实现许可区分，保留原版权；不声称独立APK自动规避GPL/AGPL。|PASS|
 |SDK03|验证schema示例与缺字段/任意exec/任意Intent恶意描述符。|结构验证有负例，运行期仍做独立签名和权限校验；计划schema测试不算App测试。|PASS|
 |SDK04|打开插件声明的复杂设置页，再禁用/卸载该插件。|用户触发且目标显式，设置所有权清楚；无下载UI代码或强制宿主管理所有设置。|PASS|
 |DEV01|多个provider返回相同名称或IP但不同ID，用户显式关联两个引用。|只有用户关联形成DeviceRecord；provider身份、认证、网络策略互不复制。|PASS|
