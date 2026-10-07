@@ -139,8 +139,9 @@ void main() {
           }
         }
         expect(eaten, isEmpty, reason: '没有被本地吃掉的');
-        // Ghostty 把和 Tab、回车同码的 Ctrl+I、Ctrl+M 编成 CSI u（「fixterms」写法，好让程序分清是 Tab 还是 Ctrl+I）；
-        // 不认这种写法的程序（bash 的 readline）收到会当成乱码。是 Ghostty 编码器的行为，没改，记在证据里。
+        // 这里模拟的按键事件，Ghostty 把和 Tab、回车同码的 Ctrl+I、Ctrl+M 编成 CSI u（「fixterms」写法）。
+        // 注意：模拟器上真的硬件按键这两个什么都不发（integration_test/r18_keys_test.dart，10-07），设备上的按键事件
+        // 和这里模拟的不一样，以设备为准。这里只记下模拟事件下的样子，免得它悄悄变了没人知道。
         expect(
           other,
           engine == 'Ghostty'

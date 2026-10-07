@@ -101,8 +101,9 @@ git apply --3way /tmp/xwshun-ours.patch     # 返回非 0 会列出合不进的�
 - [x] 硬件键盘 Ctrl+K、Ctrl+A 发给服务器，清滚动区、全选挪到 Ctrl+Shift+K、Ctrl+Shift+A（所有者 10-07 定）：改在 App 侧，fork 没改——
   App 传给 flterm 的 `shortcuts` 用同一个 const 快捷键对象盖掉它的 Android 默认（见 `lib/presentation/terminal/terminal_view.dart`
   的 `terminalKeyShortcuts`）。同步上游后 flterm 的默认键位变了要回来对一下：`test/terminal_hardware_keys_test.dart` 会挂。
-  顺带查出来没改的（widget 测试）：有选区时 Ctrl+C 是复制（flterm 照 Windows 终端的习惯）；Ctrl+I、Ctrl+M 被 libghostty 编成
-  CSI u（`ESC [ 105 ; 5 u`、`ESC [ 109 ; 5 u`），不是 Tab、回车那个字节
+  顺带查出来没改的：有选区时 Ctrl+C 是复制（flterm 照 Windows 终端的习惯）；**Ctrl+I、Ctrl+M 在 Android 硬件键盘上什么都不发**
+  （模拟器的硬件键盘逐字节核对；widget 测试里模拟的按键事件会被 libghostty 编成 CSI u `ESC [ 105 ; 5 u`，和设备上不一样，以设备为准）。
+  原因没查，等所有者定要不要修
 - R04 已知问题：
   - 已解决：收起后叫不回键盘（3，fork 修）；dispose 后 write 段错误（1，上游改成抛 StateError，适配器仍要挡住迟到的数据）
   - 还在：组合字符缺重音（6，10-04 模拟器截图）、裸 DEL 画成方格（9）
