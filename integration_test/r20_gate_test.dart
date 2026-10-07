@@ -618,9 +618,21 @@ Map<String, int> _usage() {
   return {
     'rssKiB': ProcessInfo.currentRss ~/ 1024,
     'pssKiB': field('/proc/self/smaps_rollup', 'Pss'),
-    'fd': Directory('/proc/self/fd').listSync().length,
+    'fd': _fdCount(),
     'threads': field('/proc/self/status', 'Threads'),
   };
+}
+
+/// 本进程打开的 fd 个数。列 /proc/self/fd 的同时别的线程可能正好关掉一个，默认跟随链接去 stat 就会报
+/// 「No such file」：不跟链接，碰上了再列一次。
+int _fdCount() {
+  for (var attempt = 0;; attempt++) {
+    try {
+      return Directory('/proc/self/fd').listSync(followLinks: false).length;
+    } on FileSystemException {
+      if (attempt >= 5) rethrow;
+    }
+  }
 }
 
 /// 一行里第 [left] 到 [left]+[width] 个格子的字。中文、emoji 占两格，后半格不再出字。
