@@ -24,7 +24,6 @@ RUN useradd -m -s /bin/bash fixture \
       'PasswordAuthentication yes' \
       'KbdInteractiveAuthentication no' \
       'PermitRootLogin no' \
-      'PerSourcePenalties no' \
       'AllowUsers fixture' > /etc/ssh/sshd_config.d/fixture.conf \
  # 少发网络请求：不自动更新、不上报。两个 CLI 都没有账号，能做的只有展示界面。
  && printf '%s\n' \

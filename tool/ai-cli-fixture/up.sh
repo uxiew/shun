@@ -16,11 +16,13 @@ docker build -q -t "$IMAGE" . >/dev/null
 docker run -d --name "$NAME" -p 127.0.0.1:22401:22 \
   -v "$PWD/.run/secrets:/secrets:ro" -v "$PWD/.run/hostkeys:/hostkeys" "$IMAGE" >/dev/null
 
+# 只看端口不够：容器里的 sshd 起不来时 Docker 的端口代理照样在监听。要收到 SSH 版本行才算好。
 for _ in $(seq 60); do
-  [[ -s .run/hostkeys/ai-cli.sha256 ]] && nc -z 127.0.0.1 22401 && break
+  [[ -s .run/hostkeys/ai-cli.sha256 ]] && head -c 4 < /dev/tcp/127.0.0.1/22401 2>/dev/null | grep -q SSH- && break
   sleep 1
 done
-[[ -s .run/hostkeys/ai-cli.sha256 ]] || { echo "没起来" >&2; docker logs --tail 30 "$NAME" >&2; exit 1; }
+head -c 4 < /dev/tcp/127.0.0.1/22401 2>/dev/null | grep -q SSH- \
+  || { echo "sshd 没起来" >&2; docker logs --tail 30 "$NAME" >&2; exit 1; }
 
 python3 - <<'EOF'
 import json, pathlib
