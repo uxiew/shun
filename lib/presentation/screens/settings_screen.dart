@@ -77,6 +77,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   var _savingTerminalSecureKeyboard = false;
   var terminalEngine = terminalEngineXterm2;
   var _savingTerminalEngine = false;
+  var terminalFullscreenSwipe = false;
+  var _savingTerminalFullscreenSwipe = false;
   var autoSyncEnabled = false;
   var _savingAutoSync = false;
   var language = 'zh-CN';
@@ -154,6 +156,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     sftpSyntaxHighlight = settings.sftpSyntaxHighlight;
     terminalSecureKeyboard = settings.terminalSecureKeyboard;
     terminalEngine = settings.terminalEngine;
+    terminalFullscreenSwipe = settings.terminalFullscreenSwipe;
     customBackgroundEnabled = settings.customBackgroundEnabled;
     customBackgroundPath = settings.customBackgroundPath;
     customBackgroundOpacity = settings.customBackgroundOpacity;
@@ -413,6 +416,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         onChanged: _savingTerminalSecureKeyboard
                             ? null
                             : _setTerminalSecureKeyboard,
+                      ),
+                      SwitchListTile(
+                        key: const ValueKey('terminal-fullscreen-swipe'),
+                        contentPadding: EdgeInsets.zero,
+                        title: const LText('全屏程序里滑动翻页'),
+                        // 一整句一个字面量：本地化按整句查译文，拆成几段拼起来就查不到了。
+                        subtitle: const LText(
+                          '在 less、man、vim 这类全屏程序里，手指上下滑会发方向键，每滑过一行发一个。注意：没开 mouse 的 tmux 也算全屏程序，这时滑动的方向键会到 shell，翻出上一条历史命令，再按回车就执行了。开着鼠标的程序（tmux 开了 mouse、htop）不受影响，照样发滚轮',
+                        ),
+                        value: terminalFullscreenSwipe,
+                        onChanged: _savingTerminalFullscreenSwipe
+                            ? null
+                            : _setTerminalFullscreenSwipe,
                       ),
                       const SizedBox(height: 8),
                       const Align(
@@ -1460,6 +1476,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     } finally {
       if (mounted) {
         setState(() => _savingTerminalSecureKeyboard = false);
+      }
+    }
+  }
+
+  Future<void> _setTerminalFullscreenSwipe(bool value) async {
+    final previous = terminalFullscreenSwipe;
+    setState(() {
+      terminalFullscreenSwipe = value;
+      _savingTerminalFullscreenSwipe = true;
+    });
+    try {
+      await ref
+          .read(settingsControllerProvider.notifier)
+          .updateTerminalFullscreenSwipe(value);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => terminalFullscreenSwipe = previous);
+      _message('滑动翻页设置保存失败：$error');
+    } finally {
+      if (mounted) {
+        setState(() => _savingTerminalFullscreenSwipe = false);
       }
     }
   }

@@ -255,7 +255,9 @@ class _XtermTerminalViewState extends State<XtermTerminalView> {
         child: RepaintBoundary(
           child: TerminalView(
             _terminal,
-            simulateScroll: false,
+            // 设置「全屏程序里滑动翻页」：xterm2 的 simulateScroll 就是在备用屏、没开鼠标报告时把滑动换成 ↑/↓，
+            // 每滑过一行一个，和 Ghostty 的 1007 一样。默认关（R19）。
+            simulateScroll: widget.options.fullscreenSwipe,
             key: _terminalViewKey,
             controller: _controller,
             scrollController: _scrollController,

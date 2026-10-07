@@ -240,6 +240,7 @@ class _TerminalPane extends StatefulWidget {
     required this.session,
     required this.fontSize,
     required this.secureKeyboard,
+    this.fullscreenSwipe = false,
     required this.pictureInPicture,
     required this.transparentBackground,
     this.onFocused,
@@ -249,6 +250,7 @@ class _TerminalPane extends StatefulWidget {
   final ActiveTerminalSession session;
   final double fontSize;
   final bool secureKeyboard;
+  final bool fullscreenSwipe;
   final bool pictureInPicture;
   final bool transparentBackground;
 
@@ -367,6 +369,7 @@ class _TerminalPaneState extends State<_TerminalPane> {
                     TerminalViewOptions(
                       fontSize: widget.fontSize,
                       secureKeyboard: widget.secureKeyboard,
+                      fullscreenSwipe: widget.fullscreenSwipe,
                       interactive: !widget.pictureInPicture,
                       transparentBackground: widget.transparentBackground,
                     ),

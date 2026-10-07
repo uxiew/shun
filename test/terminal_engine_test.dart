@@ -38,6 +38,32 @@ void main() {
         terminalEngineGhostty,
       );
     });
+
+    test('「全屏程序里滑动翻页」默认关；存了能读回来，不是 true 的一律当关', () async {
+      expect(const AppSettings().terminalFullscreenSwipe, isFalse);
+      expect(
+        AppSettings.fromJson(
+          const AppSettings(terminalFullscreenSwipe: true).toJson(),
+        ).terminalFullscreenSwipe,
+        isTrue,
+      );
+      expect(
+        AppSettings.fromJson({'terminalFullscreenSwipe': 'yes'})
+            .terminalFullscreenSwipe,
+        isFalse,
+      );
+
+      SharedPreferences.setMockInitialValues({});
+      final repository = await VaultRepository.open();
+      final container = ProviderContainer(overrides: [
+        vaultRepositoryProvider.overrideWithValue(repository),
+      ]);
+      addTearDown(container.dispose);
+      await container
+          .read(settingsControllerProvider.notifier)
+          .updateTerminalFullscreenSwipe(true);
+      expect((await repository.loadSettings()).terminalFullscreenSwipe, isTrue);
+    });
   });
 
   test('建终端时才读设置：改了只影响之后新开的，会话控制器不重建、开着的会话不受影响', () async {

@@ -67,6 +67,7 @@ class AppSettings {
     this.terminalFontSize = 14,
     this.terminalSecureKeyboard = false,
     this.terminalEngine = terminalEngineXterm2,
+    this.terminalFullscreenSwipe = false,
     this.sftpSyntaxHighlight = true,
     this.customBackgroundEnabled = false,
     this.customBackgroundPath = '',
@@ -125,6 +126,7 @@ class AppSettings {
       terminalEngine: supportedTerminalEngines.contains(json['terminalEngine'])
           ? json['terminalEngine'] as String
           : terminalEngineXterm2,
+      terminalFullscreenSwipe: json['terminalFullscreenSwipe'] == true,
       sftpSyntaxHighlight: json['sftpSyntaxHighlight'] != false,
       customBackgroundEnabled: json['customBackgroundEnabled'] == true,
       customBackgroundPath: json['customBackgroundPath']?.toString() ?? '',
@@ -161,6 +163,10 @@ class AppSettings {
 
   /// 之后新开的终端用哪个引擎（[supportedTerminalEngines]）。已经开着的终端不换。
   final String terminalEngine;
+
+  /// 「全屏程序里滑动翻页」（10-07）：less、vim 这类全屏程序没开鼠标报告时，手指滑动发 ↑/↓。默认关，
+  /// 没开 mouse 的 tmux 也算全屏程序，↑ 会到 shell、翻出上一条历史命令（R19）。改了开着的终端马上生效。
+  final bool terminalFullscreenSwipe;
   final bool sftpSyntaxHighlight;
   final bool customBackgroundEnabled;
   final String customBackgroundPath;
@@ -184,6 +190,7 @@ class AppSettings {
     double? terminalFontSize,
     bool? terminalSecureKeyboard,
     String? terminalEngine,
+    bool? terminalFullscreenSwipe,
     bool? sftpSyntaxHighlight,
     bool? customBackgroundEnabled,
     String? customBackgroundPath,
@@ -208,6 +215,8 @@ class AppSettings {
         terminalSecureKeyboard:
             terminalSecureKeyboard ?? this.terminalSecureKeyboard,
         terminalEngine: terminalEngine ?? this.terminalEngine,
+        terminalFullscreenSwipe:
+            terminalFullscreenSwipe ?? this.terminalFullscreenSwipe,
         sftpSyntaxHighlight: sftpSyntaxHighlight ?? this.sftpSyntaxHighlight,
         customBackgroundEnabled:
             customBackgroundEnabled ?? this.customBackgroundEnabled,
@@ -237,6 +246,7 @@ class AppSettings {
         'terminalFontSize': terminalFontSize,
         'terminalSecureKeyboard': terminalSecureKeyboard,
         'terminalEngine': terminalEngine,
+        'terminalFullscreenSwipe': terminalFullscreenSwipe,
         'sftpSyntaxHighlight': sftpSyntaxHighlight,
         'customBackgroundEnabled': customBackgroundEnabled,
         'customBackgroundPath': customBackgroundPath,

@@ -146,6 +146,21 @@ final class GhosttyTerminalAdapter extends TerminalSessionAdapterBase {
   bool get bracketedPasteMode =>
       !isDisposed && controller.modeGet(const TerminalMode.bracketedPaste());
 
+  /// 设置「全屏程序里滑动翻页」（10-07）：开了就把 1007（alternate scroll）设成默认开，全屏程序没开鼠标报告时
+  /// 手指每滑过一行发一个 ↑/↓（按远端的光标键模式编码），和桌面终端的默认一样；关了回到 R19 的什么都不发。
+  ///
+  /// 改的是配置不是当前模式：flterm 每次从备用屏回到主屏都按配置重设所有模式，只改当前模式的话，
+  /// 退出 less 再打开就又变回去了。代价是改的那一下也按配置重设光标显示、自动换行等几项，
+  /// 全屏程序藏起来的光标可能会冒出来，等它下次重画就好。值没变时什么都不做。
+  void setFullscreenSwipe(bool enabled) {
+    if (isDisposed) return;
+    const mode = TerminalMode.alternateScroll();
+    final config = controller.config;
+    if (config.modes[mode] == enabled) return;
+    controller.config =
+        config.copyWith(modes: {...config.modes, mode: enabled});
+  }
+
   /// 修饰键已经同步成 flterm 的虚拟修饰键，flterm 编码时套上、用完清掉（快捷键栏跟着灭）。
   @override
   void sendKey(TerminalSpecialKey key) {

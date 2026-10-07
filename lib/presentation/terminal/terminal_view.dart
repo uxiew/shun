@@ -16,6 +16,7 @@ class TerminalViewOptions {
     required this.secureKeyboard,
     required this.interactive,
     required this.transparentBackground,
+    this.fullscreenSwipe = false,
   });
 
   final double fontSize;
@@ -26,6 +27,11 @@ class TerminalViewOptions {
   /// 画中画小窗里只看不操作：不抢焦点、不选区、不复制。
   final bool interactive;
   final bool transparentBackground;
+
+  /// 设置「全屏程序里滑动翻页」：全屏程序（less、man、vim）没开鼠标报告时，手指上下滑发 ↑/↓，每滑过一行发一个。
+  /// 默认关：没开 mouse 的 tmux 看起来也是全屏程序，滑动的 ↑ 会到 shell、翻出上一条历史命令（R19）。
+  /// 开着鼠标报告的程序（tmux mouse on、htop）不受影响，照样只发滚轮。
+  final bool fullscreenSwipe;
 }
 
 /// 硬件键盘的粘贴快捷键（R19）。两个引擎自带的快捷键都是直接把剪贴板粘进终端、不预览；

@@ -378,6 +378,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                                   fontSize: settings.terminalFontSize,
                                   secureKeyboard:
                                       settings.terminalSecureKeyboard,
+                                  fullscreenSwipe:
+                                      settings.terminalFullscreenSwipe,
                                   pictureInPicture: pictureInPicture,
                                   transparentBackground:
                                       customBackground && !pictureInPicture,
@@ -395,6 +397,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                                     fontSize: settings.terminalFontSize,
                                     secureKeyboard:
                                         settings.terminalSecureKeyboard,
+                                    fullscreenSwipe:
+                                        settings.terminalFullscreenSwipe,
                                     pictureInPicture: false,
                                     transparentBackground: customBackground,
                                     onFocused: _focusPane,
@@ -412,6 +416,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                                     fontSize: settings.terminalFontSize,
                                     secureKeyboard:
                                         settings.terminalSecureKeyboard,
+                                    fullscreenSwipe:
+                                        settings.terminalFullscreenSwipe,
                                     pictureInPicture: false,
                                     transparentBackground: customBackground,
                                     onFocused: _focusPane,

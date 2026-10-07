@@ -1221,8 +1221,12 @@ const englishTranslations = <String, String>{
   '不能打开：': 'Cannot open:',
   '复制链接': 'Copy link',
   '用浏览器打开': 'Open in browser',
-  // 10-07：链接改从选字菜单打开。
+  // 10-07：链接改从选字菜单打开；全屏程序里滑动翻页。
   '打开链接': 'Open link',
+  '全屏程序里滑动翻页': 'Swipe to scroll in full-screen programs',
+  '在 less、man、vim 这类全屏程序里，手指上下滑会发方向键，每滑过一行发一个。注意：没开 mouse 的 tmux 也算全屏程序，这时滑动的方向键会到 shell，翻出上一条历史命令，再按回车就执行了。开着鼠标的程序（tmux 开了 mouse、htop）不受影响，照样发滚轮':
+      'In full-screen programs such as less, man and vim, swiping up or down sends arrow keys, one per line swiped. Note: tmux without mouse also counts as a full-screen program; there the arrow keys reach the shell and bring back the previous command from history, which runs if you then press Enter. Programs with mouse reporting on (tmux with mouse, htop) are not affected and still get wheel events',
+  '滑动翻页设置保存失败：': 'Could not save the swipe setting: ',
   '链接地址是空的，或者解析不了': 'The link address is empty or cannot be parsed',
   '链接太长': 'The link is too long',
   '链接里有空白或控制字符': 'The link contains whitespace or control characters',
@@ -1289,8 +1293,7 @@ const englishTranslations = <String, String>{
       'The installed Mosh plugin does not declare the terminal-session capability or the ephemeral session-key permission, so it cannot be used for Mosh.',
   '装着的 Mosh 插件没有声明支持直连，不能用它连 Mosh。':
       'The installed Mosh plugin does not declare support for direct connections, so it cannot be used for Mosh.',
-  'Mosh 插件的应答不对，没有用它。':
-      'The Mosh plugin gave a wrong answer and was not used.',
+  'Mosh 插件的应答不对，没有用它。': 'The Mosh plugin gave a wrong answer and was not used.',
   r'Mosh 插件没有正常响应：${error.message}':
       r'The Mosh plugin did not respond properly: ${error.message}',
   r'连不上 Mosh 插件：${error.message}':
@@ -1312,8 +1315,7 @@ const englishTranslations = <String, String>{
       'The Mosh session was closed, but the plugin did not confirm that mosh-client exited. An old session (mosh-server) may still be on the server.',
   '本 App 关掉了这个 Mosh 会话（插件被停用、撤销批准或更新），插件确认 mosh-client 已退出。':
       'This app closed the Mosh session (the plugin was disabled, revoked or updated); the plugin confirmed that mosh-client exited.',
-  '远端 shell 已退出，Mosh 会话结束。':
-      'The remote shell exited; the Mosh session ended.',
+  '远端 shell 已退出，Mosh 会话结束。': 'The remote shell exited; the Mosh session ended.',
   'Mosh 插件关掉了这个会话，没说原因。远端可能还有旧会话（mosh-server）。':
       'The Mosh plugin closed this session without saying why. An old session (mosh-server) may still be on the server.',
   'Mosh 插件进程没了（被系统或手动结束）。':
@@ -2977,6 +2979,7 @@ const englishReplacements = <(String, String)>[
   ('搜索 62 种主题', 'Search 62 themes'),
   ('种可选', ' available'),
   ('安全键盘设置保存失败：', 'Failed to save secure keyboard setting: '),
+  ('滑动翻页设置保存失败：', 'Could not save the swipe setting: '),
   ('外观设置已保存', 'Appearance settings saved'),
   ('AI 设置已保存', 'AI settings saved'),
   ('确认更新', 'Confirm update'),

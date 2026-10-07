@@ -60,6 +60,7 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
     _lease = _adapter.attachView();
     _alternateScreen = _adapter.isAlternateScreen;
     _hasSelection = false;
+    _adapter.setFullscreenSwipe(widget.options.fullscreenSwipe);
     _adapter.addListener(_onTerminalChanged);
   }
 
@@ -70,6 +71,10 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
       oldWidget.adapter.removeListener(_onTerminalChanged);
       _lease.release();
       _attach();
+    } else if (oldWidget.options.fullscreenSwipe !=
+        widget.options.fullscreenSwipe) {
+      // 设置改了，开着的终端马上生效（不像引擎那样只管新开的）。
+      _adapter.setFullscreenSwipe(widget.options.fullscreenSwipe);
     }
   }
 
