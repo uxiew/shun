@@ -99,6 +99,8 @@ android {
 
 dependencies {
     implementation(project(":provider-sdk"))
+    // 只给 HelloShellTest：会话逻辑在电脑上用 JVM 跑，不用装宿主（./gradlew :app:testDebugUnitTest）。
+    testImplementation("junit:junit:4.12")
 }
 
 tasks.matching { it.name == "preBuild" }.configureEach {

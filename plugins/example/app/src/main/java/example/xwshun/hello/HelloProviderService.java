@@ -42,6 +42,8 @@ import top.xdwa.xwshun.plugin.v1.ProviderSessions;
  */
 public final class HelloProviderService extends Service {
     static final String TAG = "XwshunHello";
+    /** 和描述符（res/raw/xwshun_plugin.json）里的 pluginId 一样；会话里的 info 命令显示它。 */
+    static final String PLUGIN_ID = "example.hello_terminal";
 
     /** 一个插件同时开的会话上限。到了上限 openSession 抛错，宿主显示「插件拒绝：会话数已到上限」。 */
     private static final int MAX_SESSIONS = 4;
