@@ -1,6 +1,6 @@
 package top.xdwa.xwshun.plugin.v1;
 
-/** 宿主与插件共用的常量。改这里等于改 API，要同步 docs/18。 */
+/** 宿主与插件共用的常量。改这里等于改 API，要同步 docs/plugin-authors/contract.md。 */
 public final class PluginContract {
     private PluginContract() {}
 

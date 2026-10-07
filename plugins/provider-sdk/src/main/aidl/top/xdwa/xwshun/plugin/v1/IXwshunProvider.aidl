@@ -31,7 +31,10 @@ interface IXwshunProvider {
     // 幂等：已关或不存在的会话直接返回。
     void closeSession(String handle, long generation);
 
-    // ---- Mosh 会话（X08）。只在末尾追加；不认识它的旧插件被调用时 Binder 报未实现，宿主当作不支持。----
+    // ---- Mosh 会话（X08）。只在末尾追加。----
+    // 注意：不认识某个方法的旧插件被调到时，Binder 不报错——生成的代理不看 transact 的返回值，
+    // 空回复读出来就是「没异常」，void 方法像是成功了、有返回值的拿到 null/0（X12 读生成代码发现）。
+    // 所以以后追加的方法，调用方要先按对方声明的 apiMinor 判断它有没有，不能靠调用失败来发现。
     //
     // 和 openSession 一样建会话，另带宿主这次 bootstrap 得到的临时材料（docs/16 运行流程第 4 步）：
     // udpHost：宿主按路由解析好的数字 IP（IPv4/IPv6 字面量）。插件不做 DNS，非数字直接拒绝。
