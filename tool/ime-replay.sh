@@ -79,8 +79,10 @@ hw_keys() {
   done
   "${ADB[@]}" shell "$cmd"
 }
-CTRL=29; ALT=56; SHIFT=42; KC=46; KD=32; KX=45; TAB=15; UP=103; KA=30
+CTRL=29; ALT=56; SHIFT=42; KC=46; KD=32; KX=45; TAB=15; UP=103; KA=30; KK=37
 press() { hw_keys "$@"; }
+# a–z 的扫描码（linux input-event-codes.h），按字母顺序；v 是 App 的粘贴快捷键，hw:ctrl-letters 跳过它。
+LETTERS=(30 48 46 32 18 33 34 35 23 36 37 38 50 49 24 25 16 19 31 20 22 47 17 45 21 44)
 
 # 测试准备好一段就打印 "R18 READY=<名字>"，这里替它按。
 SEEN=0
@@ -94,6 +96,17 @@ while kill -0 "$TEST" 2>/dev/null; do
         press $CTRL $KC -$KC -$CTRL  $CTRL $KD -$KD -$CTRL  $ALT $KX -$KX -$ALT \
           $TAB -$TAB  $UP -$UP  $SHIFT $TAB -$TAB -$SHIFT  $KA -$KA ;;
       hw:cc) press $KC -$KC $KC -$KC ;;
+      hw:ctrl-ka)   # 10-07：Ctrl+K、Ctrl+A 发给服务器
+        press $CTRL $KK -$KK -$CTRL  $CTRL $KA -$KA -$CTRL ;;
+      hw:ctrl-shift-ka)   # 10-07：Ctrl+Shift+K 清本地滚动区、Ctrl+Shift+A 全选
+        press $CTRL $SHIFT $KK -$KK -$SHIFT -$CTRL  $CTRL $SHIFT $KA -$KA -$SHIFT -$CTRL ;;
+      hw:ctrl-letters)   # Ctrl+a 到 Ctrl+z（跳过 v），看有没有被本地吃掉
+        seq_codes=()
+        for i in "${!LETTERS[@]}"; do
+          (( i == 21 )) && continue
+          seq_codes+=("$CTRL" "${LETTERS[$i]}" "-${LETTERS[$i]}" "-$CTRL")
+        done
+        press "${seq_codes[@]}" ;;
       hw:*) echo "不认识的硬件键脚本 $SCRIPT" >&2 ;;
       *) "${ADB[@]}" shell am broadcast -a example.xwshun.fixture.replayime.RUN \
            -p example.xwshun.fixture.replayime --es script "$SCRIPT" >/dev/null ;;

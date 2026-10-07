@@ -21,6 +21,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:netcatty_mobile/app.dart';
 import 'package:netcatty_mobile/application/home_navigation.dart';
 import 'package:netcatty_mobile/application/session_controller.dart';
+import 'package:netcatty_mobile/application/settings_controller.dart';
 import 'package:netcatty_mobile/application/terminal_engine.dart';
 import 'package:netcatty_mobile/domain/models/host.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
@@ -37,6 +38,9 @@ import 'r18_remote_capture.dart';
 const r19Engine = String.fromEnvironment('R19_ENGINE');
 
 void r19(String key, Object? value) => debugPrint('R19 $key=$value');
+
+/// 最近一次 [connectR19] 起的 App 的 provider 容器：测试里直接改设置（「全屏程序里滑动翻页」）。
+late ProviderContainer r19Container;
 
 /// 起真 App 页面（终端标签），用 [engine] 连上测试环境的边缘 sshd。打开链接换成只记录、不开浏览器。
 Future<(ActiveTerminalSession, SessionController, List<Uri>)> connectR19(
@@ -59,6 +63,7 @@ Future<(ActiveTerminalSession, SessionController, List<Uri>)> connectR19(
     }),
   ]);
   addTearDown(container.dispose);
+  r19Container = container;
   final controller = container.read(sessionControllerProvider.notifier);
   await tester.pumpWidget(UncontrolledProviderScope(
     container: container,
@@ -227,6 +232,47 @@ void main() {
       r19('$engine.TER07.altscreen', 'bytes=[${hex(bytes)}]');
       if (bytes.isNotEmpty) failures.add('altscreen');
 
+      // 2b. 10-07：设置开了「全屏程序里滑动翻页」，同一个全屏程序里往下拉发 ↑、往上推发 ↓（每滑过一行一个），没有别的字节；
+      // 快捷键栏的 PgUp/PgDn 按远端键盘模式发。测完把设置关回去。
+      await r19Container
+          .read(settingsControllerProvider.notifier)
+          .updateTerminalFullscreenSwipe(true);
+      await settle(tester);
+      bytes = await capture(tester, session, () async {
+        await swipe(tester, 500);
+        await swipe(tester, -500);
+        await tester.tap(find.text('PgUp').last);
+        await settle(tester, 300);
+        await tester.tap(find.text('PgDn').last);
+        await settle(tester, 300);
+      },
+          end: CaptureEnd.timeout,
+          seconds: 10,
+          prelude: r'printf "\033[?1049h\033[Hfull-screen\r\n";',
+          postlude: r'printf "\033[?1049l";');
+      await r19Container
+          .read(settingsControllerProvider.notifier)
+          .updateTerminalFullscreenSwipe(false);
+      await settle(tester);
+      final swipeText = latin1.decode(bytes);
+      final ups = RegExp('\x1b[\\[O]A').allMatches(swipeText).length;
+      final downs = RegExp('\x1b[\\[O]B').allMatches(swipeText).length;
+      final firstDown = swipeText.indexOf(RegExp('\x1b[\\[O]B'));
+      final lastUp = swipeText.lastIndexOf(RegExp('\x1b[\\[O]A'));
+      final rest = swipeText
+          .replaceAll(RegExp('\x1b[\\[O][AB]'), '')
+          .replaceAll('\x1b[5~', '')
+          .replaceAll('\x1b[6~', '');
+      r19('$engine.TER07.altscreenSwipeOn',
+          'up=$ups down=$downs upsBeforeDowns=${lastUp < firstDown} pgUp=${swipeText.contains('\x1b[5~')} pgDn=${swipeText.contains('\x1b[6~')} rest=[${hex(latin1.encode(rest))}]');
+      if (ups < 3 ||
+          downs < 3 ||
+          lastUp > firstDown ||
+          !swipeText.endsWith('\x1b[5~\x1b[6~') ||
+          rest.isNotEmpty) {
+        failures.add('altscreen-swipe-on');
+      }
+
       // 3. 全屏 + 鼠标报告（tmux mouse on、htop 打开的就是这几种）：滑动只发滚轮，点按、长按不发。
       final phases = <String>[];
       var mark = 0;
@@ -316,7 +362,8 @@ void main() {
       expect(failures, isEmpty);
     }, skip: skip != false, timeout: const Timeout(Duration(minutes: 6)));
 
-    testWidgets('$engine：TER08 选字复制（中文、emoji、组合字符）、点链接、拖链接', (tester) async {
+    testWidgets('$engine：TER08 选字复制（中文、emoji、组合字符）、点链接、长按链接、拖链接',
+        (tester) async {
       final (session, _, launched) = await connectR19(tester, engine);
       final terminal = session.terminal;
       final failures = <String>[];
@@ -355,64 +402,98 @@ void main() {
               copied?.trimRight() == expected.split('\n').first);
       if (!okCopy) failures.add('copy');
 
-      // 链接：点了只弹框；点「用浏览器打开」才交给（假的）浏览器；拖动、长按不弹框；远端什么都没收到。
+      // 链接（10-07 起）：点一下只叫键盘、不弹框；长按落在链接上（Ghostty），或者选中的字整段是网址（xterm2 拖着选），
+      // 选字菜单里多「打开链接」，点了才弹框，点「用浏览器打开」才交给（假的）浏览器；从链接上拖动不弹框；远端什么都没收到。
+      final openLink = find.byKey(const ValueKey('open-terminal-link'));
+      final sheetHost = find.byKey(const ValueKey('terminal-link-host'));
+      await run(tester, terminal, 'stty size');
+      final size = RegExp(r'^(\d+) (\d+)$', multiLine: true)
+          .allMatches(terminal.allText())
+          .last;
+      final columns = int.parse(size.group(2)!);
+      final cellWidth =
+          (tester.getSize(find.byType(viewType)).width - 16) / columns;
+      const url = 'https://example.com/r19-link';
       final linkBytes = await capture(tester, session, () async {
         await tester.tapAt(cell(tester, terminal, 0, 20));
         await settle(tester);
-        final sheet = find.byKey(const ValueKey('terminal-link-host'));
-        r19('$engine.TER08.linkSheet', sheet.evaluate().isNotEmpty);
-        if (sheet.evaluate().isNotEmpty) {
-          await tester.tap(find.byKey(const ValueKey('terminal-link-open')));
-          await settle(tester);
+        final sheetAfterTap = sheetHost.evaluate().isNotEmpty;
+        final menuAfterTap = openLink.evaluate().isNotEmpty;
+        if (engine == 'Ghostty') {
+          // 手指不拖：flterm 把整个链接选上。
+          await longPressDrag(tester, cell(tester, terminal, 0, 20),
+              cell(tester, terminal, 0, 20));
+        } else {
+          // xterm2 不认链接：从网址第一个字拖到最后一个字。
+          await longPressDrag(tester, cell(tester, terminal, 0, cellWidth * .5),
+              cell(tester, terminal, 0, cellWidth * (url.length - .5)));
         }
-        // 先长按（拖动会把滚动区往回翻，第一行就不是链接了），点空白处清掉选区，再从链接上拖。
-        await longPressDrag(tester, cell(tester, terminal, 0, 20),
-            cell(tester, terminal, 0, 120));
-        final afterLongPress = find
-            .byKey(const ValueKey('terminal-link-host'))
-            .evaluate()
-            .isNotEmpty;
+        final sheetAfterLongPress = sheetHost.evaluate().isNotEmpty;
+        final menu = openLink.evaluate().isNotEmpty;
+        var sheetFromMenu = false;
+        if (menu) {
+          await tester.tap(openLink);
+          await settle(tester);
+          sheetFromMenu = sheetHost.evaluate().isNotEmpty;
+          if (sheetFromMenu) {
+            await tester.tap(find.byKey(const ValueKey('terminal-link-open')));
+            await settle(tester);
+          }
+        }
+        // 点空白处清掉选区，再从链接上拖。
         await tester.tapAt(cell(tester, terminal, 6, 40));
         await settle(tester);
         await tester.timedDragFrom(cell(tester, terminal, 0, 20),
             const Offset(0, 300), const Duration(milliseconds: 400));
         await settle(tester);
-        final afterDrag = find
-            .byKey(const ValueKey('terminal-link-host'))
-            .evaluate()
-            .isNotEmpty;
-        r19('$engine.TER08.linkDragOrLongPress',
-            'sheetAfterLongPress=$afterLongPress sheetAfterDrag=$afterDrag');
-        if (afterDrag || afterLongPress) failures.add('link-drag');
-      },
-          end: CaptureEnd.timeout,
-          seconds: 12,
-          prelude: 'clear; echo https://example.com/r19-link;');
-      r19('$engine.TER08.link', 'launched=$launched bytes=[${hex(linkBytes)}]');
+        final sheetAfterDrag = sheetHost.evaluate().isNotEmpty;
+        r19(
+            '$engine.TER08.link',
+            'sheetAfterTap=$sheetAfterTap menuAfterTap=$menuAfterTap sheetAfterLongPress=$sheetAfterLongPress '
+                'menuAfterLongPress=$menu sheetFromMenu=$sheetFromMenu sheetAfterDrag=$sheetAfterDrag');
+        if (sheetAfterTap || menuAfterTap) failures.add('link-tap');
+        if (sheetAfterLongPress || sheetAfterDrag) failures.add('link-gesture');
+        if (!menu || !sheetFromMenu) failures.add('link-menu');
+      }, end: CaptureEnd.timeout, seconds: 14, prelude: 'clear; echo $url;');
+      r19('$engine.TER08.linkOpen',
+          'launched=$launched bytes=[${hex(linkBytes)}]');
       if (linkBytes.isNotEmpty) failures.add('link-bytes');
-      if (engine == 'Ghostty' &&
-          launched.toString() != '[https://example.com/r19-link]') {
-        failures.add('link-open');
-      }
-      if (engine == 'xterm2' && launched.isNotEmpty) failures.add('link-open');
+      if (launched.toString() != '[$url]') failures.add('link-open');
 
-      // OSC 8 把「docs-link」标成 javascript: 链接：弹框说不能打开，没有打开按钮。
+      // OSC 8 把「docs-link」标成 javascript: 链接：点一下不弹框；Ghostty 长按后菜单里有「打开链接」，弹框说不能打开、没有打开按钮；
+      // xterm2 不认 OSC 8，选中的「docs-link」也不是网址，没有这个按钮。
       await run(tester, terminal,
           r"clear; printf '\033]8;;javascript:alert(1)\033\\docs-link\033]8;;\033\\\n'");
       await tester.tapAt(cell(tester, terminal, 0, 20));
       await settle(tester);
-      final refused = find
+      final sheetOnTap = find
           .byKey(const ValueKey('terminal-link-refused'))
           .evaluate()
           .isNotEmpty;
-      final openable = find
-          .byKey(const ValueKey('terminal-link-open'))
-          .evaluate()
-          .isNotEmpty;
+      await longPressDrag(
+          tester, cell(tester, terminal, 0, 20), cell(tester, terminal, 0, 20));
+      final osc8Menu = openLink.evaluate().isNotEmpty;
+      var refused = false;
+      var openable = false;
+      if (osc8Menu) {
+        await tester.tap(openLink);
+        await settle(tester);
+        refused = find
+            .byKey(const ValueKey('terminal-link-refused'))
+            .evaluate()
+            .isNotEmpty;
+        openable = find
+            .byKey(const ValueKey('terminal-link-open'))
+            .evaluate()
+            .isNotEmpty;
+      }
       r19('$engine.TER08.osc8Javascript',
-          'refused=$refused openButton=$openable');
-      if (openable) failures.add('osc8-open');
-      if (engine == 'Ghostty' && !refused) failures.add('osc8-refused');
+          'sheetOnTap=$sheetOnTap menu=$osc8Menu refused=$refused openButton=$openable');
+      if (sheetOnTap || openable) failures.add('osc8-open');
+      if (engine == 'Ghostty' && !(osc8Menu && refused)) {
+        failures.add('osc8-refused');
+      }
+      if (engine == 'xterm2' && osc8Menu) failures.add('osc8-xterm2-menu');
       if (refused) {
         await tester.tap(find.byKey(const ValueKey('terminal-link-cancel')));
         await settle(tester);
