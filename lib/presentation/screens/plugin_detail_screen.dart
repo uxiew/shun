@@ -7,6 +7,7 @@ import 'package:plugin_api/plugin_api.dart';
 import '../../application/plugin_discovery.dart';
 import '../../application/plugin_registry.dart';
 import '../localization/localized_widgets.dart';
+import 'plugin_session_test_screen.dart';
 
 String pluginStatusLabel(PluginStatus status) => switch (status) {
       PluginStatus.ready => '可用',
@@ -281,6 +282,28 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
                     });
                   }),
           child: const LText('连接测试'),
+        ),
+      // 会话测试（X12）：给插件作者核对终端会话的整个来回，只对声明了终端会话能力的插件。
+      if (ready &&
+          (entry.descriptor?.capabilities
+                  .contains(Capability.terminalSession) ??
+              false))
+        OutlinedButton(
+          key: const ValueKey('plugin-session-test'),
+          onPressed: _busy
+              ? null
+              : () {
+                  // 测试页会重新连接，这页之前的连接测试连接随之被替换，结果不再作数。
+                  setState(() {
+                    _connected = false;
+                    _result = null;
+                  });
+                  Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => PluginSessionTestScreen(
+                        packageName: widget.packageName),
+                  ));
+                },
+          child: const LText('会话测试'),
         ),
       if (connected && ready)
         TextButton(

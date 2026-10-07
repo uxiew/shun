@@ -867,6 +867,56 @@ const englishTranslations = <String, String>{
       'Available once enabled: this app does not start a disabled plugin.',
   '插件由你自己安装和卸载；本 App 不下载、不安装任何插件。装上、更新、卸载后这里会自动重新核对。':
       'You install and uninstall plugins yourself; this app never downloads or installs any. After an install, update or uninstall, this page checks again automatically.',
+  // X12：给插件作者的会话测试页（plugin_session_test_screen.dart）和插件页的宿主证书。
+  '给插件作者': 'For plugin authors',
+  '本 App 的插件 API：': 'Plugin API of this app: ',
+  '本 App 的签名证书 SHA-256（插件里要写信任这一张）：':
+      'Signing certificate SHA-256 of this app (your plugin must trust this one):',
+  '读不出来': 'Could not read it',
+  '这是 Android 调试证书：换一台电脑构建的本 App 证书就不同，插件要按新证书重新构建。':
+      'This is an Android debug certificate: a build of this app from another computer has a different one, and the plugin must be rebuilt for it.',
+  '会话测试': 'Session test',
+  '给插件作者核对插件用：连接、打开一个 80×24 的终端会话、看插件写回来什么、发一行字、改尺寸、关闭，每一步写在下面。本 App 不替插件发任何东西，只发你在下面敲的那一行。':
+      'For plugin authors to check a plugin: connect, open an 80×24 terminal session, see what the plugin writes back, send a line, resize and close; each step is listed below. This app sends nothing on its own, only the line you type below.',
+  '开始时会先断开这个插件正在跑的会话（比如 Mosh 标签）。离开这页会关掉测试会话、断开连接。':
+      'Starting first disconnects the sessions this plugin is running (such as Mosh tabs). Leaving this page closes the test session and disconnects.',
+  '插件现在不是「可用」，先回详情页批准或启用。':
+      'The plugin is not available; approve or enable it on the details page first.',
+  '开始': 'Start',
+  '重新开始': 'Start again',
+  '改成 100×30': 'Resize to 100×30',
+  '改回 80×24': 'Back to 80×24',
+  '关闭会话': 'Close session',
+  '插件写回来的字节数（控制字符显示成 ^X，^[ 是 ESC）：':
+      'Bytes the plugin wrote back (control characters shown as ^X, ^[ is ESC): ',
+  '发给插件的一行': 'A line to send to the plugin',
+  r'末尾加回车（\r，和终端里按回车一样）':
+      r'Append Enter (\r, same as pressing Enter in a terminal)',
+  '连接：': 'Connect: ',
+  '打开会话失败：': 'Opening the session failed: ',
+  '打开会话：80×24，代次 ': 'Opened an 80×24 session, generation ',
+  '；插件报告失败：': '; the plugin reported a failure: ',
+  '打开中': 'Opening',
+  '插件回报：运行中（active）': 'Plugin reported: running (active)',
+  '正在关闭：本 App 先关了自己这一端，再请插件关':
+      'Closing: this app closed its end first, then asked the plugin to close',
+  '已关闭：插件确认已停止（closed）': 'Closed: the plugin confirmed it stopped (closed)',
+  '已关闭：2 秒内没等到插件确认（停止未确认）':
+      'Closed: no confirmation from the plugin within 2 seconds (stop unconfirmed)',
+  '已关闭：插件自己结束了会话（closed）':
+      'Closed: the plugin ended the session itself (closed)',
+  '中断：插件关了它那一端，没有先回报 closed':
+      'Interrupted: the plugin closed its end without reporting closed first',
+  '中断：插件进程没了': 'Interrupted: the plugin process is gone',
+  '中断：本 App 断开了这个插件（停用、撤销批准或插件包变了）':
+      'Interrupted: this app disconnected the plugin (disabled, approval revoked or package changed)',
+  '发送字节数：': 'Bytes sent: ',
+  '内容：': 'Content: ',
+  '发送失败：': 'Sending failed: ',
+  '改尺寸失败：': 'Resize failed: ',
+  '请插件改成 ': 'Asked the plugin to resize to ',
+  '插件确认尺寸 ': 'The plugin confirmed size ',
+  '2 秒内没收到插件的 resized 回报': 'No resized report from the plugin within 2 seconds',
   // X05：Tailscale 目录接入内置 provider。
   '目录设备引用无效': 'Invalid directory device reference',
   '没有主机引用这个来源，不需要恢复。新来源请用「添加来源」。':

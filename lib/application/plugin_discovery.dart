@@ -138,6 +138,10 @@ class PluginDiscovery {
   Future<String> inspect(String packageName) =>
       _bridge.inspect(packageName.trim());
 
+  /// 本 App 的签名证书，插件作者要把它写进插件（X12）。
+  Future<List<({String sha256, bool androidDebug})>> hostSigners() =>
+      _bridge.hostSigners();
+
   /// 用户在确认框里点了批准。绑定的是此刻系统读出的证书，不是插件自报的任何东西。
   ///
   /// [shown] 是确认框里给用户看的那份。批准前先重新发现一次：确认框开着的时候包可能被更新、换签或卸载，
@@ -217,6 +221,9 @@ class PluginDiscovery {
     await _bridge.openSettings(package, activity);
   }
 
+  /// [check] 成功时的原话。会话测试据此判断连上了没有（X12）。
+  static const checkPassed = '握手成功（插件核对了宿主证书），ping 往返正常';
+
   /// 连接测试：绑定 → 握手（插件核对宿主证书）→ ping 往返。
   /// 不是 Ready 的在这里就返回原因，不绑定。连接保持到 [disconnect] 或页面关闭，
   /// 这样插件握手后发回的事件也能看到。
@@ -244,7 +251,7 @@ class PluginDiscovery {
         await _bridge.disconnect(package);
         return 'ping 返回的值不对，已断开';
       }
-      return '握手成功（插件核对了宿主证书），ping 往返正常';
+      return checkPassed;
     } on PluginBridgeException catch (e) {
       return '连接失败：${e.message}';
     }

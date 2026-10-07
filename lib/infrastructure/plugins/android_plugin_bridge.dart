@@ -208,6 +208,20 @@ class AndroidPluginBridge {
     ];
   }
 
+  /// 本 App 自己的签名证书（系统读出）。给插件作者看：插件要信任这一张（X12）。
+  Future<List<({String sha256, bool androidDebug})>> hostSigners() async {
+    if (!supported) return const [];
+    final raw =
+        await _channel.invokeListMethod<Object?>('hostSigners') ?? const [];
+    return [
+      for (final m in raw.cast<Map<Object?, Object?>>())
+        (
+          sha256: m['sha256']! as String,
+          androidDebug: m['androidDebug'] == true,
+        ),
+    ];
+  }
+
   /// 打开插件自己的设置页。桥会再向系统核一次这个类确实是该包的设置页才启动。
   Future<void> openSettings(String packageName, String activity) async {
     try {

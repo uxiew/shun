@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:plugin_api/plugin_api.dart' show hostApiMajor, hostApiMinor;
 
 import '../../application/plugin_discovery.dart';
 import '../../application/plugin_registry.dart';
@@ -29,6 +30,9 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
   String? _error;
   var _busy = false;
 
+  /// 本 App 自己的签名证书，给插件作者抄进插件（X12）。null：还没读到。
+  List<({String sha256, bool androidDebug})>? _hostSigners;
+
   @override
   void initState() {
     super.initState();
@@ -50,6 +54,14 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
         }
       }));
     await _guard(discovery.start);
+    if (!discovery.supported) return;
+    List<({String sha256, bool androidDebug})> signers;
+    try {
+      signers = await discovery.hostSigners();
+    } on Object {
+      signers = const [];
+    }
+    if (mounted) setState(() => _hostSigners = signers);
   }
 
   void _log(String line) {
@@ -161,6 +173,7 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
               ],
             ),
             if (_inspectResult != null) LText(_inspectResult!),
+            ..._forAuthors(small),
           ],
           if (_events.isNotEmpty) ...[
             const SizedBox(height: 16),
@@ -170,6 +183,31 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
         ],
       ),
     );
+  }
+
+  /// 插件作者要的两样：插件里写信任哪张宿主证书、宿主是哪个插件 API 版本（X12）。
+  List<Widget> _forAuthors(TextStyle? small) {
+    final signers = _hostSigners;
+    if (signers == null) return const [];
+    final api = localized('本 App 的插件 API：');
+    return [
+      const SizedBox(height: 16),
+      const LText('给插件作者'),
+      Text('$api$hostApiMajor.$hostApiMinor', style: small),
+      LText('本 App 的签名证书 SHA-256（插件里要写信任这一张）：', style: small),
+      SelectableText(
+        signers.isEmpty
+            ? localized('读不出来')
+            : signers.map((s) => s.sha256).join('\n'),
+        key: const ValueKey('host-signers'),
+        style: small,
+      ),
+      if (signers.any((s) => s.androidDebug))
+        LText(
+          '这是 Android 调试证书：换一台电脑构建的本 App 证书就不同，插件要按新证书重新构建。',
+          style: small,
+        ),
+    ];
   }
 
   Widget _summary(PluginEntry entry) {
