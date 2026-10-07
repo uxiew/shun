@@ -15,7 +15,7 @@ typedef TerminalResizeSink = void Function(
   int pixelHeight,
 );
 
-/// 快捷键栏上的功能键（R18）。
+/// 快捷键栏、按键面板上的功能键（R18；R25 的按键面板加了回车、退格、Delete、Insert、F1–F12）。
 ///
 /// 按键怎么编码交给引擎：远端程序打开「应用光标键」（vim、less、tmux 常这样）后，方向键要发
 /// `ESC O A` 而不是 `ESC [ A`，Home/End 同理；快捷键栏以前写死字符串，在这些程序里方向键会乱跳。
@@ -30,6 +30,22 @@ enum TerminalSpecialKey {
   end,
   pageUp,
   pageDown,
+  enter,
+  backspace,
+  delete,
+  insert,
+  f1,
+  f2,
+  f3,
+  f4,
+  f5,
+  f6,
+  f7,
+  f8,
+  f9,
+  f10,
+  f11,
+  f12,
 }
 
 /// 缓冲区里的一行（含滚动区）。[wrapped] 表示它是上一行放不下自动折过来的，不是新的一行。

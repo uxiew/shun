@@ -176,6 +176,22 @@ final class GhosttyTerminalAdapter extends TerminalSessionAdapterBase {
       TerminalSpecialKey.end => Key.end,
       TerminalSpecialKey.pageUp => Key.pageUp,
       TerminalSpecialKey.pageDown => Key.pageDown,
+      TerminalSpecialKey.enter => Key.enter,
+      TerminalSpecialKey.backspace => Key.backspace,
+      TerminalSpecialKey.delete => Key.delete,
+      TerminalSpecialKey.insert => Key.insert,
+      TerminalSpecialKey.f1 => Key.f1,
+      TerminalSpecialKey.f2 => Key.f2,
+      TerminalSpecialKey.f3 => Key.f3,
+      TerminalSpecialKey.f4 => Key.f4,
+      TerminalSpecialKey.f5 => Key.f5,
+      TerminalSpecialKey.f6 => Key.f6,
+      TerminalSpecialKey.f7 => Key.f7,
+      TerminalSpecialKey.f8 => Key.f8,
+      TerminalSpecialKey.f9 => Key.f9,
+      TerminalSpecialKey.f10 => Key.f10,
+      TerminalSpecialKey.f11 => Key.f11,
+      TerminalSpecialKey.f12 => Key.f12,
     });
   }
 

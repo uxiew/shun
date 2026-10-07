@@ -71,40 +71,21 @@ final class XtermTerminalAdapter extends TerminalSessionAdapterBase {
   }
 
   /// xterm2 的按键表 keyInput 编修饰键有错（Alt+↑ 编成了 Ctrl 的 ESC[1;5A，Alt+Tab 丢掉 Alt），
-  /// 不用它。这里按远端的光标键模式挑前缀，修饰键照旧由输出回调里的 consume 套：
-  /// 不带修饰键时应用光标键模式发 ESC O A，带修饰键一律用 ESC [ 1;n A（xterm 的规矩）。
+  /// 不用它。这里按 xterm 的规矩自己编（[xtermKeySequence]），快捷键栏的修饰键也在这里套上、用掉：
+  /// 先清掉再发，输出回调里的 consume 就不会再套一遍。原来交给 consume 套，它只认得 ESC [ A 这种三个字的序列，
+  /// Ctrl+PgUp 发出去还是 ESC [ 5 ~，Ctrl 丢了。
   @override
   void sendKey(TerminalSpecialKey key) {
     if (isDisposed) return;
-    final cursorLetter = switch (key) {
-      TerminalSpecialKey.arrowUp => 'A',
-      TerminalSpecialKey.arrowDown => 'B',
-      TerminalSpecialKey.arrowRight => 'C',
-      TerminalSpecialKey.arrowLeft => 'D',
-      TerminalSpecialKey.home => 'H',
-      TerminalSpecialKey.end => 'F',
-      _ => null,
-    };
-    final String text;
-    if (cursorLetter != null) {
-      text = input.modifiers.isEmpty && terminal.cursorKeysMode
-          ? '\x1bO$cursorLetter'
-          : '\x1b[$cursorLetter';
-    } else {
-      text = switch (key) {
-        TerminalSpecialKey.escape => '\x1b',
-        TerminalSpecialKey.tab => '\t',
-        TerminalSpecialKey.pageUp => '\x1b[5~',
-        TerminalSpecialKey.pageDown => '\x1b[6~',
-        _ => throw StateError('$key'),
-      };
-    }
-    // Shift+Tab 是反向 Tab（ESC [ Z），consume 不认识，这里先换掉。
-    if (key == TerminalSpecialKey.tab && input.modifiers.contains('shift')) {
-      input.setModifiers(input.modifiers.difference(const {'shift'}));
-      terminal.textInput('\x1b[Z');
-      return;
-    }
+    final modifiers = input.modifiers;
+    final text = xtermKeySequence(
+      key,
+      shift: modifiers.contains('shift'),
+      alt: modifiers.contains('alt'),
+      ctrl: modifiers.contains('ctrl'),
+      applicationCursorKeys: terminal.cursorKeysMode,
+    );
+    input.clearModifiers();
     terminal.textInput(text);
   }
 
@@ -155,6 +136,59 @@ final class XtermTerminalAdapter extends TerminalSessionAdapterBase {
     terminal.onResize = null;
     terminal.dispose();
   }
+}
+
+/// 功能键按 xterm 的规矩编成字节（Ghostty 由 libghostty 编，结果一样，见 `terminal_input_routing_test.dart`）。
+///
+/// 修饰键编成参数 m = 1 + Shift(1) + Alt(2) + Ctrl(4)：方向键、Home/End、F1–F4 带修饰键时是 `ESC [ 1 ; m X`，
+/// 不带时方向键和 Home/End 跟着远端的应用光标键模式（vim、less 会打开）选 `ESC O X` 还是 `ESC [ X`，F1–F4 是 `ESC O P`…；
+/// PgUp/PgDn、Insert/Delete、F5–F12 是 `ESC [ n ~`，带修饰键是 `ESC [ n ; m ~`。
+/// Esc、Tab、回车、退格没有参数写法：Alt 在前面加一个 ESC；Shift+Tab 是反向 Tab `ESC [ Z`；Ctrl+退格是 0x08。
+@visibleForTesting
+String xtermKeySequence(
+  TerminalSpecialKey key, {
+  bool shift = false,
+  bool alt = false,
+  bool ctrl = false,
+  bool applicationCursorKeys = false,
+}) {
+  final m = 1 + (shift ? 1 : 0) + (alt ? 2 : 0) + (ctrl ? 4 : 0);
+  String letter(String x, {required bool followsCursorMode}) {
+    if (m > 1) return '\x1b[1;$m$x';
+    return followsCursorMode && !applicationCursorKeys ? '\x1b[$x' : '\x1bO$x';
+  }
+
+  String tilde(int n) => m > 1 ? '\x1b[$n;$m~' : '\x1b[$n~';
+  String altPrefix(String text) => alt ? '\x1b$text' : text;
+
+  return switch (key) {
+    TerminalSpecialKey.arrowUp => letter('A', followsCursorMode: true),
+    TerminalSpecialKey.arrowDown => letter('B', followsCursorMode: true),
+    TerminalSpecialKey.arrowRight => letter('C', followsCursorMode: true),
+    TerminalSpecialKey.arrowLeft => letter('D', followsCursorMode: true),
+    TerminalSpecialKey.home => letter('H', followsCursorMode: true),
+    TerminalSpecialKey.end => letter('F', followsCursorMode: true),
+    TerminalSpecialKey.f1 => letter('P', followsCursorMode: false),
+    TerminalSpecialKey.f2 => letter('Q', followsCursorMode: false),
+    TerminalSpecialKey.f3 => letter('R', followsCursorMode: false),
+    TerminalSpecialKey.f4 => letter('S', followsCursorMode: false),
+    TerminalSpecialKey.insert => tilde(2),
+    TerminalSpecialKey.delete => tilde(3),
+    TerminalSpecialKey.pageUp => tilde(5),
+    TerminalSpecialKey.pageDown => tilde(6),
+    TerminalSpecialKey.f5 => tilde(15),
+    TerminalSpecialKey.f6 => tilde(17),
+    TerminalSpecialKey.f7 => tilde(18),
+    TerminalSpecialKey.f8 => tilde(19),
+    TerminalSpecialKey.f9 => tilde(20),
+    TerminalSpecialKey.f10 => tilde(21),
+    TerminalSpecialKey.f11 => tilde(23),
+    TerminalSpecialKey.f12 => tilde(24),
+    TerminalSpecialKey.escape => altPrefix('\x1b'),
+    TerminalSpecialKey.tab => altPrefix(shift ? '\x1b[Z' : '\t'),
+    TerminalSpecialKey.enter => altPrefix('\r'),
+    TerminalSpecialKey.backspace => altPrefix(ctrl ? '\x08' : '\x7f'),
+  };
 }
 
 /// 不回报窗口标题（CSI 21 t）。远端可以先把标题设成一段命令、再要求终端「报一下标题」，

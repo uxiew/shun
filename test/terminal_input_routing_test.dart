@@ -84,6 +84,40 @@ void main() {
         expect(terminal.input.modifiers, isEmpty);
       });
 
+      test('按键面板的功能键（R25）：PgUp/PgDn、F1–F12、回车、退格、Delete、Insert，带不带修饰键', () {
+        // 两个引擎一样的结果；xterm2 是 App 自己编的（xtermKeySequence），Ghostty 是 libghostty 编的。
+        final cases = <(TerminalSpecialKey, Set<String>, String)>[
+          (TerminalSpecialKey.pageUp, {}, '\x1b[5~'),
+          (TerminalSpecialKey.pageDown, {}, '\x1b[6~'),
+          (TerminalSpecialKey.pageUp, {'ctrl'}, '\x1b[5;5~'),
+          (TerminalSpecialKey.pageDown, {'shift'}, '\x1b[6;2~'),
+          (TerminalSpecialKey.f1, {}, '\x1bOP'),
+          (TerminalSpecialKey.f4, {}, '\x1bOS'),
+          (TerminalSpecialKey.f1, {'shift'}, '\x1b[1;2P'),
+          (TerminalSpecialKey.f5, {}, '\x1b[15~'),
+          (TerminalSpecialKey.f6, {}, '\x1b[17~'),
+          (TerminalSpecialKey.f10, {}, '\x1b[21~'),
+          (TerminalSpecialKey.f11, {}, '\x1b[23~'),
+          (TerminalSpecialKey.f12, {}, '\x1b[24~'),
+          (TerminalSpecialKey.f5, {'ctrl'}, '\x1b[15;5~'),
+          (TerminalSpecialKey.insert, {}, '\x1b[2~'),
+          (TerminalSpecialKey.delete, {}, '\x1b[3~'),
+          (TerminalSpecialKey.enter, {}, '\r'),
+          (TerminalSpecialKey.enter, {'alt'}, '\x1b\r'),
+          (TerminalSpecialKey.backspace, {}, '\x7f'),
+          (TerminalSpecialKey.backspace, {'alt'}, '\x1b\x7f'),
+          (TerminalSpecialKey.home, {}, '\x1b[H'),
+          (TerminalSpecialKey.end, {'ctrl'}, '\x1b[1;5F'),
+        ];
+        for (final (key, modifiers, expected) in cases) {
+          sent.clear();
+          terminal.input.setModifiers(modifiers);
+          terminal.sendKey(key);
+          expect(sent, [expected], reason: '$key $modifiers');
+          expect(terminal.input.modifiers, isEmpty, reason: '用完就灭：$key');
+        }
+      });
+
       test('释放后按键不碰引擎、不抛错', () {
         terminal.dispose();
         terminal.sendKey(TerminalSpecialKey.arrowUp);
