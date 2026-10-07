@@ -1281,6 +1281,85 @@ const englishTranslations = <String, String>{
   '不能打开：': 'Cannot open:',
   '复制链接': 'Copy link',
   '用浏览器打开': 'Open in browser',
+  // 10-07：链接改从选字菜单打开；全屏程序里滑动翻页。
+  '打开链接': 'Open link',
+  '全屏程序里滑动翻页': 'Swipe to scroll in full-screen programs',
+  '在 less、man、vim 这类全屏程序里，手指上下滑会发方向键，每滑过一行发一个。注意：没开 mouse 的 tmux 也算全屏程序，这时滑动的方向键会到 shell，翻出上一条历史命令，再按回车就执行了。开着鼠标的程序（tmux 开了 mouse、htop）不受影响，照样发滚轮':
+      'In full-screen programs such as less, man and vim, swiping up or down sends arrow keys, one per line swiped. Note: tmux without mouse also counts as a full-screen program; there the arrow keys reach the shell and bring back the previous command from history, which runs if you then press Enter. Programs with mouse reporting on (tmux with mouse, htop) are not affected and still get wheel events',
+  '滑动翻页设置保存失败：': 'Could not save the swipe setting: ',
+  // R25：快捷键栏和按键面板上的键给读屏软件念的名字（terminal_keys.dart）。
+  '上箭头': 'Up arrow',
+  '下箭头': 'Down arrow',
+  '左箭头': 'Left arrow',
+  '右箭头': 'Right arrow',
+  '回车': 'Enter',
+  '退格': 'Backspace',
+  '斜杠': 'Slash',
+  '反斜杠': 'Backslash',
+  '竖线': 'Vertical bar',
+  '波浪号': 'Tilde',
+  '反引号': 'Backtick',
+  '减号': 'Minus',
+  '下划线': 'Underscore',
+  '等号': 'Equals',
+  '加号': 'Plus',
+  '星号': 'Asterisk',
+  '与号': 'Ampersand',
+  '脱字符': 'Caret',
+  '美元符号': 'Dollar sign',
+  '井号': 'Hash',
+  '艾特符号': 'At sign',
+  '感叹号': 'Exclamation mark',
+  '问号': 'Question mark',
+  '百分号': 'Percent',
+  '单引号': 'Single quote',
+  '双引号': 'Double quote',
+  '冒号': 'Colon',
+  '分号': 'Semicolon',
+  '逗号': 'Comma',
+  '句点': 'Period',
+  '左圆括号': 'Left parenthesis',
+  '右圆括号': 'Right parenthesis',
+  '左方括号': 'Left bracket',
+  '右方括号': 'Right bracket',
+  '左花括号': 'Left brace',
+  '右花括号': 'Right brace',
+  '小于号': 'Less-than sign',
+  '大于号': 'Greater-than sign',
+  // R25：终端输入面板（terminal_input_panel.dart、terminal_compose_box.dart、terminal_special_keys.dart）。
+  '按键面板': 'Key panel',
+  '大输入框': 'Compose box',
+  '按键面板和大输入框': 'Key panel and compose box',
+  '换回系统键盘': 'Back to system keyboard',
+  '常用': 'Common',
+  '符号': 'Symbols',
+  '组合键': 'Combos',
+  'F 键': 'F keys',
+  '自定义': 'Custom',
+  '发到': 'Send to',
+  '只填入': 'Insert only',
+  '清空': 'Clear',
+  '丢掉': 'Discard',
+  '放进这个输入框': 'Put it in this box',
+  '已填入，没有回车': 'Inserted, no Enter',
+  '已发送': 'Sent',
+  '在这里打字或说话，回车只是换行；点「发送」才发到终端':
+      'Type or dictate here. Enter only adds a line; tap Send to send it to the terminal',
+  '关掉的标签还有一段没发的字（没有发送）：':
+      'A closed tab left some unsent text (it was not sent):',
+  '连接已断开：不会发送，恢复后也不会自动补发。框里的字留着。':
+      'The connection is closed: nothing is sent, and nothing is resent after it reconnects. The text stays in the box.',
+  '连接已经恢复成新的 shell：这段字是对着原来那条写的，不会自动改发。要发到新连接请点「改发到新连接」。':
+      'The connection was restored as a new shell. This text was written for the old one and will not be resent automatically. To send it to the new connection, tap "Send to new connection".',
+  '标签已经关了：不会发送。框里的字留着，可以复制。':
+      'The tab is closed: nothing is sent. The text stays in the box and can be copied.',
+  '连接已断开：不会发送，字留着': 'Disconnected: not sent, text kept',
+  '已恢复成新连接：不会自动改发': 'Restored as a new connection: not resent automatically',
+  '标签已经关了：不会发送': 'Tab closed: not sent',
+  '多行：远端开着粘贴标记，多数 shell 等回车才执行（App 保证不了）':
+      'Multiple lines: bracketed paste is on, most shells wait for Enter (the app cannot guarantee it)',
+  '多行：远端没开粘贴标记，每个换行都是回车，前面各行会立刻执行':
+      'Multiple lines: bracketed paste is off, every newline is Enter and earlier lines run right away',
   '链接地址是空的，或者解析不了': 'The link address is empty or cannot be parsed',
   '链接太长': 'The link is too long',
   '链接里有空白或控制字符': 'The link contains whitespace or control characters',
@@ -1347,8 +1426,7 @@ const englishTranslations = <String, String>{
       'The installed Mosh plugin does not declare the terminal-session capability or the ephemeral session-key permission, so it cannot be used for Mosh.',
   '装着的 Mosh 插件没有声明支持直连，不能用它连 Mosh。':
       'The installed Mosh plugin does not declare support for direct connections, so it cannot be used for Mosh.',
-  'Mosh 插件的应答不对，没有用它。':
-      'The Mosh plugin gave a wrong answer and was not used.',
+  'Mosh 插件的应答不对，没有用它。': 'The Mosh plugin gave a wrong answer and was not used.',
   r'Mosh 插件没有正常响应：${error.message}':
       r'The Mosh plugin did not respond properly: ${error.message}',
   r'连不上 Mosh 插件：${error.message}':
@@ -1370,8 +1448,7 @@ const englishTranslations = <String, String>{
       'The Mosh session was closed, but the plugin did not confirm that mosh-client exited. An old session (mosh-server) may still be on the server.',
   '本 App 关掉了这个 Mosh 会话（插件被停用、撤销批准或更新），插件确认 mosh-client 已退出。':
       'This app closed the Mosh session (the plugin was disabled, revoked or updated); the plugin confirmed that mosh-client exited.',
-  '远端 shell 已退出，Mosh 会话结束。':
-      'The remote shell exited; the Mosh session ended.',
+  '远端 shell 已退出，Mosh 会话结束。': 'The remote shell exited; the Mosh session ended.',
   'Mosh 插件关掉了这个会话，没说原因。远端可能还有旧会话（mosh-server）。':
       'The Mosh plugin closed this session without saying why. An old session (mosh-server) may still be on the server.',
   'Mosh 插件进程没了（被系统或手动结束）。':
@@ -3038,6 +3115,7 @@ const englishReplacements = <(String, String)>[
   ('搜索 62 种主题', 'Search 62 themes'),
   ('种可选', ' available'),
   ('安全键盘设置保存失败：', 'Failed to save secure keyboard setting: '),
+  ('滑动翻页设置保存失败：', 'Could not save the swipe setting: '),
   ('外观设置已保存', 'Appearance settings saved'),
   ('AI 设置已保存', 'AI settings saved'),
   ('确认更新', 'Confirm update'),

@@ -6,10 +6,10 @@ import '../../domain/terminal_link.dart';
 import '../localization/localized_widgets.dart';
 import 'tailscale_check_card.dart' show externalLinkLauncherProvider;
 
-/// 点了终端里的链接（R19，SEC08、TER08）：只弹这个框，不直接打开。
+/// 在选字菜单里点了「打开链接」（R19，SEC08、TER08；10-07 起点一下终端只叫键盘）：只弹这个框，不直接打开。
 ///
 /// 先把实际要去的域名放大写出来，再给完整地址；能交给浏览器的只有 http/https，
-/// 其余只能复制。拖动、长按选字都不会走到这里（flterm 只在点按抬起、位置没变时报链接）。
+/// 其余只能复制。点按、拖动、长按本身都不会走到这里，只有用户点了菜单里的按钮才会。
 Future<void> showTerminalLinkSheet(
   BuildContext context, {
   required String shownText,

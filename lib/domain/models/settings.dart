@@ -11,6 +11,19 @@ const supportedTerminalEngines = <String>{
   terminalEngineGhostty,
 };
 const maxTerminalFontSize = 24.0;
+
+/// 终端下面的输入方式（R25 第一部分，所有者 10-07 提的）。记住上次用的，下次打开终端照旧。
+/// - [terminalInputSystem]：系统键盘直接打进终端（原来的方式）；
+/// - [terminalInputKeys]：App 的按键面板（方向键、Tab、Esc、修饰键、符号、F 键）；
+/// - [terminalInputCompose]：大输入框，用系统输入法打字、说话，打完点「发送」。
+const terminalInputSystem = 'system';
+const terminalInputKeys = 'keys';
+const terminalInputCompose = 'compose';
+const supportedTerminalInputModes = <String>{
+  terminalInputSystem,
+  terminalInputKeys,
+  terminalInputCompose,
+};
 const defaultAiModel = 'gpt-4.1-mini';
 const maxAiChatHistoryMessages = 30;
 const defaultAiReasoningEffort = 'default';
@@ -67,6 +80,8 @@ class AppSettings {
     this.terminalFontSize = 14,
     this.terminalSecureKeyboard = false,
     this.terminalEngine = terminalEngineXterm2,
+    this.terminalFullscreenSwipe = false,
+    this.terminalInputMode = terminalInputSystem,
     this.sftpSyntaxHighlight = true,
     this.customBackgroundEnabled = false,
     this.customBackgroundPath = '',
@@ -105,7 +120,9 @@ class AppSettings {
     final storedOrder = rawStoredOrder.where(supported.contains).toList();
     final order = storedOrder.isEmpty ||
             _sameStrings(rawStoredOrder, legacyDefaultTerminalQuickKeys) ||
-            _sameStrings(rawStoredOrder, previousMobileDefaultTerminalQuickKeys)
+            _sameStrings(
+                rawStoredOrder, previousMobileDefaultTerminalQuickKeys) ||
+            _sameStrings(rawStoredOrder, r18DefaultTerminalQuickKeys)
         ? defaultTerminalQuickKeys
         : storedOrder;
     final selectedAiModel =
@@ -125,6 +142,11 @@ class AppSettings {
       terminalEngine: supportedTerminalEngines.contains(json['terminalEngine'])
           ? json['terminalEngine'] as String
           : terminalEngineXterm2,
+      terminalFullscreenSwipe: json['terminalFullscreenSwipe'] == true,
+      terminalInputMode:
+          supportedTerminalInputModes.contains(json['terminalInputMode'])
+              ? json['terminalInputMode'] as String
+              : terminalInputSystem,
       sftpSyntaxHighlight: json['sftpSyntaxHighlight'] != false,
       customBackgroundEnabled: json['customBackgroundEnabled'] == true,
       customBackgroundPath: json['customBackgroundPath']?.toString() ?? '',
@@ -161,6 +183,13 @@ class AppSettings {
 
   /// 之后新开的终端用哪个引擎（[supportedTerminalEngines]）。已经开着的终端不换。
   final String terminalEngine;
+
+  /// 「全屏程序里滑动翻页」（10-07）：less、vim 这类全屏程序没开鼠标报告时，手指滑动发 ↑/↓。默认关，
+  /// 没开 mouse 的 tmux 也算全屏程序，↑ 会到 shell、翻出上一条历史命令（R19）。改了开着的终端马上生效。
+  final bool terminalFullscreenSwipe;
+
+  /// 上次用的输入方式（[supportedTerminalInputModes]）。
+  final String terminalInputMode;
   final bool sftpSyntaxHighlight;
   final bool customBackgroundEnabled;
   final String customBackgroundPath;
@@ -184,6 +213,8 @@ class AppSettings {
     double? terminalFontSize,
     bool? terminalSecureKeyboard,
     String? terminalEngine,
+    bool? terminalFullscreenSwipe,
+    String? terminalInputMode,
     bool? sftpSyntaxHighlight,
     bool? customBackgroundEnabled,
     String? customBackgroundPath,
@@ -208,6 +239,9 @@ class AppSettings {
         terminalSecureKeyboard:
             terminalSecureKeyboard ?? this.terminalSecureKeyboard,
         terminalEngine: terminalEngine ?? this.terminalEngine,
+        terminalFullscreenSwipe:
+            terminalFullscreenSwipe ?? this.terminalFullscreenSwipe,
+        terminalInputMode: terminalInputMode ?? this.terminalInputMode,
         sftpSyntaxHighlight: sftpSyntaxHighlight ?? this.sftpSyntaxHighlight,
         customBackgroundEnabled:
             customBackgroundEnabled ?? this.customBackgroundEnabled,
@@ -237,6 +271,8 @@ class AppSettings {
         'terminalFontSize': terminalFontSize,
         'terminalSecureKeyboard': terminalSecureKeyboard,
         'terminalEngine': terminalEngine,
+        'terminalFullscreenSwipe': terminalFullscreenSwipe,
+        'terminalInputMode': terminalInputMode,
         'sftpSyntaxHighlight': sftpSyntaxHighlight,
         'customBackgroundEnabled': customBackgroundEnabled,
         'customBackgroundPath': customBackgroundPath,
@@ -292,7 +328,28 @@ class AppSettings {
   }
 }
 
+/// 快捷键栏的默认顺序：两行，每行 7 个（屏幕够宽时，见 `terminal_special_keys.dart`）。
+/// Home ↑ End 正好在 ← ↓ → 上面，PgUp 在 PgDn 上面（PgUp/PgDn 是 10-07 加的）。
 const defaultTerminalQuickKeys = <String>[
+  'escape',
+  'alt',
+  'home',
+  'arrowUp',
+  'end',
+  'pageUp',
+  'paste',
+  'tab',
+  'ctrl',
+  'arrowLeft',
+  'arrowDown',
+  'arrowRight',
+  'pageDown',
+  'shift',
+];
+
+/// R18 到 10-07 的默认（12 个，每行 6 个）。存的顺序正好是它时换成新默认：
+/// 不然新加的 PgUp/PgDn 会排到最后，方向键上下就对不齐了。
+const r18DefaultTerminalQuickKeys = <String>[
   'escape',
   'alt',
   'home',

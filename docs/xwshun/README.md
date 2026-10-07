@@ -56,6 +56,11 @@ flutter test test/integration_ssh_fixture_test.dart
   `--plain-name "Ghostty：TER07"` 只跑一项。两个引擎四项全跑约 3 分钟（不算构建）。会往模拟器剪贴板里写测试文字；打开链接换成了假的，不开浏览器。
   用到测试环境镜像里的 bash 和 tmux（R19 起镜像带 bash，改 Dockerfile 后 `up.sh` 自己重建）。
   真 bash 上的粘贴行为（bracketed paste 开关、断线不补发）在本机就能测：`test/integration_ssh_fixture_test.dart` 的「R19 粘贴到真 bash」。
+- 终端输入面板的设备测试（R25，`integration_test/r25_input_panel_test.dart`，只在模拟器上跑过）：要上面的测试环境和回放输入法，经脚本跑
+  `tool/ime-replay.sh emulator-5580 [Ghostty|xterm2] integration_test/r25_input_panel_test.dart`（脚本负责装回放输入法、转发 22201、预授权通知、跑完复原）。
+  一个引擎约 2 分钟（不算构建）。按键面板的键、回放输入法打进大输入框的字（微信语音、拼音）、发到真 bash 的效果都在远端逐字节核对；
+  面板切换时远端收到几次窗口变化，用前台一个只数 SIGWINCH 的 bash 记到 `/tmp/r25-winch` 里，另开 exec 通道读。会把屏幕转成横屏再转回来。
+  经 Mosh 的那一段在 `integration_test/mosh_session_test.dart` 的 `panel` 场景（跑法见下面 Mosh 那条，`X09_SCENARIO=panel`）。
 - tmux 的测试（R21，`test/tmux_fixture_test.dart`）用另一套环境：四个真实 tmux 版本（2.4、2.7、3.0a、3.5a）加「没有 tmux」「假 tmux」两台，
   `(cd tool/tmux-fixture && ./up.sh)` 起、`./down.sh` 关，和上面那套互不影响、可以同时开；没起时整组跳过。细节见 `tool/tmux-fixture/README.md`。
 - Tailscale SSH 的测试（`test/tailscale_ssh_login_test.dart`）要 Go：会自己构建、起停仿制服务器，没装 Go 时整组跳过。仿制服务器和「Headscale + 真 tailscaled」环境的用法见 `tool/tailscale-ssh-fixture/README.md`。
@@ -243,6 +248,19 @@ brew 为本项目装的（2026-10-04）：`zig@0.16` 和它依赖的 `llvm@21`�
   模拟器的虚拟 Wi-Fi 吃掉了发往 `10.0.2.2` 的 TCP（`toybox nc` 偶尔能收到一行版本号，换成真的 SSH 握手就断）。
   X09 先以为是 OrbStack，在 Mac 上垫了一个 TCP 中继、又起了个 Python HTTP 服务，都一样收不到；`adb shell svc wifi disable` 之后立刻正常。
   刚开机、Wi-Fi 还没接管默认网络的那十几秒里是通的，所以第一次试可能骗过你。见第 3 节。
+- **关了 Wi-Fi 反而连不上 `10.0.2.2`，报 `Network is unreachable`（errno 101）**（R25 撞上的）：这次开机模拟器的蜂窝网络没注册上，
+  `adb shell dumpsys telephony.registry | grep mDataRegState` 是 `OUT_OF_SERVICE`，关了 Wi-Fi 就一条网都没有。
+  `adb emu gsm data home`、开关飞行模式、`svc data enable` 都没用；`emu kill` 后冷启动一次就是 `IN_SERVICE` 了。
+  跑 Mosh 测试前先看一眼这一项，别把它当成 App 或测试环境的问题。
+- **设备测试里点按键面板的键，结果切到了「文件」页**（R25 撞上的）：键被挡在看得见的范围外（面板太矮、后两行被剪掉），
+  `tester.tap` 只给一句警告、照样在那个坐标点下去，点中的是底下的导航栏。R25 的设备测试打开了
+  `WidgetController.hitTestWarningShouldBeFatal`，点不中就直接失败；新写设备测试也建议这样。
+- **回放输入法的键盘只有 200dp，还盖住了底部导航栏**：终端页只被压掉一百来 dp。照「键盘压掉多少」开按键面板就太矮了，
+  所以面板有最低高度（竖屏 256dp、横屏 156dp），见 `lib/presentation/screens/terminal_screen_input.dart`。
+- **想数远端收到几次窗口变化，在交互 shell 里 `trap ... WINCH` 数不到**：断线恢复后的新 shell 是测试环境的 busybox sh，
+  它的 WINCH trap 不记数（R25 第一次跑全是 0）。在前台跑一个只数 SIGWINCH 的 bash 往文件里记（`r25_input_panel_test.dart` 第 4 段）。
+- **页面测试结束时报 `A Timer is still pending`，挂在 `_sendSize` 的 100ms 定时器上**：面板换回系统键盘后要给键盘空 700ms 的位置，
+  到点终端变高、再发一次尺寸、再起一个 100ms 的合并定时器。测试里每步之后至少等 1.2 秒（`terminal_input_panel_test.dart` 的 `settle`）。
 - **Android 8.1 及更早的模拟器上 `adb logcat -c` 清不掉日志**（8.0 直接报 `failed to clear the 'main' log`）：
   按日志核对结果时别依赖清空，按"操作前已有几行"截取（`spikes/terminal_spike/tool/adb_key_check.sh` 就是这么做的）。
 

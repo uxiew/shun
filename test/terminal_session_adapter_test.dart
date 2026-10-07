@@ -257,6 +257,36 @@ void main() {
       });
     });
 
+    test('R25：面板切换前先让「等一等」：这段时间里变了几次都只在到点时发最后一个，连第一个也不先发', () {
+      fakeAsync((async) {
+        final terminal = _SizeOnlyEngine();
+        final sink = _Sink();
+        terminal.bind(sink.input, resize: sink.resize);
+        terminal.resize(80, 40);
+        async.elapse(const Duration(seconds: 1));
+        sink.sizes.clear();
+
+        terminal.holdResize(const Duration(milliseconds: 400));
+        for (var rows = 39; rows >= 30; rows--) {
+          terminal.resize(80, rows);
+          async.elapse(const Duration(milliseconds: 16));
+        }
+        expect(sink.sizes, isEmpty);
+        async.elapse(const Duration(milliseconds: 400));
+        expect(sink.sizes, [(80, 30)]);
+
+        // 等一等期间尺寸变回原样：到点什么都不发。
+        sink.sizes.clear();
+        terminal.holdResize(const Duration(milliseconds: 400));
+        terminal.resize(80, 25);
+        terminal.resize(80, 30);
+        async.elapse(const Duration(seconds: 1));
+        expect(sink.sizes, isEmpty);
+        terminal.dispose();
+        expect(async.pendingTimers, isEmpty);
+      });
+    });
+
     test('隔得够久的两次各发一次；尺寸没变不重复发', () {
       fakeAsync((async) {
         final terminal = _SizeOnlyEngine();

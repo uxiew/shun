@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:flterm/flterm.dart';
 import 'package:flutter/foundation.dart' hide Key;
+import 'package:flutter/scheduler.dart';
 
 import 'terminal_session_adapter.dart';
 
@@ -146,6 +147,21 @@ final class GhosttyTerminalAdapter extends TerminalSessionAdapterBase {
   bool get bracketedPasteMode =>
       !isDisposed && controller.modeGet(const TerminalMode.bracketedPaste());
 
+  /// 设置「全屏程序里滑动翻页」（10-07）：开了就把 1007（alternate scroll）设成默认开，全屏程序没开鼠标报告时
+  /// 手指每滑过一行发一个 ↑/↓（按远端的光标键模式编码），和桌面终端的默认一样；关了回到 R19 的什么都不发。
+  ///
+  /// 改的是配置不是当前模式：flterm 每次从备用屏回到主屏都按配置重设所有模式，只改当前模式的话，
+  /// 退出 less 再打开就又变回去了。代价是改的那一下也按配置重设光标显示、自动换行等几项，
+  /// 全屏程序藏起来的光标可能会冒出来，等它下次重画就好。值没变时什么都不做。
+  void setFullscreenSwipe(bool enabled) {
+    if (isDisposed) return;
+    const mode = TerminalMode.alternateScroll();
+    final config = controller.config;
+    if (config.modes[mode] == enabled) return;
+    controller.config =
+        config.copyWith(modes: {...config.modes, mode: enabled});
+  }
+
   /// 修饰键已经同步成 flterm 的虚拟修饰键，flterm 编码时套上、用完清掉（快捷键栏跟着灭）。
   @override
   void sendKey(TerminalSpecialKey key) {
@@ -161,6 +177,22 @@ final class GhosttyTerminalAdapter extends TerminalSessionAdapterBase {
       TerminalSpecialKey.end => Key.end,
       TerminalSpecialKey.pageUp => Key.pageUp,
       TerminalSpecialKey.pageDown => Key.pageDown,
+      TerminalSpecialKey.enter => Key.enter,
+      TerminalSpecialKey.backspace => Key.backspace,
+      TerminalSpecialKey.delete => Key.delete,
+      TerminalSpecialKey.insert => Key.insert,
+      TerminalSpecialKey.f1 => Key.f1,
+      TerminalSpecialKey.f2 => Key.f2,
+      TerminalSpecialKey.f3 => Key.f3,
+      TerminalSpecialKey.f4 => Key.f4,
+      TerminalSpecialKey.f5 => Key.f5,
+      TerminalSpecialKey.f6 => Key.f6,
+      TerminalSpecialKey.f7 => Key.f7,
+      TerminalSpecialKey.f8 => Key.f8,
+      TerminalSpecialKey.f9 => Key.f9,
+      TerminalSpecialKey.f10 => Key.f10,
+      TerminalSpecialKey.f11 => Key.f11,
+      TerminalSpecialKey.f12 => Key.f12,
     });
   }
 
@@ -186,7 +218,18 @@ final class GhosttyTerminalAdapter extends TerminalSessionAdapterBase {
   void _onControllerChanged() {
     if (isDisposed) return;
     if (controller.virtualMods.isEmpty && input.modifiers.isNotEmpty) {
-      input.clearModifiers();
+      // flterm 的视图被卸下（关页面、重新挂上）时也清修饰键，那时正在 build：这里同步熄灭的话，
+      // 快捷键栏会在别人的 build 里 setState，debug 下直接断言。挪到这一帧画完再熄。
+      if (SchedulerBinding.instance.schedulerPhase ==
+          SchedulerPhase.persistentCallbacks) {
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (!isDisposed && controller.virtualMods.isEmpty) {
+            input.clearModifiers();
+          }
+        });
+      } else {
+        input.clearModifiers();
+      }
     }
     _changes.notify();
   }

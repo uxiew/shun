@@ -1,6 +1,9 @@
 import 'dart:async';
+import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -9,6 +12,7 @@ import '../../application/fork_features.dart';
 import '../../application/session_controller.dart';
 import '../../application/home_navigation.dart';
 import '../../application/settings_controller.dart';
+import '../../application/terminal_compose.dart';
 import '../../application/terminal_engine.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/models/host.dart';
@@ -29,12 +33,15 @@ import '../widgets/host_system_icon.dart';
 import '../widgets/port_forward_sheet.dart';
 import '../widgets/route_legs_view.dart';
 import '../widgets/server_monitor_sheet.dart';
+import '../widgets/terminal_input_panel.dart';
+import '../widgets/terminal_key_button.dart';
 import '../widgets/terminal_paste_sheet.dart';
 import '../widgets/terminal_special_keys.dart';
 import '../widgets/system_management/system_management_sheet.dart';
 import '../widgets/tailscale_check_card.dart';
 import '../terminal/terminal_view.dart';
 
+part 'terminal_screen_input.dart';
 part 'terminal_screen_pane.dart';
 
 final terminalFullscreenProvider = StateProvider<bool>((ref) => false);
@@ -55,7 +62,8 @@ const _compactTerminalHeight = 480.0;
 /// 标签条 52dp 加两行快捷键会把终端挤成 0 行，远端还停在旧尺寸（R17 发现的问题 1）。
 const _tightTerminalHeight = 260.0;
 
-class _TerminalScreenState extends ConsumerState<TerminalScreen> {
+class _TerminalScreenState extends ConsumerState<TerminalScreen>
+    with _TerminalInputHost {
   var _split = false;
 
   /// 分屏时用户点过、正拿着焦点的那一格。快捷键栏的键和修饰键发给它，不是固定发给当前标签；
@@ -66,6 +74,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   @override
   void initState() {
     super.initState();
+    initInputHost();
     _pictureInPictureSubscription =
         TerminalPictureInPictureService.stateChanges.listen((active) {
       if (!mounted) return;
@@ -76,6 +85,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
   @override
   void dispose() {
     _pictureInPictureSubscription?.cancel();
+    disposeInputHost();
     super.dispose();
   }
 
@@ -146,23 +156,50 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                 )
                 .firstOrNull ??
             visibleSession;
-    return SafeArea(
-      child: LayoutBuilder(
-        builder: (context, constraints) => _buildPage(
-          context,
-          state: state,
-          settings: settings,
-          snippets: snippets,
-          selectedPending: selectedPending,
-          visibleSession: visibleSession,
-          inputSession: inputSession,
-          splitShown: splitShown,
-          fullscreen: fullscreen,
-          pictureInPicture: pictureInPicture,
-          customBackground: customBackground,
-          tabHosts: tabHosts,
-          compact: constraints.maxHeight < _compactTerminalHeight,
-          tight: constraints.maxHeight < _tightTerminalHeight,
+    // 关掉的标签留下的大输入框草稿挪到一边，不跟着标签丢（R25）。
+    ref.listen(sessionControllerProvider, (_, next) {
+      _drafts.forgetClosedTabs(next.sessions.map((session) => session.id));
+    });
+    _visibleTerminals = [
+      for (final session in state.sessions)
+        if (paneIds.contains(session.id)) session.terminal,
+    ];
+    final mode = _inputModeOf(settings);
+    final panelVisible = mode != terminalInputSystem &&
+        _panelOpen &&
+        inputSession != null &&
+        !pictureInPicture;
+    final terminalTab = ref.watch(homeTabProvider) == 1;
+    return PopScope(
+      // 面板开着时返回键先把面板收起来，和收系统键盘一样（只在终端这一页上管）。
+      canPop: !(panelVisible && terminalTab),
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop && panelVisible && terminalTab) _hideInput();
+      },
+      child: SafeArea(
+        child: LayoutBuilder(
+          builder: (context, constraints) => _buildPage(
+            context,
+            state: state,
+            settings: settings,
+            snippets: snippets,
+            selectedPending: selectedPending,
+            visibleSession: visibleSession,
+            inputSession: inputSession,
+            splitShown: splitShown,
+            fullscreen: fullscreen,
+            pictureInPicture: pictureInPicture,
+            customBackground: customBackground,
+            tabHosts: tabHosts,
+            inputMode: mode,
+            panelVisible: panelVisible,
+            layout: _measureInput(
+              context,
+              constraints,
+              panelVisible: panelVisible,
+              fullscreen: fullscreen,
+            ),
+          ),
         ),
       ),
     );
@@ -181,9 +218,17 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
     required bool pictureInPicture,
     required bool customBackground,
     required List<HostProfile> tabHosts,
-    required bool compact,
-    required bool tight,
+    required String inputMode,
+    required bool panelVisible,
+    required _InputLayout layout,
   }) {
+    final tight = layout.tight;
+    // 用按键面板、大输入框时点终端不叫系统键盘；从面板换回系统键盘那一下让输入那一格叫出键盘。
+    final softKeyboard = inputMode == terminalInputSystem;
+    int keyboardRequestFor(ActiveTerminalSession session) =>
+        _keyboardRequest?.sessionId == session.id
+            ? _keyboardRequest!.serial
+            : 0;
     return Stack(
       children: [
         Positioned.fill(
@@ -339,7 +384,11 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                 ),
               if (pictureInPicture && visibleSession != null)
                 _TerminalPictureInPictureHeader(session: visibleSession),
+              // 带 key：上面的标签条、下面的快捷键栏和面板会随布局出现、消失，同一帧里头尾都变时，
+              // 不带 key 的子组件会被当成新的重建，终端视图重新挂上、自己拿焦点，把刚收起的键盘又叫出来
+              //（模拟器横屏收键盘时撞上）。
               Expanded(
+                key: const ValueKey('terminal-area'),
                 child: selectedPending != null
                     ? _ConnectionStatusPane(
                         pending: selectedPending,
@@ -378,11 +427,17 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                                   fontSize: settings.terminalFontSize,
                                   secureKeyboard:
                                       settings.terminalSecureKeyboard,
+                                  fullscreenSwipe:
+                                      settings.terminalFullscreenSwipe,
+                                  softKeyboard: softKeyboard,
+                                  keyboardRequest:
+                                      keyboardRequestFor(state.active!),
                                   pictureInPicture: pictureInPicture,
                                   transparentBackground:
                                       customBackground && !pictureInPicture,
                                   onFocused: _focusPane,
                                   onPaste: _pasteInto,
+                                  onTap: _onTerminalTap,
                                 );
                               }
                               final secondIndex = (state.activeIndex + 1) %
@@ -395,10 +450,16 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                                     fontSize: settings.terminalFontSize,
                                     secureKeyboard:
                                         settings.terminalSecureKeyboard,
+                                    fullscreenSwipe:
+                                        settings.terminalFullscreenSwipe,
+                                    softKeyboard: softKeyboard,
+                                    keyboardRequest:
+                                        keyboardRequestFor(state.active!),
                                     pictureInPicture: false,
                                     transparentBackground: customBackground,
                                     onFocused: _focusPane,
                                     onPaste: _pasteInto,
+                                    onTap: _onTerminalTap,
                                     inputTarget:
                                         inputSession?.id == state.active!.id,
                                   ),
@@ -412,10 +473,16 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                                     fontSize: settings.terminalFontSize,
                                     secureKeyboard:
                                         settings.terminalSecureKeyboard,
+                                    fullscreenSwipe:
+                                        settings.terminalFullscreenSwipe,
+                                    softKeyboard: softKeyboard,
+                                    keyboardRequest: keyboardRequestFor(
+                                        state.sessions[secondIndex]),
                                     pictureInPicture: false,
                                     transparentBackground: customBackground,
                                     onFocused: _focusPane,
                                     onPaste: _pasteInto,
+                                    onTap: _onTerminalTap,
                                     inputTarget: inputSession?.id ==
                                         state.sessions[secondIndex].id,
                                   ),
@@ -430,8 +497,10 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
               ),
               if (visibleSession != null &&
                   inputSession != null &&
-                  !pictureInPicture)
+                  !pictureInPicture &&
+                  !layout.hideQuickBar)
                 TerminalSpecialKeys(
+                  key: const ValueKey('terminal-quick-keys'),
                   order: settings.terminalQuickKeys,
                   customKeys: settings.terminalCustomKeys,
                   inputController: inputSession.input,
@@ -444,7 +513,10 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                   onPaste: () => pasteClipboardInto(context, ref, inputSession),
                   onCompose: () =>
                       showTerminalPasteSheet(context, target: inputSession),
-                  compact: compact,
+                  compact: layout.compact,
+                  inputPanel: panelVisible,
+                  onInputPanel: () => _toggleInputPanel(inputSession),
+                  onHideKeyboard: _hideInput,
                   onAi: ref.watch(forkFeaturesProvider).ai
                       ? () => _openAi(visibleSession)
                       : null,
@@ -497,6 +569,45 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen> {
                       : null,
                   transparentBackground: customBackground,
                 ),
+              if (panelVisible && inputSession != null)
+                SizedBox(
+                  key: const ValueKey('terminal-input-panel-area'),
+                  height: layout.panelHeight,
+                  child: ClipRect(
+                    child: OverflowBox(
+                      alignment: Alignment.topCenter,
+                      minHeight: layout.panelLayoutHeight,
+                      maxHeight: layout.panelLayoutHeight,
+                      child: TerminalInputPanel(
+                        session: inputSession,
+                        mode: inputMode,
+                        onModeChanged: _onPanelModeChanged,
+                        keyActions: TerminalKeyActions(
+                          input: inputSession.input,
+                          onKey: (key) => ref
+                              .read(sessionControllerProvider.notifier)
+                              .pressKey(inputSession.id, key),
+                          onText: (text) => ref
+                              .read(sessionControllerProvider.notifier)
+                              .typeInto(inputSession.id, text),
+                        ),
+                        customKeys: settings.terminalCustomKeys,
+                        drafts: _drafts,
+                        composeFocus: _composeFocus,
+                        onSystemKeyboard: () =>
+                            _useSystemKeyboard(inputSession),
+                        secureKeyboard: settings.terminalSecureKeyboard,
+                        dense: layout.dense,
+                        showHeader: layout.showPanelHeader,
+                        transparentBackground: customBackground,
+                      ),
+                    ),
+                  ),
+                ),
+              SizedBox(
+                key: const ValueKey('terminal-input-reserve'),
+                height: layout.reserve,
+              ),
             ],
           ),
         ),

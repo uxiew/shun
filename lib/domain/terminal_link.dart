@@ -1,8 +1,27 @@
-/// 终端里点到的链接（R19，SEC08、TER08）。
+/// 文字里的网址：http/https 开头，到空白或引号为止；结尾的句号、逗号、右括号不算（句子里的网址常这样结尾）。
+/// Ghostty 认链接（`LinkRule`）和「选中的字是不是网址」用的是同一个式子。
+final terminalWebLinkPattern =
+    RegExp(r'''https?://[^\s<>"'`]*[^\s<>"'`.,;:!?)\]}]''');
+
+final _trailingPunctuation = RegExp(r'''^[.,;:!?)\]}'"]*$''');
+
+/// 选中的字是不是一个网址（R19 之后所有者 10-07 定：链接从长按的选字菜单里打开）。
+///
+/// 去掉两头空白后整段就是一个 http/https 网址才算，句末跟着的句号、括号可以有；
+/// 夹着别的字（「打开 https://…」）不算——那就不知道用户想开的是哪一段。是网址时返回网址本身。
+String? webLinkIn(String selected) {
+  final trimmed = selected.trim();
+  final match = terminalWebLinkPattern.matchAsPrefix(trimmed);
+  if (match == null) return null;
+  if (!_trailingPunctuation.hasMatch(trimmed.substring(match.end))) return null;
+  return match[0];
+}
+
+/// 终端里的链接（R19，SEC08、TER08）。
 ///
 /// 链接的文字和地址都来自远端输出，不可信：远端能用 OSC 8 把任意文字标成链接，显示「docs」实际指向别处；
-/// 能写 `intent:`、`file:`、`javascript:` 这类会在手机上触发本地动作的地址。所以点了链接只弹确认框，
-/// 从不直接打开；能交给浏览器的只有 http/https。
+/// 能写 `intent:`、`file:`、`javascript:` 这类会在手机上触发本地动作的地址。所以选字菜单里点了「打开链接」
+/// 只弹确认框，从不直接打开；能交给浏览器的只有 http/https。
 class TerminalLinkReview {
   TerminalLinkReview._({
     required this.shownText,

@@ -15,7 +15,7 @@ typedef TerminalResizeSink = void Function(
   int pixelHeight,
 );
 
-/// 快捷键栏上的功能键（R18）。
+/// 快捷键栏、按键面板上的功能键（R18；R25 的按键面板加了回车、退格、Delete、Insert、F1–F12）。
 ///
 /// 按键怎么编码交给引擎：远端程序打开「应用光标键」（vim、less、tmux 常这样）后，方向键要发
 /// `ESC O A` 而不是 `ESC [ A`，Home/End 同理；快捷键栏以前写死字符串，在这些程序里方向键会乱跳。
@@ -30,6 +30,22 @@ enum TerminalSpecialKey {
   end,
   pageUp,
   pageDown,
+  enter,
+  backspace,
+  delete,
+  insert,
+  f1,
+  f2,
+  f3,
+  f4,
+  f5,
+  f6,
+  f7,
+  f8,
+  f9,
+  f10,
+  f11,
+  f12,
 }
 
 /// 缓冲区里的一行（含滚动区）。[wrapped] 表示它是上一行放不下自动折过来的，不是新的一行。
@@ -68,6 +84,14 @@ abstract interface class TerminalSessionAdapter implements Listenable {
   /// 绑定时如果终端已经知道自己的尺寸（视图量过），立刻补发一次给新绑定：
   /// 恢复连接时新 PTY 按默认 80x24 打开，而尺寸没变时引擎不会再通知，不补发远端就一直是 80x24。
   TerminalBinding bind(TerminalInputSink input, {TerminalResizeSink? resize});
+
+  /// 接下来 [duration] 里量出的尺寸先不发给远端，到点只发最后一个（R25）。
+  ///
+  /// 终端下面的按键面板、大输入框出现和消失时，系统键盘往下收、面板往上顶，终端的高度在这一小段里会变好几次；
+  /// 平时的合并（[TerminalSessionAdapterBase.resizeInterval]）是先发第一个、之后每 100ms 补一个，
+  /// 远端会先收到一个中间尺寸（vim、htop 白白重画一次）。终端页在切换的那一刻调这个，远端只收到最后那一个。
+  /// 本地画面照常跟着变，只是远端晚一点知道。
+  void holdResize(Duration duration);
 
   /// 当作键盘输入发出去（快捷键栏的字符键、自定义快捷键）。经过修饰键，和真按键一样；
   /// 里面的换行就是按了回车。剪贴板、片段这类整段文字用 [paste]。
@@ -157,6 +181,7 @@ abstract class TerminalSessionAdapterBase implements TerminalSessionAdapter {
   ({int columns, int rows, int pixelWidth, int pixelHeight})? _size;
   ({int columns, int rows, int pixelWidth, int pixelHeight})? _sentSize;
   Timer? _resizeThrottle;
+  Timer? _resizeHold;
   var _disposed = false;
 
   /// 两次把尺寸发给远端之间至少隔这么久（TER06）。软键盘弹出、收起的动画有十几帧，
@@ -196,6 +221,18 @@ abstract class TerminalSessionAdapterBase implements TerminalSessionAdapter {
     _resizeSink = null;
     _resizeThrottle?.cancel();
     _resizeThrottle = null;
+    _resizeHold?.cancel();
+    _resizeHold = null;
+  }
+
+  @override
+  void holdResize(Duration duration) {
+    if (_disposed) return;
+    _resizeHold?.cancel();
+    _resizeHold = Timer(duration, () {
+      _resizeHold = null;
+      if (_resizeThrottle == null) _sendSize();
+    });
   }
 
   @override
@@ -232,6 +269,8 @@ abstract class TerminalSessionAdapterBase implements TerminalSessionAdapter {
     final size = _size;
     final sink = _resizeSink;
     if (_disposed || size == null || sink == null || size == _sentSize) return;
+    // 终端页让先等一等（面板切换中）：到点由 holdResize 的计时器补发最后一个。
+    if (_resizeHold != null) return;
     _sentSize = size;
     sink(size.columns, size.rows, size.pixelWidth, size.pixelHeight);
     _resizeThrottle = Timer(resizeInterval, () {

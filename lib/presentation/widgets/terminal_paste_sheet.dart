@@ -132,7 +132,7 @@ class _TerminalPasteSheetState extends ConsumerState<TerminalPasteSheet> {
             ),
             if (problem != null) ...[
               const SizedBox(height: 10),
-              _Notice(
+              TerminalPasteNotice(
                 key: const ValueKey('terminal-paste-target-problem'),
                 color: scheme.errorContainer,
                 onColor: scheme.onErrorContainer,
@@ -155,7 +155,7 @@ class _TerminalPasteSheetState extends ConsumerState<TerminalPasteSheet> {
             ],
             const SizedBox(height: 10),
             if (review.multiline)
-              _Notice(
+              TerminalPasteNotice(
                 key: ValueKey(bracketed
                     ? 'terminal-paste-risk-bracketed'
                     : 'terminal-paste-risk-lines-run'),
@@ -164,18 +164,16 @@ class _TerminalPasteSheetState extends ConsumerState<TerminalPasteSheet> {
                     : scheme.surfaceContainerHighest,
                 onColor: runsLines ? scheme.onErrorContainer : scheme.onSurface,
                 icon: Icons.warning_amber_outlined,
-                text: bracketed
-                    ? '多行。远端程序现在开着 bracketed paste（粘贴标记）：多数新版 shell 会把整段放进输入行，等你按回车才执行。但这是远端程序自己的约定，App 保证不了，有的程序照样逐行执行。'
-                    : '多行。远端程序现在没开 bracketed paste：每个换行都等于按一次回车，除了最后一行，前面各行会在粘贴的同时执行。',
+                text: multilinePasteRisk(bracketed: bracketed),
               ),
             if (_original.trailingNewlines > 0 || review.trailingNewlines > 0)
-              const _Notice(
+              const TerminalPasteNotice(
                 key: ValueKey('terminal-paste-trailing-newline'),
                 icon: Icons.keyboard_return,
                 text: '末尾的换行不会发出去：粘贴完不会自动执行最后一行。要执行就点「粘贴并回车」，或者回到终端自己按回车。',
               ),
             if (removed.isNotEmpty)
-              _Notice(
+              TerminalPasteNotice(
                 key: const ValueKey('terminal-paste-controls'),
                 icon: Icons.block,
                 text: '去掉了控制字符（在终端里它们是按键，不是文字）：',
@@ -186,18 +184,18 @@ class _TerminalPasteSheetState extends ConsumerState<TerminalPasteSheet> {
               ),
             if (_original.invisibleFormatting > 0 ||
                 review.invisibleFormatting > 0)
-              const _Notice(
+              const TerminalPasteNotice(
                 key: ValueKey('terminal-paste-invisible'),
                 icon: Icons.visibility_off_outlined,
                 text: '有看不见的排版字符（零宽字符、改变文字方向的字符）：屏幕上看到的顺序可能和实际发出去的不一样。',
               ),
             if (review.tabs > 0 && !bracketed)
-              const _Notice(
+              const TerminalPasteNotice(
                 icon: Icons.keyboard_tab,
                 text: '含 Tab：远端没开 bracketed paste 时，shell 会把它当补全键。',
               ),
             if (review.text.length > PasteReview.longText)
-              const _Notice(
+              const TerminalPasteNotice(
                 icon: Icons.notes,
                 text: '内容很长，请确认整段都是你要发的。',
               ),
@@ -301,8 +299,14 @@ class _TerminalPasteSheetState extends ConsumerState<TerminalPasteSheet> {
   }
 }
 
-class _Notice extends StatelessWidget {
-  const _Notice({
+/// 多行内容发到终端前照实说会发生什么（R19；R25 的大输入框也用）。不宣称 bracketed paste 能挡住执行。
+String multilinePasteRisk({required bool bracketed}) => bracketed
+    ? '多行。远端程序现在开着 bracketed paste（粘贴标记）：多数新版 shell 会把整段放进输入行，等你按回车才执行。但这是远端程序自己的约定，App 保证不了，有的程序照样逐行执行。'
+    : '多行。远端程序现在没开 bracketed paste：每个换行都等于按一次回车，除了最后一行，前面各行会在粘贴的同时执行。';
+
+/// 粘贴预览、大输入框里的一条提醒：图标加一段话，危险的用底色标出来（不只靠颜色，图标和文字也说）。
+class TerminalPasteNotice extends StatelessWidget {
+  const TerminalPasteNotice({
     super.key,
     required this.icon,
     required this.text,

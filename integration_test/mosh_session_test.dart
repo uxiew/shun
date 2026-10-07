@@ -14,6 +14,7 @@
 //           运行时退出码 1 的说法
 //   kill    打出 "X09 kill.READY" 后在电脑上强杀插件：adb shell run-as top.xdwa.xwshun.mosh kill -9 <插件 pid>
 //   ime     MOS05 输入法回放，只能经 tool/ime-replay.sh 跑（它替测试发广播给回放输入法）
+//   panel   R25 按键面板、大输入框经 Mosh 发：远端逐字节核对，终端输入次数 = 宿主写入次数
 import 'dart:convert';
 import 'dart:io';
 
@@ -523,6 +524,42 @@ void main() {
         await controller.close(0);
         await settle(tester, 300);
         expect(failures, isEmpty, reason: failures.join('\n'));
+      case 'panel':
+        // R25：按键面板和大输入框经 Mosh 发出去，走的还是终端绑定这一个出口（终端输入次数 = 宿主写入次数）。
+        final tab = await open(moshHost('x09-panel'));
+        final link = tab.plugin! as MoshTerminalProvider;
+        final panel = find.byKey(const ValueKey('terminal-input-panel'));
+        Future<void> tap(Finder finder) async {
+          await tester.tap(finder);
+          await settle(tester, 400);
+        }
+
+        await tap(find.byKey(const ValueKey('terminal-action-input-panel')));
+        final inputs = link.inputEvents;
+        final writes = link.session.writeCount;
+        final bytes = await r18.captureRemote(tester, tab.terminal, () async {
+          for (final label in ['Esc', 'Tab', '↑', 'PgUp']) {
+            await tap(find.descendant(of: panel, matching: find.text(label)));
+          }
+          await tap(find.byKey(const ValueKey('terminal-input-tab-compose')));
+          tester
+              .widget<TextField>(find.byKey(const ValueKey('terminal-compose-editor')))
+              .controller!
+              .text = '你好 mosh';
+          await settle(tester, 300);
+          await tap(find.byKey(const ValueKey('terminal-compose-send')));
+        }, end: r18.CaptureEnd.timeout, seconds: 15);
+        final expected = [
+          0x1b, 0x09, 0x1b, 0x5b, 0x41, 0x1b, 0x5b, 0x35, 0x7e, //
+          ...utf8.encode('你好 mosh'), 0x0d,
+        ];
+        report('panel',
+            'bytes=[${r18.hex(bytes)}] expected=[${r18.hex(expected)}] '
+            'terminalInputs=${link.inputEvents - inputs} hostWrites=${link.session.writeCount - writes}');
+        await controller.close(0);
+        await settle(tester, 300);
+        expect(r18.hex(bytes), r18.hex(expected));
+        expect(link.inputEvents - inputs, link.session.writeCount - writes);
       default:
         fail('未知场景 $scenario');
     }

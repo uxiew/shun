@@ -240,15 +240,24 @@ class _TerminalPane extends StatefulWidget {
     required this.session,
     required this.fontSize,
     required this.secureKeyboard,
+    this.fullscreenSwipe = false,
+    this.softKeyboard = true,
+    this.keyboardRequest = 0,
     required this.pictureInPicture,
     required this.transparentBackground,
     this.onFocused,
     this.onPaste,
+    this.onTap,
     this.inputTarget = false,
   });
   final ActiveTerminalSession session;
   final double fontSize;
   final bool secureKeyboard;
+  final bool fullscreenSwipe;
+
+  /// 见 [TerminalViewOptions.softKeyboard]、[TerminalViewOptions.keyboardRequest]（R25）。
+  final bool softKeyboard;
+  final int keyboardRequest;
   final bool pictureInPicture;
   final bool transparentBackground;
 
@@ -257,6 +266,9 @@ class _TerminalPane extends StatefulWidget {
 
   /// 硬件键盘在这一格里按了粘贴快捷键（[TerminalPasteIntent]）。
   final ValueChanged<ActiveTerminalSession>? onPaste;
+
+  /// 手指在这一格上点了一下（不是拖、不是长按）。用按键面板时据此把收起的面板展开（R25）。
+  final VoidCallback? onTap;
 
   /// 分屏时输入正发往这一格：描一圈边。另一格没有边，不只靠颜色区分。
   final bool inputTarget;
@@ -269,6 +281,33 @@ class _TerminalPane extends StatefulWidget {
 /// （`presentation/terminal/`），这里不认识任何引擎的类型（R16）。
 class _TerminalPaneState extends State<_TerminalPane> {
   Timer? _pictureInPictureUpdateTimer;
+
+  /// 认点按用：引擎自己的手势识别器总会赢下竞争（R04），外面套 GestureDetector 收不到，只能看原始指针。
+  int? _tapPointer;
+  Offset? _tapOrigin;
+  Duration? _tapStart;
+
+  void _onPointerDown(PointerDownEvent event) {
+    if (event.kind != PointerDeviceKind.touch || _tapPointer != null) return;
+    _tapPointer = event.pointer;
+    _tapOrigin = event.position;
+    _tapStart = event.timeStamp;
+  }
+
+  void _onPointerUp(PointerUpEvent event) {
+    if (event.pointer != _tapPointer) return;
+    final origin = _tapOrigin!;
+    final start = _tapStart!;
+    _tapPointer = null;
+    if ((event.position - origin).distance <= kTouchSlop &&
+        event.timeStamp - start < kLongPressTimeout) {
+      widget.onTap?.call();
+    }
+  }
+
+  void _onPointerCancel(PointerCancelEvent event) {
+    if (event.pointer == _tapPointer) _tapPointer = null;
+  }
 
   TerminalSessionAdapter get _terminal => widget.session.terminal;
 
@@ -362,13 +401,21 @@ class _TerminalPaneState extends State<_TerminalPane> {
                       },
                     ),
                   },
-                  child: terminalViewFor(
-                    _terminal,
-                    TerminalViewOptions(
-                      fontSize: widget.fontSize,
-                      secureKeyboard: widget.secureKeyboard,
-                      interactive: !widget.pictureInPicture,
-                      transparentBackground: widget.transparentBackground,
+                  child: Listener(
+                    onPointerDown: _onPointerDown,
+                    onPointerUp: _onPointerUp,
+                    onPointerCancel: _onPointerCancel,
+                    child: terminalViewFor(
+                      _terminal,
+                      TerminalViewOptions(
+                        fontSize: widget.fontSize,
+                        secureKeyboard: widget.secureKeyboard,
+                        fullscreenSwipe: widget.fullscreenSwipe,
+                        softKeyboard: widget.softKeyboard,
+                        keyboardRequest: widget.keyboardRequest,
+                        interactive: !widget.pictureInPicture,
+                        transparentBackground: widget.transparentBackground,
+                      ),
                     ),
                   ),
                 ),

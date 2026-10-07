@@ -72,6 +72,19 @@ final class LinkInteraction extends ChangeNotifier {
     return _highlighted;
   }
 
+  /// xwshun: The detected link under [localPosition], or null.
+  ///
+  /// Skips the pointer-activation checks ([LinkSettings.modifier],
+  /// [LinkSettings.onActivate]); only the enabled link types and rules apply.
+  /// Used to report touch long presses on links ([LinkSettings.onLongPress]).
+  ActivatedLink? linkAt({
+    required Offset localPosition,
+    required CellMetrics metrics,
+  }) {
+    if (_settings.types.isEmpty) return null;
+    return _linkAt(metrics.cellAt(localPosition));
+  }
+
   /// Clears hover and press state without invalidating detected links.
   void cancel() {
     final changed = _highlighted != null || _pressCandidate != null;

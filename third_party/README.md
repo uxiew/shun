@@ -14,7 +14,7 @@ cd third_party/libghostty
 flutter pub get
 dart analyze packages/flterm/lib packages/libghostty/lib
 ../fetch-libghostty-assets.sh                         # 只有跑 flterm 测试、示例程序时才要（51.6 MB）
-(cd packages/flterm && flutter test)                  # 1125 条（R19）
+(cd packages/flterm && flutter test)                  # 1132 条（10-07，R19 之后的链接改动）
 (cd packages/libghostty && dart test)                 # 511 条；第一次要下 Ghostty 源码再用 Zig 编，约 1 分钟
 ```
 
@@ -54,6 +54,7 @@ dart analyze packages/flterm/lib packages/libghostty/lib
 | 0de868c | flterm：TerminalView 加 `secureTextInput`，敏感输入时输入框改成可见密码 | App 设置里的「安全键盘」在 Ghostty 下没效果（输入框类型写死） |
 | b63c843 | flterm：组字中收到空的编辑列表当组字结束；清空编辑区后、平台跟上前，oldText 对不上的编辑只按增量处理；软键盘回车键参与回车去重 | Flutter Android 的 delta 模式里 finishComposingText 不记编辑（只删 span），组字区的字拖到下一次改文字才提交；回车键后紧跟的提交按输入法旧编辑区算，整行被重发（8711b1a 引入的回退） |
 | 4ba1019 | flterm：`TerminalGestureSettings.touchMouseClicks`，为 false 时远端开着鼠标报告也不把手指点按、长按发成鼠标点击（滑动照样发滚轮） | 上游在 tmux mouse on、htop 里把点按发成点击（tmux 换窗格）、长按选不了字（R19，TER07）。默认 true 不改上游行为，App 传 false |
+| 54b7369 | flterm：`LinkSettings.onLongPress`，手指长按开始选字时报出手指下的链接（没有就是 null，不看激活修饰键、不需要 `onActivate`）；长按松开时还什么都没选上，就把整个链接选上 | 所有者 10-07 定点一下终端只叫键盘、链接从选字菜单打开。App 不给 `onActivate` 后，flterm 外面就不知道手指下是不是链接了（检测在内部）。默认 null，上游行为不变 |
 
 0.0.5 时期的 04df082（输入法补丁）、8caeb73（改用预编译库）已被同步覆盖，补丁移进了 1dda0c8。
 
@@ -94,10 +95,15 @@ git apply --3way /tmp/xwshun-ours.patch     # 返回非 0 会列出合不进的�
 - [x] 敏感输入走 visiblePassword：fork 加了 `secureTextInput`（R18，0de868c）
 - [x] 软键盘退格（xterm2 的 `deleteDetection`）：真机微信输入法删字、删拼音对，模拟器回放输入法空编辑区退格对（R18）；Gboard 的退格 R18 没单独测
 - [x] 鼠标：tmux 打开鼠标报告时滑动发滚轮交给 tmux；全屏程序没开鼠标报告时滑动不变成方向键（App 把 1007 关了）；点按、长按不发点击（4ba1019）（R19）
-- [x] 链接：认 OSC 8 和文字里的 http/https 网址，点了只弹确认框，只把 http/https 交给浏览器；不认文件路径（R19，App 侧的 LinkSettings，fork 没改）
+- [x] 链接：认 OSC 8 和文字里的 http/https 网址，只把 http/https 交给浏览器、先弹确认框；不认文件路径（R19，App 侧的 LinkSettings）。
+  10-07 起点一下只叫键盘，长按落在链接上（或选中的字整段是网址）时选字菜单里多「打开链接」（fork 54b7369 加了 `onLongPress`）
 - [x] 粘贴：Ctrl+V 等粘贴快捷键换成 App 的意图、先预览，不再由 flterm 直接粘进终端（R19，App 侧传 `shortcuts`，fork 没改）
-- [ ] 硬件键盘 Ctrl+K、Ctrl+A：flterm 在 Android 上把 Ctrl+K 当「清滚动区」，远端收到的是 `\f`（Ctrl-L）不是 Ctrl-K；Ctrl+A 当「全选」，什么都不发。
-  xterm2 照常发 Ctrl-K，Ctrl+A 一样被吃（R19 用 widget 测试按出来的，没上真键盘）。只记下没改：所有者定了暂不测硬件键盘，改键位要一起测
+- [x] 硬件键盘 Ctrl+K、Ctrl+A 发给服务器，清滚动区、全选挪到 Ctrl+Shift+K、Ctrl+Shift+A（所有者 10-07 定）：改在 App 侧，fork 没改——
+  App 传给 flterm 的 `shortcuts` 用同一个 const 快捷键对象盖掉它的 Android 默认（见 `lib/presentation/terminal/terminal_view.dart`
+  的 `terminalKeyShortcuts`）。同步上游后 flterm 的默认键位变了要回来对一下：`test/terminal_hardware_keys_test.dart` 会挂。
+  顺带查出来没改的：有选区时 Ctrl+C 是复制（flterm 照 Windows 终端的习惯）；**Ctrl+I、Ctrl+M 在 Android 硬件键盘上什么都不发**
+  （模拟器的硬件键盘逐字节核对；widget 测试里模拟的按键事件会被 libghostty 编成 CSI u `ESC [ 105 ; 5 u`，和设备上不一样，以设备为准）。
+  原因没查，等所有者定要不要修
 - R04 已知问题：
   - 已解决：收起后叫不回键盘（3，fork 修）；dispose 后 write 段错误（1，上游改成抛 StateError，适配器仍要挡住迟到的数据）
   - 还在：组合字符缺重音（6，10-04 模拟器截图）、裸 DEL 画成方格（9）

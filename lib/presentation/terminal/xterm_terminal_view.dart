@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm2/xterm.dart';
 
+import '../../domain/terminal_link.dart';
 import '../../infrastructure/terminal/terminal_session_adapter.dart';
 import '../../infrastructure/terminal/xterm_terminal_adapter.dart';
 import '../localization/localized_widgets.dart';
+import '../widgets/terminal_link_sheet.dart';
 import 'terminal_view.dart';
 
 /// 旧引擎 xterm2 的终端视图：画面、选区手柄、复制。除了测试，App 里只有这个文件和适配器认识 xterm2。
@@ -55,6 +57,17 @@ class _XtermTerminalViewState extends State<XtermTerminalView> {
   @override
   void didUpdateWidget(covariant XtermTerminalView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final request = widget.options.keyboardRequest;
+    if (request != 0 &&
+        request != oldWidget.options.keyboardRequest &&
+        widget.options.interactive) {
+      // 从按键面板换回系统键盘：这一帧把输入法连接建回来以后再叫键盘。
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _lease.isActive) {
+          _terminalViewKey.currentState?.requestKeyboard();
+        }
+      });
+    }
     if (oldWidget.options.secureKeyboard != widget.options.secureKeyboard) {
       // xterm keeps the platform TextInputConnection alive while the view is
       // mounted. Recreate it so Android and iOS receive the new input type.
@@ -137,6 +150,10 @@ class _XtermTerminalViewState extends State<XtermTerminalView> {
             : _selectionHandlePosition(selection.begin);
         final endHandle =
             selection == null ? null : _selectionHandlePosition(selection.end);
+        // xterm2 不认链接；选中的字整段是网址时，选字菜单里一样给「打开链接」（10-07，和 Ghostty 一致）。
+        final link = selection == null || _alternateScreen
+            ? null
+            : webLinkIn(_terminal.buffer.getText(selection));
         return Stack(
           key: _terminalStackKey,
           fit: StackFit.expand,
@@ -165,13 +182,31 @@ class _XtermTerminalViewState extends State<XtermTerminalView> {
               Positioned(
                 top: 10,
                 right: 10,
-                child: FilledButton.tonalIcon(
-                  key: const ValueKey('copy-terminal-selection'),
-                  onPressed: _alternateScreen
-                      ? () => _showCopySnapshot()
-                      : _copySelection,
-                  icon: const Icon(Icons.copy_outlined, size: 18),
-                  label: const LText('复制'),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (link != null) ...[
+                      FilledButton.tonalIcon(
+                        key: const ValueKey('open-terminal-link'),
+                        onPressed: () => unawaited(showTerminalLinkSheet(
+                          context,
+                          shownText: link,
+                          address: link,
+                        )),
+                        icon: const Icon(Icons.open_in_new, size: 18),
+                        label: const LText('打开链接'),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    FilledButton.tonalIcon(
+                      key: const ValueKey('copy-terminal-selection'),
+                      onPressed: _alternateScreen
+                          ? () => _showCopySnapshot()
+                          : _copySelection,
+                      icon: const Icon(Icons.copy_outlined, size: 18),
+                      label: const LText('复制'),
+                    ),
+                  ],
                 ),
               ),
           ],
@@ -180,7 +215,25 @@ class _XtermTerminalViewState extends State<XtermTerminalView> {
     );
   }
 
-  Widget _terminalContent(TerminalTheme theme) => Listener(
+  /// Ctrl+Shift+K：清掉本地的历史和屏幕，只留提示符那几行（xterm2 的 clear）；不给服务器发东西。
+  /// 全屏程序里什么都不做，和 Ghostty 一样。
+  Widget _terminalContent(TerminalTheme theme) => Actions(
+        actions: {
+          TerminalClearScrollbackIntent:
+              CallbackAction<TerminalClearScrollbackIntent>(
+            onInvoke: (_) {
+              if (_lease.isActive && !_terminal.isUsingAltBuffer) {
+                _controller.clearSelection();
+                _terminal.clear();
+              }
+              return null;
+            },
+          ),
+        },
+        child: _terminalListener(theme),
+      );
+
+  Widget _terminalListener(TerminalTheme theme) => Listener(
         onPointerDown: (event) {
           final mouse = event.kind == PointerDeviceKind.mouse;
           // Switching input devices changes policy; repeated finger gestures do not.
@@ -213,7 +266,9 @@ class _XtermTerminalViewState extends State<XtermTerminalView> {
         child: RepaintBoundary(
           child: TerminalView(
             _terminal,
-            simulateScroll: false,
+            // 设置「全屏程序里滑动翻页」：xterm2 的 simulateScroll 就是在备用屏、没开鼠标报告时把滑动换成 ↑/↓，
+            // 每滑过一行一个，和 Ghostty 的 1007 一样。默认关（R19）。
+            simulateScroll: widget.options.fullscreenSwipe,
             key: _terminalViewKey,
             controller: _controller,
             scrollController: _scrollController,
@@ -224,13 +279,19 @@ class _XtermTerminalViewState extends State<XtermTerminalView> {
                 ? TextInputType.visiblePassword
                 : TextInputType.emailAddress,
             deleteDetection: true,
-            // xterm2 给了 shortcuts 就整个替换默认的：复制、全选照抄它在 Android 上的默认，
+            // 用按键面板、大输入框时不接系统输入法（R25）：点终端不叫键盘，硬件键盘照样能打。
+            hardwareKeyboardOnly: !widget.options.softKeyboard,
+            // xterm2 给了 shortcuts 就整个替换默认的：复制照抄它在 Android 上的默认（Ctrl+Shift+C），
             // 粘贴换成 App 的（先预览，SEC10），不让 xterm2 直接把剪贴板粘进终端。
+            // 全选从 Ctrl+A 挪到 Ctrl+Shift+A、加 Ctrl+Shift+K 清滚动区，Ctrl+A 发给服务器（10-07，两个引擎一样）。
             shortcuts: const {
               SingleActivator(LogicalKeyboardKey.keyC,
                   control: true, shift: true): CopySelectionTextIntent.copy,
-              SingleActivator(LogicalKeyboardKey.keyA, control: true):
+              SingleActivator(LogicalKeyboardKey.keyA,
+                      control: true, shift: true):
                   SelectAllTextIntent(SelectionChangedCause.keyboard),
+              SingleActivator(LogicalKeyboardKey.keyK,
+                  control: true, shift: true): TerminalClearScrollbackIntent(),
               ...terminalPasteShortcuts,
             },
             autofocus: widget.options.interactive,

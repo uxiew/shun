@@ -58,10 +58,14 @@ final class InteractionRegion extends StatefulWidget {
   /// 总会赢下手势竞争，外层 GestureDetector 的 onTap 收不到终端区域里的点按。
   final VoidCallback? onTap;
 
+  /// xwshun: 手指长按开始选字时调用，带上手指下的链接（没有就是 null），见 `LinkSettings.onLongPress`。
+  final ValueChanged<ActivatedLink?>? onLinkLongPress;
+
   const InteractionRegion({
     super.key,
     this.onLinkActivate,
     this.onTap,
+    this.onLinkLongPress,
     required this.child,
     required this.links,
     required this.metrics,
@@ -100,6 +104,9 @@ final class _InteractionRegionState extends State<InteractionRegion> {
   int? _interactionPointer;
   Duration? _interactionTimeStamp;
   var _linkPressActive = false;
+
+  /// xwshun: 这次长按落在的链接。长按松开时还什么都没选上，就把这个链接选上。
+  ActivatedLink? _longPressLink;
   Position? _pressCell;
   var _selectionGestureUpdate = false;
   var _selectionHandleDragActive = false;
@@ -267,6 +274,7 @@ final class _InteractionRegionState extends State<InteractionRegion> {
     _cancelLinkPress();
     _clearDrag();
     _pressCell = null;
+    _longPressLink = null;
   }
 
   void _cancelSelectionPress() {
@@ -294,6 +302,12 @@ final class _InteractionRegionState extends State<InteractionRegion> {
     _clearDrag();
     _cancelLinkPress();
     _terminalOwnsInteraction = false;
+    // xwshun: 长按链接没拖动，什么都没选上：选上整个链接，选字菜单才有东西可操作。
+    final link = _longPressLink;
+    _longPressLink = null;
+    if (link != null && widget.selection.selection == null) {
+      _updateSelection(() => widget.selection.selectCells(link.range));
+    }
   }
 
   void _handleDragStart(DragStartDetails details) {
@@ -341,6 +355,14 @@ final class _InteractionRegionState extends State<InteractionRegion> {
         widget.selection.selection,
       );
       setState(() => _selectionHandlesVisible = true);
+    }
+    if (widget.onLinkLongPress case final report?) {
+      final link = widget.links.linkAt(
+        localPosition: details.localPosition,
+        metrics: widget.metrics,
+      );
+      _longPressLink = link;
+      report(link);
     }
   }
 
@@ -445,6 +467,7 @@ final class _InteractionRegionState extends State<InteractionRegion> {
     _cancelSelectionPress();
     _cancelLinkPress();
     _clearDrag();
+    _longPressLink = null;
   }
 
   void _handleTrackedDown(PointerDownEvent event) {

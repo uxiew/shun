@@ -10,6 +10,17 @@ void main() {
       expect(settings.modifier, ActivationModifier.primary);
       expect(settings.rules, isEmpty);
       expect(settings.onActivate, isNull);
+      expect(settings.onLongPress, isNull);
+    });
+
+    test('xwshun: onLongPress takes part in equality', () {
+      void report(ActivatedLink? _) {}
+      final first = LinkSettings(onLongPress: report);
+      final second = LinkSettings(onLongPress: report);
+
+      expect(first, second);
+      expect(first.hashCode, second.hashCode);
+      expect(first, isNot(const LinkSettings()));
     });
 
     test('compares regex rules by stable configuration', () {
