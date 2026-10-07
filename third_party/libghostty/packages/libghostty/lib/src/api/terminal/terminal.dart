@@ -1124,8 +1124,9 @@ final class Terminal with ChangeNotifier {
 
 /// xwshun: 裸 DEL（0x7F）在交给 Ghostty 之前去掉，和 VT100、xterm、tmux 一样忽略它。
 ///
-/// Ghostty 的解析表照 DEC 解析器的状态图把普通状态下的 0x20–0x7F 都当可打印字（`parse_table.zig`
-/// 的 `range(0x20, 0x7F, .ground, .ground, .print)`），DEL 被存进格子：屏幕上是一个方格，后面的字往右挪一格，
+/// Ghostty 的解析表照 DEC 解析器的状态图把普通状态下的 0x20–0x7F 都当可打印字
+/// （`parse_table.zig` 的 `range(0x20, 0x7F, .ground, .ground, .print)`），
+/// DEL 被存进格子：屏幕上是一个方格，后面的字往右挪一格，
 /// 远端程序以为的光标位置和画面对不上（R04 问题 9，R20 和 tmux 对比时复现）。
 /// 只在这里改：Ghostty 源码是按 SHA256 核对后下载来编的，仓库里没有它的源码可以打补丁。
 ///
