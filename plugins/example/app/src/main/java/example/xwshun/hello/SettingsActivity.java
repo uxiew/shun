@@ -17,7 +17,7 @@ import android.widget.TextView;
  * 这个页面是导出的，任何 App 都能打开它，所以别在这里放只该给宿主看的东西，也别信打开它的 Intent 里带的任何参数。
  */
 public final class SettingsActivity extends Activity {
-    static final String PREFS = "hello_settings";
+    static final String PREFS = "plugin_settings";
     static final String KEY_COLOR_BANNER = "color_banner";
 
     @Override

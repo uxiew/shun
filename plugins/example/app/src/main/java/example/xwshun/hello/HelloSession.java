@@ -56,7 +56,7 @@ final class HelloSession {
     }
 
     void start(Events events, Runnable onEnd) {
-        new Thread(() -> run(events, onEnd), "hello-" + handle).start();
+        new Thread(() -> run(events, onEnd), "session-" + handle).start();
     }
 
     private void run(Events events, Runnable onEnd) {
