@@ -547,6 +547,32 @@ void main() {
       skip: _scenario != 'resources' || ssh == null,
       timeout: const Timeout(Duration(minutes: 45)));
 
+  testWidgets('leak：开关 10 次标签后，关掉的会话不该还活着；活着的打出从 GC 根到它的引用链', (tester) async {
+    final controller = await startApp(tester);
+    final vm = await developer.Service.getInfo();
+    debugPrint('R20 VMSERVICE=${vm.serverWebSocketUri}');
+    for (var cycle = 1; cycle <= 10; cycle++) {
+      final tab = await openTab(tester, controller, ssh!);
+      await run(tester, tab.terminal, 'echo cycle-$cycle');
+      await controller.close(controller.state.sessions.indexOf(tab));
+      await settle(tester, 300);
+    }
+    await settle(tester, 3000);
+    final profile = await _heapAfterGc();
+    r20('leak.heap', profile.summary);
+    final paths = await _retainingPaths('ActiveTerminalSession');
+    for (final (i, path) in paths.indexed) {
+      r20('leak.path$i', path);
+    }
+    // 修好以后（文件页按标签缓存的 SFTP 服务关标签时删掉）还会留 1 个：Flutter 的 TextInput 记着最后一次输入法连接，
+    // 顺着它的尺寸缓存拿着最后一个终端视图的渲染树。只留最后一个、下次有输入框连上就换掉，不随开关次数累积。
+    expect(
+        profile.instances['ActiveTerminalSession'] ?? 0, lessThanOrEqualTo(1),
+        reason: '标签都关了，会话还活着');
+  },
+      skip: _scenario != 'leak' || ssh == null,
+      timeout: const Timeout(Duration(minutes: 5)));
+
   testWidgets('ai-cli：Claude Code、Codex 不登录的界面能用方向键、回车、Ctrl+C 操作',
       (tester) async {
     final config = jsonDecode(_aiCli) as Map<String, dynamic>;
@@ -725,29 +751,43 @@ class _HeapProfile {
   ];
 }
 
-Future<_HeapProfile> _heapAfterGc() async {
-  final info = await developer.Service.getInfo();
-  // 端口转发是脚本看到 "R20 VMSERVICE=" 才建的，开头几次可能还连不上。
-  WebSocket? socket;
-  for (var attempt = 0; socket == null; attempt++) {
-    try {
-      socket = await WebSocket.connect(info.serverWebSocketUri.toString());
-    } on SocketException {
-      if (attempt >= 30) rethrow;
-      await Future<void>.delayed(const Duration(milliseconds: 500));
+/// 本进程自己的 VM service（debug 包才有），用 dart:io 的 WebSocket 发 JSON-RPC，不另加依赖。
+class _Vm {
+  _Vm._(this._ws, this._replies, this.isolateId);
+  final WebSocket _ws;
+  final Stream<Map<String, dynamic>> _replies;
+  final String isolateId;
+  var _id = 0;
+
+  static Future<_Vm> connect() async {
+    final info = await developer.Service.getInfo();
+    // 端口转发是脚本看到 "R20 VMSERVICE=" 才建的，开头几次可能还连不上。
+    WebSocket? socket;
+    for (var attempt = 0; socket == null; attempt++) {
+      try {
+        socket = await WebSocket.connect(info.serverWebSocketUri.toString());
+      } on SocketException {
+        if (attempt >= 30) rethrow;
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+      }
     }
+    final replies = socket
+        .map((m) => jsonDecode(m as String) as Map<String, dynamic>)
+        .asBroadcastStream();
+    return _Vm._(
+        socket, replies, developer.Service.getIsolateId(Isolate.current)!);
   }
-  final ws = socket;
-  final replies = ws
-      .map((m) => jsonDecode(m as String) as Map<String, dynamic>)
-      .asBroadcastStream();
-  var id = 0;
+
   Future<Map<String, dynamic>> call(
       String method, Map<String, dynamic> params) async {
-    final my = '${++id}';
-    final reply = replies.firstWhere((r) => r['id'] == my);
-    ws.add(jsonEncode(
-        {'jsonrpc': '2.0', 'id': my, 'method': method, 'params': params}));
+    final my = '${++_id}';
+    final reply = _replies.firstWhere((r) => r['id'] == my);
+    _ws.add(jsonEncode({
+      'jsonrpc': '2.0',
+      'id': my,
+      'method': method,
+      'params': {'isolateId': isolateId, ...params},
+    }));
     final result = await reply;
     if (result['error'] != null) {
       throw StateError('$method: ${result['error']}');
@@ -755,10 +795,13 @@ Future<_HeapProfile> _heapAfterGc() async {
     return result['result'] as Map<String, dynamic>;
   }
 
+  Future<void> close() => _ws.close();
+}
+
+Future<_HeapProfile> _heapAfterGc() async {
+  final vm = await _Vm.connect();
   try {
-    final isolateId = developer.Service.getIsolateId(Isolate.current)!;
-    final profile = await call(
-        'getAllocationProfile', {'isolateId': isolateId, 'gc': true});
+    final profile = await vm.call('getAllocationProfile', {'gc': true});
     final usage = profile['memoryUsage'] as Map<String, dynamic>;
     final instances = <String, int>{};
     for (final member
@@ -770,7 +813,45 @@ Future<_HeapProfile> _heapAfterGc() async {
     return _HeapProfile(usage['heapUsage'] as int, usage['heapCapacity'] as int,
         usage['externalUsage'] as int, instances);
   } finally {
-    await ws.close();
+    await vm.close();
+  }
+}
+
+/// 强制 GC 后，[className] 还活着的每个实例从 GC 根到它的引用链（最多 [limit] 个实例），一条链一行。
+Future<List<String>> _retainingPaths(String className, {int limit = 5}) async {
+  final vm = await _Vm.connect();
+  try {
+    final profile = await vm.call('getAllocationProfile', {'gc': true});
+    final classes = [
+      for (final member
+          in (profile['members'] as List).cast<Map<String, dynamic>>())
+        if ((member['class'] as Map<String, dynamic>)['name'] == className &&
+            (member['instancesCurrent'] as int? ?? 0) > 0)
+          (member['class'] as Map<String, dynamic>)['id'] as String,
+    ];
+    final paths = <String>[];
+    for (final classId in classes) {
+      final found =
+          await vm.call('getInstances', {'objectId': classId, 'limit': limit});
+      for (final instance
+          in (found['instances'] as List).cast<Map<String, dynamic>>()) {
+        final path = await vm.call(
+            'getRetainingPath', {'targetId': instance['id'], 'limit': 40});
+        final elements =
+            (path['elements'] as List).cast<Map<String, dynamic>>();
+        paths.add([
+          'gcRoot=${path['gcRootType']}',
+          for (final e in elements.reversed)
+            '${(e['value'] as Map<String, dynamic>)['class']?['name'] ?? (e['value'] as Map<String, dynamic>)['type']}'
+                '${e['parentField'] != null ? '.${e['parentField']}' : ''}'
+                '${e['parentListIndex'] != null ? '[${e['parentListIndex']}]' : ''}'
+                '${e['parentMapKey'] != null ? '{key}' : ''}',
+        ].join(' -> '));
+      }
+    }
+    return paths;
+  } finally {
+    await vm.close();
   }
 }
 
