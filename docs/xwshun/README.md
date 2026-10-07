@@ -61,18 +61,23 @@ flutter test test/integration_ssh_fixture_test.dart
   约 2 分钟（不算构建）。按键面板的键、回放输入法打进大输入框的字（微信语音、拼音）、发到真 bash 的效果都在远端逐字节核对；
   面板切换时远端收到几次窗口变化，用前台一个只数 SIGWINCH 的 bash 记到 `/tmp/r25-winch` 里，另开 exec 通道读。会把屏幕转成横屏再转回来。
   经 Mosh 的那一段在 `integration_test/mosh_session_test.dart` 的 `panel` 场景（跑法见下面 Mosh 那条，`X09_SCENARIO=panel`）。
-- R20 终端门禁（只在模拟器上跑过）：
+- R20 终端门禁（模拟器和真机都跑过）：
   - 同素材两引擎对比（本机，不要 Docker）：`flutter test test/terminal_vt_corpus_test.dart`，约 3 秒；素材怎么重录见 `tool/vt-corpus/README.md`。
   - 设备上的门禁：`tool/r20-gate.sh emulator-5580 tui|resources|ai-cli`（脚本转发端口、预授权通知、截图到 `../.toolchain/artifacts/r20-shots-<提交>/`）。
     `tui` 约 1 分钟：App 里用 Ghostty 跑 vim/less/htop/tmux，远端同时起一个同尺寸的后台 tmux 跑同一个脚本、按同样的键，逐行比屏幕；
-    `resources` 约 8 分钟：4 个标签吃输出、开关 300 次，量 RSS/PSS/fd/线程和回显延迟；
+    `resources`：4 个标签吃输出、开关 500 次，量 RSS/PSS/fd/线程和回显延迟（真机上 23 分钟）；
     `ai-cli` 要先 `(cd tool/ai-cli-fixture && ./up.sh)`（第一次要下 npm 包，几分钟），用完 `./down.sh`。
   - 关掉的标签有没有被拿着（查泄漏用）：`tool/r20-gate.sh emulator-5580 leak`，开关 10 次后强制 GC，还活着的会话打出从 GC 根到它的引用链
-    （R20 就是这样查到文件页拿着关掉的会话）。`resources`、`leak` 会先 `adb root`（读 App 的 `/proc/<pid>/net/tcp`、连 VM service），只在模拟器上用。
+    （R20 就是这样查到文件页拿着关掉的会话）。脚本先试 `adb root`，能 root（模拟器）就读 App 的 `/proc/<pid>/net/tcp` 数连 SSH 的连接；
+    root 不了（真机 user 版）就改在电脑侧数连 `127.0.0.1:22201` 的连接，这时别让别的东西同时连这个测试环境。
   - 发布包冒烟（REL03）：`tool/build-release.sh` 之后 `tool/release-smoke.sh emulator-5580`，脚本装包、用 uiautomator 点「设置 → 终端引擎 → 检查」，
     界面上是「正常，这次运行建过的终端：1」才算这个包的原生库在这台设备上能用；测完卸掉。Android 7.0 没有 `getconf`，页大小那项写「读不到」。
+    真机上它不用 monkey 启动、每次点之前查前台是本 App 且没锁屏，手机上已装着同名 App 就不跑（卸掉会清所有者的数据）。
   - 引擎起不来（TER12）：`tool/r20-engine-failure.sh emulator-5580`，脚本编测试 APK、删掉里面的 libghostty.so、重新签名、用 `flutter drive` 装这个包跑，
     跑完卸掉。会先卸掉模拟器上的 App（签名不同装不上），里面的测试数据随之清掉。
+  - 在真机上跑这几条：先 `tool/remote-device/up.sh`（见那里的 README）、`source /tmp/xwshun-remote-device/env`，把上面的 `emulator-5580` 换成手机序列号。
+    要所有者当次同意、本人解锁手机；一串跑下来一个多小时，手机 30 分钟会熄屏，熄了测试就失败，所以 G3 复核时临时开了 `adb shell svc power stayon ac`，测完 `svc power stayon false` 改回。
+    用完 `down.sh` 后，`android/local.properties` 的 `sdk.dir` 还指着已删的假 SDK，怎么改回见 `tool/remote-device/README.md`「撞墙时」。
 - tmux 的测试（R21，`test/tmux_fixture_test.dart`）用另一套环境：四个真实 tmux 版本（2.4、2.7、3.0a、3.5a）加「没有 tmux」「假 tmux」两台，
   `(cd tool/tmux-fixture && ./up.sh)` 起、`./down.sh` 关，和上面那套互不影响、可以同时开；没起时整组跳过。细节见 `tool/tmux-fixture/README.md`。
 - Tailscale SSH 的测试（`test/tailscale_ssh_login_test.dart`）要 Go：会自己构建、起停仿制服务器，没装 Go 时整组跳过。仿制服务器和「Headscale + 真 tailscaled」环境的用法见 `tool/tailscale-ssh-fixture/README.md`。
