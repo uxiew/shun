@@ -48,6 +48,9 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
   String? _selectionUrl;
   var _selectionUrlScheduled = false;
 
+  /// 交给 flterm 的焦点：从按键面板换回系统键盘时（[TerminalViewOptions.keyboardRequest]）要能让终端拿焦点。
+  final _focusNode = FocusNode(debugLabel: 'ghostty-terminal');
+
   GhosttyTerminalAdapter get _adapter => widget.adapter;
 
   @override
@@ -76,6 +79,26 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
       // 设置改了，开着的终端马上生效（不像引擎那样只管新开的）。
       _adapter.setFullscreenSwipe(widget.options.fullscreenSwipe);
     }
+    final request = widget.options.keyboardRequest;
+    if (request != 0 &&
+        request != oldWidget.options.keyboardRequest &&
+        widget.options.interactive) {
+      _showSoftKeyboard();
+    }
+  }
+
+  /// 拿焦点、叫出系统键盘。焦点原来在别处（大输入框）时 flterm 拿到焦点自己会叫；已经有焦点时
+  /// 拿焦点什么都不变，要直接让输入法显示出来。这一帧画完再做：flterm 那时已经拿到 showKeyboard = true。
+  void _showSoftKeyboard() {
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || !_lease.isActive) return;
+      _focusNode.requestFocus();
+      if (_focusNode.hasFocus) {
+        unawaited(
+            SystemChannels.textInput.invokeMethod<void>('TextInput.show'));
+      }
+    });
+    SchedulerBinding.instance.ensureVisualUpdate();
   }
 
   @override
@@ -83,6 +106,7 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
     _adapter.removeListener(_onTerminalChanged);
     // 只释放自己这一次占用：新视图已经接手时（旧视图晚一步销毁）不影响它。
     _lease.release();
+    _focusNode.dispose();
     super.dispose();
   }
 
@@ -250,8 +274,10 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
     return TerminalView(
       controller: controller,
       theme: theme,
+      focusNode: _focusNode,
       autofocus: interactive,
-      showKeyboard: interactive,
+      // 用按键面板、大输入框时点终端不叫系统键盘（R25）：面板占着键盘的位置。
+      showKeyboard: interactive && options.softKeyboard,
       // 设置里的「安全键盘」：输入法按可见密码框处理，不联想、不学习。
       secureTextInput: options.secureKeyboard,
       // 远端开着鼠标报告（tmux mouse on、htop）时，手指只有滑动发成滚轮；点按照样叫键盘，

@@ -17,6 +17,8 @@ class TerminalViewOptions {
     required this.interactive,
     required this.transparentBackground,
     this.fullscreenSwipe = false,
+    this.softKeyboard = true,
+    this.keyboardRequest = 0,
   });
 
   final double fontSize;
@@ -32,6 +34,13 @@ class TerminalViewOptions {
   /// 默认关：没开 mouse 的 tmux 看起来也是全屏程序，滑动的 ↑ 会到 shell、翻出上一条历史命令（R19）。
   /// 开着鼠标报告的程序（tmux mouse on、htop）不受影响，照样只发滚轮。
   final bool fullscreenSwipe;
+
+  /// 点终端、终端拿到焦点时叫不叫系统键盘（R25）。用按键面板、大输入框时为 false：面板占着系统键盘的位置，
+  /// 点终端不该把键盘叫出来盖住面板。硬件键盘照样能打进终端。
+  final bool softKeyboard;
+
+  /// 这个数变了（且不是 0）就让终端拿焦点、叫出系统键盘：从按键面板换回系统键盘时用，用户不用再点一下终端。
+  final int keyboardRequest;
 }
 
 /// 硬件键盘的粘贴快捷键（R19）。两个引擎自带的快捷键都是直接把剪贴板粘进终端、不预览；

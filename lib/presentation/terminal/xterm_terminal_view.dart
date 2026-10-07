@@ -57,6 +57,17 @@ class _XtermTerminalViewState extends State<XtermTerminalView> {
   @override
   void didUpdateWidget(covariant XtermTerminalView oldWidget) {
     super.didUpdateWidget(oldWidget);
+    final request = widget.options.keyboardRequest;
+    if (request != 0 &&
+        request != oldWidget.options.keyboardRequest &&
+        widget.options.interactive) {
+      // 从按键面板换回系统键盘：这一帧把输入法连接建回来以后再叫键盘。
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted && _lease.isActive) {
+          _terminalViewKey.currentState?.requestKeyboard();
+        }
+      });
+    }
     if (oldWidget.options.secureKeyboard != widget.options.secureKeyboard) {
       // xterm keeps the platform TextInputConnection alive while the view is
       // mounted. Recreate it so Android and iOS receive the new input type.
@@ -268,6 +279,8 @@ class _XtermTerminalViewState extends State<XtermTerminalView> {
                 ? TextInputType.visiblePassword
                 : TextInputType.emailAddress,
             deleteDetection: true,
+            // 用按键面板、大输入框时不接系统输入法（R25）：点终端不叫键盘，硬件键盘照样能打。
+            hardwareKeyboardOnly: !widget.options.softKeyboard,
             // xterm2 给了 shortcuts 就整个替换默认的：复制照抄它在 Android 上的默认（Ctrl+Shift+C），
             // 粘贴换成 App 的（先预览，SEC10），不让 xterm2 直接把剪贴板粘进终端。
             // 全选从 Ctrl+A 挪到 Ctrl+Shift+A、加 Ctrl+Shift+K 清滚动区，Ctrl+A 发给服务器（10-07，两个引擎一样）。
