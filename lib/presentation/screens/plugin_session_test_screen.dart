@@ -14,12 +14,28 @@ import '../localization/localized_widgets.dart';
 /// 会话测试（X12）：插件作者只装本 App 的安装包，就能核对自己的插件走不走得完一次终端会话——
 /// 连接（握手）→ 打开 80×24 会话 → 插件写回来什么 → 自己敲一行发过去 → 改尺寸 → 关闭，每一步照实写结果。
 ///
-/// 本 App 不替插件发任何东西：输入只有用户在这页敲的那一行。离开这页就关会话、断开连接，不在后台留着。
-/// 连接和 Mosh 标签用的是同一条（Kotlin 桥按包名只留一条连接），所以开始测试会断开这个插件正在跑的会话，页面上写明。
+/// 本 App 不替插件发任何东西：输入只有用户在这页敲的那一行。
+/// Kotlin 桥对一个插件只留一条连接，重新 connect 会断掉它正在跑的会话（X09 的坑），所以已经连着就沿用，
+/// 离开时只关测试会话；连接是这页开的、而且没有别的会话在用，才断开。
 class PluginSessionTestScreen extends ConsumerStatefulWidget {
   const PluginSessionTestScreen({super.key, required this.packageName});
 
   final String packageName;
+
+  /// 这个插件为什么不能做会话测试；能做返回 null。
+  ///
+  /// 申请了临时会话凭据的插件（Mosh）不在这里开：它的会话要本 App 先经 SSH 在服务器上拿到这一次的一次性材料，
+  /// 这页拿不出来。不开，而不是开一个没有材料的半截会话。
+  static String? whyNot(PluginDescriptor? descriptor) {
+    if (descriptor == null ||
+        !descriptor.capabilities.contains(Capability.terminalSession)) {
+      return '这个插件没有声明终端会话能力（terminal-session），没有会话可测。';
+    }
+    if (descriptor.permissions.contains(Permission.ownSessionEphemeralSecret)) {
+      return '这个插件申请了「本会话的临时凭据」：它的会话要本 App 先经 SSH 在服务器上拿到这一次的一次性材料（比如 Mosh 的 key）才能开，会话测试拿不出这些材料，所以不在这里开。Mosh 插件请在主机列表里用 Mosh 协议连接。';
+    }
+    return null;
+  }
 
   /// 显示插件输出时最多留这么多字节（只留最后的）：插件写多少都不会把这页撑爆。
   static const keepBytes = 16 * 1024;
@@ -65,8 +81,17 @@ class _PluginSessionTestScreenState
   final _subscriptions = <StreamSubscription<Object?>>[];
   var _busy = false;
   var _appendCr = true;
-  var _connected = false;
+
+  /// 连接是这页开的（原来没连着）。沿用别人在用的连接时为 false：离开时不替别人断开。
+  var _opened = false;
   PluginDiscovery? _discovery;
+  late final PluginSessionManager _manager;
+
+  @override
+  void initState() {
+    super.initState();
+    _manager = ref.read(pluginSessionManagerProvider);
+  }
 
   bool get _running =>
       _session != null &&
@@ -78,14 +103,17 @@ class _PluginSessionTestScreenState
     for (final s in _subscriptions) {
       unawaited(s.cancel());
     }
-    // 测试用的会话和连接只在这页开着时存在。先等会话关完（插件确认或 2 秒到）再断开连接：
-    // 反过来的话插件的 closed 到达时连接已经没了，插件页的「事件」里多一条看着像出错的「连接已关闭」。
+    // 先等测试会话关完（插件确认或 2 秒到）再考虑断开：反过来的话插件的 closed 到达时连接已经没了，
+    // 插件页的「事件」里多一条看着像出错的「连接已关闭」。
+    // 只断这页开的连接，而且那时没有别的会话（比如期间开的 Mosh 标签）在用它。
     final session = _session;
-    final discovery = _connected ? _discovery : null;
+    final discovery = _opened ? _discovery : null;
+    final manager = _manager;
     final package = widget.packageName;
     unawaited(() async {
       if (session != null) await session.close();
-      await discovery?.disconnect(package);
+      final others = manager.sessions.where((s) => s.packageName == package);
+      if (others.isEmpty) await discovery?.disconnect(package);
     }());
     _input.dispose();
     super.dispose();
@@ -107,7 +135,11 @@ class _PluginSessionTestScreenState
 
   Future<void> _start() async {
     final entry = _entry();
-    if (_busy || entry == null) return;
+    if (_busy ||
+        entry == null ||
+        PluginSessionTestScreen.whyNot(entry.descriptor) != null) {
+      return;
+    }
     // 上一个测试会话的监听：它已经结束了，不等取消完成。
     for (final s in _subscriptions) {
       unawaited(s.cancel());
@@ -127,14 +159,12 @@ class _PluginSessionTestScreenState
       final discovery = await ref.read(pluginDiscoveryProvider.future);
       _discovery = discovery;
       final check = await discovery.check(entry);
-      _connected = check == PluginDiscovery.checkPassed;
-      _say('连接：', check);
-      if (!_connected) return;
+      _opened = _opened || (check.ok && !check.reused);
+      _say('连接：', check.message);
+      if (!check.ok) return;
       final PluginTerminalSession session;
       try {
-        session = await ref
-            .read(pluginSessionManagerProvider)
-            .open(entry, cols: 80, rows: 24);
+        session = await _manager.open(entry, cols: 80, rows: 24);
       } on Object catch (e) {
         _say('打开会话失败：', e);
         return;
@@ -247,6 +277,7 @@ class _PluginSessionTestScreenState
         .firstOrNull;
     final small = Theme.of(context).textTheme.bodySmall;
     final mono = small?.copyWith(fontFamily: 'monospace');
+    final unavailable = PluginSessionTestScreen.whyNot(entry?.descriptor);
     final ready = entry?.status == PluginStatus.ready;
     final active = _session?.phase == SessionPhase.active;
     return Scaffold(
@@ -259,10 +290,13 @@ class _PluginSessionTestScreenState
           const LText(
               '给插件作者核对插件用：连接、打开一个 80×24 的终端会话、看插件写回来什么、发一行字、改尺寸、关闭，每一步写在下面。本 App 不替插件发任何东西，只发你在下面敲的那一行。'),
           LText(
-            '开始时会先断开这个插件正在跑的会话（比如 Mosh 标签）。离开这页会关掉测试会话、断开连接。',
+            '插件已经连着（比如有 Mosh 标签开着）就沿用那条连接、不重新握手，它正在跑的会话不受影响。离开这页只关测试会话；连接是这页开的、又没有别的会话在用，才断开。',
             style: small,
           ),
           if (!ready) LText('插件现在不是「可用」，先回详情页批准或启用。', style: small),
+          if (ready && unavailable != null)
+            LText(unavailable,
+                key: const ValueKey('session-test-unavailable'), style: small),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -270,7 +304,9 @@ class _PluginSessionTestScreenState
             children: [
               FilledButton(
                 key: const ValueKey('session-test-start'),
-                onPressed: !ready || _busy || _running ? null : _start,
+                onPressed: !ready || unavailable != null || _busy || _running
+                    ? null
+                    : _start,
                 child: LText(_session == null ? '开始' : '重新开始'),
               ),
               OutlinedButton(

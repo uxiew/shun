@@ -6,10 +6,13 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/application/plugin_discovery.dart';
+import 'package:netcatty_mobile/application/plugin_registry.dart';
+import 'package:netcatty_mobile/application/plugin_sessions.dart';
 import 'package:netcatty_mobile/infrastructure/plugins/android_plugin_bridge.dart';
 import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
 import 'package:netcatty_mobile/presentation/screens/plugin_session_test_screen.dart';
 import 'package:netcatty_mobile/presentation/screens/plugins_screen.dart';
+import 'package:plugin_api/plugin_api.dart' show SessionPhase;
 import 'package:shared_preferences/shared_preferences.dart';
 
 // X12 给插件作者的两样东西：插件页底部的「本 App 的签名证书」，详情页的「会话测试」。
@@ -22,7 +25,8 @@ const hostDebug =
     '499ff3abf2d0aeb386ce3b30da1c3a0fa3566d5d89b042bf279c0773f79d500f';
 
 DiscoveredPackage hello(
-        {List<String> capabilities = const ['terminal-session']}) =>
+        {List<String> capabilities = const ['terminal-session'],
+        List<String> permissions = const ['own-session-input-output']}) =>
     DiscoveredPackage(
       packageName: pkg,
       serviceClass: 'example.xwshun.hello.HelloProviderService',
@@ -40,7 +44,7 @@ DiscoveredPackage hello(
         'capabilities': capabilities,
         'supportedRoutes': ['system-default'],
         'platforms': ['android'],
-        'permissions': ['own-session-input-output'],
+        'permissions': permissions,
         'packageName': pkg,
         'serviceClass': 'example.xwshun.hello.HelloProviderService',
         'license': 'GPL-3.0-or-later',
@@ -99,14 +103,29 @@ class FakeBridge extends AndroidPluginBridge {
     required String sha256,
   }) async {
     if (connectError != null) throw connectError!;
+    connects.add(packageName);
+    connected.add(packageName);
     return '';
   }
 
+  /// 和 Kotlin 桥一样：没连着的插件 ping 报 NOT_CONNECTED。
+  final connected = <String>{};
+  final connects = <String>[];
+
   @override
-  Future<int> ping(String packageName, int nonce) async => nonce;
+  Future<int> ping(String packageName, int nonce) async {
+    if (!connected.contains(packageName)) {
+      throw const PluginBridgeException('NOT_CONNECTED', '没有连着这个插件');
+    }
+    return nonce;
+  }
+
   @override
-  Future<void> disconnect(String packageName) async =>
-      disconnects.add(packageName);
+  Future<void> disconnect(String packageName) async {
+    disconnects.add(packageName);
+    connected.remove(packageName);
+  }
+
   @override
   Future<void> openSession({
     required String packageName,
@@ -341,6 +360,109 @@ void main() {
     expect(RegExp(r'[一-鿿]').hasMatch(text), isFalse, reason: text);
     expect(text, contains('Closed: the plugin confirmed it stopped (closed)'));
     await drain(tester);
+  });
+
+  testWidgets('申请了临时会话凭据的插件（Mosh 那种）：不给会话测试，写明为什么，一个会话都不开', (tester) async {
+    bridge.installed = [
+      hello(permissions: [
+        'own-session-input-output',
+        'own-session-ephemeral-secret',
+      ])
+    ];
+    await openList(tester);
+    await tester.tap(find.byKey(const ValueKey('plugin-entry-$pkg')));
+    await tester.pumpAndSettle();
+    await tapKey(tester, 'plugin-approve');
+    await tapKey(tester, 'plugin-approve-confirm');
+    expect(find.byKey(const ValueKey('plugin-session-test')), findsNothing);
+    expect(
+        find.descendant(
+            of: find.byKey(const ValueKey('plugin-session-test-unavailable')),
+            matching: find.textContaining('会话测试拿不出这些材料')),
+        findsOneWidget);
+
+    // 直接进测试页也开不了。
+    unawaited(Navigator.of(
+            tester.element(find.byKey(const ValueKey('plugin-status'))))
+        .push(MaterialPageRoute<void>(
+            builder: (_) => const PluginSessionTestScreen(packageName: pkg))));
+    await tester.pumpAndSettle();
+    expect(
+        find.byKey(const ValueKey('session-test-unavailable')), findsOneWidget);
+    expect(
+        tester
+            .widget<FilledButton>(
+                find.byKey(const ValueKey('session-test-start')))
+            .onPressed,
+        isNull);
+    expect(bridge.opened, isEmpty);
+    expect(bridge.connects, isEmpty);
+  });
+
+  testWidgets('已经连着（比如 Mosh 标签在用）：会话测试沿用那条连接、不重新握手，离开时也不断开', (tester) async {
+    bridge.connected.add(pkg);
+    await startTest(tester);
+    expect(find.textContaining('连接：${PluginDiscovery.checkReused}'),
+        findsOneWidget);
+    expect(bridge.connects, isEmpty);
+    bridge.event(1, 'active');
+    await tester.pumpAndSettle();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(bridge.closed, [bridge.opened.single.handle]);
+    bridge.event(2, 'closed');
+    await drain(tester);
+    expect(bridge.disconnects, isEmpty);
+  });
+
+  testWidgets('X09 的坑：有会话在跑时点「连接测试」沿用连接，不给「断开」，离开详情页也不断开', (tester) async {
+    await openList(tester);
+    await tester.tap(find.byKey(const ValueKey('plugin-entry-$pkg')));
+    await tester.pumpAndSettle();
+    await tapKey(tester, 'plugin-approve');
+    await tapKey(tester, 'plugin-approve-confirm');
+
+    // 像 Mosh 标签那样，别处已经连上插件、开了一个会话。
+    final container = ProviderScope.containerOf(
+        tester.element(find.byKey(const ValueKey('plugin-status'))));
+    final entry = container
+        .read(pluginRegistryProvider)
+        .singleWhere((e) => e.packageName == pkg);
+    bridge.connected.add(pkg);
+    final running =
+        await container.read(pluginSessionManagerProvider).open(entry);
+    bridge.event(1, 'active');
+
+    await tapKey(tester, 'plugin-check');
+    expect(find.text(PluginDiscovery.checkReused), findsOneWidget);
+    expect(bridge.connects, isEmpty);
+    expect(find.text('断开'), findsNothing);
+    expect(find.byKey(const ValueKey('plugin-live-sessions')), findsOneWidget);
+    expect(running.phase, SessionPhase.active);
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(bridge.disconnects, isEmpty);
+    expect(running.phase, SessionPhase.active);
+    unawaited(running.close());
+    await tester.pump();
+    bridge.event(2, 'closed');
+    await drain(tester);
+  });
+
+  testWidgets('没连着时连接测试新开连接：给「断开」，离开详情页断开它', (tester) async {
+    await openList(tester);
+    await tester.tap(find.byKey(const ValueKey('plugin-entry-$pkg')));
+    await tester.pumpAndSettle();
+    await tapKey(tester, 'plugin-approve');
+    await tapKey(tester, 'plugin-approve-confirm');
+    await tapKey(tester, 'plugin-check');
+    expect(find.text(PluginDiscovery.checkPassed), findsOneWidget);
+    expect(bridge.connects, [pkg]);
+    expect(find.text('断开'), findsOneWidget);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(bridge.disconnects, [pkg]);
   });
 
   test('输出显示：\\r\\n 换行，单独的 \\n、\\r 和别的控制字符写成 ^X', () {

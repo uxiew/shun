@@ -102,15 +102,26 @@ class FakeBridge extends AndroidPluginBridge {
     required String sha256,
   }) async {
     connects.add('$packageName/$serviceClass/$pluginId/$sha256');
+    connected.add(packageName);
     return descriptor();
   }
 
-  @override
-  Future<int> ping(String packageName, int nonce) async => nonce;
+  /// 和 Kotlin 桥一样：没连着的插件 ping 报 NOT_CONNECTED。
+  final connected = <String>{};
 
   @override
-  Future<void> disconnect(String packageName) async =>
-      disconnects.add(packageName);
+  Future<int> ping(String packageName, int nonce) async {
+    if (!connected.contains(packageName)) {
+      throw const PluginBridgeException('NOT_CONNECTED', '没有连着这个插件');
+    }
+    return nonce;
+  }
+
+  @override
+  Future<void> disconnect(String packageName) async {
+    disconnects.add(packageName);
+    connected.remove(packageName);
+  }
 }
 
 void main() {
@@ -144,16 +155,40 @@ void main() {
     expect(entryOf(echoPackage).status, PluginStatus.needsApproval);
 
     final refused = await discovery.check(entryOf(echoPackage));
-    expect(refused, contains('没有绑定插件'));
+    expect(refused.ok, isFalse);
+    expect(refused.message, contains('没有绑定插件'));
     expect(bridge.connects, isEmpty);
 
     await discovery.approve(entryOf(echoPackage));
     expect(entryOf(echoPackage).status, PluginStatus.ready);
     final ok = await discovery.check(entryOf(echoPackage));
-    expect(ok, contains('握手成功'));
+    expect(ok.message, contains('握手成功'));
+    expect(ok.reused, isFalse);
     expect(bridge.connects, [
       '$echoPackage/$echoService/example.fixture_echo/$authorCert',
     ]);
+  });
+
+  test('X09 的坑：已经连着（比如 Mosh 标签在用）就沿用，不重新 connect——重新 connect 会断掉它的会话',
+      () async {
+    bridge.installed = [echo()];
+    await discovery.refresh();
+    await discovery.approve(entryOf(echoPackage));
+    bridge.connected.add(echoPackage); // 别处（Mosh 连接、会话测试）已经连上了
+
+    final result = await discovery.check(entryOf(echoPackage));
+    expect(result.ok, isTrue);
+    expect(result.reused, isTrue);
+    expect(result.message, PluginDiscovery.checkReused);
+    expect(bridge.connects, isEmpty);
+    expect(bridge.disconnects, isEmpty);
+
+    // 那条连接没了（插件进程死了、被断开）：照常重新握手。
+    bridge.connected.clear();
+    final again = await discovery.check(entryOf(echoPackage));
+    expect(again.reused, isFalse);
+    expect(again.message, PluginDiscovery.checkPassed);
+    expect(bridge.connects, hasLength(1));
   });
 
   test('批准记录重启后恢复；存的是公开的证书摘要，不是插件自报的任何东西', () async {

@@ -66,13 +66,27 @@ class FakeBridge extends AndroidPluginBridge {
     required String serviceClass,
     required String pluginId,
     required String sha256,
-  }) async =>
-      '';
+  }) async {
+    connected.add(packageName);
+    return '';
+  }
+
+  /// 和 Kotlin 桥一样：没连着的插件 ping 报 NOT_CONNECTED。
+  final connected = <String>{};
   @override
-  Future<int> ping(String packageName, int nonce) async => nonce;
+  Future<int> ping(String packageName, int nonce) async {
+    if (!connected.contains(packageName)) {
+      throw const PluginBridgeException('NOT_CONNECTED', '没有连着这个插件');
+    }
+    return nonce;
+  }
+
   @override
-  Future<void> disconnect(String packageName) async =>
-      disconnects.add(packageName);
+  Future<void> disconnect(String packageName) async {
+    disconnects.add(packageName);
+    connected.remove(packageName);
+  }
+
   @override
   Future<void> openSettings(String packageName, String activity) async =>
       settingsOpened.add(activity);

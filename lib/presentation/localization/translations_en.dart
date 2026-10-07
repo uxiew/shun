@@ -878,8 +878,18 @@ const englishTranslations = <String, String>{
   '会话测试': 'Session test',
   '给插件作者核对插件用：连接、打开一个 80×24 的终端会话、看插件写回来什么、发一行字、改尺寸、关闭，每一步写在下面。本 App 不替插件发任何东西，只发你在下面敲的那一行。':
       'For plugin authors to check a plugin: connect, open an 80×24 terminal session, see what the plugin writes back, send a line, resize and close; each step is listed below. This app sends nothing on its own, only the line you type below.',
-  '开始时会先断开这个插件正在跑的会话（比如 Mosh 标签）。离开这页会关掉测试会话、断开连接。':
-      'Starting first disconnects the sessions this plugin is running (such as Mosh tabs). Leaving this page closes the test session and disconnects.',
+  '插件已经连着（比如有 Mosh 标签开着）就沿用那条连接、不重新握手，它正在跑的会话不受影响。离开这页只关测试会话；连接是这页开的、又没有别的会话在用，才断开。':
+      'If the plugin is already connected (for example a Mosh tab is open), that connection is reused without a new handshake and its running sessions are not affected. Leaving this page only closes the test session; the connection is closed only if this page opened it and no other session is using it.',
+  '已经连着（之前握过手），沿用这条连接：ping 往返正常。没有重新握手，正在跑的会话不受影响':
+      'Already connected (handshake done earlier); reused that connection: ping round trip OK. No new handshake, running sessions are not affected',
+  'ping 返回的值不对（沿用的连接，没有断开）':
+      'ping returned the wrong value (reused connection, not disconnected)',
+  '这个插件没有声明终端会话能力（terminal-session），没有会话可测。':
+      'This plugin does not declare the terminal session capability (terminal-session), so there is no session to test.',
+  '这个插件申请了「本会话的临时凭据」：它的会话要本 App 先经 SSH 在服务器上拿到这一次的一次性材料（比如 Mosh 的 key）才能开，会话测试拿不出这些材料，所以不在这里开。Mosh 插件请在主机列表里用 Mosh 协议连接。':
+      'This plugin requests "temporary credentials of its own session": its sessions need one-time material that this app first obtains on the server over SSH (such as the Mosh key). The session test cannot provide it, so it is not offered here. Connect Mosh hosts from the host list with the Mosh protocol.',
+  '这个插件有正在跑的会话（比如 Mosh 标签）：连接测试沿用它们的那条连接、不重新握手，这页也不给「断开」，免得把它们一起关掉。':
+      'This plugin has running sessions (such as Mosh tabs): the connection test reuses their connection without a new handshake, and this page offers no "Disconnect" so they are not closed with it.',
   '插件现在不是「可用」，先回详情页批准或启用。':
       'The plugin is not available; approve or enable it on the details page first.',
   '开始': 'Start',
