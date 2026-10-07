@@ -221,7 +221,8 @@ if [[ $build -eq 1 ]]; then
   built_sha=$(apksigner verify --print-certs "$apk" | awk -F': ' '/certificate SHA-256 digest/{print $2}')
   [[ $built_sha == "$author_sha" ]] || die "APK 的签名证书 $built_sha 不是刚生成的那把 $author_sha"
   say "APK：${apk}（签名证书 ${built_sha}）"
-  echo "   下一步：adb install -r \"$apk\"，再到宿主「设置 → 插件（实验）」核对证书、批准，用「会话测试」验证。"
+  echo "   下一步：adb install -r \"$apk\"，再到宿主「设置 → 插件（实验）」核对证书、批准，用「会话测试」验证；"
+  echo "   再到保险库新建主机、协议选「插件」、选它，就能像用户那样开标签。"
 else
   echo "   下一步：cd \"$dest\" && ./gradlew assembleRelease，再 adb install，见 docs/plugin-authors/README.md 第 5 步起。"
 fi
