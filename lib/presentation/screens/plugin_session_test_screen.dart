@@ -78,10 +78,15 @@ class _PluginSessionTestScreenState
     for (final s in _subscriptions) {
       unawaited(s.cancel());
     }
-    // 测试用的会话和连接只在这页开着时存在。
+    // 测试用的会话和连接只在这页开着时存在。先等会话关完（插件确认或 2 秒到）再断开连接：
+    // 反过来的话插件的 closed 到达时连接已经没了，插件页的「事件」里多一条看着像出错的「连接已关闭」。
     final session = _session;
-    if (session != null) unawaited(session.close());
-    if (_connected) unawaited(_discovery?.disconnect(widget.packageName));
+    final discovery = _connected ? _discovery : null;
+    final package = widget.packageName;
+    unawaited(() async {
+      if (session != null) await session.close();
+      await discovery?.disconnect(package);
+    }());
     _input.dispose();
     super.dispose();
   }

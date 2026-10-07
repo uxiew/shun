@@ -302,14 +302,18 @@ void main() {
         findsOneWidget);
   });
 
-  testWidgets('离开会话测试页：关掉测试会话、断开连接', (tester) async {
+  testWidgets('离开会话测试页：先关测试会话，等插件确认了再断开连接', (tester) async {
     await startTest(tester);
     bridge.event(1, 'active');
     await tester.pumpAndSettle();
     await tester.pageBack();
     await tester.pumpAndSettle();
     expect(bridge.closed, [bridge.opened.single.handle]);
-    expect(bridge.disconnects, contains(pkg));
+    // 先断开的话，插件随后的 closed 会被当成「连接已关闭」丢掉（模拟器上看到过）。
+    expect(bridge.disconnects, isEmpty);
+    bridge.event(2, 'closed');
+    await tester.pumpAndSettle();
+    expect(bridge.disconnects, [pkg]);
     await drain(tester);
   });
 
