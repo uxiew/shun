@@ -42,62 +42,13 @@ Android实机需记录主App与插件APK SHA-256、signer SHA-256、API/ABI/页�
 同步任务、测试和证据，提交可回滚小变更。
 ```
 
-## X02 已落地的最小接口（2026-09-30）
+## 已落地的接口（X02–X04 实现，X12 写成作者文档）
 
-契约代码只有一份：`plugins/provider-sdk/`（纯 Java + AIDL，可直接作为 Android 库引用）。构建与测试插件的用法见 `plugins/README.md`。
+契约代码只有一份：`plugins/provider-sdk/`（纯 Java + AIDL，可直接作为 Android 库引用）。X02（发现与双向认人）、X03（会话字节流）、
+X04（设置页与更新）落地的接口细节，现在统一写在给插件作者的文档里，这里不再重复，免得两处对不上：
 
-| 项 | 值 |
-|---|---|
-| 服务 action | `top.xdwa.xwshun.plugin.action.PROVIDER_V1`（宿主 `<queries>` 只查它） |
-| 描述符 | 服务上的 meta-data `top.xdwa.xwshun.plugin.DESCRIPTOR`，指向 raw 资源，≤16 KiB；`packageName`、`serviceClass` 必须等于实际安装包和声明 action 的那个服务 |
-| 一个包 | 只能有一个声明该 action 的服务，多于一个整包判为不兼容 |
-| 服务 | `exported="true"`，不设 `android:permission`（独立签名没法用 signature 权限认宿主） |
-| AIDL | `IXwshunProvider.handshake(hostApiMajor, hostApiMinor, IXwshunHost)` 返回描述符 JSON；`ping(nonce)`。宿主回调 `IXwshunHost.onProviderEvent(generation, sequence, event)`（oneway，event ≤64 字符） |
-| 认人 | 每个方法第一行 `new CallerVerifier(ctx, "top.xdwa.xwshun", {宿主证书 SHA-256}).requireTrustedCaller()`；不在 onBind 查，不看 Intent extras |
-
-**为什么不能只在 onBind 查**（模拟器实测）：宿主已绑定插件后，另一个 App 用相同 Intent（extras 不参与比较）去绑，系统直接把**同一个 Binder** 交给它，插件的 onBind 根本不会再被调用。
-
-### 终端会话（X03 补齐，仍是 v1.0）
-
-| 项 | 约定 |
-|---|---|
-| 方法 | `openSession(handle, generation, cols, rows, ParcelFileDescriptor stream)`、`resizeSession`、`closeSession`；宿主回调 `onSessionEvent(handle, generation, sequence, state)`。只在接口末尾追加，已有方法的事务号不变 |
-| handle / generation | 宿主生成；插件用 SDK 的 `ProviderSessions` 把它们和调用方 UID 绑在一起，三者都对上才处理。「不存在」和「是别人的」给同样的错误，免得被拿来探测 |
-| 字节流 | 宿主建 socketpair、自己留一端，另一端通过 `openSession` 交给插件。终端字节只走这里，不经 Binder。读到 EOF 表示宿主关了，插件随之清理 |
-| 状态 | `active`（可以收发了）、`resized:COLSxROWS`、`closed`（插件已停止）、`failed`。每个会话的 sequence 从 1 递增 |
-| 关闭 | 宿主先关自己那端，再调 `closeSession`，不等返回。2 秒内收到插件的 `closed` 才算确认停止，否则宿主记「停止未确认」 |
-| 背压 | 宿主最多压着 4 + 1 块 × 16 KiB 输出不读、替插件排最多 1 MiB 输入，再多就拒绝写入。插件的 write 会阻塞，要放在自己的线程 |
-| 宿主死亡 | 插件对 `IXwshunHost` 做 `linkToDeath`，宿主进程死了就关掉它开的全部会话（`ProviderSessions.dropOwner`） |
-| 线程 | 三个会话方法都要立即返回，长操作放插件自己的线程；关 FD 前先 `Os.shutdown`，只 `close` 叫不醒阻塞在 read 上的线程 |
-
-插件作者要做的：用自己的密钥签名；把宿主发行证书的 SHA-256 写进插件；在每个方法里调 `requireTrustedCaller`。宿主这边由用户在「设置 → 插件（实验）」里核对证书后批准。
-宿主换了发行证书，插件要发新版本信任新证书；插件换了密钥，用户要重新批准。
-
-### 设置页与更新（X04，仍是 v1.0）
-
-**插件自己的设置页（可选）**：在清单里声明一个导出的 Activity，带 `top.xdwa.xwshun.plugin.action.SETTINGS_V1`（`PluginContract.ACTION_SETTINGS`）和 `DEFAULT` category：
-
-```xml
-<activity android:name=".SettingsActivity" android:exported="true">
-    <intent-filter>
-        <action android:name="top.xdwa.xwshun.plugin.action.SETTINGS_V1" />
-        <category android:name="android.intent.category.DEFAULT" />
-    </intent-filter>
-</activity>
-```
-
-- 宿主向系统查出这个组件，用户点「打开插件的设置页」时用显式组件打开，**不带任何 extras**；设置由插件自己保存，宿主看不到。
-- 一个包只能有一个：声明了多个宿主就不提供入口，不替你挑。
-- 只有「可用」（已批准、已启用、证书未变）的插件才有入口；批准前、停用后、卸载后都没有。
-- 页面是插件自己的 Activity，谁都能从外面打开它，里面别放只该给宿主看的东西。
-
-**发新版本时宿主怎么判**（系统报告更新后宿主会整体重新核验，不沿用旧判定）：
-
-| 你改了什么 | 用户那边的结果 |
-|---|---|
-| 只改实现、描述符里的能力不变 | 仍「可用」，不用重新批准；之前的连接会断开，旧进程已被系统替换 |
-| 描述符多申请了能力 | 回到「待批准」，用户核对后重新批准，不会自动扩大 |
-| 描述符的 `apiMajor` 变了 | 「不兼容」，不能用 |
-| 换了签名密钥 | 系统不让覆盖安装；用户卸载后装新包会被判「已拒绝（换签）」，要撤销旧批准再重新核对 |
-
-`versionCode` 要递增，否则系统拒绝覆盖安装。宿主界面同时显示描述符里的 `version` 和系统报告的安装包版本，两者对不上时用户看得出来。
+- 从零做插件、装上、批准、验证：`docs/plugin-authors/README.md`
+- 清单、描述符字段、AIDL 方法、字节流与状态、上限与背压、报错映射：`docs/plugin-authors/contract.md`
+- 版本协商、更新时宿主怎么判、签名、Android 范围、测过什么：`docs/plugin-authors/compatibility.md`
+- 许可：`docs/plugin-authors/licensing.md`
+- 样例：`plugins/example`；测试插件的用法：`plugins/README.md`
