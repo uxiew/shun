@@ -1266,6 +1266,40 @@ const englishTranslations = <String, String>{
   '右花括号': 'Right brace',
   '小于号': 'Less-than sign',
   '大于号': 'Greater-than sign',
+  // R25：终端输入面板（terminal_input_panel.dart、terminal_compose_box.dart、terminal_special_keys.dart）。
+  '按键面板': 'Key panel',
+  '大输入框': 'Compose box',
+  '按键面板和大输入框': 'Key panel and compose box',
+  '换回系统键盘': 'Back to system keyboard',
+  '常用': 'Common',
+  '符号': 'Symbols',
+  '组合键': 'Combos',
+  'F 键': 'F keys',
+  '自定义': 'Custom',
+  '发到': 'Send to',
+  '只填入': 'Insert only',
+  '清空': 'Clear',
+  '丢掉': 'Discard',
+  '放进这个输入框': 'Put it in this box',
+  '已填入，没有回车': 'Inserted, no Enter',
+  '已发送': 'Sent',
+  '在这里打字或说话，回车只是换行；点「发送」才发到终端':
+      'Type or dictate here. Enter only adds a line; tap Send to send it to the terminal',
+  '关掉的标签还有一段没发的字（没有发送）：':
+      'A closed tab left some unsent text (it was not sent):',
+  '连接已断开：不会发送，恢复后也不会自动补发。框里的字留着。':
+      'The connection is closed: nothing is sent, and nothing is resent after it reconnects. The text stays in the box.',
+  '连接已经恢复成新的 shell：这段字是对着原来那条写的，不会自动改发。要发到新连接请点「改发到新连接」。':
+      'The connection was restored as a new shell. This text was written for the old one and will not be resent automatically. To send it to the new connection, tap "Send to new connection".',
+  '标签已经关了：不会发送。框里的字留着，可以复制。':
+      'The tab is closed: nothing is sent. The text stays in the box and can be copied.',
+  '连接已断开：不会发送，字留着': 'Disconnected: not sent, text kept',
+  '已恢复成新连接：不会自动改发': 'Restored as a new connection: not resent automatically',
+  '标签已经关了：不会发送': 'Tab closed: not sent',
+  '多行：远端开着粘贴标记，多数 shell 等回车才执行（App 保证不了）':
+      'Multiple lines: bracketed paste is on, most shells wait for Enter (the app cannot guarantee it)',
+  '多行：远端没开粘贴标记，每个换行都是回车，前面各行会立刻执行':
+      'Multiple lines: bracketed paste is off, every newline is Enter and earlier lines run right away',
   '链接地址是空的，或者解析不了': 'The link address is empty or cannot be parsed',
   '链接太长': 'The link is too long',
   '链接里有空白或控制字符': 'The link contains whitespace or control characters',

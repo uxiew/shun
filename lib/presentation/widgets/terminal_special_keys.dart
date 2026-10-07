@@ -32,6 +32,9 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
     required this.onSplit,
     this.transparentBackground = false,
     this.compact = false,
+    this.inputPanel = false,
+    this.onInputPanel,
+    this.onHideKeyboard,
   });
 
   final List<String> order;
@@ -63,6 +66,15 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
   /// 竖着放不下两行快捷键加一行操作按钮时（横屏、小屏弹着键盘）收成一行：快捷键横排可滑动，
   /// 操作按钮收进「更多」，「收起键盘」留在行尾（TER05、TER06）。
   final bool compact;
+
+  /// 现在用的是按键面板 / 大输入框（R25），不是系统键盘直接打进终端。
+  final bool inputPanel;
+
+  /// 在系统键盘和按键面板/大输入框之间切换。为 null 时不显示这个按钮。
+  final VoidCallback? onInputPanel;
+
+  /// 「收起键盘」：默认让终端失去焦点（系统键盘随之收起）；用面板时终端页还要把面板收起来。
+  final VoidCallback? onHideKeyboard;
 
   @override
   ConsumerState<TerminalSpecialKeys> createState() =>
@@ -161,6 +173,7 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                     onPressed: widget.onSplit,
                     icon: const Icon(Icons.vertical_split_outlined),
                   ),
+                  if (widget.onInputPanel != null) _inputPanelButton(),
                   IconButton(
                     key: const ValueKey('terminal-action-edit'),
                     tooltip: localized('编辑快捷键'),
@@ -170,8 +183,7 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                   IconButton(
                     key: const ValueKey('terminal-action-hide-keyboard'),
                     tooltip: localized('收起键盘'),
-                    onPressed: () =>
-                        FocusManager.instance.primaryFocus?.unfocus(),
+                    onPressed: _hideKeyboard,
                     icon: const Icon(Icons.keyboard_hide_outlined),
                   ),
                 ]
@@ -219,11 +231,12 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                   ],
                 ),
               ),
+              if (widget.onInputPanel != null) _inputPanelButton(),
               _moreActions(context, order),
               IconButton(
                 key: const ValueKey('terminal-action-hide-keyboard'),
                 tooltip: localized('收起键盘'),
-                onPressed: () => FocusManager.instance.primaryFocus?.unfocus(),
+                onPressed: _hideKeyboard,
                 icon: const Icon(Icons.keyboard_hide_outlined),
               ),
             ],
@@ -232,6 +245,22 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
       ),
     );
   }
+
+  void _hideKeyboard() {
+    final hide = widget.onHideKeyboard;
+    if (hide != null) return hide();
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
+  /// 系统键盘 ⇄ 按键面板/大输入框（R25）。用着面板时按钮亮着，提示写「换回系统键盘」。
+  Widget _inputPanelButton() => IconButton(
+        key: const ValueKey('terminal-action-input-panel'),
+        tooltip: localized(widget.inputPanel ? '换回系统键盘' : '按键面板和大输入框'),
+        isSelected: widget.inputPanel,
+        onPressed: widget.onInputPanel,
+        icon: const Icon(Icons.keyboard_alt_outlined),
+        selectedIcon: const Icon(Icons.keyboard_alt),
+      );
 
   Widget _moreActions(BuildContext context, List<String> order) {
     final actions = <(String, String, IconData, VoidCallback?)>[
