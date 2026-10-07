@@ -11,6 +11,19 @@ const supportedTerminalEngines = <String>{
   terminalEngineGhostty,
 };
 const maxTerminalFontSize = 24.0;
+
+/// 终端下面的输入方式（R25 第一部分，所有者 10-07 提的）。记住上次用的，下次打开终端照旧。
+/// - [terminalInputSystem]：系统键盘直接打进终端（原来的方式）；
+/// - [terminalInputKeys]：App 的按键面板（方向键、Tab、Esc、修饰键、符号、F 键）；
+/// - [terminalInputCompose]：大输入框，用系统输入法打字、说话，打完点「发送」。
+const terminalInputSystem = 'system';
+const terminalInputKeys = 'keys';
+const terminalInputCompose = 'compose';
+const supportedTerminalInputModes = <String>{
+  terminalInputSystem,
+  terminalInputKeys,
+  terminalInputCompose,
+};
 const defaultAiModel = 'gpt-4.1-mini';
 const maxAiChatHistoryMessages = 30;
 const defaultAiReasoningEffort = 'default';
@@ -68,6 +81,7 @@ class AppSettings {
     this.terminalSecureKeyboard = false,
     this.terminalEngine = terminalEngineXterm2,
     this.terminalFullscreenSwipe = false,
+    this.terminalInputMode = terminalInputSystem,
     this.sftpSyntaxHighlight = true,
     this.customBackgroundEnabled = false,
     this.customBackgroundPath = '',
@@ -129,6 +143,10 @@ class AppSettings {
           ? json['terminalEngine'] as String
           : terminalEngineXterm2,
       terminalFullscreenSwipe: json['terminalFullscreenSwipe'] == true,
+      terminalInputMode:
+          supportedTerminalInputModes.contains(json['terminalInputMode'])
+              ? json['terminalInputMode'] as String
+              : terminalInputSystem,
       sftpSyntaxHighlight: json['sftpSyntaxHighlight'] != false,
       customBackgroundEnabled: json['customBackgroundEnabled'] == true,
       customBackgroundPath: json['customBackgroundPath']?.toString() ?? '',
@@ -169,6 +187,9 @@ class AppSettings {
   /// 「全屏程序里滑动翻页」（10-07）：less、vim 这类全屏程序没开鼠标报告时，手指滑动发 ↑/↓。默认关，
   /// 没开 mouse 的 tmux 也算全屏程序，↑ 会到 shell、翻出上一条历史命令（R19）。改了开着的终端马上生效。
   final bool terminalFullscreenSwipe;
+
+  /// 上次用的输入方式（[supportedTerminalInputModes]）。
+  final String terminalInputMode;
   final bool sftpSyntaxHighlight;
   final bool customBackgroundEnabled;
   final String customBackgroundPath;
@@ -193,6 +214,7 @@ class AppSettings {
     bool? terminalSecureKeyboard,
     String? terminalEngine,
     bool? terminalFullscreenSwipe,
+    String? terminalInputMode,
     bool? sftpSyntaxHighlight,
     bool? customBackgroundEnabled,
     String? customBackgroundPath,
@@ -219,6 +241,7 @@ class AppSettings {
         terminalEngine: terminalEngine ?? this.terminalEngine,
         terminalFullscreenSwipe:
             terminalFullscreenSwipe ?? this.terminalFullscreenSwipe,
+        terminalInputMode: terminalInputMode ?? this.terminalInputMode,
         sftpSyntaxHighlight: sftpSyntaxHighlight ?? this.sftpSyntaxHighlight,
         customBackgroundEnabled:
             customBackgroundEnabled ?? this.customBackgroundEnabled,
@@ -249,6 +272,7 @@ class AppSettings {
         'terminalSecureKeyboard': terminalSecureKeyboard,
         'terminalEngine': terminalEngine,
         'terminalFullscreenSwipe': terminalFullscreenSwipe,
+        'terminalInputMode': terminalInputMode,
         'sftpSyntaxHighlight': sftpSyntaxHighlight,
         'customBackgroundEnabled': customBackgroundEnabled,
         'customBackgroundPath': customBackgroundPath,
