@@ -34,7 +34,7 @@ String? connectionHint(Object error) {
     RouteConfigException() => '路线配置有问题：到主机编辑器的「连接路径」里改，保存前会检查。',
     // 还没拨号就停了，和服务器、网络无关。
     TerminalEngineUnavailableException() =>
-      '是这台手机上的终端引擎没能启动，还没开始连服务器。到「设置 → 外观」把终端引擎改回 xterm2 再连。',
+      '是这台手机上的终端引擎没能启动，还没开始连服务器。这个版本只带 Ghostty，没有别的引擎可换；「设置 → 外观」的「终端引擎」里能看到原话，「检查」可以再试一次。',
     // 放在 dartssh2 的错误前面：Tailscale 拒绝时 dartssh2 报的是「认证前连接被关闭」，
     // 按那条提示会让人去查端口填错没有。
     TailscaleLoginDenied() =>

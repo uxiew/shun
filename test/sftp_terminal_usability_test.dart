@@ -16,7 +16,7 @@ import 'package:netcatty_mobile/presentation/home_shell.dart';
 import 'package:netcatty_mobile/presentation/screens/sftp_screen.dart';
 import 'package:netcatty_mobile/presentation/widgets/terminal_special_keys.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_text.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_input_controller.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
@@ -641,7 +641,7 @@ void main() {
   });
 
   test('terminal PiP text keeps only the most recent visible lines', () {
-    final terminal = XtermTerminalAdapter(maxLines: 100);
+    final terminal = GhosttyTerminalAdapter();
     terminal.feed(utf8.encode('one\r\ntwo\r\nthree\r\nfour'));
 
     expect(

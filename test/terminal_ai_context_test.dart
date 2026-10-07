@@ -2,10 +2,16 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_text.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 
-XtermTerminalAdapter _terminal(int columns, int rows) =>
-    XtermTerminalAdapter()..terminal.resize(columns, rows);
+import 'support/test_terminal.dart';
+
+GhosttyTerminalAdapter _terminal(int columns, int rows) {
+  final terminal = GhosttyTerminalAdapter();
+  addTearDown(terminal.dispose);
+  resizeTestTerminal(terminal, columns, rows);
+  return terminal;
+}
 
 void main() {
   test('terminal AI context joins wrapped lines and keeps recent output', () {

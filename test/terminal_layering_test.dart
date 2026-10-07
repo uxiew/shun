@@ -2,8 +2,9 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 
-// R16 的分层约束，按源码检查。目的是防止"只换了 import、xterm 专用访问照样穿透到各层"（R16 停止条件）：
-// 以后谁在连接层、会话控制器、终端页里直接用 xterm2 或 Ghostty（flterm），这里就失败。
+// R16 的分层约束，按源码检查。目的是防止"只换了 import、引擎专用访问照样穿透到各层"（R16 停止条件）：
+// 以后谁在连接层、会话控制器、终端页里直接用 Ghostty（flterm），这里就失败。
+// R20 起安装包里只有 Ghostty：lib/ 里谁再引 xterm2，这里也失败（docs/06 E 步：不在安装包里带两个引擎）。
 
 List<File> _dartFiles(String dir) => Directory(dir)
     .listSync(recursive: true)
@@ -16,15 +17,18 @@ String _read(File file) => file.readAsStringSync();
 String _relative(File file) => file.path.replaceFirst(RegExp(r'^\./'), '');
 
 void main() {
-  test('App 里只有 xterm2 适配器和它的视图认识 xterm2', () {
+  test('App 里没有任何地方认识 xterm2（R20）', () {
     final users = [
       for (final file in _dartFiles('lib'))
         if (_read(file).contains('package:xterm2/')) _relative(file),
-    ]..sort();
-    expect(users, [
-      'lib/infrastructure/terminal/xterm_terminal_adapter.dart',
-      'lib/presentation/terminal/xterm_terminal_view.dart',
-    ]);
+    ];
+    expect(users, isEmpty);
+    // 只留在 dev_dependencies 给对照测试用；挪回 dependencies 就会打进安装包。
+    final pubspec = File('pubspec.yaml').readAsStringSync();
+    final dependencies = pubspec.substring(pubspec.indexOf('\ndependencies:'),
+        pubspec.indexOf('\ndev_dependencies:'));
+    expect(dependencies, isNot(contains('\n  xterm2:')));
+    expect(pubspec, contains('\n  xterm2:'), reason: '对照测试还要用它');
   });
 
   test('App 里只有 Ghostty 适配器和它的视图认识 flterm、libghostty（R17）', () {
@@ -41,11 +45,11 @@ void main() {
 
   test('连接层、会话控制器、终端页不依赖具体引擎', () {
     final engineSpecific = RegExp(
-      r'(xterm|ghostty)_terminal_(adapter|view)\.dart|'
-      r'(Xterm|Ghostty)Terminal(Adapter|View)\b',
+      r'ghostty_terminal_(adapter|view)\.dart|'
+      r'GhosttyTerminal(Adapter|View)\b',
     );
     final allowed = {
-      // 按设置建终端的唯一位置。
+      // 建终端的唯一位置。
       'lib/application/terminal_engine.dart',
       // 按适配器类型挑视图的唯一位置。
       'lib/presentation/terminal/terminal_view.dart',

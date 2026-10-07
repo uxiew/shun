@@ -10,7 +10,7 @@ import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/file_selection.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/server_transfer_commands.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/sftp_service.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 
 void main() {
   test(
@@ -25,7 +25,7 @@ void main() {
               'port': port,
               'username': 'deploy'
             }),
-            terminal: XtermTerminalAdapter(),
+            terminal: GhosttyTerminalAdapter(),
             verifyHostKey: (_, __, ___) async => true,
             keyboardInteractive: null);
     final a = _ProbeService(session('tab-a'));
@@ -50,7 +50,7 @@ void main() {
               'port': 22,
               'username': 'deploy'
             }),
-            terminal: XtermTerminalAdapter(),
+            terminal: GhosttyTerminalAdapter(),
             verifyHostKey: (_, __, ___) async => true,
             keyboardInteractive: null);
     final a = _CountingProbe(session('a', 'a.example.test'));
@@ -81,7 +81,7 @@ void main() {
         id: 'tab',
         host: HostProfile(
             {'id': 'host', 'hostname': 'example.test', 'username': 'deploy'}),
-        terminal: XtermTerminalAdapter(),
+        terminal: GhosttyTerminalAdapter(),
         verifyHostKey: (_, __, ___) async => true,
         keyboardInteractive: null,
         sshClients: [client]);

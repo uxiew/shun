@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 import 'package:netcatty_mobile/presentation/terminal/terminal_view.dart';
 
 // 所有者 10-07 定（R19 留下的第二项）：硬件键盘 Ctrl+K、Ctrl+A 发给服务器（nano 剪切一行、readline 回行首、
@@ -26,7 +25,6 @@ void main() {
 
   final engines = <String, TerminalSessionAdapterBase Function()>{
     'Ghostty': GhosttyTerminalAdapter.new,
-    'xterm2': XtermTerminalAdapter.new,
   };
 
   for (final MapEntry(key: engine, value: newTerminal) in engines.entries) {
@@ -72,9 +70,8 @@ void main() {
         await tester.pump(const Duration(milliseconds: 50));
       }
 
-      int historyLines() => engine == 'Ghostty'
-          ? (terminal as GhosttyTerminalAdapter).controller.scrollbackRows
-          : (terminal as XtermTerminalAdapter).terminal.buffer.scrollBack;
+      int historyLines() =>
+          (terminal as GhosttyTerminalAdapter).controller.scrollbackRows;
 
       testWidgets('Ctrl+K、Ctrl+A 发给服务器（0x0b、0x01），本地什么都不动', (tester) async {
         await mount(tester);
@@ -96,7 +93,7 @@ void main() {
         await press(tester, LogicalKeyboardKey.keyK, shift: true);
 
         expect(historyLines(), 0);
-        expect(sent.toString(), engine == 'Ghostty' ? '\x0c' : '');
+        expect(sent.toString(), '\x0c');
       });
 
       testWidgets('Ctrl+Shift+A 全选本地的字，不发给服务器', (tester) async {
@@ -158,34 +155,32 @@ void main() {
         expect(sent.toString(), '\x03');
       });
 
-      if (engine == 'Ghostty') {
-        testWidgets('Ctrl+Shift+C 复制选中的字，不发给服务器；没选区时什么都不做', (tester) async {
-          final copied = <String>[];
-          final messenger =
-              TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-          messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
-            if (call.method == 'Clipboard.setData') {
-              copied.add((call.arguments as Map)['text'] as String);
-            }
-            return null;
-          });
-          addTearDown(() =>
-              messenger.setMockMethodCallHandler(SystemChannels.platform, null));
-          await mount(tester);
-
-          await press(tester, LogicalKeyboardKey.keyC, shift: true);
-          expect(copied, isEmpty, reason: '没选区');
-
-          await press(tester, LogicalKeyboardKey.keyA, shift: true);
-          await tester.pump(const Duration(milliseconds: 100));
-          await press(tester, LogicalKeyboardKey.keyC, shift: true);
-          await tester.pump(const Duration(seconds: 2));
-
-          expect(sent.toString(), isEmpty);
-          expect(copied, hasLength(1));
-          expect(copied.single, contains('line 300'));
+      testWidgets('Ctrl+Shift+C 复制选中的字，不发给服务器；没选区时什么都不做', (tester) async {
+        final copied = <String>[];
+        final messenger =
+            TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+        messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+          if (call.method == 'Clipboard.setData') {
+            copied.add((call.arguments as Map)['text'] as String);
+          }
+          return null;
         });
-      }
+        addTearDown(() =>
+            messenger.setMockMethodCallHandler(SystemChannels.platform, null));
+        await mount(tester);
+
+        await press(tester, LogicalKeyboardKey.keyC, shift: true);
+        expect(copied, isEmpty, reason: '没选区');
+
+        await press(tester, LogicalKeyboardKey.keyA, shift: true);
+        await tester.pump(const Duration(milliseconds: 100));
+        await press(tester, LogicalKeyboardKey.keyC, shift: true);
+        await tester.pump(const Duration(seconds: 2));
+
+        expect(sent.toString(), isEmpty);
+        expect(copied, hasLength(1));
+        expect(copied.single, contains('line 300'));
+      });
     });
   }
 }

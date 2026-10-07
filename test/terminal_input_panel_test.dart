@@ -17,11 +17,9 @@ import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 import 'package:netcatty_mobile/presentation/screens/terminal_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flterm/flterm.dart' as flterm show TerminalView;
-import 'package:xterm2/xterm.dart' as xterm show TerminalView;
 
 // R25 第一部分：终端输入面板（所有者 10-07 提的）。快捷键栏上的按钮在系统键盘和面板之间切；面板里左右滑动换
 // 按键面板 / 大输入框；按键走 sendKey/sendText 同一个出口，大输入框按 R19 的粘贴发、认动手那一刻的连接；
@@ -31,7 +29,6 @@ void main() {
 
   final engines = <String, TerminalSessionAdapterBase Function()>{
     'Ghostty': GhosttyTerminalAdapter.new,
-    'xterm2': XtermTerminalAdapter.new,
   };
 
   final panel = find.byKey(const ValueKey('terminal-input-panel'));
@@ -44,7 +41,7 @@ void main() {
 
   for (final MapEntry(key: engine, value: newTerminal) in engines.entries) {
     final engineView =
-        engine == 'Ghostty' ? flterm.TerminalView : xterm.TerminalView;
+        flterm.TerminalView;
 
     group('$engine 按键面板', () {
       testWidgets('快捷键栏的按钮打开面板：系统键盘收起、快捷键栏收成一行、记住方式；键按远端键盘模式发到终端', (

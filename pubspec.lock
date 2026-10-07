@@ -476,7 +476,7 @@ packages:
     source: hosted
     version: "3.0.2"
   libghostty:
-    dependency: "direct overridden"
+    dependency: "direct main"
     description:
       path: "third_party/libghostty/packages/libghostty"
       relative: true
@@ -1063,7 +1063,7 @@ packages:
     source: hosted
     version: "6.6.1"
   xterm2:
-    dependency: "direct main"
+    dependency: "direct dev"
     description:
       name: xterm2
       sha256: "0b62e7510b414329dfb6ce7dbcffcfe97cc5109033573cf0f4abca568dac8149"

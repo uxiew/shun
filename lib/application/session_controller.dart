@@ -134,7 +134,7 @@ class SessionController extends StateNotifier<SessionState> {
     this.vaultController,
     this.ref, {
     TerminalAdapterFactory? newTerminal,
-  })  : newTerminal = newTerminal ?? defaultTerminalAdapter,
+  })  : newTerminal = newTerminal ?? newTerminalAdapter,
         super(const SessionState());
 
   final SshService service;

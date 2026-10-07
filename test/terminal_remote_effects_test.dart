@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 import 'package:netcatty_mobile/presentation/terminal/terminal_view.dart';
 
 // R19 / SEC08、SEC09：远端输出是不可信数据。适配器上不接效果回调还不够——
@@ -24,7 +23,6 @@ void main() {
 
   final engines = <String, TerminalSessionAdapterBase Function()>{
     'Ghostty': GhosttyTerminalAdapter.new,
-    'xterm2': XtermTerminalAdapter.new,
   };
 
   for (final MapEntry(key: engine, value: newTerminal) in engines.entries) {
@@ -54,7 +52,7 @@ void main() {
       expect(
         FocusManager.instance.primaryFocus?.context,
         isNotNull,
-        reason: '终端自动拿焦点（xterm2 的视图只在有焦点时替远端读写剪贴板）',
+        reason: '终端自动拿焦点（R19 时 xterm2 的视图只在有焦点时替远端读写剪贴板，有焦点才测得出）',
       );
       sent.clear();
 
@@ -64,7 +62,7 @@ void main() {
         '\x1b]52;p;?\x1b\\' // 读 primary 选区，ST 结尾
         'visible',
       )));
-      // xterm2 读剪贴板是异步的：等它可能的应答回来。
+      // 读剪贴板可能是异步的（R19 时 xterm2 就是）：等它可能的应答回来。
       await tester.pump(const Duration(milliseconds: 50));
       await tester.pump(const Duration(milliseconds: 50));
 

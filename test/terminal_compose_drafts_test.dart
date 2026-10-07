@@ -2,13 +2,13 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/application/terminal_compose.dart';
 import 'package:netcatty_mobile/domain/models/host.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 
 // R25：大输入框的草稿。每个标签一份；从空变成有字时记下当时的连接；只有用户点「改发到新连接」才改认；
 // 关掉的标签留下的字挪到一边，不丢。
 
 ActiveTerminalSession _session(String id) {
-  final terminal = XtermTerminalAdapter();
+  final terminal = GhosttyTerminalAdapter();
   addTearDown(terminal.dispose);
   return ActiveTerminalSession(
     id: id,

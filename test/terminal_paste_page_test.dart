@@ -14,7 +14,6 @@ import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 import 'package:netcatty_mobile/presentation/screens/terminal_screen.dart';
 import 'package:netcatty_mobile/presentation/terminal/terminal_view.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -32,7 +31,6 @@ void main() {
 
   final engines = <String, TerminalSessionAdapterBase Function()>{
     'Ghostty': GhosttyTerminalAdapter.new,
-    'xterm2': XtermTerminalAdapter.new,
   };
 
   for (final MapEntry(key: engine, value: newTerminal) in engines.entries) {

@@ -4,7 +4,9 @@ import 'package:fake_async/fake_async.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
+
+import 'support/test_terminal.dart';
 
 Uint8List _bytes(String text) => Uint8List.fromList(utf8.encode(text));
 
@@ -22,7 +24,7 @@ void main() {
 
   group('代次：同一时刻只有一条连接收得到终端输入（NET09、SEC09）', () {
     test('新绑定立刻取代旧绑定，旧代次再也收不到字节', () {
-      final terminal = XtermTerminalAdapter();
+      final terminal = GhosttyTerminalAdapter();
       addTearDown(terminal.dispose);
       final old = _Sink();
       final current = _Sink();
@@ -42,7 +44,7 @@ void main() {
     });
 
     test('旧代次晚到的释放不会把新代次也解掉', () {
-      final terminal = XtermTerminalAdapter();
+      final terminal = GhosttyTerminalAdapter();
       addTearDown(terminal.dispose);
       final current = _Sink();
       final oldBinding = terminal.bind(_Sink().input);
@@ -59,23 +61,23 @@ void main() {
     });
 
     test('恢复时新连接一绑定就拿到终端现在的尺寸（不再停在 80x24）', () {
-      final terminal = XtermTerminalAdapter();
+      final terminal = GhosttyTerminalAdapter();
       addTearDown(terminal.dispose);
       final first = _Sink();
       terminal.bind(first.input, resize: first.resize);
       expect(first.sizes, isEmpty, reason: '视图还没量过，不发一个猜的尺寸');
 
-      terminal.terminal.resize(120, 40); // 视图布局后量出的尺寸
+      resizeTestTerminal(terminal, 120, 40); // 视图布局后量出的尺寸
       expect(first.sizes, [(120, 40)]);
 
-      // 断线恢复：新 PTY 按 80x24 打开；终端尺寸没变，xterm2 不会再通知。
+      // 断线恢复：新 PTY 按 80x24 打开；终端尺寸没变，引擎不会再通知。
       final restored = _Sink();
       terminal.bind(restored.input, resize: restored.resize);
       expect(restored.sizes, [(120, 40)]);
     });
 
     test('新代次从干净的解码状态开始：旧连接停在半个字符上不会和新 shell 拼成乱码', () {
-      final terminal = XtermTerminalAdapter();
+      final terminal = GhosttyTerminalAdapter();
       addTearDown(terminal.dispose);
       terminal.bind(_Sink().input);
       final han = utf8.encode('汉'); // 3 字节
@@ -83,15 +85,17 @@ void main() {
       terminal.bind(_Sink().input); // 恢复
       terminal.feed(_bytes('ok'));
 
+      // 旧连接断在半个「汉」上：Ghostty 换代次时补的 CAN 让它显示成一个替换符（原版 xterm2 是悄悄丢掉），
+      // 照实表示「那里被截断了」；要守的是新 shell 的字节不和它拼在一起变成乱码。
       final text = terminal.allText();
-      expect(text, contains('ok'));
-      expect(text, isNot(contains('�')), reason: '半个字符直接丢掉，不和下一代的字节拼');
+      expect(text, contains('�ok'));
+      expect('�'.allMatches(text), hasLength(1));
     });
   });
 
   group('显示权：同一时刻只有一个视图（GST02）', () {
     test('新视图占用后旧的失效；旧视图晚一步释放不影响新视图', () {
-      final terminal = XtermTerminalAdapter();
+      final terminal = GhosttyTerminalAdapter();
       addTearDown(terminal.dispose);
       final first = terminal.attachView();
       final second = terminal.attachView();
@@ -109,7 +113,7 @@ void main() {
 
   group('释放之后（GST02、SEC09）', () {
     test('迟到的远端字节、按键、提示都被忽略，不抛错；不能再绑定或显示', () {
-      final terminal = XtermTerminalAdapter();
+      final terminal = GhosttyTerminalAdapter();
       final sink = _Sink();
       final binding = terminal.bind(sink.input);
       final view = terminal.attachView();
@@ -130,16 +134,10 @@ void main() {
 
   group('远端转义序列不能让终端越权（SEC09）', () {
     test('剪贴板写入和查询、链接、通知、工作目录：没有任何效果回调接上，也不回任何字节', () {
-      final terminal = XtermTerminalAdapter();
+      final terminal = GhosttyTerminalAdapter();
       addTearDown(terminal.dispose);
-      final xterm = terminal.terminal;
-      // 剪贴板两个回调接的是「什么都不做」，不是 null（null 会被 xterm2 的视图换成真读写，
-      // 挂着视图的情况见 terminal_remote_effects_test.dart）。
-      expect(xterm.onClipboardQuery!('c'), isNull);
-      expect(xterm.onOpenUrl, isNull);
-      expect(xterm.onNotification, isNull);
-      expect(xterm.onCurrentDirectoryChange, isNull);
-      expect(xterm.onPrivateOSC, isNull);
+      // 效果回调一个都没接（剪贴板、通知、标题这些）的核对在 ghostty_terminal_adapter_test.dart；
+      // 挂着视图的情况见 terminal_remote_effects_test.dart。这里看行为：不回字节、不碰平台。
 
       final platformCalls = <MethodCall>[];
       final messenger =
@@ -168,7 +166,7 @@ void main() {
     });
 
     test('超长控制序列不卡死、不崩，之后的正常输出照常显示', () {
-      final terminal = XtermTerminalAdapter();
+      final terminal = GhosttyTerminalAdapter();
       addTearDown(terminal.dispose);
       terminal.bind(_Sink().input);
       final watch = Stopwatch()..start();
@@ -193,7 +191,7 @@ void main() {
 
   group('输入动作', () {
     test('快捷键栏的修饰键作用于下一次输入，然后复位', () {
-      final terminal = XtermTerminalAdapter();
+      final terminal = GhosttyTerminalAdapter();
       addTearDown(terminal.dispose);
       final sink = _Sink();
       terminal.bind(sink.input);
@@ -204,7 +202,7 @@ void main() {
     });
 
     test('App 自己的提示直接显示，不发给远端', () {
-      final terminal = XtermTerminalAdapter();
+      final terminal = GhosttyTerminalAdapter();
       addTearDown(terminal.dispose);
       final sink = _Sink();
       terminal.bind(sink.input);
@@ -215,10 +213,10 @@ void main() {
   });
 
   test('适配器只暴露和引擎无关的接口', () {
-    final TerminalSessionAdapter terminal = XtermTerminalAdapter();
+    final TerminalSessionAdapter terminal = GhosttyTerminalAdapter();
     addTearDown(terminal.dispose);
     terminal.feed(_bytes('line1\r\nline2'));
-    expect(terminal.engine, 'xterm2');
+    expect(terminal.engine, 'Ghostty');
     final lines = terminal.recentLines(100);
     expect(lines.first.text.trimRight(), 'line1');
     expect(lines[1].text.trimRight(), 'line2');

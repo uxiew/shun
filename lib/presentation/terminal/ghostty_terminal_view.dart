@@ -14,8 +14,8 @@ import 'terminal_view.dart';
 
 /// Ghostty 引擎的终端视图（R17）。除了测试，App 里只有这个文件和适配器认识 flterm。
 ///
-/// 和 xterm2 视图一样只借用终端：挂载时占用显示权，销毁时释放（GST02）。
-/// 不一样的是 flterm 一个控制器同一时刻只能挂一个 flterm 视图，第二个来挂直接抛 StateError，
+/// 视图只借用终端：挂载时占用显示权，销毁时释放（GST02）。
+/// 麻烦在 flterm 一个控制器同一时刻只能挂一个 flterm 视图，第二个来挂直接抛 StateError，
 /// 而 R16 的显示权换手时旧视图不会立刻重建。所以这里多一步交接：旧视图还挂着 flterm 视图时，
 /// 新视图先空一帧、下一帧再挂；旧视图丢了显示权就尽快重建，把 flterm 视图卸下。
 class GhosttyTerminalView extends StatefulWidget {
@@ -287,7 +287,7 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
       // 设置里的「安全键盘」：输入法按可见密码框处理，不联想、不学习。
       secureTextInput: options.secureKeyboard,
       // 远端开着鼠标报告（tmux mouse on、htop）时，手指只有滑动发成滚轮；点按照样叫键盘，
-      // 长按照样在本地选字，都不发鼠标点击（TER07，和 xterm2 一样）。
+      // 长按照样在本地选字，都不发鼠标点击（TER07，和原版 xterm2 一样）。
       gestureSettings: const TerminalGestureSettings(touchMouseClicks: false),
       // 粘贴换成 App 的（先预览），盖掉 flterm 在 Android 上直接粘贴的 Ctrl+V；
       // Ctrl+K、Ctrl+A、Ctrl+C 发给服务器，清屏、全选、复制挪到 Ctrl+Shift+K/A/C（10-07）。

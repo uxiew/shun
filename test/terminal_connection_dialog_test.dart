@@ -2,6 +2,7 @@ import 'dart:convert';
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,8 +17,9 @@ import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:netcatty_mobile/presentation/screens/terminal_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:xterm2/xterm.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:flterm/flterm.dart' as flterm show TerminalView;
+import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:netcatty_mobile/presentation/terminal/ghostty_terminal_view.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
 
 void main() {
@@ -74,9 +76,9 @@ void main() {
     final repository = await VaultRepository.open();
     final firstOutput = <String>[];
     final secondOutput = <String>[];
-    final firstTerminal = XtermTerminalAdapter()
+    final firstTerminal = GhosttyTerminalAdapter()
       ..bind((bytes) => firstOutput.add(utf8.decode(bytes)));
-    final secondTerminal = XtermTerminalAdapter()
+    final secondTerminal = GhosttyTerminalAdapter()
       ..bind((bytes) => secondOutput.add(utf8.decode(bytes)));
     final first = ActiveTerminalSession(
       id: 'session-first',
@@ -132,14 +134,14 @@ void main() {
     final first = ActiveTerminalSession(
       id: 'session-first',
       host: _host('first', 'First'),
-      terminal: XtermTerminalAdapter(),
+      terminal: GhosttyTerminalAdapter(),
       verifyHostKey: _acceptHostKey,
       keyboardInteractive: null,
     );
     final second = ActiveTerminalSession(
       id: 'session-second',
       host: _host('second', 'Second'),
-      terminal: XtermTerminalAdapter(),
+      terminal: GhosttyTerminalAdapter(),
       verifyHostKey: _acceptHostKey,
       keyboardInteractive: null,
     );
@@ -190,6 +192,13 @@ void main() {
   testWidgets(
     'connection progress is a dialog in its tab and existing terminal stays usable',
     (tester) async {
+      // flterm 闲下来后排一个空闲任务压缩滚动区，碰上按钮水波纹这类动画时，假时钟下的 pumpAndSettle 会死循环
+      // （docs/xwshun/README.md 第 7 节）。让空闲任务不等动画，和页面逻辑无关。
+      final strategy = tester.binding.schedulingStrategy;
+      tester.binding.schedulingStrategy =
+          ({required int priority, required SchedulerBinding scheduler}) =>
+              true;
+      addTearDown(() => tester.binding.schedulingStrategy = strategy);
       SharedPreferences.setMockInitialValues({});
       final repository = await VaultRepository.open();
       final existingHost = _host('existing', '已有终端');
@@ -197,7 +206,7 @@ void main() {
       final existing = ActiveTerminalSession(
         id: 'session-1',
         host: existingHost,
-        terminal: XtermTerminalAdapter(),
+        terminal: GhosttyTerminalAdapter(),
         verifyHostKey: _acceptHostKey,
         keyboardInteractive: null,
       );
@@ -273,7 +282,7 @@ void main() {
         find.byKey(const ValueKey('terminal-connection-status-dialog')),
         findsNothing,
       );
-      expect(find.byType(TerminalView), findsOneWidget);
+      expect(find.byType(GhosttyTerminalView), findsOneWidget);
 
       await tester.tap(find.text('已有终端'));
       await tester.pump();
@@ -282,84 +291,39 @@ void main() {
         find.byKey(const ValueKey('terminal-connection-status-dialog')),
         findsNothing,
       );
-      expect(find.byType(TerminalView), findsOneWidget);
+      expect(find.byType(GhosttyTerminalView), findsOneWidget);
       expect(find.text('正在连接'), findsNothing);
-      expect(
-        tester.widget<TerminalView>(find.byType(TerminalView)).deleteDetection,
-        isTrue,
-      );
-
-      final terminalState = tester.state<TerminalViewState>(
-        find.byType(TerminalView),
-      );
-      final renderTerminal = terminalState.renderTerminal;
-      final wordPosition = renderTerminal.localToGlobal(
-        renderTerminal.getOffset(const CellOffset(2, 0)) +
-            Offset(
-              renderTerminal.cellSize.width / 2,
-              renderTerminal.cellSize.height / 2,
-            ),
-      );
-      await tester.longPressAt(wordPosition);
-      await tester.pump();
-
-      final startHandle = find.byKey(
-        const ValueKey('terminal-selection-handle-start'),
-      );
-      final endHandle = find.byKey(
-        const ValueKey('terminal-selection-handle-end'),
-      );
-      expect(startHandle, findsOneWidget);
-      expect(endHandle, findsOneWidget);
-      final endBeforeDrag = tester.getCenter(endHandle);
-
-      await tester.drag(
-        endHandle,
-        Offset(renderTerminal.cellSize.width * 4, 0),
-      );
-      await tester.pump();
-
-      expect(tester.getCenter(endHandle).dx, greaterThan(endBeforeDrag.dx));
-      expect(
-        find.byKey(const ValueKey('copy-terminal-selection')),
-        findsOneWidget,
-      );
+      // 已有终端照常收发：上面取消的只是那个正在连接的标签。
+      // 长按选字、拖手柄、链接这些终端本身的手势在 terminal_gestures_test、terminal_links_test 里测
+      // （R20 之前这里测的是 xterm2 视图的选区手柄和 deleteDetection，xterm2 已不在 App 里）。
+      final sent = <String>[];
+      existing.terminal.bind((bytes) => sent.add(utf8.decode(bytes)));
+      existing.terminal.sendText('ok');
+      expect(sent, ['ok']);
 
       // tmux uses the alternate screen. A swipe must never become arrow keys,
       // including when the remote application has not enabled mouse reporting.
-      final sent = <String>[];
-      existing.terminal.bind((bytes) => sent.add(utf8.decode(bytes)));
       existing.terminal.feed(utf8.encode('\x1b[?1049h\x1b[Halpha beta gamma'));
       await tester.pump();
       sent.clear();
-      await tester.drag(find.byType(TerminalView), const Offset(0, -100));
+      await tester.drag(find.byType(GhosttyTerminalView), const Offset(0, -100));
       await tester.pump();
       expect(sent, isEmpty);
 
-      // With tmux mouse reporting enabled, scroll events still reach tmux,
-      // but touching text does not send a remote click that disrupts selection.
+      // With tmux mouse reporting enabled, scroll events still reach tmux.
       existing.terminal.feed(utf8.encode('\x1b[?1000h\x1b[?1006h'));
       await tester.pump();
-      final viewBeforeScroll =
-          tester.widget<TerminalView>(find.byType(TerminalView));
-      await tester.drag(find.byType(TerminalView), const Offset(0, -100));
+      await tester.drag(find.byType(GhosttyTerminalView), const Offset(0, -100));
       await tester.pump();
-      expect(tester.widget<TerminalView>(find.byType(TerminalView)),
-          same(viewBeforeScroll));
       expect(sent, isNotEmpty);
       expect(sent.every((event) => event.startsWith('\x1b[<')), isTrue);
       expect(
           find.byKey(const ValueKey('terminal-copy-snapshot')), findsNothing);
       sent.clear();
-      final hold = await tester.startGesture(wordPosition);
-      await tester.pump(const Duration(milliseconds: 200));
+
+      // 全屏程序里没法直接选字：右上角「复制」弹整屏文字的快照，在快照里选了复制。
       existing.terminal.feed(utf8.encode('\x1b[Halpha beta updated'));
-      await tester.pump(const Duration(milliseconds: 400));
-      await hold.up();
-      await tester.pumpAndSettle();
-      expect(sent, isEmpty);
-      expect(find.byKey(const ValueKey('copy-terminal-selection')),
-          findsOneWidget);
+      await tester.pump();
       String? copiedText;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,
@@ -372,11 +336,13 @@ void main() {
       );
       addTearDown(() => tester.binding.defaultBinaryMessenger
           .setMockMethodCallHandler(SystemChannels.platform, null));
+      await tester.tap(find.byKey(const ValueKey('copy-terminal-selection')));
+      await tester.pumpAndSettle();
+      expect(sent, isEmpty);
       final snapshot = tester.widget<TextField>(
           find.byKey(const ValueKey('terminal-copy-snapshot')));
       expect(snapshot.readOnly, isTrue);
       final captured = snapshot.controller!.text;
-      // Snapshot is captured after recognizing a hold, not on every touch-down.
       expect(captured, contains('alpha beta updated'));
       // A tmux redraw must not change the text being selected/copied.
       existing.terminal.feed(utf8.encode('\x1b[2J\x1b[Hnew tmux output'));
@@ -388,7 +354,7 @@ void main() {
       await tester.tap(find.byKey(const ValueKey('copy-terminal-snapshot')));
       await tester.pumpAndSettle();
       expect(copiedText, 'alpha');
-      // Explicit entry also works without an xterm selection, and supports copy all.
+      // Opening it again shows the current screen, and supports copy all.
       await tester.tap(find.byKey(const ValueKey('copy-terminal-selection')));
       await tester.pumpAndSettle();
       final updated = tester
@@ -430,7 +396,7 @@ void main() {
 
   for (final brightness in Brightness.values) {
     testWidgets(
-      'custom background makes the xterm canvas transparent in ${brightness.name} mode',
+      'custom background makes the terminal canvas transparent in ${brightness.name} mode',
       (tester) async {
         SharedPreferences.setMockInitialValues({});
         final repository = await VaultRepository.open();
@@ -445,7 +411,7 @@ void main() {
         final session = ActiveTerminalSession(
           id: 'transparent-${brightness.name}',
           host: _host('transparent', '透明终端'),
-          terminal: XtermTerminalAdapter(),
+          terminal: GhosttyTerminalAdapter(),
           verifyHostKey: _acceptHostKey,
           keyboardInteractive: null,
         );
@@ -473,12 +439,13 @@ void main() {
         );
         await tester.pump();
 
-        final terminalView = tester.widget<TerminalView>(
-          find.byType(TerminalView),
+        final terminalView = tester.widget<flterm.TerminalView>(
+          find.byType(flterm.TerminalView),
         );
-        expect(terminalView.backgroundOpacity, 0);
-        expect(terminalView.theme.background, isNot(Colors.transparent));
-        expect(terminalView.theme.background.toARGB32() >>> 24, 255);
+        expect(terminalView.theme!.backgroundOpacity, 0);
+        final background = terminalView.theme!.palette.background;
+        expect(background, isNot(Colors.transparent));
+        expect(background.toARGB32() >>> 24, 255);
         expect(
           tester
               .widget<Material>(
@@ -493,7 +460,7 @@ void main() {
     );
   }
 
-  testWidgets('secure keyboard change recreates and persists the IME mode',
+  testWidgets('secure keyboard change switches the IME mode and persists',
       (tester) async {
     SharedPreferences.setMockInitialValues({});
     final repository = await VaultRepository.open();
@@ -505,7 +472,7 @@ void main() {
     final session = ActiveTerminalSession(
       id: 'secure-session',
       host: host,
-      terminal: XtermTerminalAdapter(),
+      terminal: GhosttyTerminalAdapter(),
       verifyHostKey: _acceptHostKey,
       keyboardInteractive: null,
     );
@@ -533,12 +500,12 @@ void main() {
     );
     await tester.pump();
 
-    final normalView = find.byType(TerminalView);
+    final normalView = find.byType(flterm.TerminalView);
+    expect(tester.widget<flterm.TerminalView>(normalView).secureTextInput,
+        isFalse);
     expect(
-      tester.widget<TerminalView>(normalView).keyboardType,
-      TextInputType.emailAddress,
-    );
-    expect(tester.widget<TerminalView>(normalView).backgroundOpacity, 1);
+        tester.widget<flterm.TerminalView>(normalView).theme!.backgroundOpacity,
+        1);
     expect(
       tester
           .widget<Material>(
@@ -547,18 +514,16 @@ void main() {
           .color,
       isNot(Colors.transparent),
     );
-    final normalState = tester.state<TerminalViewState>(normalView);
 
     await settingsController.updateTerminalSecureKeyboard(true);
     await tester.pump();
 
-    final secureView = find.byType(TerminalView);
+    // Ghostty 改的是已连上的输入法的配置（fork 的 secureTextInput），不用像 xterm2 那样重建视图。
     expect(
-      tester.widget<TerminalView>(secureView).keyboardType,
-      TextInputType.visiblePassword,
-    );
-    expect(
-        tester.state<TerminalViewState>(secureView), isNot(same(normalState)));
+        tester
+            .widget<flterm.TerminalView>(find.byType(flterm.TerminalView))
+            .secureTextInput,
+        isTrue);
     final persisted = await repository.loadSettings();
     expect(persisted.terminalSecureKeyboard, isTrue);
     expect(persisted.uiThemeId, 'catppuccin');

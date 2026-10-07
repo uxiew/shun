@@ -13,10 +13,13 @@ dependencies:
     sdk: flutter
   cupertino_icons: ^1.0.8
   dartssh2: ^2.22.3
-  xterm2: 5.2.0
   # Ghostty 终端引擎：自己维护的 fork（上游 main + 我们的补丁），说明见 third_party/README.md。
+  # R20 起它是唯一的终端引擎，原来的 xterm2 只留在 dev_dependencies 给对照测试用。
   flterm:
     path: third_party/libghostty/packages/flterm
+  # 和下面 dependency_overrides 是同一份 fork。直接依赖它是为了在设置页读原生库的版本（flterm 没导出）。
+  libghostty:
+    path: third_party/libghostty/packages/libghostty
   flutter_riverpod: ^2.6.1
   go_router: ^16.0.0
   flutter_secure_storage: ^9.2.4
@@ -53,6 +56,9 @@ dev_dependencies:
   # X03 在模拟器上驱动真实的插件桥和测试插件 APK（integration_test/）。
   integration_test:
     sdk: flutter
+  # 原版 Netcatty 的终端引擎。R20 起不进安装包，只在 test/ 里和 Ghostty 吃同一份字节素材做对照
+  # （docs/06：测试对比支架可以留，不长期在安装包里带两个完整引擎）。
+  xterm2: 5.2.0
 
 flutter:
   uses-material-design: true

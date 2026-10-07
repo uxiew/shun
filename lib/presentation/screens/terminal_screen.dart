@@ -355,7 +355,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                         label: LText(
                                           '${duplicateCount > 1 ? '${session.host.label} #$occurrence' : session.host.label}'
                                           '${session.host.protocol == HostProtocol.plugin && session.plugin != null ? ' · ${session.plugin!.protocol}' : ''}'
-                                          '${session.terminal.engine == defaultTerminalEngineName ? '' : ' · ${session.terminal.engine}'}',
+                                          '${session.terminal.engine == terminalEngineName ? '' : ' · ${session.terminal.engine}'}',
                                         ),
                                         onPressed: () => ref
                                             .read(

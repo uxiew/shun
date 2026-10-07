@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/domain/models/host.dart';
 import 'package:netcatty_mobile/domain/tmux/tmux_target.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/tmux/tmux_protocol.dart';
 import 'package:netcatty_mobile/infrastructure/tmux/tmux_service.dart';
 import 'package:netcatty_mobile/presentation/widgets/system_management/tmux_manager_panel.dart';
@@ -46,7 +46,7 @@ void main() {
           'port': 22,
           'username': 'alice',
         }),
-        terminal: XtermTerminalAdapter(),
+        terminal: GhosttyTerminalAdapter(),
         verifyHostKey: (_, __, ___) async => true,
         keyboardInteractive: null,
         sshClients: [_FakeSsh()],

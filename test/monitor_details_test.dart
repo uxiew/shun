@@ -7,7 +7,7 @@ import 'package:netcatty_mobile/infrastructure/ssh/server_monitor_service.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/sftp_service.dart';
 import 'package:netcatty_mobile/presentation/widgets/server_monitor_sheet.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 
 void main() {
   test('two tabs of one server share storage while changed endpoints do not',
@@ -20,7 +20,7 @@ void main() {
           'port': port,
           'username': 'demo'
         }),
-        terminal: XtermTerminalAdapter(),
+        terminal: GhosttyTerminalAdapter(),
         verifyHostKey: (_, __, ___) async => true,
         keyboardInteractive: null);
     final first = session('one', 22);
@@ -39,7 +39,7 @@ void main() {
     final session = ActiveTerminalSession(
         id: 'cached',
         host: HostProfile({'id': 'cached', 'label': 'Demo'}),
-        terminal: XtermTerminalAdapter(),
+        terminal: GhosttyTerminalAdapter(),
         verifyHostKey: (_, __, ___) async => true,
         keyboardInteractive: null);
     final monitor = SessionMonitor(session, service: _Monitor());
@@ -114,7 +114,7 @@ void main() {
     final session = ActiveTerminalSession(
         id: 'test',
         host: HostProfile({'id': 'test', 'label': 'test'}),
-        terminal: XtermTerminalAdapter(),
+        terminal: GhosttyTerminalAdapter(),
         verifyHostKey: (_, __, ___) async => true,
         keyboardInteractive: null);
     final service = _Monitor();

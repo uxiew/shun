@@ -9,12 +9,13 @@ import 'package:netcatty_mobile/application/session_controller.dart';
 import 'package:netcatty_mobile/domain/tmux/tmux_target.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/tmux/tmux_protocol.dart';
 import 'package:netcatty_mobile/infrastructure/tmux/tmux_service.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fixtures/tmux_fixture.dart';
+
+import 'support/test_terminal.dart';
 
 // R21：真实 OpenSSH + 真实 tmux（2.4、2.7、3.0a、3.5a），外加没有 tmux、假 tmux 两台。
 // 依赖 tool/tmux-fixture；没起时整组 skip，证据里记 NOT_RUN。
@@ -526,7 +527,7 @@ void main() {
         final parent = await shellTab(node);
         final target = await targetNamed(parent.sshClient!, node, 'work');
         final tab = await attachTab(parent, target);
-        (tab.terminal as XtermTerminalAdapter).terminal.resize(100, 30);
+        resizeTestTerminal(tab.terminal, 100, 30);
         await waitUntil(
             () async =>
                 await f.run(node,

@@ -8,9 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 import 'package:netcatty_mobile/presentation/terminal/terminal_view.dart';
-import 'package:xterm2/xterm.dart' as xterm show TerminalView;
 
 // R19 / TER07：手指在终端上滑、点、长按，远端收到什么。两个引擎各跑一遍。
 // 规矩：滑动在普通 shell 里翻本地滚动区；全屏程序没开鼠标报告时什么都不发（不变成方向键）；
@@ -37,7 +35,6 @@ void main() {
 
   final engines = <String, TerminalSessionAdapterBase Function()>{
     'Ghostty': GhosttyTerminalAdapter.new,
-    'xterm2': XtermTerminalAdapter.new,
   };
 
   for (final MapEntry(key: engine, value: newTerminal) in engines.entries) {
@@ -45,7 +42,7 @@ void main() {
       late TerminalSessionAdapterBase terminal;
       late StringBuffer sent;
       final engineView =
-          engine == 'Ghostty' ? flterm.TerminalView : xterm.TerminalView;
+          flterm.TerminalView;
 
       Future<void> mount(
         WidgetTester tester, {
@@ -125,21 +122,11 @@ void main() {
             _bytes([for (var i = 1; i <= 300; i++) 'line $i'].join('\r\n')));
         await settle(tester);
 
-        double scrolled() => engine == 'Ghostty'
-            ? (terminal as GhosttyTerminalAdapter)
-                .controller
-                .scrollbar
-                .offset
-                .toDouble()
-            : tester
-                .state<ScrollableState>(find
-                    .descendant(
-                      of: find.byType(engineView),
-                      matching: find.byType(Scrollable),
-                    )
-                    .first)
-                .position
-                .pixels;
+        double scrolled() => (terminal as GhosttyTerminalAdapter)
+            .controller
+            .scrollbar
+            .offset
+            .toDouble();
         final before = scrolled();
         await swipe(tester, 400); // 手指往下拉 = 往回看历史
         expect(scrolled(), lessThan(before), reason: '视口往上翻了');

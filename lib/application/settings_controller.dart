@@ -47,10 +47,4 @@ class SettingsController extends StateNotifier<AppSettings> {
     final persisted = await repository.loadSettings();
     await update(persisted.copyWith(terminalInputMode: mode));
   }
-
-  /// 立刻保存，不跟着「保存外观」走：只影响之后新开的终端，开着的不换。
-  Future<void> updateTerminalEngine(String engine) async {
-    final persisted = await repository.loadSettings();
-    await update(persisted.copyWith(terminalEngine: engine));
-  }
 }

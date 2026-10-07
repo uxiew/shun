@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/application/connection_diagnosis.dart';
@@ -12,31 +13,23 @@ import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/presentation/widgets/terminal_engine_status.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// R17：设置里选终端引擎；引擎建不起来时连接如实失败（docs/06：UI 显示实际引擎与错误）。
+// R17 起引擎建不起来时连接如实失败（docs/06：UI 显示实际引擎与错误）。R20 起只有 Ghostty，
+// 设置里不再有引擎可选；这次运行里引擎实际怎样记在 terminalEngineStatusProvider，设置页照实显示（TER12）。
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('设置', () {
-    test('默认 xterm2；认得 ghostty；不认识的值回到 xterm2', () {
-      expect(const AppSettings().terminalEngine, terminalEngineXterm2);
-      expect(
-        AppSettings.fromJson({'terminalEngine': 'ghostty'}).terminalEngine,
-        terminalEngineGhostty,
-      );
-      expect(
-        AppSettings.fromJson({'terminalEngine': 'kitty'}).terminalEngine,
-        terminalEngineXterm2,
-      );
-      expect(
-        AppSettings.fromJson(
-          const AppSettings(terminalEngine: terminalEngineGhostty).toJson(),
-        ).terminalEngine,
-        terminalEngineGhostty,
-      );
+    test('R20 之前存的「终端引擎」（xterm2 / ghostty）照常读进来、被忽略，存回去时不再写', () {
+      for (final old in ['xterm2', 'ghostty', 'kitty']) {
+        final settings = AppSettings.fromJson(
+            {'terminalEngine': old, 'terminalFontSize': 18});
+        expect(settings.terminalFontSize, 18, reason: '别的设置不受影响');
+        expect(settings.toJson(), isNot(contains('terminalEngine')));
+      }
     });
 
     test('快捷键栏：存的是 R18 的旧默认顺序就换成新默认（PgUp/PgDn 插在方向键旁边）；自己排过的不动', () {
@@ -81,42 +74,70 @@ void main() {
     });
   });
 
-  test('建终端时才读设置：改了只影响之后新开的，会话控制器不重建、开着的会话不受影响', () async {
+  test('新标签只建 Ghostty；引擎状态照实记下：要的、实际用的、建过几个', () async {
     SharedPreferences.setMockInitialValues({});
     final repository = await VaultRepository.open();
     final container = ProviderContainer(overrides: [
       vaultRepositoryProvider.overrideWithValue(repository),
     ]);
     addTearDown(container.dispose);
-    await container.read(settingsControllerProvider.notifier).load();
-    final sessions = container.read(sessionControllerProvider.notifier);
-    final newTerminal = container.read(terminalAdapterFactoryProvider);
+    final status = container.read(terminalEngineStatusProvider);
+    expect(status.requested, 'Ghostty');
+    expect(status.effective, isNull, reason: '还没建过终端，不知道就说不知道');
 
-    final before = newTerminal();
-    addTearDown(before.dispose);
-    expect(before, isA<XtermTerminalAdapter>());
+    final terminal = container.read(terminalAdapterFactoryProvider)();
+    addTearDown(terminal.dispose);
+    expect(terminal, isA<GhosttyTerminalAdapter>());
+    expect(terminal.engine, terminalEngineName);
+    final after = container.read(terminalEngineStatusProvider);
+    expect(after.effective, 'Ghostty');
+    expect(after.started, 1);
+    expect(after.failure, isNull);
+    expect(after.nativeVersion, isNotEmpty, reason: '原生库自己报的版本，设置页显示');
 
-    await container
-        .read(settingsControllerProvider.notifier)
-        .updateTerminalEngine(terminalEngineGhostty);
-    final after = newTerminal();
-    addTearDown(after.dispose);
-    expect(after, isA<GhosttyTerminalAdapter>());
-    expect(after.engine, 'Ghostty');
-    expect(container.read(sessionControllerProvider.notifier), same(sessions));
+    container.read(terminalEngineStatusProvider.notifier).check();
+    expect(container.read(terminalEngineStatusProvider).started, 2,
+        reason: '「检查」真建了一个终端');
   });
 
-  test('引擎建不起来：不拨号，等待卡片标失败，写清是引擎的问题、怎么改回去', () async {
+  test('TER12：建不起来时记下原话，effective 为空；之后又建成了就清掉', () {
+    var fail = true;
+    final controller = TerminalEngineStatusController(() => fail
+        ? throw TerminalEngineUnavailableException(
+            'Ghostty',
+            ArgumentError('Failed to load dynamic library libghostty.so'),
+          )
+        : GhosttyTerminalAdapter());
+    addTearDown(controller.dispose);
+
+    expect(
+        controller.create, throwsA(isA<TerminalEngineUnavailableException>()));
+    expect(controller.state.effective, isNull, reason: '没有别的引擎顶上');
+    expect('${controller.state.failure}', contains('libghostty.so'));
+    expect(controller.state.started, 0);
+
+    controller.check();
+    expect(controller.state.failure, isNotNull, reason: '「检查」失败不抛到界面上，照样记下');
+
+    fail = false;
+    controller.create().dispose();
+    expect(controller.state.failure, isNull);
+    expect(controller.state.effective, 'Ghostty');
+  });
+
+  test('引擎建不起来：不拨号，等待卡片标失败，写清是引擎的问题、没有别的引擎可换', () async {
     SharedPreferences.setMockInitialValues({});
     final repository = await VaultRepository.open();
     final service = _RecordingService();
     final container = ProviderContainer(overrides: [
       vaultRepositoryProvider.overrideWithValue(repository),
       sshServiceProvider.overrideWithValue(service),
-      terminalAdapterFactoryProvider.overrideWithValue(
-        () => throw TerminalEngineUnavailableException(
-          'Ghostty',
-          ArgumentError('Failed to load dynamic library libghostty.so'),
+      terminalEngineStatusProvider.overrideWith(
+        (ref) => TerminalEngineStatusController(
+          () => throw TerminalEngineUnavailableException(
+            'Ghostty',
+            ArgumentError('Failed to load dynamic library libghostty.so'),
+          ),
         ),
       ),
     ]);
@@ -141,7 +162,49 @@ void main() {
     expect(failed.phase, PendingConnectionPhase.failed);
     expect('${failed.error}', contains('Ghostty'));
     expect('${failed.error}', contains('libghostty.so'));
-    expect(connectionHint(failed.error!), contains('改回 xterm2'));
+    expect(connectionHint(failed.error!), contains('没有别的引擎可换'));
+    expect(connectionHint(failed.error!), isNot(contains('xterm2')));
+    final status = container.read(terminalEngineStatusProvider);
+    expect(status.effective, isNull);
+    expect('${status.failure}', contains('libghostty.so'), reason: '设置页看得到原话');
+  });
+  testWidgets('设置页的终端引擎：照实写引擎、原生库版本、失败原话；点「检查」再试一次', (tester) async {
+    var fail = true;
+    final container = ProviderContainer(overrides: [
+      terminalEngineStatusProvider.overrideWith(
+        (ref) => TerminalEngineStatusController(() => fail
+            ? throw TerminalEngineUnavailableException(
+                'Ghostty',
+                ArgumentError('Failed to load dynamic library libghostty.so'),
+              )
+            : GhosttyTerminalAdapter()),
+      ),
+    ]);
+    addTearDown(container.dispose);
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(
+        home: Scaffold(body: TerminalEngineStatusTile()),
+      ),
+    ));
+    expect(find.text('Ghostty'), findsOneWidget);
+    expect(find.text('这次运行还没开过终端'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('terminal-engine-check')));
+    await tester.pump();
+    final failure = tester
+        .widget<Text>(find.byKey(const ValueKey('terminal-engine-failure')))
+        .data!;
+    expect(failure, contains('libghostty.so'));
+    expect(failure, contains('没有别的引擎可换'));
+
+    fail = false;
+    await tester.tap(find.byKey(const ValueKey('terminal-engine-check')));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('terminal-engine-failure')), findsNothing);
+    expect(find.textContaining('正常'), findsOneWidget);
+    expect(find.textContaining(RegExp(r'^Ghostty \S+')), findsOneWidget,
+        reason: '建成过终端后显示原生库自己报的版本');
   });
 }
 

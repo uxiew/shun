@@ -27,6 +27,7 @@ import '../../infrastructure/update_check_service.dart';
 import '../theme.dart';
 import '../localization/localized_widgets.dart';
 import '../widgets/keychain_sheet.dart';
+import '../widgets/terminal_engine_status.dart';
 import '../widgets/custom_background.dart';
 import '../widgets/ai_providers_page.dart';
 import '../widgets/github_manual_config.dart';
@@ -75,8 +76,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   var customBackgroundScope = 'global';
   var _persistedBackgroundPath = '';
   var _savingTerminalSecureKeyboard = false;
-  var terminalEngine = terminalEngineXterm2;
-  var _savingTerminalEngine = false;
   var terminalFullscreenSwipe = false;
   var _savingTerminalFullscreenSwipe = false;
   var autoSyncEnabled = false;
@@ -155,7 +154,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     terminalFontSize = settings.terminalFontSize;
     sftpSyntaxHighlight = settings.sftpSyntaxHighlight;
     terminalSecureKeyboard = settings.terminalSecureKeyboard;
-    terminalEngine = settings.terminalEngine;
     terminalFullscreenSwipe = settings.terminalFullscreenSwipe;
     customBackgroundEnabled = settings.customBackgroundEnabled;
     customBackgroundPath = settings.customBackgroundPath;
@@ -431,33 +429,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             : _setTerminalFullscreenSwipe,
                       ),
                       const SizedBox(height: 8),
-                      const Align(
-                        alignment: AlignmentDirectional.centerStart,
-                        child: LText('终端引擎'),
-                      ),
-                      const SizedBox(height: 4),
-                      SegmentedButton<String>(
-                        key: const ValueKey('terminal-engine'),
-                        segments: const [
-                          ButtonSegment(
-                            value: terminalEngineXterm2,
-                            label: LText('xterm2'),
-                          ),
-                          ButtonSegment(
-                            value: terminalEngineGhostty,
-                            label: LText('Ghostty（实验）'),
-                          ),
-                        ],
-                        selected: {terminalEngine},
-                        onSelectionChanged: _savingTerminalEngine
-                            ? null
-                            : (value) => _setTerminalEngine(value.single),
-                      ),
-                      const SizedBox(height: 4),
-                      LText(
-                        '只影响之后新开的终端。Ghostty 还在迁移：快捷键栏、方向键模式、中文输入法和选区复制以 xterm2 为准',
-                        style: Theme.of(context).textTheme.bodySmall,
-                      ),
+                      const TerminalEngineStatusTile(),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
                         title: const LText('SFTP 代码高亮'),
@@ -1438,25 +1410,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _backgroundImageService.remove(previousBackgroundPath);
     }
     _message('外观设置已保存');
-  }
-
-  Future<void> _setTerminalEngine(String value) async {
-    final previous = terminalEngine;
-    setState(() {
-      terminalEngine = value;
-      _savingTerminalEngine = true;
-    });
-    try {
-      await ref
-          .read(settingsControllerProvider.notifier)
-          .updateTerminalEngine(value);
-    } catch (error) {
-      if (!mounted) return;
-      setState(() => terminalEngine = previous);
-      _message('终端引擎设置保存失败：$error');
-    } finally {
-      if (mounted) setState(() => _savingTerminalEngine = false);
-    }
   }
 
   Future<void> _setTerminalSecureKeyboard(bool value) async {

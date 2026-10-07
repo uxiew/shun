@@ -10,7 +10,7 @@ import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart
 
 import 'fixtures/net/socks5_fixture.dart';
 import 'fixtures/net/trap_server.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 
 // R05：路线在拨号前一次算好（RoutePlan）。这里测四件事——
 // RTE01 矛盾配置不静默选一套；RTE03 路线算好后不受后续编辑影响；
@@ -243,7 +243,7 @@ void main() {
         'sshTcpConnectTimeoutSeconds': 3,
       });
       final connecting = SshService().connect(
-        terminal: XtermTerminalAdapter(),
+        terminal: GhosttyTerminalAdapter(),
         sessionId: 's',
         host: target,
         hosts: [target],
@@ -283,7 +283,7 @@ void main() {
       Object? error;
       try {
         final session = await SshService(dialer: dialer.call).connect(
-          terminal: XtermTerminalAdapter(),
+          terminal: GhosttyTerminalAdapter(),
           sessionId: 's',
           host: t,
           hosts: [...jumps, t],
@@ -395,7 +395,7 @@ void main() {
       });
       try {
         final session = await SshService(dialer: dialer.call).connect(
-          terminal: XtermTerminalAdapter(),
+          terminal: GhosttyTerminalAdapter(),
           sessionId: 's',
           host: t,
           hosts: [t],
@@ -445,7 +445,7 @@ void main() {
       });
       try {
         final session = await SshService(dialer: dialer.call).connect(
-          terminal: XtermTerminalAdapter(),
+          terminal: GhosttyTerminalAdapter(),
           sessionId: 's',
           host: t,
           hosts: [t],

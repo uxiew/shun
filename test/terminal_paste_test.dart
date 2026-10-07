@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 
 // R19 / GST04：粘贴、普通文字、功能键三条路各发什么。两个引擎各跑一遍。
 // 这里核对的「清洗」只是引擎替远端挡掉一部分控制字节，不代表远端不会执行粘贴的内容：
@@ -15,7 +14,6 @@ Uint8List _bytes(String text) => Uint8List.fromList(utf8.encode(text));
 void main() {
   final engines = <String, TerminalSessionAdapterBase Function()>{
     'Ghostty': GhosttyTerminalAdapter.new,
-    'xterm2': XtermTerminalAdapter.new,
   };
 
   for (final MapEntry(key: engine, value: newTerminal) in engines.entries) {

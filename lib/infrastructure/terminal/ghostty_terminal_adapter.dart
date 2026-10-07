@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'package:flterm/flterm.dart';
 import 'package:flutter/foundation.dart' hide Key;
 import 'package:flutter/scheduler.dart';
+import 'package:libghostty/libghostty.dart' show LibGhosttyBuildInfo;
 
 import 'terminal_session_adapter.dart';
 
@@ -22,7 +23,7 @@ const ghosttyTerminalConfig = TerminalConfig(
   apcBufferLimit: 0,
   // 全屏程序里（备用屏、没开鼠标报告）手指滑动不变成方向键（R19，TER07）。flterm 默认开着 1007，
   // tmux 没开 mouse 时一滑就把 ↑ 发给 shell，翻出上一条历史命令，再按回车就执行了。
-  // 和 xterm2 一样不翻译；远端程序自己发 CSI ? 1007 h 要这个行为时照它的。
+  // 原版 Netcatty 的 xterm2 也不翻译；远端程序自己发 CSI ? 1007 h 要这个行为时照它的。
   // 其余照抄 TerminalConfig.defaultModes（const map 里展开再覆盖同一个键，分析器报错），
   // 测试核对过两边只差这一项，同步上游后对不上会挂。
   modes: {
@@ -37,7 +38,16 @@ const ghosttyTerminalConfig = TerminalConfig(
   },
 );
 
-/// Ghostty 引擎（libghostty + flterm）的适配器（R17，docs/06 C 步）。
+/// 原生库自己报的版本（Ghostty 源码版本，比如 `1.3.0-dev+…`），设置页显示用。读不到（库没加载起来）时返回 null。
+String? ghosttyNativeVersion() {
+  try {
+    return LibGhosttyBuildInfo.instance.versionString;
+  } catch (_) {
+    return null;
+  }
+}
+
+/// Ghostty 引擎（libghostty + flterm）的适配器（R17，docs/06 C 步）。R20 起是唯一的终端引擎。
 ///
 /// 远端字节原样进 [TerminalController.write]，不先转字符串；终端发出的字节（用户输入、
 /// 协议回应）原样交给当前代次的连接。除了测试，App 里只有这个文件和 Ghostty 视图认识 flterm。
@@ -130,7 +140,7 @@ final class GhosttyTerminalAdapter extends TerminalSessionAdapterBase {
   @override
   void sendText(String text) {
     if (isDisposed || text.isEmpty) return;
-    // 片段、自定义快捷键发来的是现成的字符串，和 xterm2 时一样先套上一次性修饰键再发。
+    // 片段、自定义快捷键发来的是现成的字符串，先套上快捷键栏的一次性修饰键再发（原版 xterm2 也是这样）。
     controller.sendText(input.consume(text));
   }
 
@@ -256,7 +266,7 @@ final class GhosttyTerminalAdapter extends TerminalSessionAdapterBase {
   @override
   String allText() {
     if (isDisposed) return '';
-    // 自动折行接回去：复制面板里的长网址、长命令不断成两行（xterm2 取整屏文字时也是这样）。
+    // 自动折行接回去：复制面板里的长网址、长命令不断成两行（原版 xterm2 取整屏文字时也是这样）。
     final formatter = controller.createFormatter(
       format: FormatterFormat.plain,
       unwrap: true,

@@ -3,10 +3,8 @@ import 'package:flutter/services.dart';
 
 import '../../infrastructure/terminal/ghostty_terminal_adapter.dart';
 import '../../infrastructure/terminal/terminal_session_adapter.dart';
-import '../../infrastructure/terminal/xterm_terminal_adapter.dart';
 import '../localization/localized_widgets.dart';
 import 'ghostty_terminal_view.dart';
-import 'xterm_terminal_view.dart';
 
 /// 终端视图的显示选项，和引擎无关。
 @immutable
@@ -43,8 +41,8 @@ class TerminalViewOptions {
   final int keyboardRequest;
 }
 
-/// 硬件键盘的粘贴快捷键（R19）。两个引擎自带的快捷键都是直接把剪贴板粘进终端、不预览；
-/// 各引擎视图把 Ctrl+V（以及 Ctrl+Shift+V、Meta+V）改成发这个意图，由终端页接住，走和快捷键栏
+/// 硬件键盘的粘贴快捷键（R19）。引擎自带的快捷键是直接把剪贴板粘进终端、不预览；
+/// 终端视图把 Ctrl+V（以及 Ctrl+Shift+V、Meta+V）改成发这个意图，由终端页接住，走和快捷键栏
 /// 「粘贴」同一套预览（SEC10）。没人接（比如单独挂一个终端视图）时这个键原样交给终端，按的就是 Ctrl+V。
 class TerminalPasteIntent extends Intent {
   const TerminalPasteIntent();
@@ -108,13 +106,12 @@ const terminalKeyShortcuts = <ShortcutActivator, Intent>{
 };
 
 /// 按终端实际用的引擎选视图。终端页只调这里，不认识任何引擎的类型（R16）。
+/// R20 起只有 Ghostty；认不出的引擎照实写出来，不拿别的视图凑合。
 Widget terminalViewFor(
   TerminalSessionAdapter terminal,
   TerminalViewOptions options,
 ) =>
     switch (terminal) {
-      XtermTerminalAdapter() =>
-        XtermTerminalView(adapter: terminal, options: options),
       GhosttyTerminalAdapter() =>
         GhosttyTerminalView(adapter: terminal, options: options),
       _ => Center(
@@ -125,7 +122,7 @@ Widget terminalViewFor(
         ),
     };
 
-/// 两个引擎共用的 16 色（Tomorrow Night），换引擎时 ls、git 的颜色不变。
+/// 终端的 16 色（Tomorrow Night），和原版 Netcatty（xterm2）一样，ls、git 的颜色不变。
 const terminalAnsiColors = <Color>[
   Color(0xff1d1f21),
   Color(0xffcc6666),

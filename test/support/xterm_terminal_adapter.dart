@@ -1,11 +1,13 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
 import 'package:xterm2/xterm.dart';
 
-import 'terminal_session_adapter.dart';
-
-/// 旧引擎 xterm2 的适配器：迁移期的对照基线（docs/06 A、D 步），Ghostty 成为默认后退出生产路径。
+/// 原版 Netcatty 的终端引擎 xterm2 的适配器，**只给测试用**：R20 起它不在安装包里（docs/06 E 步），
+/// 留着是为了和 Ghostty 吃同一份字节素材做对照（`terminal_vt_corpus_test.dart`），
+/// 以及拿 [xtermKeySequence] 核对 Ghostty 编出来的按键（`terminal_input_routing_test.dart`）。
+/// 删了它，这两样就没有对照了。
 ///
 /// xterm2 只收字符串，所以解码留在这里，而且整条流共用一个 UTF-8 解码器：
 /// 以前在 SSH 层按网络块各自解码，一个汉字（3 字节）或 emoji（4 字节）被切在两块之间时，
@@ -26,8 +28,6 @@ final class XtermTerminalAdapter extends TerminalSessionAdapterBase {
     _decoder = _newDecoder();
   }
 
-  /// 只给 xterm2 专用视图（`presentation/terminal/xterm_terminal_view.dart`）和测试用。
-  /// 连接层、会话控制器不该碰它，见 `test/terminal_layering_test.dart`。
   final Terminal terminal;
 
   late ByteConversionSink _decoder;

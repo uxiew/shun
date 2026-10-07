@@ -14,11 +14,9 @@ import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 import 'package:netcatty_mobile/presentation/screens/terminal_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flterm/flterm.dart' as flterm show TerminalView;
-import 'package:xterm2/xterm.dart' as xterm show TerminalView;
 
 // R18：快捷键栏的功能键交给引擎编码（跟远端的光标键模式走）、修饰键不粘、
 // 分屏时输入只发给用户点过的那一格、地方不够时快捷键栏收成一行。两个引擎各跑一遍。
@@ -27,7 +25,6 @@ void main() {
 
   final engines = <String, TerminalSessionAdapterBase Function()>{
     'Ghostty': GhosttyTerminalAdapter.new,
-    'xterm2': XtermTerminalAdapter.new,
   };
 
   for (final MapEntry(key: engine, value: newTerminal) in engines.entries) {
@@ -85,7 +82,7 @@ void main() {
       });
 
       test('按键面板的功能键（R25）：PgUp/PgDn、F1–F12、回车、退格、Delete、Insert，带不带修饰键', () {
-        // 两个引擎一样的结果；xterm2 是 App 自己编的（xtermKeySequence），Ghostty 是 libghostty 编的。
+        // 期望值按 xterm 的规矩写，和原版 xterm2 一样（对照用的 xtermKeySequence 在 test/support/xterm_terminal_adapter.dart）。
         final cases = <(TerminalSpecialKey, Set<String>, String)>[
           (TerminalSpecialKey.pageUp, {}, '\x1b[5~'),
           (TerminalSpecialKey.pageDown, {}, '\x1b[6~'),
@@ -129,7 +126,7 @@ void main() {
       testWidgets('分屏：快捷键栏的键和修饰键只发给点过的那一格，换格时上一格的修饰键清掉', (tester) async {
         final page = await _Page.open(tester, newTerminal);
         final engineView =
-            engine == 'Ghostty' ? flterm.TerminalView : xterm.TerminalView;
+            flterm.TerminalView;
         await tester.tap(find.byKey(const ValueKey('terminal-action-split')));
         await page.settle();
         expect(find.byType(engineView), findsNWidgets(2));
@@ -240,7 +237,7 @@ void main() {
       testWidgets('横屏收成一行，弹键盘时再收起标签条；终端始终有地方、不溢出', (tester) async {
         final page = await _Page.open(tester, newTerminal);
         final engineView =
-            engine == 'Ghostty' ? flterm.TerminalView : xterm.TerminalView;
+            flterm.TerminalView;
         Finder compactBar() =>
             find.byKey(const ValueKey('terminal-special-keys-compact'));
         Finder tabs() => find.byKey(const ValueKey('terminal-tab-strip'));

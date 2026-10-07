@@ -7,7 +7,7 @@ import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 
 import 'fixtures/net/socks5_fixture.dart';
 import 'fixtures/net/trap_server.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 
 // RTE02 / NET03：选了代理但配置坏了、或代理本身失败时，必须明确失败，
 // 绝不能退回直连目标。目标由 TrapServer 扮演——它本身可以直连到达，
@@ -41,7 +41,7 @@ void main() {
     try {
       final session = await SshService(dialer: dialer.call)
           .connect(
-            terminal: XtermTerminalAdapter(),
+            terminal: GhosttyTerminalAdapter(),
             sessionId: 's',
             host: host,
             hosts: [...hosts, host],

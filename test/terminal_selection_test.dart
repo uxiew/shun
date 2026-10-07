@@ -6,7 +6,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'support/xterm_terminal_adapter.dart';
 import 'package:netcatty_mobile/presentation/terminal/terminal_view.dart';
 import 'package:xterm2/xterm.dart' show BufferRangeLine, CellOffset;
 

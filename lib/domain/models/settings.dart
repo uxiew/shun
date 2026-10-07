@@ -2,14 +2,6 @@ enum SyncProviderType { webdav, githubGist, s3 }
 
 const minTerminalFontSize = 6.0;
 
-/// 终端引擎的设置值。R17 起 Ghostty 可以在设置里选，默认仍是 xterm2：
-/// Ghostty 的中文输入、快捷键栏、选区等迁移在 R18、R19，门禁在 R20 过了才改默认（docs/06 E 步）。
-const terminalEngineXterm2 = 'xterm2';
-const terminalEngineGhostty = 'ghostty';
-const supportedTerminalEngines = <String>{
-  terminalEngineXterm2,
-  terminalEngineGhostty,
-};
 const maxTerminalFontSize = 24.0;
 
 /// 终端下面的输入方式（R25 第一部分，所有者 10-07 提的）。记住上次用的，下次打开终端照旧。
@@ -79,7 +71,6 @@ class AppSettings {
     this.serverViewMode = 'grid',
     this.terminalFontSize = 14,
     this.terminalSecureKeyboard = false,
-    this.terminalEngine = terminalEngineXterm2,
     this.terminalFullscreenSwipe = false,
     this.terminalInputMode = terminalInputSystem,
     this.sftpSyntaxHighlight = true,
@@ -139,9 +130,6 @@ class AppSettings {
           .clamp(minTerminalFontSize, maxTerminalFontSize)
           .toDouble(),
       terminalSecureKeyboard: json['terminalSecureKeyboard'] == true,
-      terminalEngine: supportedTerminalEngines.contains(json['terminalEngine'])
-          ? json['terminalEngine'] as String
-          : terminalEngineXterm2,
       terminalFullscreenSwipe: json['terminalFullscreenSwipe'] == true,
       terminalInputMode:
           supportedTerminalInputModes.contains(json['terminalInputMode'])
@@ -181,9 +169,6 @@ class AppSettings {
   final double terminalFontSize;
   final bool terminalSecureKeyboard;
 
-  /// 之后新开的终端用哪个引擎（[supportedTerminalEngines]）。已经开着的终端不换。
-  final String terminalEngine;
-
   /// 「全屏程序里滑动翻页」（10-07）：less、vim 这类全屏程序没开鼠标报告时，手指滑动发 ↑/↓。默认关，
   /// 没开 mouse 的 tmux 也算全屏程序，↑ 会到 shell、翻出上一条历史命令（R19）。改了开着的终端马上生效。
   final bool terminalFullscreenSwipe;
@@ -212,7 +197,6 @@ class AppSettings {
     String? serverViewMode,
     double? terminalFontSize,
     bool? terminalSecureKeyboard,
-    String? terminalEngine,
     bool? terminalFullscreenSwipe,
     String? terminalInputMode,
     bool? sftpSyntaxHighlight,
@@ -238,7 +222,6 @@ class AppSettings {
         terminalFontSize: terminalFontSize ?? this.terminalFontSize,
         terminalSecureKeyboard:
             terminalSecureKeyboard ?? this.terminalSecureKeyboard,
-        terminalEngine: terminalEngine ?? this.terminalEngine,
         terminalFullscreenSwipe:
             terminalFullscreenSwipe ?? this.terminalFullscreenSwipe,
         terminalInputMode: terminalInputMode ?? this.terminalInputMode,
@@ -270,7 +253,6 @@ class AppSettings {
         'serverViewMode': serverViewMode,
         'terminalFontSize': terminalFontSize,
         'terminalSecureKeyboard': terminalSecureKeyboard,
-        'terminalEngine': terminalEngine,
         'terminalFullscreenSwipe': terminalFullscreenSwipe,
         'terminalInputMode': terminalInputMode,
         'sftpSyntaxHighlight': sftpSyntaxHighlight,

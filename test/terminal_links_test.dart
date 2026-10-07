@@ -9,7 +9,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/domain/terminal_link.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 import 'package:netcatty_mobile/presentation/terminal/terminal_view.dart';
 import 'package:netcatty_mobile/presentation/widgets/tailscale_check_card.dart'
     show externalLinkLauncherProvider;
@@ -102,7 +101,6 @@ void main() {
 
   final engines = <String, TerminalSessionAdapterBase Function()>{
     'Ghostty': GhosttyTerminalAdapter.new,
-    'xterm2': XtermTerminalAdapter.new,
   };
 
   for (final MapEntry(key: engine, value: newTerminal) in engines.entries) {
@@ -182,14 +180,8 @@ void main() {
         tester,
       ) async {
         await mount(tester, 'https://example.com/a. trailing text\r\n');
-        if (engine == 'Ghostty') {
-          // 手指不拖：flterm 把整个链接选上。
-          await longPress(tester, firstCells(tester));
-        } else {
-          // xterm2 不认链接：从网址开头拖到句号，选中的字整段是网址才给按钮。
-          await longPress(tester, firstCells(tester).translate(-10, 0),
-              drag: const Offset(165, 0));
-        }
+        // 手指不拖：flterm 把整个链接选上。
+        await longPress(tester, firstCells(tester));
         expect(find.byKey(_sheetHost), findsNothing, reason: '长按本身不弹框');
         expect(find.byKey(openLink), findsOneWidget);
         expect(launched, isEmpty);
@@ -223,11 +215,6 @@ void main() {
             reason: '点一下不弹框');
 
         await longPress(tester, firstCells(tester));
-        if (engine == 'xterm2') {
-          // 旧引擎不认 OSC 8；选中的「docs-page」也不是网址。
-          expect(find.byKey(openLink), findsNothing);
-          return;
-        }
         await tester.tap(find.byKey(openLink));
         await settle(tester);
         expect(find.byKey(const ValueKey('terminal-link-refused')),

@@ -18,11 +18,13 @@ import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:netcatty_mobile/domain/tmux/tmux_target.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:plugin_api/plugin_api.dart' show RequestedRoute, SessionPhase;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fixtures/mosh_plugin_harness.dart';
+
+import 'support/test_terminal.dart';
 
 // X09 Mosh 接入里不用连任何东西就能测的部分：路线判定、端口范围、结束原因的说法、单一输入所有者、
 // 会话控制器不自动重连。真实 OpenSSH + mosh-server 上的引导见 mosh_fixture_test.dart，
@@ -131,11 +133,11 @@ void main() {
               utf8.encode('MOSH CONNECT 60101 v450/k6rhyS3hwDL4ejCIQ\n')),
         );
 
-    Future<(ActiveTerminalSession, MoshTerminalProvider, XtermTerminalAdapter)>
+    Future<(ActiveTerminalSession, MoshTerminalProvider, GhosttyTerminalAdapter)>
         attach() async {
       final session = await plugin.open(await plugin.prepare(),
           cols: 80, rows: 24, target: target());
-      final terminal = XtermTerminalAdapter();
+      final terminal = GhosttyTerminalAdapter();
       final tab = MoshTerminalProvider.attach(
         sessionId: 't1',
         host: mosh(),
@@ -169,9 +171,9 @@ void main() {
 
     test('改尺寸：打开中先记下，运行起来只发最新的那次', () async {
       final (tab, link, terminal) = await attach();
-      terminal.terminal.resize(90, 30);
+      resizeTestTerminal(terminal, 90, 30);
       await Future<void>.delayed(const Duration(milliseconds: 150));
-      terminal.terminal.resize(120, 40);
+      resizeTestTerminal(terminal, 120, 40);
       await Future<void>.delayed(const Duration(milliseconds: 150));
       expect(plugin.calls.where((c) => c.method == 'resizeSession'), isEmpty);
       await plugin.state(link.session, 1, 'active');

@@ -23,8 +23,9 @@ import 'fixtures/docker_fixture.dart';
 import 'fixtures/net/socks5_fixture.dart';
 import 'fixtures/net/trap_server.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
+
+import 'support/test_terminal.dart';
 
 // 依赖 tool/fixture-environment 的真实 OpenSSH / dante。没起 fixture 时整组 skip，
 // 证据里记 NOT_RUN，不算通过。
@@ -161,7 +162,7 @@ void main() {
         keys: const [],
         proxyProfiles: const [],
         verifyHostKey: verifyByLogicalName,
-        terminal: terminal ?? XtermTerminalAdapter(),
+        terminal: terminal ?? GhosttyTerminalAdapter(),
       );
 
   /// 容器里 sshd（22 端口）上 ESTABLISHED 的 TCP 连接数。直接读内核连接表，不经 SSH 登录，
@@ -271,7 +272,7 @@ void main() {
           },
         });
         final session = await SshService().connect(
-          terminal: XtermTerminalAdapter(),
+          terminal: GhosttyTerminalAdapter(),
           sessionId: 'it',
           host: host,
           hosts: [host],
@@ -314,7 +315,7 @@ void main() {
       });
       await expectLater(
         SshService().connect(
-          terminal: XtermTerminalAdapter(),
+          terminal: GhosttyTerminalAdapter(),
           sessionId: 'it',
           host: host,
           hosts: [host],
@@ -395,7 +396,7 @@ void main() {
         },
       });
       final session = await SshService(dialer: dialer.call).connect(
-        terminal: XtermTerminalAdapter(),
+        terminal: GhosttyTerminalAdapter(),
         sessionId: 'jmp',
         host: target,
         hosts: [...jumps, target],
@@ -461,7 +462,7 @@ void main() {
     }) async {
       try {
         final session = await SshService(dialer: dialer).connect(
-          terminal: XtermTerminalAdapter(),
+          terminal: GhosttyTerminalAdapter(),
           sessionId: 'jmp',
           host: target,
           hosts: [...jumps, target],
@@ -512,7 +513,7 @@ void main() {
       for (final purpose in ConnectionPurpose.values) {
         final dialer = RecordingDialer();
         final session = await SshService(dialer: dialer.call).connect(
-          terminal: XtermTerminalAdapter(),
+          terminal: GhosttyTerminalAdapter(),
           sessionId: 'jmp-$purpose',
           host: target,
           hosts: [...jumps, target],
@@ -585,7 +586,7 @@ void main() {
         final path = jumps();
         final target = targetVia(path, viaProxy());
         final session = await SshService(dialer: dialer.call).connect(
-          terminal: XtermTerminalAdapter(),
+          terminal: GhosttyTerminalAdapter(),
           sessionId: 'jmp4',
           host: target,
           hosts: [...path, target],
@@ -666,7 +667,7 @@ void main() {
           if (port == f.socksAuthPort) 'password': f.socksPassword,
         });
         final session = await SshService().connect(
-          terminal: XtermTerminalAdapter(),
+          terminal: GhosttyTerminalAdapter(),
           sessionId: 'sec1',
           host: host,
           hosts: [host],
@@ -774,7 +775,7 @@ void main() {
 
   test('TER01 真实 SSH 大段中文输出没有替换符', () async {
     // 真实 sshd 的输出按网络分包，经连接层原样送进终端适配器（R16：连接层不再转字符串）。
-    final terminal = XtermTerminalAdapter(maxLines: 20000);
+    final terminal = GhosttyTerminalAdapter();
     final session = await connect(edgeHost({}), terminal: terminal);
     addTearDown(session.close);
     String screen() => terminal.allText();
@@ -875,16 +876,16 @@ void main() {
   });
 
   test('TER06 连续改 20 次尺寸：远端最后的尺寸就是终端现在的尺寸', () async {
-    final terminal = XtermTerminalAdapter();
+    final terminal = GhosttyTerminalAdapter();
     final session = await connect(edgeHost({}), terminal: terminal);
     addTearDown(session.close);
     await waitUntil(() => terminal.allText().trim().isNotEmpty);
     // 像键盘弹出动画那样一帧少一行，再像旋转那样换一次宽度。
     for (var rows = 50; rows > 30; rows--) {
-      terminal.terminal.resize(100, rows);
+      resizeTestTerminal(terminal, 100, rows);
       await Future<void>.delayed(const Duration(milliseconds: 5));
     }
-    terminal.terminal.resize(140, 31);
+    resizeTestTerminal(terminal, 140, 31);
     await Future<void>.delayed(const Duration(milliseconds: 300));
     terminal.sendText('stty size; echo SIZE-\$((1+1))\r');
     await waitUntil(() => terminal.allText().contains('SIZE-2'));
@@ -953,7 +954,7 @@ void main() {
       final old = controller.state.sessions.single;
       // 视图布局后量出的尺寸。新 PTY 按 80x24 打开，尺寸没变时引擎不会再通知，
       // 以前恢复后远端就一直是 80x24，vim、htop 排版错到屏幕尺寸再变一次为止。
-      (old.terminal as XtermTerminalAdapter).terminal.resize(132, 43);
+      resizeTestTerminal(old.terminal, 132, 43);
       await Future<void>.delayed(const Duration(milliseconds: 300));
       controller.sendToSession(old.id, 'stty size > ~/r16-size', enter: true);
       await Future<void>.delayed(const Duration(milliseconds: 800));
@@ -1567,7 +1568,7 @@ void main() {
         });
         try {
           final session = await SshService(dialer: dialer.call).connect(
-            terminal: XtermTerminalAdapter(),
+            terminal: GhosttyTerminalAdapter(),
             sessionId: 'sec06',
             host: host,
             hosts: [host],
@@ -1613,7 +1614,7 @@ void main() {
       Future<void> connectAs(Map<String, Object?> extra) async {
         final host = edgeHost(extra);
         final session = await SshService().connect(
-          terminal: XtermTerminalAdapter(),
+          terminal: GhosttyTerminalAdapter(),
           sessionId: 'sec04',
           host: host,
           hosts: [host],
@@ -1779,7 +1780,6 @@ void main() {
     for (final MapEntry(key: engine, value: newTerminal)
         in <String, TerminalSessionAdapter Function()>{
       'Ghostty': GhosttyTerminalAdapter.new,
-      'xterm2': XtermTerminalAdapter.new,
     }.entries) {
       Future<TerminalSessionAdapter> bash() async {
         await remote('rm -f ~/r19-*');

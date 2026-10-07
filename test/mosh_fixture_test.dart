@@ -16,12 +16,14 @@ import 'package:netcatty_mobile/domain/plugins/mosh_bootstrap.dart';
 import 'package:netcatty_mobile/domain/plugins/mosh_route.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fixtures/mosh_fixture.dart';
 import 'fixtures/mosh_plugin_harness.dart';
 import 'fixtures/net/trap_server.dart';
+
+import 'support/test_terminal.dart';
 
 // X09：受控 bootstrap 连真实 OpenSSH + 官方 mosh-server（tool/mosh-fixture）。插件这一侧是假的平台通道
 // （fixtures/mosh_plugin_harness.dart），所以这里测的是「宿主做了什么、交出了什么」：
@@ -82,7 +84,7 @@ void main() {
       host: host,
       plan: resolveRoutePlan(host, hosts: [host, ...hosts], proxyProfiles: proxies),
       verifyHostKey: verify ?? fixture!.verify,
-      terminal: XtermTerminalAdapter(),
+      terminal: GhosttyTerminalAdapter(),
       attempt: attempt,
     );
   }
@@ -164,7 +166,7 @@ void main() {
           host: host,
           plan: resolveRoutePlan(host, hosts: [host], proxyProfiles: const []),
           verifyHostKey: f.verify,
-          terminal: XtermTerminalAdapter(),
+          terminal: GhosttyTerminalAdapter(),
           attempt: attempt,
         ),
         throwsA(isA<ConnectionCancelledException>()),
@@ -376,7 +378,7 @@ void main() {
           ],
         ),
         verifyHostKey: f.verify,
-        terminal: XtermTerminalAdapter(),
+        terminal: GhosttyTerminalAdapter(),
         attempt: attempt,
       );
       final secrets = {
@@ -427,10 +429,10 @@ void main() {
       expect(await controller.connect(f.host(), f.verify), isTrue);
       final tab = controller.state.sessions.single;
       final link = tab.plugin! as MoshTerminalProvider;
-      final terminal = tab.terminal as XtermTerminalAdapter;
+      final terminal = tab.terminal;
 
       // 还在 opening：尺寸先记着，不发（插件只在运行时接受改尺寸）。
-      terminal.terminal.resize(100, 30);
+      resizeTestTerminal(terminal, 100, 30);
       await Future<void>.delayed(const Duration(milliseconds: 150));
       expect(plugin.calls.where((c) => c.method == 'resizeSession'), isEmpty);
       await plugin.state(link.session, 1, 'active');

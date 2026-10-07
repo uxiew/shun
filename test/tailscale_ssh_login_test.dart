@@ -10,7 +10,7 @@ import 'package:netcatty_mobile/infrastructure/ssh/ssh_login_watch.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 
 import 'fixtures/tailscale/tailssh_fixture.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 
 // R14：Tailscale SSH 外部认证。服务器是 tool/tailscale-ssh-fixture——照 tailssh v1.104.0 认证行为仿制、
 // 用同版本 x/crypto 的本机程序，不是真的 Tailscale。用户名选场景：accept / reject / check / evil-*。
@@ -354,7 +354,7 @@ Future<void> main() async {
     }, skip: skip, timeout: const Timeout(Duration(seconds: 30)));
 
     test('自动恢复碰上 check：不交给界面，直接停下等用户', () async {
-      final terminal = XtermTerminalAdapter();
+      final terminal = GhosttyTerminalAdapter();
       final prompts = <TailscaleCheckPrompt?>[];
       Object? error;
       try {

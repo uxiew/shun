@@ -13,29 +13,19 @@ import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 import 'package:netcatty_mobile/presentation/screens/terminal_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flterm/flterm.dart' as flterm show TerminalView;
-import 'package:xterm2/xterm.dart' as xterm show TerminalView;
 
 // GST02：切标签、分屏、旋转、进出画中画、整页卸掉再装回，视图跟着重建，终端和连接不动；
-// 旧视图晚一步销毁不影响新视图；只有关标签才释放终端。两个引擎各跑一遍。
+// 旧视图晚一步销毁不影响新视图；只有关标签才释放终端。
 //
-// Ghostty 多两条：flterm 一个控制器同一时刻只能挂一个 flterm 视图，第二个来挂直接抛 StateError，
+// 另外两条：flterm 一个控制器同一时刻只能挂一个 flterm 视图，第二个来挂直接抛 StateError，
 // 所以全程不能有异常；关标签后原生控制器要等视图卸下才释放，但最后一定释放（R17）。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('xterm2：页面怎么重建都不新建连接、不释放终端；关标签才释放', (tester) async {
-    await _ownership(
-      tester,
-      newTerminal: XtermTerminalAdapter.new,
-      engineView: xterm.TerminalView,
-    );
-  });
-
-  testWidgets('Ghostty：同上，并且 flterm 视图不重复挂、关标签后原生控制器释放', (tester) async {
+  testWidgets('Ghostty：页面怎么重建都不新建连接、不释放终端，flterm 视图不重复挂；关标签才释放，原生控制器最后一定释放', (tester) async {
     await _ownership(
       tester,
       newTerminal: GhosttyTerminalAdapter.new,
