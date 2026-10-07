@@ -621,6 +621,11 @@ class PluginBridge(
                     null to "插件不接受宿主的 API 版本：${e.message}"
                 } catch (e: RemoteException) {
                     null to "握手时插件进程退出"
+                } catch (e: RuntimeException) {
+                    // 约定是抛 IllegalStateException，但 UnsupportedOperationException、IllegalArgumentException、
+                    // NullPointerException 也会被 Binder 原样带回来。不接住的话它在这个线程上未捕获，整个宿主被系统杀掉
+                    // （X12 在模拟器上用 echo-badhandshake 复现过；callPlugin 那条路 X08 已经补过）。
+                    null to "插件握手出错：${e.javaClass.simpleName} ${e.message ?: ""}".trim()
                 }
                 main.post {
                     val (descriptor, error) = outcome

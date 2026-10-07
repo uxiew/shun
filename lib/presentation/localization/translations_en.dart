@@ -1928,6 +1928,9 @@ const englishReplacements = <(String, String)>[
     'Missing package, service, pluginId or approved certificate'
   ),
   ('握手时插件进程退出', 'The plugin process exited during the handshake'),
+  // X12：插件在握手或调用里抛了约定以外的异常（PluginBridge.kt）。
+  ('插件握手出错：', 'Plugin handshake error: '),
+  ('插件出错：', 'Plugin error: '),
   ('插件进程已退出', 'The plugin process exited'),
   ('插件进程已不在', 'The plugin process is gone'),
   ('插件服务断开', 'The plugin service disconnected'),
