@@ -6,7 +6,8 @@
 #   (cd tool/ai-cli-fixture && ./up.sh)          # 只有 ai-cli 场景要
 #   tool/r20-gate.sh emulator-5580 tui|resources|ai-cli
 #
-# 截图放在 ../.toolchain/artifacts/r20-shots-<提交>/，日志路径最后打印。只在模拟器上用过。
+# 截图放在 ../.toolchain/artifacts/r20-shots-<提交>/，日志路径最后打印。
+# 模拟器和真机（tool/remote-device 接的 Pixel 9 Pro）都跑过；真机上不注入按键，打字都走 App 里的 sendText。
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
@@ -18,9 +19,10 @@ mkdir -p "$SHOTS"
 LOG=$(mktemp -t r20-gate)
 
 # 资源场景要用 root 读 App 的 /proc/<pid>/net/tcp（App 自己读不到 /proc/net）。adb root 会重启 adbd、清掉端口转发，
-# 所以放在 reverse 之前。只在模拟器上这么做。
+# 所以放在 reverse 之前。真机（user 版）root 不了，这句只报一句 cannot run as root，下面改在电脑这头数。
 "${ADB[@]}" root >/dev/null 2>&1 || true
 "${ADB[@]}" wait-for-device
+ROOT=$("${ADB[@]}" shell id -u | tr -d '\r')
 DEFINES=(--dart-define=R20_SCENARIO="$SCENARIO" --dart-define=R20_SHOTS=true
   --dart-define=R17_SSH="$(python3 tool/fixture-environment/r17_config.py)")
 "${ADB[@]}" reverse tcp:22201 tcp:22201 >/dev/null
@@ -38,8 +40,17 @@ flutter test integration_test/r20_gate_test.dart -d "$SERIAL" "${DEFINES[@]}" > 
 TEST=$!
 # App 里连到 SSH 测试环境（adb reverse 的 22201，十六进制 56B9）的 TCP：按 App 自己的 socket inode 筛，
 # 打 "R20HOST <名字> ssh-sockets=<个数> states=<状态码>"。状态 01 已连上、06 TIME_WAIT、08 CLOSE_WAIT。
+#
+# 没有 root（真机）时：手机上每条连 22201 的 TCP，经 adb reverse（远程手机还要再过一段 ssh -R）到电脑这头，
+# 都变成一条连 127.0.0.1:22201 的连接；数电脑上客户端一侧是 22201 的已连上连接，打 "ssh-sockets=<个数> (电脑侧)"。
+# 不读手机的 /proc/net/tcp：没 root 读不到，读到了也是整台手机所有 App 的连接，不该存下来。
+# 前提是这期间没有别的东西连本机 22201（测试环境谁起谁用，见 docs/xwshun/README.md 第 7 节）。
 ssh_sockets() {
   local pid inodes
+  if [[ "$ROOT" != 0 ]]; then
+    echo "R20HOST $1 ssh-sockets=$(lsof -nP -iTCP -sTCP:ESTABLISHED 2>/dev/null | grep -c -- '->127\.0\.0\.1:22201 ') (电脑侧)"
+    return
+  fi
   pid=$("${ADB[@]}" shell pidof top.xdwa.xwshun | tr -d '\r')
   [[ -n "$pid" ]] || { echo "R20HOST $1 ssh-sockets=? (没找到进程)"; return; }
   inodes=$("${ADB[@]}" shell "ls -l /proc/$pid/fd" 2>/dev/null | grep -o 'socket:\[[0-9]*\]' | grep -o '[0-9]*' | sort -u)
