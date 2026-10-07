@@ -247,9 +247,9 @@ brew 为本项目装的（2026-10-04）：`zig@0.16` 和它依赖的 `llvm@21`�
 | `lib/` | App 本体（Flutter + Riverpod + dartssh2）。终端引擎只经 `lib/infrastructure/terminal/` 的适配层接入 |
 | `android/` | Android 工程和原生代码：SSH 保活前台服务、画中画、手机目录授权、插件桥 |
 | `packages/plugin_api/` | 插件契约 v1（Dart 端） |
-| `plugins/` | 插件的 Android 契约与 SDK，加上只用于测试的插件 APK |
+| `plugins/` | 插件的 Android 契约与 SDK（`provider-sdk/`）、插件样例（`example/`）、真实的 Mosh 插件（`mosh/`），加上只用于测试的插件 APK |
 | `third_party/` | 自己维护的上游 fork（现在是 libghostty / flterm），说明见 `third_party/README.md` |
 | `tool/` | 发布构建脚本（`build-release.sh`）；测试工具：真实 SSH / 代理 / 跳板的 Docker 环境、多版本 tmux 环境（`tmux-fixture/`）、Tailscale 测试环境、假 Tailscale API、远程真机（`remote-device/`） |
 | `spikes/` | 终端引擎验证工程（R04，现在用来在 Android 上验 fork），不进 App |
 | `plan/v3/` | 计划、任务、用例、每批的实测证据 |
-| `docs/` | 使用手册（`user/`）、本机手册（本文件）、基座决定（`architecture/`），其余是上游原来的开发文档 |
+| `docs/` | 使用手册（`user/`）、本机手册（本文件）、插件作者文档（`plugin-authors/`）、基座决定（`architecture/`），其余是上游原来的开发文档 |

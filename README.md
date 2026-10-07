@@ -26,7 +26,8 @@ tool/build-release.sh                     # 发布用的包：终端原生库从
 | 在本机跑、测、装、清理；仓库里各目录是什么 | [docs/xwshun/README.md](docs/xwshun/README.md) |
 | 接着开发：规矩 → 进度 → 任务 | [AGENTS.md](AGENTS.md) → [plan/v3/STATUS.md](plan/v3/STATUS.md) → `plan/v3/tasks.json` |
 | 自己维护的依赖（libghostty / flterm） | [third_party/README.md](third_party/README.md) |
-| 插件 | [plugins/README.md](plugins/README.md) |
+| 写插件 | [docs/plugin-authors/README.md](docs/plugin-authors/README.md) |
+| 测试插件、Mosh 插件怎么编 | [plugins/README.md](plugins/README.md) |
 | 上游原来的文档 | [docs/README.md](docs/README.md) |
 
 ## 规矩
