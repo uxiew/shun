@@ -86,6 +86,39 @@ void main() {
       });
     });
 
+    group('xwshun: linkAt', () {
+      test('finds the link without onActivate or the modifier', () {
+        write('see https://example.test now');
+
+        final link = interaction.linkAt(
+          localPosition: const Offset(80, 4),
+          metrics: metrics,
+        );
+
+        expect(link?.text, 'https://example.test');
+      });
+
+      test('returns null off a link and when link types are disabled', () {
+        write('see https://example.test now');
+
+        expect(
+          interaction.linkAt(
+            localPosition: const Offset(8, 4),
+            metrics: metrics,
+          ),
+          isNull,
+        );
+        updateLinks(settings: const LinkSettings(types: {}));
+        expect(
+          interaction.linkAt(
+            localPosition: const Offset(80, 4),
+            metrics: metrics,
+          ),
+          isNull,
+        );
+      });
+    });
+
     group('handlePress', () {
       test('stores a candidate for release', () {
         write('https://example.test');

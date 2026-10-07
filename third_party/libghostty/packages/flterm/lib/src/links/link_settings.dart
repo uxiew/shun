@@ -213,11 +213,25 @@ final class LinkSettings {
   /// Called when the user activates a detected link.
   final ValueChanged<ActivatedLink>? onActivate;
 
+  /// xwshun: Called when a touch long press starts selection, with the
+  /// detected link under the finger, or null when there is none.
+  ///
+  /// Unlike [onActivate], this ignores [modifier] and works without
+  /// [onActivate]: an app can leave taps to the keyboard and offer links only
+  /// from the selection menu. When it is set and the long press ends without
+  /// selecting anything (the finger did not drag), the link's cells become
+  /// the selection.
+  ///
+  /// 手机上点一下终端多半是想叫键盘；上游点到链接就只报链接、不叫键盘。App 把 [onActivate] 留空，
+  /// 改成长按链接时由这里报出来，在选字菜单里给「打开链接」（R19 之后所有者 10-07 定的）。
+  final ValueChanged<ActivatedLink?>? onLongPress;
+
   const LinkSettings({
     this.types = const {.osc8, .text, .custom},
     this.modifier = .primary,
     this.rules = const [],
     this.onActivate,
+    this.onLongPress,
   });
 
   @override
@@ -226,6 +240,7 @@ final class LinkSettings {
     modifier,
     Object.hashAll(rules),
     onActivate,
+    onLongPress,
   );
 
   @override
@@ -235,7 +250,8 @@ final class LinkSettings {
           setEquals(types, other.types) &&
           modifier == other.modifier &&
           listEquals(rules, other.rules) &&
-          onActivate == other.onActivate;
+          onActivate == other.onActivate &&
+          onLongPress == other.onLongPress;
 }
 
 /// Source category for detected links.

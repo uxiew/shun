@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart' hide Key;
 import 'package:libghostty/libghostty.dart';
 
+import '../foundation/cell_range.dart';
 import '../foundation/surface_geometry.dart';
 
 /// A normalized terminal selection pointer update.
@@ -135,6 +136,20 @@ final class SelectionInteraction extends ChangeNotifier {
     if (_disposed) return;
     _wordBoundaryCodepoints = null;
     _gesture.reset();
+  }
+
+  /// xwshun: Replaces the selection with the cells of [range] (inclusive,
+  /// viewport coordinates). Out-of-viewport ranges are ignored.
+  ///
+  /// A touch long press that lands on a link and ends without a drag selects
+  /// the link this way (see `LinkSettings.onLongPress`).
+  void selectCells(CellRange range) {
+    _checkNotDisposed();
+    final start = _viewportRef(range.start);
+    final end = _viewportRef(range.end);
+    if (start == null || end == null) return;
+    resetGesture();
+    _selection._set(Selection.fromRefs(start: start, end: end));
   }
 
   /// Starts the shared selection autoscroll loop for [policy].

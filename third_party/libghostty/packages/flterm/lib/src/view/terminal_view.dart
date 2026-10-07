@@ -221,6 +221,7 @@ final class _TerminalViewState extends State<TerminalView>
                   selection: _attachment.selectionInput,
                   terminalBackground: _theme.background,
                   onLinkActivate: widget.linkSettings.onActivate,
+                  onLinkLongPress: widget.linkSettings.onLongPress,
                   // xwshun: 已有焦点时点按只 requestFocus 是空操作，焦点不变就不弹键盘。按返回收起
                   // 软键盘、或切到别的 App 再回来以后，连点终端键盘都出不来（R04 问题 3）。
                   onTap: widget.showKeyboard ? _attachment.showKeyboard : null,

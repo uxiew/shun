@@ -671,6 +671,130 @@ void main() {
         await gesture.up();
       });
 
+      group('xwshun: long press on links', () {
+        // App 不给 onActivate（点一下只叫键盘），长按才报链接。
+        LinkInteraction tapInertLinks() {
+          final links = LinkInteraction();
+          addTearDown(links.dispose);
+          links.update(
+            context: LinkContext(
+              terminal: terminalFor(controller),
+              rows: 24,
+              cols: 80,
+              cwd: null,
+            ),
+            settings: const LinkSettings(),
+            idleStyle: const HyperlinkStyle(),
+          );
+          return links;
+        }
+
+        Widget region({
+          required LinkInteraction links,
+          ValueChanged<ActivatedLink?>? onLinkLongPress,
+          VoidCallback? onTap,
+        }) {
+          final attachment = bindingFor(controller);
+          commitGeometry(controller);
+          return Directionality(
+            textDirection: TextDirection.ltr,
+            child: Align(
+              alignment: Alignment.topLeft,
+              child: InteractionRegion(
+                readVirtualMods: attachment.readVirtualMods,
+                onMouseInput: attachment.onMouseInput,
+                onScrollInput: attachment.onScrollInput,
+                selection: attachment.selectionInput,
+                metrics: defaultMetrics,
+                terminalBackground: TerminalTheme.dark().background,
+                interaction: attachment.interaction,
+                onViewportRowChanged: attachment.handleViewportRowChanged,
+                links: links,
+                onLinkLongPress: onLinkLongPress,
+                onTap: onTap,
+                child: const SizedBox(width: 640, height: 384),
+              ),
+            ),
+          );
+        }
+
+        testWidgets('tap on a link without onActivate is a plain tap', (
+          tester,
+        ) async {
+          writeToTerminal(controller, 'https://example.test');
+          var taps = 0;
+          await tester.pumpWidget(
+            region(links: tapInertLinks(), onTap: () => taps++),
+          );
+
+          await tester.tapAt(const Offset(8, 4));
+          await tester.pump(const Duration(milliseconds: 400));
+
+          expect(taps, 1);
+          expect(terminalFor(controller).selection, isNull);
+        });
+
+        testWidgets('reports the link and selects it when released in place', (
+          tester,
+        ) async {
+          writeToTerminal(controller, 'see https://example.test now');
+          final reported = <ActivatedLink?>[];
+          await tester.pumpWidget(
+            region(links: tapInertLinks(), onLinkLongPress: reported.add),
+          );
+
+          final gesture = await tester.startGesture(const Offset(80, 4));
+          await tester.pump(const Duration(milliseconds: 600));
+          expect(reported.single?.text, 'https://example.test');
+          await gesture.up();
+          await tester.pump();
+
+          final selection = terminalFor(controller).selection!;
+          expect(selection.startCol, 4);
+          expect(selection.endCol, 24);
+          expect(controller.selectedText(), 'https://example.test');
+        });
+
+        testWidgets('a drag after the long press keeps the dragged selection', (
+          tester,
+        ) async {
+          writeToTerminal(controller, 'see https://example.test now');
+          final reported = <ActivatedLink?>[];
+          await tester.pumpWidget(
+            region(links: tapInertLinks(), onLinkLongPress: reported.add),
+          );
+
+          final gesture = await tester.startGesture(const Offset(80, 4));
+          await tester.pump(const Duration(milliseconds: 600));
+          await gesture.moveTo(const Offset(220, 4));
+          await gesture.up();
+          await tester.pump();
+
+          expect(reported.single?.text, 'https://example.test');
+          final selection = terminalFor(controller).selection!;
+          expect(selection.startCol, 10);
+          expect(selection.endCol, greaterThan(24));
+        });
+
+        testWidgets('a long press elsewhere reports null and selects nothing', (
+          tester,
+        ) async {
+          writeToTerminal(controller, 'plain text\r\nhttps://example.test');
+          final reported = <ActivatedLink?>[];
+          await tester.pumpWidget(
+            region(links: tapInertLinks(), onLinkLongPress: reported.add),
+          );
+
+          final gesture = await tester.startGesture(const Offset(16, 4));
+          await tester.pump(const Duration(milliseconds: 600));
+          await gesture.up();
+          await tester.pump();
+
+          expect(reported, [null]);
+          expect(terminalFor(controller).selection, isNull);
+        });
+      });
+
       testWidgets(
         'controller notification preserves touch handles before movement',
         (tester) async {
