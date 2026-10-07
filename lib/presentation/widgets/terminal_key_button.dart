@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:flutter/gestures.dart' show kTouchSlop;
 import 'package:flutter/material.dart';
 
 import '../../infrastructure/terminal/terminal_input_controller.dart';
@@ -116,6 +117,7 @@ class _TerminalKeyButtonState extends State<TerminalKeyButton> {
   Timer? _repeatDelay;
   Timer? _repeatTimer;
   int? _repeatPointer;
+  Offset? _repeatOrigin;
   bool _suppressNextTap = false;
 
   @override
@@ -137,8 +139,10 @@ class _TerminalKeyButtonState extends State<TerminalKeyButton> {
           : localized(widget.onLongPressHint!),
       child: Listener(
         behavior: HitTestBehavior.opaque,
-        onPointerDown:
-            spec.repeatable ? (event) => _startRepeating(event.pointer) : null,
+        onPointerDown: spec.repeatable
+            ? (event) => _startRepeating(event.pointer, event.position)
+            : null,
+        onPointerMove: spec.repeatable ? _onPointerMove : null,
         onPointerUp:
             spec.repeatable ? (event) => _endRepeating(event.pointer) : null,
         onPointerCancel:
@@ -188,9 +192,10 @@ class _TerminalKeyButtonState extends State<TerminalKeyButton> {
     widget.onPressed(widget.spec);
   }
 
-  void _startRepeating(int pointer) {
+  void _startRepeating(int pointer, Offset origin) {
     if (_repeatPointer != null) return;
     _repeatPointer = pointer;
+    _repeatOrigin = origin;
     _repeatDelay = Timer(const Duration(milliseconds: 400), () {
       if (!mounted || _repeatPointer != pointer) return;
       _suppressNextTap = true;
@@ -204,6 +209,17 @@ class _TerminalKeyButtonState extends State<TerminalKeyButton> {
         },
       );
     });
+  }
+
+  /// 手指从键上起步滑走（按键面板左右滑着切到大输入框、快捷键栏一行时左右滑）：还没开始连发就不连发了。
+  /// 已经在连发的不停——按住方向键时手指难免挪一点。
+  void _onPointerMove(PointerMoveEvent event) {
+    final origin = _repeatOrigin;
+    if (_repeatPointer != event.pointer || origin == null) return;
+    if (_repeatTimer != null) return;
+    if ((event.position - origin).distance > kTouchSlop) {
+      _stopRepeating(clearTapSuppression: false);
+    }
   }
 
   void _endRepeating(int pointer) {
@@ -224,6 +240,7 @@ class _TerminalKeyButtonState extends State<TerminalKeyButton> {
     _repeatDelay = null;
     _repeatTimer = null;
     _repeatPointer = null;
+    _repeatOrigin = null;
     if (clearTapSuppression) _suppressNextTap = false;
   }
 }
