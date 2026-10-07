@@ -89,7 +89,7 @@ int uid = verifier.requireTrustedCaller();   // CallerVerifier(context, "top.xdw
 
 - 它用 `Binder.getCallingUid()` 查出调用方的包名，再从系统读这个包**当前**的签名证书，必须是你在 `xwshunHostSha256` 里写的那张。
   不是就抛 `SecurityException`，宿主那边显示「插件拒绝了宿主：…」。
-- **为什么不能只在 `onBind` 查**：宿主绑定你之后，别的 App 用同样的 Intent 去绑，系统直接把同一个 Binder 给它，`onBind` 根本不会再被调用（X02 在模拟器上实测）。
+- **为什么不能只在 `onBind` 查**：宿主绑定你之后，别的 App 用同样的 Intent 去绑，系统直接把同一个 Binder 给它，`onBind` 根本不会再被调用（模拟器上实测）。
 - **别信 Intent 里的任何东西**：extras 里的「调用方包名」之类是对方随便写的。
 - 要在任何 `Binder.clearCallingIdentity()` 之前调。每次都重新读证书，不缓存：包可能被卸载后换一张证书装回来。
 - 反过来，宿主也在每个回调里核对调用方是不是批准过的那个插件、证书是不是批准时那张。你把 `IXwshunHost` 转交给别的 App，它也调不进宿主。
@@ -140,7 +140,7 @@ int uid = verifier.requireTrustedCaller();   // CallerVerifier(context, "top.xdw
 |---|---|---|
 | 任何方法 | `SecurityException`（`CallerVerifier` 抛的） | 「插件拒绝了宿主：…」 |
 | `handshake` | `IllegalStateException` | 「连接失败：插件不接受宿主的 API 版本：<你的原话>」 |
-| `handshake` | 别的运行时异常（`UnsupportedOperationException` 等） | 「连接失败：插件握手出错：<异常类名> <原话>」。**X12（2026-10-07）之前编的宿主会整个崩掉**，所以握手里只抛 `IllegalStateException` |
+| `handshake` | 别的运行时异常（`UnsupportedOperationException` 等） | 「连接失败：插件握手出错：<异常类名> <原话>」。**2026-10-07 之前编的宿主会整个崩掉**，所以握手里只抛 `IllegalStateException` |
 | `handshake` | 返回的描述符 `pluginId` 和批准的不同 | 「插件握手时自称 X，与批准的 Y 不符」 |
 | 其他方法 | `IllegalStateException`、`IllegalArgumentException` | 「插件拒绝：<原话>」 |
 | 其他方法 | 别的运行时异常 | 「插件出错：<异常类名> <原话>」 |

@@ -11,7 +11,7 @@
 | 契约库 `plugins/provider-sdk`（AIDL + Java 工具类） | 本 fork 2026-09-29 之后新写的 | **Apache-2.0**（目录里的 `LICENSE`，文件头 `SPDX-License-Identifier: Apache-2.0`） |
 | `packages/plugin_api`（Dart 判定规则、自查命令） | 同上 | **Apache-2.0** |
 | 描述符 schema `plan/v3/contracts/` | 同上 | **Apache-2.0** |
-| 样例 `plugins/example` | X12 新写 | **Apache-2.0**；描述符里的 `license` 也是 `Apache-2.0`。`gradlew`、`gradle/wrapper/` 是 Gradle 9.1.0 生成的文件，按 Gradle 自己的 Apache-2.0 |
+| 样例 `plugins/example` | 本 fork 2026-10 新写 | **Apache-2.0**；描述符里的 `license` 也是 `Apache-2.0`。`gradlew`、`gradle/wrapper/` 是 Gradle 9.1.0 生成的文件，按 Gradle 自己的 Apache-2.0 |
 | 宿主 xwshun | [Netcatty Mobile](https://github.com/kmh1145/Netcatty-mobile)（作者 kmh1145）v1.4.7（`495f5d31`）的修改版，保留原作者版权 | GPL-3.0-or-later（仓库根目录 `LICENSE`、`NOTICE.md`） |
 | Mosh 插件 `plugins/mosh` | 本 fork 的插件代码 + 静态链接的官方 mosh-client 1.4.0（GPL-3.0-or-later，带 OpenSSL 例外）、protobuf（BSD-3-Clause）、OpenSSL 3（Apache-2.0）、ncurses（MIT 类） | **整个插件按 GPL-3.0-or-later 分发**，对外发要能提供对应源码。明细见 `plugins/mosh/LICENSES.md` |
 | 测试插件 `plugins/fixture-*` | 本 fork 写的测试用 App | GPL-3.0-or-later（跟着仓库） |
@@ -25,7 +25,7 @@
 ## 这对你意味着什么
 
 - **你的插件可以按你自己选的许可发布**，包括闭源。照抄样例、把 `provider-sdk` 编进去都可以，按 Apache-2.0 的条件办：
-  保留它们的版权和许可声明（`LICENSE` 和文件头），改过的文件写明改了。
+  保留它们的版权和许可声明（`LICENSE` 和文件头），改过的文件写明改了。**从样例改出来不等于要用 GPL**：样例本身是 Apache-2.0，不是 GPL。
 - **你的插件里链接了 GPL 的代码，就要按 GPL 办。** 比如像 Mosh 插件那样静态链接 mosh-client：整个插件就得按 GPL-3.0-or-later 分发、提供对应源码。
   用了 AGPL 的代码（比如 RustDesk 核心）同理，按 AGPL 办。
 - **宿主仍是 GPL-3.0-or-later**，SDK 改成 Apache-2.0 不改变这一点。

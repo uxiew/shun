@@ -33,7 +33,7 @@ adb install -r ~/xwshun-plugins/notes/app/build/outputs/apk/release/app-release.
 4. 宿主「设置 → 插件（实验）」→ 点你的插件 → 详情页的证书 SHA-256 和脚本打出的「你的证书」对一下 →「批准」。
 5. 点「会话测试」→「开始」：看到「插件回报：运行中（active）」和欢迎语就通了。敲 `help` 发送、点「改成 100×30」、点「关闭会话」，见第 7 步。
 
-项目这台 Mac 上（Gradle 有缓存）第 2 步实测 9 秒；新机器第一次要下载 Gradle 和 Android Gradle Plugin，看网速。
+项目这台 Mac 上（Gradle 有缓存）第 2 步实测 7–9 秒；新机器第一次要下载 Gradle 和 Android Gradle Plugin，看网速。
 脚本做了第 1–4 步的全部手工活；想知道它做了什么、或者不想用脚本，看下面的手动做法。接着就是改 `TerminalShell.java` 写你自己的逻辑（第 8 步）。
 
 ## 先说清楚现在能做什么
@@ -67,6 +67,8 @@ adb install -r ~/xwshun-plugins/notes/app/build/outputs/apk/release/app-release.
 
 宿主的 `lib/`、`android/` 不用看。
 
+代码注释和测试名里还有 `PLG06`、`SDK03` 这类编号：那是本项目内部的验证用例编号，只标明这条规则由哪条用例守着。你不用去找它们对应的文档，规则本身都写在这几份作者文档里。
+
 ## 你要准备什么
 
 | 东西 | 要求 | 没有会怎样 |
@@ -85,15 +87,17 @@ adb install -r ~/xwshun-plugins/notes/app/build/outputs/apk/release/app-release.
 
 用了上面的 `new-plugin.sh` 就不用做这四步，直接看第 5 步。
 
-## 第 1 步：复制样例，先原样编一次
-
-先别改名。原样编通、装上、看到会话通了，说明工具链和设备都没问题，之后改出毛病就知道是改出来的。
+## 第 1 步：复制样例（先别改名）
 
 ```bash
 mkdir -p ~/my-plugin
 rsync -a --exclude build --exclude .gradle <仓库>/plugins/example <仓库>/plugins/provider-sdk ~/my-plugin/
+rsync -a --exclude .dart_tool <仓库>/packages/plugin_api ~/my-plugin/example/tools/   # 第 4 步的自查用；不自查可以不拷
 cd ~/my-plugin/example
 ```
+
+先别改名：照第 2–7 步原样编通、装上、看到会话通了，再到第 8 步改成你自己的。这样工具链和设备有没有问题先排除了，之后改出毛病就知道是改出来的。
+**现在还编不了**：没有签名配置（第 2 步）和宿主证书（第 3 步），`./gradlew assembleRelease` 在 `preBuild` 就停下，告诉你缺哪一步。
 
 两个目录要放在同一个父目录下：样例默认在 `../provider-sdk` 找契约库。放别处就在 `gradle.properties` 里加一行 `xwshunSdkDir=<provider-sdk 的路径>`，
 不加会报 `找不到 provider-sdk：…`。
@@ -135,7 +139,7 @@ xwshunHostSha256=499ff3abf2d0aeb386ce3b30da1c3a0fa3566d5d89b042bf279c0773f79d500
 
 - 装好宿主后打开「设置 → 插件（实验）」，拉到最底下「给插件作者」：「本 App 的签名证书 SHA-256」那一行，长按能复制；
 - 或者对宿主 APK 文件：`$ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs 宿主.apk`，取 `certificate SHA-256 digest` 那一行。
-  （`keytool -printcert -jarfile` 读不了这种只有 v2/v3 签名的包，什么都不打印。）
+  （别用 `keytool -printcert -jarfile 宿主.apk`：它读不了这种只有 v2/v3 签名的包，只打印 `Not a signed jar file`。）
 
 写错了会怎样：构建照样成功，装上也能批准，但「连接测试」报 **「连接失败：插件拒绝了宿主：top.xdwa.xwshun 的签名证书不是信任的那张」**。
 debug 宿主是用编它那台电脑的调试证书签的，换一台电脑编的宿主证书就不同；要同时支持几个宿主，用逗号隔开写几张。
@@ -157,10 +161,14 @@ xwshunHostSha256 没填或格式不对：…怎么取见 docs/plugin-authors/REA
 **可选：构建前自查描述符**（要 Dart SDK）。报出来的话和宿主插件页上的一字不差，省得装到手机上才发现：
 
 ```bash
-<仓库>/plugins/example/tools/check-descriptor.sh ~/my-plugin/example/app/src/main/res/raw/xwshun_plugin.json \
+tools/check-descriptor.sh app/src/main/res/raw/xwshun_plugin.json \
   --package example.xwshun.hello --service example.xwshun.hello.HelloProviderService
 # 通过（宿主 API 1.0 的判定）。证书和批准要装到设备上再看。
 ```
+
+它用第 1 步拷进 `tools/plugin_api` 的那份判定代码，不 `pub get`、不往任何地方写文件（临时生成一份包配置，跑完就删）。
+没拷的话报「找不到 plugin_api」；在 xwshun 仓库里直接跑 `<仓库>/plugins/example/tools/check-descriptor.sh …` 也行，它用仓库的 `packages/plugin_api`，同样不改仓库。
+有提醒（比如「没写 license」「宿主不会调用 device-catalog」）不算失败，照样「通过」，但值得看一眼。
 
 ## 第 5 步：装到设备
 
@@ -178,6 +186,10 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 2. 点进去看详情页：插件 ID、包名、版本、能力、申请的权限，以及**签名证书 SHA-256**——和第 2 步你自己读出的那串对一下。
 3. 点「批准」，确认框里再显示一遍证书，点「批准」。状态变「可用」，出现「连接测试」「会话测试」「停用」「撤销批准」「打开插件的设置页」。
 
+**用户不批准是什么样**：详情页**没有「拒绝」按钮**。确认框里点「取消」、或者干脆不点「批准」，插件就一直是「待批准」，宿主不启动它的任何代码。
+批准过又不想用了：「停用」（批准记录留着，随时「启用」）或「撤销批准」（回到「待批准」）。
+列表里的 **「已拒绝」不是用户点出来的**，是宿主按规则判的：包名和描述符不符、换了签名、冒用保留的 ID、debug 证书装在正式版宿主上等，原因写在条目上，没有批准按钮。
+
 列表里没有你的插件、或者状态是「不兼容」「已拒绝」：看 [troubleshooting.md](troubleshooting.md)，条目上写着原因。
 
 ## 第 7 步：验证会话通了
@@ -193,6 +205,8 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 116 ms  打开会话：80×24，代次 1
 117 ms  插件回报：运行中（active）
 ```
+
+先点过「连接测试」（或者插件正有别的会话开着）时，第一行是「连接：已经连着（之前握过手），沿用这条连接：ping 往返正常…」——宿主对一个插件只留一条连接，连着就不重新握手。两种都算通。
 
 框里是你的插件写回来的字节，控制字符写成 `^X`（`^[` 是 ESC）：
 
@@ -212,7 +226,7 @@ hello>
 | 点「关闭会话」 | 「正在关闭：本 App 先关了自己这一端，再请插件关」→「已关闭：插件确认已停止（closed）」 |
 | 点「重新开始」，发 `exit` | 框里「再见。插件这边结束会话。」→「已关闭：插件自己结束了会话（closed）」 |
 
-插件这边的日志：`adb logcat -s XwshunHello`（样例的 TAG；改成你自己的）。宿主的插件桥日志 TAG 是 `XwshunPlugins`，它丢掉的事件、拒绝的调用记在那里。
+插件这边的日志：`adb logcat -s XwshunHello`（样例的 TAG；改成你自己的）。宿主那边大多数问题只显示在界面上、不写 logcat，哪些有日志见 [troubleshooting.md](troubleshooting.md) 开头。
 
 到这里，授权 → 版本协商 → 字节流 → 改尺寸 → 关闭都走过一遍了。
 
@@ -244,7 +258,7 @@ hello>
 | 插件 ID | 描述符 `pluginId` | 小写字母、数字、下划线，至少两段用点隔开（`com.yourname.foo`）；`builtin.` 开头的是宿主保留的 |
 | 名字、版本 | 描述符 `displayName`、`version`；`versionName`、`versionCode` | `version` 是 `x.y.z`；每次发新版本 `versionCode` 加 1 |
 | 会话逻辑 | `HelloShell.java`（脚本起的工程里是 `TerminalShell.java`），连同它的 JVM 单测 | 换成你的。字节流约定见 [contract.md](contract.md)「会话」。接线（`HelloSession` / `TerminalSession`）一般不用动 |
-| 设置页 | `SettingsActivity.java` | 不要就把它和清单里那个 `<activity>` 一起删掉 |
+| 设置页 | `SettingsActivity.java` | 不要就把它和清单里那个 `<activity>`（连同上面的注释）一起删掉，就这两样，删完照样编得过（实测）；欢迎语按默认用彩色 |
 | 许可 | 描述符 `license` | 写你的插件实际的许可，见 [licensing.md](licensing.md) |
 
 发新版本、换密钥、宿主升级 API 时会怎样，见 [compatibility.md](compatibility.md)。

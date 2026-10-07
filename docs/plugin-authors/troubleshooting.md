@@ -2,14 +2,23 @@
 
 > 对应插件 API **1.0**（2026-10-07）。宿主的插件 API 版本在「设置 → 插件（实验）」最底下；不是 1.0 时，先看这页有没有跟着改。
 
-按你看到的那句话找。标「实测」的是 X12 在 Android 15（API 35）arm64 模拟器上真撞出来的；没标的话取自宿主代码里的原句，没专门复现。
+按你看到的那句话找。标「实测」的是在 Android 15（API 35）arm64 模拟器上真撞出来的；没标的话取自宿主代码里的原句，没专门复现。
 
-先看日志：
+**先看界面，再看日志。** 宿主判出来的问题大多**只显示在界面上、不写 logcat**：
+
+| 问题 | 在哪看 |
+|---|---|
+| 不兼容、已拒绝、要重新批准（包名不符、换签、字段不对、证书是 debug 的……） | 插件页列表的状态和原因；详情页最上面 |
+| 连接失败：插件拒绝了宿主（宿主证书写错）、握手出错、版本不接受 | 详情页「连接测试」的结果；插件页「事件」里「连接关闭 · …」 |
+| 会话打不开、没回报 active、没确认关闭 | 「会话测试」每一步的结果 |
+
+logcat 里有的：
 
 ```bash
 adb logcat -s XwshunHello XwshunPlugins AndroidRuntime:E
-#   XwshunHello：样例插件自己的 TAG，换成你的
-#   XwshunPlugins：宿主的插件桥，丢掉的事件、拒绝的调用记在这里
+#   XwshunHello：样例插件自己的 TAG，换成你的。样例把 CallerVerifier 拒绝宿主的原因（「handshake 拒绝：…」）也记在这里
+#   XwshunPlugins：宿主的插件桥，只记两类——你发来的会话事件被丢掉（旧代次、序号不递增、不是这个插件的会话、连接已关闭、格式无效），
+#                  以及你回调宿主时身份核对没过。上面表里那些情况这里一行都没有
 #   AndroidRuntime:E：谁崩了（FATAL EXCEPTION 下面是调用栈）
 ```
 
@@ -48,6 +57,7 @@ adb logcat -s XwshunHello XwshunPlugins AndroidRuntime:E
 | 不兼容：插件服务没有声明 top.xdwa.xwshun.plugin.DESCRIPTOR | 服务上没有描述符 meta-data | 加上，`android:resource` 指向 `@raw/…` |
 | 不兼容：描述符超过 16 KiB / 读不出描述符资源 / 不是合法 JSON | 描述符文件本身的问题 | 用自查命令（README 第 4 步）先过一遍 |
 | 不兼容：不允许的字段：… | 描述符里多了约定以外的字段 | 删掉。字段集合是封闭的 |
+| 不兼容：某个字段的格式不对，比如「version 必须是 x.y.z：0.3」「pluginId 格式无效：…」「displayName 为空或含控制字符」「schemaVersion 必须是 1」「permissions 取值无效：…」「capabilities 有重复项」 | 描述符的那个字段不合规则 | 跑自查（README 第 4 步），对照 [contract.md](contract.md) 第 2 节每个字段的规则改 |
 | 不兼容：API major 2 不兼容（宿主 1）（实测，用测试插件 echo-apimajor2） | `apiMajor` 不是 1 | 写 `1`。版本规则见 compatibility.md |
 | 不兼容：未知能力：… | `capabilities` 里有宿主不认识的名字，而 `apiMinor` 又不比宿主新 | 只写 contract.md 里列的能力 |
 | 不兼容：描述符自称的服务类与实际声明插件 action 的服务不一致 | 改了包名或类名，描述符的 `serviceClass` 没跟着改 | 改成服务的全名 |
@@ -71,7 +81,7 @@ adb logcat -s XwshunHello XwshunPlugins AndroidRuntime:E
 | 没有「连接测试」按钮 | 插件不是「可用」 | 先批准；停用了就点「启用」 |
 | 连接失败：插件拒绝了宿主：top.xdwa.xwshun 的签名证书不是信任的那张（实测） | 你在 `xwshunHostSha256` 里写的不是手上这个宿主的证书。最常见：宿主是另一台电脑编的 debug 包，或者换成了正式版宿主 | 从宿主插件页底部「给插件作者」抄证书，重新构建插件 |
 | 连接失败：插件不接受宿主的 API 版本：本插件要求宿主 API 1.1 及以上，宿主是 1.0（实测，样例加 `-PminHostMinor=1` 构建） | 你的 `handshake` 不接受这个宿主版本（抛了 `IllegalStateException`） | 宿主升级，或者降低你的要求。后面那半句是你自己抛的原话 |
-| 连接失败：插件握手出错：UnsupportedOperationException …（实测，测试插件 echo-badhandshake） | 握手里抛了 `IllegalStateException` 以外的异常 | 握手里只抛 `IllegalStateException`。X12 之前编的宿主遇到这种会整个闪退（实测：`FATAL EXCEPTION: pool-6-thread-1`），新宿主只报错 |
+| 连接失败：插件握手出错：UnsupportedOperationException …（实测，测试插件 echo-badhandshake） | 握手里抛了 `IllegalStateException` 以外的异常 | 握手里只抛 `IllegalStateException`。2026-10-07 之前编的宿主遇到这种会整个闪退（实测：`FATAL EXCEPTION: pool-6-thread-1`），新宿主只报错 |
 | 插件握手时自称 X，与批准的 Y 不符 | `handshake` 返回的描述符和清单里那份不是一个 `pluginId` | 返回同一份（样例从 `R.raw.xwshun_plugin` 读） |
 | 握手时插件进程退出 / 插件进程已不在 | 插件在握手时崩了 | `adb logcat -s AndroidRuntime:E` 看调用栈 |
 | 插件的签名证书和批准时不同，已拒绝绑定 | 批准之后插件包被换了签名 | 同「已拒绝（换签）」 |
