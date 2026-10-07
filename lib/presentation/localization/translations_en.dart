@@ -2031,8 +2031,8 @@ const englishReplacements = <(String, String)>[
     ' is reserved for a built-in provider; an external package cannot use it'
   ),
   (
-    ' 是登记过的官方 ID，但安装包证书不匹配',
-    ' is a registered official ID, but the package certificate does not match'
+    ' 只认登记过的官方证书，这个安装包的证书不是那张，不能批准',
+    ' only accepts its registered official certificate; this package is signed with a different one and cannot be approved'
   ),
   (
     ' 已被另一个 provider 占用，不允许遮蔽',

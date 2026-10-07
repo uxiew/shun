@@ -101,7 +101,7 @@ class AdmissionPolicy {
     final official = reservedOfficialIds[lower];
     if (official != null &&
         candidate.actualSignerDigests.intersection(official).isEmpty) {
-      return Rejected('$id 是登记过的官方 ID，但安装包证书不匹配');
+      return Rejected('$id 只认登记过的官方证书，这个安装包的证书不是那张，不能批准');
     }
     for (final other in alreadyRegistered.values) {
       final o = other.descriptor;

@@ -28,6 +28,7 @@ cp ../android/local.properties .      # 首次：告诉 Gradle SDK 在哪（被 
 | `echo-impostor.apk` | 同上 | 另一把密钥 | 同包名不同签名（PLG04）。要先卸载 author 版才装得上 |
 | `echo-leaky.apk` | 同上 | 独立作者密钥 | 握手后把宿主回调 Binder 转交给 rogue（PLG05 宿主侧） |
 | `echo-debugkey.apk` | example.xwshun.fixture.echo.debugkey | 本机 Android 调试证书 | release 宿主拒收调试证书（PLG15） |
+| `echo-fakemosh.apk` | example.xwshun.fixture.fakemosh | 另一把密钥 | 自称 `xwshun.mosh`：宿主只认 Mosh 插件那张证书（`lib/domain/plugins/official_plugins.dart`），应「已拒绝：xwshun.mosh 只认登记过的官方证书…」、没有批准按钮（X12） |
 | `rogue.apk` | example.xwshun.fixture.rogue | 另一把密钥 | 冒用 `builtin.ssh`、伪造 Intent extras 调插件、用转交来的 Binder 调宿主 |
 | `echo-slowopen.apk` | example.xwshun.fixture.echo | 独立作者密钥 | 3 秒后才回报 active：打开途中关闭（PLG08） |
 | `echo-stubborn.apk` | 同上 | 独立作者密钥 | 不理 close、宿主关流也不回报 closed、每 500 ms 发事件（PLG12） |
