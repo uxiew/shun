@@ -96,12 +96,22 @@ final class GhosttyTerminalAdapter extends TerminalSessionAdapterBase {
     if (isDisposed || bytes.isEmpty) return;
     _fedSinceBind = true;
     _write(bytes);
+    _contentChanged();
   }
 
   @override
   void showNotice(String text) {
     if (isDisposed || text.isEmpty) return;
     _write(Uint8List.fromList(utf8.encode(text)));
+    _contentChanged();
+  }
+
+  /// 屏幕上的字变了，通知监听者（画中画小窗按它刷新文字）。
+  ///
+  /// flterm 控制器自己只在模式、主备屏、工作目录这类状态变时通知，写进来的字只通知它的视图（内部的 frameChanges）。
+  /// 不在这里补一下，画中画的文字就停在最后一次状态变化那一刻（原版 xterm2 每次写入都通知，R20 换引擎时查出来）。
+  void _contentChanged() {
+    if (!isDisposed) _changes.notify();
   }
 
   /// write 期间又来的数据先排队，这次写完再按顺序写（GST03）。

@@ -327,6 +327,21 @@ void main() {
     });
   });
 
+  test('远端写进来的字、App 的提示都通知监听者（画中画小窗按它刷新文字）', () {
+    final terminal = _terminal();
+    var notified = 0;
+    terminal.addListener(() => notified++);
+    terminal.feed(_bytes('plain text, no mode change'));
+    expect(notified, greaterThan(0), reason: '只改了屏幕上的字，没改任何模式');
+    final afterFeed = notified;
+    terminal.showNotice('正在恢复连接…');
+    expect(notified, greaterThan(afterFeed));
+    terminal.dispose();
+    final afterDispose = notified;
+    terminal.feed(_bytes('late'));
+    expect(notified, afterDispose, reason: '释放后不再通知');
+  });
+
   test('适配器只暴露和引擎无关的接口', () {
     final TerminalSessionAdapter terminal = _terminal();
     terminal.feed(_bytes('line1\r\nline2'));
