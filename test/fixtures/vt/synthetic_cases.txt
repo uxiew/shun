@@ -1,0 +1,179 @@
+# 终端引擎对比用的合成素材（R20）。每段从一个全新的 80x24 终端开始。
+#
+# 格式：「=== 名字 | 说明」开一段，下面的行直接拼起来（行尾换行不算内容）就是要喂的字节。
+# 转义：\e ESC  \r CR  \n LF  \t TAB  \b BS  \a BEL  \\ 反斜杠
+#       \xHH 一个原始字节（可以是非法 UTF-8）  \x{HHHH} 一个 Unicode 码点（按 UTF-8 编码）
+# 其余文字按 UTF-8 原样喂。码点写 \x{...} 而不写 \u：工具链会把 \u 转义提前解码，组合字符就看不见了。
+#
+# 改了这里要重录 tmux 裁判：python3 tool/vt-corpus/record.py（见 tool/vt-corpus/README.md）。
+# 测试按每段字节的 SHA256 核对裁判是不是这一版录的，对不上就失败。
+
+=== cjk-basic | 中文、日文、韩文混排
+\e[1;32m中文输出测试\e[0m：服务器已连接\r\n
+繁體與日本語テキスト、한국어\r\n
+\e[31m错误\e[39m 与 \e[4m下划线\e[24m 半角abc全角ＡＢＣ\r\n
+
+=== cjk-wrap-edge | 行尾放不下的宽字要整个折到下一行
+\e[1;80H中\e[6n
+\e[3;79H中文\e[6n
+\e[5;1H一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十一二三四五六七八九十一\e[6n
+\e[8;1Habc
+
+=== cjk-overwrite | 在宽字的左半、右半上写窄字
+\e[1;1H中文\e[1;2Hx
+\e[2;1H中文\e[2;1Hy
+\e[3;1H中文字\e[3;3H國
+\e[4;1Hab中cd\e[4;4H\e[1P
+\e[5;1Hab中cd\e[5;3H\e[1@
+
+=== emoji-width | emoji：普通、肤色、ZWJ 家庭、旗帜、VS16、VS15、键帽（每行末尾用 CPR 报出实际列，比宽度）
+A🙂B\e[6n\r\n
+A👍🏽B\e[6n\r\n
+A👨\x{200D}👩\x{200D}👧B\e[6n\r\n
+A🇨🇳B\e[6n\r\n
+A❤\x{FE0F}B\e[6n\r\n
+A☺\x{FE0E}B\e[6n\r\n
+A1\x{FE0F}\x{20E3}B\e[6n\r\n
+A✅B⚡C\e[6n\r\n
+
+=== combining | 组合字符、预组合与分解的韩文（每行末尾用 CPR 报出实际列）
+e\x{0301} a\x{0308} n\x{0303} o\x{0302}\x{0323}|\e[6n\r\n
+caf\x{00E9} vs cafe\x{0301}|\e[6n\r\n
+\x{1112}\x{1161}\x{11AB}|\x{D55C}|\e[6n\r\n
+x\x{0301}\x{0301}\x{0301}y|\e[6n\r\n
+\x{0301}lead|\e[6n\r\n
+
+=== sgr-text | SGR 不应影响文字内容
+\e[1mB\e[22m\e[3mI\e[23m\e[4mU\e[24m\e[7mR\e[27m\e[9mS\e[29m\r\n
+\e[38;5;196m256\e[0m \e[38;2;10;200;30mTRUE\e[0m \e[48;5;21mBG\e[0m \e[38:2::1:2:3mCOLON\e[0m\r\n
+\e[1;2;3;4;5;6;7;8;9;21;53mALL\e[0m\e[58;5;3m\e[4:3mCURL\e[0m|\r\n
+
+=== cursor-moves | CUP/HVP/CUU/CUD/CUF/CUB/CNL/CPL/CHA/VPA/HPA 及越界夹紧
+\e[10;10HA\e[100AB\e[200CC\e[300DD\e[400BE
+\e[0;0HF\e[12;30fG\e[3EH\e[2FI\e[5GJ\e[7dK\e[40`L
+\e[3aM\e[2eN\e[;5HO\e[5;HP\e[2;3H\e[AQ\e[BR
+
+=== erase | ED/EL/ECH 各参数
+\e[1;1H1111111111\r\n2222222222\r\n3333333333\r\n4444444444\r\n5555555555\r\n6666666666
+\e[1;5H\e[0K\e[2;5H\e[1K\e[3;5H\e[2K\e[4;3H\e[4X\e[5;5H\e[1J\e[6;1H\e[3C
+\e[10;1Hkeep-row10\e[11;1Hkeep-row11\e[10;5H\e[0J
+
+=== scroll-region | DECSTBM 里的换行、IND、RI、SU、SD、NEL
+\e[1;1Hrow1\r\nrow2\r\nrow3\r\nrow4\r\nrow5\r\nrow6\r\nrow7\r\nrow8\r\nrow9\r\nrow10\r\nrow11\r\nrow12
+\e[3;6r\e[6;1H\nA\eDB\e[3;1H\eMC\e[2SD\e[1TE\e[4;1H\eEF\e[r\e[20;1HG
+
+=== insert-delete | IL/DL/ICH/DCH/ECH，含滚动区内外
+\e[1;1Haaaa\r\nbbbb\r\ncccc\r\ndddd\r\neeee\r\nffff
+\e[2;1H\e[2L\e[5;1H\e[1M
+\e[8;1H0123456789\e[8;3H\e[3@\e[8;10H\e[2P\e[8;1H\e[2X
+\e[2;5r\e[3;1H\e[10L\e[r\e[12;1Hend
+
+=== tabs | 默认制表位、HTS、TBC、CHT、CBT
+a\tb\tc\r\n
+\e[2;5H\eH\e[2;13H\eH\r\tx\ty\ty\r\n
+\e[3g\e[3;1H\tz\r\n
+\e[4;1H\e[I1\e[2I2\e[Z3\e[5;40H\e[3Z4
+
+=== autowrap | DECAWM 与行尾待折行状态
+0123456789012345678901234567890123456789012345678901234567890123456789012345678X
+\rY\r\n
+\e[4;1H0123456789012345678901234567890123456789012345678901234567890123456789012345678XZ
+\e[7;1H\e[?7l0123456789012345678901234567890123456789012345678901234567890123456789012345678XWV\e[?7h
+\e[9;79Hab\bc\e[10;80Hd\e[Ke
+\e[12;80Hq\e[1Dr
+\e[14;80Hs\nt
+
+=== origin-mode | DECOM：CUP 相对滚动区，越界夹在滚动区里
+\e[5;10r\e[?6h\e[1;1HA\e[99;1HB\e[?6l\e[1;1HC\e[r\e[20;1HD
+
+=== alt-screen-1049 | 1049：存光标、切备用屏并清屏、回来恢复
+main-line-1\r\nmain-line-2\e[2;5H\e[?1049hALT\e[10;10Halt-text\e[?1049lX
+
+=== alt-screen-47-1047 | 47 不清备用屏、1047 回主屏时清掉备用屏
+main\e[?47hA47\e[?47l\e[2;1H\e[?47h\e[?47l\e[3;1H\e[?1047hB1047\e[?1047l\e[4;1H\e[?47h\e[5;1Hpeek\e[?47l\e[6;1Hdone
+
+=== decsc-decrc | DECSC/DECRC 与 SCOSC/SCORC
+\e[5;5H\e7\e[10;10Hfar\e8near\e[15;15H\e[s\e[1;1Htop\e[uback
+
+=== irm | 插入模式
+\e[1;1Habcdef\e[1;3H\e[4hXY\e[4lZ
+\e[2;1H中文abc\e[2;1H\e[4h字\e[4l
+
+=== dec-graphics | DEC 特殊图形字符集（画框）、G1 与 SO/SI
+\e(0lqqqk\r\nx  x\r\nmqqqj\e(B\r\n
+\e)0\x0elqk\x0fabc\x0eaa`\x0f\r\n
+\e(0tqnqu~\e(Bok
+
+=== c1-controls | C1 控制：UTF-8 编码的 U+009B，以及原始 0x9B 字节
+A\x{009B}31mB\e[0mC\r\n
+D\x9b31mE\e[0mF\r\n
+G\x{0085}H\r\n
+
+=== invalid-utf8 | 非法 UTF-8：孤立续字节、截断、超长编码、代理区、超范围
+a\x80b\r\n
+c\xe4\xb8d\r\n
+e\xc0\xafg\r\n
+h\xed\xa0\x80i\r\n
+j\xf4\x90\x80\x80k\r\n
+l\xfe\xffm\r\n
+
+=== bare-del | 裸 DEL（0x7F）：VT100/xterm 忽略它
+ab\x7fcd\r\n
+\x7f\x7fxy\r\n
+
+=== bs-cr-lf | col 0 的 BS、待折行时的 BS、VT/FF、NEL、CR
+\bX\b\bY\r\n
+0123456789012345678901234567890123456789012345678901234567890123456789012345678Q\bR\r\n
+a\x0bb\x0cc\r\n
+\eEnel\r\n
+abc\rZ
+
+=== scroll-into-history | 超过一屏的输出：可见区是最后 24 行
+L01\r\nL02\r\nL03\r\nL04\r\nL05\r\nL06\r\nL07\r\nL08\r\nL09\r\nL10\r\nL11\r\nL12\r\nL13\r\nL14\r\nL15\r\n
+L16\r\nL17\r\nL18\r\nL19\r\nL20\r\nL21\r\nL22\r\nL23\r\nL24\r\nL25\r\nL26\r\nL27\r\nL28\r\nL29\r\nL30
+
+=== ri-top | 屏幕顶上 RI 往下推一行
+\e[1;1Hfirst\r\nsecond\e[1;1H\eMnew-top
+
+=== rep | REP（CSI b）：ncurses 的 xterm-256color 会用它重复上一个字
+a\e[5b|\r\n
+中\e[3b|\r\n
+\e[2b|
+
+=== decaln | DECALN（ESC # 8）用 E 填满屏幕
+\e#8\e[12;30H centre \e[24;80H
+
+=== resets | DECSTR 软复位、RIS 全复位
+\e[5;10rabc\e[!p\e[?6h\e[1;1Hsoft\e[?6l\e[3;1Hline3\ecafter-ris
+
+=== long-params | 超大参数、超多参数、不结束的 OSC 被 CAN 打断
+\e[99999999999999999999Bdown\e[1;1H
+\e[1;2;3;4;5;6;7;8;9;10;11;12;13;14;15;16;17;18;19;20;21;22;23;24;25;26;27;28;29;30;31;32;33;34;35;36;37;38;39;40mx\e[0m
+\e]0;unterminated title\x18after-can\r\n
+\eP1$rignored\e\\dcs-done\r\n
+\e_apc payload\e\\apc-done\r\n
+\e^pm payload\e\\pm-done
+
+=== osc-text | OSC 标题、OSC 8 链接、OSC 7：只影响状态不出字
+\e]0;title\a\e]2;title2\e\\\e]8;;https://example.com/a\e\\link\e]8;;\e\\ text\e]7;file:///tmp\a end
+
+=== sync-output | 同步输出（2026）期间的内容照样进屏幕
+\e[?2026hframe-1\r\nframe-2\e[?2026l done
+
+=== slrm | DECSLRM 左右边距（?69）
+\e[?69h\e[5;10s\e[1;1Habcdefghijklmnop\e[2;5Hxyz\e[s\e[?69l\e[3;1Hafter
+
+=== responses | 会让终端回话的查询（比较两个引擎回给远端的字节）
+\e[c\e[0c\e[>c\e[>0c\e[=c\e[5n\e[6n\e[?6n
+\e[4$p\e[20$p\e[?1$p\e[?6$p\e[?7$p\e[?25$p\e[?47$p\e[?1000$p\e[?1006$p\e[?1049$p\e[?2004$p\e[?2026$p\e[?2027$p\e[?9999$p
+\e[>q\e[>0q
+\eP$qm\e\\\eP$qr\e\\\eP$q"q\e\\\eP$q q\e\\
+\eP+q544e\e\\\eP+q436f\e\\
+\e[18t\e[14t\e[16t\e[21t\e[20t
+\e]10;?\a\e]11;?\e\\\e]12;?\a\e]4;1;?\a
+\e[?u\e[?996n
+
+=== responses-after-modes | 设置模式后再问：回应要反映新状态
+\e[?1h\e[?2004h\e[?1000h\e[?1006h\e[?25l\e[4h
+\e[?1$p\e[?2004$p\e[?1000$p\e[?1006$p\e[?25$p\e[4$p
+\e[3;7H\e[6n\e[?6h\e[5;20r\e[6n
