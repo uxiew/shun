@@ -47,6 +47,7 @@ class _TerminalComposeBoxState extends ConsumerState<TerminalComposeBox> {
   late final _editor =
       TextEditingController(text: widget.drafts.textOf(_tabId));
   String? _error;
+  final _fieldKey = GlobalKey(debugLabel: 'terminal-compose-field');
 
   String get _tabId => widget.session.id;
 
@@ -235,25 +236,30 @@ class _TerminalComposeBoxState extends ConsumerState<TerminalComposeBox> {
         ),
     ];
 
-    Widget field(bool dense) => TextField(
-          key: const ValueKey('terminal-compose-editor'),
-          controller: _editor,
-          focusNode: widget.focusNode,
-          expands: !dense,
-          minLines: dense ? 1 : null,
-          maxLines: dense ? 3 : null,
-          textAlignVertical: TextAlignVertical.top,
-          keyboardType: TextInputType.multiline,
-          textInputAction: TextInputAction.newline,
-          // 框里可能是密码：开了「系统安全键盘」就不联想、不学习。
-          enableSuggestions: !widget.secureKeyboard,
-          autocorrect: !widget.secureKeyboard,
-          enableIMEPersonalizedLearning: !widget.secureKeyboard,
-          style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
-          decoration: LInputDecoration(
-            isDense: true,
-            border: const OutlineInputBorder(),
-            hintText: '在这里打字或说话，回车只是换行；点「发送」才发到终端',
+    // 一行和多行两种摆法之间换的时候，框得是同一个（GlobalKey 让它整个搬过去）：换成新框的话输入法连接断开重连，
+    // 系统键盘不会自己弹回来（模拟器横屏时撞上：点进框里，框换成一行的摆法，键盘没出来）。
+    Widget field(bool dense) => KeyedSubtree(
+          key: _fieldKey,
+          child: TextField(
+            key: const ValueKey('terminal-compose-editor'),
+            controller: _editor,
+            focusNode: widget.focusNode,
+            expands: !dense,
+            minLines: dense ? 1 : null,
+            maxLines: dense ? 3 : null,
+            textAlignVertical: TextAlignVertical.top,
+            keyboardType: TextInputType.multiline,
+            textInputAction: TextInputAction.newline,
+            // 框里可能是密码：开了「系统安全键盘」就不联想、不学习。
+            enableSuggestions: !widget.secureKeyboard,
+            autocorrect: !widget.secureKeyboard,
+            enableIMEPersonalizedLearning: !widget.secureKeyboard,
+            style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
+            decoration: LInputDecoration(
+              isDense: true,
+              border: const OutlineInputBorder(),
+              hintText: '在这里打字或说话，回车只是换行；点「发送」才发到终端',
+            ),
           ),
         );
 

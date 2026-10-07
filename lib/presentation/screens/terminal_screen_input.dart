@@ -223,9 +223,14 @@ mixin _TerminalInputHost on ConsumerState<TerminalScreen> {
         panelHeight = math.max(0.0, panel - overlap);
       }
     } else if (_awaitKeyboardUntil case final until?
-        when DateTime.now().isBefore(until) && overlap < panel * .9) {
-      reserve = math.max(0.0, panel - overlap);
+        when DateTime.now().isBefore(until) && keyboard != null) {
+      // 空出来的是键盘要占的位置（上次键盘的高度），不是面板的高度：面板比键盘高时（面板有最低高度），
+      // 照面板空，终端会先被压矮、键盘升上来以后再变高，远端收到两次尺寸（模拟器上撞过：17 行再 27 行）。
+      reserve = math.max(0.0, keyboard - overlap);
     }
+    // 键盘升降的那几帧里，终端页会比不弹键盘时还高一截（模拟器上最多 24dp）：键盘一出来，系统手势条那一截
+    // 底部留白就不算了，底部导航栏随之变矮。这一截也空着，不然终端先多一行再缩回去，远端收到两次尺寸。
+    if (inset > 0 && height > full) reserve += height - full;
     final remaining = height - panelHeight - reserve;
     final tight = remaining < _tightTerminalHeight;
     return _InputLayout(
@@ -270,7 +275,8 @@ class _InputLayout {
   /// 面板按多高排版（露不全的部分剪掉）。
   final double panelLayoutHeight;
 
-  /// 刚换回系统键盘、键盘还没升上来时空出来的高度。
+  /// 终端下面额外空出来的高度：刚换回系统键盘、键盘还没升上来时给它留的位置，
+  /// 以及键盘升降那几帧里终端页多出来的那一截。
   final double reserve;
   final bool dense;
   final bool compact;

@@ -20,6 +20,9 @@ import 'r18_remote_capture.dart';
 
 void r25(String key, Object? value) => debugPrint('R25 $key=$value');
 
+/// all：全部；layout：只跑面板切换的尺寸和横屏（不要回放输入法，可以拿系统自带的 Gboard 跑）。
+const r25Scenario = String.fromEnvironment('R25_SCENARIO', defaultValue: 'all');
+
 Future<void> settle(WidgetTester tester, [int ms = 800]) async {
   for (var i = 0; i < ms ~/ 50; i++) {
     await tester.pump(const Duration(milliseconds: 50));
@@ -99,183 +102,193 @@ void main() {
       }
 
       r25('$engine.panel.open', geometry());
-      var bytes = await captureRemote(tester, terminal, () async {
-        for (final label in ['Esc', 'Tab', '⌫', '⏎', '↑', '←', 'PgUp', '|']) {
-          await tap(_panelKey(label));
+      if (r25Scenario == 'all') {
+        var bytes = await captureRemote(tester, terminal, () async {
+          for (final label in ['Esc', 'Tab', '⌫', '⏎', '↑', '←', 'PgUp', '|']) {
+            await tap(_panelKey(label));
+          }
+          await tap(find.byKey(const ValueKey('terminal-key-page-function')));
+          await tap(_panelKey('F1'));
+          await tap(_panelKey('F12'));
+          await tap(find.byKey(const ValueKey('terminal-key-page-control')));
+          await tap(_panelKey('Ctrl+R'));
+          await tap(find.byKey(const ValueKey('terminal-key-page-common')));
+          // 修饰键一次性：Ctrl 再按符号页的 [，就是 Esc；之后的 / 不再带 Ctrl。
+          await tap(_panelKey('Ctrl'));
+          await tap(find.byKey(const ValueKey('terminal-key-page-symbols')));
+          await tap(_panelKey('['));
+          await tap(_panelKey('/'));
+          await tap(find.byKey(const ValueKey('terminal-key-page-common')));
+        }, end: CaptureEnd.timeout, seconds: 20);
+        const expectedKeys = [
+          0x1b, 0x09, 0x7f, 0x0d, 0x1b, 0x5b, 0x41, 0x1b, 0x5b, 0x44, //
+          0x1b, 0x5b, 0x35, 0x7e, 0x7c, 0x1b, 0x4f, 0x50, //
+          0x1b, 0x5b, 0x32, 0x34, 0x7e, 0x12, 0x1b, 0x2f,
+        ];
+        r25('$engine.keys',
+            'bytes=[${hex(bytes)}] expected=[${hex(expectedKeys)}]');
+        if (hex(bytes) != hex(expectedKeys)) failures.add('keys');
+
+        // ---------- 2. 大输入框：回放输入法的微信语音（边说边改）、拼音，框里改完再发 ----------
+        await tap(find.byKey(const ValueKey('terminal-input-tab-compose')));
+        await waitFor(tester, () => tester.view.viewInsets.bottom > 0,
+            what: '点进大输入框后系统键盘弹出');
+        String editorText() =>
+            tester.widget<TextField>(_editor).controller!.text;
+        for (final (script, expected) in [
+          ('wechat_voice', '你好啊，你是谁？在一'),
+          ('pinyin', '你 ok'),
+        ]) {
+          report('READY', script);
+          // 回放脚本最后会提交一个 Ctrl-C（给终端那边结束收数用的）：在框里它只是个控制字符，发的时候去掉。
+          await waitFor(tester, () => editorText().contains('\x03'),
+              timeout: const Duration(seconds: 20), what: '回放 $script');
+          await settle(tester, 300);
+          final inBox = editorText();
+          bytes = await captureRemote(tester, terminal, () async {
+            await tap(find.byKey(const ValueKey('terminal-compose-send')));
+          }, end: CaptureEnd.timeout, seconds: 6);
+          final want = [...utf8.encode(expected), 0x0d];
+          r25('$engine.compose.$script',
+              'box=${jsonEncode(inBox)} bytes=[${hex(bytes)}] expected=[${hex(want)}] boxAfter=${jsonEncode(editorText())}');
+          if (hex(bytes) != hex(want) || editorText().isNotEmpty) {
+            failures.add('compose-$script');
+          }
         }
-        await tap(find.byKey(const ValueKey('terminal-key-page-function')));
-        await tap(_panelKey('F1'));
-        await tap(_panelKey('F12'));
-        await tap(find.byKey(const ValueKey('terminal-key-page-control')));
-        await tap(_panelKey('Ctrl+R'));
-        await tap(find.byKey(const ValueKey('terminal-key-page-common')));
-        // 修饰键一次性：Ctrl 再按符号页的 [，就是 Esc；之后的 / 不再带 Ctrl。
-        await tap(_panelKey('Ctrl'));
-        await tap(find.byKey(const ValueKey('terminal-key-page-symbols')));
-        await tap(_panelKey('['));
-        await tap(_panelKey('/'));
-        await tap(find.byKey(const ValueKey('terminal-key-page-common')));
-      }, end: CaptureEnd.timeout, seconds: 20);
-      const expectedKeys = [
-        0x1b, 0x09, 0x7f, 0x0d, 0x1b, 0x5b, 0x41, 0x1b, 0x5b, 0x44, //
-        0x1b, 0x5b, 0x35, 0x7e, 0x7c, 0x1b, 0x4f, 0x50, //
-        0x1b, 0x5b, 0x32, 0x34, 0x7e, 0x12, 0x1b, 0x2f,
-      ];
-      r25('$engine.keys',
-          'bytes=[${hex(bytes)}] expected=[${hex(expectedKeys)}]');
-      if (hex(bytes) != hex(expectedKeys)) failures.add('keys');
 
-      // ---------- 2. 大输入框：回放输入法的微信语音（边说边改）、拼音，框里改完再发 ----------
-      await tap(find.byKey(const ValueKey('terminal-input-tab-compose')));
-      await waitFor(tester, () => tester.view.viewInsets.bottom > 0,
-          what: '点进大输入框后系统键盘弹出');
-      String editorText() => tester.widget<TextField>(_editor).controller!.text;
-      for (final (script, expected) in [
-        ('wechat_voice', '你好啊，你是谁？在一'),
-        ('pinyin', '你 ok'),
-      ]) {
-        report('READY', script);
-        // 回放脚本最后会提交一个 Ctrl-C（给终端那边结束收数用的）：在框里它只是个控制字符，发的时候去掉。
-        await waitFor(tester, () => editorText().contains('\x03'),
-            timeout: const Duration(seconds: 20), what: '回放 $script');
-        await settle(tester, 300);
-        final inBox = editorText();
-        bytes = await captureRemote(tester, terminal, () async {
-          await tap(find.byKey(const ValueKey('terminal-compose-send')));
-        }, end: CaptureEnd.timeout, seconds: 6);
-        final want = [...utf8.encode(expected), 0x0d];
-        r25('$engine.compose.$script',
-            'box=${jsonEncode(inBox)} bytes=[${hex(bytes)}] expected=[${hex(want)}] boxAfter=${jsonEncode(editorText())}');
-        if (hex(bytes) != hex(want) || editorText().isNotEmpty) {
-          failures.add('compose-$script');
+        // ---------- 3. 大输入框发到真 bash：bracketed paste 开/关、只填入、断线不发、恢复后要改发 ----------
+        FocusManager.instance.primaryFocus?.unfocus();
+        await settle(tester);
+        Future<String> files() =>
+            exec(session, 'cd; ls r25-* 2>/dev/null | tr "\\n" " "');
+        void setBox(String text) =>
+            tester.widget<TextField>(_editor).controller!.text = text;
+        await exec(session, 'rm -f ~/r25-*');
+        terminal.sendText('exec bash --norc --noprofile\r');
+        await run(tester, terminal, 'echo bash');
+
+        setBox('touch ~/r25-a\ntouch ~/r25-b');
+        await settle(tester);
+        final bracketedNote = find
+            .byKey(const ValueKey('terminal-compose-risk-bracketed'))
+            .evaluate()
+            .isNotEmpty;
+        await tap(find.byKey(const ValueKey('terminal-compose-fill')));
+        await settle(tester, 1500);
+        var created = await files();
+        r25('$engine.bash.fillBracketed',
+            'note=$bracketedNote files="$created"');
+        if (!bracketedNote || created.isNotEmpty) {
+          failures.add('fill-bracketed');
         }
+        terminal.sendText('\x15');
+
+        setBox('touch ~/r25-c\ntouch ~/r25-d');
+        await settle(tester);
+        await tap(find.byKey(const ValueKey('terminal-compose-send')));
+        await settle(tester, 1500);
+        created = await files();
+        r25('$engine.bash.sendBracketed', 'files="$created"');
+        if (created.trim() != 'r25-c r25-d') failures.add('send-bracketed');
+
+        await run(tester, terminal, "bind 'set enable-bracketed-paste off'");
+        setBox('touch ~/r25-e\ntouch ~/r25-f');
+        await settle(tester);
+        final linesRunNote = find
+            .byKey(const ValueKey('terminal-compose-risk-lines-run'))
+            .evaluate()
+            .isNotEmpty;
+        await tap(find.byKey(const ValueKey('terminal-compose-fill')));
+        await settle(tester, 1500);
+        created = await files();
+        r25('$engine.bash.fillLinesRun', 'note=$linesRunNote files="$created"');
+        if (!linesRunNote || created.trim() != 'r25-c r25-d r25-e') {
+          failures.add('fill-lines-run');
+        }
+        terminal.sendText('\x15');
+
+        // 断线：不发、字留着；自动恢复成新连接后也不发，点「改发到新连接」才发。
+        setBox('touch ~/r25-g');
+        await settle(tester);
+        terminal.sendText(r'(sleep 1; kill -9 $PPID) &' '\r');
+        await waitFor(tester, () => !session.connected, what: '断线');
+        await settle(tester);
+        final sendEnabledOffline = tester
+                .widget<FilledButton>(
+                    find.byKey(const ValueKey('terminal-compose-send')))
+                .onPressed !=
+            null;
+        await controller.reconnectDisconnected();
+        await waitFor(
+            tester,
+            () => controller.state.sessions.any((s) =>
+                s.id == session.id && s.connected && !identical(s, session)),
+            what: '恢复');
+        session = controller.state.sessions.single;
+        await settle(tester, 2000);
+        final retarget =
+            find.byKey(const ValueKey('terminal-compose-retarget'));
+        final retargetOffered = retarget.evaluate().isNotEmpty;
+        created = await files();
+        final notResent = !created.contains('r25-g');
+        if (retargetOffered) await tap(retarget);
+        await tap(find.byKey(const ValueKey('terminal-compose-send')));
+        await settle(tester, 1500);
+        created = await files();
+        r25(
+            '$engine.bash.disconnect',
+            'sendEnabledOffline=$sendEnabledOffline retargetOffered=$retargetOffered '
+                'notResentBeforeRetarget=$notResent filesAfterRetarget="$created"');
+        if (sendEnabledOffline ||
+            !retargetOffered ||
+            !notResent ||
+            !created.contains('r25-g')) {
+          failures.add('disconnect');
+        }
+        await exec(session, 'rm -f ~/r25-*');
       }
 
-      // ---------- 3. 大输入框发到真 bash：bracketed paste 开/关、只填入、断线不发、恢复后要改发 ----------
-      FocusManager.instance.primaryFocus?.unfocus();
-      await settle(tester);
-      Future<String> files() =>
-          exec(session, 'cd; ls r25-* 2>/dev/null | tr "\\n" " "');
-      void setBox(String text) =>
-          tester.widget<TextField>(_editor).controller!.text = text;
-      await exec(session, 'rm -f ~/r25-*');
-      terminal.sendText('exec bash --norc --noprofile\r');
-      await run(tester, terminal, 'echo bash');
-
-      setBox('touch ~/r25-a\ntouch ~/r25-b');
-      await settle(tester);
-      final bracketedNote = find
-          .byKey(const ValueKey('terminal-compose-risk-bracketed'))
-          .evaluate()
-          .isNotEmpty;
-      await tap(find.byKey(const ValueKey('terminal-compose-fill')));
-      await settle(tester, 1500);
-      var created = await files();
-      r25('$engine.bash.fillBracketed', 'note=$bracketedNote files="$created"');
-      if (!bracketedNote || created.isNotEmpty) failures.add('fill-bracketed');
-      terminal.sendText('\x15');
-
-      setBox('touch ~/r25-c\ntouch ~/r25-d');
-      await settle(tester);
-      await tap(find.byKey(const ValueKey('terminal-compose-send')));
-      await settle(tester, 1500);
-      created = await files();
-      r25('$engine.bash.sendBracketed', 'files="$created"');
-      if (created.trim() != 'r25-c r25-d') failures.add('send-bracketed');
-
-      await run(tester, terminal, "bind 'set enable-bracketed-paste off'");
-      setBox('touch ~/r25-e\ntouch ~/r25-f');
-      await settle(tester);
-      final linesRunNote = find
-          .byKey(const ValueKey('terminal-compose-risk-lines-run'))
-          .evaluate()
-          .isNotEmpty;
-      await tap(find.byKey(const ValueKey('terminal-compose-fill')));
-      await settle(tester, 1500);
-      created = await files();
-      r25('$engine.bash.fillLinesRun', 'note=$linesRunNote files="$created"');
-      if (!linesRunNote || created.trim() != 'r25-c r25-d r25-e') {
-        failures.add('fill-lines-run');
-      }
-      terminal.sendText('\x15');
-
-      // 断线：不发、字留着；自动恢复成新连接后也不发，点「改发到新连接」才发。
-      setBox('touch ~/r25-g');
-      await settle(tester);
-      terminal.sendText(r'(sleep 1; kill -9 $PPID) &' '\r');
-      await waitFor(tester, () => !session.connected, what: '断线');
-      await settle(tester);
-      final sendEnabledOffline = tester
-              .widget<FilledButton>(
-                  find.byKey(const ValueKey('terminal-compose-send')))
-              .onPressed !=
-          null;
-      await controller.reconnectDisconnected();
-      await waitFor(
-          tester,
-          () => controller.state.sessions.any((s) =>
-              s.id == session.id && s.connected && !identical(s, session)),
-          what: '恢复');
-      session = controller.state.sessions.single;
-      await settle(tester, 2000);
-      final retarget = find.byKey(const ValueKey('terminal-compose-retarget'));
-      final retargetOffered = retarget.evaluate().isNotEmpty;
-      created = await files();
-      final notResent = !created.contains('r25-g');
-      if (retargetOffered) await tap(retarget);
-      await tap(find.byKey(const ValueKey('terminal-compose-send')));
-      await settle(tester, 1500);
-      created = await files();
-      r25(
-          '$engine.bash.disconnect',
-          'sendEnabledOffline=$sendEnabledOffline retargetOffered=$retargetOffered '
-              'notResentBeforeRetarget=$notResent filesAfterRetarget="$created"');
-      if (sendEnabledOffline ||
-          !retargetOffered ||
-          !notResent ||
-          !created.contains('r25-g')) {
-        failures.add('disconnect');
-      }
-      await exec(session, 'rm -f ~/r25-*');
-
-      // ---------- 4. 切换时终端尺寸：远端（bash 的 WINCH）每次切换最多收到一次，最后和看得见的行数一致 ----------
+      // ---------- 4. 切换时终端尺寸：远端每次切换最多收到一次窗口变化（SIGWINCH），最后和看得见的行数一致 ----------
+      // 前台跑一个只数 WINCH 的 bash：每收到一次就把当时的 stty size 追加到文件里；用另一个 exec 通道读文件。
+      // （不能在交互 shell 里 trap：断线恢复后的新 shell 是 busybox sh，它的 WINCH trap 不记数。）
       final shell = session.terminal;
-      await run(tester, shell, r"n=0; trap 'n=$((n+1))' WINCH");
-      var probe = 0;
-      Future<(int, int, int)> sizeAndWinches() async {
-        final tag = 'Z${probe++}';
-        shell.sendText('echo $tag \$(stty size) W\$n E\$((7*6))\r');
-        await waitFor(tester, () => shell.allText().contains('E42'),
-            what: 'stty');
-        final line = shell
-            .allText()
-            .split('\n')
-            .lastWhere((l) => l.startsWith('$tag ') && l.contains('E42'));
-        final parts = line.trim().split(RegExp(r'\s+'));
-        final w = int.parse(parts[3].substring(1));
-        shell.sendText('clear\r');
-        await settle(tester, 300);
-        return (int.parse(parts[1]), int.parse(parts[2]), w);
+      await exec(session, 'rm -f /tmp/r25-winch');
+      shell.sendText("bash -c 'trap \"stty size >> /tmp/r25-winch\" WINCH; "
+          "stty size > /tmp/r25-winch0; while :; do sleep 0.1; done'\r");
+      await settle(tester, 1500);
+      Future<List<String>> winches() async {
+        final text = await exec(session, 'cat /tmp/r25-winch 2>/dev/null');
+        return [
+          for (final line in text.split('\n'))
+            if (line.trim().isNotEmpty) line.trim(),
+        ];
       }
 
+      var lastSize = await exec(session, 'cat /tmp/r25-winch0');
       Future<void> step(String name, Future<void> Function() act) async {
-        final (_, _, before) = await sizeAndWinches();
+        final before = (await winches()).length;
         await act();
         await settle(tester, 1500);
-        final (rows, columns, after) = await sizeAndWinches();
+        final all = await winches();
+        final added = all.sublist(before);
+        if (added.isNotEmpty) lastSize = added.last;
+        final parts = lastSize.split(' ');
+        final rows = int.parse(parts[0]);
         final panelRect =
             _panel.evaluate().isEmpty ? null : tester.getRect(_panel);
         final terminalRect = tester.getRect(viewFinder.first);
         final inset =
             tester.view.viewInsets.bottom / tester.view.devicePixelRatio;
-        final winches = after - before;
         r25(
             '$engine.resize.$name',
-            'winches=$winches remote=${rows}x$columns viewRows=${shell.viewRows} '
+            'winches=${added.length} sizes=$added remote=$lastSize viewRows=${shell.viewRows} '
                 'terminal=${terminalRect.top.round()}..${terminalRect.bottom.round()} '
                 'panel=${panelRect == null ? '-' : '${panelRect.top.round()}..${panelRect.bottom.round()}'} '
                 'keyboardInset=${inset.round()}');
-        if (winches > 1) failures.add('resize-$name: $winches 次');
+        // 转屏不是面板切换，按 R18 的规矩合并（先发第一个、100ms 后补最后一个），不按这一条算。
+        if (added.length > 1 && !name.startsWith('rotate')) {
+          failures.add('resize-$name: ${added.length} 次');
+        }
         if (rows != shell.viewRows || rows < 1) {
           failures.add('resize-$name: 远端 $rows 行，引擎 ${shell.viewRows} 行');
         }
@@ -285,6 +298,8 @@ void main() {
       }
 
       await step('keysPage', () async {
+        FocusManager.instance.primaryFocus?.unfocus();
+        await settle(tester);
         await tap(find.byKey(const ValueKey('terminal-input-tab-keys')));
       });
       await step('hidePanel', () async {
@@ -306,18 +321,48 @@ void main() {
         await waitFor(tester, () => tester.view.viewInsets.bottom > 0,
             what: '大输入框的键盘');
       });
+      await step('composeBlur', () async {
+        FocusManager.instance.primaryFocus?.unfocus();
+        await waitFor(tester, () => tester.view.viewInsets.bottom == 0,
+            what: '键盘收起');
+      });
 
       // ---------- 5. 横屏：面板开着、大输入框弹着键盘，终端都不被挤成 0 行 ----------
-      await SystemChrome.setPreferredOrientations(
-          const [DeviceOrientation.landscapeLeft]);
-      await waitFor(tester, () {
-        final size = tester.view.physicalSize;
-        return size.width > size.height;
-      }, what: '转横屏');
-      await step('landscapeCompose', () async {});
+      await step('rotateLandscape', () async {
+        await SystemChrome.setPreferredOrientations(
+            const [DeviceOrientation.landscapeLeft]);
+        await waitFor(tester, () {
+          final size = tester.view.physicalSize;
+          return size.width > size.height;
+        }, what: '转横屏');
+      });
       await step('landscapeKeys', () async {
         await tap(find.byKey(const ValueKey('terminal-input-tab-keys')));
       });
+      await step('landscapeCompose', () async {
+        await tap(find.byKey(const ValueKey('terminal-input-tab-compose')));
+        await settle(tester, 2000);
+        r25(
+            '$engine.landscapeCompose.afterTab',
+            'focus=${FocusManager.instance.primaryFocus} editor=${_editor.evaluate().isNotEmpty} '
+                'inset=${tester.view.viewInsets.bottom}');
+        if (tester.view.viewInsets.bottom == 0 &&
+            _editor.evaluate().isNotEmpty) {
+          await tap(_editor);
+          await settle(tester, 2000);
+          r25('$engine.landscapeCompose.afterEditorTap',
+              'focus=${FocusManager.instance.primaryFocus} inset=${tester.view.viewInsets.bottom}');
+        }
+        await waitFor(tester, () => tester.view.viewInsets.bottom > 0,
+            what: '横屏大输入框的键盘');
+      });
+      r25(
+          '$engine.landscapeCompose.dense',
+          find
+              .byKey(const ValueKey('terminal-compose-more'))
+              .evaluate()
+              .isNotEmpty);
+      FocusManager.instance.primaryFocus?.unfocus();
       await SystemChrome.setPreferredOrientations(
           const [DeviceOrientation.portraitUp]);
       await waitFor(tester, () {
@@ -325,6 +370,8 @@ void main() {
         return size.width < size.height;
       }, what: '转回竖屏');
       await settle(tester, 1500);
+      shell.sendText('\x03');
+      await settle(tester, 500);
 
       await controller.close(0);
       await settle(tester, 300);

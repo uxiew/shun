@@ -385,6 +385,87 @@ void main() {
         expect(page.resizes['first']!.single.$2, page.first.terminal.viewRows);
       });
 
+      testWidgets('底部有导航栏、手势条留白 24dp：系统键盘换面板时终端不会在键盘收的那几帧多出一行', (
+        tester,
+      ) async {
+        tester.view.padding = const FakeViewPadding(bottom: 24 * 2.625);
+        final page = await _Page.open(tester, newTerminal, navigationBar: true);
+        addTearDown(tester.view.resetPadding);
+        await page.keyboard(200, gesturePadding: 24);
+        await page.keyboard(0, gesturePadding: 24);
+        await tester.tap(toggle);
+        await page.settle();
+        await tester
+            .tap(find.byKey(const ValueKey('terminal-input-system-keyboard')));
+        await page.keyboard(200, gesturePadding: 24);
+        page.resizes['first']!.clear();
+        final terminal = find.byType(engineView);
+
+        await tester.tap(toggle);
+        // 切换那一下终端变一次（快捷键栏收成一行），之后键盘一帧帧往下收、面板往上长，终端一直不变。
+        final heights = <double>[];
+        final ratio = tester.view.devicePixelRatio;
+        for (var frame = 1; frame <= 20; frame++) {
+          final inset = 200 * (1 - frame / 20);
+          tester.view.viewInsets = FakeViewPadding(bottom: inset * ratio);
+          tester.view.padding =
+              FakeViewPadding(bottom: inset > 0 ? 0 : 24 * ratio);
+          await tester.pump(const Duration(milliseconds: 16));
+          heights.add(tester.getSize(terminal).height);
+        }
+        await page.settle();
+        expect(
+            heights.reduce(math.max) - heights.reduce(math.min), lessThan(.5),
+            reason: '键盘收的那几帧终端忽高忽低：$heights');
+        expect(tester.getSize(terminal).height, moreOrLessEquals(heights.last));
+        expect(page.resizes['first']!.length, lessThanOrEqualTo(1));
+      });
+
+      testWidgets('横屏点进大输入框：框换成一行的摆法时还是同一个框，系统键盘照样弹出来', (tester) async {
+        final page = await _Page.open(tester, newTerminal);
+        // 模拟器横屏时终端页只有 290dp 左右高（上面状态栏、下面导航栏）。
+        tester.view.physicalSize = const Size(2400, 760);
+        await page.settle();
+        await tester.tap(toggle);
+        await page.settle();
+        tester.testTextInput.hide();
+
+        await tester
+            .tap(find.byKey(const ValueKey('terminal-input-tab-compose')));
+        // 这一帧框先按多行摆出来，焦点在这一帧画完才给它；拿到焦点后地方不够，换成一行的摆法。
+        await tester.pump();
+        final before = tester.state(find.byType(EditableText));
+        await page.settle();
+        expect(
+            find.byKey(const ValueKey('terminal-compose-more')), findsOneWidget,
+            reason: '横屏地方小，框只留一行');
+        expect(tester.state(find.byType(EditableText)), same(before),
+            reason: '换摆法不换框');
+        expect(tester.testTextInput.isVisible, isTrue);
+      });
+
+      testWidgets('键盘比面板矮时换回系统键盘：空出来的是键盘的位置，远端只收到一次尺寸、就是最后的尺寸', (
+        tester,
+      ) async {
+        final page = await _Page.open(tester, newTerminal);
+        await page.keyboard(108);
+        await page.keyboard(0);
+        await tester.tap(toggle);
+        await page.settle();
+        page.resizes['first']!.clear();
+
+        await tester
+            .tap(find.byKey(const ValueKey('terminal-input-system-keyboard')));
+        // 输入法过了 0.5 秒才升上来（模拟器上的回放输入法就这么慢），比「先别发尺寸」的 400ms 还晚。
+        for (var i = 0; i < 5; i++) {
+          await tester.pump(const Duration(milliseconds: 100));
+        }
+        await page.keyboard(108);
+        expect(page.resizes['first'], hasLength(1));
+        expect(page.resizes['first']!.single.$2, page.first.terminal.viewRows);
+        await page.keyboard(0);
+      });
+
       testWidgets('竖屏在大输入框里打字、系统键盘弹着：框、提醒、按钮都在键盘上面看得见、点得到，不溢出', (
         tester,
       ) async {
@@ -572,6 +653,7 @@ class _Page {
     WidgetTester tester,
     TerminalSessionAdapterBase Function() newTerminal, {
     AppSettings? settings,
+    bool navigationBar = false,
   }) async {
     SharedPreferences.setMockInitialValues({});
     final repository = await VaultRepository.open();
@@ -632,7 +714,18 @@ class _Page {
     container.read(homeTabProvider.notifier).state = 1;
     await tester.pumpWidget(UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(home: Scaffold(body: TerminalScreen())),
+      child: MaterialApp(
+        home: Scaffold(
+          body: const TerminalScreen(),
+          // 像 App 里那样底部有导航栏（HomeShell）：它把系统手势条的留白算在自己的高度里。
+          bottomNavigationBar: navigationBar
+              ? NavigationBar(destinations: const [
+                  NavigationDestination(icon: Icon(Icons.dns), label: 'a'),
+                  NavigationDestination(icon: Icon(Icons.terminal), label: 'b'),
+                ])
+              : null,
+        ),
+      ),
     ));
     final page = _Page(
       tester,
@@ -662,12 +755,17 @@ class _Page {
   }
 
   /// 系统键盘升到（或降到）[dp] 高：像真机一样分十帧动，再停稳。
-  Future<void> keyboard(double dp) async {
-    final from = tester.view.viewInsets.bottom / tester.view.devicePixelRatio;
+  ///
+  /// [gesturePadding]：手机底部系统手势条的留白（dp）。Android 上键盘一弹出来这截留白就报成 0（模拟器上量到的），
+  /// 带着它模拟才看得出「键盘升降那几帧终端页反而变高」。
+  Future<void> keyboard(double dp, {double gesturePadding = 0}) async {
+    final ratio = tester.view.devicePixelRatio;
+    final from = tester.view.viewInsets.bottom / ratio;
     for (var frame = 1; frame <= 10; frame++) {
       final value = from + (dp - from) * frame / 10;
-      tester.view.viewInsets =
-          FakeViewPadding(bottom: value * tester.view.devicePixelRatio);
+      tester.view.viewInsets = FakeViewPadding(bottom: value * ratio);
+      tester.view.padding =
+          FakeViewPadding(bottom: value > 0 ? 0 : gesturePadding * ratio);
       await tester.pump(const Duration(milliseconds: 16));
     }
     await settle();

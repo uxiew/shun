@@ -597,9 +597,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                       ),
                     ),
                   ),
-                )
-              else if (layout.reserve > 0)
-                SizedBox(height: layout.reserve),
+                ),
+              if (layout.reserve > 0) SizedBox(height: layout.reserve),
             ],
           ),
         ),
