@@ -36,7 +36,7 @@ done >/dev/null 2>&1 &)
 
 flutter test integration_test/r20_gate_test.dart -d "$SERIAL" "${DEFINES[@]}" > "$LOG" 2>&1 &
 TEST=$!
-# App 里连到 SSH 测试环境（adb reverse 的 22201，十六进制 55F9）的 TCP：按 App 自己的 socket inode 筛，
+# App 里连到 SSH 测试环境（adb reverse 的 22201，十六进制 56B9）的 TCP：按 App 自己的 socket inode 筛，
 # 打 "R20HOST <名字> ssh-sockets=<个数> states=<状态码>"。状态 01 已连上、06 TIME_WAIT、08 CLOSE_WAIT。
 ssh_sockets() {
   local pid inodes
@@ -45,7 +45,7 @@ ssh_sockets() {
   inodes=$("${ADB[@]}" shell "ls -l /proc/$pid/fd" 2>/dev/null | grep -o 'socket:\[[0-9]*\]' | grep -o '[0-9]*' | sort -u)
   "${ADB[@]}" shell "cat /proc/$pid/net/tcp /proc/$pid/net/tcp6" 2>/dev/null > "$SHOTS/tcp-$1.txt" || true
   awk -v inodes="$(echo $inodes)" 'BEGIN{n=split(inodes,a," "); for(i=1;i<=n;i++) mine[a[i]]=1}
-    NR>0 && $3 ~ /:55F9$/ && ($10 in mine) {c++; st[$4]++}
+    NR>0 && $3 ~ /:56B9$/ && ($10 in mine) {c++; st[$4]++}
     END{s=""; for(k in st) s=s k "x" st[k] " "; printf "R20HOST %s ssh-sockets=%d states=%s\n", NAME, c+0, s}' NAME="$1" "$SHOTS/tcp-$1.txt"
 }
 SEEN=0
