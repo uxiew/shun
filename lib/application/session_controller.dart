@@ -15,6 +15,7 @@ import '../infrastructure/tmux/tmux_protocol.dart';
 import '../infrastructure/tmux/tmux_service.dart';
 import 'credential_availability.dart';
 import 'mosh_session.dart';
+import 'plugin_host_session.dart';
 import 'terminal_engine.dart';
 import 'vault_controller.dart';
 
@@ -238,53 +239,67 @@ class SessionController extends StateNotifier<SessionState> {
               (value) => value.id == host.id,
               orElse: () => host,
             );
-      // 路线在这里一次算好：配置有错此时就报，算好的路线存进等待卡片，失败页据此显示实际路径。
-      final plan = routePlan ??
-          resolveRoutePlan(
-            connectionHost,
-            hosts: vault.hosts,
-            proxyProfiles: vault.proxyProfiles,
-            keys: vault.keys,
-          );
-      if (mounted) {
-        state = state.copyWith(
-          pendingConnections: [
-            for (final value in state.pendingConnections)
-              value.id == sessionId ? value.copyWith(routePlan: plan) : value,
-          ],
-        );
-      }
-      // 要用的凭据解不开就在拨号前拒绝，不拿空密码去试（SEC06）。冻结的路线自带建连时的凭据副本，不再查保险库。
-      final problem = routePlan != null
-          ? null
-          : unreadableCredentialProblem(
+      final ActiveTerminalSession session;
+      if (connectionHost.protocol == HostProtocol.plugin) {
+        // 插件主机（X12）：插件自己联网，本 App 不算路线、不查凭据（这台主机上本来就不该有凭据交给它）。
+        session = await ref.read(pluginHostConnectorProvider).connect(
+              sessionId: sessionId,
+              host: connectionHost,
+              terminal: terminal,
+              attempt: attempt,
+              verifyHostKey: verifyHostKey,
+              keyboardInteractive: keyboardInteractive,
+            );
+      } else {
+        // 路线在这里一次算好：配置有错此时就报，算好的路线存进等待卡片，失败页据此显示实际路径。
+        final plan = routePlan ??
+            resolveRoutePlan(
               connectionHost,
-              vault,
-              vaultController.repository.unreadableSecrets,
+              hosts: vault.hosts,
+              proxyProfiles: vault.proxyProfiles,
+              keys: vault.keys,
             );
-      if (problem != null) throw CredentialUnavailableException(problem);
-      // Mosh 主机：SSH 只用来启动 mosh-server，会话由插件经 UDP 承载（X09）。路线不是直连在这里面第一步就拒绝。
-      final session = connectionHost.protocol == HostProtocol.mosh
-          ? await MoshBootstrapCoordinator(service, ref.read(moshRuntimeProvider))
-              .connect(
-              sessionId: sessionId,
-              host: connectionHost,
-              plan: plan,
-              verifyHostKey: verifyHostKey,
-              keyboardInteractive: keyboardInteractive,
-              terminal: terminal,
-              attempt: attempt,
-            )
-          : await service.connect(
-              sessionId: sessionId,
-              host: connectionHost,
-              routePlan: plan,
-              verifyHostKey: verifyHostKey,
-              keyboardInteractive: keyboardInteractive,
-              terminal: terminal,
-              attempt: attempt,
-              tmuxAttach: tmuxAttach,
-            );
+        if (mounted) {
+          state = state.copyWith(
+            pendingConnections: [
+              for (final value in state.pendingConnections)
+                value.id == sessionId ? value.copyWith(routePlan: plan) : value,
+            ],
+          );
+        }
+        // 要用的凭据解不开就在拨号前拒绝，不拿空密码去试（SEC06）。冻结的路线自带建连时的凭据副本，不再查保险库。
+        final problem = routePlan != null
+            ? null
+            : unreadableCredentialProblem(
+                connectionHost,
+                vault,
+                vaultController.repository.unreadableSecrets,
+              );
+        if (problem != null) throw CredentialUnavailableException(problem);
+        // Mosh 主机：SSH 只用来启动 mosh-server，会话由插件经 UDP 承载（X09）。路线不是直连在这里面第一步就拒绝。
+        session = connectionHost.protocol == HostProtocol.mosh
+            ? await MoshBootstrapCoordinator(
+                    service, ref.read(moshRuntimeProvider))
+                .connect(
+                sessionId: sessionId,
+                host: connectionHost,
+                plan: plan,
+                verifyHostKey: verifyHostKey,
+                keyboardInteractive: keyboardInteractive,
+                terminal: terminal,
+                attempt: attempt,
+              )
+            : await service.connect(
+                sessionId: sessionId,
+                host: connectionHost,
+                routePlan: plan,
+                verifyHostKey: verifyHostKey,
+                keyboardInteractive: keyboardInteractive,
+                terminal: terminal,
+                attempt: attempt,
+                tmuxAttach: tmuxAttach,
+              );
+      }
       if (!_isCurrent(sessionId, attempt)) {
         // 迟到的成功：尝试已被取消或 controller 已销毁。连接此刻归这里，立刻关掉，不进标签。
         _endAttempt(sessionId, attempt);

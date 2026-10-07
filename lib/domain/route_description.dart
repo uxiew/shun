@@ -46,6 +46,8 @@ List<RouteLeg> describeRoute(RoutePlan plan) {
         'SSH ${target.host.username}@${target.endpoint.authority} 启动 mosh-server，之后 Mosh 会话走 UDP 直连',
       HostProtocol.ssh =>
         'SSH ${target.host.username}@${target.endpoint.authority}',
+      // 插件主机不算路线（resolveRoutePlan 直接拒绝），走不到这里。
+      HostProtocol.plugin => '插件',
     },
   ));
   return legs;

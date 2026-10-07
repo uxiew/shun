@@ -204,6 +204,10 @@ RoutePlan resolveRoutePlan(
   required List<ProxyProfile> proxyProfiles,
   List<SshKeyProfile> keys = const [],
 }) {
+  if (target.protocol == HostProtocol.plugin) {
+    // 插件自己联网：本 App 的直连、代理、跳板对它都不起作用，算出一条路线来反而像是在说它会这样走。
+    throw const RouteConfigException('插件主机不走本 App 的连接路径：插件自己联网，不经过代理和跳板。');
+  }
   final targetName = '目标“${target.label}”';
   final targetHop = _hop(target, targetName, keys);
   final jumpIds = _jumpIds(target, targetName);
