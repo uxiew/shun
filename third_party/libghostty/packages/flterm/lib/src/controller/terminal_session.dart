@@ -118,6 +118,18 @@ final class TerminalSession extends TerminalController with ChangeNotifier {
       _preserveSnapshotColors = false,
       super._() {
     _initialize(applyConfig: true);
+    // xwshun: 还没挂视图就先按默认深色主题设好前景、背景、调色板。上游要等视图挂上（applyTheme）才把颜色
+    // 交给 Ghostty，在那之前远端问前景/背景/光标色（OSC 10/11/12）一律不回：后台标签里启动、一开始就问
+    // 背景色的程序（vim 判断深浅色、一些 TUI 框架）只能干等到超时（R20 对比测试发现）。视图挂上后照常换成视图的主题。
+    final theme = TerminalTheme.dark();
+    applyColorDefaults(
+      foreground: ViewAttachment._rgb(theme.foreground),
+      background: ViewAttachment._rgb(theme.background),
+      cursor: null,
+      palette: [
+        for (var i = 0; i < 256; i++) ViewAttachment._rgb(theme.palette[i]),
+      ],
+    );
   }
 
   TerminalSession._restored(
