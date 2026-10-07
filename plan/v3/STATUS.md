@@ -85,6 +85,8 @@ R04 的发现到 R17 为止：dispose 后 write 段错误（上游改成抛错�
 - 所有者提议（参考 UU 远程、LobiShell 这类移动端）：终端下方要有 App 自己的按键面板（方向键、Tab、斜杠等常用键，或整套键盘），
   左右滑动能在「按键面板」和「大输入框」（用系统输入法打字、语音，打完点发送）之间切换，所有者觉得体验更好。
   只借鉴交互，不搬 LobiShell 的闭源界面素材和商标（docs/12）。归 R25（日用 UI 与参考交互），先于 R25 其余部分做。
+- 插件 SDK（`packages/plugin_api`、`plugins/provider-sdk`、插件描述符的 schema）和样例 `plugins/example` 用 **Apache-2.0** 给第三方作者（X12 查过这几处全是本 fork 新写的）；主 App 和 Mosh 插件仍是 GPL-3.0-or-later。
+- `xwshun.mosh` 这个 pluginId **先绑现在的测试作者证书**：别的包自称 Mosh 插件，用户批准了也拿不到 Mosh 会话的 key。以后换正式签名时要同步改这个绑定，否则正式签名的 Mosh 插件会被当成冒充者拒掉。
 
 ## 下一批
 
