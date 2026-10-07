@@ -5,9 +5,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:xterm2/xterm.dart';
 
+import '../../domain/terminal_link.dart';
 import '../../infrastructure/terminal/terminal_session_adapter.dart';
 import '../../infrastructure/terminal/xterm_terminal_adapter.dart';
 import '../localization/localized_widgets.dart';
+import '../widgets/terminal_link_sheet.dart';
 import 'terminal_view.dart';
 
 /// 旧引擎 xterm2 的终端视图：画面、选区手柄、复制。除了测试，App 里只有这个文件和适配器认识 xterm2。
@@ -137,6 +139,10 @@ class _XtermTerminalViewState extends State<XtermTerminalView> {
             : _selectionHandlePosition(selection.begin);
         final endHandle =
             selection == null ? null : _selectionHandlePosition(selection.end);
+        // xterm2 不认链接；选中的字整段是网址时，选字菜单里一样给「打开链接」（10-07，和 Ghostty 一致）。
+        final link = selection == null || _alternateScreen
+            ? null
+            : webLinkIn(_terminal.buffer.getText(selection));
         return Stack(
           key: _terminalStackKey,
           fit: StackFit.expand,
@@ -165,13 +171,31 @@ class _XtermTerminalViewState extends State<XtermTerminalView> {
               Positioned(
                 top: 10,
                 right: 10,
-                child: FilledButton.tonalIcon(
-                  key: const ValueKey('copy-terminal-selection'),
-                  onPressed: _alternateScreen
-                      ? () => _showCopySnapshot()
-                      : _copySelection,
-                  icon: const Icon(Icons.copy_outlined, size: 18),
-                  label: const LText('复制'),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (link != null) ...[
+                      FilledButton.tonalIcon(
+                        key: const ValueKey('open-terminal-link'),
+                        onPressed: () => unawaited(showTerminalLinkSheet(
+                          context,
+                          shownText: link,
+                          address: link,
+                        )),
+                        icon: const Icon(Icons.open_in_new, size: 18),
+                        label: const LText('打开链接'),
+                      ),
+                      const SizedBox(width: 8),
+                    ],
+                    FilledButton.tonalIcon(
+                      key: const ValueKey('copy-terminal-selection'),
+                      onPressed: _alternateScreen
+                          ? () => _showCopySnapshot()
+                          : _copySelection,
+                      icon: const Icon(Icons.copy_outlined, size: 18),
+                      label: const LText('复制'),
+                    ),
+                  ],
                 ),
               ),
           ],

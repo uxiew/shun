@@ -14,8 +14,9 @@ import 'package:netcatty_mobile/presentation/terminal/terminal_view.dart';
 import 'package:netcatty_mobile/presentation/widgets/tailscale_check_card.dart'
     show externalLinkLauncherProvider;
 
-// R19 / TER08、SEC08：终端里的链接。点了只弹确认框，能交给浏览器的只有 http/https；
-// 拖动、长按选字不弹框也不打开；远端发不出任何东西。
+// R19 / TER08、SEC08：终端里的链接。10-07 起点一下终端只叫键盘；长按选字时选中的是链接（或长按落在
+// Ghostty 认出的链接上），选字菜单里多「打开链接」，点了只弹确认框，能交给浏览器的只有 http/https；
+// 拖动、长按本身不弹框也不打开；远端发不出任何东西。
 
 const _options = TerminalViewOptions(
   fontSize: 14,
@@ -81,6 +82,24 @@ void main() {
     });
   });
 
+  group('选中的字是不是网址（选字菜单里给不给「打开链接」）', () {
+    test('整段是一个网址才算；两头空白、句末标点可以有', () {
+      expect(
+          webLinkIn('https://example.com/a?b=1'), 'https://example.com/a?b=1');
+      expect(webLinkIn('  http://example.com/x  \n'), 'http://example.com/x');
+      expect(webLinkIn('https://example.com/a).'), 'https://example.com/a');
+    });
+
+    test('夹着别的字、不是 http/https、空的，都不算', () {
+      expect(webLinkIn('打开 https://example.com'), isNull);
+      expect(webLinkIn('https://example.com and more'), isNull);
+      expect(webLinkIn('https://a.example https://b.example'), isNull);
+      expect(webLinkIn('ftp://example.com'), isNull);
+      expect(webLinkIn('example.com'), isNull);
+      expect(webLinkIn(''), isNull);
+    });
+  });
+
   final engines = <String, TerminalSessionAdapterBase Function()>{
     'Ghostty': GhosttyTerminalAdapter.new,
     'xterm2': XtermTerminalAdapter.new,
@@ -132,23 +151,56 @@ void main() {
       Offset firstCells(WidgetTester tester) =>
           tester.getTopLeft(find.byType(Scaffold)) + const Offset(20, 14);
 
-      testWidgets('点网址：只弹确认框，写出域名；点「用浏览器打开」才打开；远端什么都没收到', (
+      Future<void> longPress(WidgetTester tester, Offset at,
+          {Offset drag = Offset.zero}) async {
+        final gesture =
+            await tester.startGesture(at, kind: PointerDeviceKind.touch);
+        await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
+        if (drag != Offset.zero) {
+          await gesture.moveBy(drag);
+          await tester.pump(const Duration(milliseconds: 50));
+        }
+        await gesture.up();
+        await settle(tester);
+      }
+
+      const openLink = ValueKey('open-terminal-link');
+
+      testWidgets('点一下网址：只叫键盘，不弹框、不打开、远端什么都没收到', (tester) async {
+        await mount(tester, 'https://example.com/a. trailing text\r\n');
+        tester.testTextInput.hide();
+        await tester.tapAt(firstCells(tester));
+        await settle(tester);
+        expect(find.byKey(_sheetHost), findsNothing);
+        expect(find.byKey(openLink), findsNothing);
+        expect(tester.testTextInput.isVisible, isTrue, reason: '点一下就是叫键盘');
+        expect(launched, isEmpty);
+        expect(sent.toString(), isEmpty);
+      });
+
+      testWidgets('长按网址：选字菜单里多「打开链接」，点了才弹框，点「用浏览器打开」才打开', (
         tester,
       ) async {
         await mount(tester, 'https://example.com/a. trailing text\r\n');
-        await tester.tapAt(firstCells(tester));
-        await settle(tester);
-        if (engine == 'xterm2') {
-          // 旧引擎不认链接（和原版一样），点了就是点终端。
-          expect(find.byKey(_sheetHost), findsNothing);
-          expect(sent.toString(), isEmpty);
-          return;
+        if (engine == 'Ghostty') {
+          // 手指不拖：flterm 把整个链接选上。
+          await longPress(tester, firstCells(tester));
+        } else {
+          // xterm2 不认链接：从网址开头拖到句号，选中的字整段是网址才给按钮。
+          await longPress(tester, firstCells(tester).translate(-10, 0),
+              drag: const Offset(165, 0));
         }
+        expect(find.byKey(_sheetHost), findsNothing, reason: '长按本身不弹框');
+        expect(find.byKey(openLink), findsOneWidget);
+        expect(launched, isEmpty);
+
+        await tester.tap(find.byKey(openLink));
+        await settle(tester);
         expect(find.byKey(_sheetHost), findsOneWidget);
         expect(find.text('example.com'), findsOneWidget);
         expect(find.text('https://example.com/a'), findsOneWidget,
             reason: '句末的句号不算网址');
-        expect(launched, isEmpty, reason: '点了链接本身不打开');
+        expect(launched, isEmpty, reason: '弹框本身不打开');
 
         await tester.tap(find.byKey(_open));
         await settle(tester);
@@ -156,7 +208,7 @@ void main() {
         expect(sent.toString(), isEmpty);
       });
 
-      testWidgets('远端用 OSC 8 把「docs」标成 javascript: 链接：提醒文字和地址不一样，不给打开', (
+      testWidgets('远端用 OSC 8 把「docs」标成 javascript: 链接：长按后提醒文字和地址不一样，不给打开', (
         tester,
       ) async {
         await mount(
@@ -165,12 +217,19 @@ void main() {
         );
         await tester.tapAt(firstCells(tester));
         await settle(tester);
+        expect(find.byKey(_sheetHost), findsNothing);
+        expect(
+            find.byKey(const ValueKey('terminal-link-refused')), findsNothing,
+            reason: '点一下不弹框');
+
+        await longPress(tester, firstCells(tester));
         if (engine == 'xterm2') {
-          expect(find.byKey(_sheetHost), findsNothing);
-          expect(find.byKey(const ValueKey('terminal-link-refused')),
-              findsNothing);
+          // 旧引擎不认 OSC 8；选中的「docs-page」也不是网址。
+          expect(find.byKey(openLink), findsNothing);
           return;
         }
+        await tester.tap(find.byKey(openLink));
+        await settle(tester);
         expect(find.byKey(const ValueKey('terminal-link-refused')),
             findsOneWidget);
         expect(find.byKey(const ValueKey('terminal-link-text-differs')),
@@ -180,7 +239,23 @@ void main() {
         expect(sent.toString(), isEmpty);
       });
 
-      testWidgets('从网址上拖动、长按选字：不弹框、不打开、不发东西', (tester) async {
+      testWidgets('长按普通的字：菜单里只有「复制」；选区没了按钮跟着消失', (tester) async {
+        await mount(tester, 'plain words here\r\nhttps://example.com/b\r\n');
+        await longPress(tester, firstCells(tester), drag: const Offset(60, 0));
+        expect(find.byKey(const ValueKey('copy-terminal-selection')),
+            findsOneWidget);
+        expect(find.byKey(openLink), findsNothing);
+
+        // 点一下别处：选区清掉，菜单也没了。
+        await tester.tapAt(firstCells(tester).translate(200, 300));
+        await tester.pump(kDoubleTapTimeout);
+        await settle(tester);
+        expect(find.byKey(const ValueKey('copy-terminal-selection')),
+            findsNothing);
+        expect(find.byKey(openLink), findsNothing);
+      });
+
+      testWidgets('从网址上拖动：不弹框、不打开、不发东西', (tester) async {
         await mount(
           tester,
           [for (var i = 0; i < 80; i++) 'https://example.com/$i'].join('\r\n'),
@@ -193,18 +268,7 @@ void main() {
         );
         await settle(tester);
         expect(find.byKey(_sheetHost), findsNothing);
-
-        // 长按网址再拖：选字。
-        final gesture = await tester.startGesture(
-          firstCells(tester).translate(0, 200),
-          kind: PointerDeviceKind.touch,
-        );
-        await tester.pump(kLongPressTimeout + const Duration(milliseconds: 50));
-        await gesture.moveBy(const Offset(80, 0));
-        await tester.pump(const Duration(milliseconds: 50));
-        await gesture.up();
-        await settle(tester);
-        expect(find.byKey(_sheetHost), findsNothing);
+        expect(find.byKey(openLink), findsNothing);
         expect(launched, isEmpty);
         expect(sent.toString(), isEmpty);
       });

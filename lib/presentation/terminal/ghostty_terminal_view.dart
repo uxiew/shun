@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 
+import '../../domain/terminal_link.dart';
 import '../../infrastructure/terminal/ghostty_terminal_adapter.dart';
 import '../../infrastructure/terminal/terminal_session_adapter.dart';
 import '../localization/localized_widgets.dart';
@@ -37,6 +38,15 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
   var _rebuildScheduled = false;
   late bool _alternateScreen;
   late bool _hasSelection;
+
+  /// 这次长按落在的链接（flterm 报的，OSC 8 链接的地址可能和屏幕上的字不一样）。
+  /// 选区还在就在选字菜单里给「打开链接」，选区没了就忘掉。
+  ActivatedLink? _longPressLink;
+
+  /// 选中的字整段是网址时就是它。不在每次 build 里算：远端一直出字时 build 很勤，选区大的时候每次都要把整段格式化一遍。
+  /// 选区只在手指操作（长按、拖、拖手柄、双击）和全选时变，所以在选区出现、消失和手指抬起后各算一次。
+  String? _selectionUrl;
+  var _selectionUrlScheduled = false;
 
   GhosttyTerminalAdapter get _adapter => widget.adapter;
 
@@ -79,10 +89,50 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
     final alternate = _adapter.isAlternateScreen;
     final selection = _adapter.controller.hasSelection;
     if (alternate != _alternateScreen || selection != _hasSelection) {
+      // 只在选区「有变没」时忘掉链接：长按开始时报链接，选区要等松手或拖动才出现。
+      if (_hasSelection && !selection) _longPressLink = null;
       _alternateScreen = alternate;
       _hasSelection = selection;
+      _refreshSelectionUrlSoon();
       _rebuildSoon();
     }
+  }
+
+  void _onLongPress(ActivatedLink? link) {
+    if (!mounted || !_lease.isActive) return;
+    _longPressLink = link;
+    _rebuildSoon();
+  }
+
+  /// 手指抬起时 App 先收到，flterm 的手势识别器后收到、那时才定下选区：等这一帧画完再算。
+  void _refreshSelectionUrlSoon() {
+    if (_selectionUrlScheduled) return;
+    _selectionUrlScheduled = true;
+    SchedulerBinding.instance.addPostFrameCallback((_) {
+      _selectionUrlScheduled = false;
+      if (!mounted || !_lease.isActive || _adapter.isDisposed) return;
+      final url = _adapter.controller.hasSelection
+          ? webLinkIn(_adapter.controller.selectedText())
+          : null;
+      if (url != _selectionUrl) setState(() => _selectionUrl = url);
+    });
+    SchedulerBinding.instance.ensureVisualUpdate();
+  }
+
+  /// 选字菜单里「打开链接」打开的是什么：长按落在链接上就是那个链接（整段都算，拖出链接以外也算）；
+  /// 否则选中的字整段是一个网址时就是它。都不是返回 null，不给这个按钮。
+  ({String shown, String address})? _selectionLink() {
+    if (!_hasSelection) return null;
+    if (_longPressLink case final link?) {
+      return (
+        shown: link.text,
+        // OSC 8 的地址解析不了时为空，确认框里会说看不懂、不给打开；不拿屏幕上的文字顶替地址。
+        address:
+            link.type == LinkType.osc8 ? link.uri?.toString() ?? '' : link.text,
+      );
+    }
+    final url = _selectionUrl;
+    return url == null ? null : (shown: url, address: url);
   }
 
   /// 通知可能在构建阶段到达（新视图在 initState 里拿走显示权），这时不能 setState，等这一帧画完。
@@ -142,29 +192,9 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
               key: ObjectKey(_adapter),
               adapter: _adapter,
               owner: this,
-              child: RepaintBoundary(
-                child: TerminalView(
-                  controller: _adapter.controller,
-                  theme: theme,
-                  autofocus: interactive,
-                  showKeyboard: interactive,
-                  // 设置里的「安全键盘」：输入法按可见密码框处理，不联想、不学习。
-                  secureTextInput: options.secureKeyboard,
-                  // 远端开着鼠标报告（tmux mouse on、htop）时，手指只有滑动发成滚轮；点按照样叫键盘，
-                  // 长按照样在本地选字，都不发鼠标点击（TER07，和 xterm2 一样）。
-                  gestureSettings:
-                      const TerminalGestureSettings(touchMouseClicks: false),
-                  // 粘贴快捷键换成 App 的（先预览），盖掉 flterm 在 Android 上直接粘贴的 Ctrl+V。
-                  shortcuts: terminalPasteShortcuts,
-                  // 链接（R19）：远端用 OSC 8 标的链接，和文字里的 http/https 网址。点按抬起才算点了，
-                  // 拖动、长按选字都不算；点了只弹确认框，不直接打开（SEC08、TER08）。
-                  // 不认文件路径（flterm 的 LinkType.text 会认）：远端的路径在手机上打不开，认了只会吃掉点按。
-                  linkSettings: LinkSettings(
-                    types: const {LinkType.osc8, LinkType.custom},
-                    rules: _webLinkRules,
-                    onActivate: _onLinkActivated,
-                  ),
-                ),
+              child: Listener(
+                onPointerUp: (_) => _refreshSelectionUrlSoon(),
+                child: _engineView(theme, options),
               ),
             ),
           ),
@@ -173,13 +203,64 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
           Positioned(
             top: 10,
             right: 10,
-            child: FilledButton.tonalIcon(
-              key: const ValueKey('copy-terminal-selection'),
-              onPressed: _hasSelection ? _copySelection : _showCopySnapshot,
-              icon: const Icon(Icons.copy_outlined, size: 18),
-              label: const LText('复制'),
-            ),
+            child: _selectionMenu(),
           ),
+      ],
+    );
+  }
+
+  Widget _engineView(TerminalTheme theme, TerminalViewOptions options) {
+    final interactive = options.interactive;
+    return RepaintBoundary(
+      child: TerminalView(
+        controller: _adapter.controller,
+        theme: theme,
+        autofocus: interactive,
+        showKeyboard: interactive,
+        // 设置里的「安全键盘」：输入法按可见密码框处理，不联想、不学习。
+        secureTextInput: options.secureKeyboard,
+        // 远端开着鼠标报告（tmux mouse on、htop）时，手指只有滑动发成滚轮；点按照样叫键盘，
+        // 长按照样在本地选字，都不发鼠标点击（TER07，和 xterm2 一样）。
+        gestureSettings: const TerminalGestureSettings(touchMouseClicks: false),
+        // 粘贴快捷键换成 App 的（先预览），盖掉 flterm 在 Android 上直接粘贴的 Ctrl+V。
+        shortcuts: terminalPasteShortcuts,
+        // 链接（R19）：远端用 OSC 8 标的链接，和文字里的 http/https 网址。不认文件路径
+        // （flterm 的 LinkType.text 会认）：远端的路径在手机上打不开。
+        // 不给 onActivate：点一下终端只叫键盘，点在链接上也一样（所有者 10-07 定）。
+        // 长按落在链接上由 onLongPress 报出来，选字菜单里多一项「打开链接」，点了仍只弹确认框（SEC08、TER08）。
+        linkSettings: LinkSettings(
+          types: const {LinkType.osc8, LinkType.custom},
+          rules: _webLinkRules,
+          onLongPress: _onLongPress,
+        ),
+      ),
+    );
+  }
+
+  Widget _selectionMenu() {
+    final link = _selectionLink();
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (link != null) ...[
+          FilledButton.tonalIcon(
+            key: const ValueKey('open-terminal-link'),
+            onPressed: () => unawaited(showTerminalLinkSheet(
+              context,
+              shownText: link.shown,
+              address: link.address,
+            )),
+            icon: const Icon(Icons.open_in_new, size: 18),
+            label: const LText('打开链接'),
+          ),
+          const SizedBox(width: 8),
+        ],
+        FilledButton.tonalIcon(
+          key: const ValueKey('copy-terminal-selection'),
+          onPressed: _hasSelection ? _copySelection : _showCopySnapshot,
+          icon: const Icon(Icons.copy_outlined, size: 18),
+          label: const LText('复制'),
+        ),
       ],
     );
   }
@@ -202,25 +283,10 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
 
   Future<void> _showCopySnapshot() =>
       showTerminalCopySheet(context, _adapter.allText());
-
-  void _onLinkActivated(ActivatedLink link) {
-    if (!mounted || !_lease.isActive) return;
-    unawaited(showTerminalLinkSheet(
-      context,
-      shownText: link.text,
-      // OSC 8 的地址解析不了时为空，确认框里会说看不懂、不给打开；不拿屏幕上的文字顶替地址。
-      address:
-          link.type == LinkType.osc8 ? link.uri?.toString() ?? '' : link.text,
-    ));
-  }
 }
 
-/// 文字里的网址：http/https 开头，到空白或引号为止；结尾的句号、逗号、右括号不算（句子里的网址常这样结尾）。
 final _webLinkRules = [
-  LinkRule.regex(
-    id: 'web',
-    pattern: RegExp(r'''https?://[^\s<>"'`]*[^\s<>"'`.,;:!?)\]}]'''),
-  ),
+  LinkRule.regex(id: 'web', pattern: terminalWebLinkPattern),
 ];
 
 /// 在适配器那里登记「有 flterm 视图挂着」，和 flterm 自己的挂、卸时机一致：

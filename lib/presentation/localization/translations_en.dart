@@ -1221,6 +1221,8 @@ const englishTranslations = <String, String>{
   '不能打开：': 'Cannot open:',
   '复制链接': 'Copy link',
   '用浏览器打开': 'Open in browser',
+  // 10-07：链接改从选字菜单打开。
+  '打开链接': 'Open link',
   '链接地址是空的，或者解析不了': 'The link address is empty or cannot be parsed',
   '链接太长': 'The link is too long',
   '链接里有空白或控制字符': 'The link contains whitespace or control characters',
