@@ -92,6 +92,25 @@ void main() {
     expect(r.descriptor!.ignoredNewerCapabilities, {'future-thing'});
   });
 
+  test('提醒：只声明宿主不会调用的能力、申请只给 Mosh 的临时凭据权限（sdk01 复验提出）', () {
+    final m = sampleMap()
+      ..['capabilities'] = ['device-catalog']
+      ..['permissions'] = [
+        'device-catalog-read',
+        'own-session-ephemeral-secret',
+      ];
+    final r = check(m);
+    expect(r.ok, isTrue);
+    expect(
+      r.warnings,
+      contains(startsWith('宿主现在只会用第三方插件的 terminal-session；device-catalog')),
+    );
+    expect(
+      r.warnings,
+      contains(startsWith('own-session-ephemeral-secret 只给 Mosh 插件')),
+    );
+  });
+
   test('命令行：通过退出 0，不通过退出 1，用法不对退出 2', () async {
     Future<ProcessResult> cli(List<String> args) => Process.run(
       Platform.resolvedExecutable,

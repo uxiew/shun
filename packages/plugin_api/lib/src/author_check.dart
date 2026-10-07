@@ -73,6 +73,21 @@ class AuthorCheck {
         '${d.ignoredNewerCapabilities.join('、')}',
       );
     }
+    final unused = d.capabilities
+        .where((c) => c != Capability.terminalSession)
+        .map((c) => c.wire);
+    if (unused.isNotEmpty) {
+      warnings.add(
+        '宿主现在只会用第三方插件的 terminal-session；${unused.join('、')} 能写、能批准，'
+        '但宿主哪儿都不会调用它（见 docs/plugin-authors/capabilities.md）',
+      );
+    }
+    if (d.permissions.contains(Permission.ownSessionEphemeralSecret)) {
+      warnings.add(
+        'own-session-ephemeral-secret 只给 Mosh 插件：别的插件写了也拿不到任何东西，'
+        '会话测试和主机连接也都不给开，还会让用户以为你要凭据',
+      );
+    }
     if (d.capabilities.contains(Capability.terminalSession) &&
         !d.permissions.contains(Permission.ownSessionInputOutput)) {
       warnings.add(
