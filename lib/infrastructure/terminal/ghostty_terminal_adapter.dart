@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:flterm/flterm.dart';
 import 'package:flutter/foundation.dart' hide Key;
+import 'package:flutter/scheduler.dart';
 
 import 'terminal_session_adapter.dart';
 
@@ -217,7 +218,18 @@ final class GhosttyTerminalAdapter extends TerminalSessionAdapterBase {
   void _onControllerChanged() {
     if (isDisposed) return;
     if (controller.virtualMods.isEmpty && input.modifiers.isNotEmpty) {
-      input.clearModifiers();
+      // flterm 的视图被卸下（关页面、重新挂上）时也清修饰键，那时正在 build：这里同步熄灭的话，
+      // 快捷键栏会在别人的 build 里 setState，debug 下直接断言。挪到这一帧画完再熄。
+      if (SchedulerBinding.instance.schedulerPhase ==
+          SchedulerPhase.persistentCallbacks) {
+        SchedulerBinding.instance.addPostFrameCallback((_) {
+          if (!isDisposed && controller.virtualMods.isEmpty) {
+            input.clearModifiers();
+          }
+        });
+      } else {
+        input.clearModifiers();
+      }
     }
     _changes.notify();
   }

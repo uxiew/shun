@@ -118,6 +118,16 @@ void main() {
         page.controller.setBackgrounded(true);
         expect(page.first.terminal.input.modifiers, isEmpty);
         page.controller.setBackgrounded(false);
+
+        // 面板上没有字母键：亮起 Ctrl 再换回系统键盘，Ctrl 还亮着，套在系统键盘打的下一个字上
+        //（系统键盘那一半是 R18 的设备测试核对的：快捷键栏 Ctrl + 软键盘 c 发 03）。
+        await tester.tap(panelKey('Ctrl'));
+        await page.settle();
+        await tester
+            .tap(find.byKey(const ValueKey('terminal-input-system-keyboard')));
+        await page.settle();
+        expect(panel, findsNothing);
+        expect(page.first.terminal.input.modifiers, {'ctrl'});
       });
 
       testWidgets('方向键按住连发、松手就停；从键上起步左右滑是切页，不连发', (tester) async {
