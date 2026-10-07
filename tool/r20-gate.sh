@@ -17,6 +17,10 @@ SHOTS=../.toolchain/artifacts/r20-shots-$(git rev-parse --short HEAD)
 mkdir -p "$SHOTS"
 LOG=$(mktemp -t r20-gate)
 
+# 资源场景要用 root 读 App 的 /proc/<pid>/net/tcp（App 自己读不到 /proc/net）。adb root 会重启 adbd、清掉端口转发，
+# 所以放在 reverse 之前。只在模拟器上这么做。
+"${ADB[@]}" root >/dev/null 2>&1 || true
+"${ADB[@]}" wait-for-device
 DEFINES=(--dart-define=R20_SCENARIO="$SCENARIO" --dart-define=R20_SHOTS=true
   --dart-define=R17_SSH="$(python3 tool/fixture-environment/r17_config.py)")
 "${ADB[@]}" reverse tcp:22201 tcp:22201 >/dev/null
@@ -32,6 +36,18 @@ done >/dev/null 2>&1 &)
 
 flutter test integration_test/r20_gate_test.dart -d "$SERIAL" "${DEFINES[@]}" > "$LOG" 2>&1 &
 TEST=$!
+# App 里连到 SSH 测试环境（adb reverse 的 22201，十六进制 55F9）的 TCP：按 App 自己的 socket inode 筛，
+# 打 "R20HOST <名字> ssh-sockets=<个数> states=<状态码>"。状态 01 已连上、06 TIME_WAIT、08 CLOSE_WAIT。
+ssh_sockets() {
+  local pid inodes
+  pid=$("${ADB[@]}" shell pidof top.xdwa.xwshun | tr -d '\r')
+  [[ -n "$pid" ]] || { echo "R20HOST $1 ssh-sockets=? (没找到进程)"; return; }
+  inodes=$("${ADB[@]}" shell "ls -l /proc/$pid/fd" 2>/dev/null | grep -o 'socket:\[[0-9]*\]' | grep -o '[0-9]*' | sort -u)
+  "${ADB[@]}" shell "cat /proc/$pid/net/tcp /proc/$pid/net/tcp6" 2>/dev/null > "$SHOTS/tcp-$1.txt" || true
+  awk -v inodes="$(echo $inodes)" 'BEGIN{n=split(inodes,a," "); for(i=1;i<=n;i++) mine[a[i]]=1}
+    NR>0 && $3 ~ /:55F9$/ && ($10 in mine) {c++; st[$4]++}
+    END{s=""; for(k in st) s=s k "x" st[k] " "; printf "R20HOST %s ssh-sockets=%d states=%s\n", NAME, c+0, s}' NAME="$1" "$SHOTS/tcp-$1.txt"
+}
 SEEN=0
 MSEEN=0
 while kill -0 "$TEST" 2>/dev/null; do
@@ -47,10 +63,11 @@ while kill -0 "$TEST" 2>/dev/null; do
     MSEEN=$((MSEEN + 1))
     NAME=$(grep 'R20 MEM=' "$LOG" | sed -n "${MSEEN}p" | sed 's/.*R20 MEM=//' | tr -d '\r')
     "${ADB[@]}" shell dumpsys meminfo top.xdwa.xwshun > "$SHOTS/mem-$NAME.txt" || true
+    ssh_sockets "$NAME"
   done
   sleep 0.5
 done
 wait "$TEST" && STATUS=0 || STATUS=$?
-grep -E 'R20 |\[E\]|Expected|Actual|Which|All tests|Some tests|skipped' "$LOG" | grep -v 'R20 SHOT=\|R20 MEM=' || true
+grep -E 'R20 |R20HOST|\[E\]|Expected|Actual|Which|All tests|Some tests|skipped' "$LOG" | grep -v 'R20 SHOT=\|R20 MEM=' || true
 echo "日志 ${LOG}，截图 ${SHOTS}"
 exit "$STATUS"
