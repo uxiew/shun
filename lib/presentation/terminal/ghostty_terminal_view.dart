@@ -211,28 +211,58 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
 
   Widget _engineView(TerminalTheme theme, TerminalViewOptions options) {
     final interactive = options.interactive;
-    return RepaintBoundary(
-      child: TerminalView(
-        controller: _adapter.controller,
-        theme: theme,
-        autofocus: interactive,
-        showKeyboard: interactive,
-        // 设置里的「安全键盘」：输入法按可见密码框处理，不联想、不学习。
-        secureTextInput: options.secureKeyboard,
-        // 远端开着鼠标报告（tmux mouse on、htop）时，手指只有滑动发成滚轮；点按照样叫键盘，
-        // 长按照样在本地选字，都不发鼠标点击（TER07，和 xterm2 一样）。
-        gestureSettings: const TerminalGestureSettings(touchMouseClicks: false),
-        // 粘贴快捷键换成 App 的（先预览），盖掉 flterm 在 Android 上直接粘贴的 Ctrl+V。
-        shortcuts: terminalPasteShortcuts,
-        // 链接（R19）：远端用 OSC 8 标的链接，和文字里的 http/https 网址。不认文件路径
-        // （flterm 的 LinkType.text 会认）：远端的路径在手机上打不开。
-        // 不给 onActivate：点一下终端只叫键盘，点在链接上也一样（所有者 10-07 定）。
-        // 长按落在链接上由 onLongPress 报出来，选字菜单里多一项「打开链接」，点了仍只弹确认框（SEC08、TER08）。
-        linkSettings: LinkSettings(
-          types: const {LinkType.osc8, LinkType.custom},
-          rules: _webLinkRules,
-          onLongPress: _onLongPress,
+    final controller = _adapter.controller;
+    // Ctrl+Shift+A / Ctrl+Shift+K（见 terminalKeyShortcuts）。flterm 的清屏会给服务器发一个 Ctrl+L
+    // 让 shell 重画提示符（上游 Ctrl+K 就是这样），全屏程序里什么都不做。
+    return Actions(
+      actions: {
+        TerminalSelectAllIntent: CallbackAction<TerminalSelectAllIntent>(
+          onInvoke: (_) {
+            if (_lease.isActive) controller.selectAll();
+            return null;
+          },
         ),
+        TerminalClearScrollbackIntent:
+            CallbackAction<TerminalClearScrollbackIntent>(
+          onInvoke: (_) {
+            if (_lease.isActive) controller.clear();
+            return null;
+          },
+        ),
+      },
+      child: RepaintBoundary(
+        child: _terminalView(controller, theme, options, interactive),
+      ),
+    );
+  }
+
+  Widget _terminalView(
+    TerminalController controller,
+    TerminalTheme theme,
+    TerminalViewOptions options,
+    bool interactive,
+  ) {
+    return TerminalView(
+      controller: controller,
+      theme: theme,
+      autofocus: interactive,
+      showKeyboard: interactive,
+      // 设置里的「安全键盘」：输入法按可见密码框处理，不联想、不学习。
+      secureTextInput: options.secureKeyboard,
+      // 远端开着鼠标报告（tmux mouse on、htop）时，手指只有滑动发成滚轮；点按照样叫键盘，
+      // 长按照样在本地选字，都不发鼠标点击（TER07，和 xterm2 一样）。
+      gestureSettings: const TerminalGestureSettings(touchMouseClicks: false),
+      // 粘贴换成 App 的（先预览），盖掉 flterm 在 Android 上直接粘贴的 Ctrl+V；
+      // Ctrl+K、Ctrl+A 发给服务器，清屏、全选挪到 Ctrl+Shift+K、Ctrl+Shift+A（10-07）。
+      shortcuts: terminalKeyShortcuts,
+      // 链接（R19）：远端用 OSC 8 标的链接，和文字里的 http/https 网址。不认文件路径
+      // （flterm 的 LinkType.text 会认）：远端的路径在手机上打不开。
+      // 不给 onActivate：点一下终端只叫键盘，点在链接上也一样（所有者 10-07 定）。
+      // 长按落在链接上由 onLongPress 报出来，选字菜单里多一项「打开链接」，点了仍只弹确认框（SEC08、TER08）。
+      linkSettings: LinkSettings(
+        types: const {LinkType.osc8, LinkType.custom},
+        rules: _webLinkRules,
+        onLongPress: _onLongPress,
       ),
     );
   }

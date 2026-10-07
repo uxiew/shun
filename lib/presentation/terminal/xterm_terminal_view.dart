@@ -204,7 +204,25 @@ class _XtermTerminalViewState extends State<XtermTerminalView> {
     );
   }
 
-  Widget _terminalContent(TerminalTheme theme) => Listener(
+  /// Ctrl+Shift+K：清掉本地的历史和屏幕，只留提示符那几行（xterm2 的 clear）；不给服务器发东西。
+  /// 全屏程序里什么都不做，和 Ghostty 一样。
+  Widget _terminalContent(TerminalTheme theme) => Actions(
+        actions: {
+          TerminalClearScrollbackIntent:
+              CallbackAction<TerminalClearScrollbackIntent>(
+            onInvoke: (_) {
+              if (_lease.isActive && !_terminal.isUsingAltBuffer) {
+                _controller.clearSelection();
+                _terminal.clear();
+              }
+              return null;
+            },
+          ),
+        },
+        child: _terminalListener(theme),
+      );
+
+  Widget _terminalListener(TerminalTheme theme) => Listener(
         onPointerDown: (event) {
           final mouse = event.kind == PointerDeviceKind.mouse;
           // Switching input devices changes policy; repeated finger gestures do not.
@@ -248,13 +266,17 @@ class _XtermTerminalViewState extends State<XtermTerminalView> {
                 ? TextInputType.visiblePassword
                 : TextInputType.emailAddress,
             deleteDetection: true,
-            // xterm2 给了 shortcuts 就整个替换默认的：复制、全选照抄它在 Android 上的默认，
+            // xterm2 给了 shortcuts 就整个替换默认的：复制照抄它在 Android 上的默认（Ctrl+Shift+C），
             // 粘贴换成 App 的（先预览，SEC10），不让 xterm2 直接把剪贴板粘进终端。
+            // 全选从 Ctrl+A 挪到 Ctrl+Shift+A、加 Ctrl+Shift+K 清滚动区，Ctrl+A 发给服务器（10-07，两个引擎一样）。
             shortcuts: const {
               SingleActivator(LogicalKeyboardKey.keyC,
                   control: true, shift: true): CopySelectionTextIntent.copy,
-              SingleActivator(LogicalKeyboardKey.keyA, control: true):
+              SingleActivator(LogicalKeyboardKey.keyA,
+                      control: true, shift: true):
                   SelectAllTextIntent(SelectionChangedCause.keyboard),
+              SingleActivator(LogicalKeyboardKey.keyK,
+                  control: true, shift: true): TerminalClearScrollbackIntent(),
               ...terminalPasteShortcuts,
             },
             autofocus: widget.options.interactive,
