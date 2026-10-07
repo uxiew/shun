@@ -12,3 +12,6 @@ analyzer:
     # 自己维护的上游 fork 在它自己的 pub workspace 里分析和测试（见 third_party/README.md）；
     # 不排除的话，根目录 flutter analyze 会因为解析不到 fork 的依赖报上万条错误。
     - third_party/**
+    # 并行代理的 git worktree 建在这里，是整个仓库的另一份副本；扫进去会把同样的代码报两遍，
+    # 副本里的 third_party 也不在上一条里，又是上万条错误。
+    - .claude/**
