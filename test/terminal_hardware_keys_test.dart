@@ -10,7 +10,8 @@ import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.d
 import 'package:netcatty_mobile/presentation/terminal/terminal_view.dart';
 
 // 所有者 10-07 定（R19 留下的第二项）：硬件键盘 Ctrl+K、Ctrl+A 发给服务器（nano 剪切一行、readline 回行首、
-// tmux/screen 的前缀键）；App 自己的清滚动区、全选挪到 Ctrl+Shift+K、Ctrl+Shift+A。两个引擎各跑一遍。
+// tmux/screen 的前缀键）；App 自己的清滚动区、全选挪到 Ctrl+Shift+K、Ctrl+Shift+A。
+// R20 前所有者又定：Ctrl+C 有选区也发 ^C、复制挪到 Ctrl+Shift+C；Ctrl+I/M 发 Tab、回车。
 // 这里用 Flutter 的模拟按键，设备上的真实扫描码见 integration_test/r18_keys_test.dart。
 
 const _options = TerminalViewOptions(
@@ -139,19 +140,12 @@ void main() {
           }
         }
         expect(eaten, isEmpty, reason: '没有被本地吃掉的');
-        // 这里模拟的按键事件，Ghostty 把和 Tab、回车同码的 Ctrl+I、Ctrl+M 编成 CSI u（「fixterms」写法）。
-        // 注意：模拟器上真的硬件按键这两个什么都不发（integration_test/r18_keys_test.dart，10-07），设备上的按键事件
-        // 和这里模拟的不一样，以设备为准。这里只记下模拟事件下的样子，免得它悄悄变了没人知道。
-        expect(
-          other,
-          engine == 'Ghostty'
-              ? {'Ctrl+I': '\x1b[105;5u', 'Ctrl+M': '\x1b[109;5u'}
-              : isEmpty,
-          reason: jsonEncode(other),
-        );
+        // Ctrl+I、Ctrl+M 和 Tab、回车同码：Ghostty 上游编成 CSI u（「fixterms」写法），fork 改成发 09、0d
+        // （R20，所有者 10-07 定和 xterm2 一样）。设备上的真实扫描码见 integration_test/r18_keys_test.dart。
+        expect(other, isEmpty, reason: jsonEncode(other));
       });
 
-      testWidgets('有选区时：Ghostty 的 Ctrl+C 是复制（不发 ^C），xterm2 照发', (tester) async {
+      testWidgets('有选区时 Ctrl+C 照样发 ^C（中断），不复制', (tester) async {
         await mount(tester);
         await press(tester, LogicalKeyboardKey.keyA, shift: true);
         await tester.pump(const Duration(milliseconds: 100));
@@ -159,9 +153,39 @@ void main() {
 
         await press(tester, LogicalKeyboardKey.keyC);
 
-        // flterm 在 Android 上照 Windows 终端的习惯：有选区时 Ctrl+C 复制、没选区才发 ^C。没改，记在使用手册里。
-        expect(sent.toString(), engine == 'Ghostty' ? '' : '\x03');
+        // flterm 在 Android 上照 Windows 终端的习惯是有选区时 Ctrl+C 复制；R20 起和 xterm2 一样永远发 ^C，
+        // 复制挪到 Ctrl+Shift+C（所有者 10-07 定）。
+        expect(sent.toString(), '\x03');
       });
+
+      if (engine == 'Ghostty') {
+        testWidgets('Ctrl+Shift+C 复制选中的字，不发给服务器；没选区时什么都不做', (tester) async {
+          final copied = <String>[];
+          final messenger =
+              TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+          messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+            if (call.method == 'Clipboard.setData') {
+              copied.add((call.arguments as Map)['text'] as String);
+            }
+            return null;
+          });
+          addTearDown(() =>
+              messenger.setMockMethodCallHandler(SystemChannels.platform, null));
+          await mount(tester);
+
+          await press(tester, LogicalKeyboardKey.keyC, shift: true);
+          expect(copied, isEmpty, reason: '没选区');
+
+          await press(tester, LogicalKeyboardKey.keyA, shift: true);
+          await tester.pump(const Duration(milliseconds: 100));
+          await press(tester, LogicalKeyboardKey.keyC, shift: true);
+          await tester.pump(const Duration(seconds: 2));
+
+          expect(sent.toString(), isEmpty);
+          expect(copied, hasLength(1));
+          expect(copied.single, contains('line 300'));
+        });
+      }
     });
   }
 }

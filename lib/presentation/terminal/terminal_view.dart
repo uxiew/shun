@@ -68,19 +68,25 @@ class TerminalClearScrollbackIntent extends Intent {
   const TerminalClearScrollbackIntent();
 }
 
+/// 硬件键盘 Ctrl+Shift+C：复制选中的字（不发给服务器）。没有选区时什么都不做。
+class TerminalCopyIntent extends Intent {
+  const TerminalCopyIntent();
+}
+
 /// 这个组合键照常交给终端编码、发给服务器。
 ///
 /// 故意不给它配任何 Action：快捷键管理器匹配上了却找不到 Action，就当没匹配上，按键接着往下走到终端。
 /// 用它盖掉引擎自带的同一组合键——flterm 在 Android 上把 Ctrl+K 当清屏（服务器收到的是 Ctrl+L）、
-/// Ctrl+A 当全选（什么都不发）。给它配了 Action，这两个键就又发不到服务器了。
+/// Ctrl+A 当全选（什么都不发）、有选区时 Ctrl+C 当复制（不发 ^C）。给它配了 Action，这几个键就又发不到服务器了。
 class TerminalSendKeyIntent extends Intent {
   const TerminalSendKeyIntent();
 }
 
 /// 终端视图的硬件快捷键（R19 粘贴 + 10-07 所有者的决定）。
 ///
-/// Ctrl+K（nano 剪切一行、readline 删到行尾）、Ctrl+A（readline 回行首、tmux/screen 的前缀键）要发给服务器；
-/// App 自己的「清滚动区」「全选」挪到 Ctrl+Shift+K、Ctrl+Shift+A。各引擎视图要接住两个 App 意图。
+/// Ctrl+K（nano 剪切一行、readline 删到行尾）、Ctrl+A（readline 回行首、tmux/screen 的前缀键）、
+/// Ctrl+C（中断，有没有选区都一样）要发给服务器；App 自己的「清滚动区」「全选」「复制」挪到
+/// Ctrl+Shift+K、Ctrl+Shift+A、Ctrl+Shift+C（和 Linux 桌面终端一样）。终端视图要接住这三个 App 意图。
 ///
 /// 盖掉引擎默认的同一组合键靠的是 const 对象同一份：flterm 默认表里的 `const SingleActivator(.keyK, control: true)`
 /// 和这里的是同一个对象，合并 map 时这里的覆盖它。这里改成非 const，或者两边参数不一样（比如多写一个
@@ -91,10 +97,14 @@ const terminalKeyShortcuts = <ShortcutActivator, Intent>{
       TerminalSendKeyIntent(),
   SingleActivator(LogicalKeyboardKey.keyA, control: true):
       TerminalSendKeyIntent(),
+  SingleActivator(LogicalKeyboardKey.keyC, control: true):
+      TerminalSendKeyIntent(),
   SingleActivator(LogicalKeyboardKey.keyK, control: true, shift: true):
       TerminalClearScrollbackIntent(),
   SingleActivator(LogicalKeyboardKey.keyA, control: true, shift: true):
       TerminalSelectAllIntent(),
+  SingleActivator(LogicalKeyboardKey.keyC, control: true, shift: true):
+      TerminalCopyIntent(),
 };
 
 /// 按终端实际用的引擎选视图。终端页只调这里，不认识任何引擎的类型（R16）。

@@ -241,10 +241,16 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
   Widget _engineView(TerminalTheme theme, TerminalViewOptions options) {
     final interactive = options.interactive;
     final controller = _adapter.controller;
-    // Ctrl+Shift+A / Ctrl+Shift+K（见 terminalKeyShortcuts）。flterm 的清屏会给服务器发一个 Ctrl+L
+    // Ctrl+Shift+A / Ctrl+Shift+K / Ctrl+Shift+C（见 terminalKeyShortcuts）。flterm 的清屏会给服务器发一个 Ctrl+L
     // 让 shell 重画提示符（上游 Ctrl+K 就是这样），全屏程序里什么都不做。
     return Actions(
       actions: {
+        TerminalCopyIntent: CallbackAction<TerminalCopyIntent>(
+          onInvoke: (_) {
+            unawaited(_copySelection());
+            return null;
+          },
+        ),
         TerminalSelectAllIntent: CallbackAction<TerminalSelectAllIntent>(
           onInvoke: (_) {
             if (_lease.isActive) controller.selectAll();
@@ -284,7 +290,7 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
       // 长按照样在本地选字，都不发鼠标点击（TER07，和 xterm2 一样）。
       gestureSettings: const TerminalGestureSettings(touchMouseClicks: false),
       // 粘贴换成 App 的（先预览），盖掉 flterm 在 Android 上直接粘贴的 Ctrl+V；
-      // Ctrl+K、Ctrl+A 发给服务器，清屏、全选挪到 Ctrl+Shift+K、Ctrl+Shift+A（10-07）。
+      // Ctrl+K、Ctrl+A、Ctrl+C 发给服务器，清屏、全选、复制挪到 Ctrl+Shift+K/A/C（10-07）。
       shortcuts: terminalKeyShortcuts,
       // 链接（R19）：远端用 OSC 8 标的链接，和文字里的 http/https 网址。不认文件路径
       // （flterm 的 LinkType.text 会认）：远端的路径在手机上打不开。
