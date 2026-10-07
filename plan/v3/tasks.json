@@ -1111,7 +1111,7 @@
       "id": "R25",
       "phase": "P4",
       "title": "日用UI、诊断与参考交互收敛",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [
         "R10",
         "R13",
@@ -1143,7 +1143,9 @@
       ],
       "stop_condition": "视觉改动不能替代网络和输入门禁；不扩大WOL/NFC/sudo功能。",
       "owner_role": "实施代理",
-      "evidence": [],
+      "evidence": [
+        "evidence/R25.md"
+      ],
       "commit": null
     },
     {

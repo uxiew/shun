@@ -326,7 +326,8 @@
       "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R18.md"
+        "evidence/R18.md",
+        "evidence/R19.md"
       ]
     },
     {
@@ -597,7 +598,8 @@
       "result": "NOT_RUN",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R18.md"
+        "evidence/R18.md",
+        "evidence/R25.md"
       ]
     },
     {
@@ -608,7 +610,8 @@
       "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R19.md"
+        "evidence/R19.md",
+        "evidence/R25.md"
       ]
     },
     {
