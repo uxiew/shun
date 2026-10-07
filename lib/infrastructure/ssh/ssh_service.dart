@@ -87,6 +87,12 @@ enum ConnectionStep {
 
   /// Mosh 第二段：SSH 已断开，材料交给插件，由它经 UDP 直连。
   moshUdp,
+
+  /// 插件主机（X12）：核对本机的插件装着、批准了、可用。还没打开会话。
+  pluginHost,
+
+  /// 插件主机：插件正在打开会话。它自己联网，本 App 不知道它连去哪。
+  pluginSession,
 }
 
 /// 连接进行到了哪一步，给等待界面显示用。
@@ -127,6 +133,9 @@ class ConnectionStage {
       ConnectionStep.plugin => '正在核对本机的 Mosh 插件（还没连服务器）',
       ConnectionStep.moshServer => '第 1 段 SSH：“$label”（$detail）已登录，正在启动 mosh-server',
       ConnectionStep.moshUdp => '第 2 段 UDP：SSH 已断开，Mosh 插件正在直连 $detail',
+      ConnectionStep.pluginHost => '正在核对本机的插件“$label”（还没打开会话）',
+      ConnectionStep.pluginSession =>
+        '插件“$label”正在打开会话：它自己联网，不经过本 App 的代理和跳板',
     };
   }
 
@@ -363,6 +372,10 @@ class SshService {
         // 宁可失败，也不能悄悄给它开一个普通 SSH shell。
         throw UnsupportedError('Mosh 主机要经 Mosh 插件连接，不能按普通 SSH 终端打开。');
       }
+      if (host.protocol == HostProtocol.plugin) {
+        // 同上：插件主机由 PluginHostConnector 打开，没有 SSH 可连。
+        throw UnsupportedError('插件主机要经插件连接，不能按普通 SSH 终端打开。');
+      }
       // 路线在任何拨号之前一次算好：配置有问题此时就抛 RouteConfigException，一个连接都没开。
       // 之后全程只用 plan 里的快照，连接中途用户改了主机、跳板或代理，只影响下一次连接（RTE03）。
       final plan = routePlan ??
@@ -427,6 +440,9 @@ class SshService {
       attempt.throwIfCancelled();
       if (host.protocol == HostProtocol.mosh) {
         throw UnsupportedError('Mosh 主机要经 Mosh 插件连接，不能按普通 SSH 终端打开。');
+      }
+      if (host.protocol == HostProtocol.plugin) {
+        throw UnsupportedError('插件主机要经插件连接，不能按普通 SSH 终端打开。');
       }
       final plan = routePlan ??
           resolveRoutePlan(

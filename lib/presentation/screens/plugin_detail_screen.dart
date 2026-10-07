@@ -6,7 +6,9 @@ import 'package:plugin_api/plugin_api.dart';
 
 import '../../application/plugin_discovery.dart';
 import '../../application/plugin_registry.dart';
+import '../../application/plugin_sessions.dart';
 import '../localization/localized_widgets.dart';
+import 'plugin_session_test_screen.dart';
 
 String pluginStatusLabel(PluginStatus status) => switch (status) {
       PluginStatus.ready => '可用',
@@ -75,21 +77,32 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
 
   /// 做连接测试时这个包的样子。包变了（更新、换签）测试结果就不再作数。
   String? _testedAs;
-  var _connected = false;
+
+  /// 连接测试时原来没连着、是这页开的连接。沿用别人的（比如 Mosh 标签在用的）不算：那条不归这页断。
+  var _opened = false;
   var _busy = false;
+  late final PluginSessionManager _sessions;
 
   @override
   void initState() {
     super.initState();
+    _sessions = ref.read(pluginSessionManagerProvider);
     unawaited(ref.read(pluginDiscoveryProvider.future).then((discovery) {
       if (mounted) setState(() => _discovery = discovery);
     }));
   }
 
+  /// 这个插件此刻还开着的会话（Mosh 标签、会话测试）。
+  int _liveSessions() => _sessions.sessions
+      .where((s) => s.packageName == widget.packageName)
+      .length;
+
   @override
   void dispose() {
-    // 连接测试的连接只在这个页面开着时保持，离开就断开，不在后台留着。
-    if (_connected) unawaited(_discovery?.disconnect(widget.packageName));
+    // 这页开的连接离开就断开，不在后台留着；但期间有会话用上了它（比如开了 Mosh 标签），就留给它们。
+    if (_opened && _liveSessions() == 0) {
+      unawaited(_discovery?.disconnect(widget.packageName));
+    }
     super.dispose();
   }
 
@@ -144,7 +157,7 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
     final d = entry.descriptor;
     final stale = _testedAs != null && _testedAs != _fingerprint(entry);
     // 包变了之后发现流程已经断开了那条连接，这里不能再给「断开」，免得以为还连着。
-    final connected = _connected && !stale;
+    final connected = _opened && !stale;
     return Scaffold(
       appBar: AppBar(title: Text(d?.displayName ?? widget.packageName)),
       body: ListView(
@@ -217,6 +230,19 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
             LText('插件包刚变过（更新、换签或状态变化），之前的连接测试结果已作废。', style: small)
           else if (_result != null)
             LText(_result!, key: const ValueKey('plugin-check-result')),
+          if (entry.status == PluginStatus.ready &&
+              (entry.descriptor?.capabilities
+                      .contains(Capability.terminalSession) ??
+                  false) &&
+              PluginSessionTestScreen.whyNot(entry.descriptor) != null)
+            LText(PluginSessionTestScreen.whyNot(entry.descriptor)!,
+                key: const ValueKey('plugin-session-test-unavailable'),
+                style: small),
+          if (entry.status == PluginStatus.ready && _liveSessions() > 0)
+            LText(
+                '这个插件有正在跑的会话（比如 Mosh 标签）：连接测试沿用它们的那条连接、不重新握手，这页也不给「断开」，免得把它们一起关掉。',
+                key: const ValueKey('plugin-live-sessions'),
+                style: small),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -275,20 +301,33 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
                     final result = await d.check(entry);
                     if (!mounted) return;
                     setState(() {
-                      _result = result;
+                      _result = result.message;
                       _testedAs = _fingerprint(entry);
-                      _connected = true;
+                      _opened = _opened || (result.ok && !result.reused);
                     });
                   }),
           child: const LText('连接测试'),
         ),
-      if (connected && ready)
+      // 会话测试（X12）：给插件作者核对终端会话的整个来回。要临时会话材料的插件（Mosh）不在这里开，原因写在下面。
+      if (ready && PluginSessionTestScreen.whyNot(entry.descriptor) == null)
+        OutlinedButton(
+          key: const ValueKey('plugin-session-test'),
+          onPressed: _busy
+              ? null
+              : () => Navigator.of(context).push(MaterialPageRoute<void>(
+                    builder: (_) => PluginSessionTestScreen(
+                        packageName: widget.packageName),
+                  )),
+          child: const LText('会话测试'),
+        ),
+      // 有会话在用这条连接时不给「断开」：断开会把它们（比如 Mosh 标签）一起关掉。
+      if (connected && ready && _liveSessions() == 0)
         TextButton(
           onPressed: _busy
               ? null
               : () => _run((d) async {
                     await d.disconnect(widget.packageName);
-                    if (mounted) setState(() => _connected = false);
+                    if (mounted) setState(() => _opened = false);
                   }),
           child: const LText('断开'),
         ),
@@ -299,7 +338,7 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
               ? null
               : () => _run((d) async {
                     await d.disable(entry);
-                    if (mounted) setState(() => _connected = false);
+                    if (mounted) setState(() => _opened = false);
                     _message('已停用：它的会话已关闭，批准记录保留，重新启用不用再批准。');
                   }),
           child: const LText('停用'),
@@ -318,7 +357,7 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
               ? null
               : () => _run((d) async {
                     await d.revoke(entry);
-                    if (mounted) setState(() => _connected = false);
+                    if (mounted) setState(() => _opened = false);
                   }),
           child: const LText('撤销批准'),
         ),

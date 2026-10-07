@@ -1,10 +1,13 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 xwfe
+
 import 'dart:convert';
 
 /// 宿主当前实现的插件 API 版本。major 变了就是不兼容；minor 只追加能力。
 const hostApiMajor = 1;
 const hostApiMinor = 0;
 
-/// 描述符 JSON 的最大字节数。再大就不是"描述"了，直接拒绝（PLG01 超长描述符）。
+/// 描述符 JSON 的最大字节数。再大就不是"描述"了，直接拒绝。
 const maxDescriptorBytes = 16 * 1024;
 
 enum Deployment {
@@ -24,7 +27,7 @@ enum Capability {
   remoteDesktopSurface('remote-desktop-surface', 0),
 
   /// 只有随包内置的 provider 能声明：路由（Direct/SOCKS/ProxyJump）决定流量走哪，
-  /// 交给第三方就等于交出"不偷偷直连"这条底线（docs/15 §1）。
+  /// 交给第三方就等于交出"代理或跳板失败时不偷偷直连"这条底线。
   route('route', 0);
 
   const Capability(this.wire, this.sinceMinor);

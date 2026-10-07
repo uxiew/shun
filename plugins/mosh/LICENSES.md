@@ -2,6 +2,7 @@
 
 这份表随 APK 一起分发（`assets/licenses/README.md`），许可证原文在同一目录。
 对应源码：本仓库 `plugins/mosh/`（插件代码、JNI、构建脚本、对 mosh 的补丁）+ 下表的上游源码包。按 `README.md` 能从源码重建。
+插件还编进了本仓库的契约库 `plugins/provider-sdk`（Apache-2.0，见那个目录的 `LICENSE`）；Apache-2.0 能和 GPLv3 合用，不改变下面的结论。
 
 ## 进 APK 的 native 文件
 

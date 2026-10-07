@@ -29,6 +29,7 @@ import '../../infrastructure/storage/vault_repository.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/custom_background.dart';
 import '../widgets/ai_chat_sheet.dart';
+import '../widgets/host_address_line.dart';
 import '../widgets/host_system_icon.dart';
 import '../widgets/port_forward_sheet.dart';
 import '../widgets/route_legs_view.dart';
@@ -350,8 +351,10 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                         ),
                                         // 默认引擎不标；用设置里选的实验引擎开的标签标出来，
                                         // 改了设置以后哪个标签用的是哪个引擎一眼能看出来。
+                                        // 插件主机的标签标出插件名（X12）：一眼看出这个标签由哪个插件承载。
                                         label: LText(
                                           '${duplicateCount > 1 ? '${session.host.label} #$occurrence' : session.host.label}'
+                                          '${session.host.protocol == HostProtocol.plugin && session.plugin != null ? ' · ${session.plugin!.protocol}' : ''}'
                                           '${session.terminal.engine == defaultTerminalEngineName ? '' : ' · ${session.terminal.engine}'}',
                                         ),
                                         onPressed: () => ref
@@ -680,6 +683,13 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
     );
   }
 
+  /// 关插件标签前说清楚：本 App 只管自己这一端，插件那边连着的东西怎么收尾由插件决定。
+  String _pluginCloseText(ActiveTerminalSession session) {
+    final head = localized('将关闭插件会话：');
+    final tail = localized('本 App 先关自己这一端，再请插件关，2 秒内等它确认；插件自己连着的东西怎么收尾由插件决定。');
+    return '$head${session.host.label}（${session.plugin!.protocol}）。$tail';
+  }
+
   Future<void> _confirmClose(
     int index,
     ActiveTerminalSession session,
@@ -689,13 +699,22 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
           builder: (context) => AlertDialog(
             icon: const Icon(Icons.warning_amber_outlined),
             title: LText(
-              session.plugin == null ? '关闭 SSH 标签页？' : '关闭 Mosh 标签页？',
+              session.plugin == null
+                  ? '关闭 SSH 标签页？'
+                  : session.host.protocol == HostProtocol.plugin
+                      ? '关闭插件标签页？'
+                      : '关闭 Mosh 标签页？',
             ),
             // 不承诺普通 shell 里的程序还活着（TMX08）：断开时它们通常会收到挂断信号一起结束；
             // tmux 标签只是分离客户端，会话和里面的程序还在。
             // 已经断开的标签什么都不会再发：不能再说「会话留在远端」——恢复时可能已经查明它不在了。
             content: LText(
               switch ((session.tmux, session.connected)) {
+                // 插件主机（X12）：本 App 只请插件关会话、2 秒内等它确认；插件那边连着什么、怎么收尾由插件决定。
+                _
+                    when session.host.protocol == HostProtocol.plugin &&
+                        session.connected =>
+                  _pluginCloseText(session),
                 // Mosh：插件让 mosh-client 按协议通知服务器关闭，远端的 mosh-server 和 shell 随之退出。
                 _ when session.plugin != null && session.connected =>
                   '将断开 ${session.host.label} 的 Mosh 会话：服务器上这次的 mosh-server 和里面的 shell 会一起退出，'

@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 xwfe
+
 package top.xdwa.xwshun.plugin.v1;
 
 import java.util.ArrayList;
@@ -7,7 +10,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 /**
- * 插件侧的会话表：把宿主给的 handle 和「谁打开的（调用方 UID）」「第几代」绑在一起（X03，PLG06）。
+ * 插件侧的会话表：把宿主给的 handle 和「谁打开的（调用方 UID）」「第几代」绑在一起。
  *
  * <p>用法：openSession 里先 {@code CallerVerifier.requireTrustedCaller()} 拿到 uid，再 {@link #open}；
  * resize/close 里同样先认人，再 {@link #require} / {@link #remove}。

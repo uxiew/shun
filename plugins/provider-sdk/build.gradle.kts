@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 xwfe
+
 // 宿主与插件共用的薄契约：AIDL + 认人的两个工具类。纯 Java，不带 Kotlin，也不依赖 Flutter，
 // 插件作者可以直接引用。宿主工程（android/）和测试插件工程（plugins/）都把这个目录当子模块引入。
 plugins {

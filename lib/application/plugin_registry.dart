@@ -6,6 +6,7 @@ import 'package:plugin_api/plugin_api.dart';
 
 import '../domain/device_references.dart';
 import '../domain/plugins/builtin_plugins.dart';
+import '../domain/plugins/official_plugins.dart';
 
 /// registry 里每个 provider 此刻能不能用（docs/15 §7 的前半段状态机）。
 enum PluginStatus {
@@ -504,6 +505,8 @@ final pluginRegistryProvider =
   (ref) => PluginRegistry(
     policy: AdmissionPolicy(
       builtinIds: BuiltinPlugins.ids,
+      // xwshun.mosh 只认 Mosh 插件现在的签名证书；换正式签名要同步改 OfficialPlugins。
+      reservedOfficialIds: OfficialPlugins.reserved,
       allowDebugSigners: kDebugMode,
     ),
   ),

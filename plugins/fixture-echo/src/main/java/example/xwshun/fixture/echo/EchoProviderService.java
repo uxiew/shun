@@ -30,7 +30,8 @@ import top.xdwa.xwshun.plugin.v1.ProviderSessions;
  *
  * <p>行为由构建参数 -Pbehavior 决定（见 build.gradle.kts），用来做 X03 的故障注入：
  * normal / slowopen（3 秒后才回报 active）/ stubborn（不理 closeSession，持续发事件）/
- * misbehave（发旧代次和伪造 handle 的事件）/ major2（只接受宿主 API major 2）。
+ * misbehave（发旧代次和伪造 handle 的事件）/ major2（只接受宿主 API major 2）/
+ * badhandshake（握手时抛 UnsupportedOperationException：宿主不能因此崩溃，X12）。
  */
 public final class EchoProviderService extends Service {
     private static final String TAG = "XwshunEcho";
@@ -71,6 +72,10 @@ public final class EchoProviderService extends Service {
         @Override
         public String handshake(int hostApiMajor, int hostApiMinor, IXwshunHost callback) {
             int uid = requireHost("handshake");
+            if ("badhandshake".equals(behavior)) {
+                // 不是约定的 IllegalStateException：Binder 会把它原样带回宿主，宿主得接住，不能整个进程崩掉。
+                throw new UnsupportedOperationException("故意在握手时抛的异常");
+            }
             int accepted = "major2".equals(behavior) ? 2 : PluginContract.HOST_API_MAJOR;
             if (hostApiMajor != accepted) {
                 Log.w(TAG, "handshake 拒绝：宿主 API major " + hostApiMajor + "，本插件只支持 " + accepted);

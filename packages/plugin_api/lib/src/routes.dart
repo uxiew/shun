@@ -1,9 +1,12 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 xwfe
+
 import 'descriptor.dart';
 
 /// 用户为这次会话选定的路由。
 enum RequestedRoute { systemDefault, socks5Connect, proxyJump, socks5ProxyJump }
 
-/// 会话的传输类型：路由能力不能跨类型"继承"（docs/04 V3 段）。
+/// 会话的传输类型：路由能力不能跨类型"继承"——SSH 能经 SOCKS 不等于 UDP（Mosh）也能。
 enum TransportKind {
   /// TCP 字节流，可以复用宿主的 RoutePlan（SSH/SFTP）。
   byteStream,

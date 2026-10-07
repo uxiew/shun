@@ -1,7 +1,10 @@
-/// 三类会话各有各的状态机，不能合成一个"SSH 是否已连接"的布尔值（docs/03 V3 段）。
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 xwfe
+
+/// 三类会话各有各的状态机，不能合成一个"SSH 是否已连接"的布尔值。
 library;
 
-/// 终端/远程桌面会话的生命周期（docs/15 §7）。
+/// 终端/远程桌面会话的生命周期。
 enum SessionPhase {
   opening,
   active,
@@ -59,7 +62,7 @@ class TerminalSessionRef extends SessionKind {
   final SessionState<SessionPhase> state;
 }
 
-/// 内嵌远程桌面画面（后续 R38），绝不经过终端引擎。
+/// 内嵌远程桌面画面（以后才做），绝不经过终端引擎。
 class RemoteDesktopSessionRef extends SessionKind {
   const RemoteDesktopSessionRef(
     super.sessionHandle,

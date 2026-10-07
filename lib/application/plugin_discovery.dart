@@ -138,6 +138,10 @@ class PluginDiscovery {
   Future<String> inspect(String packageName) =>
       _bridge.inspect(packageName.trim());
 
+  /// 本 App 的签名证书，插件作者要把它写进插件（X12）。
+  Future<List<({String sha256, bool androidDebug})>> hostSigners() =>
+      _bridge.hostSigners();
+
   /// 用户在确认框里点了批准。绑定的是此刻系统读出的证书，不是插件自报的任何东西。
   ///
   /// [shown] 是确认框里给用户看的那份。批准前先重新发现一次：确认框开着的时候包可能被更新、换签或卸载，
@@ -217,10 +221,20 @@ class PluginDiscovery {
     await _bridge.openSettings(package, activity);
   }
 
-  /// 连接测试：绑定 → 握手（插件核对宿主证书）→ ping 往返。
-  /// 不是 Ready 的在这里就返回原因，不绑定。连接保持到 [disconnect] 或页面关闭，
-  /// 这样插件握手后发回的事件也能看到。
-  Future<String> check(PluginEntry entry) async {
+  /// [check] 新连上时的原话。
+  static const checkPassed = '握手成功（插件核对了宿主证书），ping 往返正常';
+
+  /// [check] 沿用已有连接时的原话。
+  static const checkReused = '已经连着（之前握过手），沿用这条连接：ping 往返正常。没有重新握手，正在跑的会话不受影响';
+
+  /// 连接测试：没连着就绑定 → 握手（插件核对宿主证书）→ ping；已经连着就只 ping，沿用那条连接。
+  ///
+  /// 为什么不每次重新握手：Kotlin 桥对一个插件只留一条连接，connect 会先断开旧的，连带关掉它正在跑的会话——
+  /// 原来在详情页点一下「连接测试」，开着的 Mosh 标签就被断成「被停用、撤销」（X09 记下的坑）。
+  /// 结果里的 reused 告诉调用方这条连接是不是它开的：不是它开的，离开页面时就不该断开。
+  /// 不是 Ready 的在这里就返回原因，不绑定。
+  Future<({bool ok, bool reused, String message})> check(
+      PluginEntry entry) async {
     final id = entry.pluginId;
     final package = entry.packageName;
     final binding = entry.binding;
@@ -229,7 +243,23 @@ class PluginDiscovery {
         package == null ||
         binding == null ||
         entry.serviceClass == null) {
-      return '没有绑定插件：它现在不可用（${entry.reason ?? entry.status.name}）';
+      return (
+        ok: false,
+        reused: false,
+        message: '没有绑定插件：它现在不可用（${entry.reason ?? entry.status.name}）',
+      );
+    }
+    final nonce = Random.secure().nextInt(1 << 31);
+    try {
+      final echoed = await _bridge.ping(package, nonce);
+      // 连着的这条可能正有别的会话在用：答得不对也只报告，不替用户断开。
+      return echoed == nonce
+          ? (ok: true, reused: true, message: checkReused)
+          : (ok: false, reused: true, message: 'ping 返回的值不对（沿用的连接，没有断开）');
+    } on PluginBridgeException catch (e) {
+      if (!const {'NOT_CONNECTED', 'DEAD', 'CLOSED'}.contains(e.code)) {
+        return (ok: false, reused: true, message: '连接失败：${e.message}');
+      }
     }
     try {
       await _bridge.connect(
@@ -238,15 +268,14 @@ class PluginDiscovery {
         pluginId: id,
         sha256: binding.signingDigest,
       );
-      final nonce = Random.secure().nextInt(1 << 31);
       final echoed = await _bridge.ping(package, nonce);
       if (echoed != nonce) {
         await _bridge.disconnect(package);
-        return 'ping 返回的值不对，已断开';
+        return (ok: false, reused: false, message: 'ping 返回的值不对，已断开');
       }
-      return '握手成功（插件核对了宿主证书），ping 往返正常';
+      return (ok: true, reused: false, message: checkPassed);
     } on PluginBridgeException catch (e) {
-      return '连接失败：${e.message}';
+      return (ok: false, reused: false, message: '连接失败：${e.message}');
     }
   }
 

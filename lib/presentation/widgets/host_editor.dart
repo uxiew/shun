@@ -1,14 +1,20 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../application/plugin_discovery.dart';
+import '../../application/plugin_host_session.dart';
+import '../../application/plugin_registry.dart';
 import '../../application/tailscale_catalog_refresh.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/vault.dart';
 import '../../domain/plugins/mosh_route.dart';
+import '../../domain/plugins/plugin_host.dart';
 import '../../domain/tailscale_ssh.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import 'catalog_source_section.dart';
@@ -74,6 +80,9 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   /// 用户点了「断开和目录的关联」：保存时去掉关联字段，主机本身留着（R13）。
   bool unlinkCatalog = false;
 
+  /// 协议选「插件」时用哪个插件（X12）。只存 pluginId，证书由插件页的批准记录绑定。
+  String? pluginId;
+
   @override
   void initState() {
     super.initState();
@@ -124,6 +133,10 @@ class _HostEditorState extends ConsumerState<HostEditor> {
             : _RouteMode.direct;
     entryProxy = jumpHostIds.isNotEmpty && hasProxy;
     pinned = host?.pinned ?? false;
+    pluginId = host == null ? null : pluginIdOf(host);
+    // App 启动时不自动发现插件（X04）：编辑器里要列出能选的插件，先让发现跑一次。
+    unawaited(
+        ref.read(pluginHostDiscoveryProvider.future).catchError((Object _) {}));
     // 路线摘要跟着输入实时更新。
     for (final controller in [
       hostname,
@@ -225,6 +238,11 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                   label: LText('Mosh'),
                   icon: Icon(Icons.wifi_tethering),
                 ),
+                const ButtonSegment(
+                  value: HostProtocol.plugin,
+                  label: LText('插件'),
+                  icon: Icon(Icons.extension_outlined),
+                ),
               ],
               selected: {protocol},
               onSelectionChanged: (value) => setState(() {
@@ -251,39 +269,42 @@ class _HostEditorState extends ConsumerState<HostEditor> {
               decoration: LInputDecoration(labelText: '名称'),
               validator: _required,
             ),
-            const SizedBox(height: 12),
-            TextFormField(
-              controller: hostname,
-              decoration: LInputDecoration(labelText: '主机名 / IP'),
-              keyboardType: TextInputType.url,
-              validator: _required,
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  flex: 2,
-                  child: TextFormField(
-                    controller: username,
-                    decoration: LInputDecoration(labelText: '用户名'),
-                    validator: _required,
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: TextFormField(
-                    controller: port,
-                    decoration: LInputDecoration(
-                      labelText: protocol == HostProtocol.telnet
-                          ? 'Telnet 端口'
-                          : 'SSH 端口',
+            // 插件主机没有地址、端口、用户名：连哪里由插件自己的设置页决定，本 App 不交给它任何主机数据。
+            if (protocol != HostProtocol.plugin) ...[
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: hostname,
+                decoration: LInputDecoration(labelText: '主机名 / IP'),
+                keyboardType: TextInputType.url,
+                validator: _required,
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Expanded(
+                    flex: 2,
+                    child: TextFormField(
+                      controller: username,
+                      decoration: LInputDecoration(labelText: '用户名'),
+                      validator: _required,
                     ),
-                    keyboardType: TextInputType.number,
-                    validator: _validPort,
                   ),
-                ),
-              ],
-            ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: TextFormField(
+                      controller: port,
+                      decoration: LInputDecoration(
+                        labelText: protocol == HostProtocol.telnet
+                            ? 'Telnet 端口'
+                            : 'SSH 端口',
+                      ),
+                      keyboardType: TextInputType.number,
+                      validator: _validPort,
+                    ),
+                  ),
+                ],
+              ),
+            ],
             const SizedBox(height: 12),
             TextFormField(
               controller: group,
@@ -302,6 +323,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
               value: pinned,
               onChanged: (value) => setState(() => pinned = value),
             ),
+            if (protocol == HostProtocol.plugin) ..._pluginSection(),
             if (protocol == HostProtocol.telnet) ...[
               _section('连接路径'),
               const LText(
@@ -310,7 +332,8 @@ class _HostEditorState extends ConsumerState<HostEditor> {
               ),
               _routePreview(preview),
             ],
-            if (protocol != HostProtocol.telnet) ...[
+            if (protocol != HostProtocol.telnet &&
+                protocol != HostProtocol.plugin) ...[
               _section('身份认证'),
               SegmentedButton<SshLoginMode>(
                 key: const ValueKey('ssh-login-mode'),
@@ -615,7 +638,8 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                   decoration: LInputDecoration(
                     labelText: 'Mosh UDP 端口范围（可选）',
                     hintText: '60001:60999',
-                    helperText: 'mosh-server 只在这个范围里挑 UDP 端口。服务器或防火墙只放行了某几个端口时填它，比如 60001 或 60001:60010。',
+                    helperText:
+                        'mosh-server 只在这个范围里挑 UDP 端口。服务器或防火墙只放行了某几个端口时填它，比如 60001 或 60001:60010。',
                     helperMaxLines: 3,
                   ),
                   validator: _validMoshPorts,
@@ -623,8 +647,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
               ],
               _routePreview(preview),
               // 测试连接只走 SSH、只查 PTY，测不了 Mosh 的 UDP 那一段：给 Mosh 主机一个「测试通过」反而误导。
-              if (widget.verifyHostKey != null &&
-                  protocol != HostProtocol.mosh)
+              if (widget.verifyHostKey != null && protocol != HostProtocol.mosh)
                 Align(
                   alignment: Alignment.centerRight,
                   child: OutlinedButton.icon(
@@ -755,6 +778,134 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     );
   }
 
+  /// 插件主机的设置（X12）：选哪个插件、它自己联网的说明、插件自己的设置页，残留的代理和跳板要用户明确去掉。
+  List<Widget> _pluginSection() {
+    final theme = Theme.of(context);
+    final small = theme.textTheme.bodySmall;
+    final entries = ref.watch(pluginRegistryProvider);
+    final usable = <String, PluginEntry>{
+      for (final e in entries)
+        if (e.pluginId != null &&
+            pluginHostAvailability(entries, e.pluginId).entry == e)
+          e.pluginId!: e,
+    };
+    final current = pluginHostAvailability(entries, pluginId);
+    final draft = _draft();
+    final routeProblem = pluginHostRouteProblem(draft);
+    return [
+      _section('用哪个插件'),
+      DropdownButtonFormField<String>(
+        key: const ValueKey('plugin-picker'),
+        initialValue: pluginId,
+        decoration: LInputDecoration(labelText: '插件'),
+        // 名字加 pluginId 在手机竖屏上放不下（模拟器上溢出 17 像素）：占满一行，放不下的用省略号。
+        isExpanded: true,
+        items: [
+          for (final e in usable.values)
+            DropdownMenuItem(
+              value: e.pluginId,
+              // 插件自己起的名字，不翻译。
+              child: Text(
+                '${e.descriptor!.displayName}（${e.pluginId}）',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          if (pluginId != null && !usable.containsKey(pluginId))
+            DropdownMenuItem(
+              value: pluginId,
+              child: Text(pluginId!, overflow: TextOverflow.ellipsis),
+            ),
+        ],
+        onChanged: (value) => setState(() => pluginId = value),
+      ),
+      if (usable.isEmpty && pluginId == null)
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: LText(
+            '还没有能用来连接的插件：装好终端插件后到「设置 → 插件（实验）」核对证书、批准。'
+            'Mosh 插件不在这里，Mosh 主机请选 Mosh 协议。',
+            key: const ValueKey('plugin-none-usable'),
+            style: small,
+          ),
+        ),
+      if (pluginId != null && current.problem != null)
+        Padding(
+          padding: const EdgeInsets.only(top: 6),
+          child: LText(
+            current.problem!,
+            key: const ValueKey('plugin-unavailable'),
+            style: small?.copyWith(color: theme.colorScheme.error),
+          ),
+        ),
+      const SizedBox(height: 8),
+      LText(
+        '这个插件自己联网，不经过本 App 的代理和跳板。连哪里、用什么账号，由插件自己的设置页决定；'
+        '本 App 不把这台主机的地址、密码、私钥交给它。',
+        key: const ValueKey('plugin-network-note'),
+        style: small,
+      ),
+      if (current.entry case final entry? when entry.settingsActivity != null)
+        Align(
+          alignment: Alignment.centerLeft,
+          child: TextButton.icon(
+            key: const ValueKey('plugin-open-settings-from-editor'),
+            onPressed: () async {
+              final discovery = await ref.read(pluginDiscoveryProvider.future);
+              try {
+                await discovery.openSettings(entry);
+              } on Object catch (error) {
+                _message('$error');
+              }
+            },
+            icon: const Icon(Icons.open_in_new),
+            label: const LText('打开插件的设置页'),
+          ),
+        ),
+      if (routeProblem != null) ...[
+        const SizedBox(height: 8),
+        Container(
+          key: const ValueKey('plugin-route-problem'),
+          width: double.infinity,
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: theme.colorScheme.errorContainer,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              LText(routeProblem,
+                  style: small?.copyWith(
+                      color: theme.colorScheme.onErrorContainer)),
+              const SizedBox(height: 6),
+              OutlinedButton(
+                key: const ValueKey('plugin-route-clear'),
+                onPressed: () => setState(() {
+                  routeMode = _RouteMode.direct;
+                  entryProxy = false;
+                }),
+                child: const LText('改成直连（去掉这台主机上的代理和跳板设置）'),
+              ),
+            ],
+          ),
+        ),
+      ],
+      if (widget.host != null && widget.onDelete != null) ...[
+        const SizedBox(height: 28),
+        OutlinedButton.icon(
+          key: const ValueKey('delete-host-from-editor'),
+          onPressed: _delete,
+          style: OutlinedButton.styleFrom(
+            foregroundColor: theme.colorScheme.error,
+            side: BorderSide(color: theme.colorScheme.error),
+          ),
+          icon: const Icon(Icons.delete_outline),
+          label: const LText('删除此服务器'),
+        ),
+      ],
+    ];
+  }
+
   Widget _section(String title) => Padding(
         padding: const EdgeInsets.fromLTRB(2, 22, 2, 10),
         child: LText(
@@ -833,8 +984,15 @@ class _HostEditorState extends ConsumerState<HostEditor> {
       moshPortsKey,
       protocol == HostProtocol.mosh ? moshPorts.text.trim() : null,
     );
+    // 同理，只有插件主机才留 pluginId。
+    _setOrRemove(
+      data,
+      pluginIdKey,
+      protocol == HostProtocol.plugin ? pluginId : null,
+    );
     if (unlinkCatalog) data.remove(CatalogBinding.key);
     if (protocol != HostProtocol.telnet &&
+        protocol != HostProtocol.plugin &&
         loginMode == SshLoginMode.tailscale) {
       data[sshLoginModeKey] = 'tailscale';
     } else {
@@ -877,6 +1035,15 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     VaultData? vault,
   ) {
     if (vault == null) return (plan: null, error: null, warnings: const []);
+    if (protocol == HostProtocol.plugin) {
+      // 插件主机不算路线（插件自己联网）。残留的代理、跳板设置不悄悄去掉，要用户在这里明确改成直连。
+      return (
+        plan: null,
+        error: pluginHostRouteProblem(_draft()) ??
+            (pluginId == null ? '选一个插件：协议选了「插件」，就要选用哪个插件连接。' : null),
+        warnings: const [],
+      );
+    }
     if (routeMode == _RouteMode.jump &&
         protocol != HostProtocol.telnet &&
         jumpHostIds.isEmpty) {
@@ -895,7 +1062,11 @@ class _HostEditorState extends ConsumerState<HostEditor> {
       if (plan.protocol == HostProtocol.mosh) {
         final unsupported = moshRouteProblem(plan);
         if (unsupported != null) {
-          return (plan: plan, error: unsupported.toString(), warnings: const []);
+          return (
+            plan: plan,
+            error: unsupported.toString(),
+            warnings: const []
+          );
         }
       }
       final warnings = <String>[];
@@ -969,6 +1140,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   ({HostProfile host, RoutePlan? plan})? _checkedDraft() {
     if (!(_form.currentState?.validate() ?? false)) return null;
     if (protocol != HostProtocol.telnet &&
+        protocol != HostProtocol.plugin &&
         loginMode == SshLoginMode.standard &&
         authMethod == HostAuthMethod.key &&
         identityFileId == null) {

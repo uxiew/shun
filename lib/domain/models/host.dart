@@ -1,6 +1,7 @@
 import 'server_stats.dart';
 
-enum HostProtocol { ssh, telnet, mosh }
+/// [plugin]：由第三方终端插件承载（X12），插件自己联网；用哪个插件见 domain/plugins/plugin_host.dart。
+enum HostProtocol { ssh, telnet, mosh, plugin }
 
 enum HostAuthMethod { auto, password, key }
 

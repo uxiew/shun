@@ -108,6 +108,7 @@ class PluginBridge(
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {
         when (call.method) {
             "discover" -> result.success(discover())
+            "hostSigners" -> result.success(hostSigners())
             "inspect" -> result.success(inspect(call.argument<String>("package") ?: ""))
             "connect" -> connect(
                 packageName = call.argument<String>("package") ?: "",
@@ -258,6 +259,16 @@ class PluginBridge(
         } catch (e: RuntimeException) {
             result.error("LAUNCH_FAILED", "系统拒绝打开插件的设置页", null)
         }
+    }
+
+    /**
+     * 本 App 自己的签名证书（X12）：插件作者要把它写进插件，插件只接受这张证书签的宿主。
+     * 和读插件证书是同一个函数，只取当前签名者；换台电脑构建的 debug 包这里就变了，插件得跟着重新构建。
+     */
+    private fun hostSigners(): List<Map<String, Any?>> = try {
+        SignerDigests.of(pm, context.packageName).map { mapOf("sha256" to it.sha256, "androidDebug" to it.androidDebug) }
+    } catch (e: PackageManager.NameNotFoundException) {
+        emptyList()
     }
 
     /** 某个包为什么没出现在插件列表里（PLG03）。只用于诊断，不影响准入。 */
@@ -621,6 +632,11 @@ class PluginBridge(
                     null to "插件不接受宿主的 API 版本：${e.message}"
                 } catch (e: RemoteException) {
                     null to "握手时插件进程退出"
+                } catch (e: RuntimeException) {
+                    // 约定是抛 IllegalStateException，但 UnsupportedOperationException、IllegalArgumentException、
+                    // NullPointerException 也会被 Binder 原样带回来。不接住的话它在这个线程上未捕获，整个宿主被系统杀掉
+                    // （X12 在模拟器上用 echo-badhandshake 复现过；callPlugin 那条路 X08 已经补过）。
+                    null to "插件握手出错：${e.javaClass.simpleName} ${e.message ?: ""}".trim()
                 }
                 main.post {
                     val (descriptor, error) = outcome

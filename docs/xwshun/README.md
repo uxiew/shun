@@ -80,6 +80,12 @@ flutter test test/integration_ssh_fixture_test.dart
     `all` 约 45 秒（不算构建）；另有 `cycles`、`kill`（打出 `X09 kill.READY` 后在电脑上强杀插件）、`ime`（经 `tool/ime-replay.sh`，
     额外参数放 `IME_REPLAY_DEFINES`，写法见脚本开头）。加 `--dart-define=X09_ENGINE=xterm2` 换旧引擎对照。
     多行的报告（阶段、屏幕）只有第一行带 `X09 ` 前缀，grep 时带上 `-A`。
+  - **Mosh 插件换签名（包括以后换正式签名、删了 `plugin-keys` 重新生成）必须同步改宿主的 `lib/domain/plugins/official_plugins.dart`**：
+    宿主只认那里登记的证书，别的证书签的包自称 `xwshun.mosh` 一律「已拒绝」、不给批准，真 Mosh 插件也一样被拒。
+    新证书从安装包读：`$ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs plugins/mosh/build/outputs/apk/release/mosh-release.apk`。
+  - 插件已有会话时进出连接测试、会话测试不断开它（X12，`integration_test/x12_plugin_reuse_test.dart`）：同上关 Wi-Fi、装 Mosh 插件，
+    另装 `plugins/out/echo-author.apk`，`--dart-define=X09_MOSH=…` 照上面取，约 25 秒（不算构建）。测试不 pkill、只看前后差值，
+    别人开着的 mosh-server 不受影响。报告行以 `X12 ` 开头。
 
 ## 3. 模拟器
 
@@ -166,7 +172,7 @@ $P plan/v3/scripts/validate_plan.py   # 只查计划本身，不测 App
 | `baseline-495f5d31/` | 0.1 GB | 原版代码的 worktree，2026-09-29 已删。要重新构建原版时：`git worktree add ../.toolchain/baseline-495f5d31 495f5d3`，再 `chmod +x android/gradlew`（上游仓库里它没有可执行位，不加会报 Permission denied）。删用 `git worktree remove --force`，直接 rm 会留下失效记录 |
 | `artifacts/` | 0.25 GB | 原版 debug APK（sha256 `339f4932…`，测原版共存、插件页「看不到这个包」诊断要用）；Tailscale 官方 OpenAPI 原件 `tailscale-openapi-b416d98e.yaml`（244 KB，删了就没法离线核对官方规范变没变，见 `plan/v3/docs/05`）；UU 远程的官方接入文档和官方 4.42.0 APK（`uuremote-*`，27 MB，App 里固定的官方证书就是从这个 APK 读的，删了没法复核，见 `plan/v3/docs/17`）；RustDesk 1.4.9 的清单、链接处理源码和 GitHub 发行版 APK（`rustdesk-*`，27 MB，固定的发行证书从这个 APK 读，同上） |
 | `zig-cache/` | 0.1 GB 起 | Zig 编 Ghostty 的缓存，每多编一个平台涨一些。删了下次编要重新下 Zig 依赖 |
-| `plugin-keys/` | 8 KB | X02 测试插件的两把签名密钥。删了下次 `plugins/build-fixtures.sh` 会生成新的，设备上已批准的测试插件随之变「已拒绝（换签）」，在插件页撤销旧批准重新核对即可 |
+| `plugin-keys/` | 12 KB | 测试插件的两把签名密钥（`fixture-author`、`fixture-impostor`）和 X12 样例的作者密钥（`example-author`）。删了下次 `plugins/build-fixtures.sh` 会生成新的，设备上已批准的测试插件随之变「已拒绝（换签）」，在插件页撤销旧批准重新核对即可。**Mosh 插件也用 `fixture-author` 签，宿主把 `xwshun.mosh` 绑在这张证书上**（`lib/domain/plugins/official_plugins.dart`）：删了它、Mosh 插件换了证书，宿主就当它是冒充者直接拒，得同步改那个文件 |
 | `mosh-build/` | 0.25–0.65 GB | X08 Mosh 运行时的源码包（60 MB，带 SHA256 核对）、交叉编译目录、装好的静态库（`prefix-arm64-v8a/`）和本机 protoc/tic（`host/`）。`build/` 下的编译目录随时可删（约 0.4 GB），只要 `prefix-*`、`host/` 在，`plugins/mosh/native/build-mosh-client.sh` 只重编 mosh 本身；整个删了要联网重下源码、从零编约 2 分钟 |
 | 整个 `.toolchain/` | — | 回到安装前，只剩下面 SDK 里的东西 |
 
@@ -265,9 +271,9 @@ brew 为本项目装的（2026-10-04）：`zig@0.16` 和它依赖的 `llvm@21`�
 | `lib/` | App 本体（Flutter + Riverpod + dartssh2）。终端引擎只经 `lib/infrastructure/terminal/` 的适配层接入 |
 | `android/` | Android 工程和原生代码：SSH 保活前台服务、画中画、手机目录授权、插件桥 |
 | `packages/plugin_api/` | 插件契约 v1（Dart 端） |
-| `plugins/` | 插件的 Android 契约与 SDK，加上只用于测试的插件 APK |
+| `plugins/` | 插件的 Android 契约与 SDK（`provider-sdk/`）、插件样例（`example/`）、真实的 Mosh 插件（`mosh/`），加上只用于测试的插件 APK |
 | `third_party/` | 自己维护的上游 fork（现在是 libghostty / flterm），说明见 `third_party/README.md` |
 | `tool/` | 发布构建脚本（`build-release.sh`）；测试工具：真实 SSH / 代理 / 跳板的 Docker 环境、多版本 tmux 环境（`tmux-fixture/`）、Tailscale 测试环境、假 Tailscale API、远程真机（`remote-device/`） |
 | `spikes/` | 终端引擎验证工程（R04，现在用来在 Android 上验 fork），不进 App |
 | `plan/v3/` | 计划、任务、用例、每批的实测证据 |
-| `docs/` | 使用手册（`user/`）、本机手册（本文件）、基座决定（`architecture/`），其余是上游原来的开发文档 |
+| `docs/` | 使用手册（`user/`）、本机手册（本文件）、插件作者文档（`plugin-authors/`）、基座决定（`architecture/`），其余是上游原来的开发文档 |

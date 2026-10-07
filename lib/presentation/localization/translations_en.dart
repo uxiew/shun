@@ -867,6 +867,152 @@ const englishTranslations = <String, String>{
       'Available once enabled: this app does not start a disabled plugin.',
   '插件由你自己安装和卸载；本 App 不下载、不安装任何插件。装上、更新、卸载后这里会自动重新核对。':
       'You install and uninstall plugins yourself; this app never downloads or installs any. After an install, update or uninstall, this page checks again automatically.',
+  // X12：给插件作者的会话测试页（plugin_session_test_screen.dart）和插件页的宿主证书。
+  '给插件作者': 'For plugin authors',
+  '本 App 的插件 API：': 'Plugin API of this app: ',
+  '本 App 的签名证书 SHA-256（插件里要写信任这一张）：':
+      'Signing certificate SHA-256 of this app (your plugin must trust this one):',
+  '读不出来': 'Could not read it',
+  '这是 Android 调试证书：换一台电脑构建的本 App 证书就不同，插件要按新证书重新构建。':
+      'This is an Android debug certificate: a build of this app from another computer has a different one, and the plugin must be rebuilt for it.',
+  '会话测试': 'Session test',
+  '给插件作者核对插件用：连接、打开一个 80×24 的终端会话、看插件写回来什么、发一行字、改尺寸、关闭，每一步写在下面。本 App 不替插件发任何东西，只发你在下面敲的那一行。':
+      'For plugin authors to check a plugin: connect, open an 80×24 terminal session, see what the plugin writes back, send a line, resize and close; each step is listed below. This app sends nothing on its own, only the line you type below.',
+  '插件已经连着（比如有 Mosh 标签开着）就沿用那条连接、不重新握手，它正在跑的会话不受影响。离开这页只关测试会话；连接是这页开的、又没有别的会话在用，才断开。':
+      'If the plugin is already connected (for example a Mosh tab is open), that connection is reused without a new handshake and its running sessions are not affected. Leaving this page only closes the test session; the connection is closed only if this page opened it and no other session is using it.',
+  '已经连着（之前握过手），沿用这条连接：ping 往返正常。没有重新握手，正在跑的会话不受影响':
+      'Already connected (handshake done earlier); reused that connection: ping round trip OK. No new handshake, running sessions are not affected',
+  'ping 返回的值不对（沿用的连接，没有断开）':
+      'ping returned the wrong value (reused connection, not disconnected)',
+  '这个插件没有声明终端会话能力（terminal-session），没有会话可测。':
+      'This plugin does not declare the terminal session capability (terminal-session), so there is no session to test.',
+  '这个插件申请了「本会话的临时凭据」：它的会话要本 App 先经 SSH 在服务器上拿到这一次的一次性材料（比如 Mosh 的 key）才能开，会话测试拿不出这些材料，所以不在这里开。Mosh 插件请在主机列表里用 Mosh 协议连接。':
+      'This plugin requests "temporary credentials of its own session": its sessions need one-time material that this app first obtains on the server over SSH (such as the Mosh key). The session test cannot provide it, so it is not offered here. Connect Mosh hosts from the host list with the Mosh protocol.',
+  '这个插件有正在跑的会话（比如 Mosh 标签）：连接测试沿用它们的那条连接、不重新握手，这页也不给「断开」，免得把它们一起关掉。':
+      'This plugin has running sessions (such as Mosh tabs): the connection test reuses their connection without a new handshake, and this page offers no "Disconnect" so they are not closed with it.',
+  '插件现在不是「可用」，先回详情页批准或启用。':
+      'The plugin is not available; approve or enable it on the details page first.',
+  '开始': 'Start',
+  '重新开始': 'Start again',
+  '改成 100×30': 'Resize to 100×30',
+  '改回 80×24': 'Back to 80×24',
+  '关闭会话': 'Close session',
+  '插件写回来的字节数（控制字符显示成 ^X，^[ 是 ESC）：':
+      'Bytes the plugin wrote back (control characters shown as ^X, ^[ is ESC): ',
+  '发给插件的一行': 'A line to send to the plugin',
+  r'末尾加回车（\r，和终端里按回车一样）':
+      r'Append Enter (\r, same as pressing Enter in a terminal)',
+  '连接：': 'Connect: ',
+  '打开会话失败：': 'Opening the session failed: ',
+  '打开会话：80×24，代次 ': 'Opened an 80×24 session, generation ',
+  '；插件报告失败：': '; the plugin reported a failure: ',
+  '打开中': 'Opening',
+  '插件回报：运行中（active）': 'Plugin reported: running (active)',
+  '正在关闭：本 App 先关了自己这一端，再请插件关':
+      'Closing: this app closed its end first, then asked the plugin to close',
+  '已关闭：插件确认已停止（closed）': 'Closed: the plugin confirmed it stopped (closed)',
+  '已关闭：2 秒内没等到插件确认（停止未确认）':
+      'Closed: no confirmation from the plugin within 2 seconds (stop unconfirmed)',
+  '已关闭：插件自己结束了会话（closed）':
+      'Closed: the plugin ended the session itself (closed)',
+  '中断：插件关了它那一端，没有先回报 closed':
+      'Interrupted: the plugin closed its end without reporting closed first',
+  '中断：插件进程没了': 'Interrupted: the plugin process is gone',
+  '中断：本 App 断开了这个插件（停用、撤销批准或插件包变了）':
+      'Interrupted: this app disconnected the plugin (disabled, approval revoked or package changed)',
+  '发送字节数：': 'Bytes sent: ',
+  '内容：': 'Content: ',
+  '发送失败：': 'Sending failed: ',
+  '改尺寸失败：': 'Resize failed: ',
+  '请插件改成 ': 'Asked the plugin to resize to ',
+  '插件确认尺寸 ': 'The plugin confirmed size ',
+  '2 秒内没收到插件的 resized 回报': 'No resized report from the plugin within 2 seconds',
+  // X12：插件主机（续）
+  '本 App 关掉了这个会话（插件被停用、撤销批准或更新），插件没有在 2 秒内确认已停止。':
+      'This app closed the session (the plugin was disabled, revoked or updated); the plugin did not confirm within 2 seconds that it stopped.',
+  // X12：插件主机（主机协议选「插件」，第三方终端插件开标签）。
+  'Mosh 插件不在这里，Mosh 主机请选 Mosh 协议。':
+      'The Mosh plugin is not listed here; choose the Mosh protocol for Mosh hosts.',
+  r'\r\n\x1b[33m[$name] $reason不会自动重连。\x1b[0m\r\n':
+      r'\r\n\x1b[33m[$name] $reason It will not reconnect automatically.\x1b[0m\r\n',
+  r'\x1b[33m不会自动重连，也不会重发断开前的输入；断开前最后打的字插件有没有收到，App 无法确认。\r\n':
+      r'\x1b[33mIt will not reconnect automatically or resend earlier input; the app cannot tell whether the plugin received the last keys typed before the disconnect.\r\n',
+  '不能用「插件」协议连。Mosh 主机请把协议选成 Mosh。':
+      'so it cannot be used with the Plugin protocol. Choose the Mosh protocol for Mosh hosts.',
+  '代理和跳板机':
+      'a proxy and jump hosts',
+  '关闭插件标签页？':
+      'Close the plugin tab?',
+  '将关闭插件会话：':
+      'This will close the plugin session: ',
+  r'插件 $id':
+      r'Plugin $id',
+  r'插件 ${entry.pluginId} 自己联网':
+      r'Plugin ${entry.pluginId} uses its own network',
+  r'插件“$label”正在打开会话：它自己联网，不经过本 App 的代理和跳板':
+      r"Plugin “$label” is opening the session: it uses its own network, not this app's proxies or jump hosts",
+  r'插件“$name”和这个 App 不兼容：$reason':
+      r'Plugin “$name” is incompatible with this app: $reason',
+  r'插件“$name”已被卸载：装回同一证书的包会直接恢复，这台主机的设置还在。':
+      r"Plugin “$name” was uninstalled: reinstalling a package with the same certificate restores it, and this host's settings are kept.",
+  r'插件“$name”没有声明终端会话能力（terminal-session），不能用来连接。':
+      r'Plugin “$name” does not declare the terminal session capability (terminal-session) and cannot be used to connect.',
+  r'插件“$name”申请了本会话的临时凭据：这种插件（比如 Mosh）的会话要本 App 先经 SSH 拿一次性材料，':
+      r'Plugin “$name” requests temporary credentials of its own session: sessions of such plugins (like Mosh) need one-time material this app first gets over SSH, ',
+  r'插件“$name”被停用了：到「设置 → 插件（实验）」启用它，再连。':
+      r'Plugin “$name” is disabled: enable it in Settings → Plugins (experimental), then connect.',
+  r'插件“$name”被拒绝了：$reason':
+      r'Plugin “$name” was rejected: $reason',
+  r'插件“$name”还没批准：到「设置 → 插件（实验）」核对证书后批准，再连。':
+      r'Plugin “$name” is not approved yet: check its certificate in Settings → Plugins (experimental) and approve it, then connect.',
+  '插件主机不走本 App 的连接路径：插件自己联网，不经过代理和跳板。':
+      'Plugin hosts do not use this app\'s connection route: the plugin uses its own network, without proxies or jump hosts.',
+  r'插件主机只能直连：这台主机配了$what。插件自己联网，不经过本 App 的代理和跳板；':
+      r"Plugin hosts can only be direct: this host has $what configured. The plugin uses its own network, not this app's proxies or jump hosts; ",
+  '插件主机要经插件连接，不能按普通 SSH 终端打开。':
+      'Plugin hosts connect through their plugin and cannot be opened as a plain SSH terminal.',
+  '插件关掉了这个会话，没说原因。':
+      'The plugin closed this session without saying why.',
+  '插件只在 Android 上有。':
+      'Plugins are only available on Android.',
+  r'插件报告失败（$failure）。':
+      r'The plugin reported a failure ($failure).',
+  '插件结束了这个会话。':
+      'The plugin ended this session.',
+  '插件被停用、撤销批准、更新或断开了连接，会话已关闭。':
+      'The plugin was disabled, its approval revoked, updated or disconnected; the session was closed.',
+  '插件进程没了（被系统或手动结束）。':
+      'The plugin process is gone (ended by the system or by hand).',
+  '改成直连（去掉这台主机上的代理和跳板设置）':
+      'Switch to direct (remove this host\'s proxy and jump host settings)',
+  '本 App 不把这台主机的地址、密码、私钥交给它。':
+      'this app never gives it this host\'s address, password or private key.',
+  '本 App 先关自己这一端，再请插件关，2 秒内等它确认；插件自己连着的东西怎么收尾由插件决定。':
+      'This app closes its own end first, then asks the plugin to close and waits 2 seconds for confirmation; how the plugin winds down its own connections is up to the plugin.',
+  '本 App 关掉了这个会话（插件被停用、撤销批准或更新），插件确认已停止。':
+      'This app closed the session (the plugin was disabled, revoked or updated); the plugin confirmed that it stopped.',
+  r'正在核对本机的插件“$label”（还没打开会话）':
+      r'Checking the plugin “$label” on this device (no session opened yet)',
+  '没有打开插件，也不会悄悄去掉这些设置。在编辑器里把连接路径改成直连，或者把协议改回 SSH。':
+      'the plugin was not opened, and these settings are not silently removed. Switch the route to direct in the editor, or change the protocol back to SSH.',
+  r'没有装插件“$pluginId”。装好后到「设置 → 插件（实验）」核对证书并批准，再连。':
+      r'Plugin “$pluginId” is not installed. Install it, check its certificate and approve it in Settings → Plugins (experimental), then connect.',
+  '用哪个插件':
+      'Which plugin',
+  r'要再连，从保险库重新连接这台主机。\x1b[0m\r\n':
+      r'To connect again, connect this host from the vault again.\x1b[0m\r\n',
+  '还没有能用来连接的插件：装好终端插件后到「设置 → 插件（实验）」核对证书、批准。':
+      'No plugin can be used to connect yet: install a terminal plugin, then check its certificate and approve it in Settings → Plugins (experimental). ',
+  '这个插件自己联网，不经过本 App 的代理和跳板。连哪里、用什么账号，由插件自己的设置页决定；':
+      'This plugin uses its own network, not this app\'s proxies or jump hosts. Where it connects and with which account is set on the plugin\'s own settings page; ',
+  '这台主机还没选插件：在编辑器里选一个。':
+      'No plugin is chosen for this host yet: pick one in the editor.',
+  r'连不上插件“$name”：${check.message}':
+      r'Cannot connect to plugin “$name”: ${check.message}',
+  '选一个插件：协议选了「插件」，就要选用哪个插件连接。':
+      'Choose a plugin: with the Plugin protocol you have to pick which plugin connects.',
+  '不可用':
+      'unavailable',
   // X05：Tailscale 目录接入内置 provider。
   '目录设备引用无效': 'Invalid directory device reference',
   '没有主机引用这个来源，不需要恢复。新来源请用「添加来源」。':
@@ -2005,6 +2151,9 @@ const englishReplacements = <(String, String)>[
     'Missing package, service, pluginId or approved certificate'
   ),
   ('握手时插件进程退出', 'The plugin process exited during the handshake'),
+  // X12：插件在握手或调用里抛了约定以外的异常（PluginBridge.kt）。
+  ('插件握手出错：', 'Plugin handshake error: '),
+  ('插件出错：', 'Plugin error: '),
   ('插件进程已退出', 'The plugin process exited'),
   ('插件进程已不在', 'The plugin process is gone'),
   ('插件服务断开', 'The plugin service disconnected'),
@@ -2045,8 +2194,8 @@ const englishReplacements = <(String, String)>[
     ' is reserved for a built-in provider; an external package cannot use it'
   ),
   (
-    ' 是登记过的官方 ID，但安装包证书不匹配',
-    ' is a registered official ID, but the package certificate does not match'
+    ' 只认登记过的官方证书，这个安装包的证书不是那张，不能批准',
+    ' only accepts its registered official certificate; this package is signed with a different one and cannot be approved'
   ),
   (
     ' 已被另一个 provider 占用，不允许遮蔽',

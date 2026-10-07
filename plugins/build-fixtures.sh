@@ -33,12 +33,17 @@ build echo-impostor  fixture-echo  -PsignWith=impostor
 build echo-leaky     fixture-echo  -PsignWith=author -PleakTo=example.xwshun.fixture.rogue
 build echo-debugkey  fixture-echo  -PsignWith=androidDebug \
   -PechoAppId=example.xwshun.fixture.echo.debugkey -PpluginId=example.fixture_echo_debugkey
+# X12：自称 Mosh 插件的 ID（xwshun.mosh），用另一把密钥签。宿主只认 Mosh 插件那张证书，应直接「已拒绝」、不给批准。
+build echo-fakemosh  fixture-echo  -PsignWith=impostor \
+  -PechoAppId=example.xwshun.fixture.fakemosh -PpluginId=xwshun.mosh
 build rogue          fixture-rogue -PsignWith=impostor
 # X03 故障注入：与 echo-author 同包名同密钥，覆盖安装即可切换行为。
 build echo-slowopen  fixture-echo  -PsignWith=author -Pbehavior=slowopen
 build echo-stubborn  fixture-echo  -PsignWith=author -Pbehavior=stubborn
 build echo-misbehave fixture-echo  -PsignWith=author -Pbehavior=misbehave
 build echo-major2    fixture-echo  -PsignWith=author -Pbehavior=major2
+# X12：握手时抛约定以外的异常（UnsupportedOperationException），宿主要如实报错、不能崩。
+build echo-badhandshake fixture-echo -PsignWith=author -Pbehavior=badhandshake
 # X04 模拟插件更新：同包名同密钥、版本号递增，覆盖安装即是「更新」。退回旧版要 adb install -r -d。
 build echo-v2        fixture-echo  -PsignWith=author -PdescriptorVersion=0.2.0 -PversionCode=2
 build echo-morecaps  fixture-echo  -PsignWith=author -PdescriptorVersion=0.3.0 -PversionCode=3 \

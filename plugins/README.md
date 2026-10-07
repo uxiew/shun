@@ -1,6 +1,11 @@
 # 插件契约与测试插件
 
+要写插件，看 [docs/plugin-authors/](../docs/plugin-authors/README.md)，从 `example/` 开始。本页讲的是这个目录里的测试插件怎么编、怎么用。
+
 - `provider-sdk/`：宿主与插件共用的 AIDL 契约和认人工具（`CallerVerifier`、`SignerDigests`）。宿主工程和这里的测试工程引用同一份。
+  它和 `example/` 是 Apache-2.0（各自目录里的 `LICENSE`）；测试插件 `fixture-*`、`mosh/` 和仓库其余部分仍是 GPL-3.0-or-later。
+- `example/`：**插件样例**（Hello 终端，X12）。独立的 Gradle 工程，自带 wrapper，不在下面的测试工程里、`build-fixtures.sh` 不构建它；
+  用作者自己的密钥签名（本机测试用的在仓库外 `../../.toolchain/plugin-keys/example-author.jks`，配置在同目录 `example-signing.properties`）。
 - `fixture-echo/`、`fixture-rogue/`：X02–X04 的测试 APK。**只用于测试**：echo 连上不代表 Mosh 或任何真实 provider 可用。
 - `fixture-fakeuu/`、`fixture-fakerustdesk/`：X06、X07 的「假 UU 远程」「假 RustDesk」，扮演外部远控 App 接请求。它们不是真的，和它们走通不代表真实 App 能用。
 - `mosh/`：**真实插件**，不是测试用的。Mosh 运行时（官方 mosh-client 交叉编译，X08）。要先编运行时再构建，见 `mosh/README.md`；
@@ -23,11 +28,13 @@ cp ../android/local.properties .      # 首次：告诉 Gradle SDK 在哪（被 
 | `echo-impostor.apk` | 同上 | 另一把密钥 | 同包名不同签名（PLG04）。要先卸载 author 版才装得上 |
 | `echo-leaky.apk` | 同上 | 独立作者密钥 | 握手后把宿主回调 Binder 转交给 rogue（PLG05 宿主侧） |
 | `echo-debugkey.apk` | example.xwshun.fixture.echo.debugkey | 本机 Android 调试证书 | release 宿主拒收调试证书（PLG15） |
+| `echo-fakemosh.apk` | example.xwshun.fixture.fakemosh | 另一把密钥 | 自称 `xwshun.mosh`：宿主只认 Mosh 插件那张证书（`lib/domain/plugins/official_plugins.dart`），应「已拒绝：xwshun.mosh 只认登记过的官方证书…」、没有批准按钮（X12） |
 | `rogue.apk` | example.xwshun.fixture.rogue | 另一把密钥 | 冒用 `builtin.ssh`、伪造 Intent extras 调插件、用转交来的 Binder 调宿主 |
 | `echo-slowopen.apk` | example.xwshun.fixture.echo | 独立作者密钥 | 3 秒后才回报 active：打开途中关闭（PLG08） |
 | `echo-stubborn.apk` | 同上 | 独立作者密钥 | 不理 close、宿主关流也不回报 closed、每 500 ms 发事件（PLG12） |
 | `echo-misbehave.apk` | 同上 | 独立作者密钥 | 发旧代次和伪造句柄的会话事件（PLG06） |
 | `echo-major2.apk` | 同上 | 独立作者密钥 | 握手时只接受宿主 API major 2（PLG02） |
+| `echo-badhandshake.apk` | 同上 | 独立作者密钥 | 握手时抛 UnsupportedOperationException（约定是 IllegalStateException）：宿主要报「连接失败：插件握手出错…」，不能崩（X12） |
 | `echo-v2.apk` | 同上 | 独立作者密钥 | 版本 0.2.0（versionCode 2），能力不变：普通更新，应仍可用（PLG11） |
 | `echo-morecaps.apk` | 同上 | 独立作者密钥 | 0.3.0，多申请 `remote-desktop-external`：应回到待批准，不自动扩大批准（PLG11） |
 | `echo-apimajor2.apk` | 同上 | 独立作者密钥 | 0.4.0，描述符声明 API major 2：应判不兼容（X04「major 变化阻断」） |

@@ -7,7 +7,7 @@
 //   -PechoAppId=<包名>                     默认 example.xwshun.fixture.echo
 //   -PpluginId=<pluginId>                  默认 example.fixture_echo
 //   -PleakTo=<包名>                        握手后把宿主回调 Binder 转交给这个包（只为测宿主逐事务鉴权）
-//   -Pbehavior=normal|slowopen|stubborn|misbehave|major2   X03 故障注入，见 EchoProviderService
+//   -Pbehavior=normal|slowopen|stubborn|misbehave|major2|badhandshake   X03/X12 故障注入，见 EchoProviderService
 //   -PdescriptorVersion=0.1.0 -PversionCode=1               X04 模拟插件更新（版本号要递增才能覆盖安装）
 //   -PextraCapability=<能力名>                               X04 更新后多申请一项能力，宿主应要求重新批准
 //   -PapiMajor=1                                             X04 描述符声明的 API major，改成 2 宿主应判不兼容
@@ -30,8 +30,8 @@ val capabilities = listOf("terminal-session") + listOfNotNull(extraCapability.if
 val permissions = listOf("own-session-input-output") +
     if (extraCapability == "remote-desktop-external") listOf("user-initiated-external-launch") else emptyList()
 fun jsonList(items: List<String>) = items.joinToString(", ") { "\"$it\"" }
-if (behavior !in setOf("normal", "slowopen", "stubborn", "misbehave", "major2")) {
-    throw GradleException("behavior 只能是 normal/slowopen/stubborn/misbehave/major2")
+if (behavior !in setOf("normal", "slowopen", "stubborn", "misbehave", "major2", "badhandshake")) {
+    throw GradleException("behavior 只能是 normal/slowopen/stubborn/misbehave/major2/badhandshake")
 }
 @Suppress("UNCHECKED_CAST")
 val signing = extra["xwshunSigning"] as List<String>
