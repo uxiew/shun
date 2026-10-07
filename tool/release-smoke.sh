@@ -20,16 +20,17 @@ PKG=top.xdwa.xwshun
   || { echo "$SERIAL 不是模拟器，不跑（真机上 adb 点按会碰到所有者的东西）" >&2; exit 1; }
 
 API=$("${ADB[@]}" shell getprop ro.build.version.sdk | tr -d '\r')
-PAGE=$("${ADB[@]}" shell getconf PAGE_SIZE | tr -d '\r')
+# Android 7.0 的 toybox 没有 getconf：读不到就照实写。
+PAGE=$("${ADB[@]}" shell getconf PAGE_SIZE 2>/dev/null | tr -d '\r' | grep -E '^[0-9]+$' || echo '读不到')
 ABI=$("${ADB[@]}" shell getprop ro.product.cpu.abi | tr -d '\r')
 echo "设备：API ${API}，页大小 ${PAGE}，ABI ${ABI}"
 echo "APK：$(shasum -a 256 "$APK" | cut -c1-16)…"
 "${ADB[@]}" uninstall "$PKG" >/dev/null 2>&1 || true
 "${ADB[@]}" install "$APK" >/dev/null
 "${ADB[@]}" logcat -c 2>/dev/null || true
-# 启动组件按系统解析的来：Activity 的 Kotlin 包名沿用原项目（app.netcatty.mobile），和 applicationId 不一样。
-LAUNCHER=$("${ADB[@]}" shell cmd package resolve-activity --brief -c android.intent.category.LAUNCHER "$PKG" | tail -1 | tr -d '\r')
-"${ADB[@]}" shell am start -n "$LAUNCHER" >/dev/null
+# 用 monkey 发一次启动意图：Activity 的 Kotlin 包名沿用原项目（app.netcatty.mobile），和 applicationId 不一样；
+# Android 7.0 没有 cmd package resolve-activity，monkey 各版本都有。
+"${ADB[@]}" shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
 
 # 界面上找带某段字的节点，打印它的中心坐标；找不到返回 1。
 find_text() {
