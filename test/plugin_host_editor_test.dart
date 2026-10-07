@@ -38,8 +38,9 @@ void main() {
     ));
   }
 
-  Future<void> open(WidgetTester tester, {HostProfile? host}) async {
-    tester.view.physicalSize = const Size(900, 4000);
+  Future<void> open(WidgetTester tester,
+      {HostProfile? host, double width = 900}) async {
+    tester.view.physicalSize = Size(width, 4000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
@@ -198,6 +199,23 @@ void main() {
     await openEditor(tester);
     expect(find.byKey(const ValueKey('plugin-unavailable')), findsOneWidget);
     expect(find.textContaining('被停用了'), findsOneWidget);
+  });
+
+  testWidgets('手机竖屏宽度（411）：选中的插件名加 ID 放不下也不溢出', (tester) async {
+    await approve(helloId, hello);
+    final host = HostProfile({
+      'id': 'p1',
+      'label': 'notes',
+      'hostname': '',
+      'username': '',
+      'port': 22,
+      'protocol': 'plugin',
+      pluginIdKey: helloId,
+    });
+    await open(tester, host: host, width: 411);
+    await openEditor(tester);
+    // 溢出时 flutter_test 自己就判失败（模拟器上实测溢出过 17 像素）。
+    expect(find.textContaining('Hello 终端（样例）（$helloId）'), findsOneWidget);
   });
 
   testWidgets('没有能用的插件：说清楚去哪装、去哪批准，Mosh 不在这里', (tester) async {

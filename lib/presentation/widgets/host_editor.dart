@@ -798,15 +798,23 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         key: const ValueKey('plugin-picker'),
         initialValue: pluginId,
         decoration: LInputDecoration(labelText: '插件'),
+        // 名字加 pluginId 在手机竖屏上放不下（模拟器上溢出 17 像素）：占满一行，放不下的用省略号。
+        isExpanded: true,
         items: [
           for (final e in usable.values)
             DropdownMenuItem(
               value: e.pluginId,
               // 插件自己起的名字，不翻译。
-              child: Text('${e.descriptor!.displayName}（${e.pluginId}）'),
+              child: Text(
+                '${e.descriptor!.displayName}（${e.pluginId}）',
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
           if (pluginId != null && !usable.containsKey(pluginId))
-            DropdownMenuItem(value: pluginId, child: Text(pluginId!)),
+            DropdownMenuItem(
+              value: pluginId,
+              child: Text(pluginId!, overflow: TextOverflow.ellipsis),
+            ),
         ],
         onChanged: (value) => setState(() => pluginId = value),
       ),
