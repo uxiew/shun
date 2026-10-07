@@ -370,7 +370,7 @@ void main() {
       skip: _scenario != 'tui' || ssh == null,
       timeout: const Timeout(Duration(minutes: 8)));
 
-  testWidgets('resources：4 个标签各吃 1.25 MiB、再开关 100 次，进程的 RSS/PSS/fd/线程不持续涨',
+  testWidgets('resources：4 个标签各吃 0.9 MiB、再开关 100 次，进程的 RSS/PSS/fd/线程不持续涨',
       (tester) async {
     final controller = await startApp(tester);
     final baseline = _usage();
@@ -380,7 +380,7 @@ void main() {
     for (var i = 0; i < 4; i++) {
       tabs.add(await openTab(tester, controller, ssh!));
     }
-    // 固定负载：每个标签 20000 行中文 + 8 色 + emoji，约 1.25 MiB，4 个一共约 5 MiB（docs/09 的 5 MiB VT 压力）。
+    // 固定负载：每个标签 20000 行中文 + 8 色 + emoji，约 0.9 MiB，4 个一共约 3.6 MiB。单个标签吃 4.9 MB 的背压在 TER10（R17）。
     await exec(
             tabs.first,
             r"""awk 'BEGIN{for(i=0;i<20000;i++) printf "\033[3%dm第%05d行 中文输出 🙂 abc\033[0m %s\n", i%8, i, (i%3?"":"尾巴")}' > /tmp/r20-load.txt; """
@@ -397,7 +397,8 @@ void main() {
     final loaded = _usage();
     r20('res.after4Tabs', loaded);
 
-    // 按键到远端回显：cat 开着，tty 自己回显，每个字从按下到出现在屏幕上（含 adb 转发、Docker 网络、sshd）。
+    // 输入到远端回显：cat 开着，tty 自己回显，每个字从交给终端（和快捷键栏、按键面板同一个入口）到出现在屏幕上，
+    // 含 adb 转发、Docker 网络、sshd 的来回。硬件按键从扫描码到远端那一段由 r18_keys_test 的真实扫描码测。
     controller.activate(0);
     await settle(tester, 500);
     final echoTerminal = tabs.first.terminal;
@@ -406,26 +407,21 @@ void main() {
     final latencies = <int>[];
     // 只数屏幕上看得见的那几行里的 x：监听里调 allText 要把 5000 行滚动区格式化一遍，会把延迟量大。
     int xs() => screen(echoTerminal).join().split('x').length;
+    // 直接轮询屏幕（每 2 ms 一次），不靠适配器的监听：它只在模式、选区这类状态变时通知，远端写进来的字不一定触发。
     for (var i = 0; i < 50; i++) {
       final before = xs();
-      final stopwatch = Stopwatch();
+      final stopwatch = Stopwatch()..start();
+      echoTerminal.sendText('x');
       var seen = -1;
-      void listener() {
-        if (seen < 0 && xs() > before) seen = stopwatch.elapsedMicroseconds;
-      }
-
-      echoTerminal.addListener(listener);
-      stopwatch.start();
-      await tester.sendKeyEvent(LogicalKeyboardKey.keyX);
-      final deadline = DateTime.now().add(const Duration(seconds: 5));
-      while (seen < 0 && DateTime.now().isBefore(deadline)) {
+      while (seen < 0 && stopwatch.elapsedMilliseconds < 5000) {
         await tester.pump(const Duration(milliseconds: 2));
+        if (xs() > before) seen = stopwatch.elapsedMicroseconds;
       }
-      echoTerminal.removeListener(listener);
       if (seen >= 0) latencies.add(seen);
       await tester.pump(const Duration(milliseconds: 30));
     }
     echoTerminal.sendText('\x03');
+    expect(latencies, isNotEmpty, reason: '一个回显都没等到');
     latencies.sort();
     int pct(double p) => latencies[(p * (latencies.length - 1)).round()];
     r20('res.echoMs',
