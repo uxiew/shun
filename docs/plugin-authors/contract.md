@@ -54,7 +54,7 @@
 | 权限 | 宿主界面上的名字 | 用不用 |
 |---|---|---|
 | `own-session-input-output` | 本会话的输入输出 | 终端插件写它。宿主现在只在批准框、详情页显示，不写不会被拒，但用户看不出你要收发会话数据 |
-| `own-session-ephemeral-secret` | 本会话的临时凭据 | 只有 Mosh 插件用得上（宿主只把 Mosh 的一次性密钥交给 pluginId 为 `xwshun.mosh` 的插件）。别的插件写了什么也拿不到，还会让用户以为你要凭据，别写 |
+| `own-session-ephemeral-secret` | 本会话的临时凭据 | 只有 Mosh 插件用得上（宿主只把 Mosh 的一次性密钥交给 pluginId 为 `xwshun.mosh` 的插件）。别的插件写了什么也拿不到，会话测试也不给开，还会让用户以为你要凭据，别写 |
 | `user-initiated-external-launch`、`own-provider-state`、`device-catalog-read` | 由你点击后打开外部 App / 插件自己的状态 / 读设备目录 | 第三方插件现在用不上 |
 
 ## 3. AIDL 接口
@@ -63,7 +63,7 @@
 
 | 方法 | 谁调、什么时候 | 插件要做什么 |
 |---|---|---|
-| `String handshake(int hostApiMajor, int hostApiMinor, IXwshunHost host)` | 宿主每次连接（「连接测试」「会话测试」开始时）先调它 | 认人；核对版本（不接受就抛 `IllegalStateException`，话里写清楚要哪个版本）；记下 `host` 并 `linkToDeath`；**返回清单里那份描述符**（宿主核对其中的 `pluginId` 和批准的一致） |
+| `String handshake(int hostApiMajor, int hostApiMinor, IXwshunHost host)` | 宿主每次新建连接时先调它。「连接测试」「会话测试」在已经连着时沿用旧连接，不再调 | 认人；核对版本（不接受就抛 `IllegalStateException`，话里写清楚要哪个版本）；记下 `host` 并 `linkToDeath`；**返回清单里那份描述符**（宿主核对其中的 `pluginId` 和批准的一致） |
 | `long ping(long nonce)` | 连接测试 | 认人；原样返回 `nonce` |
 | `void openSession(String handle, long generation, int cols, int rows, ParcelFileDescriptor stream)` | 开会话 | 认人；用 `ProviderSessions.open(handle, uid, generation, …)` 记下；在**自己的线程**里开始读写 `stream`，先回报 `active`；立即返回 |
 | `void resizeSession(String handle, long generation, int cols, int rows)` | 终端尺寸变了 | 认人；`ProviderSessions.require` 核对；记下新尺寸；回报 `resized:COLSxROWS`。别在这里写 `stream`（可能阻塞 Binder 线程） |

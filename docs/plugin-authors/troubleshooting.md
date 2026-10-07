@@ -78,8 +78,8 @@ adb logcat -s XwshunHello XwshunPlugins AndroidRuntime:E
 | 看到的 | 原因 | 怎么办 |
 |---|---|---|
 | 详情页没有「会话测试」按钮 | 插件不是「可用」，或描述符的 `capabilities` 里没有 `terminal-session` | 批准；加上能力（加能力后要重新批准） |
+| 没有「会话测试」按钮，写着「这个插件申请了「本会话的临时凭据」：…会话测试拿不出这些材料，所以不在这里开」 | 描述符的 `permissions` 里有 `own-session-ephemeral-secret`。这种会话（Mosh）要宿主先经 SSH 拿一次性材料 | 普通终端插件别申请这个权限（它也拿不到任何东西）；Mosh 插件从主机列表用 Mosh 协议连接 |
 | 打开会话失败：插件拒绝：会话数已到上限 | 开的会话超过了你 `ProviderSessions` 的上限 | 调大上限，或检查会话结束时有没有 `drop` |
-| 打开会话失败：插件出错：UnsupportedOperationException Mosh 会话要用 openMoshSession 带上 bootstrap 材料 | 对 Mosh 插件做会话测试：它只接受宿主专门发起的 Mosh 会话 | 正常。Mosh 插件要从主机列表用 Mosh 协议连接 |
 | 一直停在「打开会话」，没有「插件回报：运行中（active）」 | 你没回报 `active` | 会话线程开始收发前先 `onSessionEvent(…, "active")` |
 | 框里是空的，「插件写回来的字节数」一直是 0 | 没往 `stream` 里写，或写在了别的地方 | 用 `new FileOutputStream(stream.getFileDescriptor())` 写 |
 | 框里出现 `^J` | 你只写了 `\n` | 写 `\r\n`。在真终端上只有 `\n` 时下一行不回行首，越来越往右 |
@@ -93,5 +93,7 @@ adb logcat -s XwshunHello XwshunPlugins AndroidRuntime:E
 
 ## 别的
 
-- **宿主连接测试或会话测试会断开你的插件正在跑的会话。** 宿主对同一个插件只留一条连接，新的连接取代旧的（事件里写「连接关闭 · … · 被新的连接取代」）。
+- **连接测试显示「已经连着（之前握过手），沿用这条连接…」**：宿主对一个插件只留一条连接，已经连着就不重新握手，免得断掉正在跑的会话。
+  改了插件的握手逻辑想重新看一遍：装新包（系统换进程，宿主自动断开旧连接），或者在详情页点「断开」再测。
+- 事件里「连接关闭 · … · 被新的连接取代」：旧连接已经不答话（进程没了），宿主重新连了一次。
 - 插件页的「事件」最多留 30 条，最新的在最上面。
