@@ -75,6 +75,9 @@ flutter test test/integration_ssh_fixture_test.dart
     `all` 约 45 秒（不算构建）；另有 `cycles`、`kill`（打出 `X09 kill.READY` 后在电脑上强杀插件）、`ime`（经 `tool/ime-replay.sh`，
     额外参数放 `IME_REPLAY_DEFINES`，写法见脚本开头）。加 `--dart-define=X09_ENGINE=xterm2` 换旧引擎对照。
     多行的报告（阶段、屏幕）只有第一行带 `X09 ` 前缀，grep 时带上 `-A`。
+  - 插件已有会话时进出连接测试、会话测试不断开它（X12，`integration_test/x12_plugin_reuse_test.dart`）：同上关 Wi-Fi、装 Mosh 插件，
+    另装 `plugins/out/echo-author.apk`，`--dart-define=X09_MOSH=…` 照上面取，约 25 秒（不算构建）。测试不 pkill、只看前后差值，
+    别人开着的 mosh-server 不受影响。报告行以 `X12 ` 开头。
 
 ## 3. 模拟器
 
