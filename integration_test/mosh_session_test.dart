@@ -32,16 +32,13 @@ import 'package:netcatty_mobile/application/plugin_discovery.dart';
 import 'package:netcatty_mobile/application/plugin_registry.dart';
 import 'package:netcatty_mobile/application/plugin_sessions.dart';
 import 'package:netcatty_mobile/application/session_controller.dart';
-import 'package:netcatty_mobile/application/terminal_engine.dart';
 import 'package:netcatty_mobile/application/vault_controller.dart';
 import 'package:netcatty_mobile/domain/models/host.dart';
 import 'package:netcatty_mobile/domain/plugins/mosh_bootstrap.dart';
 import 'package:netcatty_mobile/domain/plugins/mosh_route.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 
 import 'r18_ime_replay_test.dart' show imeReplayExpectations;
 import 'r18_remote_capture.dart' as r18;
@@ -52,8 +49,8 @@ final config =
         as Map<String, dynamic>;
 const moshPackage = 'top.xdwa.xwshun.mosh';
 
-/// Mosh 标签跟随「终端引擎」设置（和 SSH 标签一样）。默认按目标引擎 Ghostty 测；X09_ENGINE=xterm2 时用旧引擎对照。
-const engine = String.fromEnvironment('X09_ENGINE', defaultValue: 'Ghostty');
+/// Mosh 标签和 SSH 标签用同一个终端引擎。R20 起只有 Ghostty（原来 X09_ENGINE=xterm2 能换旧引擎对照）。
+const engine = 'Ghostty';
 
 void report(String key, Object? value) => debugPrint('X09 $key=$value');
 
@@ -128,15 +125,12 @@ Future<bool> verifyFixture(HostProfile host, String type, String fp) async =>
         ? config['nomoshFingerprint']
         : config['fingerprint']);
 
-/// 起真 App 页面（终端标签），引擎按 [engine]；把 Mosh 插件批准好（证书是系统读出的那张）。
+/// 起真 App 页面（终端标签）；把 Mosh 插件批准好（证书是系统读出的那张）。
 Future<(ProviderContainer, SessionController)> startApp(
     WidgetTester tester) async {
   final repository = await VaultRepository.open();
   final container = ProviderContainer(overrides: [
     vaultRepositoryProvider.overrideWithValue(repository),
-    terminalAdapterFactoryProvider.overrideWithValue(engine == 'xterm2'
-        ? XtermTerminalAdapter.new
-        : GhosttyTerminalAdapter.new),
   ]);
   addTearDown(container.dispose);
   final controller = container.read(sessionControllerProvider.notifier);

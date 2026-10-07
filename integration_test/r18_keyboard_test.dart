@@ -22,13 +22,9 @@ import 'package:integration_test/integration_test.dart';
 import 'package:netcatty_mobile/app.dart';
 import 'package:netcatty_mobile/application/home_navigation.dart';
 import 'package:netcatty_mobile/application/session_controller.dart';
-import 'package:netcatty_mobile/application/terminal_engine.dart';
 import 'package:netcatty_mobile/domain/models/host.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
-import 'package:xterm2/xterm.dart' as xterm show TerminalView;
 
 const _raw = String.fromEnvironment('R17_SSH');
 
@@ -59,16 +55,13 @@ void main() {
   final config = _raw.isEmpty ? null : jsonDecode(_raw) as Map<String, dynamic>;
   final skip = config == null ? '没给 R17_SSH，见文件头' : false;
 
-  for (final engine in ['Ghostty', 'xterm2']) {
+  {
+    // R20 起只有 Ghostty。测试名照旧带引擎名。
+    const engine = 'Ghostty';
     testWidgets('$engine：横竖屏 + 软键盘，终端不被挡、远端尺寸对得上', (tester) async {
       final repository = await VaultRepository.open();
       final container = ProviderContainer(overrides: [
         vaultRepositoryProvider.overrideWithValue(repository),
-        terminalAdapterFactoryProvider.overrideWithValue(
-          engine == 'Ghostty'
-              ? GhosttyTerminalAdapter.new
-              : XtermTerminalAdapter.new,
-        ),
       ]);
       addTearDown(container.dispose);
       addTearDown(() => SystemChrome.setPreferredOrientations(const []));
@@ -98,9 +91,7 @@ void main() {
       expect(await connected, isTrue);
       final session = controller.state.sessions.single;
       final terminal = session.terminal;
-      final viewFinder = engine == 'Ghostty'
-          ? find.byType(flterm.TerminalView)
-          : find.byType(xterm.TerminalView);
+      final viewFinder = find.byType(flterm.TerminalView);
       await waitFor(tester, () => viewFinder.evaluate().isNotEmpty,
           what: '终端视图');
       await waitFor(tester, () => terminal.allText().trim().isNotEmpty,
@@ -150,7 +141,7 @@ void main() {
             reason: '$name：远端 $rows 行放不进 ${usable.round()}dp');
         expect((rows + 1) * cellHigh!, greaterThan(usable - 0.5),
             reason: '$name：${usable.round()}dp 放得下更多行，远端只有 $rows 行');
-        // 横屏弹键盘时本来就只剩两三行（xterm2 的字跟着系统大字体放大时 2 行），不为 0 就行。
+        // 横屏弹键盘时本来就只剩两三行（字跟着系统大字体放大时 2 行），不为 0 就行。
         expect(rows, greaterThanOrEqualTo(1), reason: '$name：终端被挤成 0 行');
       }
 

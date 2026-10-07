@@ -73,7 +73,7 @@ void main() {
   final skip = r18Ssh.isEmpty ? '没给 R17_SSH，见 tool/r18-real-device.sh' : false;
 
   testWidgets('Ghostty：真人在真机上用输入法打拼音、说话，远端逐字节核对', (tester) async {
-    final (session, controller) = await connectR18(tester, 'Ghostty');
+    final (session, controller) = await connectR18(tester);
     final terminal = session.terminal;
     terminal.sendText("clear; printf '%s\\n' 'R18 真机输入测试' '点一下这里叫出键盘'\r");
     await waitFor(tester, () => tester.view.viewInsets.bottom > 0,

@@ -68,11 +68,12 @@ void main() {
   WidgetController.hitTestWarningShouldBeFatal = true;
   final skip = r18Ssh.isEmpty ? '没给 R17_SSH，见文件头' : false;
 
-  for (final engine in ['Ghostty', 'xterm2']) {
-    if (r18Engine.isNotEmpty && r18Engine != engine) continue;
+  {
+    // R20 起只有 Ghostty。测试名、报告的键名照旧带引擎名。
+    const engine = 'Ghostty';
     testWidgets('$engine：按键面板、大输入框、切换时的尺寸，远端逐字节核对', (tester) async {
       addTearDown(() => SystemChrome.setPreferredOrientations(const []));
-      var (session, controller) = await connectR18(tester, engine);
+      var (session, controller) = await connectR18(tester);
       final terminal = session.terminal;
       final failures = <String>[];
       final viewFinder = find

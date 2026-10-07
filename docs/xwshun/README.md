@@ -41,7 +41,7 @@ flutter test test/integration_ssh_fixture_test.dart
   - 横竖屏 + 真软键盘下终端不被挡、远端尺寸对（`integration_test/r18_keyboard_test.dart`）：跑法同上一条（`adb reverse` + `R17_SSH`），
     另开一个终端先预授权通知，不然一连上就弹「允许通知」挡住键盘：
     `until adb -s emulator-5580 shell pm grant top.xdwa.xwshun android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done`
-  - 输入法回放（`integration_test/r18_ime_replay_test.dart`）：先 `(cd plugins && ./build-fixtures.sh)`，再 `tool/ime-replay.sh emulator-5580 [Ghostty|xterm2]`。
+  - 输入法回放（`integration_test/r18_ime_replay_test.dart`）：先 `(cd plugins && ./build-fixtures.sh)`，再 `tool/ime-replay.sh emulator-5580`。
     脚本装回放输入法、临时设成默认、预授权通知、跑完换回原输入法并卸载，见 `plugins/README.md`「R18 回放输入法」。
   - 硬件键和快捷键栏修饰键（`integration_test/r18_keys_test.dart`）：要模拟器有硬件键盘设备。关掉模拟器，把
     `../.toolchain/avd/xwshun-a35-4k.avd/config.ini` 的 `hw.keyboard = no` 改成 `yes`，重新起，再
@@ -52,13 +52,13 @@ flutter test test/integration_ssh_fixture_test.dart
     约 4 分钟（构建安装 1 分多钟，6 项每项半分钟）。手机上出现「点一下这里叫出键盘」后照屏幕说明做，每项按一次回车。
     脚本不碰手机的输入法设置，开始结束各记一次默认输入法；测完 App 被卸掉。
 - 粘贴、滑动、选字、链接、远端效果的设备测试（R19，`integration_test/r19_terminal_test.dart`，只在模拟器上跑过）：跑法同 R17 那条
-  （测试环境 + `adb reverse` + `R17_SSH`），另开终端预授权通知（同下面 R18 那条）。加 `--dart-define=R19_ENGINE=Ghostty` 只跑一个引擎，
-  `--plain-name "Ghostty：TER07"` 只跑一项。两个引擎四项全跑约 3 分钟（不算构建）。会往模拟器剪贴板里写测试文字；打开链接换成了假的，不开浏览器。
+  （测试环境 + `adb reverse` + `R17_SSH`），另开终端预授权通知（同下面 R18 那条）。
+  `--plain-name "Ghostty：TER07"` 只跑一项。四项全跑约 1.5 分钟（不算构建）。会往模拟器剪贴板里写测试文字；打开链接换成了假的，不开浏览器。
   用到测试环境镜像里的 bash 和 tmux（R19 起镜像带 bash，改 Dockerfile 后 `up.sh` 自己重建）。
   真 bash 上的粘贴行为（bracketed paste 开关、断线不补发）在本机就能测：`test/integration_ssh_fixture_test.dart` 的「R19 粘贴到真 bash」。
 - 终端输入面板的设备测试（R25，`integration_test/r25_input_panel_test.dart`，只在模拟器上跑过）：要上面的测试环境和回放输入法，经脚本跑
-  `tool/ime-replay.sh emulator-5580 [Ghostty|xterm2] integration_test/r25_input_panel_test.dart`（脚本负责装回放输入法、转发 22201、预授权通知、跑完复原）。
-  一个引擎约 2 分钟（不算构建）。按键面板的键、回放输入法打进大输入框的字（微信语音、拼音）、发到真 bash 的效果都在远端逐字节核对；
+  `tool/ime-replay.sh emulator-5580 "" integration_test/r25_input_panel_test.dart`（脚本负责装回放输入法、转发 22201、预授权通知、跑完复原）。
+  约 2 分钟（不算构建）。按键面板的键、回放输入法打进大输入框的字（微信语音、拼音）、发到真 bash 的效果都在远端逐字节核对；
   面板切换时远端收到几次窗口变化，用前台一个只数 SIGWINCH 的 bash 记到 `/tmp/r25-winch` 里，另开 exec 通道读。会把屏幕转成横屏再转回来。
   经 Mosh 的那一段在 `integration_test/mosh_session_test.dart` 的 `panel` 场景（跑法见下面 Mosh 那条，`X09_SCENARIO=panel`）。
 - tmux 的测试（R21，`test/tmux_fixture_test.dart`）用另一套环境：四个真实 tmux 版本（2.4、2.7、3.0a、3.5a）加「没有 tmux」「假 tmux」两台，
@@ -78,7 +78,7 @@ flutter test test/integration_ssh_fixture_test.dart
     adb -s emulator-5580 shell svc wifi enable      # 测完开回来
     ```
     `all` 约 45 秒（不算构建）；另有 `cycles`、`kill`（打出 `X09 kill.READY` 后在电脑上强杀插件）、`ime`（经 `tool/ime-replay.sh`，
-    额外参数放 `IME_REPLAY_DEFINES`，写法见脚本开头）。加 `--dart-define=X09_ENGINE=xterm2` 换旧引擎对照。
+    额外参数放 `IME_REPLAY_DEFINES`，写法见脚本开头）。
     多行的报告（阶段、屏幕）只有第一行带 `X09 ` 前缀，grep 时带上 `-A`。
   - **Mosh 插件换签名（包括以后换正式签名、删了 `plugin-keys` 重新生成）必须同步改宿主的 `lib/domain/plugins/official_plugins.dart`**：
     宿主只认那里登记的证书，别的证书签的包自称 `xwshun.mosh` 一律「已拒绝」、不给批准，真 Mosh 插件也一样被拒。
@@ -245,11 +245,8 @@ brew 为本项目装的（2026-10-04）：`zig@0.16` 和它依赖的 `llvm@21`�
   查这种卡死：`flutter test --start-paused`，用 vm_service 的 `getStack` 看卡在哪（R18 就是这么找到的）。
 - **设备测试里远端逐字节收（`captureRemote`）读回来的字节缺一截、或者夹着不该有的字节**（R19 撞上的两种）：
   一是收之前切到了备用屏（测全屏程序），结果打在备用屏上，备用屏没有滚动区，比屏幕长的开头被挤掉——用 `postlude` 在打结果前切回来；
-  二是 xterm2 退出备用屏后从屏幕上抄回来的十六进制里混进旧行的残字（同一次收的，exec 通道读文件是干净的）。
+  二是从屏幕上抄回来的十六进制会混进旧行的残字（R19 时 xterm2 上撞的，同一次收的，exec 通道读文件是干净的）。
   要准确的字节，收完另开 exec 通道读 `/tmp/r18.bin`（`integration_test/r19_terminal_test.dart` 的 `capture`）。
-- **xterm2 设备测试里，全屏程序中长按之后的手势都落空**：xterm2 在备用屏里长按会弹出「选择并复制」整屏文字框，
-  框开着时后面的滑动、点按都点在框上。测完长按先关框（点「关闭」）。框开着时远端的 tmux 退出，xterm2 还抛过四次
-  `RangeError`（缓冲区下标越界，那一段输出没处理完），见 `plan/v3/evidence/R19.md`「发现的问题」。
 - **两个测试文件都连 `tool/fixture-environment` 时，`-j 4` 全量跑互相搅乱**：`integration_ssh_fixture_test` 会数 ssh-edge 上的连接数、
   读 sshd 日志、pkill 全部会话，别的文件同时开会话就让它随机失败（R19 时 JMP01/JMP02、R10 两条）。连这个环境的测试都放进那一个文件。
 - **模拟器里连 `10.0.2.2` 的 SSH 报 `Connection closed before authentication`，测试环境的 sshd 日志里却根本没有这条连接**：

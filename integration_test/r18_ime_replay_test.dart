@@ -45,10 +45,11 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   final skip = r18Ssh.isEmpty ? '没给 R17_SSH，见 tool/ime-replay.sh' : false;
 
-  for (final engine in ['Ghostty', 'xterm2']) {
-    if (r18Engine.isNotEmpty && r18Engine != engine) continue;
+  {
+    // R20 起只有 Ghostty。测试名、报告的键名照旧带引擎名。
+    const engine = 'Ghostty';
     testWidgets('$engine：回放输入法的调用，远端逐字节核对', (tester) async {
-      final (session, controller) = await connectR18(tester, engine);
+      final (session, controller) = await connectR18(tester);
       final terminal = session.terminal;
       await waitFor(tester, () => tester.view.viewInsets.bottom > 0,
           what: '输入法弹出');
@@ -64,9 +65,6 @@ void main() {
         final result = replay(bytes);
         report('$engine.$script',
             'bytes=[${hex(bytes)}] lines=${result.lines} deletes=${result.deletes}');
-        // xterm2 是要被换掉的旧引擎，只作对照：报告它收到了什么，不断言（R18 模拟器上：语音整段重复、
-        // 改字时重发、回车后补的换行多发一个 \n，和 R04 真机上的症状一样）。
-        if (engine == 'xterm2') continue;
         try {
           check(bytes);
         } on TestFailure catch (error) {

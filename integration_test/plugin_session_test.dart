@@ -24,7 +24,7 @@ import 'package:netcatty_mobile/infrastructure/plugins/plugin_approval_store.dar
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:plugin_api/plugin_api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 
 const scenario = String.fromEnvironment('X03_SCENARIO', defaultValue: 'stream');
 const echo = 'example.xwshun.fixture.echo';
@@ -179,7 +179,7 @@ void main() {
           'protocol': 'ssh',
         });
         final ssh = await SshService().connect(
-          terminal: XtermTerminalAdapter(),
+          terminal: GhosttyTerminalAdapter(),
           sessionId: 'x03',
           host: host,
           hosts: [host],

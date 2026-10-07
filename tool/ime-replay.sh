@@ -5,7 +5,8 @@
 # 先起 Docker 测试环境（tool/fixture-environment/up.sh），再：
 #   source ../.toolchain/env.sh
 #   (cd plugins && ./build-fixtures.sh)        # 或只编回放输入法，见 plugins/README.md
-#   tool/ime-replay.sh emulator-5580 [Ghostty|xterm2] [测试文件，默认 r18_ime_replay_test.dart]
+#   tool/ime-replay.sh emulator-5580 [""] [测试文件，默认 r18_ime_replay_test.dart]
+# 第二个参数原来选引擎（Ghostty / xterm2）；R20 起只有 Ghostty，留空，位置保留是为了旧命令照样能用。
 # 测试文件要别的参数时放进环境变量 IME_REPLAY_DEFINES，一行一个，比如 X09 的 Mosh 回放：
 #   IME_REPLAY_DEFINES="--dart-define=X09_MOSH=$(python3 tool/mosh-fixture/x08_config.py)
 #   --dart-define=X09_SCENARIO=ime" tool/ime-replay.sh emulator-5580 Ghostty integration_test/mosh_session_test.dart
@@ -18,8 +19,11 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."
 
-SERIAL=${1:?用法：tool/ime-replay.sh <模拟器序列号> [Ghostty|xterm2] [测试文件]}
-ENGINE=${2:-}
+SERIAL=${1:?用法：tool/ime-replay.sh <模拟器序列号> [""] [测试文件]}
+case "${2:-}" in
+  ""|Ghostty) ;;
+  *) echo "R20 起只有 Ghostty，第二个参数「$2」不认，留空即可" >&2; exit 1 ;;
+esac
 TEST_FILE=${3:-integration_test/r18_ime_replay_test.dart}
 APK=plugins/out/replayime.apk
 IME=example.xwshun.fixture.replayime/.ReplayIme
@@ -66,7 +70,7 @@ while IFS= read -r line; do
 done <<< "${IME_REPLAY_DEFINES:-}"
 flutter test "$TEST_FILE" -d "$SERIAL" \
   --dart-define=R17_SSH="$(python3 tool/fixture-environment/r17_config.py 2>/dev/null)" \
-  --dart-define=R18_ENGINE="$ENGINE" ${EXTRA[@]+"${EXTRA[@]}"} > "$LOG" 2>&1 &
+  ${EXTRA[@]+"${EXTRA[@]}"} > "$LOG" 2>&1 &
 TEST=$!
 
 # 硬件键：按下/抬起都是 EV_KEY（1）+ 扫描码，每个动作后跟一个 EV_SYN（0 0 0）。扫描码见 linux input-event-codes.h。
@@ -79,7 +83,7 @@ hw_keys() {
   done
   "${ADB[@]}" shell "$cmd"
 }
-CTRL=29; ALT=56; SHIFT=42; KC=46; KD=32; KX=45; TAB=15; UP=103; KA=30; KK=37
+CTRL=29; ALT=56; SHIFT=42; KC=46; KD=32; KX=45; TAB=15; UP=103; KA=30; KK=37; LEFTBRACE=26
 press() { hw_keys "$@"; }
 # a–z 的扫描码（linux input-event-codes.h），按字母顺序；v 是 App 的粘贴快捷键，hw:ctrl-letters 跳过它。
 LETTERS=(30 48 46 32 18 33 34 35 23 36 37 38 50 49 24 25 16 19 31 20 22 47 17 45 21 44)
@@ -100,6 +104,10 @@ while kill -0 "$TEST" 2>/dev/null; do
         press $CTRL $KK -$KK -$CTRL  $CTRL $KA -$KA -$CTRL ;;
       hw:ctrl-shift-ka)   # 10-07：Ctrl+Shift+K 清本地滚动区、Ctrl+Shift+A 全选
         press $CTRL $SHIFT $KK -$KK -$SHIFT -$CTRL  $CTRL $SHIFT $KA -$KA -$SHIFT -$CTRL ;;
+      hw:ctrl-bracket)   # R20：Ctrl+[ 发 ESC
+        press $CTRL $LEFTBRACE -$LEFTBRACE -$CTRL ;;
+      hw:copy-then-interrupt)   # R20：有选区时 Ctrl+Shift+C 复制（不发字节），Ctrl+C 照样发 ^C
+        press $CTRL $SHIFT $KC -$KC -$SHIFT -$CTRL  $CTRL $KC -$KC -$CTRL ;;
       hw:ctrl-letters)   # Ctrl+a 到 Ctrl+z（跳过 v），看有没有被本地吃掉
         seq_codes=()
         for i in "${!LETTERS[@]}"; do

@@ -30,7 +30,6 @@ import 'package:netcatty_mobile/infrastructure/plugins/android_plugin_bridge.dar
 import 'package:netcatty_mobile/infrastructure/plugins/plugin_approval_store.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 import 'package:plugin_api/plugin_api.dart' hide Platform;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -193,7 +192,7 @@ void main() {
       'protocol': 'ssh',
     });
     ssh = await SshService().connect(
-      terminal: XtermTerminalAdapter(),
+      terminal: GhosttyTerminalAdapter(),
       sessionId: 'x08',
       host: host,
       hosts: [host],

@@ -7,7 +7,7 @@
 //   另开一个终端预授权通知（不然一连上就弹「允许通知」挡住页面）：
 //   until adb -s emulator-5580 shell pm grant top.xdwa.xwshun android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done
 //   flutter test integration_test/r19_terminal_test.dart -d emulator-5580 \
-//     --dart-define=R17_SSH="$(python3 tool/fixture-environment/r17_config.py)" [--dart-define=R19_ENGINE=Ghostty]
+//     --dart-define=R17_SSH="$(python3 tool/fixture-environment/r17_config.py)"
 // 输出以 "R19 " 开头的行作为证据。会动手机剪贴板（写入测试文字），不会打开浏览器（启动器换成了记录用的假实现）。
 import 'dart:convert';
 
@@ -22,41 +22,30 @@ import 'package:netcatty_mobile/app.dart';
 import 'package:netcatty_mobile/application/home_navigation.dart';
 import 'package:netcatty_mobile/application/session_controller.dart';
 import 'package:netcatty_mobile/application/settings_controller.dart';
-import 'package:netcatty_mobile/application/terminal_engine.dart';
 import 'package:netcatty_mobile/domain/models/host.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 import 'package:netcatty_mobile/presentation/widgets/tailscale_check_card.dart'
     show externalLinkLauncherProvider;
-import 'package:xterm2/xterm.dart' as xterm show TerminalView;
 
 import 'r18_remote_capture.dart';
-
-const r19Engine = String.fromEnvironment('R19_ENGINE');
 
 void r19(String key, Object? value) => debugPrint('R19 $key=$value');
 
 /// 最近一次 [connectR19] 起的 App 的 provider 容器：测试里直接改设置（「全屏程序里滑动翻页」）。
 late ProviderContainer r19Container;
 
-/// 起真 App 页面（终端标签），用 [engine] 连上测试环境的边缘 sshd。打开链接换成只记录、不开浏览器。
+/// 起真 App 页面（终端标签），连上测试环境的边缘 sshd。打开链接换成只记录、不开浏览器。
 Future<(ActiveTerminalSession, SessionController, List<Uri>)> connectR19(
   WidgetTester tester,
-  String engine,
 ) async {
   final config = jsonDecode(r18Ssh) as Map<String, dynamic>;
   final repository = await VaultRepository.open();
   final launched = <Uri>[];
   final container = ProviderContainer(overrides: [
     vaultRepositoryProvider.overrideWithValue(repository),
-    terminalAdapterFactoryProvider.overrideWithValue(
-      engine == 'Ghostty'
-          ? GhosttyTerminalAdapter.new
-          : XtermTerminalAdapter.new,
-    ),
     externalLinkLauncherProvider.overrideWithValue((uri) async {
       launched.add(uri);
       return true;
@@ -72,7 +61,7 @@ Future<(ActiveTerminalSession, SessionController, List<Uri>)> connectR19(
   container.read(homeTabProvider.notifier).state = 1;
   final connected = controller.connect(
     HostProfile({
-      'id': 'r19-$engine',
+      'id': 'r19-ghostty',
       'label': 'r19',
       'hostname': '127.0.0.1',
       'port': config['port'],
@@ -117,7 +106,7 @@ Future<String> exec(ActiveTerminalSession session, String command) async =>
     utf8.decode(await session.sshClient!.run(command)).trim();
 
 /// 远端逐字节收（见 [captureRemote]），收完另开一个 exec 通道把收到的文件原样读回来。
-/// 不用 captureRemote 从屏幕上抄回来的结果：xterm2 退出备用屏后旧行的残字会混进 od 的输出里，
+/// 不用 captureRemote 从屏幕上抄回来的结果：R19 时 xterm2 退出备用屏后旧行的残字混进过 od 的输出里，
 /// 抄回来的字节有缺有错（R19 收鼠标滚轮时撞上的），exec 通道读的才是远端实际收到的。
 Future<List<int>> capture(
   WidgetTester tester,
@@ -153,10 +142,10 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   final skip = r18Ssh.isEmpty ? '没给 R17_SSH，见文件头' : false;
 
-  for (final engine in ['Ghostty', 'xterm2']) {
-    if (r19Engine.isNotEmpty && r19Engine != engine) continue;
-    final viewType =
-        engine == 'Ghostty' ? flterm.TerminalView : xterm.TerminalView;
+  {
+    // R20 起只有 Ghostty。测试名照旧带引擎名，本机手册里的 --plain-name "Ghostty：TER07" 不用改。
+    const engine = 'Ghostty';
+    const viewType = flterm.TerminalView;
 
     Future<void> swipe(WidgetTester tester, double dy) async {
       await tester.timedDrag(
@@ -190,26 +179,17 @@ void main() {
         '$engine：TER07 普通 shell、全屏、全屏鼠标、tmux copy-mode 下滑动/点按/长按，远端收到什么', (
       tester,
     ) async {
-      final (session, _, _) = await connectR19(tester, engine);
+      final (session, _, _) = await connectR19(tester);
       final terminal = session.terminal;
       final failures = <String>[];
 
       // 1. 普通 shell，300 行历史：滑动翻本地滚动区，一个字节都不发。
       await run(tester, terminal, 'seq 1 300');
-      double offset() => engine == 'Ghostty'
-          ? (terminal as GhosttyTerminalAdapter)
-              .controller
-              .scrollbar
-              .offset
-              .toDouble()
-          : tester
-              .state<ScrollableState>(find
-                  .descendant(
-                      of: find.byType(viewType),
-                      matching: find.byType(Scrollable))
-                  .first)
-              .position
-              .pixels;
+      double offset() => (terminal as GhosttyTerminalAdapter)
+          .controller
+          .scrollbar
+          .offset
+          .toDouble();
       late double movedBack;
       var bytes = await capture(tester, session, () async {
         final before = offset();
@@ -301,7 +281,7 @@ void main() {
           prelude: r'printf "\033[?1049h\033[?1000h\033[?1002h\033[?1006h'
               r'\033[Hmouse app\r\n";',
           postlude: r'printf "\033[?1006l\033[?1002l\033[?1000l\033[?1049l";');
-      // xterm2 在全屏程序里长按会弹出整屏文字（它的「复制」做法），关掉再往下测，不然后面的滑动落在弹框上。
+      // 长按在全屏程序里只在本地选字（R19 时 xterm2 会弹整屏文字）。万一弹了，关掉再往下测，不然后面的滑动落在弹框上。
       final snapshot = find.byKey(const ValueKey('terminal-copy-snapshot'));
       r19('$engine.TER07.mouseLongPressSnapshot',
           snapshot.evaluate().isNotEmpty);
@@ -364,7 +344,7 @@ void main() {
 
     testWidgets('$engine：TER08 选字复制（中文、emoji、组合字符）、点链接、长按链接、拖链接',
         (tester) async {
-      final (session, _, launched) = await connectR19(tester, engine);
+      final (session, _, launched) = await connectR19(tester);
       final terminal = session.terminal;
       final failures = <String>[];
 
@@ -383,7 +363,7 @@ void main() {
           .evaluate()
           .isNotEmpty;
       r19('$engine.TER08.selection',
-          'copyButton=${copyButton.evaluate().isNotEmpty} xterm2Handles=$handles');
+          'copyButton=${copyButton.evaluate().isNotEmpty} handles=$handles');
       // 先放一段已知文字：复制没成功时读回来的是它，不会把手机剪贴板里原来的东西当成复制结果。
       await Clipboard.setData(const ClipboardData(text: 'r19-before-copy'));
       String? copied;
@@ -395,39 +375,23 @@ void main() {
       const expected = 'A你好👍e\u{301}Z\nsecond line';
       r19('$engine.TER08.copy',
           'copied=${jsonEncode(copied)} expected=${jsonEncode(expected)}');
-      // xterm2 自己的长按手势拖到下一行时常常只选中第一行（R19 设备上看到的，旧引擎、没改它）：
-      // 那就核对选到的那一行。中文、emoji、组合字符对不对是这一项要看的。
-      final okCopy = copied?.trimRight() == expected ||
-          (engine == 'xterm2' &&
-              copied?.trimRight() == expected.split('\n').first);
+      // 中文、emoji、组合字符对不对，两行有没有并成一行，是这一项要看的。
+      final okCopy = copied?.trimRight() == expected;
       if (!okCopy) failures.add('copy');
 
-      // 链接（10-07 起）：点一下只叫键盘、不弹框；长按落在链接上（Ghostty），或者选中的字整段是网址（xterm2 拖着选），
+      // 链接（10-07 起）：点一下只叫键盘、不弹框；长按落在链接上，
       // 选字菜单里多「打开链接」，点了才弹框，点「用浏览器打开」才交给（假的）浏览器；从链接上拖动不弹框；远端什么都没收到。
       final openLink = find.byKey(const ValueKey('open-terminal-link'));
       final sheetHost = find.byKey(const ValueKey('terminal-link-host'));
-      await run(tester, terminal, 'stty size');
-      final size = RegExp(r'^(\d+) (\d+)$', multiLine: true)
-          .allMatches(terminal.allText())
-          .last;
-      final columns = int.parse(size.group(2)!);
-      final cellWidth =
-          (tester.getSize(find.byType(viewType)).width - 16) / columns;
       const url = 'https://example.com/r19-link';
       final linkBytes = await capture(tester, session, () async {
         await tester.tapAt(cell(tester, terminal, 0, 20));
         await settle(tester);
         final sheetAfterTap = sheetHost.evaluate().isNotEmpty;
         final menuAfterTap = openLink.evaluate().isNotEmpty;
-        if (engine == 'Ghostty') {
-          // 手指不拖：flterm 把整个链接选上。
-          await longPressDrag(tester, cell(tester, terminal, 0, 20),
-              cell(tester, terminal, 0, 20));
-        } else {
-          // xterm2 不认链接：从网址第一个字拖到最后一个字。
-          await longPressDrag(tester, cell(tester, terminal, 0, cellWidth * .5),
-              cell(tester, terminal, 0, cellWidth * (url.length - .5)));
-        }
+        // 手指不拖：flterm 把整个链接选上。
+        await longPressDrag(tester, cell(tester, terminal, 0, 20),
+            cell(tester, terminal, 0, 20));
         final sheetAfterLongPress = sheetHost.evaluate().isNotEmpty;
         final menu = openLink.evaluate().isNotEmpty;
         var sheetFromMenu = false;
@@ -460,8 +424,7 @@ void main() {
       if (linkBytes.isNotEmpty) failures.add('link-bytes');
       if (launched.toString() != '[$url]') failures.add('link-open');
 
-      // OSC 8 把「docs-link」标成 javascript: 链接：点一下不弹框；Ghostty 长按后菜单里有「打开链接」，弹框说不能打开、没有打开按钮；
-      // xterm2 不认 OSC 8，选中的「docs-link」也不是网址，没有这个按钮。
+      // OSC 8 把「docs-link」标成 javascript: 链接：点一下不弹框；长按后菜单里有「打开链接」，弹框说不能打开、没有打开按钮。
       await run(tester, terminal,
           r"clear; printf '\033]8;;javascript:alert(1)\033\\docs-link\033]8;;\033\\\n'");
       await tester.tapAt(cell(tester, terminal, 0, 20));
@@ -490,10 +453,7 @@ void main() {
       r19('$engine.TER08.osc8Javascript',
           'sheetOnTap=$sheetOnTap menu=$osc8Menu refused=$refused openButton=$openable');
       if (sheetOnTap || openable) failures.add('osc8-open');
-      if (engine == 'Ghostty' && !(osc8Menu && refused)) {
-        failures.add('osc8-refused');
-      }
-      if (engine == 'xterm2' && osc8Menu) failures.add('osc8-xterm2-menu');
+      if (!(osc8Menu && refused)) failures.add('osc8-refused');
       if (refused) {
         await tester.tap(find.byKey(const ValueKey('terminal-link-cancel')));
         await settle(tester);
@@ -506,7 +466,7 @@ void main() {
         '$engine：TER09 / SEC10 粘贴到真 bash：预览、默认不回车、bracketed paste 开关、断线后不补发', (
       tester,
     ) async {
-      var (session, controller, _) = await connectR19(tester, engine);
+      var (session, controller, _) = await connectR19(tester);
       final terminal = session.terminal;
       final failures = <String>[];
       final paste = find.byTooltip('粘贴');
@@ -625,7 +585,7 @@ void main() {
     }, skip: skip != false, timeout: const Timeout(Duration(minutes: 4)));
 
     testWidgets('$engine：SEC08 远端读不走、写不进剪贴板，标题不回显', (tester) async {
-      final (session, _, _) = await connectR19(tester, engine);
+      final (session, _, _) = await connectR19(tester);
       await Clipboard.setData(const ClipboardData(text: 'phone-secret-r19'));
 
       // 远端在 dd 已经在收的时候发查询：如果终端应答，应答就进了 dd。

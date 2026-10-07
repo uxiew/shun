@@ -40,7 +40,7 @@ import 'package:netcatty_mobile/infrastructure/tailscale/catalog_secret_store.da
 import 'package:netcatty_mobile/infrastructure/tailscale/tailscale_api.dart';
 import 'package:netcatty_mobile/infrastructure/transport/proxy_transport.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
+import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 
 const _rawConfig = String.fromEnvironment('R15_CONFIG');
 
@@ -134,7 +134,7 @@ void main() {
     });
     try {
       final session = await ssh.connect(
-        terminal: XtermTerminalAdapter(),
+        terminal: GhosttyTerminalAdapter(),
         sessionId: 'r15-${sessionSeq++}',
         host: host,
         hosts: data.hosts,

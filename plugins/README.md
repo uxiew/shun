@@ -175,7 +175,7 @@ adb logcat -d -s XwshunFakeRd    # 应当只有一行：pkg=example.xwshun.fixtu
 ```bash
 cd plugins && ./build-fixtures.sh && cd ..            # 产出 plugins/out/replayime.apk
 (cd tool/fixture-environment && ./up.sh)              # 已经起着就不用
-tool/ime-replay.sh emulator-5580 Ghostty              # 不写引擎就两个都跑；xterm2 只报告不断言
+tool/ime-replay.sh emulator-5580                      # R20 起只有 Ghostty，第二个参数留空
 ```
 
 `tool/ime-replay.sh` 会临时把模拟器的默认输入法换成它，跑完（含失败）换回原来的并卸载；只认模拟器，真机上拒绝跑

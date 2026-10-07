@@ -7,18 +7,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/app.dart';
 import 'package:netcatty_mobile/application/home_navigation.dart';
 import 'package:netcatty_mobile/application/session_controller.dart';
-import 'package:netcatty_mobile/application/terminal_engine.dart';
 import 'package:netcatty_mobile/domain/models/host.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/xterm_terminal_adapter.dart';
 
 const r18Ssh = String.fromEnvironment('R17_SSH');
-
-/// 只跑这个引擎（Ghostty / xterm2），空着两个都跑。
-const r18Engine = String.fromEnvironment('R18_ENGINE');
 
 void report(String key, Object? value) => debugPrint('R18 $key=$value');
 
@@ -36,20 +30,14 @@ Future<void> waitFor(
   }
 }
 
-/// 起真 App 页面（终端标签），用 [engine] 连上测试环境的边缘 sshd，返回会话和控制器。
+/// 起真 App 页面（终端标签），连上测试环境的边缘 sshd，返回会话和控制器。
 Future<(ActiveTerminalSession, SessionController)> connectR18(
   WidgetTester tester,
-  String engine,
 ) async {
   final config = jsonDecode(r18Ssh) as Map<String, dynamic>;
   final repository = await VaultRepository.open();
   final container = ProviderContainer(overrides: [
     vaultRepositoryProvider.overrideWithValue(repository),
-    terminalAdapterFactoryProvider.overrideWithValue(
-      engine == 'Ghostty'
-          ? GhosttyTerminalAdapter.new
-          : XtermTerminalAdapter.new,
-    ),
   ]);
   addTearDown(container.dispose);
   final controller = container.read(sessionControllerProvider.notifier);
@@ -60,7 +48,7 @@ Future<(ActiveTerminalSession, SessionController)> connectR18(
   container.read(homeTabProvider.notifier).state = 1;
   final connected = controller.connect(
     HostProfile({
-      'id': 'r18-$engine',
+      'id': 'r18-ghostty',
       'label': 'r18',
       'hostname': '127.0.0.1',
       'port': config['port'],
@@ -100,7 +88,7 @@ enum CaptureEnd {
 /// [prelude] 是收之前先执行的 shell 命令（比如在屏幕上打出给真人看的说明），要以分号结尾。
 /// [postlude] 在收完、打出结果之前执行，同样以分号结尾。prelude 切到了备用屏的（R19 测全屏程序）要在这里切回来：
 /// 备用屏没有滚动区，结果比屏幕长时开头被挤掉，读回来的字节缺一截，看着像远端少收了。
-/// 返回的字节是从屏幕上抄回来的；xterm2 退出备用屏后抄回来的还会有缺有错（R19 撞上的），
+/// 返回的字节是从屏幕上抄回来的；R19 时 xterm2 退出备用屏后抄回来的有缺有错，
 /// 要准确的字节另开 exec 通道读 /tmp/r18.bin（R19 的设备测试就是这么做的）。
 Future<List<int>> captureRemote(
   WidgetTester tester,
