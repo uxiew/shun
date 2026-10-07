@@ -29,8 +29,9 @@ echo "APK：$(shasum -a 256 "$APK" | cut -c1-16)…"
 "${ADB[@]}" install "$APK" >/dev/null
 "${ADB[@]}" logcat -c 2>/dev/null || true
 # 用 monkey 发一次启动意图：Activity 的 Kotlin 包名沿用原项目（app.netcatty.mobile），和 applicationId 不一样；
-# Android 7.0 没有 cmd package resolve-activity，monkey 各版本都有。
-"${ADB[@]}" shell monkey -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
+# Android 7.0 没有 cmd package resolve-activity，monkey 各版本都有。--pct-syskeys 0：没有物理系统键的模拟器（API 36）上
+# 不加会报 SYS_KEYS has no physical keys、退出码 251（App 其实已经打开）。
+"${ADB[@]}" shell monkey --pct-syskeys 0 -p "$PKG" -c android.intent.category.LAUNCHER 1 >/dev/null 2>&1
 
 # 界面上找带某段字的节点，打印它的中心坐标；找不到返回 1。
 find_text() {
