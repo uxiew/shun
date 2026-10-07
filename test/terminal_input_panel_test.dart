@@ -464,8 +464,8 @@ void main() {
 
       testWidgets('横屏点进大输入框：框换成一行的摆法时还是同一个框，系统键盘照样弹出来', (tester) async {
         final page = await _Page.open(tester, newTerminal);
-        // 模拟器横屏时终端页只有 290dp 左右高（上面状态栏、下面导航栏）。
-        tester.view.physicalSize = const Size(2400, 760);
+        // 模拟器横屏：411dp 高，面板 156dp，键盘没起来时框按多行摆。
+        tester.view.physicalSize = const Size(2400, 1080);
         await page.settle();
         await tester.tap(toggle);
         await page.settle();
@@ -473,10 +473,15 @@ void main() {
 
         await tester
             .tap(find.byKey(const ValueKey('terminal-input-tab-compose')));
-        // 这一帧框先按多行摆出来，焦点在这一帧画完才给它；拿到焦点后地方不够，换成一行的摆法。
-        await tester.pump();
-        final before = tester.state(find.byType(EditableText));
         await page.settle();
+        expect(
+            find.byKey(const ValueKey('terminal-compose-more')), findsNothing,
+            reason: '键盘还没起来时框按多行摆');
+        final before = tester.state(find.byType(EditableText));
+        expect(tester.testTextInput.isVisible, isTrue);
+
+        // 系统键盘升上来，地方不够了，换成一行的摆法。
+        await page.keyboard(200);
         expect(
             find.byKey(const ValueKey('terminal-compose-more')), findsOneWidget,
             reason: '横屏地方小，框只留一行');
