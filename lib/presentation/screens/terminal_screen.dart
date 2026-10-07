@@ -592,6 +592,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                             _useSystemKeyboard(inputSession),
                         secureKeyboard: settings.terminalSecureKeyboard,
                         dense: layout.dense,
+                        showHeader: layout.showPanelHeader,
                         transparentBackground: customBackground,
                       ),
                     ),

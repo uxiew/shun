@@ -52,6 +52,8 @@ Future<void> run(
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  // 点不中（被别的东西挡着、在屏幕外）就当失败：不然会点到底下的导航栏，切到别的页面去。
+  WidgetController.hitTestWarningShouldBeFatal = true;
   final skip = r18Ssh.isEmpty ? '没给 R17_SSH，见文件头' : false;
 
   for (final engine in ['Ghostty', 'xterm2']) {
@@ -75,7 +77,28 @@ void main() {
       await tap(_toggle);
       await waitFor(tester, () => tester.view.viewInsets.bottom == 0,
           what: '打开面板后系统键盘收起');
-      r25('$engine.panel.open', 'panel=${_panel.evaluate().isNotEmpty}');
+      await settle(tester, 1000);
+      Map<String, Object> geometry() {
+        final view = tester.view;
+        final panelRect =
+            _panel.evaluate().isEmpty ? null : tester.getRect(_panel);
+        final terminalRect = tester.getRect(viewFinder.first);
+        return {
+          'screen': '${(view.physicalSize / view.devicePixelRatio)}',
+          'inset': (view.viewInsets.bottom / view.devicePixelRatio).round(),
+          'padding': (view.padding.bottom / view.devicePixelRatio).round(),
+          'terminal':
+              '${terminalRect.top.round()}..${terminalRect.bottom.round()}',
+          'panel': panelRect == null
+              ? '-'
+              : '${panelRect.top.round()}..${panelRect.bottom.round()}',
+          'rowArrow': _panelKey('←').evaluate().isEmpty
+              ? '-'
+              : tester.getCenter(_panelKey('←')).dy.round(),
+        };
+      }
+
+      r25('$engine.panel.open', geometry());
       var bytes = await captureRemote(tester, terminal, () async {
         for (final label in ['Esc', 'Tab', '⌫', '⏎', '↑', '←', 'PgUp', '|']) {
           await tap(_panelKey(label));

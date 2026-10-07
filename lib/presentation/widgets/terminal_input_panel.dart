@@ -29,6 +29,7 @@ class TerminalInputPanel extends StatefulWidget {
     required this.onSystemKeyboard,
     this.secureKeyboard = false,
     this.dense = false,
+    this.showHeader = true,
     this.transparentBackground = false,
   });
 
@@ -51,6 +52,10 @@ class TerminalInputPanel extends StatefulWidget {
 
   /// 地方很小（横屏弹着键盘）：大输入框只留一行。
   final bool dense;
+
+  /// 顶上那一行（两个标签、分页、换回系统键盘）。在大输入框里打字、系统键盘弹着时收起来，地方留给框；
+  /// 那时要换页可以左右滑，换回系统键盘用快捷键栏上的按钮。
+  final bool showHeader;
   final bool transparentBackground;
 
   @override
@@ -98,7 +103,7 @@ class _TerminalInputPanelState extends State<TerminalInputPanel> {
       color: widget.transparentBackground ? Colors.transparent : scheme.surface,
       child: Column(
         children: [
-          if (!widget.dense) _header(context, composing),
+          if (widget.showHeader && !widget.dense) _header(context, composing),
           Expanded(
             child: PageView(
               key: const ValueKey('terminal-input-panel-pages'),
@@ -221,21 +226,21 @@ class _TerminalInputPanelState extends State<TerminalInputPanel> {
       );
 
   Widget _keyGrid(double width) {
-    final inner = math.min(width - 8, 560.0);
+    // 横屏（一行放得下 12 个 52dp 的键）：每页摆成两行，面板矮，终端多留几行；竖屏摆成四行。
+    final wide = width - 8 >= 12 * 52;
+    final maxWidth = wide ? 12 * 72.0 : 560.0;
+    final inner = math.min(width - 8, maxWidth);
     final rows = switch (_keyPage) {
-      _KeyPage.common => _commonRows,
-      // 符号多：每行能放几个就放几个（每个至少 48dp），411dp 宽的手机一行 8 个、四行放完。
-      _KeyPage.symbols => _flow(_symbols, (inner / 48).floor().clamp(6, 8)),
-      _KeyPage.control => _controlRows,
-      _KeyPage.function => _functionRows,
-      _KeyPage.custom => [
-          for (var i = 0; i < widget.customKeys.length; i += 3)
-            [
-              for (final key in widget.customKeys.skip(i).take(3))
-                TerminalKeySpec(key.label,
-                    text: key.value, decodeEscapes: true),
-            ],
-        ],
+      _KeyPage.common => wide ? _commonRowsWide : _commonRows,
+      // 符号多：每行能放几个就放几个（每个至少 48dp），411dp 宽的手机一行 8 个、四行放完；横屏一行 16 个。
+      _KeyPage.symbols =>
+        _flow(_symbols, (inner / 48).floor().clamp(6, wide ? 16 : 8)),
+      _KeyPage.control => wide ? _pairUp(_controlRows) : _controlRows,
+      _KeyPage.function => wide ? _pairUp(_functionRows) : _functionRows,
+      _KeyPage.custom => _flow([
+          for (final key in widget.customKeys)
+            TerminalKeySpec(key.label, text: key.value, decodeEscapes: true),
+        ], wide ? 6 : 3),
     };
     final columns = rows.fold(1, (most, row) => math.max(most, row.length));
     // 键和键之间留最多 4dp，但先保证每个键 48dp 宽（UX02）。
@@ -246,7 +251,7 @@ class _TerminalInputPanelState extends State<TerminalInputPanel> {
       child: Center(
         child: ConstrainedBox(
           // 横屏很宽：键不用拉成一百多 dp 宽，按竖屏的手感放在中间。
-          constraints: const BoxConstraints(maxWidth: 560),
+          constraints: BoxConstraints(maxWidth: maxWidth),
           child: Column(
             children: [
               for (final row in rows) _keyRow(row, columns, gap),
@@ -256,6 +261,15 @@ class _TerminalInputPanelState extends State<TerminalInputPanel> {
       ),
     );
   }
+
+  /// 横屏把四行两两并成两行（第一行接第二行、第三行接第四行）。
+  static List<List<TerminalKeySpec?>> _pairUp(
+    List<List<TerminalKeySpec?>> rows,
+  ) =>
+      [
+        for (var i = 0; i < rows.length; i += 2)
+          [...rows[i], if (i + 1 < rows.length) ...rows[i + 1]],
+      ];
 
   static List<List<TerminalKeySpec?>> _flow(
     List<TerminalKeySpec> keys,
@@ -309,6 +323,38 @@ final _commonRows = <List<TerminalKeySpec?>>[
     symbolKey('|'),
     symbolKey('~'),
     symbolKey('-')
+  ],
+];
+
+/// 常用页横屏的摆法：两行十二个，方向键仍是倒 T（↑ 在 ↓ 正上方）。
+final _commonRowsWide = <List<TerminalKeySpec?>>[
+  [
+    escapeKey,
+    tabKey,
+    ctrlKey,
+    altKey,
+    shiftKey,
+    backspaceKey,
+    pageUpKey,
+    homeKey,
+    ctrlCKey,
+    arrowUpKey,
+    ctrlLKey,
+    enterKey
+  ],
+  [
+    symbolKey('/'),
+    symbolKey('|'),
+    symbolKey('~'),
+    symbolKey('-'),
+    ctrlDKey,
+    ctrlZKey,
+    pageDownKey,
+    endKey,
+    arrowLeftKey,
+    arrowDownKey,
+    arrowRightKey,
+    deleteKey
   ],
 ];
 

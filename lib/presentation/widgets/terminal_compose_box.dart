@@ -235,27 +235,27 @@ class _TerminalComposeBoxState extends ConsumerState<TerminalComposeBox> {
         ),
     ];
 
-    final field = TextField(
-      key: const ValueKey('terminal-compose-editor'),
-      controller: _editor,
-      focusNode: widget.focusNode,
-      expands: !widget.dense,
-      minLines: widget.dense ? 1 : null,
-      maxLines: widget.dense ? 3 : null,
-      textAlignVertical: TextAlignVertical.top,
-      keyboardType: TextInputType.multiline,
-      textInputAction: TextInputAction.newline,
-      // 框里可能是密码：开了「系统安全键盘」就不联想、不学习。
-      enableSuggestions: !widget.secureKeyboard,
-      autocorrect: !widget.secureKeyboard,
-      enableIMEPersonalizedLearning: !widget.secureKeyboard,
-      style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
-      decoration: LInputDecoration(
-        isDense: true,
-        border: const OutlineInputBorder(),
-        hintText: '在这里打字或说话，回车只是换行；点「发送」才发到终端',
-      ),
-    );
+    Widget field(bool dense) => TextField(
+          key: const ValueKey('terminal-compose-editor'),
+          controller: _editor,
+          focusNode: widget.focusNode,
+          expands: !dense,
+          minLines: dense ? 1 : null,
+          maxLines: dense ? 3 : null,
+          textAlignVertical: TextAlignVertical.top,
+          keyboardType: TextInputType.multiline,
+          textInputAction: TextInputAction.newline,
+          // 框里可能是密码：开了「系统安全键盘」就不联想、不学习。
+          enableSuggestions: !widget.secureKeyboard,
+          autocorrect: !widget.secureKeyboard,
+          enableIMEPersonalizedLearning: !widget.secureKeyboard,
+          style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
+          decoration: LInputDecoration(
+            isDense: true,
+            border: const OutlineInputBorder(),
+            hintText: '在这里打字或说话，回车只是换行；点「发送」才发到终端',
+          ),
+        );
 
     final send = FilledButton(
       key: const ValueKey('terminal-compose-send'),
@@ -273,74 +273,122 @@ class _TerminalComposeBoxState extends ConsumerState<TerminalComposeBox> {
       child: const LText('清空'),
     );
 
-    if (widget.dense) {
-      // 地方只够一行：提醒缩成一句短话放在框上面（照样写清会不会逐行执行），按钮只留「发送」，别的进「…」。
-      // 远端的粘贴模式会变（进出 vim），这一句跟着终端重建。
-      String? shortNotice() => switch ((problem, review.multiline)) {
-            (TerminalTargetProblem.disconnected, _) => '连接已断开：不会发送，字留着',
-            (TerminalTargetProblem.replaced, _) => '已恢复成新连接：不会自动改发',
-            (TerminalTargetProblem.closed, _) => '标签已经关了：不会发送',
-            (null, true) => target.terminal.bracketedPasteMode
-                ? '多行：远端开着粘贴标记，多数 shell 等回车才执行（App 保证不了）'
-                : '多行：远端没开粘贴标记，每个换行都是回车，前面各行会立刻执行',
-            _ => null,
-          };
-      return Padding(
-        padding: const EdgeInsets.fromLTRB(8, 2, 4, 2),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (problem != null || review.multiline)
-              ListenableBuilder(
-                listenable: target.terminal,
-                builder: (context, _) => LText(
-                  shortNotice() ?? '',
-                  key: const ValueKey('terminal-compose-short-notice'),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context)
-                      .textTheme
-                      .bodySmall
-                      ?.copyWith(color: scheme.error),
-                ),
-              ),
-            Row(
-              children: [
-                Expanded(child: field),
-                const SizedBox(width: 4),
-                send,
-                if (live != null)
-                  IconButton(
-                    key: const ValueKey('terminal-compose-retarget'),
-                    tooltip: localized('改发到新连接'),
-                    onPressed: () => widget.drafts.retarget(_tabId, live),
-                    icon: const Icon(Icons.swap_horiz),
-                  ),
-                PopupMenuButton<VoidCallback>(
-                  key: const ValueKey('terminal-compose-more'),
-                  tooltip: localized('更多'),
-                  onSelected: (action) => action(),
-                  itemBuilder: (_) => [
-                    PopupMenuItem(
-                      enabled: canFill,
-                      value: () => _send(enter: false),
-                      child: const LText('只填入'),
-                    ),
-                    PopupMenuItem(
-                      enabled: _editor.text.isNotEmpty,
-                      value: _editor.clear,
-                      child: const LText('清空'),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ],
-        ),
-      );
-    }
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // 框、按钮行、提醒都要放得下：放不下提醒就换成一行的写法（提醒缩成一句短话），不让它溢出、也不藏掉。
+        final room = constraints.maxHeight - 8 - 52 - 44;
+        final dense = widget.dense ||
+            constraints.maxHeight < 120 ||
+            (notices.isNotEmpty && room < 28);
+        return dense
+            ? _denseLayout(
+                context,
+                field: field(true),
+                send: send,
+                problem: problem,
+                review: review,
+                target: target,
+                live: live,
+                canFill: canFill,
+              )
+            : _fullLayout(
+                notices: notices,
+                noticeHeight: room.clamp(0.0, 96.0),
+                field: field(false),
+                clear: clear,
+                fill: fill,
+                send: send,
+              );
+      },
+    );
+  }
 
+  Widget _denseLayout(
+    BuildContext context, {
+    required Widget field,
+    required Widget send,
+    required TerminalTargetProblem? problem,
+    required PasteReview review,
+    required ActiveTerminalSession target,
+    required ActiveTerminalSession? live,
+    required bool canFill,
+  }) {
+    final scheme = Theme.of(context).colorScheme;
+    // 地方只够一行：提醒缩成一句短话放在框上面（照样写清会不会逐行执行），按钮只留「发送」，别的进「…」。
+    // 远端的粘贴模式会变（进出 vim），这一句跟着终端重建。
+    String? shortNotice() => switch ((problem, review.multiline)) {
+          (TerminalTargetProblem.disconnected, _) => '连接已断开：不会发送，字留着',
+          (TerminalTargetProblem.replaced, _) => '已恢复成新连接：不会自动改发',
+          (TerminalTargetProblem.closed, _) => '标签已经关了：不会发送',
+          (null, true) => target.terminal.bracketedPasteMode
+              ? '多行：远端开着粘贴标记，多数 shell 等回车才执行（App 保证不了）'
+              : '多行：远端没开粘贴标记，每个换行都是回车，前面各行会立刻执行',
+          _ => null,
+        };
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 2, 4, 2),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (problem != null || review.multiline)
+            ListenableBuilder(
+              listenable: target.terminal,
+              builder: (context, _) => LText(
+                shortNotice() ?? '',
+                key: const ValueKey('terminal-compose-short-notice'),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: scheme.error),
+              ),
+            ),
+          Row(
+            children: [
+              Expanded(child: field),
+              const SizedBox(width: 4),
+              send,
+              if (live != null)
+                IconButton(
+                  key: const ValueKey('terminal-compose-retarget'),
+                  tooltip: localized('改发到新连接'),
+                  onPressed: () => widget.drafts.retarget(_tabId, live),
+                  icon: const Icon(Icons.swap_horiz),
+                ),
+              PopupMenuButton<VoidCallback>(
+                key: const ValueKey('terminal-compose-more'),
+                tooltip: localized('更多'),
+                onSelected: (action) => action(),
+                itemBuilder: (_) => [
+                  PopupMenuItem(
+                    enabled: canFill,
+                    value: () => _send(enter: false),
+                    child: const LText('只填入'),
+                  ),
+                  PopupMenuItem(
+                    enabled: _editor.text.isNotEmpty,
+                    value: _editor.clear,
+                    child: const LText('清空'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _fullLayout({
+    required List<Widget> notices,
+    required double noticeHeight,
+    required Widget field,
+    required Widget clear,
+    required Widget fill,
+    required Widget send,
+  }) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(8, 4, 8, 4),
       child: Column(
@@ -348,7 +396,7 @@ class _TerminalComposeBoxState extends ConsumerState<TerminalComposeBox> {
         children: [
           if (notices.isNotEmpty)
             ConstrainedBox(
-              constraints: const BoxConstraints(maxHeight: 96),
+              constraints: BoxConstraints(maxHeight: noticeHeight),
               child: SingleChildScrollView(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.stretch,

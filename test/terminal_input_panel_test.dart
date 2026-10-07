@@ -385,6 +385,37 @@ void main() {
         expect(page.resizes['first']!.single.$2, page.first.terminal.viewRows);
       });
 
+      testWidgets('竖屏在大输入框里打字、系统键盘弹着：框、提醒、按钮都在键盘上面看得见、点得到，不溢出', (
+        tester,
+      ) async {
+        final page = await _Page.open(tester, newTerminal);
+        await page.keyboard(336);
+        await page.keyboard(0);
+        await tester.tap(toggle);
+        await page.settle();
+        await tester
+            .tap(find.byKey(const ValueKey('terminal-input-tab-compose')));
+        await page.keyboard(336);
+        final keyboardTop =
+            tester.view.physicalSize.height / tester.view.devicePixelRatio -
+                336;
+
+        await tester.enterText(editor, 'touch a\ntouch b');
+        await page.settle();
+        expect(find.byKey(const ValueKey('terminal-compose-risk-lines-run')),
+            findsOneWidget);
+        for (final finder in [editor, send, fill]) {
+          expect(tester.getRect(finder).bottom,
+              lessThanOrEqualTo(keyboardTop + .5));
+        }
+        expect(
+            tester.getSize(find.byType(engineView)).height, greaterThan(100));
+        await tester.tap(send);
+        await page.settle();
+        expect(page.sent['first'], ['touch a\rtouch b', '\r']);
+        await page.keyboard(0);
+      });
+
       testWidgets('从面板换回系统键盘：键盘升上来之前面板的位置先空着，终端不会先变高再被压回去', (
         tester,
       ) async {
@@ -434,6 +465,47 @@ void main() {
         expect(tester.getSize(find.byType(engineView)).height, greaterThan(30));
         expect(page.first.terminal.viewRows, greaterThan(0));
         await page.keyboard(0);
+      });
+
+      testWidgets('每一页的键都整个露在面板里、不用滚：竖屏四行，横屏两行（键盘比面板矮也一样）', (
+        tester,
+      ) async {
+        final page = await _Page.open(tester, newTerminal);
+        // 只有 108dp 的键盘（盖住了导航栏的回放输入法就是这样）：面板照样放得下一页。
+        await page.keyboard(108);
+        await page.keyboard(0);
+        await tester.tap(toggle);
+        await page.settle();
+        Future<void> expectAllVisible(String layout) async {
+          final visible = tester.getRect(panel);
+          for (final keyPage in ['common', 'symbols', 'control', 'function']) {
+            await tester
+                .tap(find.byKey(ValueKey('terminal-key-page-$keyPage')));
+            await page.settle();
+            final keys = find.descendant(
+              of: find.byKey(ValueKey('terminal-key-grid-$keyPage')),
+              matching: find.byType(TextButton),
+            );
+            expect(keys, findsWidgets);
+            for (final key in keys.evaluate()) {
+              final rect = tester.getRect(find.byWidget(key.widget));
+              expect(rect.bottom, lessThanOrEqualTo(visible.bottom + .5),
+                  reason: '$layout $keyPage：有键被挡在面板外');
+            }
+          }
+          await tester
+              .tap(find.byKey(const ValueKey('terminal-key-page-common')));
+          await page.settle();
+        }
+
+        await expectAllVisible('竖屏');
+        tester.view.physicalSize = const Size(2400, 1080);
+        await page.settle();
+        await expectAllVisible('横屏');
+        final up = tester.getCenter(panelKey('↑'));
+        final down = tester.getCenter(panelKey('↓'));
+        expect(up.dx, moreOrLessEquals(down.dx, epsilon: 1));
+        expect(down.dy, greaterThan(up.dy), reason: '横屏两行也是倒 T');
       });
 
       testWidgets('UX02：面板两页、竖屏横屏，触控目标 48dp、可点的都有标签、文字对比度够', (

@@ -198,9 +198,14 @@ mixin _TerminalInputHost on ConsumerState<TerminalScreen> {
     final keyboard = known == null || _keyboardShowMax > known
         ? (_keyboardShowMax > 0 ? _keyboardShowMax : null)
         : known;
-    final estimate = full * (orientation == Orientation.portrait ? .38 : .5);
-    final panel = (keyboard ?? estimate)
-        .clamp(160.0, math.max(160.0, full * .55))
+    final portrait = orientation == Orientation.portrait;
+    final estimate = full * (portrait ? .38 : .5);
+    // 至少放得下顶上一行和一页键（竖屏四行、横屏两行，见 TerminalInputPanel）：
+    // 有的键盘比这矮，或者键盘盖住了底部导航栏、终端页只被压掉一百来 dp，照它开面板就只露出两行键。
+    final usable = portrait ? 256.0 : 156.0;
+    final panel = math
+        .max(keyboard ?? estimate, usable)
+        .clamp(156.0, math.max(156.0, full * .55))
         .toDouble();
     final composing = _inputMode == terminalInputCompose;
     final composeFocused = composing && _composeFocus.hasFocus;
@@ -235,10 +240,13 @@ mixin _TerminalInputHost on ConsumerState<TerminalScreen> {
       tight: tight,
       // 横屏弹着键盘在大输入框里打字：快捷键栏用不上，让给终端。
       hideQuickBar: panelVisible && composeFocused && tight,
+      // 在大输入框里打字、系统键盘弹着时面板只剩框那么高：顶上那一行收起来，地方给框。
+      showPanelHeader: !composeFocused || panelHeight >= _composeHeight + 48,
     );
   }
 
-  static const _composeHeight = 140.0;
+  /// 系统键盘弹着时大输入框露出来的高度：框三行、按钮一行，再放得下一条提醒（放不下就换成一行的写法）。
+  static const _composeHeight = 152.0;
   static const _denseComposeHeight = 68.0;
 }
 
@@ -253,6 +261,7 @@ class _InputLayout {
     required this.compact,
     required this.tight,
     required this.hideQuickBar,
+    required this.showPanelHeader,
   });
 
   /// 面板露出来的高度。
@@ -267,4 +276,5 @@ class _InputLayout {
   final bool compact;
   final bool tight;
   final bool hideQuickBar;
+  final bool showPanelHeader;
 }
