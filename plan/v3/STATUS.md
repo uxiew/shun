@@ -6,7 +6,7 @@
 - 任务：DONE 33（R00 R01 R02 R03 R04 R05 R06 R07 R08 R09 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 X00 X01 X02 X03 X04 X05 X06 X07 X08 X09 X12）、IN_PROGRESS 1（R25）、NOT_STARTED 12、DEFERRED 7。
 - 用例（共 142）：PASS 110、FAIL 1、BLOCKED 6、NOT_RUN 25。每条的实际动作和观察在 `evidence/`。
 - 最近一次全量（10-07 R20 后，三套测试环境都开着）：`flutter test -j 4` 1130 过、2 跳过（1 条只在 Windows 跑、1 条是默认不跑的 VT 耗时基准）、0 失败；`flutter analyze` 无问题；`packages/plugin_api` `dart test` 37 条过；fork flterm 1157、libghostty 514 条过。
-- 门禁：G0 **PASS**（Ghostty Android 可行性有真机证据；GST01 在 R17 改成 PASS；原来 FAIL 的 TER02（真机复测）、TER06（模拟器）在 R18 改成 PASS）；G3 BLOCKED（见下）；其余门禁 NOT_RUN。插件基础 GX0 的出口条件（X00–X03）在模拟器上都已满足，只差真机复核，所以仍记 NOT_RUN；Tailscale 的 G2（R15）同理，另外还差官方 Tailscale 的 check 和直连。Ghostty 的 G3 记 **BLOCKED**：R20 做完了（Ghostty 是唯一引擎），10-07 晚又在真机 Pixel 9 Pro 上复核了发布包、TUI、资源、删库失败，都过（TER11/12、GST05、REL03 改为模拟器 + 真机 PASS）；只剩 TER13 的登录部分在等所有者（16 KiB 页只有模拟器证据，没有 16 KiB 真机）。Mosh 的 GX2 要等 X10（移动恢复）。离 CORE_READY / FULL_READY 都还很远。
+- 门禁：G0 **PASS**（Ghostty Android 可行性有真机证据；GST01 在 R17 改成 PASS；原来 FAIL 的 TER02（真机复测）、TER06（模拟器）在 R18 改成 PASS）；G3 **PASS**（见下）；其余门禁 NOT_RUN。插件基础 GX0 的出口条件（X00–X03）在模拟器上都已满足，只差真机复核，所以仍记 NOT_RUN；Tailscale 的 G2（R15）同理，另外还差官方 Tailscale 的 check 和直连。Ghostty 的 G3 **PASS**：R20 做完了（Ghostty 是唯一引擎），10-07 晚又在真机 Pixel 9 Pro 上复核了发布包、TUI、资源、删库失败，都过（TER11/12、GST05、REL03 改为模拟器 + 真机 PASS）。所有者 10-07 定 G3 不要求 TER13 的登录部分（出口条件本身只写默认引擎、CJK/TUI/资源/16 KiB），TER13 这条用例仍记 BLOCKED；16 KiB 页只有模拟器证据，没有 16 KiB 真机。Mosh 的 GX2 要等 X10（移动恢复）。离 CORE_READY / FULL_READY 都还很远。
 - 设备：arm64 模拟器实测过 API 24–28、35（4 KiB）、36（16 KiB），测完即删，只留 `xwshun-a35-4k` 的配置；R17 又临时建过 API 24 和 API 36（16 KiB）两台跑 Ghostty 设备测试，连同镜像已删，主 App 测完已从 `xwshun-a35-4k` 卸载。真机一台：所有者的 Pixel 9 Pro（Android 17 / API 37，4 KiB 页），只接在 xdwmbp 上，本机经 `tool/remote-device/` 借它的 adb；10-04 只装过 spike 测试包、10-06 为 TER02 复测装过主 App 的 debug 包（所有者当次同意、本人操作），10-07 晚为 G3 复核装过 R20 候选 release 包、debug 测试包和删掉原生库的测试包（所有者当次同意；不注入按键，临时开过充电常亮、已改回 0），都测完即卸载、没改输入法设置，为恢复微信输入法 force-stop 过它两次（第一次默认输入法被系统换成 Gboard，几秒内改回，三项输入法设置复核一致，见 evidence/R04.md）。只装过本项目自己的 APK（含 `plugins/` 的测试插件、假 UU、假 RustDesk）、原版 Netcatty、官方 UU 远程 4.42.0（所有者提供并同意安装，没有登录）和 GitHub 发行版 RustDesk 1.4.9（所有者同意安装，只连了不存在的 ID）；测试 App、假浏览器、UU、RustDesk、R18 的回放输入法、X08 的 Mosh 插件测完都已从 `xwshun-a35-4k` 卸载；R14、R15 在本机 Docker 里起过 Headscale + 官方 tailscale 镜像的隔离测试环境（不连任何真实账号，已 down）；R19、X09（10-06）只用了 `xwshun-a35-4k`（`-port 5580`，没碰 `lizhi`），主 App、Mosh 插件、回放输入法测完都已卸载，R19 的剪贴板测试把模拟器剪贴板改成了 `phone-secret-r19`，X09 为连 `10.0.2.2` 关过模拟器 Wi-Fi、已开回；10-07 的 R19 后续、R25、X12 和 SDK01 独立复验也只用 `xwshun-a35-4k`，装过主 App、Mosh 插件、回放输入法、样例插件、echo 各变体、冒充 Mosh 的 `echo-fakemosh`、复验代理自己做的插件，测完都已卸载，`hw.keyboard` 改回 `no`、默认输入法是 Gboard、Wi-Fi 开着；10-07 的 R20 用 `xwshun-a35-4k` 跑设备门禁（开过 `adb root`、临时把 `hw.keyboard` 改成 `yes` 测硬件键后改回并重起核对），另临时建过 API 24、API 36（16 KiB）两台模拟器跑发布包冒烟和门禁，连同镜像都删了；装过主 App 的 debug/release 包、删掉原生库的测试包、回放输入法，都已卸载，模拟器最后关机；本机 Docker 另起过 `tool/ai-cli-fixture`（Claude Code、Codex CLI，不登录，已 down）；没有连接任何用户真实主机/账号/VPN，没有 push 或发布。
 
 ## 已做的代码改动
@@ -132,8 +132,7 @@ X04 留下的：App 启动时不自动发现插件（X09、X12 起连 Mosh/插�
 - 终端输入还剩的两个细节（R25 第一部分，现在的做法见 evidence/R25.md；Ctrl+I/M、Ctrl+C 两项 R20 前定了、已做）：
   1. 横屏 + 系统键盘在大输入框里打字时终端只剩 2 行：能接受，还是这时让输入框占满。
   2. 要不要加整套 QWERTY 页；大输入框的草稿要不要加密存盘（现在只在内存，App 被杀就没了）。
-- Ghostty 的 G3（真机复核 10-07 晚已做完，见 evidence/R20.md「真机复核」）只剩 TER13 的登录部分，二选一：你在模拟器里自己登录 Claude Code / Codex 补测
-  （`tool/ai-cli-fixture` 现成，会花一点额度）；或者定 G3 不要求 TER13 的登录部分（G3 的出口条件本身只写了默认引擎、CJK/TUI/资源/16 KiB），那 G3 就记 PASS。
+- TER13 的登录部分（可选，G3 已不等它）：要测流式输出、中断运行中的任务，你在模拟器里自己登录 Claude Code / Codex（`tool/ai-cli-fixture` 现成，会花一点额度）。
 - 插件（X12 留下的）：给第三方作者的宿主安装包怎么提供（现在只有本机编的 debug 包，换台电脑编证书就变，作者要重填证书）；插件详情页的「会话测试」是所有构建都显示，还是只在开发构建里显示。
 - 应用正式名称、正式签名、分发形态（BAS03 的"签名不同"、BAS04/REL01 许可结论依赖它）。
 - Gradle 依赖是否也要锁定校验（SUP01 只完成了 pub 层）。

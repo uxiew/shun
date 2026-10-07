@@ -43,7 +43,7 @@
         "R20"
       ],
       "exit": "flterm成为实际默认，CJK/TUI/资源/16KiB通过；旧引擎不是完成替代物",
-      "status": "BLOCKED"
+      "status": "PASS"
     },
     "P4": {
       "title": "恢复与既有能力回归",
