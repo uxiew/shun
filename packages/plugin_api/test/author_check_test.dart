@@ -103,6 +103,10 @@ void main() {
     expect(r.ok, isTrue);
     expect(
       r.warnings,
+      contains(startsWith('没有声明 terminal-session：装上能批准，但宿主不会调用')),
+    );
+    expect(
+      r.warnings,
       contains(startsWith('宿主现在只会用第三方插件的 terminal-session；device-catalog')),
     );
     expect(

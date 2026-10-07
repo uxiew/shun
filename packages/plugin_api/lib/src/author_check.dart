@@ -73,6 +73,12 @@ class AuthorCheck {
         '${d.ignoredNewerCapabilities.join('、')}',
       );
     }
+    if (!d.capabilities.contains(Capability.terminalSession)) {
+      warnings.add(
+        '没有声明 terminal-session：装上能批准，但宿主不会调用这个插件的任何能力——'
+        '详情页没有「会话测试」，主机编辑器的「插件」里也选不到它',
+      );
+    }
     final unused = d.capabilities
         .where((c) => c != Capability.terminalSession)
         .map((c) => c.wire);
