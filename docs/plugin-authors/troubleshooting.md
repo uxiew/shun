@@ -50,6 +50,7 @@ adb logcat -s XwshunHello XwshunPlugins AndroidRuntime:E
 | 不兼容：描述符自称的服务类与实际声明插件 action 的服务不一致 | 改了包名或类名，描述符的 `serviceClass` 没跟着改 | 改成服务的全名 |
 | 已拒绝：描述符声称的包名与实际安装包不一致 | 描述符的 `packageName` 不等于 applicationId | 改成一样 |
 | 已拒绝：builtin.xxx 是内置 provider 保留 ID，外部包不能占用 | `pluginId` 用了 `builtin.` 开头 | 换一个 |
+| 已拒绝：xwshun.mosh 只认登记过的官方证书，这个安装包的证书不是那张，不能批准 | 用了 Mosh 插件的 `pluginId`。宿主把它绑在 Mosh 插件的签名证书上 | 换成你自己的 `pluginId` |
 | 已拒绝：xxx 自称随包内置，但它是单独安装的包… | `deployment` 写了 `bundled` | 写 `android-service` |
 | 已拒绝：xxx 已被另一个 provider 占用，不允许遮蔽 | 设备上另一个已可用的插件用了同一个 `pluginId` | 换一个 `pluginId` |
 | 已拒绝：debug 证书签名的插件只在开发构建中可用（实测，正式版宿主 + 测试插件 echo-debugkey） | 用 Android 调试证书签的插件，装在正式版宿主上 | 用你自己的密钥签（样例默认就是） |

@@ -20,7 +20,9 @@ cd .. && ../android/gradlew -p . -q :mosh:assembleRelease \
 
 - 没先跑 `native/build-mosh-client.sh` 就构建 APK：报 `缺运行时 …libmoshclient.so`。故意的，不打一个缺运行时的包。
 - 编译目录在仓库外 `../../../.toolchain/mosh-build/`，可以删（见本机手册第 6 节）；`FORCE=1` 全部重编。
-- 签名现在用测试作者密钥（`plugin-keys/fixture-author.jks`），正式签名等所有者定。宿主第一次看到它要用户批准证书。
+- 签名现在用测试作者密钥（`plugin-keys/fixture-author.jks`，证书 SHA-256 `ffb53d5a…52fe`），正式签名等所有者定。宿主第一次看到它要用户批准证书。
+- **宿主把 pluginId `xwshun.mosh` 绑在这张证书上**（`lib/domain/plugins/official_plugins.dart`）：别的证书签、自称 `xwshun.mosh` 的包直接「已拒绝」。
+  换签名（正式签名、或 `plugin-keys` 被删后重新生成）必须同步改那个文件，不然这个插件自己也会被当成冒充者拒掉。
 
 ## 会话 key 怎么交给 mosh-client
 
