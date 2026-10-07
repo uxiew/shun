@@ -1,7 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
-    <!-- 让插件「看得见」宿主，才能在每次调用时读出宿主的签名证书来核对。Android 11 起没有这条，
-         系统可能对插件隐藏宿主，核对就失败。不要申请 QUERY_ALL_PACKAGES。 -->
+    <!-- 让插件「看得见」宿主（Android 11 起的包可见性），每次调用时才读得出宿主的签名证书来核对。
+         宿主绑定插件时系统会自动让插件看见宿主：API 35 模拟器上去掉这条照样握手成功（X12 实测）。
+         写上它是为了插件没被宿主绑定的时候（比如在自己的设置页里）也查得到宿主。不要申请 QUERY_ALL_PACKAGES。 -->
     <queries>
         <package android:name="top.xdwa.xwshun" />
     </queries>
