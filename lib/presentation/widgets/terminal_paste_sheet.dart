@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/session_controller.dart';
+import '../../domain/models/host.dart';
+import '../../domain/plugins/plugin_host.dart';
 import '../../domain/terminal_paste.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import '../localization/localized_widgets.dart';
@@ -125,7 +127,7 @@ class _TerminalPasteSheetState extends ConsumerState<TerminalPasteSheet> {
               style: Theme.of(context).textTheme.titleMedium,
             ),
             Text(
-              '${_target.host.username}@${_target.host.hostname} · '
+              '${_target.host.protocol == HostProtocol.plugin ? pluginHostEndpoint(_target.host) : '${_target.host.username}@${_target.host.hostname}'} · '
               '${review.lines} $linesUnit · '
               '${review.text.runes.length} $charsUnit',
               style: Theme.of(context).textTheme.bodySmall,

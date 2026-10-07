@@ -7,10 +7,12 @@ import '../../application/session_controller.dart';
 import '../../application/settings_controller.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/models/host.dart';
+import '../../domain/plugins/plugin_host.dart';
 import '../../domain/tailscale_ssh.dart';
 import '../../application/home_navigation.dart';
 import '../../application/host_trust.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/host_address_line.dart';
 import '../widgets/host_editor.dart';
 import '../widgets/host_key_dialogs.dart';
 import '../widgets/host_system_icon.dart';
@@ -297,8 +299,9 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
               _DetailRow(
                 icon: Icons.link,
                 label: '连接地址',
-                value:
-                    '${host.protocol.name.toUpperCase()}  ${host.username}@${host.hostname}:${host.port}',
+                value: host.protocol == HostProtocol.plugin
+                    ? pluginHostEndpoint(host)
+                    : '${host.protocol.name.toUpperCase()}  ${host.username}@${host.hostname}:${host.port}',
               ),
               if (host.systemInfo != null)
                 _DetailRow(
@@ -312,17 +315,18 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                       '${host.systemInfo!.cores} 核',
                   ].join(' · '),
                 ),
-              _DetailRow(
-                icon: Icons.key_outlined,
-                label: '认证',
-                value: sshLoginModeOf(host) == SshLoginMode.tailscale
-                    ? 'Tailscale SSH（不发密码和私钥）'
-                    : key == null
-                        ? (host.password?.isNotEmpty == true
-                            ? '密码'
-                            : '自动 / 交互式')
-                        : '私钥 · ${key.label}',
-              ),
+              if (host.protocol != HostProtocol.plugin)
+                _DetailRow(
+                  icon: Icons.key_outlined,
+                  label: '认证',
+                  value: sshLoginModeOf(host) == SshLoginMode.tailscale
+                      ? 'Tailscale SSH（不发密码和私钥）'
+                      : key == null
+                          ? (host.password?.isNotEmpty == true
+                              ? '密码'
+                              : '自动 / 交互式')
+                          : '私钥 · ${key.label}',
+                ),
               if (jumps.isNotEmpty)
                 _DetailRow(
                   icon: Icons.alt_route,
@@ -642,8 +646,7 @@ class _HostTree extends StatelessWidget {
                   onTap: () => onConnect(host),
                   leading: HostSystemIcon(host: host, size: 38),
                   title: LText(host.label),
-                  subtitle:
-                      LText('${host.username}@${host.hostname}:${host.port}'),
+                  subtitle: HostAddressLine(host),
                   trailing: IconButton(
                     tooltip: localized('编辑'),
                     onPressed: () => onEdit(host),
@@ -700,8 +703,8 @@ class _HostCard extends StatelessWidget {
                       fontWeight: FontWeight.w600, fontSize: 16),
                 ),
                 const SizedBox(height: 4),
-                LText(
-                  '${host.username}@${host.hostname}:${host.port}',
+                HostAddressLine(
+                  host,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: Theme.of(context).textTheme.bodySmall,
@@ -736,7 +739,7 @@ class _HostTile extends StatelessWidget {
           onTap: onConnect,
           leading: HostSystemIcon(host: host, size: 42),
           title: LText(host.label),
-          subtitle: LText('${host.username}@${host.hostname}:${host.port}'),
+          subtitle: HostAddressLine(host),
           trailing: IconButton(
             onPressed: onEdit,
             icon: const Icon(Icons.more_vert),

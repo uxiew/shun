@@ -41,10 +41,9 @@ class _ConnectionStatusPane extends StatelessWidget {
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 4),
-                    LText(
-                      '${pending.host.protocol.name.toUpperCase()}  '
-                      '${pending.host.username}@${pending.host.hostname}:'
-                      '${pending.host.port}',
+                    HostAddressLine(
+                      pending.host,
+                      withProtocol: true,
                       textAlign: TextAlign.center,
                       style: Theme.of(context).textTheme.bodySmall?.copyWith(
                             color: scheme.onSurfaceVariant,
