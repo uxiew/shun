@@ -1,0 +1,120 @@
+[?1049h[22;0;0t[24;1H[?1h=第001行 中文内容 the quick brown fox 37[m
+第002行 中文内容 the quick brown fox 74[m
+第003行 中文内容 the quick brown fox 10[m
+第004行 中文内容 the quick brown fox 47[m
+第005行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m bcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+第006行 中文内容 the quick brown fox 20[m
+第007行 [32m绿色[0m [1;31m粗红[0m 普通 ascii text[m
+第008行 中文内容 the quick brown fox 94[m
+第009行 中文内容 the quick brown fox 30[m
+第010行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m bcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+第011行 中文内容 the quick brown fox 3[m
+第012行 中文内容 the quick brown fox 40[m
+第013行 中文内容 the quick brown fox 77[m
+第014行 [32m绿色[0m [1;31m粗红[0m 普通 ascii text[m
+第015行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m bcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+第016行 中文内容 the quick brown fox 87[m
+第017行 中文内容 the quick brown fox 23[m
+第018行 中文内容 the quick brown fox 60[m
+第019行 中文内容 the quick brown fox 97[m
+第020行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m [7m/work/long.txt[27m[K[Kbcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+第021行 [32m绿色[0m [1;31m粗红[0m 普通 ascii text[m
+第022行 中文内容 the quick brown fox 6[m
+第023行 中文内容 the quick brown fox 43[m
+第024行 中文内容 the quick brown fox 80[m
+第025行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m bcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+第026行 中文内容 the quick brown fox 53[m
+第027行 中文内容 the quick brown fox 90[m
+第028行 [32m绿色[0m [1;31m粗红[0m 普通 ascii text[m
+第029行 中文内容 the quick brown fox 63[m
+第030行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m bcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+第031行 中文内容 the quick brown fox 36[m
+第032行 中文内容 the quick brown fox 73[m
+第033行 中文内容 the quick brown fox 9[m
+第034行 中文内容 the quick brown fox 46[m
+第035行 [32m绿色[0m [1;31m粗红[0m 普通 ascii text[m
+第036行 中文内容 the quick brown fox 19[m
+第037行 中文内容 the quick brown fox 56[m
+第038行 中文内容 the quick brown fox 93[m
+第039行 中文内容 the quick brown fox 29[m
+第040行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m :[K[K/[K第第[K11[K55[K00[K行行[K[1;1H[Kbcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+[2;1H[K第021行 [32m绿色[0m [1;31m粗红[0m 普通 ascii text[m
+[3;1H[K第022行 中文内容 the quick brown fox 6[m
+[4;1H[K第023行 中文内容 the quick brown fox 43[m
+[5;1H[K第024行 中文内容 the quick brown fox 80[m
+[6;1H[K第025行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m [7;1H[Kbcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+[8;1H[K第026行 中文内容 the quick brown fox 53[m
+[9;1H[K第027行 中文内容 the quick brown fox 90[m
+[10;1H[K第028行 [32m绿色[0m [1;31m粗红[0m 普通 ascii text[m
+[11;1H[K第029行 中文内容 the quick brown fox 63[m
+[12;1H[K第030行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m [13;1H[Kbcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+[14;1H[K第031行 中文内容 the quick brown fox 36[m
+[15;1H[K第032行 中文内容 the quick brown fox 73[m
+[16;1H[K第033行 中文内容 the quick brown fox 9[m
+[17;1H[K第034行 中文内容 the quick brown fox 46[m
+[18;1H[K第035行 [32m绿色[0m [1;31m粗红[0m 普通 ascii text[m
+[19;1H[K第036行 中文内容 the quick brown fox 19[m
+[20;1H[K第037行 中文内容 the quick brown fox 56[m
+[21;1H[K第038行 中文内容 the quick brown fox 93[m
+[22;1H[K第039行 中文内容 the quick brown fox 29[m
+[23;1H[K第040行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m [24;1H[1;1H[Kbcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+[2;1H[K第021行 [32m绿色[0m [1;31m粗红[0m 普通 ascii text[m
+[3;1H[K第022行 中文内容 the quick brown fox 6[m
+[4;1H[K第023行 中文内容 the quick brown fox 43[m
+[5;1H[K第024行 中文内容 the quick brown fox 80[m
+[6;1H[K第025行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m [7;1H[Kbcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+[8;1H[K第026行 中文内容 the quick brown fox 53[m
+[9;1H[K第027行 中文内容 the quick brown fox 90[m
+[10;1H[K第028行 [32m绿色[0m [1;31m粗红[0m 普通 ascii text[m
+[11;1H[K第029行 中文内容 the quick brown fox 63[m
+[12;1H[K第030行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m [13;1H[Kbcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+[14;1H[K第031行 中文内容 the quick brown fox 36[m
+[15;1H[K第032行 中文内容 the quick brown fox 73[m
+[16;1H[K第033行 中文内容 the quick brown fox 9[m
+[17;1H[K第034行 中文内容 the quick brown fox 46[m
+[18;1H[K第035行 [32m绿色[0m [1;31m粗红[0m 普通 ascii text[m
+[19;1H[K第036行 中文内容 the quick brown fox 19[m
+[20;1H[K第037行 中文内容 the quick brown fox 56[m
+[21;1H[K第038行 中文内容 the quick brown fox 93[m
+[22;1H[K第039行 中文内容 the quick brown fox 29[m
+[23;1H[K第040行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m [24;1H...skipping...
+[7m第150行[27m 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m bcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+第151行 中文内容 the quick brown fox 32[m
+第152行 中文内容 the quick brown fox 69[m
+第153行 中文内容 the quick brown fox 5[m
+第154行 [32m绿色[0m [1;31m粗红[0m 普通 ascii text[m
+第155行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m bcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+第156行 中文内容 the quick brown fox 15[m
+第157行 中文内容 the quick brown fox 52[m
+第158行 中文内容 the quick brown fox 89[m
+第159行 中文内容 the quick brown fox 25[m
+第160行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m bcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+第161行 [32m绿色[0m [1;31m粗红[0m 普通 ascii text[m
+第162行 中文内容 the quick brown fox 35[m
+第163行 中文内容 the quick brown fox 72[m
+第164行 中文内容 the quick brown fox 8[m
+第165行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m bcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+第166行 中文内容 the quick brown fox 82[m
+第167行 中文内容 the quick brown fox 18[m
+第168行 [32m绿色[0m [1;31m粗红[0m 普通 ascii text[m
+:[K[K...skipping...
+第182行 [32m绿色[0m [1;31m粗红[0m 普通 ascii text[m
+第183行 中文内容 the quick brown fox 4[m
+第184行 中文内容 the quick brown fox 41[m
+第185行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m bcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+第186行 中文内容 the quick brown fox 14[m
+第187行 中文内容 the quick brown fox 51[m
+第188行 中文内容 the quick brown fox 88[m
+第189行 [32m绿色[0m [1;31m粗红[0m 普通 ascii text[m
+第190行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m bcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+第191行 中文内容 the quick brown fox 98[m
+第192行 中文内容 the quick brown fox 34[m
+第193行 中文内容 the quick brown fox 71[m
+第194行 中文内容 the quick brown fox 7[m
+第195行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m bcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+第196行 [32m绿色[0m [1;31m粗红[0m 普通 ascii text[m
+第197行 中文内容 the quick brown fox 17[m
+第198行 中文内容 the quick brown fox 54[m
+第199行 中文内容 the quick brown fox 91[m
+第200行 这是一行超过八十列的长内容，用来看 less 怎样折行：中文中文中文中文中文 a[m bcdefghijklmnopqrstuvwxyz 0123456789 结尾[m
+[7m(END)[27m[K[K[?1l>[?1049l[23;0;0t

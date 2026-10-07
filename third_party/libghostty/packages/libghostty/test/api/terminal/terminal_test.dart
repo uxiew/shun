@@ -122,6 +122,44 @@ void main() {
       });
     });
 
+    // xwshun: 裸 DEL 在写入前去掉（R04 问题 9），见 terminal.dart 的 _withoutDel。
+    group('bare DEL', () {
+      String cursorReport() {
+        final output = <Uint8List>[];
+        terminal.onWritePty = output.add;
+        terminal.write(Uint8List.fromList(utf8.encode('\x1b[6n')));
+        terminal.onWritePty = null;
+        return utf8.decode(output.expand((chunk) => chunk).toList());
+      }
+
+      test('is ignored in ground state like VT100 and xterm', () {
+        terminal.write(Uint8List.fromList(utf8.encode('ab\x7fcd')));
+
+        expect(readRowText(terminal, 0), 'abcd');
+        expect(cursorReport(), '\x1b[1;5R');
+      });
+
+      test('leaves UTF-8 characters and control sequences intact', () {
+        terminal.write(
+          Uint8List.fromList([
+            ...utf8.encode('\x7f\x7f中'),
+            0x7f,
+            ...utf8.encode('文\x1b[2\x7fCx'),
+          ]),
+        );
+
+        expect(readRowText(terminal, 0), startsWith('中文'));
+        expect(readRowText(terminal, 0), endsWith('x'));
+        expect(cursorReport(), '\x1b[1;8R');
+      });
+
+      test('a write that is only DEL changes nothing', () {
+        terminal.write(Uint8List.fromList([0x7f, 0x7f]));
+
+        expect(cursorReport(), '\x1b[1;1R');
+      });
+    });
+
     group('unknown sequences', () {
       test('copies binary APC content and reports truncation', () {
         TerminalUnknownSequence? sequence;

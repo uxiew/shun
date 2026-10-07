@@ -66,12 +66,13 @@ void main() {
 
     // 真机上按退格，回环页回显的 0x7f 显示成一个方格。VT100 收到 DEL 应当忽略（xterm 也是），
     // Ghostty 却把它当可打印字符存进格子（0.0.12 和上游 main 的 349f0260 都是）。远端程序真输出 0x7f 时也会出方格。
-    // 这里固定的是"现状"：换库版本后这条失败，说明行为变了，去复核 R04 证据和 R17 的过滤。
-    test('已知差异：裸 DEL（0x7f）被存进格子，VT100 会忽略它', () {
+    // R20 起 fork 的 libghostty 在写入前去掉裸 DEL（Terminal.write 的 _withoutDel），这条改成固定修好后的样子；
+    // 同步上游后这条挂了，说明补丁丢了，去看 third_party/README.md 的差异表。
+    test('裸 DEL（0x7f）被忽略，和 VT100、xterm 一样（fork 的补丁）', () {
       final result = feed([
         Uint8List.fromList([0x61, 0x7f, 0x62]),
       ]);
-      expect(result.plain, 'a\x7fb');
+      expect(result.plain, 'ab');
     });
 
     test('前提：素材里的中文确实被渲染，DA 查询确实只回应一次', () {
