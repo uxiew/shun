@@ -1032,7 +1032,7 @@ final class Terminal with ChangeNotifier {
   /// ```
   void write(Uint8List data) {
     try {
-      bindings.terminal.terminalVtWrite(_terminalHandle, data);
+      bindings.terminal.terminalVtWrite(_terminalHandle, _withoutDel(data));
     } on Object catch (error, stackTrace) {
       try {
         notifyListeners();
@@ -1120,4 +1120,27 @@ final class Terminal with ChangeNotifier {
   }
 
   void _notifyListenersFromSearch() => notifyListeners();
+}
+
+/// xwshun: 裸 DEL（0x7F）在交给 Ghostty 之前去掉，和 VT100、xterm、tmux 一样忽略它。
+///
+/// Ghostty 的解析表照 DEC 解析器的状态图把普通状态下的 0x20–0x7F 都当可打印字（`parse_table.zig`
+/// 的 `range(0x20, 0x7F, .ground, .ground, .print)`），DEL 被存进格子：屏幕上是一个方格，后面的字往右挪一格，
+/// 远端程序以为的光标位置和画面对不上（R04 问题 9，R20 和 tmux 对比时复现）。
+/// 只在这里改：Ghostty 源码是按 SHA256 核对后下载来编的，仓库里没有它的源码可以打补丁。
+///
+/// 其余状态下 Ghostty 本来就忽略 DEL（控制序列中间、DCS），去掉它没有区别；UTF-8 多字节字符里不会出现 0x7F，
+/// 去掉它不会拆坏字符。唯一的差别在 OSC/APC 的内容里（标题、链接地址里夹着 DEL 会少这一个字），可以接受。
+/// 没有 DEL 时原样返回，不复制。
+Uint8List _withoutDel(Uint8List data) {
+  final first = data.indexOf(0x7f);
+  if (first < 0) return data;
+  final out = Uint8List(data.length);
+  out.setRange(0, first, data);
+  var length = first;
+  for (var i = first + 1; i < data.length; i++) {
+    final byte = data[i];
+    if (byte != 0x7f) out[length++] = byte;
+  }
+  return Uint8List.sublistView(out, 0, length);
 }

@@ -80,12 +80,7 @@ const ghosttyVsTmux = <String, List<String>>{
     '第 4 行：「j����k」≠「jk」',
     '第 5 行：「l��m」≠「lm」',
   ],
-  // 裸 DEL（R04 问题 9）：Ghostty 把 0x7F 当可打印字存进格子，后面的字往右挪一格、画面上是方格；
-  // VT100、xterm、tmux、xterm2 都忽略它。Ghostty 错（不算关键：远端程序很少直接输出 DEL）。
-  'bare-del': [
-    '第 0 行：「ab‹7f›cd」≠「abcd」',
-    '第 1 行：「‹7f›‹7f›xy」≠「xy」',
-  ],
+  // 裸 DEL（R04 问题 9）原来也在这里：Ghostty 把 0x7F 存进格子。fork 的 libghostty 写入前去掉了它，现在和 tmux 一样。
   // 换行后马上 REP：Ghostty（和 xterm2）重复上一行最后打印的字，tmux 不重复。ncurses 只在同一行里用 REP，可接受。
   'rep': [
     '第 2 行：「|||」≠「|」',
