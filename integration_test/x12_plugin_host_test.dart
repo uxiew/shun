@@ -4,12 +4,14 @@
 //   adb -s emulator-5580 install -r plugins/example/app/build/outputs/apk/release/app-release.apk   # 样例，信任这台宿主的证书
 //   flutter test integration_test/x12_plugin_host_test.dart -d emulator-5580
 // 测试打出 "X12 uninstall.READY" 后，在电脑上：adb -s emulator-5580 uninstall example.xwshun.hello
+// 换成 new-plugin.sh 生成的插件：加 --dart-define=X12_PACKAGE=包名 --dart-define=X12_NAME=显示名 --dart-define=X12_PROMPT=提示符
 // 另开一个终端预授权通知（每次 flutter test 都重装 App，一连上就为前台保活服务申请通知，系统框会挡住界面）：
 //   until adb -s emulator-5580 shell pm grant top.xdwa.xwshun android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done
 // 输出以 "X12 " 开头的行作为证据。
 //
 // 走的路：主机编辑器（选「插件」、选插件、保存）→ 主机列表点它连接 → 欢迎语、命令回显、转屏改尺寸 →
-// 标签开着时到插件页点「连接测试」，标签不受影响 → 关标签（确认框写清楚）→ 插件停用后点条目 → 插件卸载后点条目。
+// 按键面板、大输入框、粘贴预览 → 标签开着时到插件页点「连接测试」，标签不受影响 → 关标签（确认框写清楚）→
+// 插件停用后点条目 → 插件卸载后点条目。
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -28,7 +30,11 @@ import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter
 import 'package:netcatty_mobile/presentation/screens/plugins_screen.dart';
 import 'package:plugin_api/plugin_api.dart' show SessionPhase;
 
-const helloPackage = 'example.xwshun.hello';
+const helloPackage =
+    String.fromEnvironment('X12_PACKAGE', defaultValue: 'example.xwshun.hello');
+const pluginName =
+    String.fromEnvironment('X12_NAME', defaultValue: 'Hello 终端（样例）');
+const prompt = String.fromEnvironment('X12_PROMPT', defaultValue: 'hello>');
 const hostLabel = 'x12-notes';
 
 void report(String key, Object? value) => debugPrint('X12 $key=$value');
@@ -54,6 +60,8 @@ Future<void> settle(WidgetTester tester, [int ms = 800]) async {
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
+  // 点不中（被挡着、在屏幕外）就当失败，免得点到底下的导航栏。
+  WidgetController.hitTestWarningShouldBeFatal = true;
 
   testWidgets('X12 从主机列表连第三方终端插件', (tester) async {
     addTearDown(() => SystemChrome.setPreferredOrientations(const []));
@@ -98,7 +106,7 @@ void main() {
         find.widgetWithText(TextFormField, '主机名 / IP').evaluate().length);
     await tester.enterText(find.widgetWithText(TextFormField, '名称'), hostLabel);
     await tap(find.byKey(const ValueKey('plugin-picker')));
-    await tap(find.textContaining('Hello 终端（样例）').last);
+    await tap(find.textContaining(pluginName).last);
     report('editor.note',
         find.byKey(const ValueKey('plugin-network-note')).evaluate().length);
     await tap(find.text('保存'));
@@ -117,7 +125,7 @@ void main() {
         controller.state.sessions.singleWhere((s) => s.host.label == hostLabel);
     final link = tab.plugin! as PluginTerminalProvider;
     final terminal = tab.terminal;
-    await waitFor(tester, () => terminal.allText().contains('hello>'),
+    await waitFor(tester, () => terminal.allText().contains(prompt),
         what: '欢迎语');
     report('connect.ms', sw.elapsedMilliseconds);
     report(
@@ -140,21 +148,26 @@ void main() {
       await tester.pump();
     }
 
-    await type('help\r');
-    await waitFor(tester, () => terminal.allText().contains('插件这边结束会话'),
-        what: 'help 输出');
-    await type('color\r');
-    await waitFor(tester, () => terminal.allText().contains('反显'),
-        what: 'color 输出');
+    int count(String marker) => marker.allMatches(terminal.allText()).length;
+
+    /// 发 [send]（或做 [act]），等终端里 [marker] 多出一次，返回最后一行含它的。
+    Future<String> expectOutput(String marker,
+        {String? send, Future<void> Function()? act}) async {
+      final before = count(marker);
+      if (send != null) await type(send);
+      if (act != null) await act();
+      await waitFor(tester, () => count(marker) > before, what: marker);
+      return terminal
+          .allText()
+          .split('\n')
+          .lastWhere((l) => l.contains(marker));
+    }
+
+    await expectOutput('插件这边结束会话', send: 'help\r');
+    await expectOutput('反显', send: 'color\r');
 
     Future<(int, int)> reportedSize(String tag) async {
-      await type('clear\r');
-      await settle(tester, 300);
-      await type('size\r');
-      await waitFor(tester, () => terminal.allText().contains('终端大小：'),
-          what: 'size 输出');
-      final line =
-          terminal.allText().split('\n').lastWhere((l) => l.contains('终端大小：'));
+      final line = await expectOutput('终端大小：', send: 'size\r');
       final m = RegExp(r'(\d+) 列 × (\d+) 行').firstMatch(line)!;
       final size = (int.parse(m.group(1)!), int.parse(m.group(2)!));
       report('size.$tag',
@@ -183,6 +196,52 @@ void main() {
     }, what: '转竖屏');
     await settle(tester, 1500);
 
+    // ---- 2b. 按键面板、大输入框、粘贴预览：插件标签上照常 ----
+    final panel = find.byKey(const ValueKey('terminal-input-panel'));
+    Finder panelKey(String label) =>
+        find.descendant(of: panel, matching: find.text(label));
+    final inputsBefore = link.inputEvents;
+    await tap(find.byKey(const ValueKey('terminal-action-input-panel')));
+    await settle(tester, 1000);
+    await tap(panelKey('|'));
+    await waitFor(tester, () => terminal.allText().contains('$prompt |'),
+        what: '面板键回显');
+    await tap(panelKey('⌫'));
+    await expectOutput('终端大小：', act: () async {
+      await type('size');
+      await tap(panelKey('⏎'));
+    });
+    report('panel',
+        'inputs=${link.inputEvents - inputsBefore} writes=${link.session.writeCount}');
+
+    await tap(find.byKey(const ValueKey('terminal-input-tab-compose')));
+    final editor = find.byKey(const ValueKey('terminal-compose-editor'));
+    tester.widget<TextField>(editor).controller!.text = 'info';
+    await settle(tester);
+    final infoLine = await expectOutput('代次', act: () async {
+      await tap(find.byKey(const ValueKey('terminal-compose-send')));
+    });
+    report('compose', infoLine.trim());
+    await tap(find.byKey(const ValueKey('terminal-action-input-panel')));
+    FocusManager.instance.primaryFocus?.unfocus();
+    await settle(tester, 1000);
+
+    // 两行、末尾不带换行：先预览；点「粘贴」后第一行跑了，第二行停在提示符上等回车（默认不加回车）。
+    await Clipboard.setData(const ClipboardData(text: 'color\nsize'));
+    await tap(find.byTooltip('粘贴'));
+    final pasteEditor = find.byKey(const ValueKey('terminal-paste-editor'));
+    report('paste.preview',
+        'shown=${pasteEditor.evaluate().length} ${texts().split('\n').where((t) => t.startsWith('插件 ') || t.startsWith('粘贴到')).join(' / ')}');
+    await expectOutput('反显', act: () async {
+      await tap(find.byKey(const ValueKey('terminal-paste-send')));
+    });
+    await settle(tester, 800);
+    final waiting = terminal.allText().trimRight().endsWith('$prompt size');
+    await expectOutput('终端大小：', send: '\r');
+    report('paste.sent', 'secondLineWaitedForEnter=$waiting');
+    expect(waiting, isTrue);
+    await Clipboard.setData(const ClipboardData(text: ''));
+
     // ---- 3. 标签开着时到插件页点「连接测试」：标签不受影响 ----
     final navigator = Navigator.of(tester.element(find.byType(Scaffold).first));
     unawaited(navigator
@@ -210,9 +269,7 @@ void main() {
     await settle(tester, 600);
     navigator.pop();
     await settle(tester, 2500);
-    await type('info\r');
-    await waitFor(tester, () => terminal.allText().contains('代次'),
-        what: 'info 输出');
+    await expectOutput('代次', send: 'info\r');
     report(
         'afterCheck',
         'phase=${link.session.phase} sameTab=${controller.state.sessions.contains(tab)} '
@@ -225,7 +282,7 @@ void main() {
     container.read(homeTabProvider.notifier).state = 1;
     await settle(tester);
     final chip = find.ancestor(
-        of: find.textContaining('$hostLabel · Hello 终端（样例）'),
+        of: find.textContaining('$hostLabel · $pluginName'),
         matching: find.byType(InputChip));
     report('chip', chip.evaluate().length);
     tester.widget<InputChip>(chip.first).onDeleted!();
