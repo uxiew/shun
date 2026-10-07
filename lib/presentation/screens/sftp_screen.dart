@@ -16,6 +16,7 @@ import '../../application/home_navigation.dart';
 import '../../application/settings_controller.dart';
 import '../../infrastructure/ssh/android_document_tree_service.dart';
 import '../../infrastructure/ssh/sftp_service.dart';
+import '../../infrastructure/ssh/ssh_service.dart';
 import '../widgets/custom_background.dart';
 import '../widgets/sftp_editor.dart';
 import '../widgets/sftp_permissions_dialog.dart';
@@ -31,9 +32,36 @@ class SftpScreen extends ConsumerStatefulWidget {
   ConsumerState<SftpScreen> createState() => _SftpScreenState();
 }
 
+/// 文件页按标签缓存的 SFTP 服务（每个服务记着自己打开的 SFTP 客户端）。
+///
+/// 文件页在底部导航的 IndexedStack 里一直活着，这张表也一直在。关掉的标签必须从表里删掉：
+/// 服务拿着会话，会话拿着它的终端、SSH 客户端，不删就一个都回收不了
+/// （R20 资源测试：开关 500 次标签，强制 GC 后 504 个会话全活着，引用链就停在这张表上；原版 Netcatty 就这样）。
+@visibleForTesting
+class SftpServiceCache {
+  final _services = <String, SftpService>{};
+
+  Iterable<String> get sessionIds => _services.keys;
+
+  /// [session] 的服务。断线恢复后标签换了一个新的会话对象，旧服务的 SFTP 客户端属于旧连接，换一个新的。
+  SftpService serviceFor(ActiveTerminalSession session) {
+    final existing = _services[session.id];
+    if (existing != null && identical(existing.session, session)) {
+      return existing;
+    }
+    return _services[session.id] = SftpService(session);
+  }
+
+  /// 只留还开着的标签（[open] 是全部标签，连着、断着的都算：暂时断线的标签恢复后还要用）。
+  void retainOnly(Iterable<ActiveTerminalSession> open) {
+    final ids = {for (final session in open) session.id};
+    _services.removeWhere((id, _) => !ids.contains(id));
+  }
+}
+
 class _SftpScreenState extends ConsumerState<SftpScreen> {
   late final Future<MountableFileTransferService> _localService;
-  final _remoteServices = <String, SftpService>{};
+  final _remoteServices = SftpServiceCache();
   var _leftKey = GlobalKey<_SftpPaneState>();
   var _rightKey = GlobalKey<_SftpPaneState>();
   String? _leftSourceId;
@@ -64,18 +92,16 @@ class _SftpScreenState extends ConsumerState<SftpScreen> {
   Widget build(BuildContext context) {
     final transparentHeader =
         hasGlobalCustomBackground(ref.watch(settingsControllerProvider));
-    final sessions = ref
-        .watch(sessionControllerProvider)
-        .sessions
+    final open = ref.watch(sessionControllerProvider).sessions;
+    final sessions = open
         .where((session) => session.isSsh && session.connected)
         .toList(growable: false);
     final navigationRequest = ref.watch(sftpNavigationRequestProvider);
-    for (final session in sessions) {
-      final existing = _remoteServices[session.id];
-      if (existing == null || !identical(existing.session, session)) {
-        _remoteServices[session.id] = SftpService(session);
-      }
-    }
+    _remoteServices.retainOnly(open);
+    final services = {
+      for (final session in sessions)
+        session.id: _remoteServices.serviceFor(session),
+    };
     return FutureBuilder<MountableFileTransferService>(
       future: _localService,
       builder: (context, snapshot) {
@@ -85,7 +111,7 @@ class _SftpScreenState extends ConsumerState<SftpScreen> {
           );
         }
         final sources = <FileTransferService>[
-          for (final session in sessions) _remoteServices[session.id]!,
+          for (final session in sessions) services[session.id]!,
           snapshot.data!,
         ];
         final sourceIds = sources.map((source) => source.id).toSet();
