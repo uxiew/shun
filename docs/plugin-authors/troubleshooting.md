@@ -1,5 +1,7 @@
 # 出错了怎么查
 
+> 对应插件 API **1.0**（2026-10-07）。宿主的插件 API 版本在「设置 → 插件（实验）」最底下；不是 1.0 时，先看这页有没有跟着改。
+
 按你看到的那句话找。标「实测」的是 X12 在 Android 15（API 35）arm64 模拟器上真撞出来的；没标的话取自宿主代码里的原句，没专门复现。
 
 先看日志：
@@ -22,6 +24,7 @@ adb logcat -s XwshunHello XwshunPlugins AndroidRuntime:E
 | `密钥库不存在：…`（实测） | `storeFile` 路径不对。相对路径是相对 `signing.properties` 所在目录算的 | 写绝对路径或 `~/` 开头 |
 | `…signing.properties 里缺 storePassword` | 少填了一项 | 四项都要：`storeFile`、`storePassword`、`keyAlias`、`keyPassword` |
 | `KeytoolException: Failed to read key plugin from store "…": keystore password was incorrect`（实测） | `storePassword` 不对 | 用生成密钥时设的密码 |
+| `KeytoolException: Failed to read key plugin from store "…": Get Key failed: Given final block not properly padded…`（实测） | `keyPassword` 和 `storePassword` 不一样。PKCS12 密钥库（JDK 9 起 keytool 的默认）里两个是同一个 | `keyPassword` 填 `storePassword` 那个 |
 | `找不到 provider-sdk：…` | `provider-sdk` 没放在样例旁边 | 放到 `../provider-sdk`，或 `gradle.properties` 里写 `xwshunSdkDir=<路径>` |
 
 ## 安装时

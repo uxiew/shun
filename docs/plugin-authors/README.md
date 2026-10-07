@@ -1,5 +1,7 @@
 # 给 xwshun 写插件
 
+> 对应插件 API **1.0**（2026-10-07）。宿主的插件 API 版本在「设置 → 插件（实验）」最底下；不是 1.0 时，先看这几份文档有没有跟着改。
+
 xwshun 是 Android 上的 SSH 终端 App（[Netcatty Mobile](https://github.com/kmh1145/Netcatty-mobile) 的 fork，包名 `top.xdwa.xwshun`，下面叫「宿主」）。
 **插件是你自己写、用你自己的密钥签名的另一个 Android App。** 它给宿主提供终端会话：宿主把用户敲的键发给它，它把要显示的字写回来。
 用户在宿主的「设置 → 插件（实验）」里核对你的签名证书、点「批准」之后，宿主才会启动你的代码。
@@ -8,18 +10,38 @@ xwshun 是 Android 上的 SSH 终端 App（[Netcatty Mobile](https://github.com/
 
 | 文档 | 讲什么 |
 |---|---|
-| 本页 | 从零做出一个插件、装上、批准、验证（第 1–8 步） |
+| 本页 | 最快路线；从零做出一个插件、装上、批准、验证（第 1–8 步） |
+| [capabilities.md](capabilities.md) | **先读**：每种能力、权限宿主用不用，插件做不到什么、为什么 |
 | [contract.md](contract.md) | 接口约定：描述符每个字段、AIDL 每个方法、字节流和状态、报错怎么让宿主看见 |
 | [troubleshooting.md](troubleshooting.md) | 出错了：按你看到的那句话查原因 |
 | [compatibility.md](compatibility.md) | 版本号、升级规则、Android 版本和 ABI、测过什么 |
 | [licensing.md](licensing.md) | 许可：宿主、SDK、样例、Mosh 插件各是什么许可 |
 
+## 最快路线（约 10 分钟）
+
+工具都装好的前提下（JDK 17、Android SDK，见下面「你要准备什么」；项目这台 Mac 上 `source /Users/fodelf/xdw/xwshun/.toolchain/env.sh` 就全有了）：
+
+```bash
+# 1. 宿主装到设备上（安装包由项目所有者给你）
+adb install -r 宿主.apk
+# 2. 一步起工程：复制样例、改名、生成你的密钥、从宿主安装包读证书、自查、构建（不改仓库里的任何文件）
+<仓库>/plugins/example/tools/new-plugin.sh com.alice.notes com.alice.notes "Alice 的笔记终端" --host-apk 宿主.apk --build
+# 3. 装插件（路径脚本最后会打出来）
+adb install -r ~/xwshun-plugins/notes/app/build/outputs/apk/release/app-release.apk
+```
+
+4. 宿主「设置 → 插件（实验）」→ 点你的插件 → 详情页的证书 SHA-256 和脚本打出的「你的证书」对一下 →「批准」。
+5. 点「会话测试」→「开始」：看到「插件回报：运行中（active）」和欢迎语就通了。敲 `help` 发送、点「改成 100×30」、点「关闭会话」，见第 7 步。
+
+项目这台 Mac 上（Gradle 有缓存）第 2 步实测 9 秒；新机器第一次要下载 Gradle 和 Android Gradle Plugin，看网速。
+脚本做了第 1–4 步的全部手工活；想知道它做了什么、或者不想用脚本，看下面的手动做法。接着就是改 `TerminalShell.java` 写你自己的逻辑（第 8 步）。
+
 ## 先说清楚现在能做什么
 
 - **只有 Android。** 插件是 APK，iOS 上没有这套东西。
-- **只有「终端会话」一种插件能用。** 描述符里还能写设备目录、远控之类的能力名，但宿主现在不会调用第三方插件的这些能力。
-- **宿主里能用你插件的地方，目前只有插件详情页的「会话测试」。** 主机列表里还没有「用某个插件连接」的入口：
-  Mosh 插件是宿主专门接进去的（它要宿主先 SSH 上去启动 mosh-server），别的插件没有这条路。所以现在做插件，主要是验证接口、为以后做准备。
+- **只有「终端会话」一种插件能用。** 描述符里还能写设备目录、远控之类的能力名，但宿主现在不会调用第三方插件的这些能力。每一项的现状见 [capabilities.md](capabilities.md)。
+- **宿主里能用你插件的地方，目前只有插件详情页的「会话测试」。** 主机列表里「用某个插件连接」的入口所有者已经同意做，还没上。
+  Mosh 插件是宿主专门接进去的（它要宿主先 SSH 上去启动 mosh-server），不走这条路。
 
 ## 仓库里这几类「插件」不是一回事
 
@@ -53,8 +75,13 @@ xwshun 是 Android 上的 SSH 终端 App（[Netcatty Mobile](https://github.com/
 | Android SDK | platform 36、build-tools 36.0.0（里面有 `apksigner`）、platform-tools（`adb`）。设 `ANDROID_HOME` 指向它 | 报 `SDK location not found` |
 | Gradle | 不用装：样例自带 wrapper，第一次构建自动下载 Gradle 9.1.0（压缩包 232 MB，解开连包约 740 MB）和 Android Gradle Plugin 9.0.1 及其依赖（这部分没在空缓存上量过），要联网 | 第一次构建失败 |
 | Dart SDK | 可选，只给第 4 步的自查用；Flutter 自带的也行 | 跳过自查 |
+| perl | `new-plugin.sh` 改名时用（macOS、Linux 一般自带） | 脚本报「要 perl」 |
 
 **在项目这台 Mac 上**：`source /Users/fodelf/xdw/xwshun/.toolchain/env.sh`，上面的 JDK、SDK、Dart、Gradle 缓存就都有了，不用联网。
+
+## 手动做法：第 1–4 步
+
+用了上面的 `new-plugin.sh` 就不用做这四步，直接看第 5 步。
 
 ## 第 1 步：复制样例，先原样编一次
 
@@ -75,7 +102,7 @@ cd ~/my-plugin/example
 mkdir -p ~/xwshun-plugin-keys
 keytool -genkeypair -keystore ~/xwshun-plugin-keys/my-plugin.jks -alias plugin \
   -keyalg RSA -keysize 3072 -validity 10000 -dname "CN=你的名字"
-# 会问两次密码，记住它
+# 会问两次密码（一次输入、一次确认），记住它
 ```
 
 ```bash
@@ -83,11 +110,14 @@ cp signing.properties.example signing.properties    # 已被 .gitignore 忽略�
 ```
 
 把 `signing.properties` 里的 `storeFile`、`storePassword`、`keyPassword` 改成你的（`keyAlias` 就是上面的 `plugin`）。
+**`keyPassword` 和 `storePassword` 填同一个密码**：JDK 9 起 keytool 默认建 PKCS12 密钥库，里面的密钥口令就是密钥库口令，keytool 也只问这一个。
+填成别的，构建时报 `KeytoolException: Failed to read key plugin from store "…": Get Key failed: Given final block not properly padded…`（实测）。
 
 - **这把密钥要一直用下去。** 丢了就没法发新版本：同一个包名换了密钥，系统不让覆盖安装，用户只能卸载重装、在宿主里重新批准。
-- 你的证书指纹要公布给用户，他们批准时拿来核对：
-  `keytool -list -v -keystore ~/xwshun-plugin-keys/my-plugin.jks -alias plugin | grep SHA256`，
-  去掉冒号、换成小写，就是宿主详情页上显示的那串 64 位十六进制。
+- 你的证书指纹要公布给用户，他们批准时拿来核对。构建出 APK 之后最准的读法（输出就是宿主详情页上那串小写、不带冒号的 64 位十六进制）：
+  `$ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk`，取 `certificate SHA-256 digest` 那一行。
+  只有密钥库时：`keytool -list -v -keystore ~/xwshun-plugin-keys/my-plugin.jks -alias plugin | awk '/SHA256:/{print $2}' | tr -d ':' | tr 'A-F' 'a-f'`
+  （keytool 的输出带冒号、大写，中文系统上其他行是中文，只有 `SHA256:` 那一行要）。
 - 别用 Android 调试证书（`~/.android/debug.keystore`）签：正式版宿主一律拒收（「debug 证书签名的插件只在开发构建中可用」），
   开发版宿主也会标出来。样例的 debug 包、release 包都用你的密钥签，避开这个坑。
 
@@ -125,8 +155,7 @@ xwshunHostSha256 没填或格式不对：…怎么取见 docs/plugin-authors/REA
 **可选：构建前自查描述符**（要 Dart SDK）。报出来的话和宿主插件页上的一字不差，省得装到手机上才发现：
 
 ```bash
-cd <仓库>/packages/plugin_api && dart pub get
-dart run bin/check_descriptor.dart ~/my-plugin/example/app/src/main/res/raw/xwshun_plugin.json \
+<仓库>/plugins/example/tools/check-descriptor.sh ~/my-plugin/example/app/src/main/res/raw/xwshun_plugin.json \
   --package example.xwshun.hello --service example.xwshun.hello.HelloProviderService
 # 通过（宿主 API 1.0 的判定）。证书和批准要装到设备上再看。
 ```
@@ -185,17 +214,31 @@ hello>
 
 到这里，授权 → 版本协商 → 字节流 → 改尺寸 → 关闭都走过一遍了。
 
+## 不装宿主能测什么
+
+**会话逻辑在电脑上测**：样例把「收到什么、回什么」写在纯 Java 的 `HelloShell`（脚本起的工程里叫 `TerminalShell`）里，不碰任何 Android 类，
+`app/src/test` 里有它的 9 条 JVM 单测，`./gradlew :app:testDebugUnitTest` 几秒跑完，不用设备、不用宿主。你的插件也这样分：逻辑写成纯 Java，
+`Session` 类只管把 FD 接到逻辑上。
+
+**握手、认人、字节流这一层要装宿主测**，用宿主的「会话测试」。SDK 里不提供「假宿主」，原因：
+
+- 插件只接受宿主那张证书签的、包名是 `top.xdwa.xwshun` 的调用方（`CallerVerifier`）。假宿主要么用同一个包名（和真宿主装不到一台设备上），
+  要么让插件额外信任一个假宿主——这得在插件里放开一个口子，只在 debug 包里放开也容易被带进发布包，削弱的正是这层认人。
+- 假宿主要把宿主的插件桥（绑定、握手、socketpair、背压、关闭确认）重写一遍，几百行，写出来也不等于真宿主的行为。
+
+宿主的会话测试只发你敲的那一行、把插件写回的字节原样（控制字符转义）显示出来，每一步写结果，够用来核对协议这一层。
+
 ## 第 8 步：改成你自己的插件
 
 要一起改的（漏一处宿主就会报出来，见 [troubleshooting.md](troubleshooting.md)）：
 
 | 改什么 | 在哪 | 规则 |
 |---|---|---|
-| 包名 | `app/build.gradle.kts` 的 `applicationId`、`namespace`；描述符的 `packageName` | 描述符的 `packageName` 必须等于实际安装的包名，否则「已拒绝：描述符声称的包名与实际安装包不一致」 |
+| 包名 | `app/build.gradle.kts` 的 `applicationId`、`namespace`；描述符的 `packageName`（用 `new-plugin.sh` 起的工程这几样已经改好了） | 描述符的 `packageName` 必须等于实际安装的包名，否则「已拒绝：描述符声称的包名与实际安装包不一致」 |
 | Java 包和服务类 | `app/src/main/java/` 的目录和 `package` 行；描述符的 `serviceClass` | `serviceClass` 必须是声明插件 action 的那个服务的全名，否则「不兼容：描述符自称的服务类与实际声明插件 action 的服务不一致」 |
 | 插件 ID | 描述符 `pluginId` | 小写字母、数字、下划线，至少两段用点隔开（`com.yourname.foo`）；`builtin.` 开头的是宿主保留的 |
 | 名字、版本 | 描述符 `displayName`、`version`；`versionName`、`versionCode` | `version` 是 `x.y.z`；每次发新版本 `versionCode` 加 1 |
-| 会话逻辑 | `HelloSession.java` | 换成你的。字节流约定见 [contract.md](contract.md)「会话」 |
+| 会话逻辑 | `HelloShell.java`（脚本起的工程里是 `TerminalShell.java`），连同它的 JVM 单测 | 换成你的。字节流约定见 [contract.md](contract.md)「会话」。接线（`HelloSession` / `TerminalSession`）一般不用动 |
 | 设置页 | `SettingsActivity.java` | 不要就把它和清单里那个 `<activity>` 一起删掉 |
 | 许可 | 描述符 `license` | 写你的插件实际的许可，见 [licensing.md](licensing.md) |
 
