@@ -24,6 +24,13 @@ import java.util.concurrent.atomic.AtomicLong;
  * 读写都在这个会话自己的线程里。宿主不读输出时 write 会阻塞，读线程随之不再读输入——背压就这样传回宿主，不用另设队列。
  */
 final class HelloSession {
+    /**
+     * 设置页存的东西。常量放在读它的这一边：不要设置页时删掉 SettingsActivity 和清单里那个 activity 就行，
+     * 这里照样编得过，欢迎语按默认（彩色）。
+     */
+    static final String PREFS = "plugin_settings";
+    static final String KEY_COLOR_BANNER = "color_banner";
+
     interface Events {
         void send(HelloSession session, String state);
     }
@@ -63,8 +70,8 @@ final class HelloSession {
         // 先回报 active，宿主才把会话当成「可以收发了」。
         events.send(this, "active");
         String reason = "宿主关闭";
-        boolean color = context.getSharedPreferences(SettingsActivity.PREFS, Context.MODE_PRIVATE)
-                .getBoolean(SettingsActivity.KEY_COLOR_BANNER, true);
+        boolean color = context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+                .getBoolean(KEY_COLOR_BANNER, true);
         try (FileInputStream in = new FileInputStream(stream.getFileDescriptor());
              FileOutputStream out = new FileOutputStream(stream.getFileDescriptor())) {
             out.write(shell.banner(color));

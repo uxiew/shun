@@ -17,13 +17,10 @@ import android.widget.TextView;
  * 这个页面是导出的，任何 App 都能打开它，所以别在这里放只该给宿主看的东西，也别信打开它的 Intent 里带的任何参数。
  */
 public final class SettingsActivity extends Activity {
-    static final String PREFS = "plugin_settings";
-    static final String KEY_COLOR_BANNER = "color_banner";
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        SharedPreferences prefs = getSharedPreferences(PREFS, MODE_PRIVATE);
+        SharedPreferences prefs = getSharedPreferences(HelloSession.PREFS, MODE_PRIVATE);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
@@ -41,9 +38,9 @@ public final class SettingsActivity extends Activity {
 
         CheckBox color = new CheckBox(this);
         color.setText("欢迎语用彩色");
-        color.setChecked(prefs.getBoolean(KEY_COLOR_BANNER, true));
+        color.setChecked(prefs.getBoolean(HelloSession.KEY_COLOR_BANNER, true));
         color.setOnCheckedChangeListener((view, checked) ->
-                prefs.edit().putBoolean(KEY_COLOR_BANNER, checked).apply());
+                prefs.edit().putBoolean(HelloSession.KEY_COLOR_BANNER, checked).apply());
         root.addView(color);
 
         setContentView(root);
