@@ -10,7 +10,7 @@
 tools/new-plugin.sh com.alice.notes com.alice.notes "Alice 的笔记终端" --host-apk <宿主.apk> --build
 ```
 
-原样编样例本身：
+原样编样例本身（先照作者文档第 2 步备好 `signing.properties`，不然 `preBuild` 就停下说缺签名配置）：
 
 ```bash
 ./gradlew assembleRelease -PxwshunHostSha256=<宿主证书 SHA-256>   # 产物 app/build/outputs/apk/release/app-release.apk
@@ -26,7 +26,7 @@ tools/new-plugin.sh com.alice.notes com.alice.notes "Alice 的笔记终端" --ho
 | `app/src/main/java/.../HelloProviderService.java` | AIDL 服务：认人、握手协商版本、开关会话 |
 | `app/src/main/java/.../HelloSession.java` | 一个会话的接线：从 FD 读输入、交给 HelloShell、把它的输出写回 FD |
 | `app/src/main/java/.../HelloShell.java` | 会话逻辑本身，纯 Java（字节进、字节出），`app/src/test` 里有它的 JVM 单测 |
-| `app/src/main/java/.../SettingsActivity.java` | 插件自己的设置页（可选） |
+| `app/src/main/java/.../SettingsActivity.java` | 插件自己的设置页（可选；不要就删它和清单里那个 `<activity>`） |
 | `signing.properties.example` | 签名配置模板，复制成 `signing.properties` 填上你的密钥（用脚本的话它替你写好） |
 | `tools/new-plugin.sh` | 从样例起一个新插件工程（在仓库外） |
 | `tools/check-descriptor.sh` | 构建前自查描述符（要 Dart SDK，不在仓库里写任何文件） |
