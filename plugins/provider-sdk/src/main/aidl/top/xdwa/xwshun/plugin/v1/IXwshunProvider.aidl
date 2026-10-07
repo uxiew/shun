@@ -21,10 +21,10 @@ interface IXwshunProvider {
     // 存活检查：原样返回 nonce。不带任何数据，不改变状态。
     long ping(long nonce);
 
-    // ---- 以下为终端会话（X03）。v1.0 发布前补齐；发布后只在末尾追加，不改上面任何方法。----
+    // ---- 以下为终端会话。v1.0 发布前补齐；发布后只在末尾追加，不改上面任何方法。----
     //
     // handle：宿主生成的不透明会话句柄（≤64 个字母数字或连字符）。插件把它和调用方 UID、generation 绑在一起，
-    //         之后的 resize/close 三者都要对上；拿着别人的 handle 调不动（PLG06）。
+    //         之后的 resize/close 三者都要对上；拿着别人的 handle 调不动。
     // generation：宿主为这次打开分配的代次，单调递增。旧代次的调用一律拒绝。
     // stream：宿主用 socketpair 建好、交给插件的那一端。终端字节只走这里，不经 Binder。
     //         插件读到的是用户输入，写进去的是终端输出；读到 EOF 表示宿主关了，插件随之清理。
@@ -34,9 +34,9 @@ interface IXwshunProvider {
     // 幂等：已关或不存在的会话直接返回。
     void closeSession(String handle, long generation);
 
-    // ---- Mosh 会话（X08）。只在末尾追加。----
+    // ---- Mosh 会话。只在末尾追加。----
     // 注意：不认识某个方法的旧插件被调到时，Binder 不报错——生成的代理不看 transact 的返回值，
-    // 空回复读出来就是「没异常」，void 方法像是成功了、有返回值的拿到 null/0（X12 读生成代码发现）。
+    // 空回复读出来就是「没异常」，void 方法像是成功了、有返回值的拿到 null/0（读生成代码发现）。
     // 所以以后追加的方法，调用方要先按对方声明的 apiMinor 判断它有没有，不能靠调用失败来发现。
     //
     // 和 openSession 一样建会话，另带宿主这次 bootstrap（经 SSH 在服务器上启动 mosh-server）得到的临时材料：

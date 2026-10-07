@@ -32,7 +32,7 @@ import top.xdwa.xwshun.plugin.v1.ProviderSessions;
  * <ol>
  *   <li>每个 AIDL 方法的<b>第一行</b>调 {@link CallerVerifier#requireTrustedCaller()}。不在 onBind 查：
  *       宿主绑定之后，别的 App 用同样的 Intent 去绑，系统直接把同一个 Binder 给它，onBind 根本不会再被调用
- *       （X02 在模拟器上实测过）。
+ *       （模拟器上实测过）。
  *   <li>三个会话方法都立即返回。读写字节放在会话自己的线程里（{@link HelloSession}）；
  *       在 Binder 线程上阻塞会卡住宿主对这个插件的所有调用。
  *   <li>会话句柄、代次由宿主给，用 {@link ProviderSessions} 和调用方 UID 绑在一起；三者对不上就拒绝。

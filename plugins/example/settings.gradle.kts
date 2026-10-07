@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: Apache-2.0
 // Copyright 2026 xwfe
 
-// 插件样例（X12）：一个独立的 Gradle 工程，不依赖宿主工程，也不依赖 plugins/ 下别的模块。
+// 插件样例：一个独立的 Gradle 工程，不依赖宿主工程，也不依赖 plugins/ 下别的模块。
 // 唯一的依赖是契约库 provider-sdk（AIDL + 认人工具），默认在旁边的 ../provider-sdk。
 // 把样例复制到别处时，provider-sdk 一起复制、保持相对位置；或者在 gradle.properties 里写 xwshunSdkDir=<绝对路径>。
 pluginManagement {

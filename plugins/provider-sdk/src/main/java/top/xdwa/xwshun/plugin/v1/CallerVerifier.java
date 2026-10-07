@@ -20,7 +20,7 @@ import java.util.Set;
  * 在任何 {@code Binder.clearCallingIdentity()} 之前。
  *
  * <p>为什么每个事务都查、而不是在 onBind 查一次：Binder 对象拿到手就能一直调，
- * 还能转交给别的 App；只在 onBind 查，后来谁拿着它都能用（PLG05）。
+ * 还能转交给别的 App；只在 onBind 查，后来谁拿着它都能用。
  * 为什么不信 Intent：extras 里的 calling_package 之类是对方随便写的字符串。
  *
  * <p>每次都重新读证书（不缓存）：包可能被卸载后装回另一张证书签的同名包。

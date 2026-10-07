@@ -7,7 +7,7 @@ import 'dart:convert';
 const hostApiMajor = 1;
 const hostApiMinor = 0;
 
-/// 描述符 JSON 的最大字节数。再大就不是"描述"了，直接拒绝（PLG01 超长描述符）。
+/// 描述符 JSON 的最大字节数。再大就不是"描述"了，直接拒绝。
 const maxDescriptorBytes = 16 * 1024;
 
 enum Deployment {
