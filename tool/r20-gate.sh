@@ -33,6 +33,7 @@ done >/dev/null 2>&1 &)
 flutter test integration_test/r20_gate_test.dart -d "$SERIAL" "${DEFINES[@]}" > "$LOG" 2>&1 &
 TEST=$!
 SEEN=0
+MSEEN=0
 while kill -0 "$TEST" 2>/dev/null; do
   COUNT=$(grep -c 'R20 SHOT=' "$LOG" || true)
   while (( SEEN < COUNT )); do
@@ -40,9 +41,16 @@ while kill -0 "$TEST" 2>/dev/null; do
     NAME=$(grep 'R20 SHOT=' "$LOG" | sed -n "${SEEN}p" | sed 's/.*R20 SHOT=//' | tr -d '\r')
     "${ADB[@]}" exec-out screencap -p > "$SHOTS/$NAME.png" || true
   done
+  # 测试打 "R20 MEM=<名字>" 时抓一次 dumpsys meminfo（Native Heap、Dalvik、Graphics 分开），存在截图目录里。
+  MCOUNT=$(grep -c 'R20 MEM=' "$LOG" || true)
+  while (( MSEEN < MCOUNT )); do
+    MSEEN=$((MSEEN + 1))
+    NAME=$(grep 'R20 MEM=' "$LOG" | sed -n "${MSEEN}p" | sed 's/.*R20 MEM=//' | tr -d '\r')
+    "${ADB[@]}" shell dumpsys meminfo top.xdwa.xwshun > "$SHOTS/mem-$NAME.txt" || true
+  done
   sleep 0.5
 done
 wait "$TEST" && STATUS=0 || STATUS=$?
-grep -E 'R20 |\[E\]|Expected|Actual|Which|All tests|Some tests|skipped' "$LOG" | grep -v 'R20 SHOT=' || true
+grep -E 'R20 |\[E\]|Expected|Actual|Which|All tests|Some tests|skipped' "$LOG" | grep -v 'R20 SHOT=\|R20 MEM=' || true
 echo "日志 ${LOG}，截图 ${SHOTS}"
 exit "$STATUS"
