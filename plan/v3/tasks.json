@@ -911,7 +911,7 @@
       "id": "R20",
       "phase": "P3",
       "title": "TUI/性能门禁与Ghostty成为默认",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R19",
         "R08"
@@ -945,8 +945,10 @@
       ],
       "stop_condition": "Ghostty阻断可交中间构建但不能标替换完成；改目标需要用户决策。",
       "owner_role": "测试代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R20.md"
+      ],
+      "commit": "79099e7"
     },
     {
       "id": "R21",

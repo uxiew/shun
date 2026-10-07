@@ -292,7 +292,8 @@
       "evidence": [
         "evidence/R03.md",
         "evidence/R04.md",
-        "evidence/R16.md"
+        "evidence/R16.md",
+        "evidence/R20.md"
       ]
     },
     {
@@ -304,7 +305,8 @@
       "inherited_from": "2026-09-28",
       "evidence": [
         "evidence/R04.md",
-        "evidence/R18.md"
+        "evidence/R18.md",
+        "evidence/R20.md"
       ]
     },
     {
@@ -315,7 +317,8 @@
       "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R17.md"
+        "evidence/R17.md",
+        "evidence/R20.md"
       ]
     },
     {
@@ -327,7 +330,8 @@
       "inherited_from": "2026-09-28",
       "evidence": [
         "evidence/R18.md",
-        "evidence/R19.md"
+        "evidence/R19.md",
+        "evidence/R20.md"
       ]
     },
     {
@@ -402,27 +406,33 @@
       "action": "固定 VT 工作负载、多个标签、100 次创建/销毁，测完整进程树资源。",
       "expected": "无 crash/ANR、持续泄漏或无法回收；达到已冻结性能预算，未达需解释/修复。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R20.md"
+      ]
     },
     {
       "id": "TER12",
       "action": "强制候选引擎初始化失败、模拟回退或下次启动安全模式。",
       "expected": "requested/effective/failureReason真实；不热换不兼容状态；仅旧引擎可用不能宣布Ghostty替换完成。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R20.md"
+      ]
     },
     {
       "id": "TER13",
       "action": "用户授权后运行实际远端 Claude Code/Codex 或其当前使用 CLI，记录版本与环境。",
       "expected": "可操作提示/选择/中断/流式输出；说明已测版本与消耗，未授权则 NOT_RUN。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "BLOCKED",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R20.md"
+      ]
     },
     {
       "id": "TMX01",
@@ -651,10 +661,11 @@
       "action": "实际 native 产物检查 ABI/16 KiB，最低 API 与目标稳定 API 设备测试。",
       "expected": "只声明已测支持矩阵；若无 native 仍检查传递依赖，有依据才 N/A。",
       "level": "硬门禁",
-      "result": "BLOCKED",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R04.md"
+        "evidence/R04.md",
+        "evidence/R20.md"
       ]
     },
     {
@@ -1047,8 +1058,10 @@
       "action": "移除生产xterm2引用后构建，强制Ghostty初始化错误。",
       "expected": "支持列表真实；无静默伪回退；完整READY必须使用已验Ghostty目标。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R20.md"
+      ],
       "inherited_from": null
     },
     {

@@ -52,9 +52,9 @@
 | TER08 | 选择跨 CJK/emoji/组合字符的文本，复制并点击与拖动链接。 | 复制内容正确；拖动不打开链接；不把相邻无关内容静默合并。 | PASS |
 | TER09 | 多行编辑默认粘贴、显式发送回车、bracketed paste 开/关、网络中断。 | 行为符合文案；不自动重发，不因编辑 Enter 直接运行远端命令。 | PASS |
 | TER10 | 输入大于高水位的流式数据，故意让渲染消费变慢。 | 背压或明确终止；不能任意丢 VT 字节继续假正常，不发生无界队列。 | PASS |
-| TER11 | 固定 VT 工作负载、多个标签、100 次创建/销毁，测完整进程树资源。 | 无 crash/ANR、持续泄漏或无法回收；达到已冻结性能预算，未达需解释/修复。 | NOT_RUN |
-| TER12 | 强制候选引擎初始化失败、模拟回退或下次启动安全模式。 | requested/effective/failureReason真实；不热换不兼容状态；仅旧引擎可用不能宣布Ghostty替换完成。 | NOT_RUN |
-| TER13 | 用户授权后运行实际远端 Claude Code/Codex 或其当前使用 CLI，记录版本与环境。 | 可操作提示/选择/中断/流式输出；说明已测版本与消耗，未授权则 NOT_RUN。 | NOT_RUN |
+| TER11 | 固定 VT 工作负载、多个标签、100 次创建/销毁，测完整进程树资源。 | 无 crash/ANR、持续泄漏或无法回收；达到已冻结性能预算，未达需解释/修复。 | PASS |
+| TER12 | 强制候选引擎初始化失败、模拟回退或下次启动安全模式。 | requested/effective/failureReason真实；不热换不兼容状态；仅旧引擎可用不能宣布Ghostty替换完成。 | PASS |
+| TER13 | 用户授权后运行实际远端 Claude Code/Codex 或其当前使用 CLI，记录版本与环境。 | 可操作提示/选择/中断/流式输出；说明已测版本与消耗，未授权则 NOT_RUN。 | BLOCKED |
 | TMX01 | 测试有/无 tmux、不同实际版本、非默认 socket、异常输出和超时。 | 能力结果准确；普通 SSH 可用；无自动安装和查询副作用。 | PASS |
 | TMX02 | 列表有同名显示、恶意名称、空列表、大量会话以及 server 不存在。 | 以稳定 ID 和真实作用域解析，输出限制生效；不意外启动 server。 | PASS |
 | TMX03 | 从两个客户端附着既有目标，再显式创建一个新目标。 | 不会踢掉其他客户端；新建需明确动作；不自动执行 agent。 | PASS |
@@ -76,7 +76,7 @@
 | UX04 | 从常见错误进入诊断与帮助，再查看实际引擎/代理路线。 | 信息对应真实阶段；支持清单无未实现功能；不能声称观察到了不可见外部链路。 | NOT_RUN |
 | REL01 | 从干净环境按锁定依赖构建；审查所有新文件来源和最终 SBOM。 | 可重复构建，许可明确，无秘密、动态依赖或未授权复制。 | NOT_RUN |
 | REL02 | 以实际Flutter release与Android缩减后的产物重跑SSH、Vault、flterm native初始化和输入。 | Dart AOT、native打包与平台service均正常；无调试接口、secret日志或被裁剪必要能力。 | NOT_RUN |
-| REL03 | 实际 native 产物检查 ABI/16 KiB，最低 API 与目标稳定 API 设备测试。 | 只声明已测支持矩阵；若无 native 仍检查传递依赖，有依据才 N/A。 | BLOCKED |
+| REL03 | 实际 native 产物检查 ABI/16 KiB，最低 API 与目标稳定 API 设备测试。 | 只声明已测支持矩阵；若无 native 仍检查传递依赖，有依据才 N/A。 | PASS |
 | REL04 | 将每项证据关联相同 commit/构建哈希/设备；核对文档与实际功能。 | NOT_RUN 不冒充 PASS；用户原 LobiShell 成功不计入本 App；生产账号/额度需授权。 | NOT_RUN |
 | REL05 | 独立审查者复现关键负向测试并对照代码、日志和状态清单。 | 无未关闭硬门禁问题；风险接受不能豁免无直连/host key/无重放等核心合同。 | NOT_RUN |
 | BAS01 | 固定fork SHA与lock后运行原项目测试、构建旧引擎APK。 | 建立可复现基线；上游失败如实分类，不虚增本fork通过数。 | PASS |
@@ -110,7 +110,7 @@
 | GST02 | 切标签/旋转/预览重复附着controller，销毁时触发迟到回调。 | 单view所有权，不double free/use-after-free，UI重建不新建SSH。 | PASS |
 | GST03 | 输入终端查询、onOutput回调和快速resize，再注入重入尝试。 | 协议回应保序不循环；不重入write；代次关闭后不发送。 | PASS |
 | GST04 | 多行paste、普通sendText、按键编码和OSC effect各自测试。 | 语义分离；不把paste清洗宣传为阻止执行；危险effect不默认允许。 | PASS |
-| GST05 | 移除生产xterm2引用后构建，强制Ghostty初始化错误。 | 支持列表真实；无静默伪回退；完整READY必须使用已验Ghostty目标。 | NOT_RUN |
+| GST05 | 移除生产xterm2引用后构建，强制Ghostty初始化错误。 | 支持列表真实；无静默伪回退；完整READY必须使用已验Ghostty目标。 | PASS |
 | REG01 | 终端正常时打开既有SFTP/转发/监控，然后关闭目标client。 | 借用者同代次失效，不重建Direct；释放顺序正确。 | NOT_RUN |
 | REG02 | 配置有副作用计数的startup/managedAction；网络断开触发恢复与测试入口。 | 只有明确Fresh操作执行一次；Restore/Probe执行计数零。 | PASS |
 | REG03 | 含假秘密的HostProfile.toString、异常、原有JSON导出、同步往返。 | 默认文本脱敏；secret不意外外流；受管字段和未知字段不被破坏。 | PASS |

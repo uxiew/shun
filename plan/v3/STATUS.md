@@ -1,13 +1,13 @@
 # 当前状态 V3
 
-日期：2026-10-07。已执行首批（R00–R04、X00）、网络路由三项（R05、R06、R07）、连接代次（R08）、凭据与入口统一（R09）、连接路径编辑器（R10）、插件注册表（X01）、只读 Tailscale 目录的 HTTP 适配（R11）、Android 独立插件发现与双向签名（X02）、目录缓存与非破坏合并（R12）、插件会话字节流与故障处理（X03）、目录页与批量导入（R13）、插件管理与授权界面（X04）、Tailscale 目录接入内置 provider（X05）、UU 远程适配（X06）、RustDesk 外部客户端联动（X07）、显式 Tailscale SSH 外部认证（R14）、目录到三类路由的端到端验收（R15）、会话与 xterm2 解耦（R16）、Ghostty 接进主 App（R17）、中文输入法与软硬键盘（R18）、滚动选择与粘贴、远端效果约束（R19）、tmux 安全恢复目标（R21）、Mosh 运行时选择（X08）、Mosh 接进主 App（X09）和插件作者 SDK（X12），日用 UI（R25）做了第一部分「终端输入面板」；09-30 所有者同意用 arm64 模拟器补测，并定"最低兼容到安卓七八"；10-04 所有者提供真机（Pixel 9 Pro，接在 xdwmbp 上），R04 真机补测后 DONE；10-06 所有者在真机上用微信输入法复测语音输入（TER02）通过。
+日期：2026-10-07。已执行首批（R00–R04、X00）、网络路由三项（R05、R06、R07）、连接代次（R08）、凭据与入口统一（R09）、连接路径编辑器（R10）、插件注册表（X01）、只读 Tailscale 目录的 HTTP 适配（R11）、Android 独立插件发现与双向签名（X02）、目录缓存与非破坏合并（R12）、插件会话字节流与故障处理（X03）、目录页与批量导入（R13）、插件管理与授权界面（X04）、Tailscale 目录接入内置 provider（X05）、UU 远程适配（X06）、RustDesk 外部客户端联动（X07）、显式 Tailscale SSH 外部认证（R14）、目录到三类路由的端到端验收（R15）、会话与 xterm2 解耦（R16）、Ghostty 接进主 App（R17）、中文输入法与软硬键盘（R18）、滚动选择与粘贴、远端效果约束（R19）、TUI/性能门禁与 Ghostty 成为默认（R20）、tmux 安全恢复目标（R21）、Mosh 运行时选择（X08）、Mosh 接进主 App（X09）和插件作者 SDK（X12），日用 UI（R25）做了第一部分「终端输入面板」；09-30 所有者同意用 arm64 模拟器补测，并定"最低兼容到安卓七八"；10-04 所有者提供真机（Pixel 9 Pro，接在 xdwmbp 上），R04 真机补测后 DONE；10-06 所有者在真机上用微信输入法复测语音输入（TER02）通过。
 
 - 基座：kmh1145/Netcatty-mobile `495f5d31`（v1.4.7），fork 分支 `xwshun/v3`，`origin` = `uxiew/xwshun`，所有者说推之前不 push。GPL-3.0-or-later 个人隔离实验；applicationId `top.xdwa.xwshun`。
-- 任务：DONE 32（R00 R01 R02 R03 R04 R05 R06 R07 R08 R09 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R21 X00 X01 X02 X03 X04 X05 X06 X07 X08 X09 X12）、IN_PROGRESS 1（R25）、NOT_STARTED 13、DEFERRED 7。
-- 用例（共 142）：PASS 106、FAIL 1、BLOCKED 6、NOT_RUN 29。每条的实际动作和观察在 `evidence/`。
-- 最近一次全量（10-07 合并 R19 后续、R25 输入面板、X12 后，三套测试环境都开着）：`flutter test -j 4` 1158 过、1 跳过（只在 Windows 跑）、0 失败；`flutter analyze` 无问题；`packages/plugin_api` 37 条过。
-- 门禁：G0 **PASS**（Ghostty Android 可行性有真机证据；GST01 在 R17 改成 PASS；原来 FAIL 的 TER02（真机复测）、TER06（模拟器）在 R18 改成 PASS）；其余门禁 NOT_RUN。插件基础 GX0 的出口条件（X00–X03）在模拟器上都已满足，只差真机复核，所以仍记 NOT_RUN；Tailscale 的 G2（R15）同理，另外还差官方 Tailscale 的 check 和直连。Ghostty 的 G3 要等 R20（成为实际默认），Mosh 的 GX2 要等 X10（移动恢复）。离 CORE_READY / FULL_READY 都还很远。
-- 设备：arm64 模拟器实测过 API 24–28、35（4 KiB）、36（16 KiB），测完即删，只留 `xwshun-a35-4k` 的配置；R17 又临时建过 API 24 和 API 36（16 KiB）两台跑 Ghostty 设备测试，连同镜像已删，主 App 测完已从 `xwshun-a35-4k` 卸载。真机一台：所有者的 Pixel 9 Pro（Android 17 / API 37，4 KiB 页），只接在 xdwmbp 上，本机经 `tool/remote-device/` 借它的 adb；10-04 只装过 spike 测试包、10-06 为 TER02 复测装过主 App 的 debug 包（所有者当次同意、本人操作），都测完即卸载、没改输入法设置，为恢复微信输入法 force-stop 过它两次（第一次默认输入法被系统换成 Gboard，几秒内改回，三项输入法设置复核一致，见 evidence/R04.md）。只装过本项目自己的 APK（含 `plugins/` 的测试插件、假 UU、假 RustDesk）、原版 Netcatty、官方 UU 远程 4.42.0（所有者提供并同意安装，没有登录）和 GitHub 发行版 RustDesk 1.4.9（所有者同意安装，只连了不存在的 ID）；测试 App、假浏览器、UU、RustDesk、R18 的回放输入法、X08 的 Mosh 插件测完都已从 `xwshun-a35-4k` 卸载；R14、R15 在本机 Docker 里起过 Headscale + 官方 tailscale 镜像的隔离测试环境（不连任何真实账号，已 down）；R19、X09（10-06）只用了 `xwshun-a35-4k`（`-port 5580`，没碰 `lizhi`），主 App、Mosh 插件、回放输入法测完都已卸载，R19 的剪贴板测试把模拟器剪贴板改成了 `phone-secret-r19`，X09 为连 `10.0.2.2` 关过模拟器 Wi-Fi、已开回；10-07 的 R19 后续、R25、X12 和 SDK01 独立复验也只用 `xwshun-a35-4k`，装过主 App、Mosh 插件、回放输入法、样例插件、echo 各变体、冒充 Mosh 的 `echo-fakemosh`、复验代理自己做的插件，测完都已卸载，`hw.keyboard` 改回 `no`、默认输入法是 Gboard、Wi-Fi 开着；没有连接任何用户真实主机/账号/VPN，没有 push 或发布。
+- 任务：DONE 33（R00 R01 R02 R03 R04 R05 R06 R07 R08 R09 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 X00 X01 X02 X03 X04 X05 X06 X07 X08 X09 X12）、IN_PROGRESS 1（R25）、NOT_STARTED 12、DEFERRED 7。
+- 用例（共 142）：PASS 110、FAIL 1、BLOCKED 6、NOT_RUN 25。每条的实际动作和观察在 `evidence/`。
+- 最近一次全量（10-07 R20 后，三套测试环境都开着）：`flutter test -j 4` 1130 过、2 跳过（1 条只在 Windows 跑、1 条是默认不跑的 VT 耗时基准）、0 失败；`flutter analyze` 无问题；`packages/plugin_api` `dart test` 37 条过；fork flterm 1157、libghostty 514 条过。
+- 门禁：G0 **PASS**（Ghostty Android 可行性有真机证据；GST01 在 R17 改成 PASS；原来 FAIL 的 TER02（真机复测）、TER06（模拟器）在 R18 改成 PASS）；其余门禁 NOT_RUN。插件基础 GX0 的出口条件（X00–X03）在模拟器上都已满足，只差真机复核，所以仍记 NOT_RUN；Tailscale 的 G2（R15）同理，另外还差官方 Tailscale 的 check 和直连。Ghostty 的 G3：R20 做完了（Ghostty 是唯一引擎，TER11/12、GST05、REL03 在模拟器上 PASS），但只有模拟器证据、TER13 的登录部分 BLOCKED，所以仍记 NOT_RUN。Mosh 的 GX2 要等 X10（移动恢复）。离 CORE_READY / FULL_READY 都还很远。
+- 设备：arm64 模拟器实测过 API 24–28、35（4 KiB）、36（16 KiB），测完即删，只留 `xwshun-a35-4k` 的配置；R17 又临时建过 API 24 和 API 36（16 KiB）两台跑 Ghostty 设备测试，连同镜像已删，主 App 测完已从 `xwshun-a35-4k` 卸载。真机一台：所有者的 Pixel 9 Pro（Android 17 / API 37，4 KiB 页），只接在 xdwmbp 上，本机经 `tool/remote-device/` 借它的 adb；10-04 只装过 spike 测试包、10-06 为 TER02 复测装过主 App 的 debug 包（所有者当次同意、本人操作），都测完即卸载、没改输入法设置，为恢复微信输入法 force-stop 过它两次（第一次默认输入法被系统换成 Gboard，几秒内改回，三项输入法设置复核一致，见 evidence/R04.md）。只装过本项目自己的 APK（含 `plugins/` 的测试插件、假 UU、假 RustDesk）、原版 Netcatty、官方 UU 远程 4.42.0（所有者提供并同意安装，没有登录）和 GitHub 发行版 RustDesk 1.4.9（所有者同意安装，只连了不存在的 ID）；测试 App、假浏览器、UU、RustDesk、R18 的回放输入法、X08 的 Mosh 插件测完都已从 `xwshun-a35-4k` 卸载；R14、R15 在本机 Docker 里起过 Headscale + 官方 tailscale 镜像的隔离测试环境（不连任何真实账号，已 down）；R19、X09（10-06）只用了 `xwshun-a35-4k`（`-port 5580`，没碰 `lizhi`），主 App、Mosh 插件、回放输入法测完都已卸载，R19 的剪贴板测试把模拟器剪贴板改成了 `phone-secret-r19`，X09 为连 `10.0.2.2` 关过模拟器 Wi-Fi、已开回；10-07 的 R19 后续、R25、X12 和 SDK01 独立复验也只用 `xwshun-a35-4k`，装过主 App、Mosh 插件、回放输入法、样例插件、echo 各变体、冒充 Mosh 的 `echo-fakemosh`、复验代理自己做的插件，测完都已卸载，`hw.keyboard` 改回 `no`、默认输入法是 Gboard、Wi-Fi 开着；10-07 的 R20 用 `xwshun-a35-4k` 跑设备门禁（开过 `adb root`、临时把 `hw.keyboard` 改成 `yes` 测硬件键后改回并重起核对），另临时建过 API 24、API 36（16 KiB）两台模拟器跑发布包冒烟和门禁，连同镜像都删了；装过主 App 的 debug/release 包、删掉原生库的测试包、回放输入法，都已卸载，模拟器最后关机；本机 Docker 另起过 `tool/ai-cli-fixture`（Claude Code、Codex CLI，不登录，已 down）；没有连接任何用户真实主机/账号/VPN，没有 push 或发布。
 
 ## 已做的代码改动
 
@@ -40,6 +40,12 @@
 - tmux（R21）：列会话、附着、结束、新建都改成固定脚本 + 白名单参数，按 session ID 精确定位（原来按名字前缀匹配，`work` 不在时会结束 `workshop`；名字里的 `#(命令)` 会被执行；列表在 tmux 2.4–3.5a 上永远是空的）。附着走单独的 exec 通道、不进 shell 历史、不改用户的 mouse 设置；断网恢复先核对 socket、server、session 还是原来那个才附着，不对就停下说明原因，不新建。真实 tmux 2.4、2.7、3.0a、3.5a 上 31 条测试全过，模拟器走查过面板和关标签确认框。
 - 滚动选择、粘贴与远端效果（R19）：**默认引擎 xterm2 上修了两个远端越权**——终端视图挂着时远端用 OSC 52 能读走、静默改写手机剪贴板（模拟器上实测读回了剪贴板内容），远端用 `CSI 21 t` 能把窗口标题回进 shell 输入行；原版 Netcatty 用同一个库，也有这两个问题。R16/R17 的 SEC09 只测了不挂视图的适配器，所以当时没发现。粘贴和打字分开走：快捷键栏「粘贴」、硬件 Ctrl+V、命令片段、AI 插入的命令都按粘贴发，多行、控制字符、超过 4096 字先弹可编辑预览，照实写远端开没开 bracketed paste、会不会逐行执行，默认不加回车；目标认动手那一刻的连接，断线、恢复成新 shell、关标签都不发也不补发。Ghostty 手势：全屏程序没开鼠标时滑动什么都不发（原来发方向键，在没开 mouse 的 tmux 里等于翻 shell 历史），开着鼠标只发滚轮、点按长按不发鼠标点击（fork 的 flterm 加了 `touchMouseClicks`）。Ghostty 认链接：点了只弹确认框，只把 http/https 交给浏览器，拖动、长按不触发。真 bash 5.2 上核对过：开着 bracketed paste 多行等回车、关着前面各行立刻执行、伪造的结束标记被挡掉但按回车照样执行——文案只说「远端约定，App 保证不了」。超长不结束的控制序列（48 MiB）内存只涨几 MiB。模拟器上两个引擎各 4 项设备测试过；没上真机。
 - R19 后续（所有者 10-07 的四项）：点终端只叫键盘，长按选中链接后从选字菜单「打开链接」（仍走确认框）；硬件 Ctrl+K、Ctrl+A 发给服务器，清滚动区、全选挪到 Ctrl+Shift+K/A（模拟器硬件键盘逐字节核对，26 个 Ctrl+字母里 xterm2 全到服务器，**Ghostty 的 Ctrl+I、Ctrl+M 什么都不发**，没修）；设置加「全屏程序里滑动翻页」（默认关，开了发 ↑↓），快捷键栏加 PgUp/PgDn，功能键加回车、退格、Del、Ins、F1–F12。
+- **Ghostty 成为唯一的终端引擎（R20）**：xterm2 不在安装包里了（只留在测试里做同素材对照）；设置里「终端引擎」改成只读状态，照实写引擎、原生库版本、这次运行建终端成没成，起不来时写原话、写明没有别的引擎可换。
+  同素材对比（合成素材 + vim/less/htop/tmux/bash 录像，tmux 3.5a 当裁判）真实程序 33 个检查点和 tmux 逐格一样、四种切包方式一致；设备上 Android 7.0、15、16（16 KiB 页）三台模拟器跑 vim/less/htop/tmux 分屏，
+  拿远端同尺寸的 tmux 当裁判逐行一样。硬件 Ctrl+I/M/[ 发 Tab、回车、Esc，Ctrl+C 有选区也发 ^C、复制挪到 Ctrl+Shift+C（所有者 10-07 定，模拟器硬件键盘逐字节核对）。
+  fork 修了裸 DEL 画成方格（R04 问题 9）、没挂视图时不回答颜色查询（OSC 10/11/12）。**查出并修了一个原版就有的泄漏**：文件页按标签缓存的 SFTP 服务拿着会话、标签关了从不删，
+  关过的标签连同终端、SSH 客户端一个都回收不了（开关 500 次留下 504 个）；修后开关 500 次 RSS 斜率 39 KiB/次、fd 和线程不涨。删 xterm2 还暴露了画中画小窗的文字不刷新，修了。
+  删掉 libghostty.so 的包上 App 照常开、照实报错、不伪回退。release 包只出 arm64-v8a，三台模拟器上原生库都能加载。Claude Code、Codex 只测了不登录的界面。**没上真机**。
 - 终端输入面板（R25 第一部分）：快捷键栏的 ⌨ 打开面板，左右滑动在「按键面板」（常用 / 符号 / 组合键 / F 键四页，键都 ≥48dp）和「大输入框」（系统输入法打字、语音，「发送」= 内容 + 回车，「只填入」不回车）之间切，用哪种会记住。所有键走同一个 sendKey/sendText 出口；大输入框按 R19 的粘贴语义发，目标认开始打字那一刻的连接，断了不发、恢复成新连接要点「改发到新连接」，发出去才清空。切换时远端最多收到一次尺寸变化。模拟器上两个引擎、真 bash、经 Mosh 都逐字节核对过，回放的微信语音和拼音进大输入框再发也对；R18 回放在最终代码上回归过。真机、真 TalkBack 没测。截图在 `../.toolchain/artifacts/r25-panel-shots-56816a4/`。顺带修了横屏收键盘时终端视图被重建、键盘自己弹回来。
 - 插件作者 SDK（X12）：`docs/plugin-authors/`（八步上手、能力一览、接口约定、出错对照、版本兼容、许可）、样例 `plugins/example`、一键起新插件的 `new-plugin.sh`（从零到出 APK 约 7 秒）、不在仓库里也能跑的描述符自查。SDK 和样例改 Apache-2.0（逐行比对过基座，没有搬来的代码），版权署名 xwfe。**独立复验**：另一个没参与编写的代理只读作者材料，用自己的密钥做出插件，在模拟器上走通授权、握手、收发、改尺寸、关闭（SDK01），它报的 12 条文档问题都已改。第三方终端插件现在能从主机列表连接：主机协议选「插件」，不给插件任何主机数据，插件自己联网（带代理/跳板的插件主机拒绝保存和连接，不悄悄去掉），停用/卸载后条目标不可用、不拉起插件。插件页的「连接测试」「会话测试」沿用已有连接，**X09 留下的「点连接测试会断开 Mosh 会话」修了**（模拟器上开着 Mosh 标签验过）。`xwshun.mosh` 绑测试证书，别的证书签的冒充者直接拒。修了一个宿主崩溃：插件在握手时抛异常，宿主整个闪退。
 - Mosh 接进主 App（X09）：主机协议选 Mosh、路线直连，点连接 → 核对本机插件 → SSH 先核指纹再登录 → 只跑固定命令启动 mosh-server → **断开 SSH** → 把 SSH 实际连上的 IP、UDP 端口、临时 key 交给插件走 UDP。模拟器上点连接到出提示符 1.2–1.4 秒。SOCKS、TailSocks、HTTP 代理、跳板、代理 + 跳板五种路线都在任何网络动作之前拒绝（拨号、登录、远端启动、插件调用全是 0），编辑器里带代理/跳板的 Mosh 主机不让保存（不像 Telnet 那样悄悄去掉）。指纹不对、密码错、服务器没装 mosh-server 都停在 SSH，不给插件 key，不替用户安装、不 sudo（记账为 0）。输入和尺寸只有一个出口：回放输入法 8 段经 Mosh 到远端逐字节等于 R18 期望；转屏远端行列对。会话结束不自动重连、不重发输入，X08 留下的 `failed:exit-N` 说成了人话。Mosh 标签跟随终端引擎设置。
@@ -53,7 +59,7 @@
 | NET11 | 断线时不确定是否送达的输入没有标"结果未知" | R23 |
 
 R04 的发现到 R17 为止：dispose 后 write 段错误（上游改成抛错）、软键盘退格 0 字节和打不了中文（补丁在 fork）、收起后叫不回键盘（fork 修了）、默认资源上限过大（R17 设了上限）、缓存的库被篡改不报错（发布脚本重编）已处理；
-语音整段重复 R18 已修；组合字符缺重音、裸 DEL 画成方格、中文输入法拦截硬件键盘的 Esc/方向键（TER04 没测到的部分）还在。详见 `evidence/R04.md` 末节和 `evidence/R17.md`。
+语音整段重复 R18 已修；裸 DEL 画成方格 R20 已修；组合字符缺重音、中文输入法拦截硬件键盘的 Esc/方向键（TER04 没测到的部分）还在。详见 `evidence/R04.md` 末节和 `evidence/R17.md`。
 
 ## 要知道的行为变化
 
@@ -91,14 +97,18 @@ R04 的发现到 R17 为止：dispose 后 write 段错误（上游改成抛错�
 - 插件 SDK（`packages/plugin_api`、`plugins/provider-sdk`、插件描述符的 schema）和样例 `plugins/example` 用 **Apache-2.0** 给第三方作者（X12 查过这几处全是本 fork 新写的）；主 App 和 Mosh 插件仍是 GPL-3.0-or-later。
 - 第三方终端插件**开主机连接入口**（原来只能在插件详情页「会话测试」里用，写了插件也没法日常用）。按键面板的布局导入导出**先不做**，等所有者用一段时间面板再定。
 - `xwshun.mosh` 这个 pluginId **先绑现在的测试作者证书**：别的包自称 Mosh 插件，用户批准了也拿不到 Mosh 会话的 key。以后换正式签名时要同步改这个绑定，否则正式签名的 Mosh 插件会被当成冒充者拒掉。
+- R20 开工前：Ghostty 硬件 Ctrl+I/M 发 Tab、回车，Ctrl+C 有选区也发 ^C、复制挪到 Ctrl+Shift+C，和 xterm2 一样（已做，fork 顺带让 Ctrl+[ 发 Esc）；
+  TER13 只在测试容器里跑 Claude Code、Codex **不登录**的界面（已做，流式输出 BLOCKED）；R20 候选包**不上真机**，只用模拟器。
 
 ## 下一批
 
 `lizhi` 开着时，本项目模拟器用 `-port 5580` 起、adb 都带 `-s emulator-5580`（写在 docs/xwshun/README.md 第 7 节）。
-**依赖已满足、可以开工的**：R20（TUI/性能门禁与 Ghostty 成为默认）、R25 的其余部分（主机/目录/路线/终端设置整理、无障碍、诊断）。
-X10（Mosh 移动恢复）等 R22，R22 等 R20，X11、X13 又等 X10，所以 **R20 是瓶颈**，下一批先做它。
-R19 留给后面的：xterm2 在「选择并复制」整屏文字框开着时远端 tmux 退出会抛 `RangeError`（库的缓冲区越界，模拟器上撞了 4 次，R20 换掉 xterm2 时一起解决）；xterm2 只选得到一行、不认链接，是旧行为没改。
-R25 第一部分留下的：Ghostty 硬件 Ctrl+I/M 不发、有选区时 Ctrl+C 是复制（等所有者定，见下）；大输入框草稿只在内存；没做整套 QWERTY；分屏只有页面测试。
+**依赖已满足、可以开工的**：R22（Flutter 与 Android 连接生命周期，R20 做完就解开了）、R25 的其余部分（主机/目录/路线/终端设置整理、无障碍、诊断）。
+X10（Mosh 移动恢复）等 R22，X11、X13 又等 X10，所以现在的瓶颈是 **R22**。断线恢复（R23）也在这条线上。
+R20 留给后面的（详见 evidence/R20.md「没做的」）：真机一项没上；TER13 的流式输出要登录；修了文件页泄漏后 Native Heap 开关 400 次仍涨 12.6 MiB（约 32 KiB/次，在判据内，交 R22 的 LIFE06 单量引擎）；
+全屏程序里右上角「复制」按钮盖住终端右上角几个字（给 R25）；组合字符的重音画不出来、ANSI 模式 DECRQM 不回（上游，没修）。
+设备测试里 tester 模拟的硬件按键落不到终端焦点：要按硬件键只能 sendevent（`tool/ime-replay.sh`）。资源、泄漏诊断现成：`tool/r20-gate.sh <设备> resources|leak`。
+R25 第一部分留下的：大输入框草稿只在内存；没做整套 QWERTY；分屏只有页面测试。
 X12 留下的：「Mosh 这把测试证书」同时给 `plugins/fixture-*` 测试插件签名，用它签又自称 `xwshun.mosh` 的包仍能通过绑定检查——正式签名时给 Mosh 单独一把密钥；给第三方作者的宿主包现在只有本机 debug 包（见下）。
 X09 留给后面的（详见 evidence/X09.md「没做的」）：Mosh 标签没有「重新连接」按钮（R25 可以补）；
 Tailscale SSH 登录 + 直连的 Mosh 逻辑上允许但没测；IPv6 目标没测；插件进程被系统回收和被强杀分不出来。
@@ -119,11 +129,11 @@ X04 留下的：App 启动时不自动发现插件（X09、X12 起连 Mosh/插�
 ## 等所有者决定或提供
 
 - Mosh 插件（X08）：正式包名、pluginId、签名（现在是 `top.xdwa.xwshun.mosh` / `xwshun.mosh`、测试作者密钥，`lib/domain/plugins/official_plugins.dart` 绑着它的证书，换签名要同步改）。它带着 GPL 的 mosh，搬去单独的仓库、单独分发后也要按 GPL-3.0-or-later 附源码。
-- 终端输入的四个细节（R25 第一部分，现在的做法见 evidence/R25.md）：
-  1. Ghostty 接实体键盘时 Ctrl+I（=Tab）、Ctrl+M（=回车）什么都不发，要不要修（改 fork 的按键处理，改完要配真键盘测）。
-  2. Ghostty 有选中文字时 Ctrl+C 是复制、不发 ^C；要不要改成永远发 ^C（和 xterm2 一样）。
-  3. 横屏 + 系统键盘在大输入框里打字时终端只剩 2 行：能接受，还是这时让输入框占满。
-  4. 要不要加整套 QWERTY 页；大输入框的草稿要不要加密存盘（现在只在内存，App 被杀就没了）。
+- 终端输入还剩的两个细节（R25 第一部分，现在的做法见 evidence/R25.md；Ctrl+I/M、Ctrl+C 两项 R20 前定了、已做）：
+  1. 横屏 + 系统键盘在大输入框里打字时终端只剩 2 行：能接受，还是这时让输入框占满。
+  2. 要不要加整套 QWERTY 页；大输入框的草稿要不要加密存盘（现在只在内存，App 被杀就没了）。
+- Ghostty 的 G3 要完整过（可选）：R20 的候选包在真机上跑一遍（不注入按键，`tool/r20-gate.sh`、`tool/release-smoke.sh` 现成，后者只认模拟器、真机要另说）；
+  TER13 的登录部分要你在模拟器里自己登录 Claude Code / Codex（`tool/ai-cli-fixture` 现成，会花一点额度）。
 - 插件（X12 留下的）：给第三方作者的宿主安装包怎么提供（现在只有本机编的 debug 包，换台电脑编证书就变，作者要重填证书）；插件详情页的「会话测试」是所有构建都显示，还是只在开发构建里显示。
 - 应用正式名称、正式签名、分发形态（BAS03 的"签名不同"、BAS04/REL01 许可结论依赖它）。
 - Gradle 依赖是否也要锁定校验（SUP01 只完成了 pub 层）。
