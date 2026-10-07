@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 xwfe
+
 /// 三类会话各有各的状态机，不能合成一个"SSH 是否已连接"的布尔值（docs/03 V3 段）。
 library;
 

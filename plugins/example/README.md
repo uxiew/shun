@@ -23,3 +23,5 @@
 
 它和仓库里别的插件不是一回事：`plugins/fixture-*` 是只用于测试的（有的故意做坏），`plugins/mosh` 是真实的 Mosh 插件。
 区别见作者文档的「这几类插件有什么不同」。
+
+许可：Apache-2.0（同目录 `LICENSE`）。照着它做的插件可以按你自己选的许可发布，前提和例外见 [docs/plugin-authors/licensing.md](../../docs/plugin-authors/licensing.md)。

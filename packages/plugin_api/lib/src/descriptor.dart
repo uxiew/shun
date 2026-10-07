@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 xwfe
+
 import 'dart:convert';
 
 /// 宿主当前实现的插件 API 版本。major 变了就是不兼容；minor 只追加能力。

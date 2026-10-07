@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 xwfe
+
 /// 某个 provider 自己的设备引用。身份只由 (providerId, refId) 决定，
 /// 名字和地址只是展示用的"自称"，两个 provider 报出同名同 IP 也不代表是同一台（DEV01）。
 class ProviderDeviceRef {

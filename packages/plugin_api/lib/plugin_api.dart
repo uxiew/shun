@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 xwfe
+
 /// 插件契约 v1（X00 草案）：描述符校验、注册准入、路由判定、会话分型、设备关联，
 /// 以及给插件作者的描述符自查（X12，bin/check_descriptor.dart）。
 ///

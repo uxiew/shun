@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 xwfe
+
 // Hello 终端：xwshun 插件样例（X12）。给宿主提供一个最小的终端会话，演示授权、版本协商、字节流、改尺寸和关闭。
 // 怎么从它做出你自己的插件，见仓库的 docs/plugin-authors/README.md。
 //

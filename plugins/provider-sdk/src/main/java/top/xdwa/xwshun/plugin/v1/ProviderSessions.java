@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 xwfe
+
 package top.xdwa.xwshun.plugin.v1;
 
 import java.util.ArrayList;

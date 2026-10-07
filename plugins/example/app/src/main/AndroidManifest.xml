@@ -1,4 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- SPDX-License-Identifier: Apache-2.0 -->
+<!-- Copyright 2026 xwfe -->
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- 让插件「看得见」宿主（Android 11 起的包可见性），每次调用时才读得出宿主的签名证书来核对。
          宿主绑定插件时系统会自动让插件看见宿主：API 35 模拟器上去掉这条照样握手成功（X12 实测）。

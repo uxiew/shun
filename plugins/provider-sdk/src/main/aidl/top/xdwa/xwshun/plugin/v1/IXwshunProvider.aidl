@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 xwfe
+
 // 插件服务端接口（插件 APK 实现，宿主绑定后调用）。API major 1。
 //
 // 规则（docs/15 §4–§5）：

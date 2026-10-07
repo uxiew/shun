@@ -3,6 +3,8 @@
 插件契约 v1 的类型和判定规则（X00）。只有纯 Dart 逻辑，没有 IPC、没有 Android 代码。宿主 App 用它判定插件能不能用；
 插件作者用它在构建前自查描述符（X12）。
 
+许可：Apache-2.0（同目录 `LICENSE`）。宿主（GPL-3.0-or-later）把它作为依赖编进去，见根目录 `NOTICE.md`。
+
 ```bash
 source /Users/fodelf/xdw/xwshun/.toolchain/env.sh
 cd packages/plugin_api && dart pub get && dart test

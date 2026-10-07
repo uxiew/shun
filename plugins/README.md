@@ -3,6 +3,7 @@
 要写插件，看 [docs/plugin-authors/](../docs/plugin-authors/README.md)，从 `example/` 开始。本页讲的是这个目录里的测试插件怎么编、怎么用。
 
 - `provider-sdk/`：宿主与插件共用的 AIDL 契约和认人工具（`CallerVerifier`、`SignerDigests`）。宿主工程和这里的测试工程引用同一份。
+  它和 `example/` 是 Apache-2.0（各自目录里的 `LICENSE`）；测试插件 `fixture-*`、`mosh/` 和仓库其余部分仍是 GPL-3.0-or-later。
 - `example/`：**插件样例**（Hello 终端，X12）。独立的 Gradle 工程，自带 wrapper，不在下面的测试工程里、`build-fixtures.sh` 不构建它；
   用作者自己的密钥签名（本机测试用的在仓库外 `../../.toolchain/plugin-keys/example-author.jks`，配置在同目录 `example-signing.properties`）。
 - `fixture-echo/`、`fixture-rogue/`：X02–X04 的测试 APK。**只用于测试**：echo 连上不代表 Mosh 或任何真实 provider 可用。

@@ -12,5 +12,5 @@
   "permissions": ["own-session-input-output"],
   "packageName": "example.xwshun.hello",
   "serviceClass": "example.xwshun.hello.HelloProviderService",
-  "license": "GPL-3.0-or-later"
+  "license": "Apache-2.0"
 }

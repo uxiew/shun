@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 xwfe
+
 // 宿主回调接口（宿主实现，在 handshake 时交给插件）。
 //
 // 宿主在每个事务里核对调用方 UID 是不是当初批准并绑定的那个插件、证书是否仍是批准时的那张。

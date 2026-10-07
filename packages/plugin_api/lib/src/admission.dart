@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: Apache-2.0
+// Copyright 2026 xwfe
+
 import 'descriptor.dart';
 
 /// 一个已安装、待评估的候选 provider。
