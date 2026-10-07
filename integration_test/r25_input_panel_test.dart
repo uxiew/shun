@@ -23,6 +23,15 @@ void r25(String key, Object? value) => debugPrint('R25 $key=$value');
 /// all：全部；layout：只跑面板切换的尺寸和横屏（不要回放输入法，可以拿系统自带的 Gboard 跑）。
 const r25Scenario = String.fromEnvironment('R25_SCENARIO', defaultValue: 'all');
 
+/// 截图用：打出 "R25 SHOT=<名字>" 后停 3 秒，让电脑那边用 adb screencap 截下这个画面。
+const r25Shots = bool.fromEnvironment('R25_SHOTS');
+
+Future<void> shot(WidgetTester tester, String name) async {
+  if (!r25Shots) return;
+  debugPrint('R25 SHOT=$name');
+  await settle(tester, 3000);
+}
+
 Future<void> settle(WidgetTester tester, [int ms = 800]) async {
   for (var i = 0; i < ms ~/ 50; i++) {
     await tester.pump(const Duration(milliseconds: 50));
@@ -102,6 +111,7 @@ void main() {
       }
 
       r25('$engine.panel.open', geometry());
+      await shot(tester, '$engine-1-keys-portrait');
       if (r25Scenario == 'all') {
         var bytes = await captureRemote(tester, terminal, () async {
           for (final label in ['Esc', 'Tab', '⌫', '⏎', '↑', '←', 'PgUp', '|']) {
@@ -321,6 +331,7 @@ void main() {
         await waitFor(tester, () => tester.view.viewInsets.bottom > 0,
             what: '大输入框的键盘');
       });
+      await shot(tester, '$engine-2-compose-keyboard-portrait');
       await step('composeBlur', () async {
         FocusManager.instance.primaryFocus?.unfocus();
         await waitFor(tester, () => tester.view.viewInsets.bottom == 0,
@@ -339,6 +350,7 @@ void main() {
       await step('landscapeKeys', () async {
         await tap(find.byKey(const ValueKey('terminal-input-tab-keys')));
       });
+      await shot(tester, '$engine-3-keys-landscape');
       await step('landscapeCompose', () async {
         await tap(find.byKey(const ValueKey('terminal-input-tab-compose')));
         await settle(tester, 2000);
@@ -362,6 +374,7 @@ void main() {
               .byKey(const ValueKey('terminal-compose-more'))
               .evaluate()
               .isNotEmpty);
+      await shot(tester, '$engine-4-compose-landscape');
       FocusManager.instance.primaryFocus?.unfocus();
       await SystemChrome.setPreferredOrientations(
           const [DeviceOrientation.portraitUp]);

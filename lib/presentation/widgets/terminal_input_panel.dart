@@ -183,6 +183,10 @@ class _TerminalInputPanelState extends State<TerminalInputPanel> {
                             label: LText(label),
                             selected: _keyPage == page,
                             showCheckmark: false,
+                            // 四个分页在 411dp 宽的手机上要一眼都看得见，不要藏到横向滚动里去：字两边少留点白。
+                            labelPadding:
+                                const EdgeInsets.symmetric(horizontal: 4),
+                            visualDensity: VisualDensity.compact,
                             materialTapTargetSize: MaterialTapTargetSize.padded,
                             onSelected: (_) => setState(() => _keyPage = page),
                           ),

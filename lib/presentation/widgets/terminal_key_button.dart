@@ -169,6 +169,10 @@ class _TerminalKeyButtonState extends State<TerminalKeyButton> {
                     maxLines: 1,
                     textAlign: TextAlign.center,
                     semanticsLabel: spec.semanticsLabel,
+                    // 只有一个符号的键（↑、⏎、|）字放大：14sp 的箭头细得几乎看不清。
+                    style: spec.label.runes.length == 1
+                        ? const TextStyle(fontSize: 20)
+                        : null,
                   ),
                 )
               : Tooltip(
