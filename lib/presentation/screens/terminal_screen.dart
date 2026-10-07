@@ -384,7 +384,11 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                 ),
               if (pictureInPicture && visibleSession != null)
                 _TerminalPictureInPictureHeader(session: visibleSession),
+              // 带 key：上面的标签条、下面的快捷键栏和面板会随布局出现、消失，同一帧里头尾都变时，
+              // 不带 key 的子组件会被当成新的重建，终端视图重新挂上、自己拿焦点，把刚收起的键盘又叫出来
+              //（模拟器横屏收键盘时撞上）。
               Expanded(
+                key: const ValueKey('terminal-area'),
                 child: selectedPending != null
                     ? _ConnectionStatusPane(
                         pending: selectedPending,
@@ -496,6 +500,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                   !pictureInPicture &&
                   !layout.hideQuickBar)
                 TerminalSpecialKeys(
+                  key: const ValueKey('terminal-quick-keys'),
                   order: settings.terminalQuickKeys,
                   customKeys: settings.terminalCustomKeys,
                   inputController: inputSession.input,
@@ -566,6 +571,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                 ),
               if (panelVisible && inputSession != null)
                 SizedBox(
+                  key: const ValueKey('terminal-input-panel-area'),
                   height: layout.panelHeight,
                   child: ClipRect(
                     child: OverflowBox(
@@ -598,7 +604,10 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                     ),
                   ),
                 ),
-              if (layout.reserve > 0) SizedBox(height: layout.reserve),
+              SizedBox(
+                key: const ValueKey('terminal-input-reserve'),
+                height: layout.reserve,
+              ),
             ],
           ),
         ),

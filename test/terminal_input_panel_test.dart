@@ -421,6 +421,37 @@ void main() {
         expect(page.resizes['first']!.length, lessThanOrEqualTo(1));
       });
 
+      testWidgets('系统键盘方式、横屏收键盘：终端视图不重新挂上，不会自己把键盘叫回来', (
+        tester,
+      ) async {
+        tester.view.padding = const FakeViewPadding(bottom: 24 * 2.625);
+        final page = await _Page.open(tester, newTerminal, navigationBar: true);
+        addTearDown(tester.view.resetPadding);
+        // 模拟器横屏：终端页 290dp 左右高（状态栏、导航栏），键盘 261dp。
+        tester.view.physicalSize = const Size(2400, 1080);
+        await page.settle();
+        await page.keyboard(261, gesturePadding: 24);
+        final engineState = tester.state(find.byType(engineView));
+        expect(find.byKey(const ValueKey('terminal-tab-strip')), findsNothing);
+
+        FocusManager.instance.primaryFocus?.unfocus();
+        tester.testTextInput.hide();
+        // 真机上键盘收得快，一帧就从 261 掉到 50：这一帧里标签条出现、底部多出 24dp 空白，头尾同时变。
+        final ratio = tester.view.devicePixelRatio;
+        for (final inset in [50.0, 0.0]) {
+          tester.view.viewInsets = FakeViewPadding(bottom: inset * ratio);
+          tester.view.padding =
+              FakeViewPadding(bottom: inset > 0 ? 0 : 24 * ratio);
+          await tester.pump(const Duration(milliseconds: 16));
+        }
+        await page.settle();
+        expect(find.byKey(const ValueKey('terminal-tab-strip')), findsOneWidget,
+            reason: '键盘收起后标签条回来');
+        expect(tester.state(find.byType(engineView)), same(engineState),
+            reason: '标签条出现、多出来的空白消失在同一帧：终端不能被当成新的重建');
+        expect(tester.testTextInput.isVisible, isFalse);
+      });
+
       testWidgets('横屏点进大输入框：框换成一行的摆法时还是同一个框，系统键盘照样弹出来', (tester) async {
         final page = await _Page.open(tester, newTerminal);
         // 模拟器横屏时终端页只有 290dp 左右高（上面状态栏、下面导航栏）。
