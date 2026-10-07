@@ -376,6 +376,10 @@ void main() {
       'resources：4 个标签各吃 0.9 MiB、再开关 500 次，进程的 RSS/PSS/fd/线程不持续涨，连 SSH 的 socket 全关后一个不剩',
       (tester) async {
     final controller = await startApp(tester);
+    // 强制 GC 数对象要连本进程的 VM service。调试器接上后它报的是电脑那边 DDS 的地址，
+    // 打出来让 tool/r20-gate.sh 用 adb reverse 把同一个端口接回电脑。
+    final vm = await developer.Service.getInfo();
+    debugPrint('R20 VMSERVICE=${vm.serverWebSocketUri}');
     final baseline = _usage();
     final baselineFds = _fdKinds();
     r20('res.start', baseline);
@@ -723,7 +727,17 @@ class _HeapProfile {
 
 Future<_HeapProfile> _heapAfterGc() async {
   final info = await developer.Service.getInfo();
-  final ws = await WebSocket.connect(info.serverWebSocketUri.toString());
+  // 端口转发是脚本看到 "R20 VMSERVICE=" 才建的，开头几次可能还连不上。
+  WebSocket? socket;
+  for (var attempt = 0; socket == null; attempt++) {
+    try {
+      socket = await WebSocket.connect(info.serverWebSocketUri.toString());
+    } on SocketException {
+      if (attempt >= 30) rethrow;
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+    }
+  }
+  final ws = socket;
   final replies = ws
       .map((m) => jsonDecode(m as String) as Map<String, dynamic>)
       .asBroadcastStream();

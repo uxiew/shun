@@ -57,6 +57,11 @@ while kill -0 "$TEST" 2>/dev/null; do
     NAME=$(grep 'R20 SHOT=' "$LOG" | sed -n "${SEEN}p" | sed 's/.*R20 SHOT=//' | tr -d '\r')
     "${ADB[@]}" exec-out screencap -p > "$SHOTS/$NAME.png" || true
   done
+  # 测试打出自己的 VM service 地址（调试器接上后是电脑这边 DDS 的端口）：把同一个端口 reverse 回电脑，测试里才连得上。
+  if [[ -z "${VMPORT:-}" ]] && grep -q 'R20 VMSERVICE=' "$LOG"; then
+    VMPORT=$(grep -o 'R20 VMSERVICE=ws://127.0.0.1:[0-9]*' "$LOG" | head -1 | grep -o '[0-9]*$')
+    [[ -n "$VMPORT" ]] && "${ADB[@]}" reverse tcp:$VMPORT tcp:$VMPORT >/dev/null && echo "R20HOST vmservice-port=$VMPORT"
+  fi
   # 测试打 "R20 MEM=<名字>" 时抓一次 dumpsys meminfo（Native Heap、Dalvik、Graphics 分开），存在截图目录里。
   MCOUNT=$(grep -c 'R20 MEM=' "$LOG" || true)
   while (( MSEEN < MCOUNT )); do
@@ -68,6 +73,6 @@ while kill -0 "$TEST" 2>/dev/null; do
   sleep 0.5
 done
 wait "$TEST" && STATUS=0 || STATUS=$?
-grep -E 'R20 |R20HOST|\[E\]|Expected|Actual|Which|All tests|Some tests|skipped' "$LOG" | grep -v 'R20 SHOT=\|R20 MEM=' || true
+grep -E 'R20 |R20HOST|\[E\]|Expected|Actual|Which|All tests|Some tests|skipped' "$LOG" | grep -v 'R20 SHOT=\|R20 MEM=\|R20 VMSERVICE=' || true
 echo "日志 ${LOG}，截图 ${SHOTS}"
 exit "$STATUS"
