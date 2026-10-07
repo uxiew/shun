@@ -28,6 +28,7 @@ cp ../android/local.properties .      # 首次：告诉 Gradle SDK 在哪（被 
 | `echo-stubborn.apk` | 同上 | 独立作者密钥 | 不理 close、宿主关流也不回报 closed、每 500 ms 发事件（PLG12） |
 | `echo-misbehave.apk` | 同上 | 独立作者密钥 | 发旧代次和伪造句柄的会话事件（PLG06） |
 | `echo-major2.apk` | 同上 | 独立作者密钥 | 握手时只接受宿主 API major 2（PLG02） |
+| `echo-badhandshake.apk` | 同上 | 独立作者密钥 | 握手时抛 UnsupportedOperationException（约定是 IllegalStateException）：宿主要报「连接失败：插件握手出错…」，不能崩（X12） |
 | `echo-v2.apk` | 同上 | 独立作者密钥 | 版本 0.2.0（versionCode 2），能力不变：普通更新，应仍可用（PLG11） |
 | `echo-morecaps.apk` | 同上 | 独立作者密钥 | 0.3.0，多申请 `remote-desktop-external`：应回到待批准，不自动扩大批准（PLG11） |
 | `echo-apimajor2.apk` | 同上 | 独立作者密钥 | 0.4.0，描述符声明 API major 2：应判不兼容（X04「major 变化阻断」） |
