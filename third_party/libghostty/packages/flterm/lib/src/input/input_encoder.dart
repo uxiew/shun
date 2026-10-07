@@ -25,6 +25,11 @@ final class InputEncoder {
   }
 
   String encodeKey(KeyInput input) {
+    if (!input.composing && input.action != .release) {
+      if (_legacyControlSequence(input.key, input.mods) case final sequence?) {
+        return sequence;
+      }
+    }
     _keyEvent
       ..key = input.key
       ..mods = input.mods
@@ -37,6 +42,7 @@ final class InputEncoder {
   }
 
   String encodeKeyPress(Key key, {required Mods mods}) {
+    if (_legacyControlSequence(key, mods) case final sequence?) return sequence;
     final codepoint = unshiftedCodepointForKey(key);
     _keyEvent
       ..key = key
@@ -101,6 +107,27 @@ final class InputEncoder {
         paddingBottom: geometry.paddingBottomPx,
       ),
     );
+  }
+
+  /// xwshun: Ctrl+I、Ctrl+M、Ctrl+[ 在传统键盘编码下发 Tab、回车、ESC，和 xterm、xterm2 一样。
+  ///
+  /// Ghostty 照 fixterms 故意把这三个编成 CSI u（Ctrl+I 是 `ESC [ 105 ; 5 u`），没开扩展键盘协议的
+  /// bash、vim 不认，屏幕上冒出 `5u`；Android 硬件键盘的按键事件又不带字符，连 CSI u 那条路都进不去，
+  /// 实测什么都不发（R19）。远端开了 kitty 键盘协议时照 Ghostty 原样编：那时程序要的正是分清 Ctrl+I 和 Tab。
+  /// Shift、Super 一起按着的不管（Ghostty 本来就编成 CSI u，好让程序分清 Ctrl+Shift+M）；Alt 按着时
+  /// 和 Ghostty 别的 Ctrl 组合一样前面加 ESC。
+  String? _legacyControlSequence(Key key, Mods mods) {
+    if (!mods.hasCtrl || mods.hasShift || mods.hasSuper) return null;
+    final control = switch (key) {
+      .i => '\t',
+      .m => '\r',
+      .bracketLeft => '\x1b',
+      _ => null,
+    };
+    if (control == null || !_terminal.kittyKeyboardFlags.isDisabled) {
+      return null;
+    }
+    return mods.hasAlt ? '\x1b$control' : control;
   }
 
   String _encodeKeyEvent() {

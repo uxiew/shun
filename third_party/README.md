@@ -14,7 +14,7 @@ cd third_party/libghostty
 flutter pub get
 dart analyze packages/flterm/lib packages/libghostty/lib
 ../fetch-libghostty-assets.sh                         # 只有跑 flterm 测试、示例程序时才要（51.6 MB）
-(cd packages/flterm && flutter test)                  # 1132 条（10-07，R19 之后的链接改动）
+(cd packages/flterm && flutter test)                  # 1155 条（10-07，R20 的 Ctrl+I/M/[）
 (cd packages/libghostty && dart test)                 # 511 条；第一次要下 Ghostty 源码再用 Zig 编，约 1 分钟
 ```
 
@@ -55,6 +55,7 @@ dart analyze packages/flterm/lib packages/libghostty/lib
 | b63c843 | flterm：组字中收到空的编辑列表当组字结束；清空编辑区后、平台跟上前，oldText 对不上的编辑只按增量处理；软键盘回车键参与回车去重 | Flutter Android 的 delta 模式里 finishComposingText 不记编辑（只删 span），组字区的字拖到下一次改文字才提交；回车键后紧跟的提交按输入法旧编辑区算，整行被重发（8711b1a 引入的回退） |
 | 4ba1019 | flterm：`TerminalGestureSettings.touchMouseClicks`，为 false 时远端开着鼠标报告也不把手指点按、长按发成鼠标点击（滑动照样发滚轮） | 上游在 tmux mouse on、htop 里把点按发成点击（tmux 换窗格）、长按选不了字（R19，TER07）。默认 true 不改上游行为，App 传 false |
 | 54b7369 | flterm：`LinkSettings.onLongPress`，手指长按开始选字时报出手指下的链接（没有就是 null，不看激活修饰键、不需要 `onActivate`）；长按松开时还什么都没选上，就把整个链接选上 | 所有者 10-07 定点一下终端只叫键盘、链接从选字菜单打开。App 不给 `onActivate` 后，flterm 外面就不知道手指下是不是链接了（检测在内部）。默认 null，上游行为不变 |
+| （R20，见 git log） | flterm：`InputEncoder` 在传统键盘编码下把 Ctrl+I、Ctrl+M、Ctrl+[ 编成 Tab、回车、ESC（Alt 按着加 ESC 前缀）；远端开了 kitty 键盘协议时照上游。上游测试「virtual ctrl to punctuation commit」的期望跟着改 | 上游照 fixterms 编成 CSI u，bash、vim 不认；Android 硬件键盘的按键事件不带字符，连 CSI u 都不发，实测 Ctrl+I/M 什么都没有（R19）。所有者 10-07 定和 xterm2 一样 |
 
 0.0.5 时期的 04df082（输入法补丁）、8caeb73（改用预编译库）已被同步覆盖，补丁移进了 1dda0c8。
 

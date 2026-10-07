@@ -843,7 +843,9 @@ void main() {
       tester.testTextInput.enterText('[');
       await tester.pump();
 
-      expect(output.single, utf8.encode('\x1b[91;5u'));
+      // xwshun: 上游是 CSI u（`ESC [ 91 ; 5 u`）。
+      // 传统编码下 Ctrl+[ 改发 ESC，和 xterm 一样（R20）。
+      expect(output.single, [0x1b]);
       expect(controller.virtualMods, const Mods.none());
     });
 
