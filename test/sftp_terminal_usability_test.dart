@@ -276,18 +276,21 @@ void main() {
     });
 
     expect(settings.terminalQuickKeys, defaultTerminalQuickKeys);
+    // 10-07 起每行 7 个：PgUp/PgDn 插在方向键和粘贴/Shift 之间。
     expect(settings.terminalQuickKeys, [
       'escape',
       'alt',
       'home',
       'arrowUp',
       'end',
+      'pageUp',
       'paste',
       'tab',
       'ctrl',
       'arrowLeft',
       'arrowDown',
       'arrowRight',
+      'pageDown',
       'shift',
     ]);
   });
@@ -451,49 +454,77 @@ void main() {
     },
   );
 
-  testWidgets('quick key region keeps exactly six adaptive columns',
-      (tester) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        child: MaterialApp(
-          home: Scaffold(
-            body: Align(
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                width: 320,
-                child: TerminalSpecialKeys(
-                  order: defaultTerminalQuickKeys,
-                  customKeys: [],
-                  inputController: TerminalInputController(),
-                  onSend: _ignoreSend,
-                  onKey: (_) {},
-                  onAi: _ignore,
-                  onPortForward: null,
-                  onSystemManagement: null,
-                  pictureInPicture: false,
-                  onPictureInPicture: _ignore,
-                  fullscreen: false,
-                  onFullscreen: _ignore,
-                  split: false,
-                  onSplit: null,
+  Future<void> pumpQuickKeys(WidgetTester tester, double width) =>
+      tester.pumpWidget(
+        ProviderScope(
+          child: MaterialApp(
+            home: Scaffold(
+              body: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  width: width,
+                  child: TerminalSpecialKeys(
+                    order: defaultTerminalQuickKeys,
+                    customKeys: [],
+                    inputController: TerminalInputController(),
+                    onSend: _ignoreSend,
+                    onKey: (_) {},
+                    onAi: _ignore,
+                    onPortForward: null,
+                    onSystemManagement: null,
+                    pictureInPicture: false,
+                    onPictureInPicture: _ignore,
+                    fullscreen: false,
+                    onFullscreen: _ignore,
+                    split: false,
+                    onSplit: null,
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
-    );
+      );
 
-    final firstRow = ['Esc', 'Alt', 'Home', '↑', 'End'];
+  // 10-07 起快捷键栏默认 14 个键（加了 PgUp/PgDn）：够宽时每行 7 个、两行放完，方向键上下对齐；
+  // 每格放不下 48dp（触控目标）时回到每行 6 个，多一行。
+  testWidgets('quick key region: two rows of seven on a 411dp phone, ↑ over ↓',
+      (tester) async {
+    await pumpQuickKeys(tester, 411);
+    double y(String label) => tester.getCenter(find.text(label)).dy;
+    double x(String label) => tester.getCenter(find.text(label)).dx;
+    final firstRowY = [
+      for (final label in ['Esc', 'Alt', 'Home', '↑', 'End', 'PgUp']) y(label),
+      tester.getCenter(find.byTooltip('粘贴')).dy,
+    ];
+    expect(firstRowY.every((v) => (v - firstRowY.first).abs() < 1), isTrue);
+    final secondRowY =
+        ['Tab', 'Ctrl', '←', '↓', '→', 'PgDn', 'Shift'].map(y).toList();
+    expect(secondRowY.every((v) => (v - secondRowY.first).abs() < 1), isTrue);
+    expect(secondRowY.first, greaterThan(firstRowY.first));
+    expect(x('↑'), closeTo(x('↓'), 1));
+    expect(x('PgUp'), closeTo(x('PgDn'), 1));
+    for (final label in ['Esc', 'PgUp', 'Shift']) {
+      final button = find.ancestor(
+          of: find.text(label), matching: find.byType(TextButton));
+      expect(tester.getSize(button).width, greaterThanOrEqualTo(48));
+    }
+  });
+
+  testWidgets(
+      'quick key region keeps six adaptive columns when seven would be narrower than 48dp',
+      (tester) async {
+    await pumpQuickKeys(tester, 320);
+
+    final firstRow = ['Esc', 'Alt', 'Home', '↑', 'End', 'PgUp'];
     final firstRowY = [
       for (final label in firstRow) tester.getCenter(find.text(label)).dy,
-      tester.getCenter(find.byTooltip('粘贴')).dy,
     ];
     expect(
       firstRowY.every((y) => (y - firstRowY.first).abs() < 1),
       isTrue,
     );
-    final secondRowY = ['Tab', 'Ctrl', '←', '↓', '→', 'Shift']
+    final secondRowY = ['Tab', 'Ctrl', '←', '↓', '→']
         .map((label) => tester.getCenter(find.text(label)).dy)
         .toList();
     expect(
@@ -501,6 +532,13 @@ void main() {
       isTrue,
     );
     expect(secondRowY.first, greaterThan(firstRowY.first));
+    for (final label in ['PgDn', 'Shift']) {
+      expect(
+        tester.getCenter(find.text(label)).dy,
+        greaterThan(secondRowY.first),
+        reason: '第三行',
+      );
+    }
     final escButton = find.ancestor(
       of: find.text('Esc'),
       matching: find.byType(TextButton),

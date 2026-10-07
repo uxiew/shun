@@ -39,6 +39,21 @@ void main() {
       );
     });
 
+    test('快捷键栏：存的是 R18 的旧默认顺序就换成新默认（PgUp/PgDn 插在方向键旁边）；自己排过的不动', () {
+      expect(
+        AppSettings.fromJson({'terminalQuickKeys': r18DefaultTerminalQuickKeys})
+            .terminalQuickKeys,
+        defaultTerminalQuickKeys,
+      );
+      final mine = [...r18DefaultTerminalQuickKeys.reversed];
+      expect(
+        AppSettings.fromJson({'terminalQuickKeys': mine}).terminalQuickKeys,
+        mine,
+        reason: '自己排过的顺序原样保留，PgUp/PgDn 由快捷键栏补在最后',
+      );
+      expect(defaultTerminalQuickKeys, containsAll(['pageUp', 'pageDown']));
+    });
+
     test('「全屏程序里滑动翻页」默认关；存了能读回来，不是 true 的一律当关', () async {
       expect(const AppSettings().terminalFullscreenSwipe, isFalse);
       expect(

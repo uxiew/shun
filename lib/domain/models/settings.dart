@@ -106,7 +106,9 @@ class AppSettings {
     final storedOrder = rawStoredOrder.where(supported.contains).toList();
     final order = storedOrder.isEmpty ||
             _sameStrings(rawStoredOrder, legacyDefaultTerminalQuickKeys) ||
-            _sameStrings(rawStoredOrder, previousMobileDefaultTerminalQuickKeys)
+            _sameStrings(
+                rawStoredOrder, previousMobileDefaultTerminalQuickKeys) ||
+            _sameStrings(rawStoredOrder, r18DefaultTerminalQuickKeys)
         ? defaultTerminalQuickKeys
         : storedOrder;
     final selectedAiModel =
@@ -302,7 +304,28 @@ class AppSettings {
   }
 }
 
+/// 快捷键栏的默认顺序：两行，每行 7 个（屏幕够宽时，见 `terminal_special_keys.dart`）。
+/// Home ↑ End 正好在 ← ↓ → 上面，PgUp 在 PgDn 上面（PgUp/PgDn 是 10-07 加的）。
 const defaultTerminalQuickKeys = <String>[
+  'escape',
+  'alt',
+  'home',
+  'arrowUp',
+  'end',
+  'pageUp',
+  'paste',
+  'tab',
+  'ctrl',
+  'arrowLeft',
+  'arrowDown',
+  'arrowRight',
+  'pageDown',
+  'shift',
+];
+
+/// R18 到 10-07 的默认（12 个，每行 6 个）。存的顺序正好是它时换成新默认：
+/// 不然新加的 PgUp/PgDn 会排到最后，方向键上下就对不齐了。
+const r18DefaultTerminalQuickKeys = <String>[
   'escape',
   'alt',
   'home',

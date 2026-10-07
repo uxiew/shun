@@ -167,6 +167,31 @@ void main() {
         expect(page.sent['second'], ['\x1b[A']);
       });
 
+      testWidgets(
+          '快捷键栏的 PgUp/PgDn（10-07）：两行放下 14 个键，PgUp 在 PgDn 上面；按远端键盘模式发、套修饰键', (
+        tester,
+      ) async {
+        final page = await _Page.open(tester, newTerminal);
+        final pgUp = tester.getCenter(find.text('PgUp'));
+        final pgDn = tester.getCenter(find.text('PgDn'));
+        expect(pgUp.dx, moreOrLessEquals(pgDn.dx, epsilon: 1));
+        expect(pgDn.dy, greaterThan(pgUp.dy));
+        expect(tester.getCenter(find.text('Esc')).dy,
+            moreOrLessEquals(pgUp.dy, epsilon: 1),
+            reason: '还是两行');
+        expect(tester.getCenter(find.text('↑')).dx,
+            moreOrLessEquals(tester.getCenter(find.text('↓')).dx, epsilon: 1));
+
+        await tester.tap(find.text('PgUp'));
+        await page.settle();
+        await tester.tap(find.text('Ctrl'));
+        await page.settle();
+        await tester.tap(find.text('PgDn'));
+        await page.settle();
+        expect(page.sent['first'], ['\x1b[5~', '\x1b[6;5~']);
+        expect(page.first.terminal.input.modifiers, isEmpty);
+      });
+
       testWidgets('切标签、切到后台：修饰键清掉', (tester) async {
         final page = await _Page.open(tester, newTerminal);
         await tester.tap(find.text('Alt'));

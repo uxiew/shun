@@ -299,8 +299,33 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
   Widget _quickKeyGrid(
     List<String> order,
     Map<String, _QuickKey> definitions,
+  ) =>
+      LayoutBuilder(
+        builder: (context, constraints) {
+          final columns = _quickKeyColumns(order.length, constraints.maxWidth);
+          // 键和键之间留最多 4dp，但先保证每个键 48dp 宽：360dp 宽的手机放 7 个时一格只有 49dp，就不留缝了
+          //（键平时没有底色，缝本来也看不出来，只有亮着的修饰键能看出挨在一起）。
+          final cell = constraints.maxWidth.isFinite
+              ? constraints.maxWidth / columns
+              : 56.0;
+          final gap = ((cell - 48) / 2).clamp(0.0, 2.0);
+          return _quickKeyRows(order, definitions, columns, gap);
+        },
+      );
+
+  /// 每行几个键：尽量两行放完（默认 14 个就是每行 7 个），但每格至少 48dp 宽（触控目标，UX02），最少 6 个一行。
+  /// 7 个一行要 336dp 宽（加上两边留白，360dp 的手机刚好够）；更窄的回到 6 个一行、多出一行。
+  static int _quickKeyColumns(int count, double width) {
+    final fit = width.isFinite ? (width / 48).floor() : 6;
+    return ((count + 1) ~/ 2).clamp(6, fit < 6 ? 6 : fit);
+  }
+
+  Widget _quickKeyRows(
+    List<String> order,
+    Map<String, _QuickKey> definitions,
+    int columnCount,
+    double gap,
   ) {
-    const columnCount = 6;
     // 48dp：Android 的最小触控目标（UX02）。原来 38dp 高的行里按钮按内容收缩、只有约 20dp 能点到。
     const rowHeight = 48.0;
     final rowCount = (order.length / columnCount).ceil();
@@ -317,7 +342,7 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                 for (var column = 0; column < columnCount; column++)
                   Expanded(
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 2),
+                      padding: EdgeInsets.symmetric(horizontal: gap),
                       child: row * columnCount + column < order.length
                           ? _keyButton(
                               definitions[order[row * columnCount + column]]!,
@@ -729,6 +754,19 @@ const _quickKeys = <String, _QuickKey>{
   ),
   'home': _QuickKey('Home', '\x1b[H', specialKey: TerminalSpecialKey.home),
   'end': _QuickKey('End', '\x1b[F', specialKey: TerminalSpecialKey.end),
+  // 10-07 加：less、man、vim 里翻一页；按住连发，和方向键一样。
+  'pageUp': _QuickKey(
+    'PgUp',
+    '\x1b[5~',
+    repeatable: true,
+    specialKey: TerminalSpecialKey.pageUp,
+  ),
+  'pageDown': _QuickKey(
+    'PgDn',
+    '\x1b[6~',
+    repeatable: true,
+    specialKey: TerminalSpecialKey.pageDown,
+  ),
   'paste': _QuickKey(
     '粘贴',
     null,
