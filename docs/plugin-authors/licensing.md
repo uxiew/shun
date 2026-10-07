@@ -6,25 +6,29 @@
 
 | 部分 | 来源 | 许可 |
 |---|---|---|
+| 契约库 `plugins/provider-sdk`（AIDL + Java 工具类） | 本 fork 2026-09-29 之后新写的 | **Apache-2.0**（目录里的 `LICENSE`，文件头 `SPDX-License-Identifier: Apache-2.0`） |
+| `packages/plugin_api`（Dart 判定规则、自查命令） | 同上 | **Apache-2.0** |
+| 描述符 schema `plan/v3/contracts/` | 同上 | **Apache-2.0** |
+| 样例 `plugins/example` | X12 新写 | **Apache-2.0**；描述符里的 `license` 也是 `Apache-2.0`。`gradlew`、`gradle/wrapper/` 是 Gradle 9.1.0 生成的文件，按 Gradle 自己的 Apache-2.0 |
 | 宿主 xwshun | [Netcatty Mobile](https://github.com/kmh1145/Netcatty-mobile)（作者 kmh1145）v1.4.7（`495f5d31`）的修改版，保留原作者版权 | GPL-3.0-or-later（仓库根目录 `LICENSE`、`NOTICE.md`） |
-| 契约库 `plugins/provider-sdk`（AIDL + Java 工具类） | 本 fork 2026-09-29 之后新写的；上游基座里没有任何插件相关文件 | 目前**没有单独的许可声明**，跟着仓库按 GPL-3.0-or-later |
-| `packages/plugin_api`（Dart 判定规则、自查命令） | 同上 | 同上 |
-| 描述符 schema `plan/v3/contracts/` | 同上 | 同上 |
-| 样例 `plugins/example` | X12 新写 | 同上；描述符里写的 `license` 是 `GPL-3.0-or-later`。`gradlew`、`gradle/wrapper/` 是 Gradle 9.1.0 自己生成的文件（Gradle 是 Apache-2.0） |
 | Mosh 插件 `plugins/mosh` | 本 fork 的插件代码 + 静态链接的官方 mosh-client 1.4.0（GPL-3.0-or-later，带 OpenSSL 例外）、protobuf（BSD-3-Clause）、OpenSSL 3（Apache-2.0）、ncurses（MIT 类） | **整个插件按 GPL-3.0-or-later 分发**，对外发要能提供对应源码。明细见 `plugins/mosh/LICENSES.md` |
+| 测试插件 `plugins/fixture-*` | 本 fork 写的测试用 App | GPL-3.0-or-later（跟着仓库） |
 | 宿主里的 UU 远程、RustDesk 调用 | 宿主只按对方公开的链接格式拉起用户手机上装的 UU 远程、RustDesk，不含它们的代码 | 跟着宿主。RustDesk 本身是 AGPL-3.0，UU 远程是网易的商业软件，各按各的 |
 
-怎么核对「SDK 全是本 fork 新写的」：`git blame` 这三个目录（`packages/plugin_api`、`plugins/provider-sdk`、`plan/v3/contracts`），
-2026-10-07 时全部行的作者都是本 fork 的提交者；`git ls-tree -r 495f5d31` 里没有这些文件。
+上面四个 Apache-2.0 的目录全是本 fork 新写的：上游基座 `495f5d31` 里没有插件相关的文件，逐行比对也只重合通用的样板行（`import 'dart:convert';`、Gradle 配置这类）。
+
+**宿主里也编进了同样的代码**：宿主把 `plugins/provider-sdk`、`packages/plugin_api` 作为子工程和依赖编进去，Mosh 插件也编进了 `provider-sdk`。
+这些文件在宿主和 Mosh 插件里仍是 Apache-2.0；Apache-2.0 能和 GPLv3 合用，宿主和 Mosh 插件整体仍按 GPL-3.0-or-later 分发。
 
 ## 这对你意味着什么
 
-- **现在样例和契约库是按 GPL-3.0-or-later 给你的。** 你照抄样例代码、把 `provider-sdk` 编进自己的插件，再对外分发这个插件，就要按 GPL 的条件来（比如提供对应源码）。
-- 契约库和样例要不要改成更宽松的许可（比如 Apache-2.0）发给第三方作者，**由项目所有者决定，还没定**。定了之后这里和各文件的许可声明会一起改；没改之前以现在的为准。
-- 只用接口约定、不抄代码（自己按 [contract.md](contract.md) 重写 AIDL 和认人逻辑），是另一种情况，同样不在这里下结论。
-- **单独做成一个 APK、经 AIDL 和宿主通信，不会自动让你绕开 GPL 或 AGPL。** 进程分开、独立安装、走 Binder，本身都不能证明两个程序不构成一个组合作品；
-  要看接口耦合程度、怎么分发、改了什么。宿主自己的 GPL 条件也不会因为插件化而消失。
-- 你的插件用了别人的代码（比如 AGPL 的 RustDesk 核心），那部分的义务照旧，拆成独立 APK 不豁免。
+- **你的插件可以按你自己选的许可发布**，包括闭源。照抄样例、把 `provider-sdk` 编进去都可以，按 Apache-2.0 的条件办：
+  保留它们的版权和许可声明（`LICENSE` 和文件头），改过的文件写明改了。
+- **你的插件里链接了 GPL 的代码，就要按 GPL 办。** 比如像 Mosh 插件那样静态链接 mosh-client：整个插件就得按 GPL-3.0-or-later 分发、提供对应源码。
+  用了 AGPL 的代码（比如 RustDesk 核心）同理，按 AGPL 办。
+- **宿主仍是 GPL-3.0-or-later**，SDK 改成 Apache-2.0 不改变这一点。
+- **这里不给「插件是独立 APK、只经 AIDL 和宿主通信，所以不受宿主 GPL 影响」这类结论。** 进程分开、独立安装、走 Binder，本身都不能证明两个程序不构成一个组合作品；
+  要看接口耦合程度、怎么分发、改了什么。SDK 是 Apache-2.0，说的是 SDK 这几份文件本身的条件，不是对你的插件和宿主之间关系的法律判断。
 
 ## 参考过、但没拿来的
 
@@ -34,5 +38,5 @@
 
 ## 你的插件描述符里写什么
 
-`license` 写你的插件**实际**的许可（建议 SPDX 写法，比如 `GPL-3.0-or-later`、`Apache-2.0`），宿主详情页原样显示给用户。
+`license` 写你的插件**实际**的许可（建议 SPDX 写法，比如 `Apache-2.0`、`GPL-3.0-or-later`、`LicenseRef-Proprietary`），宿主详情页原样显示给用户。
 有公开源码就写 `sourceUrl`（只许 `https://`）。不写不会被拒，但用户看不到你按什么条件提供它。
