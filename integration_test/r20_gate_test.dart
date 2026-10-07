@@ -653,9 +653,22 @@ void main() {
     r20('ai.claude.keys', 'arrowMovedSelection=$moved enterAdvanced=$advanced');
     if (!moved) failures.add('claude-arrow');
     if (!advanced) failures.add('claude-enter');
-    // Ctrl+C：Claude Code 要按两次才退出。这里按硬件 Ctrl+C（走按键编码）。
-    if (!await exitWithCtrlC('claude', hardware: true)) {
-      failures.add('claude-ctrl-c');
+    // Ctrl+C：Claude Code 不登录时的引导页（选主题、选登录方式）不认 Ctrl+C、Ctrl+D，容器里的 tmux 里也一样（10-07 核对），
+    // 要登录后才有能中断的东西。这里照样发两次 0x03，记下它和 tmux 里一样没退，再从 exec 通道结束它。
+    final before = visible();
+    terminal.sendText('\x03');
+    await settle(tester, 1500);
+    terminal.sendText('\x03');
+    await settle(tester, 1500);
+    r20('ai.claude.ctrlC',
+        'stillOnLoginScreen=${visible().contains('Select login method')} unchanged=${visible() == before}');
+    await exec(session,
+        'for p in /proc/[0-9]*; do [ "\$(cat \$p/comm 2>/dev/null)" = claude ] && kill \${p#/proc/}; done; true');
+    await settle(tester, 1500);
+    try {
+      await run(tester, terminal, 'echo back-claude');
+    } on TestFailure {
+      failures.add('claude-back-to-shell');
     }
 
     // Codex：不登录时先问怎么登录。↓/↑ 换选项，Ctrl+C 退出。
