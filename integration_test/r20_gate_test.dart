@@ -370,11 +370,14 @@ void main() {
       skip: _scenario != 'tui' || ssh == null,
       timeout: const Timeout(Duration(minutes: 8)));
 
-  testWidgets('resources：4 个标签各吃 0.9 MiB、再开关 100 次，进程的 RSS/PSS/fd/线程不持续涨',
+  testWidgets(
+      'resources：4 个标签各吃 0.9 MiB、再开关 300 次，进程的 RSS/PSS/fd/线程不持续涨，socket 全关后回到起点',
       (tester) async {
     final controller = await startApp(tester);
     final baseline = _usage();
+    final baselineFds = _fdKinds();
     r20('res.start', baseline);
+    r20('res.startFds', baselineFds);
 
     final tabs = <ActiveTerminalSession>[];
     for (var i = 0; i < 4; i++) {
@@ -396,6 +399,7 @@ void main() {
     await shot(tester, 'res-4tabs');
     final loaded = _usage();
     r20('res.after4Tabs', loaded);
+    r20('res.after4TabsFds', _fdKinds());
 
     // 输入到远端回显：cat 开着，tty 自己回显，每个字从交给终端（和快捷键栏、按键面板同一个入口）到出现在屏幕上，
     // 含 adb 转发、Docker 网络、sshd 的来回。硬件按键从扫描码到远端那一段由 r18_keys_test 的真实扫描码测。
@@ -428,27 +432,60 @@ void main() {
         'n=${latencies.length} p50=${(pct(.5) / 1000).toStringAsFixed(1)} p95=${(pct(.95) / 1000).toStringAsFixed(1)} max=${(latencies.last / 1000).toStringAsFixed(1)}');
     expect(latencies, hasLength(50), reason: '每个键都要回显');
 
-    // 100 次：新开一个标签、吃 64 KiB、关掉。前 20 次热身，之后每 10 次量一次。
+    // 300 次：新开一个标签、吃 64 KiB、关掉，每 20 次量一次。前 100 次当热身（Dart 堆、字形缓存、原生分配器会先长到
+    // 一个台阶），按 100–300 次的斜率判有没有「每开关一次就漏一点」：两个点相减分不清一次性的台阶和持续增长
+    // （第一次跑 100 次时，第 30→40 次 RSS 跳了约 18 MiB、之后在同一高度来回，单看第 20、100 次就是 +18.9 MiB）。
     final samples = <int, Map<String, int>>{};
-    for (var cycle = 1; cycle <= 100; cycle++) {
+    for (var cycle = 1; cycle <= 300; cycle++) {
       final tab = await openTab(tester, controller, ssh!);
       await run(tester, tab.terminal, 'cat /tmp/r20-small.txt');
       await controller.close(controller.state.sessions.indexOf(tab));
       await settle(tester, 150);
-      if (cycle % 10 == 0) {
+      if (cycle % 20 == 0) {
         samples[cycle] = _usage();
         r20('res.cycle$cycle', samples[cycle]);
       }
     }
-    await shot(tester, 'res-after100');
+    r20('res.cycle300Fds', _fdKinds());
+    await shot(tester, 'res-after300');
     final s20 = samples[20]!;
     final s100 = samples[100]!;
-    final rssGrowth = (s100['rssKiB']! - s20['rssKiB']!) / 1024;
-    final pssGrowth = (s100['pssKiB']! - s20['pssKiB']!) / 1024;
+    final s300 = samples[300]!;
+    // 最小二乘斜率：每开关一次涨多少。
+    double slope(String key) {
+      final points = [
+        for (final MapEntry(key: c, value: v) in samples.entries)
+          if (c >= 100) (c.toDouble(), v[key]!.toDouble()),
+      ];
+      final mx =
+          points.map((p) => p.$1).reduce((a, b) => a + b) / points.length;
+      final my =
+          points.map((p) => p.$2).reduce((a, b) => a + b) / points.length;
+      var num = 0.0, den = 0.0;
+      for (final (x, y) in points) {
+        num += (x - mx) * (y - my);
+        den += (x - mx) * (x - mx);
+      }
+      return num / den;
+    }
+
+    final rssSlope = slope('rssKiB') / 1024;
+    final pssSlope = slope('pssKiB') / 1024;
+    final fdSlope = slope('fd');
+    final threadSlope = slope('threads');
     r20(
         'res.growth20to100',
-        'rss=${rssGrowth.toStringAsFixed(1)}MiB pss=${pssGrowth.toStringAsFixed(1)}MiB '
-            'fd=${s100['fd']! - s20['fd']!} threads=${s100['threads']! - s20['threads']!}');
+        'rss=${((s100['rssKiB']! - s20['rssKiB']!) / 1024).toStringAsFixed(1)}MiB '
+            'pss=${((s100['pssKiB']! - s20['pssKiB']!) / 1024).toStringAsFixed(1)}MiB');
+    r20(
+        'res.growth100to300',
+        'rss=${((s300['rssKiB']! - s100['rssKiB']!) / 1024).toStringAsFixed(1)}MiB '
+            'pss=${((s300['pssKiB']! - s100['pssKiB']!) / 1024).toStringAsFixed(1)}MiB '
+            'fd=${s300['fd']! - s100['fd']!} threads=${s300['threads']! - s100['threads']!}');
+    r20(
+        'res.slope100to300PerCycle',
+        'rss=${(rssSlope * 1024).toStringAsFixed(1)}KiB pss=${(pssSlope * 1024).toStringAsFixed(1)}KiB '
+            'fd=${fdSlope.toStringAsFixed(3)} threads=${threadSlope.toStringAsFixed(3)}');
 
     // 50 次收起/叫出系统键盘（R04 冻结的测法），前后各量一次。
     controller.activate(0);
@@ -477,19 +514,21 @@ void main() {
     }
     await settle(tester, 1500);
     final end = _usage();
+    final endFds = _fdKinds();
     r20('res.end', end);
+    r20('res.endFds', endFds);
 
-    // 判定：热身后 80 次开关里 fd、线程不涨（±3 是 Dart/系统偶发的），RSS、PSS 涨得少于 16 MiB（每次 0.2 MiB 以下）。
-    expect(s100['fd']! - s20['fd']!, lessThanOrEqualTo(3), reason: 'fd 持续涨');
-    expect(s100['threads']! - s20['threads']!, lessThanOrEqualTo(3),
-        reason: '线程持续涨');
-    expect(rssGrowth, lessThan(16), reason: 'RSS 持续涨');
-    expect(pssGrowth, lessThan(16), reason: 'PSS 持续涨');
-    expect(end['fd']! - baseline['fd']!, lessThanOrEqualTo(3),
-        reason: '标签全关后 fd 回到起点');
+    // 判定（跑 300 次之前定的）：热身后每开关一次 RSS、PSS 涨不到 0.05 MiB（真漏 0.1 MiB/次，200 次就是 20 MiB，会挂），
+    // fd、线程每次涨不到 0.02 个（200 次不到 4 个）。标签全关后 socket 个数回到起点：SSH 连接一条都没留下。
+    expect(rssSlope, lessThan(0.05), reason: 'RSS 持续涨');
+    expect(pssSlope, lessThan(0.05), reason: 'PSS 持续涨');
+    expect(fdSlope, lessThan(0.02), reason: 'fd 持续涨');
+    expect(threadSlope, lessThan(0.02), reason: '线程持续涨');
+    expect(endFds['socket'] ?? 0, baselineFds['socket'] ?? 0,
+        reason: '标签全关后还有没关的 socket');
   },
       skip: _scenario != 'resources' || ssh == null,
-      timeout: const Timeout(Duration(minutes: 20)));
+      timeout: const Timeout(Duration(minutes: 30)));
 
   testWidgets('ai-cli：Claude Code、Codex 不登录的界面能用方向键、回车、Ctrl+C 操作',
       (tester) async {
@@ -621,6 +660,32 @@ Map<String, int> _usage() {
     'fd': _fdCount(),
     'threads': field('/proc/self/status', 'Threads'),
   };
+}
+
+/// 本进程的 fd 按指向分类数：socket、pipe、anon_inode:名字、/dev/ 下的设备，其余文件归成 file。
+/// 全关标签后 fd 总数没回到起点时，靠它看多出来的是什么（SSH 的 socket 才是连接没关干净）。
+Map<String, int> _fdKinds() {
+  final kinds = <String, int>{};
+  for (final entry in Directory('/proc/self/fd').listSync(followLinks: false)) {
+    final String target;
+    try {
+      target = Link(entry.path).targetSync();
+    } on FileSystemException {
+      continue; // 列的时候正好被关了
+    }
+    final kind = target.startsWith('socket:')
+        ? 'socket'
+        : target.startsWith('pipe:')
+            ? 'pipe'
+            : target.startsWith('anon_inode:')
+                ? target.replaceAll(RegExp(r'[\[\]]'), '')
+                : target.startsWith('/dev/')
+                    ? target
+                    : 'file';
+    kinds[kind] = (kinds[kind] ?? 0) + 1;
+  }
+  return Map.fromEntries(
+      kinds.entries.toList()..sort((a, b) => b.value.compareTo(a.value)));
 }
 
 /// 本进程打开的 fd 个数。列 /proc/self/fd 的同时别的线程可能正好关掉一个，默认跟随链接去 stat 就会报
