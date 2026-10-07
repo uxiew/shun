@@ -27,7 +27,7 @@ enum Capability {
   remoteDesktopSurface('remote-desktop-surface', 0),
 
   /// 只有随包内置的 provider 能声明：路由（Direct/SOCKS/ProxyJump）决定流量走哪，
-  /// 交给第三方就等于交出"不偷偷直连"这条底线（docs/15 §1）。
+  /// 交给第三方就等于交出"代理或跳板失败时不偷偷直连"这条底线。
   route('route', 0);
 
   const Capability(this.wire, this.sinceMinor);

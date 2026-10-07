@@ -30,7 +30,7 @@ import javax.security.auth.x500.X500Principal;
  * 不信描述符、Intent 或对方自报的任何「证书」字段。
  *
  * <p>只取当前签名者（API 28+ 的 getApkContentsSigners），不把签名轮换历史里的旧证书算进来：
- * 作者轮换了密钥，宿主会看到「证书变了」，需要用户重新核验，而不是自动接受（docs/15 §4）。
+ * 作者轮换了密钥，宿主会看到「证书变了」，需要用户重新核验，而不是自动接受（docs/plugin-authors/compatibility.md「签名密钥」）。
  */
 public final class SignerDigests {
     private SignerDigests() {}

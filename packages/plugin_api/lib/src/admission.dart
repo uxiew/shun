@@ -56,7 +56,7 @@ class Rejected extends Admission {
   final String reason;
 }
 
-/// 注册准入规则（docs/15 §3–§4，PLG01）。
+/// 注册准入规则（说明见 docs/plugin-authors/contract.md 第 2 节、troubleshooting.md「插件页」）。
 ///
 /// - 内置 provider 的 ID 和 `builtin.` 前缀只属于宿主本身。
 /// - 所有者登记的"官方 ID"绑定到固定证书；别的证书声称这个 ID 一律拒绝。
@@ -162,7 +162,7 @@ class UnsupportedCapability implements Exception {
   String toString() => '该 provider 不支持 ${capability.wire}';
 }
 
-/// 调用前核对：不支持的能力抛异常，绝不返回空列表或假成功（PLG02 / docs/18）。
+/// 调用前核对：不支持的能力抛异常，绝不返回空列表或假成功。
 void requireCapability(ApprovedBinding binding, Capability capability) {
   if (!binding.capabilities.contains(capability)) {
     throw UnsupportedCapability(capability);

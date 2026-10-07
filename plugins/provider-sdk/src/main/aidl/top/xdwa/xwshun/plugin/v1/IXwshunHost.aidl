@@ -8,7 +8,7 @@
 package top.xdwa.xwshun.plugin.v1;
 
 interface IXwshunHost {
-    // 插件状态事件。generation/sequence 单调，旧代次或不递增的事件被丢弃（docs/15 §5）。
+    // 插件状态事件。generation/sequence 单调，旧代次或不递增的事件被丢弃（docs/plugin-authors/contract.md 第 3、5 节）。
     // event 是短的状态名（如 "ready"），不是任意负载；超过 64 字符直接拒绝。
     oneway void onProviderEvent(long generation, long sequence, String event);
 

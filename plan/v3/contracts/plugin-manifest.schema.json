@@ -144,7 +144,7 @@
       }
     },
     {
-      "$comment": "RouteProvider 仅内置（docs/15 §1）：路由决定流量走向，第三方声明它等于交出'不偷偷直连'的底线。",
+      "$comment": "RouteProvider 仅内置：路由决定流量走向，第三方声明它等于交出'代理或跳板失败时不偷偷直连'的底线。",
       "if": {
         "required": [
           "capabilities"
@@ -166,7 +166,7 @@
       }
     },
     {
-      "$comment": "外部 App 用自己的网络和账号，不继承 SSH 路由（docs/04 V3 段）。",
+      "$comment": "外部 App 用自己的网络和账号，不继承 SSH 路由。",
       "if": {
         "required": [
           "deployment"

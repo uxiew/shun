@@ -6,6 +6,6 @@ plugin-manifest.schema.json与两个示例用于X00/X12的结构测试，API maj
 
 `examples/` 是合法示例，`examples/invalid/` 是必须被拒绝的负例。两处同时检查同一批文件：
 `scripts/validate_plan.py`（JSON schema）和 `packages/plugin_api` 的 Dart 测试（运行期校验器），
-两边判定必须一致。唯一有意差异见 docs/15 §9：插件 minor 比宿主新时，未知能力在运行期被忽略而非拒绝。
+两边判定必须一致。唯一有意差异：插件 minor 比宿主新时，未知能力在运行期被忽略而非拒绝（docs/plugin-authors/compatibility.md）。
 
 许可：本目录（schema、示例、负例）是 Apache-2.0，见同目录 `LICENSE`；仓库其余部分仍是 GPL-3.0-or-later，见根目录 `NOTICE.md`。

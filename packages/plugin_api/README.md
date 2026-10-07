@@ -22,7 +22,7 @@ dart run bin/check_descriptor.dart <你的 xwshun_plugin.json> --package <你的
 
 ## 规则和测试
 
-规则说明见 `docs/plugin-authors/contract.md`（作者看的）和 `plan/v3/docs/15-plugin-architecture.md` §9（设计记录），这里不重复。
+规则说明见 `docs/plugin-authors/contract.md`，这里不重复。
 
 测试会读 `plan/v3/contracts/examples/` 下的描述符文件和 `plugins/example` 的描述符，所以要在本目录下运行（相对路径 `../../...`）。
 在别的目录跑会报 `PathNotFoundException`，看着像测试坏了，其实是工作目录不对。
