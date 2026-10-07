@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +6,10 @@ import '../../application/settings_controller.dart';
 import '../../domain/models/settings.dart';
 import '../../infrastructure/terminal/terminal_input_controller.dart';
 import '../../infrastructure/terminal/terminal_session_adapter.dart';
+import 'terminal_key_button.dart';
+import 'terminal_keys.dart';
+
+export 'terminal_key_button.dart' show decodeTerminalKeyEscapes;
 
 class TerminalSpecialKeys extends ConsumerStatefulWidget {
   const TerminalSpecialKeys({
@@ -68,23 +70,20 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
 }
 
 class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
-  Timer? _repeatDelay;
-  Timer? _repeatTimer;
-  int? _repeatPointer;
-  bool _suppressNextTap = false;
-
-  @override
-  void dispose() {
-    _stopRepeating(clearTapSuppression: true);
-    super.dispose();
-  }
+  TerminalKeyActions get _actions => TerminalKeyActions(
+        input: widget.inputController,
+        onKey: widget.onKey,
+        onText: widget.onSend,
+        onPaste: widget.onPaste,
+      );
 
   @override
   Widget build(BuildContext context) {
-    final definitions = <String, _QuickKey>{
-      ..._quickKeys,
+    final definitions = <String, TerminalKeySpec>{
+      ...terminalQuickKeySpecs,
       for (final key in widget.customKeys)
-        key.id: _QuickKey(key.label, key.value),
+        key.id:
+            TerminalKeySpec(key.label, text: key.value, decodeEscapes: true),
     };
     final normalized = [
       ...widget.order.where(definitions.containsKey),
@@ -190,7 +189,7 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
   Widget _compactBar(
     BuildContext context,
     List<String> order,
-    Map<String, _QuickKey> definitions,
+    Map<String, TerminalKeySpec> definitions,
   ) {
     return AnimatedBuilder(
       animation: widget.inputController,
@@ -298,7 +297,7 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
 
   Widget _quickKeyGrid(
     List<String> order,
-    Map<String, _QuickKey> definitions,
+    Map<String, TerminalKeySpec> definitions,
   ) =>
       LayoutBuilder(
         builder: (context, constraints) {
@@ -322,7 +321,7 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
 
   Widget _quickKeyRows(
     List<String> order,
-    Map<String, _QuickKey> definitions,
+    Map<String, TerminalKeySpec> definitions,
     int columnCount,
     double gap,
   ) {
@@ -358,125 +357,16 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
     );
   }
 
-  Widget _keyButton(_QuickKey key) {
-    final selected = key.type == _QuickKeyType.modifier &&
-        widget.inputController.modifiers.contains(key.modifierId);
-    final paste = key.type == _QuickKeyType.paste;
-    return Semantics(
-      button: true,
-      selected: selected,
-      onLongPressHint: paste ? localized('多行编辑') : null,
-      child: Listener(
-        behavior: HitTestBehavior.opaque,
-        onPointerDown: key.repeatable
-            ? (event) => _startRepeating(event.pointer, key)
-            : null,
-        onPointerUp:
-            key.repeatable ? (event) => _endRepeating(event.pointer) : null,
-        onPointerCancel:
-            key.repeatable ? (event) => _endRepeating(event.pointer) : null,
-        child: TextButton(
-          onPressed: () => _handleTap(key),
-          onLongPress: paste ? widget.onCompose : null,
-          style: TextButton.styleFrom(
-            minimumSize: Size.zero,
-            padding: const EdgeInsets.symmetric(horizontal: 4),
-            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            backgroundColor: selected
-                ? Theme.of(context).colorScheme.primaryContainer
-                : null,
-            foregroundColor: selected
-                ? Theme.of(context).colorScheme.onPrimaryContainer
-                : Theme.of(context).colorScheme.onSurface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(7),
-            ),
-          ),
-          child: key.icon == null
-              ? FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: LText(
-                    key.label,
-                    maxLines: 1,
-                    textAlign: TextAlign.center,
-                  ),
-                )
-              : Tooltip(
-                  message: key.label,
-                  // 「粘贴」的长按留给多行编辑，提示不抢长按。
-                  triggerMode: paste ? TooltipTriggerMode.manual : null,
-                  child: Icon(key.icon, size: 20),
-                ),
-        ),
-      ),
+  Widget _keyButton(TerminalKeySpec key) {
+    final actions = _actions;
+    return TerminalKeyButton(
+      spec: key,
+      selected: actions.isSelected(key),
+      onPressed: actions.press,
+      // 「粘贴」长按打开空白的多行编辑框（R19）。
+      onLongPress: key.paste ? widget.onCompose : null,
+      onLongPressHint: key.paste ? '多行编辑' : null,
     );
-  }
-
-  void _handleTap(_QuickKey key) {
-    if (key.repeatable && _suppressNextTap) {
-      _suppressNextTap = false;
-      return;
-    }
-    _press(key);
-  }
-
-  void _startRepeating(int pointer, _QuickKey key) {
-    if (_repeatPointer != null) return;
-    _repeatPointer = pointer;
-    _repeatDelay = Timer(const Duration(milliseconds: 400), () {
-      if (!mounted || _repeatPointer != pointer) return;
-      _suppressNextTap = true;
-      _press(key);
-      _repeatTimer = Timer.periodic(
-        const Duration(milliseconds: 70),
-        (_) {
-          if (mounted && _repeatPointer == pointer) _press(key);
-        },
-      );
-    });
-  }
-
-  void _endRepeating(int pointer) {
-    if (_repeatPointer != pointer) return;
-    final suppressTap = _suppressNextTap;
-    _stopRepeating(clearTapSuppression: false);
-    if (suppressTap) {
-      // TextButton resolves its tap after the pointer-up dispatch. Clear the
-      // guard on the next event-loop turn in case the long press was cancelled
-      // and no tap callback is produced.
-      Timer.run(() => _suppressNextTap = false);
-    }
-  }
-
-  void _stopRepeating({required bool clearTapSuppression}) {
-    _repeatDelay?.cancel();
-    _repeatTimer?.cancel();
-    _repeatDelay = null;
-    _repeatTimer = null;
-    _repeatPointer = null;
-    if (clearTapSuppression) _suppressNextTap = false;
-  }
-
-  Future<void> _press(_QuickKey key) async {
-    if (key.type == _QuickKeyType.modifier) {
-      final next = {...widget.inputController.modifiers};
-      if (!next.add(key.modifierId!)) next.remove(key.modifierId);
-      widget.inputController.setModifiers(next);
-      return;
-    }
-    final special = key.specialKey;
-    if (special != null) {
-      widget.onKey(special);
-      return;
-    }
-    if (key.type == _QuickKeyType.paste) {
-      // 不再按打字发（换行就是回车、多行逐行执行）：交给终端页走粘贴（R19）。
-      widget.inputController.clearModifiers();
-      widget.onPaste?.call();
-      return;
-    }
-    final value = decodeTerminalKeyEscapes(key.value ?? '');
-    if (value.isNotEmpty) widget.onSend(value);
   }
 
   Future<void> _customize(
@@ -492,7 +382,7 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
       builder: (context) => StatefulBuilder(
         builder: (context, setModalState) {
           String labelFor(String id) {
-            final builtIn = _quickKeys[id];
+            final builtIn = terminalQuickKeySpecs[id];
             if (builtIn != null) return builtIn.label;
             for (final key in custom) {
               if (key.id == id) return key.label;
@@ -681,115 +571,4 @@ class _QuickKeySettingsResult {
 
   final List<String> order;
   final List<TerminalCustomKey> customKeys;
-}
-
-enum _QuickKeyType { text, modifier, paste }
-
-class _QuickKey {
-  const _QuickKey(
-    this.label,
-    this.value, {
-    this.type = _QuickKeyType.text,
-    this.modifierId,
-    this.icon,
-    this.repeatable = false,
-    this.specialKey,
-  });
-
-  final String label;
-  final String? value;
-  final _QuickKeyType type;
-  final String? modifierId;
-  final IconData? icon;
-  final bool repeatable;
-
-  /// 有值时按功能键发（跟远端的键盘模式走），[value] 只作说明。
-  final TerminalSpecialKey? specialKey;
-}
-
-const _quickKeys = <String, _QuickKey>{
-  'escape': _QuickKey('Esc', '\x1b', specialKey: TerminalSpecialKey.escape),
-  'alt': _QuickKey(
-    'Alt',
-    null,
-    type: _QuickKeyType.modifier,
-    modifierId: 'alt',
-  ),
-  'ctrl': _QuickKey(
-    'Ctrl',
-    null,
-    type: _QuickKeyType.modifier,
-    modifierId: 'ctrl',
-  ),
-  'shift': _QuickKey(
-    'Shift',
-    null,
-    type: _QuickKeyType.modifier,
-    modifierId: 'shift',
-  ),
-  'tab': _QuickKey('Tab', '\t', specialKey: TerminalSpecialKey.tab),
-  'arrowUp': _QuickKey(
-    '↑',
-    '\x1b[A',
-    repeatable: true,
-    specialKey: TerminalSpecialKey.arrowUp,
-  ),
-  'arrowDown': _QuickKey(
-    '↓',
-    '\x1b[B',
-    repeatable: true,
-    specialKey: TerminalSpecialKey.arrowDown,
-  ),
-  'arrowLeft': _QuickKey(
-    '←',
-    '\x1b[D',
-    repeatable: true,
-    specialKey: TerminalSpecialKey.arrowLeft,
-  ),
-  'arrowRight': _QuickKey(
-    '→',
-    '\x1b[C',
-    repeatable: true,
-    specialKey: TerminalSpecialKey.arrowRight,
-  ),
-  'home': _QuickKey('Home', '\x1b[H', specialKey: TerminalSpecialKey.home),
-  'end': _QuickKey('End', '\x1b[F', specialKey: TerminalSpecialKey.end),
-  // 10-07 加：less、man、vim 里翻一页；按住连发，和方向键一样。
-  'pageUp': _QuickKey(
-    'PgUp',
-    '\x1b[5~',
-    repeatable: true,
-    specialKey: TerminalSpecialKey.pageUp,
-  ),
-  'pageDown': _QuickKey(
-    'PgDn',
-    '\x1b[6~',
-    repeatable: true,
-    specialKey: TerminalSpecialKey.pageDown,
-  ),
-  'paste': _QuickKey(
-    '粘贴',
-    null,
-    type: _QuickKeyType.paste,
-    icon: Icons.content_paste_outlined,
-  ),
-  'ctrlC': _QuickKey('Ctrl+C', '\x03'),
-  'ctrlD': _QuickKey('Ctrl+D', '\x04'),
-  'ctrlZ': _QuickKey('Ctrl+Z', '\x1a'),
-  'pipe': _QuickKey('|', '|'),
-  'slash': _QuickKey('/', '/'),
-  'tilde': _QuickKey('~', '~'),
-};
-
-String decodeTerminalKeyEscapes(String input) {
-  var value = input
-      .replaceAll(r'\e', '\x1b')
-      .replaceAll(r'\n', '\n')
-      .replaceAll(r'\r', '\r')
-      .replaceAll(r'\t', '\t');
-  value = value.replaceAllMapped(
-    RegExp(r'\\x([0-9a-fA-F]{2})'),
-    (match) => String.fromCharCode(int.parse(match.group(1)!, radix: 16)),
-  );
-  return value.replaceAll(r'\\', '\\');
 }
