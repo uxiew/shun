@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- 让插件「看得见」宿主，才能在每次调用时读出宿主的签名证书来核对。Android 11 起没有这条，
+         系统可能对插件隐藏宿主，核对就失败。不要申请 QUERY_ALL_PACKAGES。 -->
+    <queries>
+        <package android:name="top.xdwa.xwshun" />
+    </queries>
+
+    <!-- 样例不联网，所以没有 INTERNET 权限。你的插件要连网就自己加；宿主管不住插件自己联网，详情页会写明这一点。 -->
+    <application
+        android:allowBackup="false"
+        android:label="Hello 终端（xwshun 插件样例）">
+
+        <!-- 插件服务。三样缺一不可：
+             - exported="true"：宿主是别的 App，不导出它就绑不上（宿主列表里显示「插件服务没有导出」）；
+             - 声明 PROVIDER_V1 这个 action：宿主只认它，一个 App 里只能有一个这样的服务；
+             - DESCRIPTOR meta-data 指向描述符 JSON：宿主不启动插件就能读到它，批准前只看这个。
+             不要加 android:permission：独立签名的插件没法用 signature 权限认宿主，认人在每个调用里做。 -->
+        <service
+            android:name=".HelloProviderService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="top.xdwa.xwshun.plugin.action.PROVIDER_V1" />
+            </intent-filter>
+            <meta-data
+                android:name="top.xdwa.xwshun.plugin.DESCRIPTOR"
+                android:resource="@raw/xwshun_plugin" />
+        </service>
+
+        <!-- 插件自己的设置页（可选）。宿主详情页的「打开插件的设置页」用显式组件打开它，不带任何参数。
+             它是导出的，谁都能打开，里面别放只该给宿主看的东西。一个 App 只能声明一个。 -->
+        <activity
+            android:name=".SettingsActivity"
+            android:exported="true"
+            android:label="Hello 终端设置">
+            <intent-filter>
+                <action android:name="top.xdwa.xwshun.plugin.action.SETTINGS_V1" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

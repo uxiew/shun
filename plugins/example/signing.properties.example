@@ -1,0 +1,8 @@
+# 复制成 signing.properties（同目录，已被 .gitignore 忽略），填上你自己的密钥。
+# 密钥怎么生成见 docs/plugin-authors/README.md 第 2 步。别提交真的 signing.properties 和密钥库。
+#
+# storeFile 可以写绝对路径、~/ 开头，或相对本文件所在目录的路径。
+storeFile=~/xwshun-plugin-keys/my-plugin.jks
+storePassword=改成你的密码
+keyAlias=plugin
+keyPassword=改成你的密码

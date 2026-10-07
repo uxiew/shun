@@ -1,0 +1,16 @@
+{
+  "schemaVersion": 1,
+  "pluginId": "example.hello_terminal",
+  "displayName": "Hello 终端（样例）",
+  "version": "0.1.0",
+  "apiMajor": 1,
+  "apiMinor": 0,
+  "deployment": "android-service",
+  "capabilities": ["terminal-session"],
+  "supportedRoutes": ["system-default"],
+  "platforms": ["android"],
+  "permissions": ["own-session-input-output"],
+  "packageName": "example.xwshun.hello",
+  "serviceClass": "example.xwshun.hello.HelloProviderService",
+  "license": "GPL-3.0-or-later"
+}

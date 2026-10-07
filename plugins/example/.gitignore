@@ -1,0 +1,7 @@
+.gradle/
+build/
+local.properties
+# 签名配置里有密码；密钥库本身应放在工程外面
+signing.properties
+*.jks
+*.keystore
