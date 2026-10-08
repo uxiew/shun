@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:netcatty_mobile/application/session_controller.dart';
 import 'package:netcatty_mobile/domain/tmux/tmux_target.dart';
+import 'package:netcatty_mobile/infrastructure/ssh/connection_platform_service.dart';
 import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
 import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
 import 'package:netcatty_mobile/infrastructure/tmux/tmux_protocol.dart';
@@ -424,6 +425,7 @@ void main() {
   group('附着、恢复、分离（会话控制器 + 真实 tmux）', () {
     late ProviderContainer container;
     late SessionController controller;
+    late _NoAutoRecovery platform;
     var disposed = false;
 
     setUp(() async {
@@ -432,6 +434,10 @@ void main() {
       final repository = await VaultRepository.open();
       container = ProviderContainer(overrides: [
         vaultRepositoryProvider.overrideWithValue(repository),
+        // 这组测的是「断线后、服务器上先改了东西、再恢复」：断线当场的自动恢复（R22）会抢在改动之前
+        // 把原目标附着回来。报「没有网络」让自动那一轮先不跑，恢复只由测试手动触发。
+        connectionPlatformProvider
+            .overrideWithValue(platform = _NoAutoRecovery()),
       ]);
       controller = container.read(sessionControllerProvider.notifier);
       disposed = false;
@@ -556,6 +562,31 @@ void main() {
             reason: '恢复不新建');
       }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
     }
+
+    test('R22 网络在时断线：不用手动，自动恢复把原目标附着回来', () async {
+      final f = fixture!;
+      await f.reset('tmux35');
+      await f.run('tmux35', 'tmux new-session -d -s work');
+      platform.online();
+      final parent = await shellTab('tmux35');
+      final target = await targetNamed(parent.sshClient!, 'tmux35', 'work');
+      final tab = await attachTab(parent, target);
+      await f.dropConnectionOf('tmux35', tab.tmux!.clientPid);
+      await waitUntil(() {
+        final now =
+            controller.state.sessions.singleWhere((s) => s.id == tab.id);
+        return !identical(now, tab) && now.connected;
+      }, '自动恢复');
+      final restored =
+          controller.state.sessions.singleWhere((s) => s.id == tab.id);
+      expect(restored.tmux!.target.sameAs(target), isTrue);
+      await waitUntil(
+          () async => (await clientsOf('tmux35', target.sessionId))
+              .contains(clientKey(restored)),
+          '附着的是原目标');
+      expect(await f.run('tmux35', 'tmux ls -F "#{session_name}"'), 'work',
+          reason: '自动恢复也不新建');
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
 
     test('TMX04 断线后目标被删、重连前另建同名：说明旧目标不在，不附着、不新建', () async {
       final f = fixture!;
@@ -834,4 +865,19 @@ void main() {
       await f.reset('tmux24');
     }, skip: skip, timeout: const Timeout(Duration(seconds: 90)));
   });
+}
+
+class _NoAutoRecovery extends NoConnectionPlatform {
+  final _events = StreamController<ConnectionPlatformEvent>.broadcast();
+
+  /// 报「网络回来了」：之后断线就照常当场自动恢复。
+  void online() => _events.add(const NetworkChanged(
+      NetworkStatus(available: true, id: 'test', transports: {'wifi'})));
+
+  @override
+  Stream<ConnectionPlatformEvent> get events => _events.stream;
+
+  @override
+  Future<NetworkStatus> currentNetwork() async =>
+      const NetworkStatus(available: false);
 }
