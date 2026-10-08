@@ -78,7 +78,8 @@ void main() {
     await settle();
   }
 
-  HostProfile hostWith({String password = 'pw-1', String hostname = 'web.example.com'}) =>
+  HostProfile hostWith(
+          {String password = 'pw-1', String hostname = 'web.example.com'}) =>
       HostProfile.create(
         id: 'h1',
         label: 'web',
@@ -190,8 +191,7 @@ void main() {
       final hold = tab(old.id).restoreHold!;
       expect(hold.kind, RestoreHoldKind.untilForeground);
       expect(hold.message, contains('手机锁着'));
-      expect(platform.requests.last, isNull,
-          reason: '没有连着、在恢复的会话了，保活服务不该还开着');
+      expect(platform.requests.last, isNull, reason: '没有连着、在恢复的会话了，保活服务不该还开着');
 
       platform.locked = false;
       controller.setBackgrounded(false);
@@ -239,7 +239,10 @@ void main() {
       await start(hosts: [host]);
       final session = await connected(host);
       platform.emit(const NetworkChanged(NetworkStatus(
-          available: true, id: 'wifi-1', transports: {'wifi'}, validated: false)));
+          available: true,
+          id: 'wifi-1',
+          transports: {'wifi'},
+          validated: false)));
       await settle();
       expect(session.pingTimeouts, isEmpty);
     });
@@ -260,8 +263,8 @@ void main() {
       expect(service.calls.length, calls);
       expect(tab(old.id).restoreHold, isNull, reason: '没网的那段不算进窗口');
 
-      platform.emit(const NetworkChanged(NetworkStatus(
-          available: true, id: 'wifi-1', transports: {'wifi'})));
+      platform.emit(const NetworkChanged(
+          NetworkStatus(available: true, id: 'wifi-1', transports: {'wifi'})));
       await settle();
       expect(service.calls.length, calls + 1);
     });
@@ -371,8 +374,7 @@ void main() {
       await controller.close(
           controller.state.sessions.indexWhere((value) => value.id == a.id));
       await settle();
-      expect(platform.requests.last, isNull,
-          reason: '只剩一个停着等用户的标签：没有要保的东西');
+      expect(platform.requests.last, isNull, reason: '只剩一个停着等用户的标签：没有要保的东西');
     });
   });
 
@@ -471,7 +473,10 @@ void main() {
           'xwshun.r22.restorableTabs': jsonEncode([
             RestorableTab(id: 'tab-1', hostId: 'h1', label: 'web').toJson(),
             RestorableTab(
-                    id: 'tab-2', hostId: 'h1', label: 'tmux: work', tmux: target)
+                    id: 'tab-2',
+                    hostId: 'h1',
+                    label: 'tmux: work',
+                    tmux: target)
                 .toJson(),
             RestorableTab(id: 'tab-3', hostId: 'gone', label: 'x').toJson(),
           ]),
@@ -506,7 +511,10 @@ void main() {
         preferences: {
           'xwshun.r22.restorableTabs': jsonEncode([
             RestorableTab(
-                    id: 'tab-2', hostId: 'h1', label: 'tmux: work', tmux: target)
+                    id: 'tab-2',
+                    hostId: 'h1',
+                    label: 'tmux: work',
+                    tmux: target)
                 .toJson(),
           ]),
         },
@@ -524,7 +532,11 @@ void main() {
             'id': 't',
             'hostId': 'h',
             'label': 'x',
-            'tmux': {...target.toJson(), 'socketKind': 'path', 'socketValue': 'rel/x'},
+            'tmux': {
+              ...target.toJson(),
+              'socketKind': 'path',
+              'socketValue': 'rel/x'
+            },
           }),
           isNull);
       expect(RestorableTab.fromJson({'id': 't'}), isNull);

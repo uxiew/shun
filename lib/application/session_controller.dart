@@ -583,7 +583,9 @@ class SessionController extends StateNotifier<SessionState> {
           );
           continue;
         }
-        if (!force && recovery.nextAt != null && now.isBefore(recovery.nextAt!)) {
+        if (!force &&
+            recovery.nextAt != null &&
+            now.isBefore(recovery.nextAt!)) {
           continue;
         }
         // 后台、手机锁着：不重新登录，等用户解锁回到 App（所有者 10-08 定的 SEC07 策略）。
@@ -732,16 +734,15 @@ class SessionController extends StateNotifier<SessionState> {
         TmuxTargetGoneException() ||
         TmuxCommandException(exitCode: TmuxExit.missing) =>
           RestoreHold.untilUser('原来的 tmux 会话不在了，没有新建也没有附着别的：$error'),
-        RouteChangedException(:final message) =>
-          RestoreHold.untilUser(message),
+        RouteChangedException(:final message) => RestoreHold.untilUser(message),
         _ when !isTransientConnectionError(error) => holdForError(error),
         _ => null,
       };
       if (hold != null) {
         _hold(old, hold);
       } else {
-        final delay = recoveryBackoff[(recovery.attempts - 1)
-            .clamp(0, recoveryBackoff.length - 1)];
+        final delay = recoveryBackoff[
+            (recovery.attempts - 1).clamp(0, recoveryBackoff.length - 1)];
         recovery.nextAt = _now().add(delay);
       }
       old.terminal.showNotice('\r\n\x1b[31m恢复连接失败：$error\x1b[0m\r\n');
@@ -1078,7 +1079,8 @@ class SessionController extends StateNotifier<SessionState> {
       if (!mounted || request == null || result.started) return;
       if (result.error == null) return; // 没有平台实现（桌面、测试）
       state = state.copyWith(
-        keepAliveProblem: '后台保活没开起来（${result.error}）：App 在后台时系统可能停掉连接。回到 App 会再开一次。',
+        keepAliveProblem:
+            '后台保活没开起来（${result.error}）：App 在后台时系统可能停掉连接。回到 App 会再开一次。',
       );
     });
   }

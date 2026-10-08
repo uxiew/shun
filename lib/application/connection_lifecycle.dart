@@ -178,7 +178,10 @@ class RestorableTabsStore {
     try {
       final list = jsonDecode(raw);
       if (list is! List) return const [];
-      return list.map(RestorableTab.fromJson).whereType<RestorableTab>().toList();
+      return list
+          .map(RestorableTab.fromJson)
+          .whereType<RestorableTab>()
+          .toList();
     } on FormatException {
       return const [];
     }

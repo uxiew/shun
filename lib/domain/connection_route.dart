@@ -182,7 +182,6 @@ class RouteHop {
       ].join('|');
 }
 
-
 /// 一次连接尝试的完整路线，在任何拨号之前算好，之后不再变（RTE03）。
 ///
 /// 保险库里仍是桌面端 Netcatty 的旧字段（`hostChain`、`proxyProfileId`、`proxyConfig`），
