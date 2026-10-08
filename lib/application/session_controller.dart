@@ -195,7 +195,8 @@ class SessionController extends StateNotifier<SessionState> {
   /// 新标签用的终端。终端归标签：这里创建，标签关掉（或新开的连接没进标签）时这里销毁；
   /// 断线恢复沿用原来那个。连接层和页面都不创建、不销毁终端（R16，GST02）。
   final TerminalAdapterFactory newTerminal;
-  bool _reconnecting = false;
+  /// 正在跑的那一轮恢复；同一时刻只跑一轮。
+  Future<void>? _recoveryPass;
   bool _backgrounded = false;
   bool _pinging = false;
 
@@ -551,15 +552,22 @@ class SessionController extends StateNotifier<SessionState> {
     await _runRecoveries(force: true, only: sessionId);
   }
 
+  /// 一轮恢复。已经有一轮在跑时：计时器、网络事件来的（[force] 为 false）直接让开；
+  /// 「重新连接」和 [reconnectDisconnected] 等那一轮跑完再跑自己的——断线当场就会自动开始一轮，
+  /// 不等的话调用方一返回就去看「连上没有」，看到的是半路的状态。
   Future<void> _runRecoveries({bool force = false, String? only}) async {
-    if (_reconnecting ||
-        !mounted ||
+    while (_recoveryPass != null) {
+      if (!force) return;
+      await _recoveryPass;
+    }
+    if (!mounted ||
         state.pendingConnections.any(
           (value) => value.phase == PendingConnectionPhase.connecting,
         )) {
       return;
     }
-    _reconnecting = true;
+    final pass = Completer<void>();
+    _recoveryPass = pass.future;
     try {
       // 恢复先等网络：没网时每一次都是白试（LIFE03「不无限重试」）。窗口在网络回来时重新起算。
       if (!_network.available && !force) return;
@@ -606,7 +614,8 @@ class SessionController extends StateNotifier<SessionState> {
         await _recoverOne(old, recovery);
       }
     } finally {
-      _reconnecting = false;
+      _recoveryPass = null;
+      pass.complete();
       if (mounted) _publishRecoveries();
     }
   }
