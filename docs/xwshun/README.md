@@ -85,6 +85,7 @@ flutter test test/integration_ssh_fixture_test.dart
   | `notify` / `svcstop` | 通知上「全部断开」/ `am stopservice` 停服务，再切网：不复活、不登录；回前台有状态条 | 各约 1.5 分钟 |
   | `network` | 一个标签走 adb、一个走模拟器网络（10.0.2.2，只有蜂窝通），Wi-Fi 开关 20 次（10 次短、10 次长） | 约 16 分钟 |
   | `lock` | 后台锁屏（临时设 PIN 1234）时服务器断开：不登录；解锁回 App 才恢复 | 约 2 分钟 |
+  | `saver` | 后台、息屏时打开省电模式 60 秒：连接不被掐、App 不乱断乱连 | 约 2 分钟 |
   | `proxy` | 经 SOCKS 到 target：代理容器停了再起、target 重启 | 约 3 分钟 |
   | `activity` | 首页返回键、「不保留活动」、从最近任务划掉：会话对象和 SSH 连接不变 | 约 2 分钟 |
   | `engine` | 只建/销毁 Ghostty 终端各 400 次（挂视图、不挂视图），每 100 次抓 meminfo | 约 5 分钟 |

@@ -4,7 +4,7 @@
 #
 #   source ../.toolchain/env.sh
 #   (cd tool/fixture-environment && ./up.sh)
-#   tool/r22-lifecycle.sh emulator-5580 notify|svcstop|network|lock|proxy|activity|engine
+#   tool/r22-lifecycle.sh emulator-5580 notify|svcstop|network|lock|saver|proxy|activity|engine
 #   tool/r22-lifecycle.sh emulator-5580 restore      # 进程被结束后放回标签：先 seed，再装正式 debug 包用 uiautomator 点
 #
 # 只在模拟器上跑过：要 adb root（停服务、数 App 的 socket），会开关模拟器的 Wi-Fi、设锁屏 PIN（测完清掉）、
@@ -207,6 +207,20 @@ do_action() {
       foreground; sleep 4
       adb shell locksettings clear --old 1234 >/dev/null || true
       lifecycle_facts "after-unlock" ;;
+    home-saver-on)
+      adb shell input keyevent KEYCODE_HOME; sleep 1
+      adb shell input keyevent KEYCODE_SLEEP; sleep 2
+      # 充电时系统不让开省电模式（模拟器默认在充电）：先装作拔了电源。
+      adb shell dumpsys battery unplug
+      adb shell cmd power set-mode 1   # 省电模式（Battery Saver）
+      sleep 2
+      host "battery saver: $(adb shell settings get global low_power | tr -d '\r')"
+      lifecycle_facts "saver-on" ;;
+    saver-off-foreground)
+      lifecycle_facts "saver-60s"
+      adb shell cmd power set-mode 0; adb shell dumpsys battery reset
+      adb shell input keyevent KEYCODE_WAKEUP; sleep 1; adb shell input swipe 540 1900 540 700 300; sleep 1
+      foreground; sleep 3; lifecycle_facts "saver-off" ;;
     socks-stop) docker stop "$(container socks)" >/dev/null; host "socks stopped $(date +%T)" ;;
     socks-start) docker start "$(container socks)" >/dev/null; host "socks started $(date +%T)" ;;
     target-restart) docker restart "$(container target)" >/dev/null; host "target restarted (same host key) $(date +%T)" ;;
@@ -332,6 +346,8 @@ fi
 [[ "$(adb shell settings get global always_finish_activities | tr -d '\r')" == 1 ]] && toggle_dont_keep
 adb shell svc wifi enable
 adb shell locksettings clear --old 1234 >/dev/null 2>&1 || true
+adb shell cmd power set-mode 0 >/dev/null 2>&1 || true
+adb shell dumpsys battery reset >/dev/null 2>&1 || true
 grep -E '^R22HOST|R22 ' "$LOG" | grep -v 'R22 ACTION' | sed 's/^I\/flutter ([0-9 ]*): //' > "$OUT/$SCENARIO-summary.txt" || true
 echo "日志：$LOG"
 echo "摘要：$OUT/$SCENARIO-summary.txt"

@@ -192,12 +192,16 @@ void main() {
         await _networkScenario(tester, controller);
       case 'lock':
         await _lockScenario(tester, controller);
+      case 'saver':
+        await _saverScenario(tester, controller);
       case 'proxy':
         await _proxyScenario(tester, controller);
       case 'activity':
         await _activityScenario(tester, controller);
       case 'engine':
         await _engineScenario(tester);
+      case 'sshcycle':
+        await _sshCycleScenario(tester, controller);
       case 'seed':
         await _seedScenario(tester, controller);
       default:
@@ -313,6 +317,27 @@ Future<void> _lockScenario(
   expect(back, isTrue);
 }
 
+/// LIFE04「进入省电」：后台、息屏、打开省电模式 60 秒。前台服务的进程不受省电模式断网，连接应当还在、
+/// App 不该自己去断或重连；关掉省电回到前台，同一条连接接着用。
+Future<void> _saverScenario(
+    WidgetTester tester, SessionController controller) async {
+  final session = await open(controller, edgeHost('r22-saver'));
+  final marker = await exec(session, 'echo \$PPID');
+  final calls = _service.total;
+  await action('home-saver-on');
+  await Future<void>.delayed(const Duration(seconds: 60));
+  r22('during-saver', describe(controller));
+  r22('connect-calls-during-saver', _service.total - calls);
+  await action('saver-off-foreground');
+  await frames(tester, 1000);
+  final tab = tabOf(controller, session.id);
+  final same = identical(tab, session) && tab!.connected;
+  r22('after-saver.same-session', same);
+  r22('after-saver.same-ssh',
+      same && (await exec(session, 'echo \$PPID')) == marker);
+  expect(same, isTrue);
+}
+
 /// LIFE04：经 SOCKS 代理到只有容器网络里才有的 target；代理停了再起、target 的 sshd 重启。
 Future<void> _proxyScenario(
     WidgetTester tester, SessionController controller) async {
@@ -393,6 +418,21 @@ Future<void> _activityScenario(
         '${identical(again, session)} ${again?.connected}');
     r22('$step.same-ssh', (await exec(session, 'echo \$PPID')) == marker);
     expect(identical(again, session) && again!.connected, isTrue, reason: step);
+  }
+}
+
+/// LIFE06 分来源：开关 SSH 标签 400 次（连上、跑一条命令、关），但停在「保险库」页、不显示终端。
+/// 和 R20 资源门禁（显示终端）比，Native Heap 涨不涨就分得出是 SSH/Dart 这边还是终端页的渲染。
+Future<void> _sshCycleScenario(
+    WidgetTester tester, SessionController controller) async {
+  _container.read(homeTabProvider.notifier).state = 0;
+  await frames(tester);
+  for (var i = 0; i <= 400; i++) {
+    if (i % 100 == 0) await action('mem-sshcycle-$i');
+    final session = await open(controller, edgeHost('r22-cycle'));
+    await exec(session, 'echo cycle-$i');
+    await controller.close(controller.state.sessions.indexOf(session));
+    await tester.pump(const Duration(milliseconds: 16));
   }
 }
 
