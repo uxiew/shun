@@ -248,6 +248,7 @@ class _TerminalPane extends StatefulWidget {
     this.onPaste,
     this.onTap,
     this.inputTarget = false,
+    this.banner,
   });
   final ActiveTerminalSession session;
   final double fontSize;
@@ -271,6 +272,10 @@ class _TerminalPane extends StatefulWidget {
 
   /// 分屏时输入正发往这一格：描一圈边。另一格没有边，不只靠颜色区分。
   final bool inputTarget;
+
+  /// 盖在这一格顶上的连接状态条（R22：断开、正在恢复、为什么停了、「重新连接」）。
+  /// 叠在终端上面而不是挤占终端的位置：出现、消失都不改终端尺寸，不给远端发窗口变化。
+  final Widget? banner;
 
   @override
   State<_TerminalPane> createState() => _TerminalPaneState();
@@ -430,7 +435,69 @@ class _TerminalPaneState extends State<_TerminalPane> {
                 ),
               ),
             ),
+          if (widget.banner case final banner?)
+            Positioned(top: 0, left: 0, right: 0, child: banner),
         ],
+      ),
+    );
+  }
+}
+
+/// 断开的标签顶上那一条（R22）：现在是什么状态、为什么，加「重新连接」。
+class _ConnectionBanner extends StatelessWidget {
+  const _ConnectionBanner({
+    super.key,
+    required this.message,
+    this.recovering = false,
+    this.warning = false,
+    this.onReconnect,
+  });
+
+  final String message;
+  final bool recovering;
+
+  /// 不是断开，是提醒（比如后台保活没开起来）。
+  final bool warning;
+  final VoidCallback? onReconnect;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      color: (warning ? scheme.tertiaryContainer : scheme.secondaryContainer)
+          .withValues(alpha: .94),
+      elevation: 2,
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
+        child: Row(
+          children: [
+            if (recovering)
+              const SizedBox.square(
+                dimension: 16,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            else
+              Icon(
+                warning ? Icons.warning_amber_outlined : Icons.link_off,
+                size: 18,
+              ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: LText(
+                message,
+                maxLines: 4,
+                overflow: TextOverflow.ellipsis,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+            ),
+            if (onReconnect != null)
+              TextButton(
+                key: const ValueKey('terminal-reconnect'),
+                onPressed: onReconnect,
+                child: const LText('重新连接'),
+              ),
+          ],
+        ),
       ),
     );
   }

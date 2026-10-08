@@ -29,6 +29,7 @@ import '../../infrastructure/storage/vault_repository.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/custom_background.dart';
 import '../widgets/ai_chat_sheet.dart';
+import '../widgets/connection_prompts.dart';
 import '../widgets/host_address_line.dart';
 import '../widgets/host_system_icon.dart';
 import '../widgets/port_forward_sheet.dart';
@@ -441,6 +442,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                   onFocused: _focusPane,
                                   onPaste: _pasteInto,
                                   onTap: _onTerminalTap,
+                                  banner: pictureInPicture
+                                      ? null
+                                      : _connectionBanner(state.active!, state),
                                 );
                               }
                               final secondIndex = (state.activeIndex + 1) %
@@ -465,6 +469,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                     onTap: _onTerminalTap,
                                     inputTarget:
                                         inputSession?.id == state.active!.id,
+                                    banner:
+                                        _connectionBanner(state.active!, state),
                                   ),
                                 ),
                                 const Divider(height: 1, thickness: 1),
@@ -488,6 +494,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                     onTap: _onTerminalTap,
                                     inputTarget: inputSession?.id ==
                                         state.sessions[secondIndex].id,
+                                    banner: _connectionBanner(
+                                        state.sessions[secondIndex], state),
                                   ),
                                 ),
                               ];
@@ -672,6 +680,47 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: LText('画中画初始化失败，请稍后重试')),
     );
+  }
+
+  /// 这一格顶上要不要挂状态条、挂什么（R22）。连着而且没什么要提醒的就不挂。
+  Widget? _connectionBanner(ActiveTerminalSession session, SessionState state) {
+    if (session.closedByUser) return null;
+    if (session.connected) {
+      final problem = state.keepAliveProblem;
+      if (problem == null || !identical(session, state.active)) return null;
+      return _ConnectionBanner(
+        key: const ValueKey('terminal-connection-banner'),
+        message: problem,
+        warning: true,
+      );
+    }
+    final recovering = state.recovering.contains(session.id);
+    final message = recovering
+        ? state.networkAvailable
+            ? '连接断了，正在自动恢复…'
+            : '连接断了。手机现在没有网络，网络回来后自动恢复。'
+        : session.restoreHold?.message ?? '连接已断开。';
+    return _ConnectionBanner(
+      key: const ValueKey('terminal-connection-banner'),
+      message: message,
+      recovering: recovering,
+      onReconnect: () => unawaited(_reconnect(session)),
+    );
+  }
+
+  Future<void> _reconnect(ActiveTerminalSession session) async {
+    try {
+      await ref.read(sessionControllerProvider.notifier).reconnect(
+            session.id,
+            verifyHostKey: hostKeyVerifier(context, ref),
+            keyboardInteractive: keyboardInteractivePrompt(context),
+          );
+    } catch (error) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: LText('重新连接失败：$error')),
+      );
+    }
   }
 
   void _openPerformanceMonitor(ActiveTerminalSession session) {

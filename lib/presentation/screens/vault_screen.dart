@@ -10,11 +10,10 @@ import '../../domain/models/host.dart';
 import '../../domain/plugins/plugin_host.dart';
 import '../../domain/tailscale_ssh.dart';
 import '../../application/home_navigation.dart';
-import '../../application/host_trust.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/host_address_line.dart';
 import '../widgets/host_editor.dart';
-import '../widgets/host_key_dialogs.dart';
+import '../widgets/connection_prompts.dart';
 import '../widgets/host_system_icon.dart';
 import 'rustdesk_screen.dart';
 import 'uuremote_screen.dart';
@@ -401,102 +400,20 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     }
   }
 
-  /// 规则在 application/host_trust.dart；这里只提供弹窗和保存。
+  /// 规则在 application/host_trust.dart；弹窗和保存在 widgets/connection_prompts.dart。
   Future<bool> _verifyHostKey(
     HostProfile host,
     String algorithm,
     String fingerprint,
-  ) async {
-    final vault = ref.read(vaultControllerProvider).data;
-    if (vault == null) return false;
-    return verifyHostKeyWithKnownHosts(
-      knownHosts: (vault.extras['knownHosts'] as List? ?? const [])
-          .whereType<Map>()
-          .map((value) => Map<String, dynamic>.from(value))
-          .toList(),
-      hostname: host.hostname,
-      port: host.port,
-      keyType: algorithm,
-      fingerprint: fingerprint,
-      confirmNew: () async =>
-          mounted &&
-          await confirmNewHostKey(
-            context,
-            hostname: host.hostname,
-            port: host.port,
-            algorithm: algorithm,
-            fingerprint: fingerprint,
-          ),
-      onChanged: (oldFingerprint) async =>
-          mounted &&
-          await showChangedHostKey(
-            context,
-            hostname: host.hostname,
-            port: host.port,
-            algorithm: algorithm,
-            fingerprint: fingerprint,
-            oldFingerprint: oldFingerprint,
-          ),
-      save: (knownHosts) async {
-        final latest = ref.read(vaultControllerProvider).data ?? vault;
-        await ref.read(vaultControllerProvider.notifier).replace(
-              latest.copyWith(
-                extras: {...latest.extras, 'knownHosts': knownHosts},
-              ),
-            );
-      },
-    );
-  }
+  ) =>
+      hostKeyVerifier(context, ref)(host, algorithm, fingerprint);
 
   Future<List<String>?> _promptKeyboardInteractive(
     String name,
     String instruction,
     List<({bool echo, String text})> prompts,
-  ) async {
-    if (!mounted) return null;
-    final controllers = prompts.map((_) => TextEditingController()).toList();
-    return showDialog<List<String>>(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) => AlertDialog(
-        title: LText(name.isEmpty ? '交互式认证' : name),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (instruction.isNotEmpty) ...[
-                LText(instruction),
-                const SizedBox(height: 12),
-              ],
-              for (var index = 0; index < prompts.length; index++) ...[
-                TextField(
-                  controller: controllers[index],
-                  obscureText: !prompts[index].echo,
-                  autofocus: index == 0,
-                  decoration: LInputDecoration(labelText: prompts[index].text),
-                ),
-                const SizedBox(height: 10),
-              ],
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const LText('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(
-              context,
-              controllers.map((value) => value.text).toList(),
-            ),
-            child: const LText('继续'),
-          ),
-        ],
-      ),
-    );
-  }
+  ) =>
+      keyboardInteractivePrompt(context)(name, instruction, prompts);
 
   Future<void> _editHost([HostProfile? host]) async {
     final vault = await ref.read(vaultControllerProvider.notifier).ready();
