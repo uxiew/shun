@@ -23,8 +23,8 @@ const englishTranslations = <String, String>{
       'Tap “Reconnect” to connect with the current settings (the startup command is not run).',
   '点「重新连接」按现在的配置连，tmux 会话先核对还是不是原来那个再附着。':
       'Tap “Reconnect” to connect with the current settings; the tmux session is verified to be the same one before attaching.',
-  '上次 App 被系统结束或强行停止，会话断开了。不会自动重连，点「重新连接」才连。':
-      'The app was ended by the system or force-stopped last time, so the session was disconnected. It will not reconnect automatically; tap “Reconnect” to connect.',
+  '上次 App 被结束了，会话断开了。不会自动重连，点「重新连接」才连。':
+      'The app was ended last time, so the session was disconnected. It will not reconnect automatically; tap “Reconnect” to connect.',
   '断线期间这台主机的地址、代理、跳板机或登录身份改过。自动恢复只走原来那条路线，所以停了；点「重新连接」按现在的配置连。':
       'This host’s address, proxy, jump hosts or login identity changed while it was disconnected. Automatic recovery only uses the original route, so it stopped; tap “Reconnect” to connect with the current settings.',
   '连接断了，正在自动恢复…': 'Connection lost, restoring automatically…',
@@ -1712,8 +1712,8 @@ const englishReplacements = <(String, String)>[
     '): while the app is in the background the system may stop the connections. It will be started again when you return to the app.',
   ),
   (
-    '上次 App 被系统结束或强行停止，这个会话断开了。',
-    'The app was ended by the system or force-stopped last time, so this session was disconnected. ',
+    '上次 App 被结束了（系统回收、强行停止，或者会话都断了之后被划掉），这个会话断开了。',
+    'The app was ended last time (reclaimed by the system, force-stopped, or swiped away after every session had dropped), so this session was disconnected. ',
   ),
   ('自动恢复停了，没有再试：', 'Automatic recovery stopped and did not retry: '),
   (
