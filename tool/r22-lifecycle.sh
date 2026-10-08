@@ -88,10 +88,15 @@ tap_text() {
   adb pull /sdcard/r22-ui.xml "$OUT/ui.xml" >/dev/null 2>&1
   python3 - "$OUT/ui.xml" "$1" <<'EOF'
 import re, sys, xml.etree.ElementTree as ET
-root = ET.parse(sys.argv[1]).getroot()
-for node in root.iter('node'):
-    label = (node.get('text') or '') + ' ' + (node.get('content-desc') or '')
-    if sys.argv[2] in label:
+nodes = list(ET.parse(sys.argv[1]).getroot().iter('node'))
+want = sys.argv[2]
+labels = lambda n: [(n.get('text') or '').strip(), (n.get('content-desc') or '').strip()]
+# 先找文字完全相同、能点的（按钮）；再找完全相同的；最后才是包含它的（说明文字里也常出现「重新连接」）。
+for match in (lambda n: want in labels(n) and n.get('clickable') == 'true',
+              lambda n: want in labels(n),
+              lambda n: any(want in l for l in labels(n))):
+    node = next((n for n in nodes if match(n)), None)
+    if node is not None:
         x1, y1, x2, y2 = map(int, re.findall(r'\d+', node.get('bounds')))
         print((x1 + x2) // 2, (y1 + y2) // 2)
         break
@@ -300,7 +305,8 @@ restore() {
       adb install -r "$OUT/app-debug.apk" >/dev/null
       host "installed the real debug app over the test build (data kept: $(adb shell run-as $PKG ls shared_prefs 2>/dev/null | tr '\n' ' '))"
     fi
-    foreground; sleep 6; shot "restore-$kill-opened"
+    # 冷启动停在「保险库」页，放回来的标签在「终端」页。
+    foreground; sleep 6; tap "终端"; sleep 2; shot "restore-$kill-opened"
     host "$kill reopened: banner=$(has_text '上次 App 被结束了') reconnect=$(has_text '重新连接') edge-accepted-delta=$(( $(accepted) - before ))"
     tap "重新连接"; sleep 6; shot "restore-$kill-reconnected-plain"
     host "$kill plain reconnect: edge-accepted-delta=$(( $(accepted) - before )) ssh-sockets=$(ssh_sockets)"
