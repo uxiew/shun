@@ -12,9 +12,13 @@ import '../../domain/models/host.dart';
 ///
 /// 不用 SocketException：它的 toString 带 `SocketException:` 前缀和 OS 错误码，界面上看不懂。
 class ProxyHandshakeException implements IOException {
-  const ProxyHandshakeException(this.message);
+  const ProxyHandshakeException(this.message, {this.transient = false});
 
   final String message;
+
+  /// 过一会儿再试可能就好了：超时、握手中途断开、代理报目标暂时连不上（R22）。
+  /// 断线自动恢复只重试这一类；认证失败、规则不允许、对方不是代理这些，再试多少次都一样，要人来改。
+  final bool transient;
 
   @override
   String toString() => message;
@@ -52,6 +56,7 @@ Future<SSHSocket> proxyHandshake(
       deadline,
       onTimeout: () => throw ProxyHandshakeException(
         '代理握手超时（${proxy.endpoint.authority}，${deadline.inSeconds} 秒）',
+        transient: true,
       ),
     );
     return _ProxiedSshSocket(socket, cursor);
@@ -91,7 +96,11 @@ Future<void> _http(
           : 'HTTP 代理要求认证（407），但没有配置用户名和密码',
     );
   }
-  throw ProxyHandshakeException('HTTP 代理连接失败：${header.split('\r\n').first}');
+  // 502/503/504：代理连不上目标或自己忙，目标重启、网络抖动时会有，过一会儿可能就好了。
+  throw ProxyHandshakeException(
+    'HTTP 代理连接失败：${header.split('\r\n').first}',
+    transient: status == '502' || status == '503' || status == '504',
+  );
 }
 
 /// SOCKS5（RFC 1928 / 1929），只做 CONNECT。
@@ -162,7 +171,12 @@ Future<void> _socks5(
     throw ProxyHandshakeException('SOCKS5 代理的连接回复格式不对（版本字节 ${reply[0]}）');
   }
   if (reply[1] != 0) {
-    throw ProxyHandshakeException(socks5ReplyMessage(reply[1]));
+    // 1 内部错误、3/4 网络或主机不可达、5 目标拒绝（sshd 正在重启）、6 转发超时：可能是暂时的。
+    // 2 规则不允许、7/8 不支持：再试也一样。
+    throw ProxyHandshakeException(
+      socks5ReplyMessage(reply[1]),
+      transient: const {1, 3, 4, 5, 6}.contains(reply[1]),
+    );
   }
   if (reply[2] != 0) {
     throw ProxyHandshakeException('SOCKS5 代理的连接回复格式不对（保留字节 ${reply[2]}）');
@@ -350,9 +364,13 @@ class _SocketCursor {
     try {
       hasMore = await _iterator.moveNext();
     } on SocketException {
-      throw const ProxyHandshakeException('代理在握手完成前断开了连接');
+      throw const ProxyHandshakeException('代理在握手完成前断开了连接',
+          transient: true);
     }
-    if (!hasMore) throw const ProxyHandshakeException('代理在握手完成前关闭了连接');
+    if (!hasMore) {
+      throw const ProxyHandshakeException('代理在握手完成前关闭了连接',
+          transient: true);
+    }
     _buffer.addAll(_iterator.current);
   }
 
