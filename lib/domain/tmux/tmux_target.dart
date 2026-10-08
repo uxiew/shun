@@ -137,6 +137,54 @@ class TmuxTarget {
       other.sessionId == sessionId &&
       other.sessionCreated == sessionCreated;
 
+  /// App 被系统结束后，标签靠它记住附着的是哪个目标（R22）。只有标识，没有凭据。
+  Map<String, Object> toJson() => {
+        'hostKey': hostKey,
+        'unixUser': unixUser,
+        'uid': uid,
+        'socketKind': socket.kind.name,
+        'socketValue': socket.value,
+        'serverSocketPath': server.socketPath,
+        'serverPid': server.pid,
+        'serverStartTime': server.startTime,
+        'sessionId': sessionId,
+        'sessionCreated': sessionCreated,
+        'displayName': displayName,
+      };
+
+  /// 读回 [toJson] 写的东西。socket 照新建时的白名单再核一遍，不认的整条丢掉（返回 null），
+  /// 不拿一个读坏了的目标去远端核对。
+  static TmuxTarget? fromJson(Map<String, Object?> json) {
+    try {
+      final socket = switch (json['socketKind']) {
+        'standard' => const TmuxSocketSpec.standard(),
+        'named' => TmuxSocketSpec.named(json['socketValue'] as String),
+        'path' => TmuxSocketSpec.path(json['socketValue'] as String),
+        _ => null,
+      };
+      final sessionId = json['sessionId'] as String;
+      if (socket == null || !RegExp(r'^\$\d{1,9}$').hasMatch(sessionId)) {
+        return null;
+      }
+      return TmuxTarget(
+        hostKey: json['hostKey'] as String,
+        unixUser: json['unixUser'] as String,
+        uid: (json['uid'] as num).toInt(),
+        socket: socket,
+        server: TmuxServerIdentity(
+          socketPath: json['serverSocketPath'] as String,
+          pid: (json['serverPid'] as num).toInt(),
+          startTime: (json['serverStartTime'] as num).toInt(),
+        ),
+        sessionId: sessionId,
+        sessionCreated: (json['sessionCreated'] as num).toInt(),
+        displayName: json['displayName'] as String,
+      );
+    } on Object {
+      return null;
+    }
+  }
+
   @override
   String toString() => '$displayName（$sessionId，$unixUser@$hostKey，$server）';
 }

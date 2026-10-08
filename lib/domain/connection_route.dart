@@ -1,6 +1,7 @@
 import 'dart:io' show InternetAddress, InternetAddressType;
 
 import 'models/host.dart';
+import 'tailscale_ssh.dart' show sshLoginModeKey;
 
 /// 路由配置无法按用户的选择执行。一律在拨号前抛出，不会退回直连。
 class RouteConfigException implements Exception {
@@ -164,7 +165,23 @@ class RouteHop {
 
   /// 同样是深拷贝；主机没配私钥或私钥已被删除时为 null（沿用原来的认证回退）。
   final SshKeyProfile? key;
+
+  RouteHop _withoutSecrets() => RouteHop._(
+        HostProfile(_deepCopy(host.data)..remove('password')),
+        endpoint,
+        null,
+      );
+
+  /// 这一跳是哪台机器、以谁的身份登录；不含密码和私钥内容。
+  String get _shape => [
+        endpoint.authority,
+        host.username,
+        host.authMethod.name,
+        host.identityFileId ?? '',
+        host.data[sshLoginModeKey]?.toString() ?? '',
+      ].join('|');
 }
+
 
 /// 一次连接尝试的完整路线，在任何拨号之前算好，之后不再变（RTE03）。
 ///
@@ -172,8 +189,13 @@ class RouteHop {
 /// 这样才能和桌面端互相同步；每次连接由 [resolveRoutePlan] 把它们换算成这一份路线，
 /// 不写回、不迁移，所以也没有需要回滚的数据变更。
 class RoutePlan {
-  RoutePlan._(this.protocol, this.entry, List<RouteHop> jumps, this.target)
-      : jumps = List.unmodifiable(jumps);
+  RoutePlan._(
+    this.protocol,
+    this.entry,
+    List<RouteHop> jumps,
+    this.target, {
+    this.secretsForgotten = false,
+  }) : jumps = List.unmodifiable(jumps);
 
   final HostProtocol protocol;
   final RouteEntry entry;
@@ -182,8 +204,44 @@ class RoutePlan {
   final List<RouteHop> jumps;
   final RouteHop target;
 
+  /// 密码、私钥、代理口令已经去掉（见 [withoutSecrets]）。这样的路线不能直接拿去连，
+  /// 要先按保险库补回凭据，补之前核对路线没变。
+  final bool secretsForgotten;
+
   /// 跳板机加目标，按连接顺序。
   List<RouteHop> get hops => List.unmodifiable([...jumps, target]);
+
+  /// 同一条路线，去掉密码、私钥和代理口令（R22，SEC07）。
+  ///
+  /// 标签冻结的路线带着一份凭据副本，供断线自动恢复用。App 在后台待久了就把副本清掉，
+  /// 只留下「走哪条路、以谁的身份」：恢复时按保险库现在的配置重算一次，形状对得上才用，
+  /// 对不上（期间改了地址、换了跳板或代理、换了用户或私钥）就停下等用户——自动恢复不换路线（NET10）。
+  RoutePlan withoutSecrets() => RoutePlan._(
+        protocol,
+        switch (entry) {
+          final ProxyEntry proxy => ProxyEntry(
+              type: proxy.type,
+              endpoint: proxy.endpoint,
+              username: proxy.username,
+            ),
+          final other => other,
+        },
+        [for (final hop in jumps) hop._withoutSecrets()],
+        target._withoutSecrets(),
+        secretsForgotten: true,
+      );
+
+  /// 不含凭据的路线形状：协议、入口（直连 / 哪个代理、代理用户名）、每一跳的地址、
+  /// 用户名、认证方式、私钥 ID、登录模式。形状一样才算同一条路线、同一套身份。
+  String get shape => [
+        protocol.name,
+        switch (entry) {
+          final ProxyEntry proxy =>
+            '${proxy.type.name}|${proxy.endpoint.authority}|${proxy.username ?? ''}',
+          _ => 'direct',
+        },
+        for (final hop in hops) hop._shape,
+      ].join('\n');
 }
 
 /// 把目标主机上的路由字段换算成 [RoutePlan]。只读内存里的配置，不做任何网络操作。
