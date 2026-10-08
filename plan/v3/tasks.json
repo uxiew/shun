@@ -997,7 +997,7 @@
       "id": "R22",
       "phase": "P4",
       "title": "Flutter与Android连接生命周期",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R08",
         "R20"
@@ -1030,8 +1030,10 @@
       ],
       "stop_condition": "无OEM设备仅保留已测范围；不得假媒体/永久wakelock规避限制。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R22.md"
+      ],
+      "commit": "20b5bd2"
     },
     {
       "id": "R23",

@@ -218,10 +218,11 @@
       "action": "设备锁定/应用锁定、身份 lease 到期、进程重启时尝试新认证。",
       "expected": "按策略需解锁；不为后台恢复永久缓存秘密；已建立连接策略有明确 UI。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R09.md"
+        "evidence/R09.md",
+        "evidence/R22.md"
       ]
     },
     {
@@ -527,56 +528,67 @@
       "action": "按目标 API 检查实际 FGS 类型/权限、前后台启动与通知限制。",
       "expected": "用户触发且类型合法；禁止伪报媒体/短信；发布审核状态真实。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R22.md"
+      ]
     },
     {
       "id": "LIFE02",
       "action": "通知停止、系统停止服务、App force-stop，再触发网络事件。",
       "expected": "不复活、不重新认证、不重放；用户重新打开后才提供恢复入口。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R22.md"
+      ]
     },
     {
       "id": "LIFE03",
       "action": "活动连接下 Wi-Fi↔蜂窝切换 20 次；包含存活和真正断开两种流。",
       "expected": "不因通知无条件断开；失效流按策略恢复；不直连、不无限重试。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R22.md"
+      ]
     },
     {
       "id": "LIFE04",
       "action": "锁屏、进入省电、TailSocks 被停止/重启、远端 SSH 重启。",
       "expected": "区分代理/SSH/目标缺失；恢复验证身份；tmux 恢复不重放。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R22.md"
+      ]
     },
     {
       "id": "LIFE05",
       "action": "Activity 重建与进程死亡后恢复标签，同时让旧回调迟到。",
       "expected": "状态不假 Active；仅恢复配置/目标；旧 generation 不能覆盖新状态。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R22.md"
+      ]
     },
     {
       "id": "LIFE06",
       "action": "100 次连接/取消/断开/引擎销毁，检查 fd、线程、协程和 native 内存。",
       "expected": "无逐轮增长；每次 close 幂等，失败路径同样释放。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "FAIL",
       "inherited_from": "2026-09-28",
       "evidence": [
         "evidence/R08.md",
-        "evidence/R17.md"
+        "evidence/R17.md",
+        "evidence/R22.md"
       ]
     },
     {
