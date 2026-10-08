@@ -4,13 +4,19 @@ set -eu
 
 case "$ROLE" in
   sshd)
-    adduser -D -s /bin/sh fixture
+    # 容器重启（docker restart，R22 测「sshd 重启」）时用户已经在了，再 adduser 会报错退出。
+    id -u fixture >/dev/null 2>&1 || adduser -D -s /bin/sh fixture
     echo "fixture:$(cat /run-secrets/ssh_password)" | chpasswd
     install -d -m 700 -o fixture -g fixture /home/fixture/.ssh
     install -m 600 -o fixture -g fixture /run-secrets/id_ed25519.pub /home/fixture/.ssh/authorized_keys
-    # 每次启动重新生成主机密钥：up 一次指纹就变一次，正好用来测"指纹改变必须阻断"。
-    rm -f /etc/ssh/ssh_host_*
-    ssh-keygen -q -t ed25519 -N '' -f /etc/ssh/ssh_host_ed25519_key
+    # 每个新容器重新生成主机密钥：up 一次指纹就变一次，正好用来测"指纹改变必须阻断"。
+    # 同一个容器重启（docker restart）沿用原来的密钥，像真服务器的 sshd 重启（R22 LIFE04）；
+    # 要测"重启后换了密钥"，进容器删掉 .xwshun-hostkey 标记再重启。
+    if [ ! -f /etc/ssh/.xwshun-hostkey ]; then
+      rm -f /etc/ssh/ssh_host_*
+      ssh-keygen -q -t ed25519 -N '' -f /etc/ssh/ssh_host_ed25519_key
+      touch /etc/ssh/.xwshun-hostkey
+    fi
     ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256 > "/run-hostkeys/$(hostname).sha256"
     cp /etc/ssh/ssh_host_ed25519_key.pub "/run-hostkeys/$(hostname).pub"
     # PerSourcePenalties no：OpenSSH 9.8 起，连上后不认证就断（测试里「指纹确认时取消」就是这样）
@@ -41,7 +47,7 @@ EOF
     # 两个 dante 实例：1080 要求用户名密码，1081 无认证。dante 的 username 方法校验系统账户。
     # 规则块必须多行写：单行时 "command: connect log: ..." 会被当成命令列表，报 syntax error near token "l"。
     # 只放行 CONNECT；BIND/UDP ASSOCIATE 落到 block，对应计划"SOCKS 首版 CONNECT-only"。
-    adduser -D -H -s /sbin/nologin socksuser
+    id -u socksuser >/dev/null 2>&1 || adduser -D -H -s /sbin/nologin socksuser
     echo "socksuser:$(cat /run-secrets/socks_password)" | chpasswd
     write_conf() {
       cat <<EOF
