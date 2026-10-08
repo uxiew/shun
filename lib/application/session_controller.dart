@@ -1163,7 +1163,8 @@ class SessionController extends StateNotifier<SessionState> {
             ? '点「重新连接」按现在的配置连（不跑启动命令）。'
             : '点「重新连接」按现在的配置连，tmux 会话先核对还是不是原来那个再附着。';
         terminal.showNotice(
-          '\x1b[33m上次 App 被结束了（系统回收、强行停止，或者会话都断了之后被划掉），这个会话断开了。$how\x1b[0m\r\n',
+          // 前面空几行：终端是空的，提示会印在最上面，正好被页面顶上的状态条盖住。
+          '\r\n\r\n\r\n\r\n\x1b[33m上次 App 被结束了（系统回收、强行停止，或者会话都断了之后被划掉），这个会话断开了。$how\x1b[0m\r\n',
         );
         restored.add(ActiveTerminalSession.restored(
           id: tab.id,
