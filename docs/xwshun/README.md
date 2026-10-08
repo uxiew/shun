@@ -78,6 +78,23 @@ flutter test test/integration_ssh_fixture_test.dart
   - 在真机上跑这几条：先 `tool/remote-device/up.sh`（见那里的 README）、`source /tmp/xwshun-remote-device/env`，把上面的 `emulator-5580` 换成手机序列号。
     要所有者当次同意、本人解锁手机；一串跑下来一个多小时，手机 30 分钟会熄屏，熄了测试就失败，所以 G3 复核时临时开了 `adb shell svc power stayon ac`，测完 `svc power stayon false` 改回。
     用完 `down.sh` 后，`android/local.properties` 的 `sdk.dir` 还指着已删的假 SDK，怎么改回见 `tool/remote-device/README.md`「撞墙时」。
+- 连接生命周期（R22，`integration_test/r22_lifecycle_test.dart`，**只在模拟器上跑**）：起好上面的测试环境，`tool/r22-lifecycle.sh emulator-5580 <场景>`。
+  脚本 adb root、转发 22201/21080、预授权通知，再按测试打出的 `R22 ACTION=…` 去按 HOME、点通知、开关 Wi-Fi、锁屏、停代理容器，做完用 `run-as` 在 App 私有目录放个文件告诉测试。
+  | 场景 | 测什么 | 时长 |
+  |---|---|---|
+  | `notify` / `svcstop` | 通知上「全部断开」/ `am stopservice` 停服务，再切网：不复活、不登录；回前台有状态条 | 各约 1.5 分钟 |
+  | `network` | 一个标签走 adb、一个走模拟器网络（10.0.2.2，只有蜂窝通），Wi-Fi 开关 20 次（10 次短、10 次长） | 约 16 分钟 |
+  | `lock` | 后台锁屏（临时设 PIN 1234）时服务器断开：不登录；解锁回 App 才恢复 | 约 2 分钟 |
+  | `proxy` | 经 SOCKS 到 target：代理容器停了再起、target 重启 | 约 3 分钟 |
+  | `activity` | 首页返回键、「不保留活动」、从最近任务划掉：会话对象和 SSH 连接不变 | 约 2 分钟 |
+  | `engine` | 只建/销毁 Ghostty 终端各 400 次（挂视图、不挂视图），每 100 次抓 meminfo | 约 5 分钟 |
+  | `restore` | 进程被「停止」、强行停止后放回标签：先 `flutter drive` 跑 seed，再装正式 debug 包用 uiautomator 点「重新连接」 | 约 5 分钟 |
+
+  日志、截图、meminfo 在 `../.toolchain/artifacts/r22-<提交>/`。脚本会改模拟器设置（Wi-Fi、锁屏 PIN、「不保留活动」），正常结束会复原；
+  中途停掉的话手动复原：`adb shell 'settings put global always_finish_activities 0; locksettings clear --old 1234; svc wifi enable'`。会改手机设置，**别在真机上跑**。
+  撞过的墙：截图全黑——测试在等脚本回执时不出帧（集成测试只在 `pump` 时画），要看画面用测试请求的 `shot-…` 截图；
+  uiautomator 找不到「全部断开」——通知在「静音」区折叠着，要先点它右边的展开箭头（脚本已处理）；
+  脚本悄悄退出、测试卡在等回执——别给这类脚本开 `pipefail`，`adb … | grep -m1` 会让 adb 收到 SIGPIPE。
 - tmux 的测试（R21，`test/tmux_fixture_test.dart`）用另一套环境：四个真实 tmux 版本（2.4、2.7、3.0a、3.5a）加「没有 tmux」「假 tmux」两台，
   `(cd tool/tmux-fixture && ./up.sh)` 起、`./down.sh` 关，和上面那套互不影响、可以同时开；没起时整组跳过。细节见 `tool/tmux-fixture/README.md`。
 - Tailscale SSH 的测试（`test/tailscale_ssh_login_test.dart`）要 Go：会自己构建、起停仿制服务器，没装 Go 时整组跳过。仿制服务器和「Headscale + 真 tailscaled」环境的用法见 `tool/tailscale-ssh-fixture/README.md`。
