@@ -342,6 +342,10 @@ class ActiveTerminalSession {
     connected = false;
     if (_released) return;
     _released = true;
+    // 终端的输入和尺寸不再交给这条连接：通道马上要关，之后转屏、回到前台引起的尺寸变化、
+    // 用户在断开的标签里敲的字，再往这里写都会抛 SSHStateError（R22 回前台时撞上，抛进了布局）。
+    // 输出订阅留着，见上。
+    _binding?.release();
     sshSession?.close();
     for (final client in sshClients.reversed) {
       client.close();

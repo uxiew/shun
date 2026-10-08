@@ -76,6 +76,18 @@ void main() {
       expect(restored.sizes, [(120, 40)]);
     });
 
+    test('连接那头已经关了（写入抛错）：按键和尺寸变化不把错误抛给调用方（R22）', () {
+      final terminal = GhosttyTerminalAdapter();
+      addTearDown(terminal.dispose);
+      void closed(Uint8List _) => throw StateError('Transport is closed');
+      void closedResize(int a, int b, int c, int d) =>
+          throw StateError('Transport is closed');
+      terminal.bind(closed, resize: closedResize);
+      // 回到前台时布局量出新尺寸、用户在断开的标签里敲字：以前 SSHStateError 一路抛进布局，整页红屏。
+      expect(() => resizeTestTerminal(terminal, 100, 30), returnsNormally);
+      expect(() => terminal.sendText('x'), returnsNormally);
+    });
+
     test('新代次从干净的解码状态开始：旧连接停在半个字符上不会和新 shell 拼成乱码', () {
       final terminal = GhosttyTerminalAdapter();
       addTearDown(terminal.dispose);

@@ -246,7 +246,11 @@ abstract class TerminalSessionAdapterBase implements TerminalSessionAdapter {
   @protected
   void emitInput(Uint8List bytes) {
     if (_disposed || bytes.isEmpty) return;
-    _inputSink?.call(bytes);
+    try {
+      _inputSink?.call(bytes);
+    } on Object {
+      // 连接那头已经关了（断线的消息还在路上）：字丢掉。这里是按键和布局的调用栈，抛出去就是红屏。
+    }
   }
 
   /// 引擎量出了新尺寸。记下来，换代次时补发。
@@ -272,7 +276,11 @@ abstract class TerminalSessionAdapterBase implements TerminalSessionAdapter {
     // 终端页让先等一等（面板切换中）：到点由 holdResize 的计时器补发最后一个。
     if (_resizeHold != null) return;
     _sentSize = size;
-    sink(size.columns, size.rows, size.pixelWidth, size.pixelHeight);
+    try {
+      sink(size.columns, size.rows, size.pixelWidth, size.pixelHeight);
+    } on Object {
+      // 同 emitInput：这里在布局里被调用（引擎量出新尺寸），连接那头关了不能让整页布局失败。
+    }
     _resizeThrottle = Timer(resizeInterval, () {
       _resizeThrottle = null;
       _sendSize();
