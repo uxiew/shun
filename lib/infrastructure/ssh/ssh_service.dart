@@ -9,6 +9,7 @@ import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/server_stats.dart';
 import '../../domain/plugins/mosh_bootstrap.dart';
+import '../../domain/restore_hold.dart';
 import '../../domain/tailscale_ssh.dart';
 import '../../domain/tmux/tmux_target.dart';
 import '../terminal/terminal_input_controller.dart';
@@ -193,16 +194,45 @@ class ActiveTerminalSession {
     required this.terminal,
     required this.verifyHostKey,
     required this.keyboardInteractive,
-    this.sshClients = const [],
+    List<SSHClient> sshClients = const [],
     this.sshSession,
     this.telnetSocket,
-    this.routePlan,
+    RoutePlan? routePlan,
     this.tmux,
     this.plugin,
+    this.resumeTmux,
+    this.restored = false,
     TerminalBinding? binding,
     List<StreamSubscription<Object?>> outputSubscriptions = const [],
-  })  : _binding = binding,
+  })  : _sshClients = sshClients,
+        _routePlan = routePlan,
+        _binding = binding,
         _outputSubscriptions = outputSubscriptions;
+
+  /// App 上次被系统结束（或强行停止）前开着的标签，这次启动时放回来（R22，LIFE05）。
+  ///
+  /// 只有主机和 tmux 目标（[resumeTmux]），没有连接、没有冻结的路线、没有上次的画面；一直是断开的，
+  /// [restoreHold] 写明原因，用户点「重新连接」才按保险库现在的配置连（不跑启动命令）。
+  factory ActiveTerminalSession.restored({
+    required String id,
+    required HostProfile host,
+    required TerminalSessionAdapter terminal,
+    required RestoreHold hold,
+    TmuxTarget? tmux,
+  }) =>
+      ActiveTerminalSession(
+        id: id,
+        host: host,
+        terminal: terminal,
+        // 放回来的标签没有当时的指纹核对界面；重新连接时由界面另给。这里给一个一律拒绝的，
+        // 万一被拿去用也只会在发送任何登录信息前断开。
+        verifyHostKey: (_, __, ___) async => false,
+        keyboardInteractive: null,
+        resumeTmux: tmux,
+        restored: true,
+      )
+        ..connected = false
+        ..restoreHold = hold;
 
   final String id;
   final HostProfile host;
@@ -216,20 +246,44 @@ class ActiveTerminalSession {
 
   /// 终端输入交给这条连接的绑定。恢复时新连接一绑定，这条就失效，旧代次再发不出字节。
   final TerminalBinding? _binding;
-  final List<SSHClient> sshClients;
+
+  /// 目标和各跳板的 SSH 客户端。连接断了、凭据副本清掉时（[forgetSecrets]）清空：
+  /// dartssh2 的客户端对象一直拿着解析好的私钥和密码回调，断了的连接留着它们没有用处。
+  List<SSHClient> get sshClients => _sshClients;
+  List<SSHClient> _sshClients;
   final SSHSession? sshSession;
   final Socket? telnetSocket;
 
   /// 建这条连接时冻结的路线（含每一跳的主机配置和私钥副本）。断线恢复沿用它：
   /// 自动恢复只能走同一条路线，不能因为用户期间改了配置就悄悄换代理、换身份（NET10，docs/07）。
-  /// 手工构造的会话（测试）可能没有，恢复时再按保险库现算。
-  final RoutePlan? routePlan;
+  /// 手工构造的会话（测试）和放回来的标签没有，恢复时再按保险库现算。
+  ///
+  /// App 在后台待久了，凭据副本会被清掉（[forgetSecrets]），只留路线形状（R22，SEC07）。
+  RoutePlan? get routePlan => _routePlan;
+  RoutePlan? _routePlan;
+
+  /// 清掉这个标签自己拿着的凭据副本：冻结路线里的密码、私钥、代理口令；连接已经断了的，
+  /// 连同 SSH 客户端对象一起放掉。还连着的不动客户端——dartssh2 的客户端在连接存续期间
+  /// 一直引用着登录用过的私钥，App 拿不走（使用手册写明）。
+  void forgetSecrets() {
+    final plan = _routePlan;
+    if (plan != null && !plan.secretsForgotten) {
+      _routePlan = plan.withoutSecrets();
+    }
+    if (_released) _sshClients = const [];
+  }
 
   /// 这个标签附着的 tmux 客户端（R21）；普通 shell 标签为 null。
   ///
   /// 断线恢复按其中的目标重新附着：远端先核对 uid、socket、server 代次、session ID 和创建时间，
   /// 对不上就停下，不按名字找替身、不新建（TMX04/TMX05）。
   final TmuxClientBinding? tmux;
+
+  /// 放回来的标签（[ActiveTerminalSession.restored]）上次附着的 tmux 目标；重新连接时照它附着、照样先核对。
+  final TmuxTarget? resumeTmux;
+
+  /// 这是上次 App 被结束前的标签放回来的，没有连过（见 [ActiveTerminalSession.restored]）。
+  final bool restored;
 
   /// 由插件承载的终端（Mosh）；SSH、Telnet 标签为 null。
   ///
@@ -242,8 +296,12 @@ class ActiveTerminalSession {
   bool connected = true;
   bool closedByUser = false;
 
-  /// 自动恢复遇到了只能由用户处理的事（Tailscale check），之后不再自动重试这个标签。
-  bool autoRestoreBlocked = false;
+  /// 自动恢复停了、为什么停（R22）；没停时为 null。
+  RestoreHold? restoreHold;
+
+  /// 自动恢复遇到了只能由用户处理的事（指纹、凭据、Tailscale check、tmux 目标不在了……），
+  /// 不再自动重试这个标签，等用户点「重新连接」。
+  bool get autoRestoreBlocked => restoreHold?.kind == RestoreHoldKind.untilUser;
   bool _released = false;
   bool _outputDetached = false;
   ServerSystemInfo? systemInfo;

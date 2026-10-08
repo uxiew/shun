@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -26,6 +28,9 @@ class _NetcattyAppState extends ConsumerState<NetcattyApp>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    // 会话控制器一启动就建：它要放回上次被系统结束前的标签、听通知上的「全部断开」和网络变化，
+    // 保活服务也由它按会话状态开关（R22）。
+    ref.read(sessionControllerProvider.notifier);
     _autoSyncSubscription = ref.listenManual<bool>(
       settingsControllerProvider.select((settings) => settings.autoSyncEnabled),
       (_, enabled) => ref
@@ -44,14 +49,14 @@ class _NetcattyAppState extends ConsumerState<NetcattyApp>
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    final platform = ref.read(connectionPlatformProvider);
     if (state == AppLifecycleState.resumed) {
-      ConnectionPlatformService.endBackgroundGrace();
+      unawaited(platform.endBackgroundGrace());
       ref.read(sessionControllerProvider.notifier).setBackgrounded(false);
       ref.read(autoSyncControllerProvider.notifier).onAppResumed();
-    } else if (state == AppLifecycleState.inactive ||
-        state == AppLifecycleState.paused ||
-        state == AppLifecycleState.hidden) {
-      ConnectionPlatformService.beginBackgroundGrace();
+    } else {
+      unawaited(platform.beginBackgroundGrace());
+      // detached：界面（Activity）走了、引擎还留着（有会话时，R22），会话在后台接着跑。
       if (state != AppLifecycleState.inactive) {
         ref.read(sessionControllerProvider.notifier).setBackgrounded(true);
       }
@@ -60,20 +65,6 @@ class _NetcattyAppState extends ConsumerState<NetcattyApp>
 
   @override
   Widget build(BuildContext context) {
-    ref.listen<bool>(
-      sessionControllerProvider.select(
-        // Start while the user-initiated connection is still in the foreground;
-        // Android 12+ can reject a service first started after the app is hidden.
-        // A disconnected tab also keeps it alive so recovery retains CPU time.
-        (value) =>
-            value.sessions.isNotEmpty ||
-            value.pendingConnections.any(
-              (connection) =>
-                  connection.phase == PendingConnectionPhase.connecting,
-            ),
-      ),
-      (previous, next) => ConnectionPlatformService.setActive(next),
-    );
     final settings = ref.watch(settingsControllerProvider);
     NetcattyLocalizations.use(settings.language);
     final mode = switch (settings.themeMode) {

@@ -55,6 +55,15 @@ class SessionMonitor extends ChangeNotifier {
     _timer = null;
   }
 
+  /// App 退到后台：先不轮询（R22）。基座在后台也每 3 秒开一个 exec 通道读 /proc，
+  /// 屏幕关着、没人看，白费电和流量。[resume] 接着来；停过（[stop]）的不会被 resume 拉起来。
+  void pause() {
+    _timer?.cancel();
+    _timer = null;
+  }
+
+  void resume() => start();
+
   @override
   void dispose() {
     stop();

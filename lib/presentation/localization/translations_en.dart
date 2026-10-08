@@ -1,4 +1,37 @@
 const englishTranslations = <String, String>{
+  // R22：连接生命周期（session_controller.dart、connection_lifecycle.dart、终端页的状态条）。整句精确匹配。
+  '这台主机已经从保险库里删掉了。': 'This host has been deleted from the vault.',
+  '这台主机已经从保险库里删掉了，没有自动恢复。要连就重新从主机列表打开。':
+      'This host has been deleted from the vault, so it was not restored automatically. To connect, open it again from the host list.',
+  '断线时手机锁着，后台没有重新登录。解锁回到 App 会自动恢复，也可以点「重新连接」。':
+      'The phone was locked when the connection dropped, so the app did not log in again in the background. Unlock and return to the app to restore it automatically, or tap “Reconnect”.',
+  '这台主机要在浏览器里完成 Tailscale check，自动恢复不替你打开链接。关掉这个标签、从主机列表重新连接，会显示确认链接。':
+      'This host needs a Tailscale check in the browser, and automatic recovery does not open the link for you. Close this tab and connect again from the host list to see the confirmation link.',
+  '会话已结束。点「重新连接」会新开一个会话（新的 shell），不是接回原来那个。':
+      'The session has ended. “Reconnect” opens a new session (a new shell); it does not resume the old one.',
+  '已从通知「全部断开」。不会自动重连；要继续就点「重新连接」。':
+      'Disconnected with “Disconnect all” in the notification. It will not reconnect automatically; tap “Reconnect” to continue.',
+  '已从通知「全部断开」，这个会话断开了。':
+      'Disconnected with “Disconnect all” in the notification; this session is closed.',
+  '后台服务被系统停了，会话随之断开，没有自动重连。要继续就点「重新连接」。':
+      'The system stopped the background service, so the sessions were disconnected and not reconnected automatically. Tap “Reconnect” to continue.',
+  '后台服务被系统停了，这个会话断开了。':
+      'The system stopped the background service; this session is closed.',
+  '锁着屏时断线不会在后台重新登录，解锁回到 App 再恢复':
+      'If a connection drops while the phone is locked, it is not logged in again in the background; unlock and return to the app to restore it',
+  '点「重新连接」按现在的配置连（不跑启动命令）。':
+      'Tap “Reconnect” to connect with the current settings (the startup command is not run).',
+  '点「重新连接」按现在的配置连，tmux 会话先核对还是不是原来那个再附着。':
+      'Tap “Reconnect” to connect with the current settings; the tmux session is verified to be the same one before attaching.',
+  '上次 App 被系统结束或强行停止，会话断开了。不会自动重连，点「重新连接」才连。':
+      'The app was ended by the system or force-stopped last time, so the session was disconnected. It will not reconnect automatically; tap “Reconnect” to connect.',
+  '断线期间这台主机的地址、代理、跳板机或登录身份改过。自动恢复只走原来那条路线，所以停了；点「重新连接」按现在的配置连。':
+      'This host’s address, proxy, jump hosts or login identity changed while it was disconnected. Automatic recovery only uses the original route, so it stopped; tap “Reconnect” to connect with the current settings.',
+  '连接断了，正在自动恢复…': 'Connection lost, restoring automatically…',
+  '连接断了。手机现在没有网络，网络回来后自动恢复。':
+      'Connection lost. The phone has no network right now; it will restore automatically when the network is back.',
+  '连接已断开。': 'Disconnected.',
+  '重新连接': 'Reconnect',
   '打开': 'Open',
   '完成': 'Done',
   '切换': 'Switch',
@@ -1637,6 +1670,57 @@ const englishTranslations = <String, String>{
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // R22：连接生命周期里带插值的句子，按片段翻；放在最前面，免得被「会话」「连接」之类拆碎。
+  (
+    '断线后 ',
+    'Not restored within ',
+  ),
+  (
+    ' 分钟内没恢复上，自动恢复停了。回到 App 会再试一轮，也可以点「重新连接」。',
+    ' minutes of the drop, so automatic recovery stopped. Returning to the app tries once more; you can also tap “Reconnect”.',
+  ),
+  ('这台主机的地址改过（原来是 ', 'This host’s address has changed (it was '),
+  (
+    '），上次附着的 tmux 会话在原来那台机器上，没有附着。',
+    '). The tmux session attached last time is on the old machine, so it was not attached.',
+  ),
+  (
+    '原来的 tmux 会话不在了，没有新建也没有附着别的：',
+    'The original tmux session is gone; nothing was created or attached instead: ',
+  ),
+  (
+    'tmux 客户端已退出（分离了，或会话已结束），不会自动重新附着。会话 ',
+    'The tmux client exited (detached, or the session ended) and will not be reattached automatically. Session ',
+  ),
+  (
+    ' 如果还在，点「重新连接」会核对后附着它。',
+    ': if it still exists, “Reconnect” verifies it and attaches.',
+  ),
+  ('连接已断开，正在自动恢复（最多 ', 'Connection lost; restoring automatically (up to '),
+  (' 分钟）…', ' minutes)…'),
+  (
+    '连接已断开。手机现在没有网络，网络回来后自动恢复。',
+    'Connection lost. The phone has no network right now; it will restore automatically when the network is back.',
+  ),
+  (' 个连着', ' connected'),
+  (' 个在恢复', ' restoring'),
+  (' 个在连接', ' connecting'),
+  ('xwshun 终端：', 'xwshun terminals: '),
+  ('后台保活没开起来（', 'The background keep-alive did not start ('),
+  (
+    '）：App 在后台时系统可能停掉连接。回到 App 会再开一次。',
+    '): while the app is in the background the system may stop the connections. It will be started again when you return to the app.',
+  ),
+  (
+    '上次 App 被系统结束或强行停止，这个会话断开了。',
+    'The app was ended by the system or force-stopped last time, so this session was disconnected. ',
+  ),
+  ('自动恢复停了，没有再试：', 'Automatic recovery stopped and did not retry: '),
+  (
+    '断线期间这台主机的连接路径改过，现在的配置有问题：',
+    'This host’s connection route changed while it was disconnected, and the current settings have a problem: ',
+  ),
+  ('重新连接失败：', 'Reconnect failed: '),
   ('终端引擎 ', 'Terminal engine '),
   (' 无法启动：', ' could not start: '),
   // R21：tmux 的报错、提示和带插值的句子，按片段翻。都比较长，放在通用片段前面，免得被「会话」「附着」之类拆碎。
