@@ -1,23 +1,22 @@
 package app.netcatty.mobile
 
-import android.Manifest
 import android.app.PictureInPictureParams
+import android.content.Context
 import android.content.res.Configuration
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
 import android.os.Bundle
 import android.util.Rational
-import androidx.core.app.ActivityCompat
-import androidx.core.content.ContextCompat
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
 
 class MainActivity : FlutterActivity() {
+    // 这几个要用 Activity（选目录的 startActivityForResult、拉起 UU/RustDesk、画中画），跟着界面建、跟着界面撤。
+    // 跟引擎同寿命的（连接、插件桥）在 ProcessEngine 里。
     private var documentTreeChannel: DocumentTreeChannel? = null
     private var pictureInPictureChannel: MethodChannel? = null
-    private var pluginBridge: PluginBridge? = null
     private var uuRemoteBridge: UuRemoteBridge? = null
     private var rustDeskBridge: RustDeskBridge? = null
 
@@ -36,45 +35,35 @@ class MainActivity : FlutterActivity() {
         super.onNewIntent(intent)
     }
 
+    /** 引擎归进程（R22），见 ProcessEngine。 */
+    override fun provideFlutterEngine(context: Context): FlutterEngine = ProcessEngine.obtain(context)
+
+    /**
+     * 有会话时界面走了引擎也留着，会话照常在后台跑（所有者 10-08 定：从最近任务划掉 App 不断开，
+     * 要断从通知上点「全部断开」）；没有会话就跟着界面销毁，下次冷启动。
+     */
+    override fun shouldDestroyEngineWithHost(): Boolean =
+        !isChangingConfigurations && !ProcessEngine.keepWithoutActivity
+
+    /**
+     * 在首页再按返回：退到后台，不结束 Activity。和 Android 12 起系统对启动器根 Activity 的默认做法一样；
+     * FlutterActivity 重写了返回键，默认会 finish()，在 Android 7–11、以及没开预测性返回的版本上
+     * 一个返回手势就把会话全断了（R17 发现的问题 2）。
+     */
+    override fun popSystemNavigator(): Boolean {
+        moveTaskToBack(true)
+        return true
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        ProcessEngine.currentActivity = this
         documentTreeChannel = DocumentTreeChannel(
             this,
             flutterEngine.dartExecutor.binaryMessenger,
         )
-        pluginBridge = PluginBridge(this, flutterEngine.dartExecutor.binaryMessenger)
         uuRemoteBridge = UuRemoteBridge(this, flutterEngine.dartExecutor.binaryMessenger)
         rustDeskBridge = RustDeskBridge(this, flutterEngine.dartExecutor.binaryMessenger)
-        MethodChannel(
-            flutterEngine.dartExecutor.binaryMessenger,
-            "app.netcatty.mobile/connection",
-        ).setMethodCallHandler { call, result ->
-            when (call.method) {
-                "setActive" -> {
-                    val active = call.argument<Boolean>("active") == true
-                    if (active) {
-                        requestNotificationPermission()
-                        SshKeepAliveService.stopWhenStarted = false
-                        ContextCompat.startForegroundService(
-                            this,
-                            Intent(this, SshKeepAliveService::class.java),
-                        )
-                        SshKeepAliveService.requested = true
-                    } else if (SshKeepAliveService.inForeground) {
-                        stopService(Intent(this, SshKeepAliveService::class.java))
-                    } else if (SshKeepAliveService.requested) {
-                        // 服务刚被拉起、还没在 onCreate 里 startForeground 时不能 stopService：
-                        // 系统会以 ForegroundServiceDidNotStartInTimeException 杀掉整个 App。
-                        // 连接在拨号前就失败（路线配置错、凭据解不开）时必现，模拟器 API 35 实测。
-                        // 改为记下来，由服务进入前台后自己停。
-                        SshKeepAliveService.stopWhenStarted = true
-                    }
-                    result.success(null)
-                }
-                "beginBackgroundGrace", "endBackgroundGrace" -> result.success(null)
-                else -> result.notImplemented()
-            }
-        }
         pictureInPictureChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "app.netcatty.mobile/picture_in_picture",
@@ -123,35 +112,21 @@ class MainActivity : FlutterActivity() {
         super.onActivityResult(requestCode, resultCode, data)
     }
 
-    override fun onDestroy() {
+    /** 界面和引擎脱开（Activity 销毁、引擎可能留着）：只撤要用 Activity 的通道，连接和插件桥不动。 */
+    override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         documentTreeChannel?.dispose()
         documentTreeChannel = null
-        pluginBridge?.dispose()
-        pluginBridge = null
         uuRemoteBridge?.dispose()
         uuRemoteBridge = null
         rustDeskBridge?.dispose()
         rustDeskBridge = null
         pictureInPictureChannel?.setMethodCallHandler(null)
         pictureInPictureChannel = null
-        super.onDestroy()
+        if (ProcessEngine.currentActivity === this) ProcessEngine.currentActivity = null
+        super.cleanUpFlutterEngine(flutterEngine)
     }
 
     private fun isPictureInPictureSupported(): Boolean =
         Build.VERSION.SDK_INT >= Build.VERSION_CODES.O &&
             packageManager.hasSystemFeature(PackageManager.FEATURE_PICTURE_IN_PICTURE)
-
-    private fun requestNotificationPermission() {
-        if (
-            Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-            ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
-            ActivityCompat.requestPermissions(
-                this,
-                arrayOf(Manifest.permission.POST_NOTIFICATIONS),
-                701,
-            )
-        }
-    }
 }
