@@ -228,6 +228,9 @@ void main() {
       case 'framesview':
         await _framesScenario(tester, controller,
             page: false, liveSeconds: 1200, every: 120);
+      case 'framestext':
+        await _framesScenario(tester, controller,
+            page: false, text: true, liveSeconds: 1200, every: 120);
       case 'seed':
         await _seedScenario(tester, controller);
       case 'soak':
@@ -477,8 +480,12 @@ Future<void> _sshCycleScenario(
 /// 后一段涨、前一段不涨，就是按帧在涨；两个画面比，分得出涨在终端视图还是页上别的部件。
 ///
 /// `framesview` 只量终端视图、一直出帧 20 分钟（每 2 分钟一次），看涨到一定程度停不停；不连 SSH。
+/// `framestext` 是它的对照组：同样的字换成 Flutter 自带的 Text，分得清涨在 Ghostty 还是 Flutter/测试框架自己。
 Future<void> _framesScenario(WidgetTester tester, SessionController controller,
-    {bool page = true, int liveSeconds = 240, int every = 30}) async {
+    {bool page = true,
+    bool text = false,
+    int liveSeconds = 240,
+    int every = 30}) async {
   final binding = IntegrationTestWidgetsFlutterBinding.instance;
   Future<void> measure(String name) async {
     Future<void> sample(String phase, int seconds) async {
@@ -509,6 +516,22 @@ Future<void> _framesScenario(WidgetTester tester, SessionController controller,
     await measure('page');
   }
 
+  if (text) {
+    // 对照组：同样 40 行红字中文，换成 Flutter 自带的 Text，不经 Ghostty。
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: Text(
+          '中文 frames\n' * 40,
+          style: const TextStyle(
+              fontSize: 13, color: Colors.red, fontFamily: 'monospace'),
+        ),
+      ),
+    ));
+    await frames(tester);
+    await measure('text');
+    await tester.pumpWidget(const SizedBox());
+    return;
+  }
   final terminal = GhosttyTerminalAdapter();
   terminal.feed(
       Uint8List.fromList(utf8.encode('\x1b[31m中文 frames\x1b[0m\r\n' * 40)));
