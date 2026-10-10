@@ -650,12 +650,24 @@ Future<void> _soakScenario(
   final every = Duration(minutes: minutes >= 10 ? 5 : 1);
   final wifi = _cfg['wifi'] as Map<String, dynamic>;
   HostProfile overWifi(String id) => edgeHost(id,
-      hostname: wifi['host'] as String, port: (wifi['port'] as num).toInt());
+      hostname: wifi['host'] as String,
+      port: (wifi['port'] as num).toInt(),
+      ephemeral: false);
+  // 主机先存进保险库再从列表里打开，和真实用法一样：后台满 10 分钟清掉凭据副本后，恢复要回保险库重取。
+  // 10-10 第二轮用的是不在保险库里的临时主机，USB 那条在清掉之后才断，恢复时找不到来源，
+  // 停在「这台主机已经从保险库里删掉了」——那是测试造的，正式 App 的标签都对应保险库里的主机。
+  final vault = _container.read(vaultControllerProvider.notifier);
+  Future<ActiveTerminalSession> saved(HostProfile host) async {
+    await vault.upsertHost(host);
+    return open(controller,
+        (await vault.ready()).hosts.firstWhere((value) => value.id == host.id));
+  }
+
   await action('soak-start');
   final tabs = <String, ActiveTerminalSession>{
-    'usb': await open(controller, edgeHost('life07-usb')),
-    'wifi': await open(controller, overWifi('life07-wifi')),
-    'tick': await open(controller, overWifi('life07-tick')),
+    'usb': await saved(edgeHost('life07-usb', ephemeral: false)),
+    'wifi': await saved(overWifi('life07-wifi')),
+    'tick': await saved(overWifi('life07-tick')),
   };
   final started = DateTime.now();
   tabs['tick']!.terminal.sendText(
@@ -753,6 +765,14 @@ Future<void> _soakScenario(
           '+${wall.inSeconds}s ${describe(controller)} tick=${lastTick()}');
       r22('lock.slept',
           '${(wall - awake.elapsed).inSeconds}s of ${wall.inSeconds}s (awake ${awake.elapsed.inSeconds}s)');
+      // 锁屏超过 10 分钟的话，回前台那一刻各标签冻结路线里的凭据应当已经清掉（SEC07，按墙上时钟算）。
+      // 10-10 第一轮锁了 31 分钟、CPU 只醒 2 分钟，修之前这里会是 false。
+      r22(
+          'lease.forgotten',
+          [
+            for (final MapEntry(:key, :value) in tabs.entries)
+              '$key:${tabOf(controller, value.id)?.routePlan?.secretsForgotten}',
+          ].join(','));
       await probe('resume.probe');
     }
     await Future<void>.delayed(const Duration(milliseconds: 200));

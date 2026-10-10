@@ -92,6 +92,7 @@ cleanup() {
   fi
   exec 7>&- 2>/dev/null   # 关掉转发的标准输入，xdwmbp 上的转发随之退出
   sleep 1
+  ssh "$REMOTE" rm -f /tmp/xwshun-tcp-relay.py 2>/dev/null
   host "restored: stay_on_while_plugged_in=$(adb shell settings get global stay_on_while_plugged_in 2>/dev/null | tr -d '\r')" \
     "app-installed=$(adb shell pm path $PKG 2>/dev/null | grep -c package || true)" \
     "relay-left=$(ssh "$REMOTE" "pgrep -f xwshun-tcp-relay | wc -l" 2>/dev/null | tr -d ' ')"
