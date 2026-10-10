@@ -1066,12 +1066,21 @@ class SessionController extends StateNotifier<SessionState> {
     final connecting = state.pendingConnections
         .where((value) => value.phase == PendingConnectionPhase.connecting)
         .length;
+    // 停着的标签自己不让服务开着，但服务因为别的标签开着时要写出来：LIFE07 真机上锁屏断掉的那条
+    // 只剩「2 个连着」，看不出还有一条在等解锁。
+    int held(RestoreHoldKind kind) => state.sessions
+        .where((value) => !value.connected && value.restoreHold?.kind == kind)
+        .length;
+    final waiting = held(RestoreHoldKind.untilForeground);
+    final stopped = held(RestoreHoldKind.untilUser);
     KeepAliveRequest? next;
     if (connected + recovering + connecting > 0) {
       final parts = [
         if (connected > 0) '$connected 个连着',
         if (recovering > 0) '$recovering 个在恢复',
         if (connecting > 0) '$connecting 个在连接',
+        if (waiting > 0) '$waiting 个等回到 App 再恢复',
+        if (stopped > 0) '$stopped 个停了，要你处理',
       ];
       final summary = parts.join('，');
       next = KeepAliveRequest(

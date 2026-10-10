@@ -1705,6 +1705,8 @@ const englishReplacements = <(String, String)>[
   (' 个连着', ' connected'),
   (' 个在恢复', ' restoring'),
   (' 个在连接', ' connecting'),
+  (' 个等回到 App 再恢复', ' waiting for you to return to the app'),
+  (' 个停了，要你处理', ' stopped, need you'),
   ('xwshun 终端：', 'xwshun terminals: '),
   ('后台保活没开起来（', 'The background keep-alive did not start ('),
   (

@@ -371,10 +371,24 @@ void main() {
       service.calls.last.result.completeError(SSHAuthFailError('denied'));
       await settle();
       expect(platform.requests.last!.title, isNot(contains('在恢复')));
+      expect(platform.requests.last!.title, contains('1 个连着，1 个停了，要你处理'));
       await controller.close(
           controller.state.sessions.indexWhere((value) => value.id == a.id));
       await settle();
       expect(platform.requests.last, isNull, reason: '只剩一个停着等用户的标签：没有要保的东西');
+    });
+
+    test('锁屏时断掉、等回到 App 的标签也写进通知（LIFE07 真机上只写了「2 个连着」）', () async {
+      final host = hostWith();
+      await start(hosts: [host]);
+      await connected(host);
+      final b = await connected(host);
+      await connected(host);
+      controller.setBackgrounded(true);
+      platform.locked = true;
+      b.drop();
+      await settle();
+      expect(platform.requests.last!.title, 'xwshun 终端：2 个连着，1 个等回到 App 再恢复');
     });
   });
 
