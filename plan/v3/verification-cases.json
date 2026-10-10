@@ -596,9 +596,11 @@
       "action": "真实设备 30 分钟前台 + 30 分钟锁屏，记录环境；关闭省电豁免与启用时分别记录。",
       "expected": "状态真实、无重复操作；不能以需要豁免的结果宣称默认配置无限保活。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
-      "evidence": []
+      "evidence": [
+        "evidence/R22.md"
+      ]
     },
     {
       "id": "UX01",
