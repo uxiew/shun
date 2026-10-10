@@ -4,6 +4,7 @@
 // 这不是 CI 测试。要本机的 Docker 测试环境和一台模拟器，经 tool/r22-lifecycle.sh 跑：
 //   (cd tool/fixture-environment && ./up.sh)
 //   tool/r22-lifecycle.sh emulator-5580 notify|svcstop|network|lock|proxy|activity|engine|seed
+// 真机长测 soak（LIFE07）经 tool/r22-soak.sh 跑，要所有者在场锁屏、解锁。
 // 测试和脚本靠两样东西对话：测试打 "R22 ACTION=<名字>" 请脚本在手机/测试环境上做一件事（按 HOME、点通知、
 // 关 Wi-Fi、锁屏、停代理……），脚本做完用 run-as 在 App 私有目录里放一个 r22/<名字> 文件，测试看到它再往下走。
 // App 在后台时 Flutter 不出帧，等待一律用真实时钟（Future.delayed），不用 tester.pump。
@@ -36,7 +37,15 @@ import 'package:shared_preferences/shared_preferences.dart';
 const _scenario = String.fromEnvironment('R22_SCENARIO');
 const _config = String.fromEnvironment('R22_CONFIG');
 
-void r22(String key, Object? value) => debugPrint('R22 $key=$value');
+File? _logFile;
+
+/// 真机长测锁屏时要拔 USB 线，flutter 那头的输出就断了：同样的行再写一份到 App 私有目录的 r22/log.txt，
+/// 脚本插回线后从那里读。
+void r22(String key, Object? value) {
+  final line = 'R22 $key=$value';
+  debugPrint(line);
+  _logFile?.writeAsStringSync('$line\n', mode: FileMode.append, flush: true);
+}
 
 /// 请脚本做一件事，等它做完（它在 App 私有目录放 r22/<名字>）。
 Future<void> action(String name,
@@ -71,9 +80,10 @@ Future<void> frames(WidgetTester tester, [int ms = 600]) async {
   }
 }
 
-/// 数每条标签发起了几次连接（新开和恢复都算）。真连接照常建，只是记个数。
+/// 数每条标签发起了几次连接（新开和恢复都算）、其中几次连上了。真连接照常建，只是记个数。
 class _CountingSshService extends SshService {
   final calls = <String, int>{};
+  final succeeded = <String, int>{};
   final purposes = <ConnectionPurpose>[];
 
   int get total => calls.values.fold(0, (a, b) => a + b);
@@ -95,7 +105,8 @@ class _CountingSshService extends SshService {
   }) {
     calls[sessionId] = (calls[sessionId] ?? 0) + 1;
     purposes.add(purpose);
-    return super.connect(
+    return super
+        .connect(
       sessionId: sessionId,
       host: host,
       hosts: hosts,
@@ -108,7 +119,11 @@ class _CountingSshService extends SshService {
       purpose: purpose,
       attempt: attempt,
       tmuxAttach: tmuxAttach,
-    );
+    )
+        .then((session) {
+      succeeded[sessionId] = (succeeded[sessionId] ?? 0) + 1;
+      return session;
+    });
   }
 }
 
@@ -118,6 +133,10 @@ late Map<String, dynamic> _cfg;
 
 Future<SessionController> startApp(WidgetTester tester) async {
   _cfg = jsonDecode(_config) as Map<String, dynamic>;
+  final logDir =
+      Directory('${(await getApplicationSupportDirectory()).path}/r22')
+        ..createSync(recursive: true);
+  _logFile = File('${logDir.path}/log.txt');
   final repository = await VaultRepository.open();
   _container = ProviderContainer(overrides: [
     vaultRepositoryProvider.overrideWithValue(repository),
@@ -133,14 +152,15 @@ Future<SessionController> startApp(WidgetTester tester) async {
   return _container.read(sessionControllerProvider.notifier);
 }
 
-/// 测试环境边缘 sshd（adb reverse 的 22201，走 adb 通道、不经模拟器网络）或经模拟器网络的 10.0.2.2。
+/// 测试环境边缘 sshd（adb reverse 的 22201，走 adb 通道、不经模拟器网络）或经模拟器网络的 10.0.2.2；
+/// 真机走 Wi-Fi 时是 xdwmbp 上的转发口。
 HostProfile edgeHost(String id,
-        {String hostname = '127.0.0.1', bool ephemeral = true}) =>
+        {String hostname = '127.0.0.1', int? port, bool ephemeral = true}) =>
     HostProfile({
       'id': id,
       'label': id,
       'hostname': hostname,
-      'port': _cfg['edge']['port'],
+      'port': port ?? _cfg['edge']['port'],
       'username': _cfg['user'],
       'password': _cfg['password'],
       'authMethod': 'password',
@@ -204,11 +224,20 @@ void main() {
         await _sshCycleScenario(tester, controller);
       case 'seed':
         await _seedScenario(tester, controller);
+      case 'soak':
+        try {
+          await _soakScenario(tester, controller);
+        } on Object catch (error) {
+          // 拔过线之后 flutter 那头收不到测试结果，脚本靠这一行知道测试已经结束。
+          r22('FAILED', error);
+          rethrow;
+        }
       default:
         fail('不认识的场景：$_scenario');
     }
     r22('DONE', _scenario);
-  }, timeout: const Timeout(Duration(minutes: 40)));
+    // soak 是前台 + 锁屏各 30 分钟，再加等所有者锁屏、解锁的时间。
+  }, timeout: Timeout(Duration(minutes: _scenario == 'soak' ? 180 : 40)));
 }
 
 /// LIFE02：通知「全部断开」（notify）或系统停了服务（svcstop），然后切网络：不复活、不重新登录；
@@ -517,4 +546,170 @@ Future<void> _seedScenario(
   r22('SEEDED', describe(controller));
   // 等脚本结束进程（stop-app / force-stop）。
   await Future<void>.delayed(const Duration(minutes: 30));
+}
+
+/// LIFE07（真机，tool/r22-soak.sh）：前台 minutes 分钟、再锁屏同样长；省电豁免关、开各跑一轮（豁免由脚本加）。
+/// 锁屏前所有者先拔掉 USB 线（插着线手机 CPU 不睡，测不出真情况），到点插回再解锁。
+/// 三条标签：usb 走 adb reverse（经 USB，拔线就断，解锁后该恢复），wifi 和 tick 走手机 Wi-Fi 到 xdwmbp 上的转发；
+/// tick 的 shell 每 5 分钟打一行 tick-N，看锁屏时远端的输出还到不到。
+/// 「状态真实」：每个检查点在 App 说「连着」的标签上跑一条命令，跑不通（NOREPLY）就是嘴上连着。
+/// 「无重复操作」：每条标签连上的次数不超过 1 + 它真断过的次数（连不上按退避再试不算）。
+/// 锁屏时手机睡了多久：Stopwatch 不算休眠时间，和墙上时钟一减就是。
+Future<void> _soakScenario(
+    WidgetTester tester, SessionController controller) async {
+  final minutes = (_cfg['minutes'] as num).toInt();
+  final every = Duration(minutes: minutes >= 10 ? 5 : 1);
+  final wifi = _cfg['wifi'] as Map<String, dynamic>;
+  HostProfile overWifi(String id) => edgeHost(id,
+      hostname: wifi['host'] as String, port: (wifi['port'] as num).toInt());
+  // 让 App 像平时一样自己出帧，不靠 tester.pump：App 被盖住（插着电时按电源键进的是屏保）时 pump 等不到帧，
+  // 测试会一直卡在那里（试跑时卡过一次）。
+  IntegrationTestWidgetsFlutterBinding.instance.framePolicy =
+      LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
+  await action('soak-start');
+  final tabs = <String, ActiveTerminalSession>{
+    'usb': await open(controller, edgeHost('life07-usb')),
+    'wifi': await open(controller, overWifi('life07-wifi')),
+    'tick': await open(controller, overWifi('life07-tick')),
+  };
+  final started = DateTime.now();
+  tabs['tick']!.terminal.sendText(
+      'i=0; while :; do i=\$((i+1)); echo tick-\$i; sleep 300; done\r');
+  r22(
+      'server-pids',
+      [
+        for (final MapEntry(:key, :value) in tabs.entries)
+          '$key:${(await exec(value, 'echo \$PPID')).trim()}',
+      ].join(','));
+
+  int lastTick() => RegExp(r'tick-(\d+)')
+      .allMatches(tabOf(controller, tabs['tick']!.id)?.terminal.allText() ?? '')
+      .map((match) => int.parse(match[1]!))
+      .fold(0, (a, b) => a > b ? a : b);
+  // 尝试次数/连上次数。恢复时连不上按退避再试（1、2、5…秒）不算重复，多连上一次才算。
+  String calls() => [
+        for (final MapEntry(:key, :value) in tabs.entries)
+          '$key:${_service.calls[value.id] ?? 0}/${_service.succeeded[value.id] ?? 0}',
+      ].join(',');
+  final probes = <String>[];
+  Future<String> probe(String label) async {
+    final result = [
+      for (final MapEntry(:key, :value) in tabs.entries)
+        '$key:${await _probeOne(tabOf(controller, value.id))}',
+    ].join(',');
+    probes.add(result);
+    r22(label, result);
+    return result;
+  }
+
+  final drops = {for (final name in tabs.keys) name: 0};
+  final wasUp = {for (final name in tabs.keys) name: true};
+  var last = '';
+  void watch(String phase, DateTime since) {
+    for (final MapEntry(:key, :value) in tabs.entries) {
+      final up = tabOf(controller, value.id)?.connected == true;
+      if (wasUp[key]! && !up) drops[key] = drops[key]! + 1;
+      wasUp[key] = up;
+    }
+    final now = '${describe(controller)} tick=${lastTick()} '
+        'app=${WidgetsBinding.instance.lifecycleState?.name}';
+    if (now != last) {
+      r22('$phase+${DateTime.now().difference(since).inSeconds}s', now);
+      last = now;
+    }
+  }
+
+  // 前台：屏幕亮着、App 在最前（脚本让手机插着电时不灭屏）。App 被盖住的话 watch 会记下 app=hidden 之类。
+  var check = 0;
+  while (DateTime.now().isBefore(started.add(Duration(minutes: minutes)))) {
+    watch('fg', started);
+    if (!DateTime.now().isBefore(started.add(every * check))) {
+      await probe('fg-check-$check');
+      await action('facts-fg-$check');
+      check++;
+    }
+    await Future<void>.delayed(const Duration(seconds: 1));
+  }
+  await probe('fg-end');
+  r22('fg-end.calls', '${calls()} drops=$drops');
+
+  // 锁屏：所有者先拔线、再按电源键（插着线按电源键进的是屏保，拔了线屏保也可能不退，手机一直醒着）。
+  // 拔线后脚本够不着手机，所以锁屏时刻由测试自己看 App 进后台来记；脚本等所有者插回线、解锁之后才回「lock」。
+  // 锁着时 CPU 醒着才轮得到这里记一笔，所以只记变化。
+  var unlocked = false;
+  Object? failure;
+  final unlocking = action('lock', timeout: Duration(minutes: minutes + 60))
+      .then((_) => unlocked = true, onError: (Object error) {
+    failure = error;
+    unlocked = true;
+  });
+  while (!unlocked &&
+      WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+    watch('fg', started);
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+  }
+  final lockedAt = DateTime.now();
+  final awake = Stopwatch()..start();
+  // 解锁那一刻（App 回到 resumed）先记 App 说的，立刻逐条核对；这时恢复才刚开始，看到的就是用户看到的。
+  var resumed = false;
+  while (!unlocked) {
+    watch('lock', lockedAt);
+    final lifecycle = WidgetsBinding.instance.lifecycleState;
+    if (!resumed && lifecycle == AppLifecycleState.resumed) {
+      resumed = true;
+      final wall = DateTime.now().difference(lockedAt);
+      r22('resumed',
+          '+${wall.inSeconds}s ${describe(controller)} tick=${lastTick()}');
+      r22('lock.slept',
+          '${(wall - awake.elapsed).inSeconds}s of ${wall.inSeconds}s (awake ${awake.elapsed.inSeconds}s)');
+      await probe('resume.probe');
+    }
+    await Future<void>.delayed(const Duration(milliseconds: 200));
+  }
+  await unlocking;
+  if (failure != null) throw failure!;
+  r22('lock.resume-seen', resumed);
+
+  r22('unlock.claimed', '${describe(controller)} tick=${lastTick()}');
+  watch('unlock', lockedAt);
+  final back = await until(
+      () => tabs.values
+          .every((value) => tabOf(controller, value.id)?.connected == true),
+      timeout: const Duration(seconds: 90));
+  watch('unlock', lockedAt);
+  await Future<void>.delayed(const Duration(milliseconds: 1500));
+  await action('shot-life07-unlocked');
+  r22('unlock.recovered', '$back ${describe(controller)}');
+  await probe('unlock.probe-after');
+  r22('ticks',
+      'last=${lastTick()} expected=${1 + DateTime.now().difference(started).inSeconds ~/ 300}');
+  r22('drops', drops);
+  r22('connect-calls', calls());
+  r22(
+      'holds',
+      [
+        for (final MapEntry(:key, :value) in tabs.entries)
+          '$key:${tabOf(controller, value.id)?.restoreHold?.message}',
+      ].join(' | '));
+  await action('soak-end');
+  expect(probes.where((value) => value.contains('NOREPLY')), isEmpty,
+      reason: 'App 说连着的标签必须真能跑命令');
+  for (final MapEntry(:key, :value) in tabs.entries) {
+    expect(
+        _service.succeeded[value.id] ?? 0, lessThanOrEqualTo(1 + drops[key]!),
+        reason: '$key：连上的次数不能超过 1 + 断开次数');
+  }
+}
+
+/// 在一条标签上跑 `echo ok`，15 秒没回就记 NOREPLY。
+Future<String> _probeOne(ActiveTerminalSession? tab) async {
+  if (tab == null) return 'gone';
+  if (!tab.connected) return 'down';
+  final watch = Stopwatch()..start();
+  try {
+    final out = await exec(tab, 'echo ok').timeout(const Duration(seconds: 15));
+    return out.trim() == 'ok' ? 'ok/${watch.elapsedMilliseconds}ms' : 'odd';
+  } on Object catch (error) {
+    return 'NOREPLY(${error.runtimeType})';
+  }
 }
