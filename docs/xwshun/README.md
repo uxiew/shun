@@ -96,6 +96,19 @@ flutter test test/integration_ssh_fixture_test.dart
   撞过的墙：截图全黑——测试在等脚本回执时不出帧（集成测试只在 `pump` 时画），要看画面用测试请求的 `shot-…` 截图；
   uiautomator 找不到「全部断开」——通知在「静音」区折叠着，要先点它右边的展开箭头（脚本已处理）；
   脚本悄悄退出、测试卡在等回执——别给这类脚本开 `pipefail`，`adb … | grep -m1` 会让 adb 收到 SIGPIPE。
+- 连接长测（LIFE07，同一个测试文件的 `soak` 场景，**真机**，要所有者当次同意、本人在场）：接好 `tool/remote-device/`，
+  `tool/r22-soak.sh 47131FDAP0040E default 30`（不加省电豁免），`… exempt 30`（临时加，结束减掉）。一轮约 65 分钟。
+  前台 30 分钟（脚本临时开「插电不灭屏」）；然后所有者按 `OWNER:` 提示**先拔 USB 线、再按电源键**锁屏，30 分钟后插回线、解锁回到 App。
+  三条标签：一条走 USB（adb reverse 22201，拔线就断，解锁后该自己恢复），两条走手机 Wi-Fi 到接手机那台电脑上的临时转发
+  （`tool/remote-device/tcp-relay.py`，只放行手机的 IP，脚本退出就关），其中一条远端每 5 分钟打一行 `tick-N`。
+  每个检查点在 App 说「连着」的标签上真跑一条命令（`NOREPLY` 就是嘴上连着）；「连上次数 ≤ 1 + 断开次数」才算没重复登录。
+  日志：电脑这头 `soak-<模式>-<时间>.log`，手机里那份 `…-device.log`，摘要 `…-summary.txt`。撞过的墙：
+  - 插着 USB 线手机 CPU 不睡（锁屏 187 秒、睡了 0 秒），锁屏测出来的「没断」不算数，所以要拔线。拔了线 flutter 就连不上手机：
+    脚本拔线前 `kill -9` 掉它（不然它可能按测试失败收尾、插回线时去卸 App），测试把同样的日志写到 App 私有目录 `files/r22/log.txt`，插回后读。
+  - 插着电按电源键进的是屏保（`mWakefulness=Dreaming`，手机开了「充电时显示屏保」），拔了线屏保也可能不退、手机照样醒着，所以先拔线再锁屏。
+  - 测试 App 被锁屏或屏保盖住时出不了帧，`tester.pump` 会一直等：`soak` 场景让 App 自己出帧（`fullyLive`），开跑前手机要解锁（脚本会提示）。
+  - 解锁时手机 USB 重新握手，adb 断 2–3 秒、反向转发跟着没了：脚本重建转发、给测试回话失败会重试。
+  - 手机开着 Google VPN，发往本机所在 192.168.2.x 的流量进了隧道、连不到，所以 Wi-Fi 那条路走接手机的那台电脑（和手机同网段）。
 - tmux 的测试（R21，`test/tmux_fixture_test.dart`）用另一套环境：四个真实 tmux 版本（2.4、2.7、3.0a、3.5a）加「没有 tmux」「假 tmux」两台，
   `(cd tool/tmux-fixture && ./up.sh)` 起、`./down.sh` 关，和上面那套互不影响、可以同时开；没起时整组跳过。细节见 `tool/tmux-fixture/README.md`。
 - Tailscale SSH 的测试（`test/tailscale_ssh_login_test.dart`）要 Go：会自己构建、起停仿制服务器，没装 Go 时整组跳过。仿制服务器和「Headscale + 真 tailscaled」环境的用法见 `tool/tailscale-ssh-fixture/README.md`。
