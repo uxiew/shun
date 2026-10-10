@@ -32,6 +32,11 @@ tool/remote-device/down.sh xdwmbp         # 用完拆掉
 - **用过之后直接 `./gradlew` 报 `SDK location not found`**：flutter 构建时把 `android/local.properties` 的 `sdk.dir` 写成了假 SDK，
   `down.sh` 之后它已经不在了。随便跑一次正常环境下的 `flutter build` 就会写回来，或者手动改回 `$HOME/Library/Android/sdk`。
 - **`adb reverse`（手机连本机的测试服务）**：反向转发本来会落到接手机的那台电脑上，不是本机。包装脚本在 reverse 时再开一条 `ssh -R`，把那台电脑的同一个端口接回本机（R18 真机复测时手机连本机 22201 跑通）。那台电脑上这个端口已被占用时 reverse 直接失败，报「没能在 xdwmbp 上开 22201 端口接回本机」，先在那边 `lsof -nP -iTCP:22201 -sTCP:LISTEN` 看是谁占着。
+- **隧道自己断了**（本机报 `cannot connect to daemon at tcp:127.0.0.1:15037`，那台电脑上 `adb devices` 却正常）：`down.sh` 再 `up.sh`。
+  之后 `adb reverse` 还报「没能在 xdwmbp 上开 22201 端口接回本机」的话，多半是旧隧道在那边留下的 `sshd-session` 还占着端口（本机这头已经没了，那边还没察觉）：
+  `ssh xdwmbp lsof -nP -iTCP:22201 -sTCP:LISTEN` 找到进程，`lsof -nP -p <pid> -a -iTCP` 看它连的是本机哪个端口，本机 `lsof -nP -iTCP:<那个端口>` 没有进程，就是孤儿，kill 掉（10-10 撞到过）。
+- **网慢时装大包失败**：两台电脑之间走 tailnet，10-10 晚只有约 100 KB/s，110 MB 的 debug 测试包经隧道装两次都中途失败、不报原因。
+  先 `scp` 到那台电脑再在那边直接 `adb install`（28 MB 的发布包传了 4 分 42 秒）；`flutter test`/`flutter drive` 自己装包这条路这时走不通。
 - **真机 `adb logcat` 按"之前有几行"截取会漏行**：真机日志多，main 缓冲区只有 256 KiB，很快滚动。
   用 `adb logcat -d -v epoch` 按时间戳截，或者测试期间后台一直 `adb logcat ... >> 文件`。
 - **测完 `flutter test` 会把被测 App 卸掉**（数据清空），这是 flutter 的行为，和远程无关。
