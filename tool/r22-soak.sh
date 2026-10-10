@@ -132,7 +132,9 @@ printf '%s ' \
   "exempt=$(dumpsys deviceidle whitelist | grep -c ",$P,")" \
   "saver=$(settings get global low_power)" \
   "stayon=$(settings get global stay_on_while_plugged_in)" \
-  "$(cmd wifi status | grep -m1 -oE 'RSSI: -?[0-9]+' | tr -d ' ')"
+  "$(cmd wifi status | grep -m1 -oE 'RSSI: -?[0-9]+' | tr -d ' ')" \
+  "app-cpu=$(top -b -n 1 -p "$(pidof $P)" 2>/dev/null | tail -1 | awk '{print $9}')%" \
+  "native-heap-kb=$(dumpsys meminfo $P 2>/dev/null | grep -m1 'Native Heap' | awk '{print $(NF-1)}')"
 echo
 echo "notification: $(dumpsys notification --noredact | grep -A80 "pkg=$P" | grep -m1 -oE 'android.title=String \([^)]*\)')"
 EOF
