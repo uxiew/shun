@@ -436,6 +436,41 @@ void main() {
       controller.setBackgrounded(false);
     });
 
+    test('手机睡着时 Timer 不走：回前台按墙上时钟核，过了租期先清掉、恢复按保险库重取（LIFE07 真机撞出）', () async {
+      final host = hostWith(password: 'pw-1');
+      await start(hosts: [host]);
+      final old = await connected(host);
+      controller.setBackgrounded(true);
+      await settle();
+      // 墙上时钟过了 11 分钟，但 CPU 一直睡着：10 分钟的 Timer 没到点。
+      clock = clock.add(const Duration(minutes: 11));
+      expect(old.routePlan!.secretsForgotten, isFalse);
+      await container
+          .read(vaultControllerProvider.notifier)
+          .upsertHost(hostWith(password: 'pw-2'));
+      controller.setBackgrounded(false);
+      expect(old.routePlan!.secretsForgotten, isTrue, reason: '回前台前先按墙上时钟核租期');
+      old.drop();
+      await settle(6);
+      expect(service.calls.last.routePlan!.target.host.password, 'pw-2',
+          reason: '恢复用的是保险库现在的密码，不是冻结在内存里的那份');
+    });
+
+    test('后台每一轮恢复前也按墙上时钟核租期', () async {
+      final host = hostWith();
+      await start(hosts: [host]);
+      final old = await connected(host);
+      controller.setBackgrounded(true);
+      await settle();
+      clock = clock.add(const Duration(minutes: 9));
+      await controller.runRecoveryPass();
+      expect(old.routePlan!.secretsForgotten, isFalse, reason: '还没满 10 分钟');
+      clock = clock.add(const Duration(minutes: 2));
+      await controller.runRecoveryPass();
+      expect(old.routePlan!.secretsForgotten, isTrue);
+      controller.setBackgrounded(false);
+    });
+
     test('回到前台就取消租期：前台不清', () async {
       final host = hostWith();
       await start(hosts: [host], leaseAfter: const Duration(milliseconds: 30));

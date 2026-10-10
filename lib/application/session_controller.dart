@@ -195,6 +195,7 @@ class SessionController extends StateNotifier<SessionState> {
   /// 新标签用的终端。终端归标签：这里创建，标签关掉（或新开的连接没进标签）时这里销毁；
   /// 断线恢复沿用原来那个。连接层和页面都不创建、不销毁终端（R16，GST02）。
   final TerminalAdapterFactory newTerminal;
+
   /// 正在跑的那一轮恢复；同一时刻只跑一轮。
   Future<void>? _recoveryPass;
   bool _backgrounded = false;
@@ -207,7 +208,12 @@ class SessionController extends StateNotifier<SessionState> {
   Timer? _recoveryTimer;
 
   /// App 进后台满 [leaseAfter] 时清掉各标签的凭据副本（SEC07）。
+  ///
+  /// 只靠这个 Timer 不够：它按 CPU 醒着的时间走，手机睡着时不走。LIFE07 真机上锁屏 31 分钟 CPU 只醒了 2 分钟，
+  /// 10 分钟的租期一直没到，回前台恢复时用的还是冻结在内存里的密码。所以凡是醒着要用到路线的时候
+  /// （后台探活、每一轮恢复、回到前台）都按墙上时钟 [_backgroundedAt] 再核一次（[_checkLease]）。
   Timer? _leaseTimer;
+  DateTime? _backgroundedAt;
 
   /// 平时就是 [credentialLease]（10 分钟）；测试改短。
   final Duration leaseAfter;
@@ -569,6 +575,8 @@ class SessionController extends StateNotifier<SessionState> {
     final pass = Completer<void>();
     _recoveryPass = pass.future;
     try {
+      // 用冻结的路线之前先核租期：手机睡过一觉，Timer 可能还没到点。
+      _checkLease();
       // 恢复先等网络：没网时每一次都是白试（LIFE03「不无限重试」）。窗口在网络回来时重新起算。
       if (!_network.available && !force) return;
       bool? locked;
@@ -816,12 +824,16 @@ class SessionController extends StateNotifier<SessionState> {
         session.terminal.input.clearModifiers();
         session.monitor?.pause();
       }
+      _backgroundedAt = _now();
       _leaseTimer?.cancel();
       _leaseTimer = Timer(leaseAfter, _forgetCredentials);
       _ensurePingTimer();
       unawaited(_pingConnections());
       return;
     }
+    // 回前台前最后核一次：在后台睡过头、Timer 没来得及到点的，先清掉，下面的恢复就按保险库重取。
+    _checkLease();
+    _backgroundedAt = null;
     _leaseTimer?.cancel();
     _leaseTimer = null;
     _pingTimer?.cancel();
@@ -859,6 +871,8 @@ class SessionController extends StateNotifier<SessionState> {
   /// 后台时探一遍连着的会话，探不通的标成断开、交给恢复。
   Future<void> _pingConnections({Duration? timeout}) async {
     if (_pinging || !mounted) return;
+    // 后台探活是手机醒着时最常跑到的地方，顺手按墙上时钟核一次租期。
+    _checkLease();
     _pinging = true;
     try {
       for (final session in [...state.sessions]) {
@@ -1034,9 +1048,17 @@ class SessionController extends StateNotifier<SessionState> {
     _publishRecoveries();
   }
 
+  /// 在后台已经满 [leaseAfter]（按墙上时钟）就清凭据副本，见 [_leaseTimer]。
+  void _checkLease() {
+    final since = _backgroundedAt;
+    if (since == null || _now().difference(since) < leaseAfter) return;
+    _leaseTimer?.cancel();
+    _forgetCredentials();
+  }
+
   void _forgetCredentials() {
     _leaseTimer = null;
-    if (!mounted || !_backgrounded) return;
+    if (!mounted || _backgroundedAt == null) return;
     for (final session in state.sessions) {
       session.forgetSecrets();
       // 临时标签（tmux、托管终端）的 host 是从保险库主机拷出来的，拷贝里也有密码。
