@@ -33,7 +33,7 @@ X08–X10 Mosh必须真实runtime；不支持SOCKS CONNECT/ProxyJump的UDP，启
 插件逐事务核验UID+签名+授权+session代次，秘密最小授予；死亡/升级/撤销不伤及其他连接。
 UU/RustDesk外部启动不代表连接成功，也不继承SSH代理；Mosh缺UDP路由明确拒绝。
 运行本任务test_ids并记录真实结果，mock和reference App不替代设备证据。
-完整V3要X00–X13，R30全量142用例；只通过核心不得标FULL_READY。
+完整V3要X00–X13，R30全量用例；只通过核心不得标FULL_READY。
 ```
 
 ## 独立审查重点

@@ -1631,8 +1631,62 @@
         "evidence/X06.md",
         "evidence/X07.md"
       ]
+    },
+    {
+      "id": "UX05",
+      "action": "新建 SSH、Mosh、Telnet、RustDesk、UU、插件各一条；升级迁移一台挂着 RustDesk ID 和 UU 绑定的旧 SSH 主机。",
+      "expected": "每种类型只出现它用得上的项；RustDesk/UU 不要求 SSH 字段；迁移后 ID 与绑定照常可用、不进保险库；不认识的类型原样保留。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UX06",
+      "action": "在编辑器和批量导入里分别配直连、经代理、1–3 台跳板、代理加跳板；多台主机复用同一个代理；加一台自带代理或自带跳板的跳板机。",
+      "expected": "链的顺序和实际连接一致；代理改一处全部生效；跳板机自带路线给出明确选择、不隐式套用；两处入口结果相同。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UX07",
+      "action": "新建和编辑主机时弹出键盘、改了不保存就离开、填 Mosh 覆盖项、测试连接通过后再改路线。",
+      "expected": "操作栏始终点得到；没保存离开有确认；验证状态如实；覆盖项实际生效，没填时显示「自动」。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UX08",
+      "action": "tmux 标签和普通标签分别在 SSH 与 Mosh 之间切换；代理主机、插件没装时打开菜单；设为默认；Mosh 标签断开后重新连接；服务器缺 mosh-server。",
+      "expected": "tmux 会话不变、不重发输入；普通标签另开、不关原 shell；不可用项写原因；重新连接是新会话；只给安装命令，不代装。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UX09",
+      "action": "目录设备在线、离线、没导入三种状态下看主机列表，点设备，打开每台主机的菜单。",
+      "expected": "状态带时间、不等于能连上；没导入的走导入；菜单只列可用动作。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "SEC13",
+      "action": "在密码、私钥、代理口令页面截屏、录屏、看最近任务；在这些框里用输入法打字；回到终端页截屏。",
+      "expected": "敏感页面截不到，终端页能截；密码框不进输入法个人词库；终端输入行为不变。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
     }
   ],
   "plan_revision": "3.0",
-  "count": 142
+  "count": 148
 }
