@@ -15,6 +15,7 @@ import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -222,6 +223,11 @@ void main() {
         await _engineScenario(tester);
       case 'sshcycle':
         await _sshCycleScenario(tester, controller);
+      case 'frames':
+        await _framesScenario(tester, controller);
+      case 'framesview':
+        await _framesScenario(tester, controller,
+            page: false, liveSeconds: 1200, every: 120);
       case 'seed':
         await _seedScenario(tester, controller);
       case 'soak':
@@ -465,6 +471,66 @@ Future<void> _sshCycleScenario(
   }
 }
 
+/// LIFE06 线索（LIFE07 真机第一轮撞出来的）：测试框架 fullyLive 时一直出帧，30 分钟后 Native Heap 到了 78 MB。
+/// 同一个画面先按需出帧（不动）量 2 分钟当底，再 fullyLive 一直出帧量 4 分钟，每 30 秒抓一次 meminfo，
+/// 数出这段画了多少帧。先是完整的终端页（连着一个 SSH 标签），再是只有一个终端视图（不连 SSH）。
+/// 后一段涨、前一段不涨，就是按帧在涨；两个画面比，分得出涨在终端视图还是页上别的部件。
+///
+/// `framesview` 只量终端视图、一直出帧 20 分钟（每 2 分钟一次），看涨到一定程度停不停；不连 SSH。
+Future<void> _framesScenario(WidgetTester tester, SessionController controller,
+    {bool page = true, int liveSeconds = 240, int every = 30}) async {
+  final binding = IntegrationTestWidgetsFlutterBinding.instance;
+  Future<void> measure(String name) async {
+    Future<void> sample(String phase, int seconds) async {
+      for (var at = 0; at <= seconds; at += every) {
+        await action('mem-frames-$name-$phase-${at}s');
+        if (at < seconds) {
+          await Future<void>.delayed(Duration(seconds: every));
+        }
+      }
+    }
+
+    await sample('idle', 120);
+    var drawn = 0;
+    void count(List<FrameTiming> timings) => drawn += timings.length;
+    SchedulerBinding.instance.addTimingsCallback(count);
+    binding.framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
+    binding.scheduleFrame();
+    await sample('live', liveSeconds);
+    binding.framePolicy = LiveTestWidgetsFlutterBindingFramePolicy.fadePointers;
+    await Future<void>.delayed(const Duration(seconds: 2));
+    SchedulerBinding.instance.removeTimingsCallback(count);
+    r22('frames-$name', drawn);
+  }
+
+  if (page) {
+    await open(controller, edgeHost('r22-frames'));
+    await frames(tester);
+    await measure('page');
+  }
+
+  final terminal = GhosttyTerminalAdapter();
+  terminal.feed(
+      Uint8List.fromList(utf8.encode('\x1b[31m中文 frames\x1b[0m\r\n' * 40)));
+  await tester.pumpWidget(MaterialApp(
+    home: Scaffold(
+      body: terminalViewFor(
+        terminal,
+        const TerminalViewOptions(
+          fontSize: 13,
+          secureKeyboard: false,
+          interactive: true,
+          transparentBackground: false,
+        ),
+      ),
+    ),
+  ));
+  await frames(tester);
+  await measure('view');
+  await tester.pumpWidget(const SizedBox());
+  terminal.dispose();
+}
+
 /// LIFE06 的引擎部分：只建/销毁 Ghostty 终端（不连 SSH），挂上视图和不挂视图各 400 次，
 /// 每 100 次请脚本抓一次 dumpsys meminfo，分得清原生内存涨在引擎还是别处。
 Future<void> _engineScenario(WidgetTester tester) async {
@@ -562,10 +628,6 @@ Future<void> _soakScenario(
   final wifi = _cfg['wifi'] as Map<String, dynamic>;
   HostProfile overWifi(String id) => edgeHost(id,
       hostname: wifi['host'] as String, port: (wifi['port'] as num).toInt());
-  // 让 App 像平时一样自己出帧，不靠 tester.pump：App 被盖住（插着电时按电源键进的是屏保）时 pump 等不到帧，
-  // 测试会一直卡在那里（试跑时卡过一次）。
-  IntegrationTestWidgetsFlutterBinding.instance.framePolicy =
-      LiveTestWidgetsFlutterBindingFramePolicy.fullyLive;
   await action('soak-start');
   final tabs = <String, ActiveTerminalSession>{
     'usb': await open(controller, edgeHost('life07-usb')),
@@ -619,7 +681,10 @@ Future<void> _soakScenario(
     }
   }
 
-  // 前台：屏幕亮着、App 在最前（脚本让手机插着电时不灭屏）。App 被盖住的话 watch 会记下 app=hidden 之类。
+  // 前台：屏幕亮着、App 在最前（脚本让手机插着电时不灭屏），每秒画一帧。App 被盖住的话 watch 会记下 app=hidden 之类。
+  // 只在 App 在前台时 pump：被盖住（插着电时按电源键进的是屏保）时等不到帧，pump 会一直卡着（试跑卡过一次）。
+  // 别改成 framePolicy = fullyLive：测试框架在那种模式下画完一帧立刻排下一帧，120 帧/秒一直重画，
+  // debug 包里占满一个核，第一轮正式跑到 25 分钟时一条命令要 10 秒才回。
   var check = 0;
   while (DateTime.now().isBefore(started.add(Duration(minutes: minutes)))) {
     watch('fg', started);
@@ -627,6 +692,9 @@ Future<void> _soakScenario(
       await probe('fg-check-$check');
       await action('facts-fg-$check');
       check++;
+    }
+    if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+      await tester.pump();
     }
     await Future<void>.delayed(const Duration(seconds: 1));
   }
@@ -677,7 +745,12 @@ Future<void> _soakScenario(
           .every((value) => tabOf(controller, value.id)?.connected == true),
       timeout: const Duration(seconds: 90));
   watch('unlock', lockedAt);
-  await Future<void>.delayed(const Duration(milliseconds: 1500));
+  // 截图前画一帧，不然截到的是锁屏前的画面。App 不在最前（所有者没点回来）时 pump 等不到帧，不画。
+  if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+    await tester.pump();
+    await Future<void>.delayed(const Duration(milliseconds: 500));
+    await tester.pump();
+  }
   await action('shot-life07-unlocked');
   r22('unlock.recovered', '$back ${describe(controller)}');
   await probe('unlock.probe-after');
