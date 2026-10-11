@@ -65,10 +65,12 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
             padding: const EdgeInsets.fromLTRB(16, 10, 8, 8),
             child: Row(
               children: [
-                Icon(Icons.pets, color: Theme.of(context).colorScheme.primary),
+                // 和桌面图标同一张图（tool/brand/render_icons.py 生成），已自带圆角。
+                Image.asset('assets/brand/header_icon.png',
+                    width: 28, height: 28),
                 const SizedBox(width: 10),
-                LText(
-                  'Netcatty',
+                Text(
+                  'shun',
                   style: Theme.of(
                     context,
                   ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
