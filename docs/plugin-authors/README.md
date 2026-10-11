@@ -19,7 +19,7 @@ shun 是 Android 上的 SSH 终端 App（[Netcatty Mobile](https://github.com/km
 
 ## 最快路线（约 10 分钟）
 
-工具都装好的前提下（JDK 17、Android SDK，见下面「你要准备什么」；项目这台 Mac 上 `source /Users/fodelf/xdw/xwshun/.toolchain/env.sh` 就全有了）：
+工具都装好的前提下（JDK 17、Android SDK，见下面「你要准备什么」；项目这台 Mac 上 `source /Users/fodelf/xdw/shun/.toolchain/env.sh` 就全有了）：
 
 ```bash
 # 1. 宿主装到设备上（安装包由项目所有者给你）
@@ -73,7 +73,7 @@ adb install -r ~/shun-plugins/notes/app/build/outputs/apk/release/app-release.ap
 
 | 东西 | 要求 | 没有会怎样 |
 |---|---|---|
-| 宿主 APK | 项目所有者给你（现在没有公开发布）。本机就是 `xwshun/v3` 分支编出来的 debug 包 | — |
+| 宿主 APK | 项目所有者给你（现在没有公开发布）。本机就是 `shun/v3` 分支编出来的 debug 包 | — |
 | 设备 | Android 7.0（API 24）及以上、**arm64** 的手机或模拟器，开着 USB 调试 | 宿主只带 arm64-v8a 的原生库，别的 ABI 没测过 |
 | JDK | 17 | `./gradlew` 报 `Unable to locate a Java Runtime`（macOS 上的说法） |
 | Android SDK | platform 36、build-tools 36.0.0（里面有 `apksigner`）、platform-tools（`adb`）。设 `ANDROID_HOME` 指向它 | 报 `SDK location not found` |
@@ -81,7 +81,7 @@ adb install -r ~/shun-plugins/notes/app/build/outputs/apk/release/app-release.ap
 | Dart SDK | 可选，只给第 4 步的自查用；Flutter 自带的也行 | 跳过自查 |
 | perl | `new-plugin.sh` 改名时用（macOS、Linux 一般自带） | 脚本报「要 perl」 |
 
-**在项目这台 Mac 上**：`source /Users/fodelf/xdw/xwshun/.toolchain/env.sh`，上面的 JDK、SDK、Dart、Gradle 缓存就都有了，不用联网。
+**在项目这台 Mac 上**：`source /Users/fodelf/xdw/shun/.toolchain/env.sh`，上面的 JDK、SDK、Dart、Gradle 缓存就都有了，不用联网。
 
 ## 手动做法：第 1–4 步
 

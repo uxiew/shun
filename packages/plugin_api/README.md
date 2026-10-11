@@ -24,7 +24,7 @@ plugins/example/tools/check-descriptor.sh <你的 shun_plugin.json> --package <�
 **这一节是给维护 shun 仓库的人看的，写插件不用跑这些测试**（自查用 `plugins/example/tools/check-descriptor.sh`）。
 
 ```bash
-source /Users/fodelf/xdw/xwshun/.toolchain/env.sh
+source /Users/fodelf/xdw/shun/.toolchain/env.sh
 cd packages/plugin_api && dart pub get && dart test
 ```
 

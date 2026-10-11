@@ -9,7 +9,7 @@
 
 硬规矩（详见 plan/v3/AGENTS.md）：
 
-- 不 push、不发布，除非所有者开口。remote 只有 `origin` = `uxiew/xwshun`（原项目的 upstream 已清掉，基座 SHA 见 `docs/architecture/base-decision.md`）。
+- 不 push、不发布，除非所有者开口。remote 只有 `origin` = `uxiew/shun`（原项目的 upstream 已清掉，基座 SHA 见 `docs/architecture/base-decision.md`）。
 - applicationId 是 `top.xdwa.shun`（所有者 2026-10-11 从 `top.xdwa.xwshun` 改来）。不得改成上游的 `app.netcatty.mobile`，否则会覆盖手机上的原版 Netcatty 及其数据；
   也别再随手改：换了值手机就当成另一个 App，旧 App 的保险库、密钥不会跟过来。
 - 没真机/没授权的用例写 NOT_RUN 或 BLOCKED，不许拿 mock、参考 App 或计划校验冒充通过。

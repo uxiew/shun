@@ -19,8 +19,8 @@ Windows 工作区路径包含空格时，某些 Native Asset Hook 可能错误�
 ## 初始化
 
 ```bash
-git clone git@github.com:uxiew/xwshun.git netcatty-mobile
-cd netcatty-mobile
+git clone git@github.com:uxiew/shun.git
+cd shun
 flutter pub get
 flutter doctor -v
 ```

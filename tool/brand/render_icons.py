@@ -1,6 +1,6 @@
 """从 Gemini 出的乌鸦图生成全部 App 图标。
 
-用法（在 netcatty-mobile/ 下）：
+用法（在仓库根目录下）：
 
     ../.toolchain/pyenv/bin/python tool/brand/render_icons.py                    # 覆盖写入各平台图标
     ../.toolchain/pyenv/bin/python tool/brand/render_icons.py --preview out.png  # 只出预览图，不碰仓库

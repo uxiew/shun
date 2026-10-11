@@ -1,6 +1,6 @@
 # shun 本机手册
 
-Netcatty-mobile 的实验 fork（分支 `xwshun/v3`，remote `origin` = `uxiew/xwshun`，所有者说推之前不 push）。这里只讲在这台 Mac 上怎么跑、怎么测、怎么装、怎么清理。
+Netcatty-mobile 的实验 fork，叫 shun（分支 `shun/v3`，remote `origin` = `uxiew/shun`，所有者说推之前不 push）。这里只讲在这台 Mac 上怎么跑、怎么测、怎么装、怎么清理。
 App 怎么用看 [使用手册](../user/README.md)；做什么、做到哪看 `plan/v3/STATUS.md`。命令都在仓库根目录执行。
 
 ## 1. 先 source 环境
@@ -44,7 +44,7 @@ flutter test test/integration_ssh_fixture_test.dart
   - 输入法回放（`integration_test/r18_ime_replay_test.dart`）：先 `(cd plugins && ./build-fixtures.sh)`，再 `tool/ime-replay.sh emulator-5580`。
     脚本装回放输入法、临时设成默认、预授权通知、跑完换回原输入法并卸载，见 `plugins/README.md`「R18 回放输入法」。
   - 硬件键和快捷键栏修饰键（`integration_test/r18_keys_test.dart`）：要模拟器有硬件键盘设备。关掉模拟器，把
-    `../.toolchain/avd/xwshun-a35-4k.avd/config.ini` 的 `hw.keyboard = no` 改成 `yes`，重新起，再
+    `../.toolchain/avd/shun-a35-4k.avd/config.ini` 的 `hw.keyboard = no` 改成 `yes`，重新起，再
     `tool/ime-replay.sh emulator-5580 "" integration_test/r18_keys_test.dart`；**测完改回 `no` 再重起**，
     不然软键盘默认不弹，别的设备测试会等不到键盘。
   - 真人在真机上用自己的输入法打拼音、说话（`integration_test/r18_voice_device_test.dart`，TER02）：要所有者当次同意、本人拿着手机。
@@ -141,10 +141,10 @@ flutter test test/integration_ssh_fixture_test.dart
 
 ## 3. 模拟器
 
-现在只留一台 `xwshun-a35-4k`（Android 15，4 KiB 页，自带 Gboard），用的是你原有的 API 35 镜像。
+现在只留一台 `shun-a35-4k`（Android 15，4 KiB 页，自带 Gboard），用的是你原有的 API 35 镜像。
 
 ```bash
-flutter emulators --launch xwshun-a35-4k    # 带窗口启动；首次启动会重建空系统
+flutter emulators --launch shun-a35-4k    # 带窗口启动；首次启动会重建空系统
 flutter run -d emulator-5554                # 设备 ID 以 flutter devices 为准
 adb -s emulator-5554 logcat -s flutter      # 看 Dart 日志
 adb -s emulator-5554 emu kill               # 关机
@@ -253,7 +253,7 @@ brew 为本项目装的（2026-10-04）：`zig@0.16` 和它依赖的 `llvm@21`�
 
 ## 7. 撞墙时
 
-- **`git push` 报 `Repository not found`**：`uxiew/xwshun` 在 GitHub 上还没建，或者这把 SSH 钥匙没有写权限。推送等所有者说，见 `docs/architecture/base-decision.md`。
+- **`git push` 报 `Repository not found`**：`uxiew/shun` 在 GitHub 上还没建（或还没从 `uxiew/xwshun` 改名过去），或者这把 SSH 钥匙没有写权限。推送等所有者说，见 `docs/architecture/base-decision.md`。
 - **zsh 里把命令存进变量再执行，报 `command not found: adb -s ...`**：zsh 不按空格拆变量，改用 `bash -c '...'` 或函数。`export ANDROID_SERIAL=emulator-5580` 后 adb 默认就打到那台，最省事。
 - **`adb shell input text` 打字，分号后面的东西在模拟器上被当成命令执行了**：参数是交给模拟器的 shell 解释的，`;`、`$` 都会生效。整段用单引号包起来再传（`adb shell input text "'echo%s\$HOME'"`，`%s` 是空格），或者一次只打一条不带分号的命令。
 - **新 AVD 起不来，日志 `FATAL | Not enough space to create userdata partition ... need 7372.80 MB`**：
@@ -263,9 +263,9 @@ brew 为本项目装的（2026-10-04）：`zig@0.16` 和它依赖的 `llvm@21`�
 - **adb 断开（`waiting for device`）又连上后，`emulator-5554` 可能已经不是本项目的模拟器了**：
   X06 时本项目的模拟器在 Mac 内存只剩几十 MB 时被关掉，同一个端口随即出现的是你自己无窗口启动的 `lizhi`，
   后面几条命令就打到了它上面（一次界面导出、一次点在桌面空白处，已删掉导出文件、确认桌面原样）。
-  每次重连后先 `adb -s emulator-5554 emu avd name`，是 `xwshun-a35-4k` 才继续；两台同时开时内存也更紧。
+  每次重连后先 `adb -s emulator-5554 emu avd name`，是 `shun-a35-4k` 才继续；两台同时开时内存也更紧。
   `lizhi` 开着的时候，本项目的模拟器用固定的另一个端口起，之后每条 adb 都带 `-s emulator-5580`，就不会串：
-  `emulator -avd xwshun-a35-4k -port 5580 -no-window -no-snapshot -gpu host &`（X06 后半段这样跑的，构建时空闲内存 36%–47%，没再被关）。
+  `emulator -avd shun-a35-4k -port 5580 -no-window -no-snapshot -gpu host &`（X06 后半段这样跑的，构建时空闲内存 36%–47%，没再被关）。
 - **跑过 `flutter test integration_test/...` 之后再 `adb install build/app/outputs/flutter-apk/app-debug.apk`，App 一打开就「isn't responding」**：
   集成测试会用测试入口重新构建并覆盖同一个 `app-debug.apk`，装的其实是测试包；而且测试跑完会把 App 卸掉（数据清空）。先重新 `flutter build apk --debug --target-platform android-arm64` 再装。
 - **用 adb 注入按键（`input keyevent` / `input text`）之后，微信输入法的软键盘不出来了，只剩底部「收起」和「切换输入法」**：

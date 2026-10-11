@@ -3,7 +3,7 @@
 ## 仓库目录
 
 ```text
-netcatty-mobile/
+shun/
 ├─ .github/
 │  └─ workflows/mobile.yml       Android/iOS CI、签名 APK 与无签名 IPA
 ├─ android/                       Android Flutter Host 与原生能力

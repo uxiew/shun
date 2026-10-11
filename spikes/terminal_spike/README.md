@@ -6,7 +6,7 @@ R04 当时测的是 pub 上的 flterm 0.0.5 / libghostty 0.0.12，用 pub 版的
 和主 App 完全独立，R17 把 Ghostty 接进主 App 以后整个目录可以删掉。
 
 ```bash
-source /Users/fodelf/xdw/xwshun/.toolchain/env.sh   # 带上 Zig 0.16，原生库要从源码编
+source /Users/fodelf/xdw/shun/.toolchain/env.sh   # 带上 Zig 0.16，原生库要从源码编
 cd spikes/terminal_spike
 flutter test                                          # 本机（macOS）加载原生库跑字节级测试
 flutter build apk --release --target-platform android-arm64   # 项目模拟器和 Pixel 都是 arm64

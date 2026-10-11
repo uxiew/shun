@@ -33,7 +33,7 @@ tool/build-release.sh                     # 发布用的包：终端原生库从
 
 ## 规矩
 
-- 所有者说推之前不 push、不发布。remote 只有 `origin` = `uxiew/xwshun`。
+- 所有者说推之前不 push、不发布。remote 只有 `origin` = `uxiew/shun`。
 - applicationId 是 `top.xdwa.shun`，别改：换了值手机就当成另一个 App，装上后旧 App 的数据不会跟过来。为什么不能用上游的值见 [AGENTS.md](AGENTS.md)。
 - 没测就写没测：没有真机或授权的用例记 NOT_RUN / BLOCKED，模拟器结果标明是模拟器。
 
