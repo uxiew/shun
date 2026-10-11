@@ -1,5 +1,7 @@
 # 当前状态 V3
 
+10-11 品牌图标修订：正式换为无填充粗线条透明母版，Android/iOS 全套资源已重生成；深浅标题图标共用轮廓，随当前主题切换。母版乌鸦宽 1155px，1024 图标只缩小生成。两项首页测试和 `flutter analyze --no-pub` 通过；40 个 PNG 的尺寸、模式、安全区及重生成一致性已检查。本轮未安装到设备，详见 [图标证据](evidence/brand-logo-2026-10-11.md)。不改变 V3 功能任务状态。
+
 日期：2026-10-11。已执行首批（R00–R04、X00）、网络路由三项（R05、R06、R07）、连接代次（R08）、凭据与入口统一（R09）、连接路径编辑器（R10）、插件注册表（X01）、只读 Tailscale 目录的 HTTP 适配（R11）、Android 独立插件发现与双向签名（X02）、目录缓存与非破坏合并（R12）、插件会话字节流与故障处理（X03）、目录页与批量导入（R13）、插件管理与授权界面（X04）、Tailscale 目录接入内置 provider（X05）、UU 远程适配（X06）、RustDesk 外部客户端联动（X07）、显式 Tailscale SSH 外部认证（R14）、目录到三类路由的端到端验收（R15）、会话与 xterm2 解耦（R16）、Ghostty 接进主 App（R17）、中文输入法与软硬键盘（R18）、滚动选择与粘贴、远端效果约束（R19）、TUI/性能门禁与 Ghostty 成为默认（R20）、tmux 安全恢复目标（R21）、Flutter 与 Android 连接生命周期（R22）、Mosh 运行时选择（X08）、Mosh 接进主 App（X09）和插件作者 SDK（X12），日用 UI（R25）做了第一部分「终端输入面板」；09-30 所有者同意用 arm64 模拟器补测，并定"最低兼容到安卓七八"；10-04 所有者提供真机（Pixel 9 Pro，接在 xdwmbp 上），R04 真机补测后 DONE；10-06 所有者在真机上用微信输入法复测语音输入（TER02）通过；10-08 所有者定了 SEC07 的凭据与后台恢复策略（见下）；10-10 所有者在场，在真机上跑完 LIFE07（前台 30 分钟 + 拔线锁屏 30 分钟以上，不加、加省电豁免各一轮，PASS）；当晚所有者让在真机上打开 TermRover、LobiShell 学布局和功能，看到的记在 `docs/20-reference-apps.md`，排成 R39–R50（见「下一批」）。
 
 - 基座：kmh1145/Netcatty-mobile `495f5d31`（v1.4.7），fork 分支 `shun/v3`，`origin` = `uxiew/shun`（10-11 前分支叫 `xwshun/v3`、仓库叫 `uxiew/xwshun`；GitHub 上的仓库由所有者自己改名），所有者说推之前不 push。GPL-3.0-or-later 个人隔离实验；App 名 shun、applicationId `top.xdwa.shun`（所有者 10-11 把名字和包名从 xwshun 改过来：插件接口、Mosh 插件包名和 pluginId `shun.mosh`、测试环境的容器名一起改了；和桌面端互通的同步文件名、加密格式、Caddy 标记沿用 netcatty 不动；evidence 里的旧名是当时的事实，不改）。

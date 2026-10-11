@@ -65,9 +65,13 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
             padding: const EdgeInsets.fromLTRB(16, 10, 8, 8),
             child: Row(
               children: [
-                // 和桌面图标同一张图（tool/brand/render_icons.py 生成），已自带圆角。
-                Image.asset('assets/brand/header_icon.png',
-                    width: 28, height: 28),
+                // 深浅版本共用乌鸦轮廓，背景和线条明度随当前主题切换。
+                Image.asset(
+                    Theme.of(context).brightness == Brightness.dark
+                        ? 'assets/brand/header_icon.png'
+                        : 'assets/brand/header_icon_light.png',
+                    width: 28,
+                    height: 28),
                 const SizedBox(width: 10),
                 Text(
                   'shun',

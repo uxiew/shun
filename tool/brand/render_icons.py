@@ -1,4 +1,4 @@
-"""从 Gemini 出的乌鸦图生成全部 App 图标。
+"""从透明粗线条乌鸦母版生成全部 App 图标。
 
 用法（在仓库根目录下）：
 
@@ -8,11 +8,15 @@
 缺 Pillow 会报 "No module named 'PIL'"：
     ../.toolchain/pyenv/bin/python -m pip install pillow==12.3.0 numpy==2.5.4
 
-源图 gemini_dark_logo.png 是所有者 2026-10-10 用 Gemini 生成的深色版（原件和对话记录在仓库外
+默认源图 raven-master.png 是无填充的透明粗线条母版；深浅主题共用其几何和 alpha。
+浅色主题只降低线条明度，保证青色在浅底上仍清晰。1024 输出中的乌鸦只缩小，不放大。
+--legacy 可重现旧 Gemini 位图方案，不会成为默认源图。
+
+旧源图 gemini_dark_logo.png 是所有者 2026-10-10 用 Gemini 生成的深色版（原件和对话记录在仓库外
 ../SSH移动应用Logo设计/）。它是一张“图标效果图”：乌鸦外面画了一圈圆角边框，右下角有 Gemini 水印，
 不能直接缩放当图标——系统还会再套一层圆角/圆形遮罩，桌面上会出现框中框，水印也会跟着进去。
 
-所以这里只取乌鸦：按框内背景反推每个像素的透明度（霓虹光晕保留下来），贴到一张新画的、
+旧方案（--legacy）只取乌鸦：按框内背景反推每个像素的透明度（霓虹光晕保留下来），贴到一张新画的、
 和原图同色调的渐变底上。边框、网格纹理、水印都不要。换源图时，框内范围 PANEL 要重新量。
 
 生成物（都提交进仓库，手改会在下次生成时被覆盖）：
@@ -22,7 +26,8 @@
   缩在直径 66dp 的安全圆里，圆形、方形遮罩都切不到。monochrome 是 Android 13 主题图标用的单色线稿。
 - iOS AppIcon 全套：铺满不留圆角（系统自己切），不带透明通道（带透明通道的 1024 图上架会被拒）。
 - assets/icon.png：1024 的完整图标。
-- assets/brand/header_icon.png：首页标题旁的小图标，28dp 按 4 倍像素出。
+- assets/brand/header_icon{,_light}.png：首页标题旁的小图标，28dp 按 4 倍像素出。
+- assets/brand/logo_{dark,light}.png：1024 深浅配套图。
 """
 
 import argparse
@@ -34,7 +39,8 @@ from PIL import Image, ImageDraw, ImageFilter
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parent.parent
-SOURCE = HERE / 'gemini_dark_logo.png'
+SOURCE = HERE / 'raven-master.png'
+LEGACY_SOURCE = HERE / 'gemini_dark_logo.png'
 
 # 源图里内框以内的范围（左, 上, 右, 下），往里收了几像素避开框线的光晕。
 PANEL = (212, 190, 812, 832)
@@ -48,7 +54,31 @@ NOISE_FLOOR = 0.05
 
 
 def load_source():
-    return np.asarray(Image.open(SOURCE).convert('RGB')).astype(np.float64)
+    return np.asarray(Image.open(LEGACY_SOURCE).convert('RGB')).astype(np.float64)
+
+
+def transparent_source(path):
+    raven = Image.open(path).convert('RGBA')
+    alpha = np.asarray(raven)[..., 3]
+    if alpha.min() == 255 or alpha.max() <= 40:
+        raise ValueError('源图必须包含透明背景和可见乌鸦')
+    box, _, _ = art_box(raven)
+    if box[2] - box[0] < 1024 * ART_WIDTH:
+        raise ValueError('源图中的乌鸦宽度不足 717px，不能无放大生成 1024 图标')
+    return raven
+
+
+def background(light=False):
+    top, bottom = ((248, 250, 255), (228, 235, 248)) if light else ((3, 24, 43), (4, 6, 22))
+    blend = np.linspace(0, 1, 256)[:, None, None]
+    return np.broadcast_to(np.array(top) * (1 - blend) + np.array(bottom) * blend, (256, 256, 3)).copy()
+
+
+def light_raven(raven):
+    # 调色不改轮廓与透明度，避免重新生成一只朝向/姿态不同的乌鸦。
+    pixels = np.asarray(raven).copy()
+    pixels[..., :3] = (pixels[..., :3].astype(np.float64) * 0.58).round().astype(np.uint8)
+    return Image.fromarray(pixels, 'RGBA')
 
 
 def backdrop(src):
@@ -162,7 +192,7 @@ def build(raven, bg):
     geometry = art_box(raven)
     box, _, radius = geometry
     art_w = box[2] - box[0]
-    big = 1536
+    big = 1024
 
     # iOS / assets：整张铺满。
     full = sky(big, big, bg).convert('RGBA')
@@ -170,7 +200,8 @@ def build(raven, bg):
 
     # 自适应图标：画布 108dp，可见 72dp。乌鸦宽度按可见区算，同时不能出安全圆。
     visible = round(big * VISIBLE)
-    scale = min(visible * ART_WIDTH / art_w, big * SAFE_RADIUS / radius)
+    # 给单色笔画膨胀和抗锯齿预留 4px，三层都留在 33dp 安全圆内。
+    scale = min(visible * ART_WIDTH / art_w, (big * SAFE_RADIUS - 4) / radius)
     background = sky(big, visible, bg)
     foreground = place(big, raven, scale, geometry)
     a = np.asarray(foreground)[..., 3].astype(np.float64) / 255
@@ -207,7 +238,7 @@ def save(image, path):
     print(path)
 
 
-def write_all(icons):
+def write_all(icons, light_icons):
     res = 'android/app/src/main/res'
     for name, scale in {'mdpi': 1, 'hdpi': 1.5, 'xhdpi': 2, 'xxhdpi': 3, 'xxxhdpi': 4}.items():
         save(sized(icons['legacy'], round(48 * scale)), f'{res}/mipmap-{name}/ic_launcher.png')
@@ -225,6 +256,9 @@ def write_all(icons):
         save(sized(icons['full'], px), f'{iconset}/{name}')
     save(sized(icons['full'], 1024), 'assets/icon.png')
     save(rounded(sized(icons['full'], 112), 0.22), 'assets/brand/header_icon.png')
+    save(rounded(sized(light_icons['full'], 112), 0.22), 'assets/brand/header_icon_light.png')
+    save(icons['full'], 'assets/brand/logo_dark.png')
+    save(light_icons['full'], 'assets/brand/logo_light.png')
 
 
 def rounded(image, ratio):
@@ -247,7 +281,7 @@ def circle_crop(adaptive, px):
     return out
 
 
-def preview(icons, out):
+def preview(icons, out, dark_icons=None, light_icons=None):
     sheet = Image.new('RGB', (860, 600), (236, 236, 241))
     sheet.paste(rounded(sized(icons['full'], 420), 0.22), (30, 30), rounded(sized(icons['full'], 420), 0.22))
     adaptive = icons['background'].convert('RGBA')
@@ -266,10 +300,11 @@ def preview(icons, out):
     draw = ImageDraw.Draw(sheet)
     draw.rounded_rectangle((30, 480, 440, 570), radius=14, fill=(14, 20, 36))
     draw.rounded_rectangle((460, 480, 830, 570), radius=14, fill=(255, 255, 255))
-    header = Image.open(REPO / 'assets/brand/header_icon.png') if (REPO / 'assets/brand/header_icon.png').exists() else rounded(sized(icons['full'], 112), 0.22)
-    h56 = header.resize((56, 56), Image.LANCZOS)
-    sheet.paste(h56, (50, 497), h56)
-    sheet.paste(h56, (480, 497), h56)
+    for header_icons, x in ((dark_icons or icons, 50), (light_icons or icons, 480)):
+        h56 = rounded(sized(header_icons['full'], 56), 0.22)
+        sheet.paste(h56, (x, 497), h56)
+    c = circle_crop(themed, 48)
+    sheet.paste(c, (758, 306), c)
     sheet.save(out)
     print(out)
 
@@ -277,13 +312,22 @@ def preview(icons, out):
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--preview')
+    parser.add_argument('--source', type=Path, default=SOURCE, help='透明乌鸦 PNG；默认 raven-master.png')
+    parser.add_argument('--light', action='store_true', help='预览浅色配套图；正式桌面图标始终使用深色底')
+    parser.add_argument('--legacy', action='store_true', help='重现旧 Gemini 原稿提取方案')
     args = parser.parse_args()
-    raven, bg = extract_raven(load_source())
-    icons = build(raven, bg)
-    if args.preview:
-        preview(icons, args.preview)
+    if args.light and not args.preview:
+        parser.error('--light 只用于 --preview；正式生成会同时写入深浅素材')
+    if args.legacy:
+        raven, bg = extract_raven(load_source())
     else:
-        write_all(icons)
+        raven, bg = transparent_source(args.source), background()
+    icons = build(raven, bg)
+    light_icons = build(light_raven(raven), background(light=True))
+    if args.preview:
+        preview(light_icons if args.light else icons, args.preview, icons, light_icons)
+    else:
+        write_all(icons, light_icons)
 
 
 if __name__ == '__main__':
