@@ -125,7 +125,7 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                   if (widget.onAi != null)
                     IconButton(
                       key: const ValueKey('terminal-action-ai'),
-                      tooltip: localized('Catty Agent'),
+                      tooltip: localized('shu Agent'),
                       onPressed: widget.onAi,
                       icon: Icon(
                         Icons.auto_awesome,
@@ -265,7 +265,7 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
   Widget _moreActions(BuildContext context, List<String> order) {
     final actions = <(String, String, IconData, VoidCallback?)>[
       if (widget.onAi != null)
-        ('ai', localized('Catty Agent'), Icons.auto_awesome, widget.onAi),
+        ('ai', localized('shu Agent'), Icons.auto_awesome, widget.onAi),
       (
         'port-forward',
         localized('端口转发'),

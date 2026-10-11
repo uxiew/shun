@@ -703,7 +703,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
               if (features.ai)
-                _header('Catty Agent', '使用 OpenAI 兼容接口连续对话，命令执行前始终确认'),
+                _header('shu Agent', '使用 OpenAI 兼容接口连续对话，命令执行前始终确认'),
               if (features.ai)
                 ListTile(
                   leading: const Icon(Icons.dns_outlined),

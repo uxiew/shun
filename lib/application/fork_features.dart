@@ -14,7 +14,7 @@ class ForkFeatures {
     this.updateCheck = false,
   });
 
-  /// Catty Agent：终端工具栏的 AI 按钮、设置页的 AI 服务商入口。
+  /// shu Agent：终端工具栏的 AI 按钮、设置页的 AI 服务商入口。
   final bool ai;
 
   /// 设置页的云同步区与自动同步。关着时即使本地 settings 残留

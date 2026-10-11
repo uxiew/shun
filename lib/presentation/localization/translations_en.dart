@@ -309,10 +309,10 @@ const englishTranslations = <String, String>{
   '粘贴到终端': 'Paste into terminal',
   '复制命令': 'Copy command',
   '有什么可以帮你？': 'How can I help?',
-  'Catty 会结合当前服务器信息和近期终端输出连续对话，并在需要时提供可粘贴或确认执行的命令。':
-      'Catty keeps the current server and recent terminal output in context, and provides commands you can paste or confirm when needed.',
-  'Catty 会结合当前服务器信息连续对话，并在需要时提供可粘贴或确认执行的命令。':
-      'Catty keeps the current server in context and provides commands you can paste or confirm when needed.',
+  'shu 会结合当前服务器信息和近期终端输出连续对话，并在需要时提供可粘贴或确认执行的命令。':
+      'shu keeps the current server and recent terminal output in context, and provides commands you can paste or confirm when needed.',
+  'shu 会结合当前服务器信息连续对话，并在需要时提供可粘贴或确认执行的命令。':
+      'shu keeps the current server in context and provides commands you can paste or confirm when needed.',
   '每次提问会将当前终端的近期输出发送给已配置的 AI 服务。':
       'Each question sends recent output from the current terminal to the configured AI service.',
   '终端输出上传已关闭，可在设置中开启。':
@@ -323,9 +323,9 @@ const englishTranslations = <String, String>{
   '分析当前磁盘使用情况': 'Analyze current disk usage',
   '分析最近的终端输出': 'Analyze recent terminal output',
   '帮我排查最近的系统错误': 'Help investigate recent system errors',
-  '向 Catty 询问当前服务器…': 'Ask Catty about the current server…',
+  '向 shu 询问当前服务器…': 'Ask shu about the current server…',
   '发送': 'Send',
-  'Catty 正在思考…': 'Catty is thinking…',
+  'shu 正在思考…': 'shu is thinking…',
   '数据管理': 'Data management',
   '导入导出会保留桌面端未知字段和插件数据':
       'Import and export preserve unknown desktop fields and plugin data',
@@ -640,10 +640,10 @@ const englishTranslations = <String, String>{
       'This version ships only Ghostty and has no other engine: connections fail outright instead of silently switching to another engine.',
   '正常，这次运行建过的终端：': 'Working. Terminals created this run: ',
   '这次运行还没开过终端': 'No terminal opened yet this run',
-  "Catty Agent', '使用 OpenAI 兼容接口生成命令，执行前始终确认":
-      "Catty Agent', 'Generate commands with an OpenAI-compatible API and always confirm before execution",
-  "Catty Agent', '使用 OpenAI 兼容接口连续对话，命令执行前始终确认":
-      "Catty Agent', 'Chat through an OpenAI-compatible API and always confirm before executing commands",
+  "shu Agent', '使用 OpenAI 兼容接口生成命令，执行前始终确认":
+      "shu Agent', 'Generate commands with an OpenAI-compatible API and always confirm before execution",
+  "shu Agent', '使用 OpenAI 兼容接口连续对话，命令执行前始终确认":
+      "shu Agent', 'Chat through an OpenAI-compatible API and always confirm before executing commands",
   '正在等待 GitHub 授权…': 'Waiting for GitHub authorization…',
   '尚未挂载手机目录\n点上方文件夹按钮选择目录':
       'No phone folder is mounted\nTap the folder button above to choose one',

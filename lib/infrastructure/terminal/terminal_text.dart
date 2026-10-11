@@ -31,7 +31,7 @@ String terminalPictureInPictureText(
 
 const _wrapLookBehind = 64;
 
-/// Returns a bounded snapshot of recent terminal output for Catty Agent.
+/// Returns a bounded snapshot of recent terminal output for shu Agent.
 ///
 /// Physical lines that were soft-wrapped are joined back together. The
 /// result intentionally excludes unlimited scrollback so a chat request cannot

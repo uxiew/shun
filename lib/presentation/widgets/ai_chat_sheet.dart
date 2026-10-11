@@ -671,7 +671,7 @@ class _AiChatSheetState extends State<AiChatSheet> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   LText(
-                    'Catty Agent',
+                    'shu Agent',
                     style: Theme.of(context).textTheme.titleMedium,
                   ),
                   Text(
@@ -738,8 +738,8 @@ class _AiChatSheetState extends State<AiChatSheet> {
           const SizedBox(height: 8),
           LText(
             _includeContext
-                ? 'Catty 会结合当前服务器信息和近期终端输出连续对话，并在需要时提供可粘贴或确认执行的命令。'
-                : 'Catty 会结合当前服务器信息连续对话，并在需要时提供可粘贴或确认执行的命令。',
+                ? 'shu 会结合当前服务器信息和近期终端输出连续对话，并在需要时提供可粘贴或确认执行的命令。'
+                : 'shu 会结合当前服务器信息连续对话，并在需要时提供可粘贴或确认执行的命令。',
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodyMedium,
           ),
@@ -805,7 +805,7 @@ class _AiChatSheetState extends State<AiChatSheet> {
                     maxLines: 4,
                     textInputAction: TextInputAction.newline,
                     decoration: LInputDecoration(
-                      hintText: '向 Catty 询问当前服务器…',
+                      hintText: '向 shu 询问当前服务器…',
                       filled: true,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(16),
@@ -1052,7 +1052,7 @@ class _MessageBubble extends StatelessWidget {
                   Icon(Icons.auto_awesome, size: 15, color: colors.primary),
                   const SizedBox(width: 6),
                   LText(
-                    'Catty',
+                    'shu',
                     style: Theme.of(context)
                         .textTheme
                         .labelMedium
@@ -1129,7 +1129,7 @@ class _ThinkingBubble extends StatelessWidget {
                 child: CircularProgressIndicator(strokeWidth: 2),
               ),
               SizedBox(width: 10),
-              LText('Catty 正在思考…'),
+              LText('shu 正在思考…'),
             ],
           ),
         ),
