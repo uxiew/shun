@@ -2,7 +2,7 @@
 
 ## 总览
 
-Netcatty Mobile 是 Flutter 应用，使用 Riverpod 管理全局状态。项目采用分层目录，但当前实现是实用型分层，不是严格的 Clean Architecture：部分页面会直接创建基础设施服务，后续重构时应逐步通过 Provider 或构造参数注入。
+shun 是 Flutter 应用，使用 Riverpod 管理全局状态。项目采用分层目录，但当前实现是实用型分层，不是严格的 Clean Architecture：部分页面会直接创建基础设施服务，后续重构时应逐步通过 Provider 或构造参数注入。
 
 ```mermaid
 flowchart LR
@@ -23,7 +23,7 @@ flowchart LR
 
 ## 启动与全局状态
 
-`lib/main.dart` 在 `runApp` 前初始化 `VaultRepository`，然后通过 `ProviderScope` 覆盖 `vaultRepositoryProvider`。`NetcattyApp` 读取设置并创建主题，`HomeShell` 管理底部五个主入口：保险库、终端、文件、片段和设置。
+`lib/main.dart` 在 `runApp` 前初始化 `VaultRepository`，然后通过 `ProviderScope` 覆盖 `vaultRepositoryProvider`。`ShunApp` 读取设置并创建主题，`HomeShell` 管理底部五个主入口：保险库、终端、文件、片段和设置。
 
 主要控制器：
 
@@ -88,12 +88,12 @@ sequenceDiagram
 
 ## 后台与画中画
 
-`ConnectionPlatformService` 通过 `app.netcatty.mobile/connection` 通道通知原生端是否存在活动 SSH 会话。
+`ConnectionPlatformService` 通过 `top.xdwa.shun/connection` 通道通知原生端是否存在活动 SSH 会话。
 
 - Android 启动 `SshKeepAliveService` 前台服务并显示低优先级常驻通知。该服务提高进程存活概率，但网络、系统省电策略和厂商限制仍可能断开连接。
 - iOS 只能申请短暂 Background Task 完成正在进行的网络工作，不能把普通 SSH Socket 变成无限后台任务。
 
-`TerminalPictureInPictureService` 使用 `app.netcatty.mobile/picture_in_picture`：
+`TerminalPictureInPictureService` 使用 `top.xdwa.shun/picture_in_picture`：
 
 - Android PiP 直接展示实时 Flutter Surface。
 - iOS 使用 `AVSampleBufferDisplayLayer` 生成 960×540 终端文本帧，并通过 `AVPictureInPictureController` 展示。渲染坐标系或像素缓冲格式变化时必须在真机检查方向与文字镜像。
@@ -120,7 +120,7 @@ FileTransferService
 - 进度 UI 约每 200ms 或 256KB 更新一次，避免因每个数据块 `setState` 导致卡顿。
 - iOS 的 SFTP 读写限制 Pending Request 数，并使用有界写入批次，降低 Dart UI Isolate 的加密、Future 调度和 GC 压力。
 - Android SAF 数据通过原生 `DocumentTreeChannel` 与缓存文件桥接，目录 URI 权限由系统持久保存。
-- iOS 使用 App Documents，`UIFileSharingEnabled` 和 `LSSupportsOpeningDocumentsInPlace` 让用户从“文件”App 访问 Netcatty 文件夹。
+- iOS 使用 App Documents，`UIFileSharingEnabled` 和 `LSSupportsOpeningDocumentsInPlace` 让用户从“文件”App 访问 shun 文件夹。
 
 新增传输协议或本地 Provider 时，应实现 `FileTransferService`，不要把平台判断散落到双栏页面。
 
@@ -130,7 +130,7 @@ FileTransferService
 
 `transferSelection` 预检查重名、路径自身及 SFTP realpath 解析后的自身子目录。服务器复制先在目标目录内创建独立 UUID 临时目录（0700），成功后由目标端 `mv -nT` 发布，拒绝覆盖或意外嵌套进同名目录；不使用 dartssh2 默认的 posix-rename 覆盖语义。需要服务器支持 `cp -RP` / `mv -nT`，不自动安装命令或提权。跨服务器直传会核对完整目录树、文件类型/大小及源文件是否变化，移动仅在发布成功且再检查源文件后删除原件（不是内容哈希校验）。流式中转移动保留原有的删除前校验；同会话的中转兼容路径仍使用 SFTP rename。
 
-每个远程操作使用独立 SSH exec channel，取消只发送该任务的 TERM 并关闭 channel，不断开用户终端。服务器可能忽略信号，因此失败后不自动转中转、不复用或清理可能仍被写入的 `.netcatty-transfer-<uuid>` 目录，提示用户检查；不能把它描述成已可靠停止的后台任务。成功后尽力清理空临时目录。直传不是脱离 App 生命周期的后台作业。大文件的进度每秒查询目标临时文件大小，目录操作展示阶段及完成项数，不伪造精确百分比。失败保留未完成剪贴板；挂载目录变化清空剪贴板，传输期间禁止重新挂载。
+每个远程操作使用独立 SSH exec channel，取消只发送该任务的 TERM 并关闭 channel，不断开用户终端。服务器可能忽略信号，因此失败后不自动转中转、不复用或清理可能仍被写入的 `.shun-transfer-<uuid>` 目录，提示用户检查；不能把它描述成已可靠停止的后台任务。成功后尽力清理空临时目录。直传不是脱离 App 生命周期的后台作业。大文件的进度每秒查询目标临时文件大小，目录操作展示阶段及完成项数，不伪造精确百分比。失败保留未完成剪贴板；挂载目录变化清空剪贴板，传输期间禁止重新挂载。
 
 批量粘贴不复用未知来源的旧分块临时文件，避免不同源的同名文件混合后误删原件；原有单文件流式中转的断点续传行为保持不变。相同端点/用户/路由的不同标签或重复资料也参与“复制到自身”检查；直传中如果源端可见新建的目标临时目录，还会检查它是否落入源目录，防止别名端点或共享存储造成递归自复制。
 
@@ -164,7 +164,7 @@ FileTransferService
 - `CaddyManagerPanel`
 - `TmuxManagerPanel`
 
-Docker、服务与 Caddy 管理调用会探测直接访问、免密 sudo 和需要密码的 sudo。服务面板自动识别 systemd/OpenRC，并提供启动、停止、重启和开机自启管理。Caddy 面板先通过 `command -v caddy` 检测安装状态；Netcatty 创建的站点直接写入主 Caddyfile，每段配置使用 `netcatty-begin` / `netcatty-end` 标记和元数据，用户可在同一个文件中查看或继续手动维护。增删操作使用主配置备份和同目录临时文件，依次执行 `caddy fmt`、`caddy validate` 和 `caddy reload`，任一步失败都会恢复完整主配置后尝试重新加载旧配置。列表仅解析带 Netcatty 标记的配置块，不解析或删除用户已有的复杂手写站点。破坏性操作（KILL、删除容器/镜像、Compose Down、删除反代站点等）必须保留二次确认。远程命令参数要经过 Shell 转义，解析逻辑应配套单元测试。
+Docker、服务与 Caddy 管理调用会探测直接访问、免密 sudo 和需要密码的 sudo。服务面板自动识别 systemd/OpenRC，并提供启动、停止、重启和开机自启管理。Caddy 面板先通过 `command -v caddy` 检测安装状态；shun 创建的站点直接写入主 Caddyfile，每段配置使用 `netcatty-begin` / `netcatty-end` 标记（沿用原版的写法，原版建的站点也能认出来）和元数据，用户可在同一个文件中查看或继续手动维护。增删操作使用主配置备份和同目录临时文件，依次执行 `caddy fmt`、`caddy validate` 和 `caddy reload`，任一步失败都会恢复完整主配置后尝试重新加载旧配置。列表仅解析带 Netcatty 标记的配置块，不解析或删除用户已有的复杂手写站点。破坏性操作（KILL、删除容器/镜像、Compose Down、删除反代站点等）必须保留二次确认。远程命令参数要经过 Shell 转义，解析逻辑应配套单元测试。
 
 ## 云同步
 

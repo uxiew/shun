@@ -6,7 +6,7 @@
 ```bash
 source ../.toolchain/env.sh
 tool/remote-device/up.sh xdwmbp /opt/homebrew/share/android-commandlinetools/platform-tools/adb
-source /tmp/xwshun-remote-device/env      # 每个要用手机的终端都执行一次
+source /tmp/shun-remote-device/env      # 每个要用手机的终端都执行一次
 adb devices                               # 应该看到 47131FDAP0040E（Pixel 9 Pro）
 flutter test integration_test -d 47131FDAP0040E
 tool/remote-device/down.sh xdwmbp         # 用完拆掉
@@ -24,10 +24,10 @@ tool/remote-device/down.sh xdwmbp         # 用完拆掉
 - **`flutter test` 报 `WebSocketChannelException ... Connection refused ... port = 5xxxx`，或者 `flutter drive` 一直卡着不动**：
   flutter 用 `adb forward` 把手机上的 VM service 转到"本机"端口，但 adb 服务在那台电脑上，监听口也开在那边，本机连不到。
   `up.sh` 做了一个假 SDK（全部软链接回真 SDK，只把 `platform-tools/adb` 换成 `adb-wrapper.sh`），
-  每次 forward 时先经 SSH 在本机开同一个端口，再把端口交回 flutter。所以一定要 `source /tmp/xwshun-remote-device/env`，
+  每次 forward 时先经 SSH 在本机开同一个端口，再把端口交回 flutter。所以一定要 `source /tmp/shun-remote-device/env`，
   它把 `ANDROID_HOME` 指到假 SDK——flutter 按 `ANDROID_HOME` 找 adb，只改 PATH 没用。
   `flutter drive --host-vmservice-port` 想固定端口，实测（Flutter 3.44.4）没生效，补上转发后又卡住，别走这条路。
-- **`unix_listener: ... too long for Unix domain socket`**：SSH 控制套接字路径太长（比如放在 scratchpad 下）。脚本固定用 `/tmp/xwshun-remote-device`。
+- **`unix_listener: ... too long for Unix domain socket`**：SSH 控制套接字路径太长（比如放在 scratchpad 下）。脚本固定用 `/tmp/shun-remote-device`。
 - **`adb: failed to check server version: cannot connect to daemon at tcp:127.0.0.1:15037`**：隧道没起或断了，重新 `up.sh`。
 - **用过之后直接 `./gradlew` 报 `SDK location not found`**：flutter 构建时把 `android/local.properties` 的 `sdk.dir` 写成了假 SDK，
   `down.sh` 之后它已经不在了。随便跑一次正常环境下的 `flutter build` 就会写回来，或者手动改回 `$HOME/Library/Android/sdk`。

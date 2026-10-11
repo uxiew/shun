@@ -9,7 +9,7 @@
 | 基座 | kmh1145/Netcatty-mobile，锁定 `495f5d3174d6b3825fc9edefa7ebe345f3399734`（tag `v1.4.7`，提交时间 2026-09-19） |
 | 仓库位置 | 本机 `/Users/fodelf/xdw/xwshun/netcatty-mobile`，分支 `xwshun/v3`；remote 只有 `origin` = `git@github.com:uxiew/xwshun.git`（2026-10-04 所有者定）。**所有者说推之前不 push** |
 | 许可 | GPL-3.0-or-later，**个人隔离实验**。对外分发（给任何其他人装）之前必须另做许可审核，见下文 |
-| applicationId | `top.xdwa.xwshun`（所有者指定）。R01 落地；上游是 `app.netcatty.mobile`，不得复用 |
+| applicationId | `top.xdwa.shun`（所有者 2026-10-11 改名；R01 落地时是所有者指定的 `top.xdwa.xwshun`）。上游是 `app.netcatty.mobile`，不得复用 |
 | 替代方案 | Conduit（Apache-2.0）不启用，不同时维护两条产品分支 |
 
 ## 锁定的输入

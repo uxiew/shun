@@ -22,7 +22,7 @@ htop 的进程列表、内存数字每次都不一样，重录 htop 后它的检
 
 ## 怎么录的
 
-- 起一个一次性容器（`xwshun-vtcorpus-rec`），镜像是测试环境的 `xwshun-fixture:alpine3.22`（`tool/fixture-environment/up.sh` 会构建）。
+- 起一个一次性容器（`shun-vtcorpus-rec`），镜像是测试环境的 `shun-fixture:alpine3.22`（`tool/fixture-environment/up.sh` 会构建）。
   不连、不动正在跑的测试环境，容器里没有任何凭据，跑完删掉。没有这个镜像时先 `up.sh` 一次再 `down.sh`。
 - 裁判是容器里的 tmux 3.5a：窗格固定 80x24、`default-terminal xterm-256color`、关掉状态栏。
 - 合成素材：窗格里 `stty raw -echo` 后 `cat` 原样写进去（不让终端驱动把 `\n` 改成 `\r\n`，tmux 回给程序的字节也不回显），

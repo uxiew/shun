@@ -12,7 +12,7 @@
 | `packages/plugin_api`（Dart 判定规则、自查命令） | 同上 | **Apache-2.0** |
 | 描述符 schema `plan/v3/contracts/` | 同上 | **Apache-2.0** |
 | 样例 `plugins/example` | 本 fork 2026-10 新写 | **Apache-2.0**；描述符里的 `license` 也是 `Apache-2.0`。`gradlew`、`gradle/wrapper/` 是 Gradle 9.1.0 生成的文件，按 Gradle 自己的 Apache-2.0 |
-| 宿主 xwshun | [Netcatty Mobile](https://github.com/kmh1145/Netcatty-mobile)（作者 kmh1145）v1.4.7（`495f5d31`）的修改版，保留原作者版权 | GPL-3.0-or-later（仓库根目录 `LICENSE`、`NOTICE.md`） |
+| 宿主 shun | [Netcatty Mobile](https://github.com/kmh1145/Netcatty-mobile)（作者 kmh1145）v1.4.7（`495f5d31`）的修改版，保留原作者版权 | GPL-3.0-or-later（仓库根目录 `LICENSE`、`NOTICE.md`） |
 | Mosh 插件 `plugins/mosh` | 本 fork 的插件代码 + 静态链接的官方 mosh-client 1.4.0（GPL-3.0-or-later，带 OpenSSL 例外）、protobuf（BSD-3-Clause）、OpenSSL 3（Apache-2.0）、ncurses（MIT 类） | **整个插件按 GPL-3.0-or-later 分发**，对外发要能提供对应源码。明细见 `plugins/mosh/LICENSES.md` |
 | 测试插件 `plugins/fixture-*` | 本 fork 写的测试用 App | GPL-3.0-or-later（跟着仓库） |
 | 宿主里的 UU 远程、RustDesk 调用 | 宿主只按对方公开的链接格式拉起用户手机上装的 UU 远程、RustDesk，不含它们的代码 | 跟着宿主。RustDesk 本身是 AGPL-3.0，UU 远程是网易的商业软件，各按各的 |

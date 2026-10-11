@@ -1,4 +1,4 @@
-# xwshun 本机手册
+# shun 本机手册
 
 Netcatty-mobile 的实验 fork（分支 `xwshun/v3`，remote `origin` = `uxiew/xwshun`，所有者说推之前不 push）。这里只讲在这台 Mac 上怎么跑、怎么测、怎么装、怎么清理。
 App 怎么用看 [使用手册](../user/README.md)；做什么、做到哪看 `plan/v3/STATUS.md`。命令都在仓库根目录执行。
@@ -40,7 +40,7 @@ flutter test test/integration_ssh_fixture_test.dart
 - 键盘和输入法的设备测试（R18，前三份只在模拟器上跑，第四份要真人在真机上，都要上面的测试环境）：
   - 横竖屏 + 真软键盘下终端不被挡、远端尺寸对（`integration_test/r18_keyboard_test.dart`）：跑法同上一条（`adb reverse` + `R17_SSH`），
     另开一个终端先预授权通知，不然一连上就弹「允许通知」挡住键盘：
-    `until adb -s emulator-5580 shell pm grant top.xdwa.xwshun android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done`
+    `until adb -s emulator-5580 shell pm grant top.xdwa.shun android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done`
   - 输入法回放（`integration_test/r18_ime_replay_test.dart`）：先 `(cd plugins && ./build-fixtures.sh)`，再 `tool/ime-replay.sh emulator-5580`。
     脚本装回放输入法、临时设成默认、预授权通知、跑完换回原输入法并卸载，见 `plugins/README.md`「R18 回放输入法」。
   - 硬件键和快捷键栏修饰键（`integration_test/r18_keys_test.dart`）：要模拟器有硬件键盘设备。关掉模拟器，把
@@ -75,7 +75,7 @@ flutter test test/integration_ssh_fixture_test.dart
     真机上它不用 monkey 启动、每次点之前查前台是本 App 且没锁屏，手机上已装着同名 App 就不跑（卸掉会清所有者的数据）。
   - 引擎起不来（TER12）：`tool/r20-engine-failure.sh emulator-5580`，脚本编测试 APK、删掉里面的 libghostty.so、重新签名、用 `flutter drive` 装这个包跑，
     跑完卸掉。会先卸掉模拟器上的 App（签名不同装不上），里面的测试数据随之清掉。
-  - 在真机上跑这几条：先 `tool/remote-device/up.sh`（见那里的 README）、`source /tmp/xwshun-remote-device/env`，把上面的 `emulator-5580` 换成手机序列号。
+  - 在真机上跑这几条：先 `tool/remote-device/up.sh`（见那里的 README）、`source /tmp/shun-remote-device/env`，把上面的 `emulator-5580` 换成手机序列号。
     要所有者当次同意、本人解锁手机；一串跑下来一个多小时，手机 30 分钟会熄屏，熄了测试就失败，所以 G3 复核时临时开了 `adb shell svc power stayon ac`，测完 `svc power stayon false` 改回。
     用完 `down.sh` 后，`android/local.properties` 的 `sdk.dir` 还指着已删的假 SDK，怎么改回见 `tool/remote-device/README.md`「撞墙时」。
 - 连接生命周期（R22，`integration_test/r22_lifecycle_test.dart`，**只在模拟器上跑**）：起好上面的测试环境，`tool/r22-lifecycle.sh emulator-5580 <场景>`。
@@ -117,7 +117,7 @@ flutter test test/integration_ssh_fixture_test.dart
   `(cd tool/tmux-fixture && ./up.sh)` 起、`./down.sh` 关，和上面那套互不影响、可以同时开；没起时整组跳过。细节见 `tool/tmux-fixture/README.md`。
 - Tailscale SSH 的测试（`test/tailscale_ssh_login_test.dart`）要 Go：会自己构建、起停仿制服务器，没装 Go 时整组跳过。仿制服务器和「Headscale + 真 tailscaled」环境的用法见 `tool/tailscale-ssh-fixture/README.md`。
 - 目录设备经四条路线连接的设备测试（R15，`integration_test/catalog_route_matrix_test.dart`）只在模拟器/真机上跑：`./up.sh routes` 后用同目录的 `route-matrix.sh`，见上面那份 README 的「R15」一节。
-- Mosh（X08、X09）有自己独立的测试环境 `tool/mosh-fixture`（compose 项目 `xwshun-mosh`，SSH 22301、UDP 60101–60108，
+- Mosh（X08、X09）有自己独立的测试环境 `tool/mosh-fixture`（compose 项目 `shun-mosh`，SSH 22301、UDP 60101–60108，
   另有一台没装 mosh 的 22302），和上面那套互不影响。Mosh 插件 APK 怎么编见 `plugins/mosh/README.md`。
   - 桌面上（不要模拟器）：`(cd tool/mosh-fixture && ./up.sh)` 后 `flutter test test/mosh_fixture_test.dart`，13 条，约 10 秒。
     真实 OpenSSH + mosh-server 上的引导、指纹、密码错、缺 mosh-server、五种路线拒绝，计数来自测试环境的记账（`counts.sh`）。没起环境时整组跳过。
@@ -133,7 +133,7 @@ flutter test test/integration_ssh_fixture_test.dart
     额外参数放 `IME_REPLAY_DEFINES`，写法见脚本开头）。
     多行的报告（阶段、屏幕）只有第一行带 `X09 ` 前缀，grep 时带上 `-A`。
   - **Mosh 插件换签名（包括以后换正式签名、删了 `plugin-keys` 重新生成）必须同步改宿主的 `lib/domain/plugins/official_plugins.dart`**：
-    宿主只认那里登记的证书，别的证书签的包自称 `xwshun.mosh` 一律「已拒绝」、不给批准，真 Mosh 插件也一样被拒。
+    宿主只认那里登记的证书，别的证书签的包自称 `shun.mosh` 一律「已拒绝」、不给批准，真 Mosh 插件也一样被拒。
     新证书从安装包读：`$ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs plugins/mosh/build/outputs/apk/release/mosh-release.apk`。
   - 插件已有会话时进出连接测试、会话测试不断开它（X12，`integration_test/x12_plugin_reuse_test.dart`）：同上关 Wi-Fi、装 Mosh 插件，
     另装 `plugins/out/echo-author.apk`，`--dart-define=X09_MOSH=…` 照上面取，约 25 秒（不算构建）。测试不 pkill、只看前后差值，
@@ -165,11 +165,11 @@ adb -s emulator-5554 emu kill               # 关机
 V="system-images;android-24;google_apis;arm64-v8a"      # 换成要测的版本，见下表
 S=$ANDROID_HOME/cmdline-tools/latest/bin
 $S/sdkmanager --install "$V"
-echo no | $S/avdmanager create avd -n xwshun-tmp -k "$V" -d pixel_7
-# 启动前在 ../.toolchain/avd/xwshun-tmp.avd/config.ini 里设 hw.audioInput=no（不让模拟器用 Mac 麦克风）
-emulator -avd xwshun-tmp -no-window -no-snapshot -gpu host &
+echo no | $S/avdmanager create avd -n shun-tmp -k "$V" -d pixel_7
+# 启动前在 ../.toolchain/avd/shun-tmp.avd/config.ini 里设 hw.audioInput=no（不让模拟器用 Mac 麦克风）
+emulator -avd shun-tmp -no-window -no-snapshot -gpu host &
 # 用完：
-adb emu kill; $S/avdmanager delete avd -n xwshun-tmp; $S/sdkmanager --uninstall "$V"
+adb emu kill; $S/avdmanager delete avd -n shun-tmp; $S/sdkmanager --uninstall "$V"
 ```
 
 | 用途 | 镜像 |
@@ -194,7 +194,8 @@ tool/build-release.sh && adb install -r build/app/outputs/flutter-apk/app-releas
   再查每个 `.so` 都是 16 KiB 对齐。要联网，比平时慢一两分钟。
 - 包里只有 arm64-v8a：只有它在设备上测过，别的 ABI 在 `android/app/build.gradle.kts` 里排除了。
 
-- 包名 `top.xdwa.xwshun`，和原版 Netcatty（`app.netcatty.mobile`）并存、数据互不影响。**别把 applicationId 改回去**，会覆盖原版。
+- 包名 `top.xdwa.shun`，和原版 Netcatty（`app.netcatty.mobile`）并存、数据互不影响。**别把 applicationId 改成上游的值**，会覆盖原版。
+  2026-10-11 前包名是 `top.xdwa.xwshun`：手机上还装着它的，新包会装成另一个 App，数据怎么搬见 [使用手册第 1 节](../user/README.md#1-安装与搬数据)。
 - 包用 `~/.android/debug.keystore` 签名；换台电脑构建的包签名不同，`adb install` 报 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`，要先卸载（会清掉 App 数据）才能装。
 - AI、云同步、检查更新默认关闭且不显示，开关在 `lib/application/fork_features.dart`。
 
@@ -224,7 +225,7 @@ $P plan/v3/scripts/validate_plan.py   # 只查计划本身，不测 App
 | `baseline-495f5d31/` | 0.1 GB | 原版代码的 worktree，2026-09-29 已删。要重新构建原版时：`git worktree add ../.toolchain/baseline-495f5d31 495f5d3`，再 `chmod +x android/gradlew`（上游仓库里它没有可执行位，不加会报 Permission denied）。删用 `git worktree remove --force`，直接 rm 会留下失效记录 |
 | `artifacts/` | 0.25 GB | 原版 debug APK（sha256 `339f4932…`，测原版共存、插件页「看不到这个包」诊断要用）；Tailscale 官方 OpenAPI 原件 `tailscale-openapi-b416d98e.yaml`（244 KB，删了就没法离线核对官方规范变没变，见 `plan/v3/docs/05`）；UU 远程的官方接入文档和官方 4.42.0 APK（`uuremote-*`，27 MB，App 里固定的官方证书就是从这个 APK 读的，删了没法复核，见 `plan/v3/docs/17`）；RustDesk 1.4.9 的清单、链接处理源码和 GitHub 发行版 APK（`rustdesk-*`，27 MB，固定的发行证书从这个 APK 读，同上） |
 | `zig-cache/` | 0.1 GB 起 | Zig 编 Ghostty 的缓存，每多编一个平台涨一些。删了下次编要重新下 Zig 依赖 |
-| `plugin-keys/` | 12 KB | 测试插件的两把签名密钥（`fixture-author`、`fixture-impostor`）和 X12 样例的作者密钥（`example-author`）。删了下次 `plugins/build-fixtures.sh` 会生成新的，设备上已批准的测试插件随之变「已拒绝（换签）」，在插件页撤销旧批准重新核对即可。**Mosh 插件也用 `fixture-author` 签，宿主把 `xwshun.mosh` 绑在这张证书上**（`lib/domain/plugins/official_plugins.dart`）：删了它、Mosh 插件换了证书，宿主就当它是冒充者直接拒，得同步改那个文件 |
+| `plugin-keys/` | 12 KB | 测试插件的两把签名密钥（`fixture-author`、`fixture-impostor`）和 X12 样例的作者密钥（`example-author`）。删了下次 `plugins/build-fixtures.sh` 会生成新的，设备上已批准的测试插件随之变「已拒绝（换签）」，在插件页撤销旧批准重新核对即可。**Mosh 插件也用 `fixture-author` 签，宿主把 `shun.mosh` 绑在这张证书上**（`lib/domain/plugins/official_plugins.dart`）：删了它、Mosh 插件换了证书，宿主就当它是冒充者直接拒，得同步改那个文件 |
 | `mosh-build/` | 0.25–0.65 GB | X08 Mosh 运行时的源码包（60 MB，带 SHA256 核对）、交叉编译目录、装好的静态库（`prefix-arm64-v8a/`）和本机 protoc/tic（`host/`）。`build/` 下的编译目录随时可删（约 0.4 GB），只要 `prefix-*`、`host/` 在，`plugins/mosh/native/build-mosh-client.sh` 只重编 mosh 本身；整个删了要联网重下源码、从零编约 2 分钟 |
 | 整个 `.toolchain/` | — | 回到安装前，只剩下面 SDK 里的东西 |
 
@@ -276,7 +277,7 @@ brew 为本项目装的（2026-10-04）：`zig@0.16` 和它依赖的 `llvm@21`�
   `settings get secure default_input_method`（还有 `selected_input_method_subtype`、`enabled_input_methods`）对比，确认没变。
 - **模拟器里按电脑的 Esc，App 退回上一页**：模拟器键位表把 Esc 映射成了返回键，真机蓝牙键盘不会这样。用终端快捷键栏的 Esc。
   用 sendevent 写扫描码也一样：`qwerty2.kl` 里扫描码 1 是 BACK，没有任何扫描码映射到 ESCAPE，模拟器上测不了硬件 Esc。
-- **集成测试里等软键盘超时（「等待软键盘弹出超时」），截图上是「Allow xwshun to send you notifications?」**：
+- **集成测试里等软键盘超时（「等待软键盘弹出超时」），截图上是「Allow shun to send you notifications?」**：
   每次 `flutter test` 都重装 App，一连上 SSH 就为前台保活服务申请通知权限，系统框挡在 App 前面，键盘出不来。按第 2 节预授权。
 - **跑着跑着 `adb reverse` 没了，App 报连不上 127.0.0.1:22201**：`adb root` 会重启 adbd，端口转发跟着清掉。先 root 再 reverse
   （`tool/ime-replay.sh` 就是这个顺序）。

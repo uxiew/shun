@@ -2,7 +2,7 @@
 
 两台容器：`mosh` 是 OpenSSH + Alpine 打包的官方 mosh 1.4.0（服务器和客户端都有）+ tmux；`nomosh` 只有 OpenSSH，
 当「服务器上没装 mosh」。账号、密码、客户端密钥两台一样。端口只绑 127.0.0.1。
-和 `../fixture-environment` 是两个独立的 compose 项目（`xwshun-mosh`），起停互不影响。
+和 `../fixture-environment` 是两个独立的 compose 项目（`shun-mosh`），起停互不影响。
 
 ```bash
 ./up.sh      # 构建并启动；生成 .run/fixture.json（用户 mosh、临时密码、客户端私钥、两台的主机公钥）
@@ -17,7 +17,7 @@
 | `127.0.0.1:22302/tcp` | `nomosh` 的 SSH，同一个账号 |
 
 **记账（X09）**：容器里的 `mosh-server`、`sudo`、`apk`、`apt-get` 等被换成 `shims/` 里的脚本——mosh-server 先记一行
-（`/var/log/xwshun/mosh-server-starts.log`）再交给真的，安装类命令只记一行（`install-attempts.log`）就失败返回。
+（`/var/log/shun/mosh-server-starts.log`）再交给真的，安装类命令只记一行（`install-attempts.log`）就失败返回。
 `counts.sh` 前后各跑一次看差值，就知道一次操作让远端启动了几次 mosh-server、有没有试图安装或 sudo。
 `up.sh` 会核对这些脚本确实排在 PATH 前面，不对就拒绝出环境（计数会不可信）。
 
@@ -46,7 +46,7 @@ cd dart_probe && flutter pub get && flutter test     # 23 条，约 2 分钟；�
 ## 模拟器怎么连到这里
 
 UDP：见 `plan/v3/evidence/X08.md`「设备上的 UDP 通路」。X09 的 App 要 SSH 和 UDP 发往同一个地址（10.0.2.2），
-TCP 经 10.0.2.2 要先关模拟器的 Wi-Fi，见 `docs/xwshun/README.md` 第 3 节。设备测试参数：`python3 x08_config.py`（X08、X09 共用）。
+TCP 经 10.0.2.2 要先关模拟器的 Wi-Fi，见 `docs/shun/README.md` 第 3 节。设备测试参数：`python3 x08_config.py`（X08、X09 共用）。
 
 ## 撞墙时
 

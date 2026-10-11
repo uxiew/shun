@@ -6,7 +6,7 @@
 加上每个会话一条 **socket 字节流**（终端数据）。没有别的通道：插件拿不到宿主的保险库、私钥、密码、别的主机或别的插件的会话，
 宿主也不给插件执行命令、读文件、转发 Intent 的接口。
 
-契约代码只有一份：`plugins/provider-sdk`（AIDL 在 `src/main/aidl/top/xdwa/xwshun/plugin/v1/`）。下面的数字都取自那里和宿主的实现，改了以那里为准。
+契约代码只有一份：`plugins/provider-sdk`（AIDL 在 `src/main/aidl/top/xdwa/shun/plugin/v1/`）。下面的数字都取自那里和宿主的实现，改了以那里为准。
 
 ## 1. 清单里要有什么
 
@@ -14,13 +14,13 @@
 
 | 要求 | 不满足时宿主怎么说 |
 |---|---|
-| 一个服务，带 `<action android:name="top.xdwa.xwshun.plugin.action.PROVIDER_V1" />` | 列表里根本没有你（宿主只查这个 action，不申请「查看全部应用」）|
+| 一个服务，带 `<action android:name="top.xdwa.shun.plugin.action.PROVIDER_V1" />` | 列表里根本没有你（宿主只查这个 action，不申请「查看全部应用」）|
 | 这个服务 `android:exported="true"` | 「不兼容：插件服务没有导出，宿主无法绑定」 |
 | 一个 App 里**只有一个**这样的服务 | 「不兼容：一个安装包声明了 2 个插件服务，只允许一个」 |
-| 服务上 `<meta-data android:name="top.xdwa.xwshun.plugin.DESCRIPTOR" android:resource="@raw/…" />` 指向描述符 | 「不兼容：插件服务没有声明 top.xdwa.xwshun.plugin.DESCRIPTOR」 |
+| 服务上 `<meta-data android:name="top.xdwa.shun.plugin.DESCRIPTOR" android:resource="@raw/…" />` 指向描述符 | 「不兼容：插件服务没有声明 top.xdwa.shun.plugin.DESCRIPTOR」 |
 | 服务**不设** `android:permission` | 宿主绑不上。独立签名的插件没法用 signature 权限认宿主，认人放在每个调用里（第 4 节） |
-| `<queries><package android:name="top.xdwa.xwshun" /></queries>` | API 35 模拟器上去掉也能握手（宿主绑定插件时系统自动让插件看见宿主），样例照写，原因见清单注释 |
-| 可选：一个导出的 Activity，带 `top.xdwa.xwshun.plugin.action.SETTINGS_V1` 和 `DEFAULT` category | 声明了多个时宿主不给入口，不替你挑 |
+| `<queries><package android:name="top.xdwa.shun" /></queries>` | API 35 模拟器上去掉也能握手（宿主绑定插件时系统自动让插件看见宿主），样例照写，原因见清单注释 |
+| 可选：一个导出的 Activity，带 `top.xdwa.shun.plugin.action.SETTINGS_V1` 和 `DEFAULT` category | 声明了多个时宿主不给入口，不替你挑 |
 
 设置页：宿主详情页的「打开插件的设置页」用显式组件打开它，**不带任何 extras**。只有「可用」的插件才有这个入口。
 设置存在插件自己的存储里，宿主看不到。它是导出的 Activity，任何 App 都能打开，别在里面放只该给宿主看的东西。
@@ -32,7 +32,7 @@
 | 字段 | 必填 | 规则 | 样例里的值 |
 |---|---|---|---|
 | `schemaVersion` | 是 | 只能是 `1` | `1` |
-| `pluginId` | 是 | `^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`，≤128 字符。`builtin.` 开头的归宿主；`xwshun.mosh` 只认 Mosh 插件的证书。和设备上别的已可用插件重复会被拒 | `example.hello_terminal` |
+| `pluginId` | 是 | `^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`，≤128 字符。`builtin.` 开头的归宿主；`shun.mosh` 只认 Mosh 插件的证书。和设备上别的已可用插件重复会被拒 | `example.hello_terminal` |
 | `displayName` | 是 | 1–80 字符，不含控制字符 | `Hello 终端（样例）` |
 | `version` | 是 | `x.y.z`，≤32 字符。建议和 `versionName` 一致 | `0.1.0` |
 | `apiMajor` | 是 | 只能是 `1` | `1` |
@@ -42,8 +42,8 @@
 | `supportedRoutes` | 是 | 至少一个：`system-default`、`socks5-connect`、`proxy-jump`、`socks5-proxy-jump`、`provider-managed`。终端插件写 `system-default` | `["system-default"]` |
 | `platforms` | 是 | `android-service` 只能是 `["android"]` | `["android"]` |
 | `permissions` | 是（可为空） | 0–8 个，只能从下表选 | `["own-session-input-output"]` |
-| `packageName` | `android-service` 必填 | 等于你的 applicationId，≤180 字符 | `example.xwshun.hello` |
-| `serviceClass` | `android-service` 必填 | 声明插件 action 的那个服务的全名，≤220 字符 | `example.xwshun.hello.HelloProviderService` |
+| `packageName` | `android-service` 必填 | 等于你的 applicationId，≤180 字符 | `example.shun.hello` |
+| `serviceClass` | `android-service` 必填 | 声明插件 action 的那个服务的全名，≤220 字符 | `example.shun.hello.HelloProviderService` |
 | `license` | 否 | ≤100 字符，建议用 SPDX 写法 | `GPL-3.0-or-later` |
 | `sourceUrl` | 否 | 只许 `https://`，≤1024 字符 | 样例没写 |
 
@@ -56,16 +56,16 @@
 | 权限 | 宿主界面上的名字 | 用不用 |
 |---|---|---|
 | `own-session-input-output` | 本会话的输入输出 | 终端插件写它。宿主现在只在批准框、详情页显示，不写不会被拒，但用户看不出你要收发会话数据 |
-| `own-session-ephemeral-secret` | 本会话的临时凭据 | 只有 Mosh 插件用得上（宿主只把 Mosh 的一次性密钥交给 pluginId 为 `xwshun.mosh` 的插件）。别的插件写了什么也拿不到，会话测试也不给开，还会让用户以为你要凭据，别写 |
+| `own-session-ephemeral-secret` | 本会话的临时凭据 | 只有 Mosh 插件用得上（宿主只把 Mosh 的一次性密钥交给 pluginId 为 `shun.mosh` 的插件）。别的插件写了什么也拿不到，会话测试也不给开，还会让用户以为你要凭据，别写 |
 | `user-initiated-external-launch`、`own-provider-state`、`device-catalog-read` | 由你点击后打开外部 App / 插件自己的状态 / 读设备目录 | 第三方插件现在用不上 |
 
 ## 3. AIDL 接口
 
-插件实现 `IXwshunProvider`，宿主握手时交给插件一个回调 `IXwshunHost`。
+插件实现 `IShunProvider`，宿主握手时交给插件一个回调 `IShunHost`。
 
 | 方法 | 谁调、什么时候 | 插件要做什么 |
 |---|---|---|
-| `String handshake(int hostApiMajor, int hostApiMinor, IXwshunHost host)` | 宿主每次新建连接时先调它。「连接测试」「会话测试」在已经连着时沿用旧连接，不再调 | 认人；核对版本（不接受就抛 `IllegalStateException`，话里写清楚要哪个版本）；记下 `host` 并 `linkToDeath`；**返回清单里那份描述符**（宿主核对其中的 `pluginId` 和批准的一致） |
+| `String handshake(int hostApiMajor, int hostApiMinor, IShunHost host)` | 宿主每次新建连接时先调它。「连接测试」「会话测试」在已经连着时沿用旧连接，不再调 | 认人；核对版本（不接受就抛 `IllegalStateException`，话里写清楚要哪个版本）；记下 `host` 并 `linkToDeath`；**返回清单里那份描述符**（宿主核对其中的 `pluginId` 和批准的一致） |
 | `long ping(long nonce)` | 连接测试 | 认人；原样返回 `nonce` |
 | `void openSession(String handle, long generation, int cols, int rows, ParcelFileDescriptor stream)` | 开会话 | 认人；用 `ProviderSessions.open(handle, uid, generation, …)` 记下；在**自己的线程**里开始读写 `stream`，先回报 `active`；立即返回 |
 | `void resizeSession(String handle, long generation, int cols, int rows)` | 终端尺寸变了 | 认人；`ProviderSessions.require` 核对；记下新尺寸；回报 `resized:COLSxROWS`。别在这里写 `stream`（可能阻塞 Binder 线程） |
@@ -84,15 +84,15 @@
 ## 4. 认人：每个方法第一行
 
 ```java
-int uid = verifier.requireTrustedCaller();   // CallerVerifier(context, "top.xdwa.xwshun", {宿主证书 SHA-256})
+int uid = verifier.requireTrustedCaller();   // CallerVerifier(context, "top.xdwa.shun", {宿主证书 SHA-256})
 ```
 
-- 它用 `Binder.getCallingUid()` 查出调用方的包名，再从系统读这个包**当前**的签名证书，必须是你在 `xwshunHostSha256` 里写的那张。
+- 它用 `Binder.getCallingUid()` 查出调用方的包名，再从系统读这个包**当前**的签名证书，必须是你在 `shunHostSha256` 里写的那张。
   不是就抛 `SecurityException`，宿主那边显示「插件拒绝了宿主：…」。
 - **为什么不能只在 `onBind` 查**：宿主绑定你之后，别的 App 用同样的 Intent 去绑，系统直接把同一个 Binder 给它，`onBind` 根本不会再被调用（模拟器上实测）。
 - **别信 Intent 里的任何东西**：extras 里的「调用方包名」之类是对方随便写的。
 - 要在任何 `Binder.clearCallingIdentity()` 之前调。每次都重新读证书，不缓存：包可能被卸载后换一张证书装回来。
-- 反过来，宿主也在每个回调里核对调用方是不是批准过的那个插件、证书是不是批准时那张。你把 `IXwshunHost` 转交给别的 App，它也调不进宿主。
+- 反过来，宿主也在每个回调里核对调用方是不是批准过的那个插件、证书是不是批准时那张。你把 `IShunHost` 转交给别的 App，它也调不进宿主。
 
 ## 5. 会话：字节流和状态
 
@@ -129,7 +129,7 @@ int uid = verifier.requireTrustedCaller();   // CallerVerifier(context, "top.xdw
 
 **线程**：三个会话方法都要立即返回，读写放在会话自己的线程。关流之前先 `Os.shutdown(fd, SHUT_RDWR)`：只 `close` 叫不醒阻塞在 `read` 上的线程。
 
-**宿主进程死了**：握手时对 `IXwshunHost` 做 `linkToDeath`，回调里 `ProviderSessions.dropOwner(uid)` 拿到它开的全部会话、逐个关掉。
+**宿主进程死了**：握手时对 `IShunHost` 做 `linkToDeath`，回调里 `ProviderSessions.dropOwner(uid)` 拿到它开的全部会话、逐个关掉。
 模拟器上看到：插件进程没有会话、被系统冻结时，死亡通知要等它下次被唤醒才到。
 
 **插件进程死了**：宿主把它的会话记成「中断：插件进程没了」，不会自动重连。

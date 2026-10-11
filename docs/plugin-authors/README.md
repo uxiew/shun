@@ -1,8 +1,8 @@
-# 给 xwshun 写插件
+# 给 shun 写插件
 
 > 对应插件 API **1.0**（2026-10-07）。宿主的插件 API 版本在「设置 → 插件（实验）」最底下；不是 1.0 时，先看这几份文档有没有跟着改。
 
-xwshun 是 Android 上的 SSH 终端 App（[Netcatty Mobile](https://github.com/kmh1145/Netcatty-mobile) 的 fork，包名 `top.xdwa.xwshun`，下面叫「宿主」）。
+shun 是 Android 上的 SSH 终端 App（[Netcatty Mobile](https://github.com/kmh1145/Netcatty-mobile) 的 fork，包名 `top.xdwa.shun`，下面叫「宿主」）。
 **插件是你自己写、用你自己的密钥签名的另一个 Android App。** 它给宿主提供终端会话：宿主把用户敲的键发给它，它把要显示的字写回来。
 用户在宿主的「设置 → 插件（实验）」里核对你的签名证书、点「批准」之后，宿主才会启动你的代码。
 
@@ -27,7 +27,7 @@ adb install -r 宿主.apk
 # 2. 一步起工程：复制样例、改名、生成你的密钥、从宿主安装包读证书、自查、构建（不改仓库里的任何文件）
 <仓库>/plugins/example/tools/new-plugin.sh com.alice.notes com.alice.notes "Alice 的笔记终端" --host-apk 宿主.apk --build
 # 3. 装插件（路径脚本最后会打出来）
-adb install -r ~/xwshun-plugins/notes/app/build/outputs/apk/release/app-release.apk
+adb install -r ~/shun-plugins/notes/app/build/outputs/apk/release/app-release.apk
 ```
 
 4. 宿主「设置 → 插件（实验）」→ 点你的插件 → 详情页的证书 SHA-256 和脚本打出的「你的证书」对一下 →「批准」。
@@ -99,14 +99,14 @@ cd ~/my-plugin/example
 先别改名：照第 2–7 步原样编通、装上、看到会话通了，再到第 8 步改成你自己的。这样工具链和设备有没有问题先排除了，之后改出毛病就知道是改出来的。
 **现在还编不了**：没有签名配置（第 2 步）和宿主证书（第 3 步），`./gradlew assembleRelease` 在 `preBuild` 就停下，告诉你缺哪一步。
 
-两个目录要放在同一个父目录下：样例默认在 `../provider-sdk` 找契约库。放别处就在 `gradle.properties` 里加一行 `xwshunSdkDir=<provider-sdk 的路径>`，
+两个目录要放在同一个父目录下：样例默认在 `../provider-sdk` 找契约库。放别处就在 `gradle.properties` 里加一行 `shunSdkDir=<provider-sdk 的路径>`，
 不加会报 `找不到 provider-sdk：…`。
 
 ## 第 2 步：生成你自己的签名密钥
 
 ```bash
-mkdir -p ~/xwshun-plugin-keys
-keytool -genkeypair -keystore ~/xwshun-plugin-keys/my-plugin.jks -alias plugin \
+mkdir -p ~/shun-plugin-keys
+keytool -genkeypair -keystore ~/shun-plugin-keys/my-plugin.jks -alias plugin \
   -keyalg RSA -keysize 3072 -validity 10000 -dname "CN=你的名字"
 # 会问两次密码（一次输入、一次确认），记住它
 ```
@@ -122,7 +122,7 @@ cp signing.properties.example signing.properties    # 已被 .gitignore 忽略�
 - **这把密钥要一直用下去。** 丢了就没法发新版本：同一个包名换了密钥，系统不让覆盖安装，用户只能卸载重装、在宿主里重新批准。
 - 你的证书指纹要公布给用户，他们批准时拿来核对。构建出 APK 之后最准的读法（输出就是宿主详情页上那串小写、不带冒号的 64 位十六进制）：
   `$ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs app/build/outputs/apk/release/app-release.apk`，取 `certificate SHA-256 digest` 那一行。
-  只有密钥库时：`keytool -list -v -keystore ~/xwshun-plugin-keys/my-plugin.jks -alias plugin | awk '/SHA256:/{print $2}' | tr -d ':' | tr 'A-F' 'a-f'`
+  只有密钥库时：`keytool -list -v -keystore ~/shun-plugin-keys/my-plugin.jks -alias plugin | awk '/SHA256:/{print $2}' | tr -d ':' | tr 'A-F' 'a-f'`
   （keytool 的输出带冒号、大写，中文系统上其他行是中文，只有 `SHA256:` 那一行要）。
 - 别用 Android 调试证书（`~/.android/debug.keystore`）签：正式版宿主一律拒收（「debug 证书签名的插件只在开发构建中可用」），
   开发版宿主也会标出来。样例的 debug 包、release 包都用你的密钥签，避开这个坑。
@@ -132,7 +132,7 @@ cp signing.properties.example signing.properties    # 已被 .gitignore 忽略�
 插件只接受用某一张证书签名的宿主来调它，不然谁冒充宿主都能用你的插件。这张证书的 SHA-256 写进 `gradle.properties`：
 
 ```properties
-xwshunHostSha256=499ff3abf2d0aeb386ce3b30da1c3a0fa3566d5d89b042bf279c0773f79d500f
+shunHostSha256=499ff3abf2d0aeb386ce3b30da1c3a0fa3566d5d89b042bf279c0773f79d500f
 ```
 
 上面这串是项目这台 Mac 上编的 debug 宿主的证书。**你手里的宿主不一定是这张**，两种办法取：
@@ -141,7 +141,7 @@ xwshunHostSha256=499ff3abf2d0aeb386ce3b30da1c3a0fa3566d5d89b042bf279c0773f79d500
 - 或者对宿主 APK 文件：`$ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs 宿主.apk`，取 `certificate SHA-256 digest` 那一行。
   （别用 `keytool -printcert -jarfile 宿主.apk`：它读不了这种只有 v2/v3 签名的包，只打印 `Not a signed jar file`。）
 
-写错了会怎样：构建照样成功，装上也能批准，但「连接测试」报 **「连接失败：插件拒绝了宿主：top.xdwa.xwshun 的签名证书不是信任的那张」**。
+写错了会怎样：构建照样成功，装上也能批准，但「连接测试」报 **「连接失败：插件拒绝了宿主：top.xdwa.shun 的签名证书不是信任的那张」**。
 debug 宿主是用编它那台电脑的调试证书签的，换一台电脑编的宿主证书就不同；要同时支持几个宿主，用逗号隔开写几张。
 
 ## 第 4 步：构建
@@ -154,20 +154,20 @@ debug 宿主是用编它那台电脑的调试证书签的，换一台电脑编�
 项目这台 Mac 上有缓存时约 6–13 秒。缺配置会在这一步报出来，并说去看哪一步：
 
 ```text
-xwshunHostSha256 没填或格式不对：…怎么取见 docs/plugin-authors/README.md 第 3 步
+shunHostSha256 没填或格式不对：…怎么取见 docs/plugin-authors/README.md 第 3 步
 缺签名配置 …/signing.properties：照 signing.properties.example 写一份。…第 2 步
 ```
 
 **可选：构建前自查描述符**（要 Dart SDK）。报出来的话和宿主插件页上的一字不差，省得装到手机上才发现：
 
 ```bash
-tools/check-descriptor.sh app/src/main/res/raw/xwshun_plugin.json \
-  --package example.xwshun.hello --service example.xwshun.hello.HelloProviderService
+tools/check-descriptor.sh app/src/main/res/raw/shun_plugin.json \
+  --package example.shun.hello --service example.shun.hello.HelloProviderService
 # 通过（宿主 API 1.0 的判定）。证书和批准要装到设备上再看。
 ```
 
 它用第 1 步拷进 `tools/plugin_api` 的那份判定代码，不 `pub get`、不往任何地方写文件（临时生成一份包配置，跑完就删）。
-没拷的话报「找不到 plugin_api」；在 xwshun 仓库里直接跑 `<仓库>/plugins/example/tools/check-descriptor.sh …` 也行，它用仓库的 `packages/plugin_api`，同样不改仓库。
+没拷的话报「找不到 plugin_api」；在 shun 仓库里直接跑 `<仓库>/plugins/example/tools/check-descriptor.sh …` 也行，它用仓库的 `packages/plugin_api`，同样不改仓库。
 有提醒（比如「没写 license」「宿主不会调用 device-catalog」）不算失败，照样「通过」，但值得看一眼。
 
 ## 第 5 步：装到设备
@@ -182,7 +182,7 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 ## 第 6 步：在宿主里核对证书、批准
 
 1. 打开宿主 →「设置」→ 往下拉 →「插件（实验）」。你的插件在列表里，状态「待批准」。
-   这时候宿主只读了你的描述符，**没启动你的任何代码**（`adb shell pidof example.xwshun.hello` 什么都不打印）。
+   这时候宿主只读了你的描述符，**没启动你的任何代码**（`adb shell pidof example.shun.hello` 什么都不打印）。
 2. 点进去看详情页：插件 ID、包名、版本、能力、申请的权限，以及**签名证书 SHA-256**——和第 2 步你自己读出的那串对一下。
 3. 点「批准」，确认框里再显示一遍证书，点「批准」。状态变「可用」，出现「连接测试」「会话测试」「停用」「撤销批准」「打开插件的设置页」。
 
@@ -211,7 +211,7 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 框里是你的插件写回来的字节，控制字符写成 `^X`（`^[` 是 ESC）：
 
 ```text
-^[[1;36mHello 终端^[[0m：xwshun 插件样例
+^[[1;36mHello 终端^[[0m：shun 插件样例
 宿主 API 1.0 · 终端 80×24 · 输入 help 看命令
 hello>
 ```
@@ -226,7 +226,7 @@ hello>
 | 点「关闭会话」 | 「正在关闭：本 App 先关了自己这一端，再请插件关」→「已关闭：插件确认已停止（closed）」 |
 | 点「重新开始」，发 `exit` | 框里「再见。插件这边结束会话。」→「已关闭：插件自己结束了会话（closed）」 |
 
-插件这边的日志：`adb logcat -s XwshunHello`（样例的 TAG；改成你自己的）。宿主那边大多数问题只显示在界面上、不写 logcat，哪些有日志见 [troubleshooting.md](troubleshooting.md) 开头。
+插件这边的日志：`adb logcat -s ShunHello`（样例的 TAG；改成你自己的）。宿主那边大多数问题只显示在界面上、不写 logcat，哪些有日志见 [troubleshooting.md](troubleshooting.md) 开头。
 
 到这里，授权 → 版本协商 → 字节流 → 改尺寸 → 关闭都走过一遍了。
 
@@ -241,7 +241,7 @@ hello>
 
 **握手、认人、字节流这一层要装宿主测**，用宿主的「会话测试」。SDK 里不提供「假宿主」，原因：
 
-- 插件只接受宿主那张证书签的、包名是 `top.xdwa.xwshun` 的调用方（`CallerVerifier`）。假宿主要么用同一个包名（和真宿主装不到一台设备上），
+- 插件只接受宿主那张证书签的、包名是 `top.xdwa.shun` 的调用方（`CallerVerifier`）。假宿主要么用同一个包名（和真宿主装不到一台设备上），
   要么让插件额外信任一个假宿主——这得在插件里放开一个口子，只在 debug 包里放开也容易被带进发布包，削弱的正是这层认人。
 - 假宿主要把宿主的插件桥（绑定、握手、socketpair、背压、关闭确认）重写一遍，几百行，写出来也不等于真宿主的行为。
 

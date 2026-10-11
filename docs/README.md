@@ -1,4 +1,4 @@
-# Netcatty Mobile 开发文档
+# shun 开发文档
 
 本目录面向维护者和后续开发 Agent，记录项目当前实现、关键约束和可复用的验证流程。开始修改前先阅读与任务相关的文档，不要只根据页面名称猜测数据流。
 
@@ -8,7 +8,7 @@
 - [DEVELOPMENT.md](DEVELOPMENT.md)：环境搭建、开发命令、测试矩阵、分支约定、CI 与 Release 流程。
 - [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)：仓库目录树、关键文件职责和常见修改入口。
 - [SECURITY.md](SECURITY.md)：凭据存储、同步加密、主机验证、日志/截图脱敏和提交前安全检查。
-- [xwshun/README.md](xwshun/README.md)：本地 fork 专用——工具链、模拟器、真机安装、测试环境和磁盘清理。
+- [shun/README.md](shun/README.md)：本地 fork 专用——工具链、模拟器、真机安装、测试环境和磁盘清理。
 - [user/README.md](user/README.md)：使用手册，写给用 App 的人。
 - [UPSTREAM_README.md](UPSTREAM_README.md)：上游 README 原文（功能介绍与截图）。
 

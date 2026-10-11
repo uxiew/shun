@@ -22,7 +22,7 @@ App 本身是一个"回环终端"：没有 SSH，键盘/输入法发出的字节
 
 ```bash
 adb install -r build/app/outputs/flutter-apk/app-release.apk
-adb shell am start -n top.xdwa.xwshun.terminal_spike/.MainActivity
+adb shell am start -n top.xdwa.shun.terminal_spike/.MainActivity
 tool/adb_key_check.sh emulator-5580     # adb 注入方向键/退格/F1 等，逐项 PASS/FAIL
 adb logcat -s flutter | grep SPIKE_     # 手点软键盘时边点边看
 ```

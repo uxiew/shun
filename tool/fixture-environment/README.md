@@ -24,7 +24,7 @@ SSH 用户 `fixture`，登录 shell 是 busybox 的 `sh`（不支持 bracketed p
 要测真 readline 的粘贴行为（R19，`test/integration_ssh_fixture_test.dart` 的「R19 粘贴到真 bash」）时在会话里 `exec bash`。改了 `Dockerfile` 后 `up.sh` 会重新构建。
 
 密码和客户端私钥每次 `up.sh` 重新生成；四台 sshd 的主机密钥也每次重新生成，所以**每次 up 之后指纹都会变**——测"指纹改变必须阻断"时直接利用这一点。
-`docker restart` 单个容器（模拟 sshd 重启、代理重启）沿用原来的主机密钥和账号；要模拟「重启后换了密钥」，先 `docker exec <容器> rm /etc/ssh/.xwshun-hostkey` 再重启，
+`docker restart` 单个容器（模拟 sshd 重启、代理重启）沿用原来的主机密钥和账号；要模拟「重启后换了密钥」，先 `docker exec <容器> rm /etc/ssh/.shun-hostkey` 再重启，
 这之后 `.run/fixture.json` 里的指纹就旧了，重新 `up.sh`。
 
 ## 撞墙时

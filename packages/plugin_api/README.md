@@ -8,7 +8,7 @@
 ## 给插件作者：构建前自查描述符
 
 ```bash
-plugins/example/tools/check-descriptor.sh <你的 xwshun_plugin.json> --package <你的 applicationId> --service <服务类全名>
+plugins/example/tools/check-descriptor.sh <你的 shun_plugin.json> --package <你的 applicationId> --service <服务类全名>
 ```
 
 只要 Dart SDK（Flutter 自带的也行）。脚本临时生成一份包配置直接跑 `bin/check_descriptor.dart`，不在这个目录里 `pub get`、不写任何文件。
@@ -21,7 +21,7 @@ plugins/example/tools/check-descriptor.sh <你的 xwshun_plugin.json> --package 
 
 规则说明见 `docs/plugin-authors/contract.md`，这里不重复。
 
-**这一节是给维护 xwshun 仓库的人看的，写插件不用跑这些测试**（自查用 `plugins/example/tools/check-descriptor.sh`）。
+**这一节是给维护 shun 仓库的人看的，写插件不用跑这些测试**（自查用 `plugins/example/tools/check-descriptor.sh`）。
 
 ```bash
 source /Users/fodelf/xdw/xwshun/.toolchain/env.sh

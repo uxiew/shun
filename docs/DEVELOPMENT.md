@@ -19,8 +19,8 @@ Windows 工作区路径包含空格时，某些 Native Asset Hook 可能错误�
 ## 初始化
 
 ```bash
-git clone https://github.com/kmh1145/Netcatty-mobile.git
-cd Netcatty-mobile
+git clone git@github.com:uxiew/xwshun.git netcatty-mobile
+cd netcatty-mobile
 flutter pub get
 flutter doctor -v
 ```
@@ -154,7 +154,7 @@ flutter test test/cloud_sync_service_test.dart test/netcatty_crypto_test.dart te
 
 ### iOS
 
-- “文件”App 中出现 Netcatty 文件夹，并能读写上传/下载文件
+- “文件”App 中出现 shun 文件夹，并能读写上传/下载文件
 - 无签名 IPA 重签后安装
 - Keychain 数据在升级后保留
 - PiP 文字方向、颜色、更新和停止
@@ -191,10 +191,10 @@ flutter test test/cloud_sync_service_test.dart test/netcatty_crypto_test.dart te
 ### ios Job
 
 1. 无签名构建 Release iOS App
-2. 打包 `netcatty-mobile-vX.Y.Z-ios-unsigned.ipa`
+2. 打包 `shun-vX.Y.Z-ios-unsigned.ipa`
 3. 上传仅包含 IPA 的 Artifact
 
-Android 通用安装包命名为 `netcatty-mobile-vX.Y.Z-android.apk`，分架构包分别追加 `-arm64-v8a`、`-armeabi-v7a`、`-x86_64`。现代实体设备优先提供 `arm64-v8a`，无法确认架构时使用通用包。Artifact 默认保留 30 天，Artifact 名称还会追加 Actions Run Number 以便区分同版本的不同构建。CI 的 Android `versionCode` 使用 Actions Run Number，以保证同一签名下可覆盖升级；正式 Release 的用户可见版本和安装包文件名均由 `pubspec.yaml` 的 Build Name 决定。
+Android 通用安装包命名为 `shun-vX.Y.Z-android.apk`，分架构包分别追加 `-arm64-v8a`、`-armeabi-v7a`、`-x86_64`。现代实体设备优先提供 `arm64-v8a`，无法确认架构时使用通用包。Artifact 默认保留 30 天，Artifact 名称还会追加 Actions Run Number 以便区分同版本的不同构建。CI 的 Android `versionCode` 使用 Actions Run Number，以保证同一签名下可覆盖升级；正式 Release 的用户可见版本和安装包文件名均由 `pubspec.yaml` 的 Build Name 决定。
 
 ## 版本号
 
@@ -218,11 +218,11 @@ version: MAJOR.MINOR.PATCH+BUILD
 4. 执行格式检查、`flutter analyze`、完整 `flutter test` 和本地 Android 构建。
 5. 推送 `main`，等待 Mobile CI 的 test 与 ios Job 全部成功。
 6. 下载同一次 CI Run 的 Android/iOS Artifacts，确认包含：
-   - `netcatty-mobile-vX.Y.Z-android.apk`（通用包）
-   - `netcatty-mobile-vX.Y.Z-android-arm64-v8a.apk`
-   - `netcatty-mobile-vX.Y.Z-android-armeabi-v7a.apk`
-   - `netcatty-mobile-vX.Y.Z-android-x86_64.apk`
-   - `netcatty-mobile-vX.Y.Z-ios-unsigned.ipa`
+   - `shun-vX.Y.Z-android.apk`（通用包）
+   - `shun-vX.Y.Z-android-arm64-v8a.apk`
+   - `shun-vX.Y.Z-android-armeabi-v7a.apk`
+   - `shun-vX.Y.Z-android-x86_64.apk`
+   - `shun-vX.Y.Z-ios-unsigned.ipa`
 7. 创建带注释的 `vX.Y.Z` Tag，并以同名 GitHub Release 发布全部安装包。不要额外上传 `.sha256` 文件；GitHub 会在 Release 资产信息中显示每个文件的 SHA-256 Digest。
 8. 检查 `/releases/latest`、README 徽章、安装包下载和 GitHub 显示的 Digest。
 
@@ -230,9 +230,9 @@ version: MAJOR.MINOR.PATCH+BUILD
 
 ```bash
 gh run download <run-id> --dir dist
-git tag -a vX.Y.Z -m "Netcatty Mobile X.Y.Z"
+git tag -a vX.Y.Z -m "shun X.Y.Z"
 git push origin vX.Y.Z
-gh release create vX.Y.Z <assets...> --title "Netcatty Mobile X.Y.Z" --notes-file <notes.md>
+gh release create vX.Y.Z <assets...> --title "shun X.Y.Z" --notes-file <notes.md>
 ```
 
 不要在 CI 未通过时提前移动 `latest` Tag，也不要上传来自不同提交或不同 CI Run 的 Android/iOS 包。
@@ -246,7 +246,7 @@ Beta 版本必须同时满足以下约束：
 3. GitHub Release 必须标记为 Pre-release；CLI 发布时必须添加 `--prerelease`：
 
 ```bash
-gh release create vX.Y.Z-beta.N <assets...> --prerelease --title "Netcatty Mobile X.Y.Z Beta N" --notes-file <notes.md>
+gh release create vX.Y.Z-beta.N <assets...> --prerelease --title "shun X.Y.Z Beta N" --notes-file <notes.md>
 ```
 
 应用内更新检查固定使用 GitHub `/releases/latest` 正式版通道，并额外拒绝响应中的 Draft/Pre-release，因此普通用户不会收到 Beta 更新提示。Beta 测试用户需要从 Releases 页面或对应 PR 的 Actions Artifacts 手动下载安装。仅使用 `-beta.N` 标签但遗漏 `--prerelease` 会被 GitHub 当作正式 Release，严禁这样发布。

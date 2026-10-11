@@ -3,7 +3,7 @@
 ## 仓库目录
 
 ```text
-Netcatty-mobile/
+netcatty-mobile/
 ├─ .github/
 │  └─ workflows/mobile.yml       Android/iOS CI、签名 APK 与无签名 IPA
 ├─ android/                       Android Flutter Host 与原生能力
@@ -155,7 +155,7 @@ presentation/widgets/system_management/
 
 ### 主题
 
-`presentation/theme.dart` 保存 `NetcattyThemePreset` 列表和 Material Theme 生成逻辑。新增主题时检查主题搜索、选择卡片、终端颜色、错误色和文字对比度。
+`presentation/theme.dart` 保存 `ShunThemePreset` 列表和 Material Theme 生成逻辑。新增主题时检查主题搜索、选择卡片、终端颜色、错误色和文字对比度。
 
 ### 本地化
 
@@ -163,7 +163,7 @@ presentation/widgets/system_management/
 
 ## Android 原生工程
 
-关键路径：`android/app/src/main/kotlin/app/netcatty/mobile/`
+关键路径：`android/app/src/main/kotlin/top/xdwa/shun/`
 
 | 文件 | 职责 |
 | --- | --- |

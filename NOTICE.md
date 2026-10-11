@@ -1,6 +1,6 @@
 # NOTICE
 
-本程序是 Netcatty Mobile 的修改版。
+本程序 shun 是 Netcatty Mobile 的修改版。
 
 - 原作品：Netcatty Mobile，作者 kmh1145，<https://github.com/kmh1145/Netcatty-mobile>
 - 原作品又参考并兼容 binaricat/Netcatty 桌面版：<https://github.com/binaricat/Netcatty>

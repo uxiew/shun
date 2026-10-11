@@ -8,7 +8,7 @@ source ../.toolchain/env.sh
 dart run tool/tailscale-fixture/serve.dart          # 前台运行，每个请求打一行 JSON
 adb reverse tcp:18480 tcp:18480 && adb reverse tcp:18481 tcp:18481
 flutter build apk --debug -t tool/sec05/tailscale_seed_main.dart && adb install -r build/app/outputs/flutter-apk/app-debug.apk
-adb shell am start -n top.xdwa.xwshun/app.netcatty.mobile.MainActivity
+adb shell am start -n top.xdwa.shun/top.xdwa.shun.MainActivity
 adb logcat -s flutter | grep "R11 seed"             # 三条路径的结果摘要
 ```
 
@@ -40,14 +40,14 @@ flutter build apk --debug -t tool/tailscale-fixture/catalog_app_main.dart && adb
 
 App 里：设置 → Tailscale 设备目录 → 添加来源 → 粘贴 token 读一次（随便填，假服务器不校验）。
 设备地址写 `127.0.0.1`、导入时端口填 22201，导入的主机就能真的 SSH 到测试环境的 ssh-edge。
-验完 `adb uninstall top.xdwa.xwshun`（这个包的目录 API 指着本机，别留着当正式版用），`./down.sh` 关测试环境。
+验完 `adb uninstall top.xdwa.shun`（这个包的目录 API 指着本机，别留着当正式版用），`./down.sh` 关测试环境。
 
 撞墙时：
 
 - **`adb -s emulator-5554` 写进变量后报 `command not found`**：zsh 不按空格拆变量。改用 `export ANDROID_SERIAL=emulator-5554` 再直接敲 `adb`。
 - **`adb shell run-as <包名> sh -c 'cd … && tar …'` 打出来的包有几个 GB**：单引号被本机 shell 吃掉，`cd` 没带参数，
-  tar 实际跑在设备根目录。整条命令外面再包一层双引号：`adb exec-out "run-as top.xdwa.xwshun sh -c 'cd /data/data/top.xdwa.xwshun && tar cf - .'"`。
-- **`monkey -p top.xdwa.xwshun …` 退出码 -5、App 没起来**：刚 `install -r` 完启动器还没刷新。直接 `am start -n` 指定 Activity。
+  tar 实际跑在设备根目录。整条命令外面再包一层双引号：`adb exec-out "run-as top.xdwa.shun sh -c 'cd /data/data/top.xdwa.shun && tar cf - .'"`。
+- **`monkey -p top.xdwa.shun …` 退出码 -5、App 没起来**：刚 `install -r` 完启动器还没刷新。直接 `am start -n` 指定 Activity。
 - **模拟器上连 `100.64.x.x` 这类到不了的地址，报的是「登录完成前连接被对方关闭」而不是连不上**：
   模拟器的用户态网络先替设备接下 TCP 连接，再去连真实地址，连不上就把连接关掉，所以 App 看到的是「连上了又断开」。
   从 Mac 上 `nc -vz 100.64.0.10 22` 是超时。要验「到不了」用真机，或者在模拟器里连一个没人监听的回环端口（报 Connection refused）。
