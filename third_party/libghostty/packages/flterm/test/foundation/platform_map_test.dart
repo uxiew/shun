@@ -88,7 +88,7 @@ void main() {
       });
     });
 
-    // xwshun: Android 软键盘、adb 发来的键（scanCode=0）物理键是 0x11_0000_0000 + keyCode。
+    // shun: Android 软键盘、adb 发来的键（scanCode=0）物理键是 0x11_0000_0000 + keyCode。
     group('synthetic Android keys', () {
       const syntheticBackspace = PhysicalKeyboardKey(0x1100000043);
 

@@ -213,7 +213,7 @@ final class LinkSettings {
   /// Called when the user activates a detected link.
   final ValueChanged<ActivatedLink>? onActivate;
 
-  /// xwshun: Called when a touch long press starts selection, with the
+  /// shun: Called when a touch long press starts selection, with the
   /// detected link under the finger, or null when there is none.
   ///
   /// Unlike [onActivate], this ignores [modifier] and works without

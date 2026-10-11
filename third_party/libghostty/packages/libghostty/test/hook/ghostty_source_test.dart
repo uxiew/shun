@@ -109,7 +109,7 @@ void main() {
       tmpDir.deleteSync(recursive: true);
     });
 
-    // xwshun: downloadSource 会按 ghostty.sha256 核对源码包，测试用的包也要先把 hash 固定下来。
+    // shun: downloadSource 会按 ghostty.sha256 核对源码包，测试用的包也要先把 hash 固定下来。
     void pinSha256(File tarball) {
       File.fromUri(
         packageRoot.resolve('ghostty.sha256'),
@@ -260,7 +260,7 @@ void main() {
       expect(tarballInCache.existsSync(), isFalse);
     });
 
-    // xwshun: 源码包被换掉（或 GitHub 改了打包方式）时必须停下，不能编进 App。
+    // shun: 源码包被换掉（或 GitHub 改了打包方式）时必须停下，不能编进 App。
     test(
       'rejects a tarball whose SHA256 differs from ghostty.sha256',
       () async {

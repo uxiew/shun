@@ -72,7 +72,7 @@ final class LinkInteraction extends ChangeNotifier {
     return _highlighted;
   }
 
-  /// xwshun: The detected link under [localPosition], or null.
+  /// shun: The detected link under [localPosition], or null.
   ///
   /// Skips the pointer-activation checks ([LinkSettings.modifier],
   /// [LinkSettings.onActivate]); only the enabled link types and rules apply.

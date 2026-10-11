@@ -122,7 +122,7 @@ void main() {
       });
     });
 
-    // xwshun: 裸 DEL 在写入前去掉（R04 问题 9），见 terminal.dart 的 _withoutDel。
+    // shun: 裸 DEL 在写入前去掉（R04 问题 9），见 terminal.dart 的 _withoutDel。
     group('bare DEL', () {
       String cursorReport() {
         final output = <Uint8List>[];

@@ -95,7 +95,7 @@ void main() {
         const differentWordBoundaries = TerminalGestureSettings(
           wordBoundaries: '_',
         );
-        // xwshun
+        // shun
         const differentTouchMouseClicks = TerminalGestureSettings(
           touchMouseClicks: false,
         );

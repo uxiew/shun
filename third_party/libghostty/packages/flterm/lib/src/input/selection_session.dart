@@ -138,7 +138,7 @@ final class SelectionInteraction extends ChangeNotifier {
     _gesture.reset();
   }
 
-  /// xwshun: Replaces the selection with the cells of [range] (inclusive,
+  /// shun: Replaces the selection with the cells of [range] (inclusive,
   /// viewport coordinates). Out-of-viewport ranges are ignored.
   ///
   /// A touch long press that lands on a link and ends without a drag selects

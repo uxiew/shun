@@ -109,7 +109,7 @@ final class InputEncoder {
     );
   }
 
-  /// xwshun: Ctrl+I、Ctrl+M、Ctrl+[ 在传统键盘编码下发 Tab、回车、ESC，和 xterm、xterm2 一样。
+  /// shun: Ctrl+I、Ctrl+M、Ctrl+[ 在传统键盘编码下发 Tab、回车、ESC，和 xterm、xterm2 一样。
   ///
   /// Ghostty 照 fixterms 故意把这三个编成 CSI u（Ctrl+I 是 `ESC [ 105 ; 5 u`），没开扩展键盘协议的
   /// bash、vim 不认，屏幕上冒出 `5u`；Android 硬件键盘的按键事件又不带字符，连 CSI u 那条路都进不去，

@@ -86,7 +86,7 @@ void main() {
       });
     });
 
-    group('xwshun: linkAt', () {
+    group('shun: linkAt', () {
       test('finds the link without onActivate or the modifier', () {
         write('see https://example.test now');
 

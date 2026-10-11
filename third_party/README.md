@@ -39,7 +39,7 @@ dart analyze packages/flterm/lib packages/libghostty/lib
 
 ### 和上游差在哪
 
-改动处都标了 `xwshun:`，`grep -rn 'xwshun:' third_party/libghostty` 能找全。新改一处就在这里加一行。
+改动处都标了 `shun:`，`grep -rn 'shun:' third_party/libghostty` 能找全。新改一处就在这里加一行。
 
 | 提交 | 改了什么 | 为什么 |
 |---|---|---|
@@ -68,7 +68,7 @@ dart analyze packages/flterm/lib packages/libghostty/lib
 ```bash
 LAST=4a7ed9c          # 上次「同步到上游」的提交；它之后 third_party/libghostty 里的改动都是我们的
 NEW=<上游新提交>
-git diff $LAST HEAD -- third_party/libghostty > /tmp/xwshun-ours.patch
+git diff $LAST HEAD -- third_party/libghostty > /tmp/shun-ours.patch
 git clone -q --filter=blob:none https://github.com/elias8/libghostty.git /tmp/libghostty-up
 rm -rf /tmp/libghostty-tree && mkdir /tmp/libghostty-tree
 git -C /tmp/libghostty-up archive $NEW | tar -x -C /tmp/libghostty-tree
@@ -76,7 +76,7 @@ rm -rf /tmp/libghostty-tree/packages/flterm/example/assets/fonts /tmp/libghostty
   /tmp/libghostty-tree/packages/flterm/example/assets/*.wasm
 rsync -a --delete --exclude .gitignore /tmp/libghostty-tree/ third_party/libghostty/
 git add -A third_party/libghostty && git commit -m "fork：libghostty 同步到上游 main $NEW"
-git apply --3way /tmp/xwshun-ours.patch     # 返回非 0 会列出合不进的文件，照 xwshun: 注释手工移植
+git apply --3way /tmp/shun-ours.patch     # 返回非 0 会列出合不进的文件，照 shun: 注释手工移植
 ```
 
 合完还要：
@@ -119,7 +119,7 @@ git apply --3way /tmp/xwshun-ours.patch     # 返回非 0 会列出合不进的�
 
 ## 其他依赖
 
-照上面的做法：bug 卡住我们时 fork 进 `third_party/<名字>/`，记起点提交、差异表、同步办法，改动标 `xwshun:`；不顺手升级版本。
+照上面的做法：bug 卡住我们时 fork 进 `third_party/<名字>/`，记起点提交、差异表、同步办法，改动标 `shun:`；不顺手升级版本。
 现在只有 libghostty 一份。已知可能要 fork 的：
 
 | 依赖 | 问题 | 现在怎么处理 |

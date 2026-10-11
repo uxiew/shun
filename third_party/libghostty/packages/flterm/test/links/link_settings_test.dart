@@ -13,7 +13,7 @@ void main() {
       expect(settings.onLongPress, isNull);
     });
 
-    test('xwshun: onLongPress takes part in equality', () {
+    test('shun: onLongPress takes part in equality', () {
       void report(ActivatedLink? _) {}
       final first = LinkSettings(onLongPress: report);
       final second = LinkSettings(onLongPress: report);

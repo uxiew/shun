@@ -671,7 +671,7 @@ void main() {
         await gesture.up();
       });
 
-      group('xwshun: long press on links', () {
+      group('shun: long press on links', () {
         // App 不给 onActivate（点一下只叫键盘），长按才报链接。
         LinkInteraction tapInertLinks() {
           final links = LinkInteraction();
@@ -3500,7 +3500,7 @@ void main() {
         expect(sgrCodes(events), [0, 0]);
       });
 
-      // xwshun: touchMouseClicks: false（R19）。
+      // shun: touchMouseClicks: false（R19）。
       group('touch clicks disabled', () {
         const settings = TerminalGestureSettings(touchMouseClicks: false);
 

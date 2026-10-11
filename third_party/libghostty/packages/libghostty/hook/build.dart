@@ -12,7 +12,7 @@ Future<void> _build(BuildInput input, BuildOutputBuilder output) async {
   if (!input.config.buildCodeAssets) return;
 
   output.dependencies.add(input.packageRoot.resolve('ghostty.version'));
-  // xwshun: 源码包的 SHA256 和提交号一起固定，改了也要重跑钩子。
+  // shun: 源码包的 SHA256 和提交号一起固定，改了也要重跑钩子。
   output.dependencies.add(input.packageRoot.resolve('ghostty.sha256'));
 
   final targetOS = input.config.code.targetOS;

@@ -529,7 +529,7 @@ void main() {
       );
     });
 
-    // xwshun: R04 问题 8。输入法提交后编辑区留着已发的字，好让输入法回头改字时能按差异补发；
+    // shun: R04 问题 8。输入法提交后编辑区留着已发的字，好让输入法回头改字时能按差异补发；
     // 输入从别的路（快捷键栏 sendText/sendKey、粘贴、硬件键）发出去后，远端那一行对不上了，要清空。
     group('retained IME text', () {
       Future<List<MethodCall>> commitThroughIme(
@@ -646,7 +646,7 @@ void main() {
       });
     });
 
-    // xwshun: R04 问题 3，系统收起软键盘后焦点还在终端上。
+    // shun: R04 问题 3，系统收起软键盘后焦点还在终端上。
     testWidgets('tap while focused shows the keyboard again', (tester) async {
       final focusNode = FocusNode();
       addTearDown(focusNode.dispose);
@@ -843,7 +843,7 @@ void main() {
       tester.testTextInput.enterText('[');
       await tester.pump();
 
-      // xwshun: 上游是 CSI u（`ESC [ 91 ; 5 u`）。
+      // shun: 上游是 CSI u（`ESC [ 91 ; 5 u`）。
       // 传统编码下 Ctrl+[ 改发 ESC，和 xterm 一样（R20）。
       expect(output.single, [0x1b]);
       expect(controller.virtualMods, const Mods.none());
@@ -899,7 +899,7 @@ void main() {
       );
       await tester.pump();
 
-      // xwshun: 平台编辑区开头总是哨兵空格，删掉它就是「编辑区空着时按退格」。
+      // shun: 平台编辑区开头总是哨兵空格，删掉它就是「编辑区空着时按退格」。
       await sendTextInputDeltas([
         {
           'oldText': ' ',
@@ -1366,7 +1366,7 @@ void main() {
           expect(handled, isTrue);
           expect(output, hasLength(1));
 
-          // xwshun: 平台编辑区开头总是哨兵空格，删掉它就是「编辑区空着时按退格」。
+          // shun: 平台编辑区开头总是哨兵空格，删掉它就是「编辑区空着时按退格」。
           await sendTextInputDeltas([
             {
               'oldText': ' ',

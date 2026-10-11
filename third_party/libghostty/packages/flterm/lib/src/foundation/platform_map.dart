@@ -216,13 +216,13 @@ Key keyFromPhysical(PhysicalKeyboardKey physical) {
   return _keyMap[physical] ?? .unidentified;
 }
 
-/// xwshun: Android 软键盘、adb 发来的键 scanCode=0，Flutter 给的物理键是合成值
+/// shun: Android 软键盘、adb 发来的键 scanCode=0，Flutter 给的物理键是合成值
 /// （0x11_0000_0000 + keyCode），[keyFromPhysical] 认不出，软键盘退格、方向键就成了
 /// 0 字节（R04 问题 2）。是这种合成值时返回 true，调用方改用 [keyFromLogicalFallback]。
 bool isSyntheticPhysicalKey(PhysicalKeyboardKey physical) =>
     (physical.usbHidUsage & 0xFF00000000) == 0x1100000000;
 
-/// xwshun: 物理键认不出时按逻辑键找终端按键。只收常用的编辑、导航键和小写字母，
+/// shun: 物理键认不出时按逻辑键找终端按键。只收常用的编辑、导航键和小写字母，
 /// 其余返回 null 交还原路径——多收的键没在真机上验证过。
 Key? keyFromLogicalFallback(LogicalKeyboardKey logical) {
   if (_logicalFallback[logical] case final key?) return key;

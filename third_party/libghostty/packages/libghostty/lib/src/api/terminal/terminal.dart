@@ -1122,7 +1122,7 @@ final class Terminal with ChangeNotifier {
   void _notifyListenersFromSearch() => notifyListeners();
 }
 
-/// xwshun: 裸 DEL（0x7F）在交给 Ghostty 之前去掉，和 VT100、xterm、tmux 一样忽略它。
+/// shun: 裸 DEL（0x7F）在交给 Ghostty 之前去掉，和 VT100、xterm、tmux 一样忽略它。
 ///
 /// Ghostty 的解析表照 DEC 解析器的状态图把普通状态下的 0x20–0x7F 都当可打印字
 /// （`parse_table.zig` 的 `range(0x20, 0x7F, .ground, .ground, .print)`），

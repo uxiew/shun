@@ -8,7 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-// xwshun: R04 问题 2、4。Android 软键盘、adb 发来的键 scanCode=0，Flutter 给的物理键是
+// shun: R04 问题 2、4。Android 软键盘、adb 发来的键 scanCode=0，Flutter 给的物理键是
 // 0x11_0000_0000 + keyCode 这样的合成值，按物理键查表认不出。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -83,7 +83,7 @@ void main() {
       attachment.detach();
     });
 
-    // xwshun: R18。软键盘的回车键由按键那条路发出 CR，并清空编辑区；输入法紧跟着补的换行编辑
+    // shun: R18。软键盘的回车键由按键那条路发出 CR，并清空编辑区；输入法紧跟着补的换行编辑
     // 是按它自己还留着字的编辑区算的。那一整行不能再发一遍，换行也只算一次。
     testWidgets('Enter key followed by a late newline edit sends one CR', (
       tester,

@@ -54,11 +54,11 @@ final class InteractionRegion extends StatefulWidget {
   final ValueChanged<ActivatedLink>? onLinkActivate;
   final ValueListenable<TerminalInteractionState> interaction;
 
-  /// xwshun: 每次点按抬起（不含点链接）时调用。视图在这里叫回软键盘：内层的点按识别器
+  /// shun: 每次点按抬起（不含点链接）时调用。视图在这里叫回软键盘：内层的点按识别器
   /// 总会赢下手势竞争，外层 GestureDetector 的 onTap 收不到终端区域里的点按。
   final VoidCallback? onTap;
 
-  /// xwshun: 手指长按开始选字时调用，带上手指下的链接（没有就是 null），见 `LinkSettings.onLongPress`。
+  /// shun: 手指长按开始选字时调用，带上手指下的链接（没有就是 null），见 `LinkSettings.onLongPress`。
   final ValueChanged<ActivatedLink?>? onLinkLongPress;
 
   const InteractionRegion({
@@ -105,7 +105,7 @@ final class _InteractionRegionState extends State<InteractionRegion> {
   Duration? _interactionTimeStamp;
   var _linkPressActive = false;
 
-  /// xwshun: 这次长按落在的链接。长按松开时还什么都没选上，就把这个链接选上。
+  /// shun: 这次长按落在的链接。长按松开时还什么都没选上，就把这个链接选上。
   ActivatedLink? _longPressLink;
   Position? _pressCell;
   var _selectionGestureUpdate = false;
@@ -302,7 +302,7 @@ final class _InteractionRegionState extends State<InteractionRegion> {
     _clearDrag();
     _cancelLinkPress();
     _terminalOwnsInteraction = false;
-    // xwshun: 长按链接没拖动，什么都没选上：选上整个链接，选字菜单才有东西可操作。
+    // shun: 长按链接没拖动，什么都没选上：选上整个链接，选字菜单才有东西可操作。
     final link = _longPressLink;
     _longPressLink = null;
     if (link != null && widget.selection.selection == null) {
@@ -472,7 +472,7 @@ final class _InteractionRegionState extends State<InteractionRegion> {
 
   void _handleTrackedDown(PointerDownEvent event) {
     if (_activePointers.containsKey(event.pointer)) return;
-    // xwshun: 手指不当鼠标点（见 TerminalGestureSettings.touchMouseClicks）。滚动不走这里，
+    // shun: 手指不当鼠标点（见 TerminalGestureSettings.touchMouseClicks）。滚动不走这里，
     // 由 ScrollGestureRegion 照常发滚轮。
     final tracked =
         _isMouseTracked() &&

@@ -2271,7 +2271,7 @@ void main() {
       });
     });
 
-    // xwshun: App 的画中画和 AI 上下文只读最近几百行（tailRows）。
+    // shun: App 的画中画和 AI 上下文只读最近几百行（tailRows）。
     group('tailRows', () {
       void writeText(TerminalController target, String text) =>
           target.write(Uint8List.fromList(utf8.encode(text)));

@@ -46,7 +46,7 @@ Future<Directory> downloadSource(
     httpClient.close();
   }
 
-  // xwshun: 解包前核对，对不上就删包报错，不留半截缓存。
+  // shun: 解包前核对，对不上就删包报错，不留半截缓存。
   final actualSha256 = (await sha256.bind(tarball.openRead()).first).toString();
   if (actualSha256 != expectedSha256) {
     tarball.deleteSync();
@@ -76,7 +76,7 @@ Future<Directory> downloadSource(
   return cacheDir;
 }
 
-/// xwshun: 读 `ghostty.sha256` 里固定的源码包 SHA256。上游只按提交号下载、不核对；我们改成从源码
+/// shun: 读 `ghostty.sha256` 里固定的源码包 SHA256。上游只按提交号下载、不核对；我们改成从源码
 /// 编进 App 以后，不核对就等于构建时把网上拿来、没验过的一包代码编进去（预编译那条路按包内
 /// SHA256 表核对，plan/v3/docs/06-ghostty.md 也要求不跳过 hash 验证）。
 /// 换 `ghostty.version` 时要一起换，否则构建报 "Ghostty source SHA256 mismatch"。

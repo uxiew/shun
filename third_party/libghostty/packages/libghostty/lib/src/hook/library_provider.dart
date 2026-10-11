@@ -108,7 +108,7 @@ final class CompileFromSource extends LibraryProvider {
       '-p',
       Directory.fromUri(installDir).path,
       '--release=fast',
-      // xwshun: 钩子只取 lib/ 下的动态库，用不到 xcframework。Ghostty 在 macOS 上见 PATH 里有
+      // shun: 钩子只取 lib/ 下的动态库，用不到 xcframework。Ghostty 在 macOS 上见 PATH 里有
       // xcodebuild 就默认打 xcframework，可只装 Command Line Tools 时那是个占位命令，构建报
       // "xcframework ghostty-vt failure ... requires Xcode"。
       '-Demit-xcframework=false',

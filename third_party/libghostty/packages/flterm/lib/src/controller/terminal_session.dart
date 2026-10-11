@@ -47,7 +47,7 @@ final class TerminalSession extends TerminalController with ChangeNotifier {
   ClipboardReadCallback? _onClipboardRead;
   ValueChanged<Uint8List>? _onOutput;
 
-  /// xwshun: 输入没经输入法编辑区就发了出去（[sendText]、[sendKey]、[paste]、IME 文字被虚拟修饰键
+  /// shun: 输入没经输入法编辑区就发了出去（[sendText]、[sendKey]、[paste]、IME 文字被虚拟修饰键
   /// 变成了控制键）。挂着的视图据此清掉编辑区里留着的字，见 TextInputSession.discardRetainedText。
   VoidCallback? _onInputBypassedTextInput;
   VoidCallback? _onPwdChanged;
@@ -118,7 +118,7 @@ final class TerminalSession extends TerminalController with ChangeNotifier {
       _preserveSnapshotColors = false,
       super._() {
     _initialize(applyConfig: true);
-    // xwshun: 还没挂视图就先按默认深色主题设好前景、背景、调色板。上游要等视图挂上（applyTheme）才把颜色
+    // shun: 还没挂视图就先按默认深色主题设好前景、背景、调色板。上游要等视图挂上（applyTheme）才把颜色
     // 交给 Ghostty，在那之前远端问前景/背景/光标色（OSC 10/11/12）一律不回：后台标签里启动、一开始就问
     // 背景色的程序（vim 判断深浅色、一些 TUI 框架）只能干等到超时（R20 对比测试发现）。视图挂上后照常换成视图的主题。
     final theme = TerminalTheme.dark();

@@ -489,7 +489,7 @@ sealed class TerminalController implements Listenable {
   /// ```
   Uint8List snapshot();
 
-  /// xwshun: The last [count] physical rows of the active screen, scrollback
+  /// shun: The last [count] physical rows of the active screen, scrollback
   /// included, oldest first.
   ///
   /// `wrapped` is true when the row continues the previous row because it did

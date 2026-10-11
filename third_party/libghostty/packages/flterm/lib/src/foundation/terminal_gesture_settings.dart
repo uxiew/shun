@@ -116,7 +116,7 @@ final class TerminalGestureSettings {
   /// as one word.
   final String? wordBoundaries;
 
-  /// xwshun: Whether touch taps and long presses are reported as mouse clicks
+  /// shun: Whether touch taps and long presses are reported as mouse clicks
   /// while a terminal program enables mouse tracking.
   ///
   /// Defaults to true (upstream behavior). When false, touch scrolling is

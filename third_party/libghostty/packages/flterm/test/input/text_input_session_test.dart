@@ -288,7 +288,7 @@ void main() {
         expect(newlines, hasLength(2));
       });
 
-      // xwshun: 平台的编辑都相对于编辑区（哨兵开头）算；提交后编辑区留着已发的字（R04 问题 8）。
+      // shun: 平台的编辑都相对于编辑区（哨兵开头）算；提交后编辑区留着已发的字（R04 问题 8）。
       test('reports deletion character count', () {
         handler.updateEditingValueWithDeltas([
           const TextEditingDeltaInsertion(
@@ -1093,7 +1093,7 @@ void main() {
         expect(config['enableIMEPersonalizedLearning'], isFalse);
         expect(config['enableInlinePrediction'], isFalse);
         expect(config['enableDeltaModel'], isTrue);
-        // xwshun: multiline 会被 Android 引擎当可见密码框，中文输入法只给英文键盘（R04 问题 4）。
+        // shun: multiline 会被 Android 引擎当可见密码框，中文输入法只给英文键盘（R04 问题 4）。
         expect(
           (config['inputType']! as Map<String, Object?>)['name'],
           'TextInputType.emailAddress',
@@ -1140,7 +1140,7 @@ void main() {
       });
     });
 
-    // xwshun: App 设置里的「安全键盘」。
+    // shun: App 设置里的「安全键盘」。
     group('secure', () {
       test('switches the active connection to a visible password field', () {
         final calls = recordTextInputCalls();
@@ -1245,7 +1245,7 @@ void main() {
       });
     });
 
-    // xwshun: R04 问题 4，终端吞掉软键盘的键以后逼平台把光标位置重新告诉输入法。
+    // shun: R04 问题 4，终端吞掉软键盘的键以后逼平台把光标位置重新告诉输入法。
     group('resyncAfterKeyEdit', () {
       List<Object?> editingStates(List<MethodCall> calls) => [
         for (final call in calls)
@@ -1299,10 +1299,10 @@ void main() {
       });
     });
 
-    // xwshun: R04 问题 8。提交后编辑区留着已发的字，输入法改写时按差异补发。
+    // shun: R04 问题 8。提交后编辑区留着已发的字，输入法改写时按差异补发。
     // 用 _FakeIme 按 Android InputConnection 的调用生成编辑（都相对于平台编辑区现在的值），
     // 会话发出的字、退格、回车喂给 _RemoteLine（像 PTY 行编辑那样处理退格），最后核对远端那一行。
-    group('xwshun: retained text and diff resend', () {
+    group('shun: retained text and diff resend', () {
       late _RemoteLine remote;
       late _FakeIme ime;
 
@@ -1639,7 +1639,7 @@ void main() {
   });
 }
 
-/// xwshun: 按 Android InputConnection 的调用生成平台编辑。每次都从会话现在的编辑区算起，
+/// shun: 按 Android InputConnection 的调用生成平台编辑。每次都从会话现在的编辑区算起，
 /// 会话清空编辑区（setEditingState）后，输入法看到的也是清空后的样子。
 final class _FakeIme {
   _FakeIme(this.session);
@@ -1750,7 +1750,7 @@ final class _FakeIme {
       session.updateEditingValueWithDeltas([delta]);
 }
 
-/// xwshun: 远端 shell 的当前行：退格按字（码点）删，删到行首就不再删。
+/// shun: 远端 shell 的当前行：退格按字（码点）删，删到行首就不再删。
 final class _RemoteLine {
   final lines = <String>[''];
 

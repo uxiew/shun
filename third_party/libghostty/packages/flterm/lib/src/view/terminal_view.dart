@@ -67,7 +67,7 @@ class TerminalView extends StatefulWidget {
   /// and IME composition while focused.
   final bool showKeyboard;
 
-  /// xwshun: 敏感输入。为 true 时让输入法按可见密码框处理：不联想、不学习，
+  /// shun: 敏感输入。为 true 时让输入法按可见密码框处理：不联想、不学习，
   /// 多数中文输入法只给英文键盘（App 设置里的「安全键盘」）。改了立即对已连上的输入法生效。
   final bool secureTextInput;
 
@@ -222,7 +222,7 @@ final class _TerminalViewState extends State<TerminalView>
                   terminalBackground: _theme.background,
                   onLinkActivate: widget.linkSettings.onActivate,
                   onLinkLongPress: widget.linkSettings.onLongPress,
-                  // xwshun: 已有焦点时点按只 requestFocus 是空操作，焦点不变就不弹键盘。按返回收起
+                  // shun: 已有焦点时点按只 requestFocus 是空操作，焦点不变就不弹键盘。按返回收起
                   // 软键盘、或切到别的 App 再回来以后，连点终端键盘都出不来（R04 问题 3）。
                   onTap: widget.showKeyboard ? _attachment.showKeyboard : null,
                   onViewportRowChanged: _attachment.handleViewportRowChanged,

@@ -23,7 +23,7 @@ typedef TextInputGeometryChanged =
 /// through both an action and a delta; the short-lived dedupe counters ensure
 /// one terminal newline while leaving later input untouched.
 ///
-/// xwshun: 上游每次提交后立刻把编辑区清回哨兵，输入法就没法改写已经出现的字。微信输入法语音每次
+/// shun: 上游每次提交后立刻把编辑区清回哨兵，输入法就没法改写已经出现的字。微信输入法语音每次
 /// 更新识别结果都会先短暂结束组字、再把组字区圈回刚出现的那段字继续改，每一版都被当成新提交，
 /// 一句话整段重复发出去（R04 问题 8）。现在提交后编辑区原样留着，记下哪些字已经发给了终端；
 /// 每次编辑完按「已发」和「编辑区里确定的字」的差异补发：先发退格删掉变了的部分，再发新的尾巴。
@@ -36,7 +36,7 @@ final class TextInputSession with DeltaTextInputClient {
     text: ' ',
   );
 
-  /// xwshun: 编辑区里留着的已发文字超过这么多（UTF-16 码元）就在不组字时清空。
+  /// shun: 编辑区里留着的已发文字超过这么多（UTF-16 码元）就在不组字时清空。
   /// 每次编辑都要和它比一遍；太小又会在长句语音中途清空，那一刻输入法回头改字就又重复了。
   static const _retainedTextLimit = 4096;
   static final _newlinePattern = RegExp(r'\r\n|[\n\r]');
@@ -56,15 +56,15 @@ final class TextInputSession with DeltaTextInputClient {
   TextEditingValue _value = _sentinel;
   int? _viewId;
 
-  /// xwshun: 已经发给终端、编辑区里也还留着的文字（哨兵之后、组字区之外）。
+  /// shun: 已经发给终端、编辑区里也还留着的文字（哨兵之后、组字区之外）。
   var _sent = '';
 
-  /// xwshun: 平台编辑区现在是否以哨兵开头。被输入法删掉或整段替换后为 false，直到清空编辑区；
+  /// shun: 平台编辑区现在是否以哨兵开头。被输入法删掉或整段替换后为 false，直到清空编辑区；
   /// 这期间编辑区从第 0 个字起都是终端的字。
   var _hasSentinel = true;
   var _resetRequested = false;
 
-  /// xwshun: 这边刚把编辑区清回哨兵、平台还没确认。这期间输入法发来的编辑可能是按它自己旧的编辑区
+  /// shun: 这边刚把编辑区清回哨兵、平台还没确认。这期间输入法发来的编辑可能是按它自己旧的编辑区
   /// 算的（平台先处理了它，后处理我们的清空），见 [_applyStaleDelta]。
   var _awaitingPlatformReset = false;
   var _secure = false;
@@ -97,7 +97,7 @@ final class TextInputSession with DeltaTextInputClient {
 
   set onDelete(ValueChanged<int>? callback) => _onDelete = callback;
 
-  /// xwshun: 敏感输入，输入框类型改成可见密码。已连上的输入法立即换配置。
+  /// shun: 敏感输入，输入框类型改成可见密码。已连上的输入法立即换配置。
   set secure(bool value) {
     if (_secure == value) return;
     _secure = value;
@@ -136,7 +136,7 @@ final class TextInputSession with DeltaTextInputClient {
     return TextInputConfiguration(
       viewId: viewId,
       autocorrect: false,
-      // xwshun: multiline 加关掉建议，会被 Flutter 引擎标成「可见密码」，Gboard 只给英文键盘、
+      // shun: multiline 加关掉建议，会被 Flutter 引擎标成「可见密码」，Gboard 只给英文键盘、
       // 微信输入法每次弹出都回到英文；emailAddress 落成 Filter 类型，两种输入法都直接给中文（R04 问题 4）。
       // 用户要的就是「可见密码」时（安全键盘）才用它。
       inputType: _secure ? .visiblePassword : .emailAddress,
@@ -168,7 +168,7 @@ final class TextInputSession with DeltaTextInputClient {
 
   void detach() => _closeConnection();
 
-  /// xwshun: 终端从编辑区以外的路收到了输入（硬件键盘、快捷键栏、粘贴，或者输入法的字被虚拟
+  /// shun: 终端从编辑区以外的路收到了输入（硬件键盘、快捷键栏、粘贴，或者输入法的字被虚拟
   /// 修饰键变成了控制键），远端那一行和编辑区里留着的字对不上了，清空编辑区。不清的话，输入法回头
   /// 改字时按差异补发的退格会删到别的字上。
   ///
@@ -182,7 +182,7 @@ final class TextInputSession with DeltaTextInputClient {
     _resetEditingState();
   }
 
-  /// xwshun: 软键盘发来的按键（删除、方向键）被终端处理了：清空编辑区，并且一定让输入法重新对齐。
+  /// shun: 软键盘发来的按键（删除、方向键）被终端处理了：清空编辑区，并且一定让输入法重新对齐。
   ///
   /// R04 问题 4：这类键被终端吞掉后编辑区不变，平台不会通知输入法光标位置，Gboard 按「已删一个字」
   /// 估算，之后组字区间错一位、删拼音时漏发字母。编辑区本来就是哨兵时推两次不同的状态，逼平台发
@@ -228,7 +228,7 @@ final class TextInputSession with DeltaTextInputClient {
       _finishNewlineDedupeIfIdle();
       return;
     }
-    // xwshun: 这里不清空编辑区。有的输入法先报回车动作、再补一个换行的编辑，那个编辑是相对于它自己
+    // shun: 这里不清空编辑区。有的输入法先报回车动作、再补一个换行的编辑，那个编辑是相对于它自己
     // 还留着字的编辑区算的；这时已经清空的话，留着的字会被当成新字再发一遍。
     _onNewline?.call();
     _newlineDeltasToSuppress++;
@@ -274,7 +274,7 @@ final class TextInputSession with DeltaTextInputClient {
   void updateEditingValueWithDeltas(List<TextEditingDelta> deltas) {
     final wasComposing = _hadVisiblePreeditText || hasActiveComposition;
     if (deltas.isEmpty) {
-      // xwshun: Flutter Android 的 delta 模式只为改文字（replace）和加 span（setSpan）记编辑。
+      // shun: Flutter Android 的 delta 模式只为改文字（replace）和加 span（setSpan）记编辑。
       // 输入法用 finishComposingText 结束组字时只是删掉组字 span，平台照样通知框架，带的编辑却是空的
       // （engine/.../ListenableEditingState.java，R18 在模拟器上用回放输入法核实）。不处理的话组字区
       // 里的字要等下一次改文字才提交，用户这时按的回车会被当成组字中的键吞掉。
@@ -300,7 +300,7 @@ final class TextInputSession with DeltaTextInputClient {
     _reconcile(deletedPastStart: deletedPastStart, wasComposing: wasComposing);
   }
 
-  /// xwshun: 平台上「输入法的编辑」排在「我们的清空」前面：这条编辑是按输入法旧的编辑区算的，之后平台
+  /// shun: 平台上「输入法的编辑」排在「我们的清空」前面：这条编辑是按输入法旧的编辑区算的，之后平台
   /// 又被我们清回哨兵。不能拿它的结果和已发的字比（已发的已经清零，会把旧编辑区里的字整段重发，
   /// 模拟器上回车键后紧跟一次提交就把整条命令发了两遍），只按它自己的增量处理，和上游一样：
   /// 不在组字的插入、替换发新字，删除发同样个数的退格，组字中的编辑丢掉（输入法会按清空后的状态重来）。
@@ -328,7 +328,7 @@ final class TextInputSession with DeltaTextInputClient {
     }
   }
 
-  /// xwshun: 软键盘发来的回车键已经由按键那条路发出去了。有的输入法随后还补一个换行编辑，
+  /// shun: 软键盘发来的回车键已经由按键那条路发出去了。有的输入法随后还补一个换行编辑，
   /// 和回车动作一样去重，一次回车只发一个。
   void noteNewlineKey() {
     _newlineDeltasToSuppress++;
@@ -415,7 +415,7 @@ final class TextInputSession with DeltaTextInputClient {
     if (tail.isNotEmpty) _onTextCommitted?.call(tail);
   }
 
-  /// xwshun: 这次编辑删掉了哨兵（编辑区只剩哨兵时按退格）：远端要多删一个字。
+  /// shun: 这次编辑删掉了哨兵（编辑区只剩哨兵时按退格）：远端要多删一个字。
   /// 输入法整段替换掉哨兵不算，那是它重写编辑区，不是用户删字。
   int _deletedSentinel(TextEditingDelta delta) {
     if (delta is! TextEditingDeltaDeletion) return 0;
@@ -440,7 +440,7 @@ final class TextInputSession with DeltaTextInputClient {
     connection.setEditingState(_value);
   }
 
-  /// xwshun: 把编辑区和已发的字对一遍，补发差异。
+  /// shun: 把编辑区和已发的字对一遍，补发差异。
   ///
   /// 从头找编辑区和已发的字相同的前缀，已发的字里前缀之后的部分发退格删掉。不在组字：再发编辑区
   /// 前缀之后的部分。在组字：组字区之前确定了的字照发；组字区里和已发相同的那段留在远端不动，
@@ -535,7 +535,7 @@ final class TextInputSession with DeltaTextInputClient {
     }
   }
 
-  /// xwshun: 编辑区清回哨兵，忘掉已发的字。编辑区本来就是哨兵时推两次不同的状态，
+  /// shun: 编辑区清回哨兵，忘掉已发的字。编辑区本来就是哨兵时推两次不同的状态，
   /// 不然平台看值没变，不会把光标位置告诉输入法（见 [resyncAfterKeyEdit]）。
   void _resetEditingState() {
     _resetRequested = false;
@@ -590,7 +590,7 @@ final class TextInputSession with DeltaTextInputClient {
 
 enum _CommittedCompositionEdit { none, pending, suppressNextDeletionDelta }
 
-/// xwshun: 哨兵之后的编辑区按组字区拆成三段。不在组字时整段都在 [before] 里。
+/// shun: 哨兵之后的编辑区按组字区拆成三段。不在组字时整段都在 [before] 里。
 typedef _TerminalEdit = ({
   String before,
   String preedit,

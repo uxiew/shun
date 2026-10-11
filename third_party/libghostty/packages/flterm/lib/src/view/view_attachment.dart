@@ -79,7 +79,7 @@ final class ViewAttachment extends ChangeNotifier {
 
   set mouseAutoHide(MouseAutoHide value) => _mouseAutoHide = value;
 
-  /// xwshun: 见 TerminalView.secureTextInput。
+  /// shun: 见 TerminalView.secureTextInput。
   set secureTextInput(bool value) => _textInput.secure = value;
 
   MouseCursor get mouseCursor {
@@ -339,7 +339,7 @@ final class ViewAttachment extends ChangeNotifier {
       input,
       deferToTextInput: routeToTextInput,
     );
-    // xwshun: 软键盘发来的键被终端吞掉后编辑区没变，输入法不知道光标在哪，之后组字区间会错一位、
+    // shun: 软键盘发来的键被终端吞掉后编辑区没变，输入法不知道光标在哪，之后组字区间会错一位、
     // 删拼音时漏发字母（R04 问题 4）。硬件键盘的键也绕过了编辑区，编辑区里留着的字对不上远端了。
     if (result == .handled) {
       synthetic

@@ -10,7 +10,7 @@ import 'package:flterm/src/foundation/terminal_theme.dart';
 import 'package:flutter/painting.dart' show Color;
 import 'package:flutter_test/flutter_test.dart';
 
-// xwshun: 没挂视图时远端问前景/背景/光标色（OSC 10/11/12）也要有应答（R20）。
+// shun: 没挂视图时远端问前景/背景/光标色（OSC 10/11/12）也要有应答（R20）。
 // 上游要等视图挂上才把颜色交给 Ghostty，在那之前一律不回，问颜色的程序只能等到超时。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();

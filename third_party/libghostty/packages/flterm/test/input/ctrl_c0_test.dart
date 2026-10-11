@@ -9,7 +9,7 @@ import 'package:flutter/widgets.dart' show KeyEventResult;
 import 'package:flutter_test/flutter_test.dart';
 import 'package:libghostty/libghostty.dart' show Key, Mods;
 
-// xwshun: Ctrl+I、Ctrl+M、Ctrl+[ 在传统键盘编码下发 Tab、回车、ESC
+// shun: Ctrl+I、Ctrl+M、Ctrl+[ 在传统键盘编码下发 Tab、回车、ESC
 // （R20，所有者 10-07 定和 xterm2 一样）。上游照 fixterms 编成 CSI u；
 // Android 硬件键盘的按键事件不带字符，实测什么都不发。
 void main() {
