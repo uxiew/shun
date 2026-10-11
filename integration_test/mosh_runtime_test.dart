@@ -133,7 +133,7 @@ void main() {
     expect(e.status, PluginStatus.ready, reason: e.reason);
     final check = await discovery.check(e);
     report('check.$package', check);
-    expect(check, contains('握手成功'));
+    expect(check.message, contains('握手成功'));
     return e;
   }
 

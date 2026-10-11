@@ -93,7 +93,7 @@ void main() {
     expect(e.status, PluginStatus.ready, reason: e.reason);
     final check = await discovery.check(e);
     report('check.$package', check);
-    expect(check, contains('握手成功'));
+    expect(check.message, contains('握手成功'));
     return e;
   }
 
@@ -219,7 +219,7 @@ void main() {
         if (e.status == PluginStatus.needsApproval) await discovery.approve(e);
         final check = await discovery.check(entry(echo));
         report('version.check', check);
-        expect(check, contains('API 版本'));
+        expect(check.message, contains('API 版本'));
         await expectLater(
           manager.open(entry(echo)),
           throwsA(isA<PluginBridgeException>()),
