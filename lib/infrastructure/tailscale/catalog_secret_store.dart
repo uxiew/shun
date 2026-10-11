@@ -23,10 +23,10 @@ class FlutterSecureCatalogBackend implements CatalogSecretBackend {
   static const storage = FlutterSecureStorage(
     aOptions: AndroidOptions(
       encryptedSharedPreferences: true,
-      sharedPreferencesName: 'xwshun_tailscale_catalog',
+      sharedPreferencesName: 'shun_tailscale_catalog',
     ),
     iOptions: IOSOptions(
-      accountName: 'xwshun.tailscale.catalog',
+      accountName: 'shun.tailscale.catalog',
       accessibility: KeychainAccessibility.first_unlock_this_device,
     ),
   );

@@ -2,14 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/plugin_discovery.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/models/vault.dart';
-import 'package:netcatty_mobile/domain/plugins/plugin_host.dart';
-import 'package:netcatty_mobile/infrastructure/plugins/plugin_approval_store.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/presentation/widgets/host_address_line.dart';
-import 'package:netcatty_mobile/presentation/widgets/host_editor.dart';
+import 'package:shun/application/plugin_discovery.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/models/vault.dart';
+import 'package:shun/domain/plugins/plugin_host.dart';
+import 'package:shun/infrastructure/plugins/plugin_approval_store.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/presentation/widgets/host_address_line.dart';
+import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:plugin_api/plugin_api.dart' show ApprovedBinding, Capability;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -23,7 +23,7 @@ void main() {
 
   const secureStorage =
       MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
-  const hello = 'example.xwshun.hello';
+  const hello = 'example.shun.hello';
   const helloId = 'example.hello_terminal';
   late FakePluginBridge bridge;
   HostProfile? result;

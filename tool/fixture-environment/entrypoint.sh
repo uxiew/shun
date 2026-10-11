@@ -11,11 +11,11 @@ case "$ROLE" in
     install -m 600 -o fixture -g fixture /run-secrets/id_ed25519.pub /home/fixture/.ssh/authorized_keys
     # 每个新容器重新生成主机密钥：up 一次指纹就变一次，正好用来测"指纹改变必须阻断"。
     # 同一个容器重启（docker restart）沿用原来的密钥，像真服务器的 sshd 重启（R22 LIFE04）；
-    # 要测"重启后换了密钥"，进容器删掉 .xwshun-hostkey 标记再重启。
-    if [ ! -f /etc/ssh/.xwshun-hostkey ]; then
+    # 要测"重启后换了密钥"，进容器删掉 .shun-hostkey 标记再重启。
+    if [ ! -f /etc/ssh/.shun-hostkey ]; then
       rm -f /etc/ssh/ssh_host_*
       ssh-keygen -q -t ed25519 -N '' -f /etc/ssh/ssh_host_ed25519_key
-      touch /etc/ssh/.xwshun-hostkey
+      touch /etc/ssh/.shun-hostkey
     fi
     ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub -E sha256 > "/run-hostkeys/$(hostname).sha256"
     cp /etc/ssh/ssh_host_ed25519_key.pub "/run-hostkeys/$(hostname).pub"

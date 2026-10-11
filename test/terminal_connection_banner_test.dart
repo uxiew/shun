@@ -3,14 +3,14 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/connection_lifecycle.dart';
-import 'package:netcatty_mobile/application/session_controller.dart';
-import 'package:netcatty_mobile/application/vault_controller.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/presentation/screens/terminal_screen.dart';
+import 'package:shun/application/connection_lifecycle.dart';
+import 'package:shun/application/session_controller.dart';
+import 'package:shun/application/vault_controller.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/presentation/screens/terminal_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // R22：断开的标签顶上那一条——在恢复、为什么停了、「重新连接」；连着的标签不挂，也不改终端尺寸。
@@ -19,7 +19,7 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     final repository = await VaultRepository.open();
     final messenger = tester.binding.defaultBinaryMessenger;
-    const pip = MethodChannel('app.netcatty.mobile/picture_in_picture');
+    const pip = MethodChannel('top.xdwa.shun/picture_in_picture');
     messenger.setMockMethodCallHandler(pip, (call) async => null);
     addTearDown(() => messenger.setMockMethodCallHandler(pip, null));
     tester.view.physicalSize = const Size(1080, 2400);

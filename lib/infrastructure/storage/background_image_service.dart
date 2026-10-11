@@ -9,7 +9,7 @@ class BackgroundImageService {
 
   final Future<Directory> Function() _supportDirectory;
 
-  static const managedPathPrefix = 'netcatty-background:';
+  static const managedPathPrefix = 'shun-background:';
 
   Future<String> persist({
     String? sourcePath,

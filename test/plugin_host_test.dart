@@ -1,17 +1,17 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/plugin_discovery.dart';
-import 'package:netcatty_mobile/application/plugin_host_session.dart';
-import 'package:netcatty_mobile/application/plugin_registry.dart';
-import 'package:netcatty_mobile/application/plugin_terminal.dart';
-import 'package:netcatty_mobile/application/session_controller.dart';
-import 'package:netcatty_mobile/application/vault_controller.dart';
-import 'package:netcatty_mobile/domain/connection_route.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/plugins/plugin_host.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/plugins/android_plugin_bridge.dart';
+import 'package:shun/application/plugin_discovery.dart';
+import 'package:shun/application/plugin_host_session.dart';
+import 'package:shun/application/plugin_registry.dart';
+import 'package:shun/application/plugin_terminal.dart';
+import 'package:shun/application/session_controller.dart';
+import 'package:shun/application/vault_controller.dart';
+import 'package:shun/domain/connection_route.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/plugins/plugin_host.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/plugins/android_plugin_bridge.dart';
 import 'package:plugin_api/plugin_api.dart'
     show AdmissionPolicy, ApprovedBinding, Capability, SessionPhase;
 import 'package:shared_preferences/shared_preferences.dart';
@@ -24,7 +24,7 @@ import 'fixtures/fake_plugin_bridge.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  const hello = 'example.xwshun.hello';
+  const hello = 'example.shun.hello';
   const helloId = 'example.hello_terminal';
 
   HostProfile pluginHost([Map<String, Object?> extra = const {}]) =>

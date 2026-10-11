@@ -7,10 +7,10 @@ remote_adb=${2:-adb}
 : "${ANDROID_HOME:?先 source ../.toolchain/env.sh}"
 here=$(cd "$(dirname "$0")" && pwd)
 # 放 /tmp 下的短路径：SSH 控制套接字路径太长会报 too long for Unix domain socket
-state=/tmp/xwshun-remote-device
+state=/tmp/shun-remote-device
 ctl=$state/ssh.ctl
 sdk=$state/sdk
-port=${XWSHUN_REMOTE_ADB_PORT:-15037}
+port=${SHUN_REMOTE_ADB_PORT:-15037}
 
 mkdir -p "$state"
 if ssh -S "$ctl" -O check "$host" 2>/dev/null; then

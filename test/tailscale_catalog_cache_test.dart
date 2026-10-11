@@ -4,12 +4,12 @@ import 'dart:io';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:netcatty_mobile/application/tailscale_catalog_access.dart';
-import 'package:netcatty_mobile/application/tailscale_catalog_refresh.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/infrastructure/tailscale/catalog_cache_repository.dart';
-import 'package:netcatty_mobile/infrastructure/tailscale/catalog_secret_store.dart';
-import 'package:netcatty_mobile/infrastructure/tailscale/tailscale_api.dart';
+import 'package:shun/application/tailscale_catalog_access.dart';
+import 'package:shun/application/tailscale_catalog_refresh.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/infrastructure/tailscale/catalog_cache_repository.dart';
+import 'package:shun/infrastructure/tailscale/catalog_secret_store.dart';
+import 'package:shun/infrastructure/tailscale/tailscale_api.dart';
 
 // R12：目录缓存、来源映射与非破坏合并。
 // 服务器是 http 的 MockClient（按官方响应形状回），仓库是临时目录里的真实文件，主机表在内存。

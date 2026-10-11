@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/presentation/widgets/github_manual_config.dart';
-import 'package:netcatty_mobile/presentation/widgets/sftp_permissions_dialog.dart';
+import 'package:shun/presentation/widgets/github_manual_config.dart';
+import 'package:shun/presentation/widgets/sftp_permissions_dialog.dart';
 
 void main() {
   testWidgets('permission help wraps fully with a keyboard and large text',

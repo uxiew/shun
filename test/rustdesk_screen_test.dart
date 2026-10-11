@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/rustdesk.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/models/vault.dart';
-import 'package:netcatty_mobile/infrastructure/plugins/rustdesk_external.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
-import 'package:netcatty_mobile/presentation/screens/rustdesk_screen.dart';
-import 'package:netcatty_mobile/presentation/screens/vault_screen.dart';
+import 'package:shun/application/rustdesk.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/models/vault.dart';
+import 'package:shun/infrastructure/plugins/rustdesk_external.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/presentation/localization/localized_widgets.dart';
+import 'package:shun/presentation/screens/rustdesk_screen.dart';
+import 'package:shun/presentation/screens/vault_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'rustdesk_fakes.dart';
@@ -320,8 +320,8 @@ void main() {
   });
 
   testWidgets('英文界面：主机的 RustDesk 页（各种状态）和设置总览都没有汉字', (tester) async {
-    NetcattyLocalizations.use('en');
-    addTearDown(() => NetcattyLocalizations.use('zh'));
+    ShunLocalizations.use('en');
+    addTearDown(() => ShunLocalizations.use('zh'));
     final han = RegExp(r'[一-鿿]');
     void noHan() =>
         expect(han.hasMatch(allText(tester)), isFalse, reason: allText(tester));

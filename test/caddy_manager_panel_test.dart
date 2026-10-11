@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/models/system_management.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/system_management_service.dart';
-import 'package:netcatty_mobile/presentation/widgets/system_management/caddy_manager_panel.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/models/system_management.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/ssh/system_management_service.dart';
+import 'package:shun/presentation/widgets/system_management/caddy_manager_panel.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 
 void main() {
   ActiveTerminalSession session() => ActiveTerminalSession(
@@ -60,7 +60,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('v2.test'), findsOneWidget);
-    expect(find.text('还没有由 Netcatty 管理的反向代理站点'), findsOneWidget);
+    expect(find.text('还没有由 shun 管理的反向代理站点'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('caddy-add')));
     await tester.pumpAndSettle();
     await tester.enterText(

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
+import 'package:shun/presentation/localization/localized_widgets.dart';
 
 import '../../../domain/models/system_management.dart';
 import '../../../infrastructure/ssh/ssh_service.dart';
@@ -234,7 +234,7 @@ class _CaddyManagerPanelState extends State<CaddyManagerPanel> {
                   ),
                   const SizedBox(height: 2),
                   LText(
-                    'Netcatty 创建的反向代理会直接保存到该 Caddyfile。',
+                    'shun 创建的反向代理会直接保存到该 Caddyfile。',
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   Row(
@@ -283,9 +283,7 @@ class _CaddyManagerPanelState extends State<CaddyManagerPanel> {
     if (sites.isEmpty) {
       return _message(
         Icons.language_outlined,
-        _search.text.trim().isEmpty
-            ? '还没有由 Netcatty 管理的反向代理站点'
-            : '没有符合条件的反向代理站点',
+        _search.text.trim().isEmpty ? '还没有由 shun 管理的反向代理站点' : '没有符合条件的反向代理站点',
       );
     }
     return RefreshIndicator(

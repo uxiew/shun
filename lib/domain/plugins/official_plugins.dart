@@ -6,20 +6,21 @@ import 'package:plugin_api/plugin_api.dart' show AdmissionPolicy;
 /// （[AdmissionPolicy.reservedOfficialIds]）。真插件照常要用户批准一次。
 ///
 /// 为什么要登记 Mosh：Mosh 连接只按 pluginId 找插件、把这次会话的一次性 key 和 UDP 目标交给它。
-/// 不登记的话，别的包自称 `xwshun.mosh`、用户又在批准框里批了它的证书，key 就到了它手里。
+/// 不登记的话，别的包自称 `shun.mosh`、用户又在批准框里批了它的证书，key 就到了它手里。
 ///
 /// **以后 Mosh 插件换正式签名，必须同步改这里**：现在登记的是 `plugins/mosh` 用的测试作者证书
 /// （仓库外 `.toolchain/plugin-keys/fixture-author.jks`）。正式签名的 Mosh 插件装上后，证书不在这里，
 /// 就会被当成冒充者拒掉、连不了 Mosh。证书从实际安装包读，别抄：
 /// `apksigner verify --print-certs plugins/mosh/build/outputs/apk/release/mosh-release.apk`。
 ///
-/// 已知局限：这把测试作者密钥还给 `plugins/fixture-*` 下的测试插件签名，用它签、自称 `xwshun.mosh` 的包照样过这道关。
+/// 已知局限：这把测试作者密钥还给 `plugins/fixture-*` 下的测试插件签名，用它签、自称 `shun.mosh` 的包照样过这道关。
 /// 挡得住的是「别的密钥签的冒充者」。
 abstract final class OfficialPlugins {
   /// Mosh 插件的 pluginId，和 `PluginMoshRuntime.pluginId` 相同（有测试核对）。
-  static const moshPluginId = 'xwshun.mosh';
+  static const moshPluginId = 'shun.mosh';
 
-  /// `plugins/mosh` 现在的签名证书：`CN=xwshun fixture author, O=xwshun test only`。
+  /// `plugins/mosh` 现在的签名证书：`CN=xwshun fixture author, O=xwshun test only`（改名前生成的，
+  /// 证书里的名字改不了，认的是下面的指纹）。
   /// 2026-10-07 从 mosh-release.apk 用 apksigner 读出。
   static const moshTestAuthorCertSha256 =
       'ffb53d5ae3ef071d73b680c14c219c0662df7545a87e6042991ab11c862c52fe';

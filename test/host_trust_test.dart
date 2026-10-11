@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/host_trust.dart';
-import 'package:netcatty_mobile/presentation/widgets/host_key_dialogs.dart';
+import 'package:shun/application/host_trust.dart';
+import 'package:shun/presentation/widgets/host_key_dialogs.dart';
 
 // SEC02 / SEC03 的界面与规则部分：指纹变了一律拒绝（没有一点就过的"确认更新"），
 // 只能删除旧指纹后重连、按首次重新核对；第一次见必须用户核对，不自动信任。

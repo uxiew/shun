@@ -6,9 +6,9 @@
 val keysDir = rootProject.file("../../.toolchain/plugin-keys")
 val signWith = (findProperty("signWith") as String?) ?: "author"
 
-extra["xwshunSigning"] = when (signWith) {
-    "author" -> listOf(keysDir.resolve("fixture-author.jks").path, "xwshun-fixture", "author", "xwshun-fixture")
-    "impostor" -> listOf(keysDir.resolve("fixture-impostor.jks").path, "xwshun-fixture", "impostor", "xwshun-fixture")
+extra["shunSigning"] = when (signWith) {
+    "author" -> listOf(keysDir.resolve("fixture-author.jks").path, "shun-fixture", "author", "shun-fixture")
+    "impostor" -> listOf(keysDir.resolve("fixture-impostor.jks").path, "shun-fixture", "impostor", "shun-fixture")
     "androidDebug" -> listOf(
         System.getProperty("user.home") + "/.android/debug.keystore",
         "android",

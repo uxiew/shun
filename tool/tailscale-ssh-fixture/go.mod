@@ -1,4 +1,4 @@
-module xwshun.local/tailscale-ssh-fixture
+module shun.local/tailscale-ssh-fixture
 
 go 1.26.0
 

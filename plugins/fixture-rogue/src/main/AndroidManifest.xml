@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <queries>
-        <package android:name="example.xwshun.fixture.echo" />
-        <package android:name="top.xdwa.xwshun" />
+        <package android:name="example.shun.fixture.echo" />
+        <package android:name="top.xdwa.shun" />
         <!-- X08：也去冒充宿主调 Mosh 插件（看不到包就连 bind 都做不了，测不到插件的逐事务鉴权）。 -->
-        <package android:name="top.xdwa.xwshun.mosh" />
+        <package android:name="top.xdwa.shun.mosh" />
     </queries>
 
-    <application android:label="xwshun rogue fixture" android:allowBackup="false">
+    <application android:label="shun rogue fixture" android:allowBackup="false">
         <activity
             android:name=".ProbeActivity"
             android:exported="true"
@@ -16,11 +16,11 @@
             android:name=".RogueProviderService"
             android:exported="true">
             <intent-filter>
-                <action android:name="top.xdwa.xwshun.plugin.action.PROVIDER_V1" />
+                <action android:name="top.xdwa.shun.plugin.action.PROVIDER_V1" />
             </intent-filter>
             <meta-data
-                android:name="top.xdwa.xwshun.plugin.DESCRIPTOR"
-                android:resource="@raw/xwshun_plugin" />
+                android:name="top.xdwa.shun.plugin.DESCRIPTOR"
+                android:resource="@raw/shun_plugin" />
         </service>
     </application>
 </manifest>

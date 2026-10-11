@@ -505,7 +505,7 @@ final pluginRegistryProvider =
   (ref) => PluginRegistry(
     policy: AdmissionPolicy(
       builtinIds: BuiltinPlugins.ids,
-      // xwshun.mosh 只认 Mosh 插件现在的签名证书；换正式签名要同步改 OfficialPlugins。
+      // shun.mosh 只认 Mosh 插件现在的签名证书；换正式签名要同步改 OfficialPlugins。
       reservedOfficialIds: OfficialPlugins.reserved,
       allowDebugSigners: kDebugMode,
     ),

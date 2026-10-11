@@ -1,8 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/domain/models/system_management.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/system_management_service.dart';
+import 'package:shun/domain/models/system_management.dart';
+import 'package:shun/infrastructure/ssh/system_management_service.dart';
 
 void main() {
   late SystemManagementService service;
@@ -119,7 +119,7 @@ PID   USER     TIME  COMMAND
     const output = '''
 nginx.service loaded active running A high performance web server
 failed.service loaded failed failed Broken service
-__NETCATTY_SERVICE_METADATA__
+__SHUN_SERVICE_METADATA__
 nginx.service enabled enabled
 failed.service disabled enabled
 timer-only.service static -
@@ -143,7 +143,7 @@ timer-only.service static -
  sshd                         [  started  ]
  local                        [  stopped  ]
  crashed                      [  crashed  ]
-__NETCATTY_SERVICE_METADATA__
+__SHUN_SERVICE_METADATA__
                  sshd | default
                 local |
 ''';
@@ -314,7 +314,7 @@ ${service.buildCaddySiteSnippet(const CaddySite(
   test('Caddy mutation scripts apply, remove and roll back atomically',
       () async {
     if (!Platform.isLinux) return;
-    final temporary = await Directory.systemTemp.createTemp('netcatty caddy ');
+    final temporary = await Directory.systemTemp.createTemp('shun caddy ');
     addTearDown(() => temporary.delete(recursive: true));
     final binaryDirectory = Directory('${temporary.path}/bin')..createSync();
     final fakeCaddy = File('${binaryDirectory.path}/caddy');

@@ -4,7 +4,7 @@
 // 变体参数：
 //   -PhostSha256=<宿主签名证书 SHA-256>   必填，插件只接受这张证书签的宿主来调它
 //   -PsignWith=author|impostor|androidDebug  见 ../signing.gradle.kts
-//   -PechoAppId=<包名>                     默认 example.xwshun.fixture.echo
+//   -PechoAppId=<包名>                     默认 example.shun.fixture.echo
 //   -PpluginId=<pluginId>                  默认 example.fixture_echo
 //   -PleakTo=<包名>                        握手后把宿主回调 Binder 转交给这个包（只为测宿主逐事务鉴权）
 //   -Pbehavior=normal|slowopen|stubborn|misbehave|major2|badhandshake   X03/X12 故障注入，见 EchoProviderService
@@ -18,7 +18,7 @@ apply(from = "../signing.gradle.kts")
 
 val hostSha256 = (findProperty("hostSha256") as String?)?.lowercase()?.replace(":", "")
     ?: throw GradleException("缺 -PhostSha256：插件必须知道信任哪张宿主证书")
-val appId = (findProperty("echoAppId") as String?) ?: "example.xwshun.fixture.echo"
+val appId = (findProperty("echoAppId") as String?) ?: "example.shun.fixture.echo"
 val pluginId = (findProperty("pluginId") as String?) ?: "example.fixture_echo"
 val leakTo = (findProperty("leakTo") as String?) ?: ""
 val behavior = (findProperty("behavior") as String?) ?: "normal"
@@ -34,12 +34,12 @@ if (behavior !in setOf("normal", "slowopen", "stubborn", "misbehave", "major2", 
     throw GradleException("behavior 只能是 normal/slowopen/stubborn/misbehave/major2/badhandshake")
 }
 @Suppress("UNCHECKED_CAST")
-val signing = extra["xwshunSigning"] as List<String>
+val signing = extra["shunSigning"] as List<String>
 
 // 描述符里的包名必须等于实际安装包（宿主会核对），所以随变体生成，而不是手写一份固定 JSON。
-val generatedRes = layout.buildDirectory.dir("generated/xwshun-res/$appId").get().asFile
+val generatedRes = layout.buildDirectory.dir("generated/shun-res/$appId").get().asFile
 generatedRes.resolve("raw").mkdirs()
-generatedRes.resolve("raw/xwshun_plugin.json").writeText(
+generatedRes.resolve("raw/shun_plugin.json").writeText(
     """
     {
       "schemaVersion": 1,
@@ -54,14 +54,14 @@ generatedRes.resolve("raw/xwshun_plugin.json").writeText(
       "platforms": ["android"],
       "permissions": [${jsonList(permissions)}],
       "packageName": "$appId",
-      "serviceClass": "example.xwshun.fixture.echo.EchoProviderService",
+      "serviceClass": "example.shun.fixture.echo.EchoProviderService",
       "license": "GPL-3.0-or-later"
     }
     """.trimIndent(),
 )
 
 android {
-    namespace = "example.xwshun.fixture.echo"
+    namespace = "example.shun.fixture.echo"
     compileSdk = 36
 
     defaultConfig {
@@ -70,10 +70,10 @@ android {
         targetSdk = 36
         versionCode = fixtureVersionCode
         versionName = descriptorVersion
-        resValue("string", "xwshun_trusted_host_package", "top.xdwa.xwshun")
-        resValue("string", "xwshun_trusted_host_sha256", hostSha256)
-        resValue("string", "xwshun_fixture_leak_host_binder_to", leakTo)
-        resValue("string", "xwshun_fixture_behavior", behavior)
+        resValue("string", "shun_trusted_host_package", "top.xdwa.shun")
+        resValue("string", "shun_trusted_host_sha256", hostSha256)
+        resValue("string", "shun_fixture_leak_host_binder_to", leakTo)
+        resValue("string", "shun_fixture_behavior", behavior)
     }
 
     signingConfigs {

@@ -6,13 +6,13 @@
          宿主绑定插件时系统会自动让插件看见宿主：API 35 模拟器上去掉这条照样握手成功（实测）。
          写上它是为了插件没被宿主绑定的时候（比如在自己的设置页里）也查得到宿主。不要申请 QUERY_ALL_PACKAGES。 -->
     <queries>
-        <package android:name="top.xdwa.xwshun" />
+        <package android:name="top.xdwa.shun" />
     </queries>
 
     <!-- 样例不联网，所以没有 INTERNET 权限。你的插件要连网就自己加；宿主管不住插件自己联网，详情页会写明这一点。 -->
     <application
         android:allowBackup="false"
-        android:label="Hello 终端（xwshun 插件样例）">
+        android:label="Hello 终端（shun 插件样例）">
 
         <!-- 插件服务。三样缺一不可：
              - exported="true"：宿主是别的 App，不导出它就绑不上（宿主列表里显示「插件服务没有导出」）；
@@ -23,11 +23,11 @@
             android:name=".HelloProviderService"
             android:exported="true">
             <intent-filter>
-                <action android:name="top.xdwa.xwshun.plugin.action.PROVIDER_V1" />
+                <action android:name="top.xdwa.shun.plugin.action.PROVIDER_V1" />
             </intent-filter>
             <meta-data
-                android:name="top.xdwa.xwshun.plugin.DESCRIPTOR"
-                android:resource="@raw/xwshun_plugin" />
+                android:name="top.xdwa.shun.plugin.DESCRIPTOR"
+                android:resource="@raw/shun_plugin" />
         </service>
 
         <!-- 插件自己的设置页（可选）。宿主详情页的「打开插件的设置页」用显式组件打开它，不带任何参数。
@@ -37,7 +37,7 @@
             android:exported="true"
             android:label="Hello 终端设置">
             <intent-filter>
-                <action android:name="top.xdwa.xwshun.plugin.action.SETTINGS_V1" />
+                <action android:name="top.xdwa.shun.plugin.action.SETTINGS_V1" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>

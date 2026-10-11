@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_text.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/terminal_text.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 
 import 'support/test_terminal.dart';
 

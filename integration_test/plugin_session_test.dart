@@ -14,21 +14,21 @@ import 'dart:typed_data';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:netcatty_mobile/application/plugin_discovery.dart';
-import 'package:netcatty_mobile/application/plugin_registry.dart';
-import 'package:netcatty_mobile/application/plugin_sessions.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/plugins/builtin_plugins.dart';
-import 'package:netcatty_mobile/infrastructure/plugins/android_plugin_bridge.dart';
-import 'package:netcatty_mobile/infrastructure/plugins/plugin_approval_store.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/application/plugin_discovery.dart';
+import 'package:shun/application/plugin_registry.dart';
+import 'package:shun/application/plugin_sessions.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/plugins/builtin_plugins.dart';
+import 'package:shun/infrastructure/plugins/android_plugin_bridge.dart';
+import 'package:shun/infrastructure/plugins/plugin_approval_store.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:plugin_api/plugin_api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 
 const scenario = String.fromEnvironment('X03_SCENARIO', defaultValue: 'stream');
-const echo = 'example.xwshun.fixture.echo';
-const second = 'example.xwshun.fixture.echo.debugkey';
+const echo = 'example.shun.fixture.echo';
+const second = 'example.shun.fixture.echo.debugkey';
 
 void report(String key, Object? value) => debugPrint('X03 $key=$value');
 

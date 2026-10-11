@@ -22,7 +22,7 @@
 #include <termios.h>
 #include <unistd.h>
 
-#define TAG "XwshunMoshPty"
+#define TAG "ShunMoshPty"
 #define MAX_ENV 16
 #define KEY_LEN 22   // mosh 的 key：16 字节 base64、去掉 "=="
 
@@ -40,7 +40,7 @@ static void throw_arg(JNIEnv *env, const char *msg) {
 
 // 只认数字形式的 IPv4/IPv6：插件不做 DNS，目标地址由宿主按路由解析好再给（docs/16 运行流程第 4 步）。
 JNIEXPORT jboolean JNICALL
-Java_top_xdwa_xwshun_mosh_MoshPty_isNumericAddress(JNIEnv *env, jclass cls, jstring jhost) {
+Java_top_xdwa_shun_mosh_MoshPty_isNumericAddress(JNIEnv *env, jclass cls, jstring jhost) {
     (void) cls;
     if (jhost == NULL) return JNI_FALSE;
     const char *host = (*env)->GetStringUTFChars(env, jhost, NULL);
@@ -63,7 +63,7 @@ static int is_key_char(unsigned char c) {
 
 // 返回 int[]{pid, masterFd}。argv、env 是非秘密的固定串；key 是 22 个 base64 字符（字节，不是 String，用完调用方清零）。
 JNIEXPORT jintArray JNICALL
-Java_top_xdwa_xwshun_mosh_MoshPty_spawn(JNIEnv *env, jclass cls, jstring jpath, jobjectArray jargv,
+Java_top_xdwa_shun_mosh_MoshPty_spawn(JNIEnv *env, jclass cls, jstring jpath, jobjectArray jargv,
                                        jobjectArray jenv, jbyteArray jkey, jint rows, jint cols) {
     (void) cls;
     if (rows <= 0 || cols <= 0 || rows > 1000 || cols > 1000) { throw_arg(env, "窗口尺寸越界"); return NULL; }
@@ -165,7 +165,7 @@ out:
 }
 
 JNIEXPORT void JNICALL
-Java_top_xdwa_xwshun_mosh_MoshPty_setWindowSize(JNIEnv *env, jclass cls, jint fd, jint rows, jint cols) {
+Java_top_xdwa_shun_mosh_MoshPty_setWindowSize(JNIEnv *env, jclass cls, jint fd, jint rows, jint cols) {
     (void) env; (void) cls;
     if (rows <= 0 || cols <= 0 || rows > 1000 || cols > 1000) return;
     struct winsize ws = {.ws_row = (unsigned short) rows, .ws_col = (unsigned short) cols};
@@ -174,7 +174,7 @@ Java_top_xdwa_xwshun_mosh_MoshPty_setWindowSize(JNIEnv *env, jclass cls, jint fd
 
 // 阻塞到子进程退出。返回退出码；被信号杀死返回 128 + 信号号。
 JNIEXPORT jint JNICALL
-Java_top_xdwa_xwshun_mosh_MoshPty_waitFor(JNIEnv *env, jclass cls, jint pid) {
+Java_top_xdwa_shun_mosh_MoshPty_waitFor(JNIEnv *env, jclass cls, jint pid) {
     (void) cls;
     int status = 0;
     while (waitpid(pid, &status, 0) < 0) {

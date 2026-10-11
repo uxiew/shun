@@ -4,7 +4,7 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/domain/plugins/mosh_bootstrap.dart';
+import 'package:shun/domain/plugins/mosh_bootstrap.dart';
 
 const _key = 'v450/k6rhyS3hwDL4ejCIQ'; // 规范 base64（最后一位 Q 的低 4 位为 0）
 const _real = '\r\n'

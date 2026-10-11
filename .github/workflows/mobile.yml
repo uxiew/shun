@@ -41,12 +41,12 @@ jobs:
             echo "Persistent Android signing secrets are not configured" >&2
             exit 1
           fi
-          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/netcatty-release.jks
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > android/app/shun-release.jks
       - name: Build Android release APKs
         env:
-          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android/app/netcatty-release.jks
+          ANDROID_KEYSTORE_PATH: ${{ github.workspace }}/android/app/shun-release.jks
           ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: netcatty
+          ANDROID_KEY_ALIAS: shun
           ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           flutter build apk --release \
@@ -54,7 +54,7 @@ jobs:
             --dart-define=GITHUB_OAUTH_CLIENT_ID=Ov23lidR2u8OIkHW19nk
           mkdir -p dist
           cp build/app/outputs/flutter-apk/app-release.apk \
-            "dist/netcatty-mobile-v${{ steps.app_version.outputs.version }}-android.apk"
+            "dist/shun-v${{ steps.app_version.outputs.version }}-android.apk"
           flutter build apk --release --split-per-abi \
             --build-number=${{ github.run_number }} \
             --dart-define=GITHUB_OAUTH_CLIENT_ID=Ov23lidR2u8OIkHW19nk
@@ -63,15 +63,15 @@ jobs:
         run: |
           VERSION="${{ steps.app_version.outputs.version }}"
           cp build/app/outputs/flutter-apk/app-arm64-v8a-release.apk \
-            "dist/netcatty-mobile-v${VERSION}-android-arm64-v8a.apk"
+            "dist/shun-v${VERSION}-android-arm64-v8a.apk"
           cp build/app/outputs/flutter-apk/app-armeabi-v7a-release.apk \
-            "dist/netcatty-mobile-v${VERSION}-android-armeabi-v7a.apk"
+            "dist/shun-v${VERSION}-android-armeabi-v7a.apk"
           cp build/app/outputs/flutter-apk/app-x86_64-release.apk \
-            "dist/netcatty-mobile-v${VERSION}-android-x86_64.apk"
+            "dist/shun-v${VERSION}-android-x86_64.apk"
       - name: Upload Android package
         uses: actions/upload-artifact@v4
         with:
-          name: netcatty-mobile-v${{ steps.app_version.outputs.version }}-android-apks-${{ github.run_number }}
+          name: shun-v${{ steps.app_version.outputs.version }}-android-apks-${{ github.run_number }}
           path: dist/*
           if-no-files-found: error
           retention-days: 30
@@ -102,7 +102,7 @@ jobs:
       - name: Package re-signable IPA
         shell: bash
         run: |
-          PACKAGE="netcatty-mobile-v${{ steps.app_version.outputs.version }}-ios-unsigned.ipa"
+          PACKAGE="shun-v${{ steps.app_version.outputs.version }}-ios-unsigned.ipa"
           mkdir -p dist build/ios/iphoneos/Payload
           cp -R build/ios/iphoneos/Runner.app build/ios/iphoneos/Payload/
           cd build/ios/iphoneos
@@ -110,7 +110,7 @@ jobs:
       - name: Upload re-signable IPA
         uses: actions/upload-artifact@v4
         with:
-          name: netcatty-mobile-v${{ steps.app_version.outputs.version }}-ios-unsigned-${{ github.run_number }}
+          name: shun-v${{ steps.app_version.outputs.version }}-ios-unsigned-${{ github.run_number }}
           path: dist/*
           if-no-files-found: error
           retention-days: 30

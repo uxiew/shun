@@ -9,7 +9,7 @@
 #   本机 ──127.0.0.1:21056──> ts-relay（tag:relay，共享的远程 SOCKS，dante 要用户名密码）──tailnet──> ts-server
 #   本机 ──127.0.0.1:22202──> ts-jump（用户 fixture 自己的跳板机，OpenSSH）──tailnet──> ts-server
 #   这两台是内核模式 tailscaled（要 NET_ADMIN 和 /dev/net/tun），见 node-entry.sh。
-name: xwshun-tailscale-ssh
+name: shun-tailscale-ssh
 
 x-ts: &ts
   environment: &tsenv
@@ -41,7 +41,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.server
-    image: xwshun-ts-server:1.102.5
+    image: shun-ts-server:1.102.5
     hostname: ts-server
     environment:
       <<: *tsenv
@@ -87,7 +87,7 @@ services:
     build: &node
       context: .
       dockerfile: Dockerfile.node
-    image: xwshun-ts-node:1.102.5
+    image: shun-ts-node:1.102.5
     hostname: ts-relay
     cap_add: [NET_ADMIN]
     devices: ["/dev/net/tun:/dev/net/tun"]
@@ -108,7 +108,7 @@ services:
     <<: *ts
     profiles: [routes]
     build: *node
-    image: xwshun-ts-node:1.102.5
+    image: shun-ts-node:1.102.5
     hostname: ts-jump
     cap_add: [NET_ADMIN]
     devices: ["/dev/net/tun:/dev/net/tun"]

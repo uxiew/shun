@@ -17,7 +17,7 @@ class AndroidDocumentTreeTransferService extends MountableFileTransferService {
   })  : isMounted = mounted,
         mountedDirectoryName = directoryName;
 
-  static const _channel = MethodChannel('app.netcatty.mobile/storage');
+  static const _channel = MethodChannel('top.xdwa.shun/storage');
 
   static Future<AndroidDocumentTreeTransferService> create() async {
     final value = await _channel.invokeMapMethod<String, dynamic>('getMount');
@@ -93,7 +93,7 @@ class AndroidDocumentTreeTransferService extends MountableFileTransferService {
           );
         })
         .where((entry) => entry.name.isNotEmpty)
-        .where((entry) => !entry.name.endsWith('.netcatty-part'))
+        .where((entry) => !entry.name.endsWith('.shun-part'))
         .toList()
       ..sort(compareFileTransferEntries);
   }

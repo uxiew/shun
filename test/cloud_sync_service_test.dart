@@ -8,13 +8,13 @@ import 'fixtures/desktop_v2_vault.dart';
 import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/models/settings.dart';
-import 'package:netcatty_mobile/domain/models/vault.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/sync/cloud_sync_service.dart';
-import 'package:netcatty_mobile/infrastructure/sync/convergent_sync_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/sync/netcatty_crypto.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/models/settings.dart';
+import 'package:shun/domain/models/vault.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/sync/cloud_sync_service.dart';
+import 'package:shun/infrastructure/sync/convergent_sync_adapter.dart';
+import 'package:shun/infrastructure/sync/netcatty_crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -901,7 +901,7 @@ void main() {
     final stored = await repository.loadSyncConnection();
     expect(stored?.sessionToken, 'temporary-session-token');
     final preferences = await SharedPreferences.getInstance();
-    final serialized = preferences.getString('netcatty_mobile_sync_v1') ?? '';
+    final serialized = preferences.getString('shun_sync_v1') ?? '';
     expect(serialized, isNot(contains('mobile-secret-key')));
     expect(serialized, isNot(contains('temporary-session-token')));
   });

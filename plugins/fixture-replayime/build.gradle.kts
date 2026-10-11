@@ -8,14 +8,14 @@ plugins {
 apply(from = "../signing.gradle.kts")
 
 @Suppress("UNCHECKED_CAST")
-val signing = extra["xwshunSigning"] as List<String>
+val signing = extra["shunSigning"] as List<String>
 
 android {
-    namespace = "example.xwshun.fixture.replayime"
+    namespace = "example.shun.fixture.replayime"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "example.xwshun.fixture.replayime"
+        applicationId = "example.shun.fixture.replayime"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

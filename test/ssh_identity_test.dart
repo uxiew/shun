@@ -3,9 +3,9 @@ import 'dart:io';
 
 import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/domain/connection_route.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_identity.dart';
+import 'package:shun/domain/connection_route.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/infrastructure/ssh/ssh_identity.dart';
 
 // SEC06：私钥在拨号之前解析，口令对/错/没存、内容被改、私钥被删都失败关闭并说人话；
 // 以及 keyboard-interactive 在没有界面时只对「明确问密码」的提问填一次密码。
@@ -17,7 +17,7 @@ void main() {
 
   setUpAll(() async {
     if (!hasKeygen) return;
-    dir = await Directory.systemTemp.createTemp('xwshun-keys-');
+    dir = await Directory.systemTemp.createTemp('shun-keys-');
     Future<void> gen(String name, List<String> args) async {
       final result = await Process.run(
           'ssh-keygen', ['-q', ...args, '-C', '', '-f', '${dir.path}/$name']);

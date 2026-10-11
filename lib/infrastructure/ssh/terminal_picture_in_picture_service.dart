@@ -6,7 +6,7 @@ class TerminalPictureInPictureService {
   const TerminalPictureInPictureService._();
 
   static const _channel = MethodChannel(
-    'app.netcatty.mobile/picture_in_picture',
+    'top.xdwa.shun/picture_in_picture',
   );
   static final _stateChanges = StreamController<bool>.broadcast();
   static var _initialized = false;

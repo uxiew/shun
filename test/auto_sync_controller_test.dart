@@ -1,10 +1,10 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/auto_sync_controller.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/models/vault.dart';
-import 'package:netcatty_mobile/infrastructure/sync/cloud_sync_service.dart';
+import 'package:shun/application/auto_sync_controller.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/models/vault.dart';
+import 'package:shun/infrastructure/sync/cloud_sync_service.dart';
 
 void main() {
   const versions = CloudSyncVersions(

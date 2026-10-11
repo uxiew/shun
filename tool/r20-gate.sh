@@ -32,7 +32,7 @@ if [[ "$SCENARIO" == ai-cli ]]; then
 fi
 # 每次 flutter test 都重装 App，一连上就为保活服务申请通知权限，系统框会挡住页面；装上就授权。
 (for _ in $(seq 1 900); do
-  "${ADB[@]}" shell pm grant top.xdwa.xwshun android.permission.POST_NOTIFICATIONS 2>/dev/null && break
+  "${ADB[@]}" shell pm grant top.xdwa.shun android.permission.POST_NOTIFICATIONS 2>/dev/null && break
   sleep 0.3
 done >/dev/null 2>&1 &)
 
@@ -44,14 +44,14 @@ TEST=$!
 # 没有 root（真机）时：手机上每条连 22201 的 TCP，经 adb reverse（远程手机还要再过一段 ssh -R）到电脑这头，
 # 都变成一条连 127.0.0.1:22201 的连接；数电脑上客户端一侧是 22201 的已连上连接，打 "ssh-sockets=<个数> (电脑侧)"。
 # 不读手机的 /proc/net/tcp：没 root 读不到，读到了也是整台手机所有 App 的连接，不该存下来。
-# 前提是这期间没有别的东西连本机 22201（测试环境谁起谁用，见 docs/xwshun/README.md 第 7 节）。
+# 前提是这期间没有别的东西连本机 22201（测试环境谁起谁用，见 docs/shun/README.md 第 7 节）。
 ssh_sockets() {
   local pid inodes
   if [[ "$ROOT" != 0 ]]; then
     echo "R20HOST $1 ssh-sockets=$(lsof -nP -iTCP -sTCP:ESTABLISHED 2>/dev/null | grep -c -- '->127\.0\.0\.1:22201 ') (电脑侧)"
     return
   fi
-  pid=$("${ADB[@]}" shell pidof top.xdwa.xwshun | tr -d '\r')
+  pid=$("${ADB[@]}" shell pidof top.xdwa.shun | tr -d '\r')
   [[ -n "$pid" ]] || { echo "R20HOST $1 ssh-sockets=? (没找到进程)"; return; }
   inodes=$("${ADB[@]}" shell "ls -l /proc/$pid/fd" 2>/dev/null | grep -o 'socket:\[[0-9]*\]' | grep -o '[0-9]*' | sort -u)
   "${ADB[@]}" shell "cat /proc/$pid/net/tcp /proc/$pid/net/tcp6" 2>/dev/null > "$SHOTS/tcp-$1.txt" || true
@@ -78,7 +78,7 @@ while kill -0 "$TEST" 2>/dev/null; do
   while (( MSEEN < MCOUNT )); do
     MSEEN=$((MSEEN + 1))
     NAME=$(grep 'R20 MEM=' "$LOG" | sed -n "${MSEEN}p" | sed 's/.*R20 MEM=//' | tr -d '\r')
-    "${ADB[@]}" shell dumpsys meminfo top.xdwa.xwshun > "$SHOTS/mem-$NAME.txt" || true
+    "${ADB[@]}" shell dumpsys meminfo top.xdwa.shun > "$SHOTS/mem-$NAME.txt" || true
     ssh_sockets "$NAME"
   done
   sleep 0.5

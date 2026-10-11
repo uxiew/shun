@@ -19,7 +19,7 @@ LOG=$(mktemp -t r18-real-device)
 
 tool/remote-device/up.sh "$HOST" "$REMOTE_ADB" >/dev/null
 # shellcheck disable=SC1091
-source /tmp/xwshun-remote-device/env
+source /tmp/shun-remote-device/env
 trap 'tool/remote-device/down.sh "$HOST" >/dev/null; echo "日志 $LOG"' EXIT
 
 [[ "$(adb -s "$SERIAL" get-state 2>/dev/null)" == device ]] ||
@@ -29,7 +29,7 @@ echo "手机默认输入法：$IME_BEFORE"
 
 adb -s "$SERIAL" reverse tcp:22201 tcp:22201 >/dev/null
 (for _ in $(seq 1 1800); do
-  adb -s "$SERIAL" shell pm grant top.xdwa.xwshun android.permission.POST_NOTIFICATIONS 2>/dev/null && break
+  adb -s "$SERIAL" shell pm grant top.xdwa.shun android.permission.POST_NOTIFICATIONS 2>/dev/null && break
   sleep 0.5
 done >/dev/null 2>&1 &)
 

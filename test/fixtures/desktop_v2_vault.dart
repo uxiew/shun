@@ -1,4 +1,4 @@
-import 'package:netcatty_mobile/domain/models/vault.dart';
+import 'package:shun/domain/models/vault.dart';
 
 // Synthetic desktop v2 envelope; no real host or account data.
 VaultData desktopV2Vault() => VaultData.fromJson({

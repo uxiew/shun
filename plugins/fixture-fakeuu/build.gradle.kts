@@ -5,7 +5,7 @@
 //   -PfakeUuAppId=<包名>           默认 com.netease.uuremote（冒充官方包名：宿主会发现证书不是官方的）
 //   -PfakeUuVersion=4.42.0 -PfakeUuVersionCode=44200
 //   -PsignWith=author|impostor     见 ../signing.gradle.kts；换一把密钥就是「同包名换签」
-//   -PfakeUuHijack=true            另外声明宿主的回调地址 xwshun-uuremote://callback（扮演抢回调的 App，见 HijackActivity）
+//   -PfakeUuHijack=true            另外声明宿主的回调地址 shun-uuremote://callback（扮演抢回调的 App，见 HijackActivity）
 plugins {
     id("com.android.application")
 }
@@ -17,10 +17,10 @@ val fakeVersionCode = ((findProperty("fakeUuVersionCode") as String?) ?: "44200"
 val hijack = (findProperty("fakeUuHijack") as String?) == "true"
 
 @Suppress("UNCHECKED_CAST")
-val signing = extra["xwshunSigning"] as List<String>
+val signing = extra["shunSigning"] as List<String>
 
 android {
-    namespace = "example.xwshun.fixture.fakeuu"
+    namespace = "example.shun.fixture.fakeuu"
     compileSdk = 36
 
     defaultConfig {

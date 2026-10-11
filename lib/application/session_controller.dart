@@ -1107,7 +1107,7 @@ class SessionController extends StateNotifier<SessionState> {
       final summary = parts.join('，');
       next = KeepAliveRequest(
         generation: _keepAliveSent?.generation ?? ++_keepAliveGeneration,
-        title: 'xwshun 终端：$summary',
+        title: 'shun 终端：$summary',
         text: '锁着屏时断线不会在后台重新登录，解锁回到 App 再恢复',
       );
     }

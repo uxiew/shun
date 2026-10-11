@@ -383,7 +383,7 @@ class SftpService extends FileTransferService {
         .where((item) =>
             item.filename != '.' &&
             item.filename != '..' &&
-            !item.filename.endsWith('.netcatty-part'))
+            !item.filename.endsWith('.shun-part'))
         .map((item) {
       final fullPath = joinPath(path, item.filename);
       final modified = item.attr.modifyTime;
@@ -529,7 +529,7 @@ class LocalFileTransferService extends MountableFileTransferService {
       );
     }
     final root = Directory(
-      '${documents.path}${Platform.pathSeparator}Netcatty',
+      '${documents.path}${Platform.pathSeparator}shun',
     );
     await root.create(recursive: true);
     return LocalFileTransferService._(root.path);
@@ -544,7 +544,7 @@ class LocalFileTransferService extends MountableFileTransferService {
   @override
   String? get mountedDirectoryName {
     if (!isMounted) return null;
-    if (usesAppDocuments) return 'Netcatty';
+    if (usesAppDocuments) return 'shun';
     return Uri.file(rootPath)
         .pathSegments
         .where((value) => value.isNotEmpty)
@@ -555,7 +555,7 @@ class LocalFileTransferService extends MountableFileTransferService {
   String get id => 'local';
   @override
   String get displayName => usesAppDocuments
-      ? '文件：Netcatty'
+      ? '文件：shun'
       : isMounted
           ? '手机：${mountedDirectoryName ?? '已选目录'}'
           : '手机目录（未挂载）';
@@ -604,7 +604,7 @@ class LocalFileTransferService extends MountableFileTransferService {
     if (!await directory.exists()) throw StateError('手机目录不存在');
     final result = <RemoteEntry>[];
     await for (final entity in directory.list(followLinks: false)) {
-      if (entity.path.endsWith('.netcatty-part')) continue;
+      if (entity.path.endsWith('.shun-part')) continue;
       final stat = await entity.stat();
       result.add(
         RemoteEntry(
@@ -756,7 +756,7 @@ Future<int> transferEntry(
 
     final partialPath = target.joinPath(
       directory,
-      '.${current.name}.netcatty-part',
+      '.${current.name}.shun-part',
     );
     var resumeOffset = resume ? await target.fileSize(partialPath) ?? 0 : 0;
     if (resumeOffset < 0 || resumeOffset > current.size) {
@@ -806,7 +806,7 @@ Future<int> writeStreamAtomically(
   TransferProgressCallback? onProgress,
   TransferCancellationToken? cancellationToken,
 }) async {
-  final partialPath = '$finalPath.netcatty-part';
+  final partialPath = '$finalPath.shun-part';
   var resumeOffset = await target.fileSize(partialPath) ?? 0;
   if (resumeOffset < 0 || resumeOffset > totalBytes) resumeOffset = 0;
   if (resumeOffset > 0) onProgress?.call(resumeOffset);

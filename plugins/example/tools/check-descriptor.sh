@@ -4,10 +4,10 @@
 #
 # 构建前自查描述符：用宿主同一套判定代码（plugin_api），报出来的话和宿主插件页上的一字不差。要 Dart SDK（Flutter 自带的也行）。
 #
-#   tools/check-descriptor.sh app/src/main/res/raw/xwshun_plugin.json --package <applicationId> --service <服务类全名>
+#   tools/check-descriptor.sh app/src/main/res/raw/shun_plugin.json --package <applicationId> --service <服务类全名>
 #
 # 通过退出 0，不通过 1，用法不对 2。不往任何地方写文件（不在仓库里 pub get）：临时生成一份包配置，跑完就删。
-# plugin_api 在哪：new-plugin.sh 生成的工程里是 tools/plugin_api；在 xwshun 仓库里直接用 packages/plugin_api。
+# plugin_api 在哪：new-plugin.sh 生成的工程里是 tools/plugin_api；在 shun 仓库里直接用 packages/plugin_api。
 set -euo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -16,7 +16,7 @@ if [[ -d "$here/plugin_api/lib" ]]; then
 elif [[ -d "$here/../../../packages/plugin_api/lib" ]]; then
   api="$(cd "$here/../../../packages/plugin_api" && pwd)"
 else
-  echo "找不到 plugin_api（应在 $here/plugin_api 或 xwshun 仓库的 packages/plugin_api）" >&2
+  echo "找不到 plugin_api（应在 $here/plugin_api 或 shun 仓库的 packages/plugin_api）" >&2
   exit 2
 fi
 if ! command -v dart >/dev/null 2>&1; then

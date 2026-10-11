@@ -4,8 +4,8 @@ import 'package:flterm/src/controller/terminal_controller.dart'
     show TerminalSession;
 import 'package:flterm/src/foundation/surface_geometry.dart'
     show SurfaceMeasurement;
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
 
 /// 测试用的终端。R20 起安装包里只有 Ghostty，测试也用它：测到的就是手机上跑的那个引擎。
 /// 原版的 xterm2 只在 `xterm_terminal_adapter.dart` 里给对照测试用。

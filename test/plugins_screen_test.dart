@@ -4,19 +4,19 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/plugin_discovery.dart';
-import 'package:netcatty_mobile/application/plugin_registry.dart';
-import 'package:netcatty_mobile/infrastructure/plugins/android_plugin_bridge.dart';
-import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
-import 'package:netcatty_mobile/presentation/screens/plugin_detail_screen.dart';
-import 'package:netcatty_mobile/presentation/screens/plugins_screen.dart';
+import 'package:shun/application/plugin_discovery.dart';
+import 'package:shun/application/plugin_registry.dart';
+import 'package:shun/infrastructure/plugins/android_plugin_bridge.dart';
+import 'package:shun/presentation/localization/localized_widgets.dart';
+import 'package:shun/presentation/screens/plugin_detail_screen.dart';
+import 'package:shun/presentation/screens/plugins_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // X04 插件管理界面：详情页按状态给出操作（批准 / 连接测试 / 停用 / 启用 / 撤销 / 设置页），
 // 显示来源、证书、两种版本、能力、路线、权限；页面开着时插件包变了，按重新核验的结果变化（PLG11）。
 // 桥是假的——真实的包事件和设置页在模拟器上验证，见 evidence/X04.md。
 
-const pkg = 'example.xwshun.fixture.echo';
+const pkg = 'example.shun.fixture.echo';
 const author =
     'ffb53d5ae3ef071d73b680c14c219c0662df7545a87e6042991ab11c862c52fe';
 const impostor =
@@ -25,10 +25,10 @@ const impostor =
 DiscoveredPackage echo({String cert = author, String version = '0.1.0'}) =>
     DiscoveredPackage(
       packageName: pkg,
-      serviceClass: 'example.xwshun.fixture.echo.EchoProviderService',
+      serviceClass: 'example.shun.fixture.echo.EchoProviderService',
       versionName: version,
       versionCode: 7,
-      settingsActivity: 'example.xwshun.fixture.echo.SettingsActivity',
+      settingsActivity: 'example.shun.fixture.echo.SettingsActivity',
       signers: [(sha256: cert, androidDebug: false)],
       descriptorJson: jsonEncode({
         'schemaVersion': 1,
@@ -43,7 +43,7 @@ DiscoveredPackage echo({String cert = author, String version = '0.1.0'}) =>
         'platforms': ['android'],
         'permissions': ['own-session-input-output'],
         'packageName': pkg,
-        'serviceClass': 'example.xwshun.fixture.echo.EchoProviderService',
+        'serviceClass': 'example.shun.fixture.echo.EchoProviderService',
         'license': 'GPL-3.0-or-later',
       }),
     );
@@ -166,8 +166,8 @@ void main() {
       expect(find.byKey(ValueKey(key)), findsOneWidget, reason: key);
     }
     await tapKey(tester, 'plugin-open-settings');
-    expect(bridge.settingsOpened,
-        ['example.xwshun.fixture.echo.SettingsActivity']);
+    expect(
+        bridge.settingsOpened, ['example.shun.fixture.echo.SettingsActivity']);
   });
 
   testWidgets('停用：会话断开、设置页入口消失；启用后直接可用', (tester) async {
@@ -240,8 +240,8 @@ void main() {
   });
 
   testWidgets('英文界面：详情页没有汉字', (tester) async {
-    NetcattyLocalizations.use('en');
-    addTearDown(() => NetcattyLocalizations.use('zh'));
+    ShunLocalizations.use('en');
+    addTearDown(() => ShunLocalizations.use('zh'));
     await openDetail(tester);
     await tapKey(tester, 'plugin-approve');
     await tapKey(tester, 'plugin-approve-confirm');

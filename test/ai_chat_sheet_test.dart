@@ -5,11 +5,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/models/settings.dart';
-import 'package:netcatty_mobile/infrastructure/ai/ai_service.dart';
-import 'package:netcatty_mobile/infrastructure/ai/ai_workspace.dart';
-import 'package:netcatty_mobile/presentation/widgets/ai_chat_sheet.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/models/settings.dart';
+import 'package:shun/infrastructure/ai/ai_service.dart';
+import 'package:shun/infrastructure/ai/ai_workspace.dart';
+import 'package:shun/presentation/widgets/ai_chat_sheet.dart';
 
 void main() {
   testWidgets('preview shows only filtered terminal content and saves edits',

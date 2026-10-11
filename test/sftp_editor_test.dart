@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:netcatty_mobile/domain/models/settings.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/presentation/widgets/sftp_editor.dart';
+import 'package:shun/domain/models/settings.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/presentation/widgets/sftp_editor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {

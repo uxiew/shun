@@ -6,11 +6,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
-import 'package:netcatty_mobile/app.dart';
-import 'package:netcatty_mobile/application/tailscale_catalog_access.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/tailscale/catalog_secret_store.dart';
-import 'package:netcatty_mobile/infrastructure/tailscale/tailscale_api.dart';
+import 'package:shun/app.dart';
+import 'package:shun/application/tailscale_catalog_access.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/tailscale/catalog_secret_store.dart';
+import 'package:shun/infrastructure/tailscale/tailscale_api.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -30,6 +30,6 @@ Future<void> main() async {
         ),
       )),
     ],
-    child: const NetcattyApp(),
+    child: const ShunApp(),
   ));
 }

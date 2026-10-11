@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/presentation/widgets/ai_markdown.dart';
+import 'package:shun/presentation/widgets/ai_markdown.dart';
 
 void main() {
   testWidgets('inline code has rounded fill and wraps in narrow lists',

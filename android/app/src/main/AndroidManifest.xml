@@ -7,7 +7,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
 
     <application
-        android:label="xwshun"
+        android:label="shun"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="false"
@@ -53,7 +53,7 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <category android:name="android.intent.category.BROWSABLE" />
-                <data android:scheme="xwshun-uuremote" android:host="callback" />
+                <data android:scheme="shun-uuremote" android:host="callback" />
             </intent-filter>
         </activity>
         <service
@@ -77,7 +77,7 @@
         <!-- 插件发现只查这一个 action（PLG03）。故意不申请 QUERY_ALL_PACKAGES：
              Android 11 起没声明这个 action 的包对本 App 不可见，插件页会给出具体诊断。 -->
         <intent>
-            <action android:name="top.xdwa.xwshun.plugin.action.PROVIDER_V1" />
+            <action android:name="top.xdwa.shun.plugin.action.PROVIDER_V1" />
         </intent>
         <!-- UU 远程（X06）：官方要求声明这条才能在 Android 11+ 检测到 uuremote:// 。
              官方包名单独列出，是为了旧版本（还不接 uuremote://）也能被认出来、提示更新，而不是说成「没装」。 -->
@@ -96,7 +96,7 @@
              也就没法在绑定前提醒。queries 里不能写 path，系统按「任意 path」匹配。 -->
         <intent>
             <action android:name="android.intent.action.VIEW" />
-            <data android:scheme="xwshun-uuremote" android:host="callback" />
+            <data android:scheme="shun-uuremote" android:host="callback" />
         </intent>
         <!-- RustDesk（X07）：查谁声明能打开 rustdesk:// 。RustDesk 自己的清单只写 scheme、不限 host，第一条就够；
              再加一条带 host 的，是为了限定了 host=connect 的别的 App 也看得见（原因同上面 UU 的第二条），

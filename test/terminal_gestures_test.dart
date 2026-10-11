@@ -6,9 +6,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/presentation/terminal/terminal_view.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:shun/presentation/terminal/terminal_view.dart';
 
 // R19 / TER07：手指在终端上滑、点、长按，远端收到什么。两个引擎各跑一遍。
 // 规矩：滑动在普通 shell 里翻本地滚动区；全屏程序没开鼠标报告时什么都不发（不变成方向键）；

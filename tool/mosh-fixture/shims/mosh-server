@@ -1,7 +1,7 @@
 #!/bin/sh
 # 测试环境的记账：每启动一次 mosh-server 记一行（时间、参数），再原样交给真的。
 # X09 用它证明「路线被拒、指纹没过、登录失败时，远端一次都没启动」（MOS02、MOS04）。
-printf '%s %s\n' "$(date +%s)" "$*" >> /var/log/xwshun/mosh-server-starts.log
+printf '%s %s\n' "$(date +%s)" "$*" >> /var/log/shun/mosh-server-starts.log
 # 按名字（经 PATH）exec，不写全路径：busybox 的 pgrep -x / pkill -x 比的是 argv[0]，
 # 写成 /usr/bin/mosh-server 的话 `pgrep -x mosh-server` 一个都数不到（X09 撞上过，数出来永远是 0）。
 # PATH 只留 /usr/bin，免得又找回这个脚本自己；mosh-server 起的是登录 shell，/etc/profile 会把 PATH 设回来。

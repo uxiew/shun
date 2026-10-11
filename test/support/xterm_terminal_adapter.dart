@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
 import 'package:xterm2/xterm.dart';
 
 /// 原版 Netcatty 的终端引擎 xterm2 的适配器，**只给测试用**：R20 起它不在安装包里（docs/06 E 步），

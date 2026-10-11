@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/domain/models/server_stats.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/server_monitor_service.dart';
-import 'package:netcatty_mobile/presentation/widgets/server_network_chart.dart';
+import 'package:shun/domain/models/server_stats.dart';
+import 'package:shun/infrastructure/ssh/server_monitor_service.dart';
+import 'package:shun/presentation/widgets/server_network_chart.dart';
 
 void main() {
   final start = DateTime(2026, 9, 6, 12);

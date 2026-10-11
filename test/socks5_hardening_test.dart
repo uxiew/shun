@@ -6,17 +6,17 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/domain/connection_route.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/transport/proxy_transport.dart';
-import 'package:netcatty_mobile/presentation/widgets/host_editor.dart';
+import 'package:shun/domain/connection_route.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/transport/proxy_transport.dart';
+import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fixtures/net/scripted_proxy.dart';
 import 'fixtures/net/socks5_fixture.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 
 // R06：SOCKS5 CONNECT 生产加固。
 // 传输层直接对"剧本代理"做握手（NET05/06/08、SOX02/03）；

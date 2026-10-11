@@ -2,11 +2,11 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/plugin_discovery.dart';
-import 'package:netcatty_mobile/application/plugin_registry.dart';
-import 'package:netcatty_mobile/domain/plugins/builtin_plugins.dart';
-import 'package:netcatty_mobile/infrastructure/plugins/android_plugin_bridge.dart';
-import 'package:netcatty_mobile/infrastructure/plugins/plugin_approval_store.dart';
+import 'package:shun/application/plugin_discovery.dart';
+import 'package:shun/application/plugin_registry.dart';
+import 'package:shun/domain/plugins/builtin_plugins.dart';
+import 'package:shun/infrastructure/plugins/android_plugin_bridge.dart';
+import 'package:shun/infrastructure/plugins/plugin_approval_store.dart';
 import 'package:plugin_api/plugin_api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -14,8 +14,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 // 批准记录怎么存、怎么在重启后恢复，连接测试什么时候才会真的去绑定。
 // 桥是假的——真实的 PackageManager、Binder 与签名核对在模拟器上验证，见 evidence/X02.md。
 
-const echoPackage = 'example.xwshun.fixture.echo';
-const echoService = 'example.xwshun.fixture.echo.EchoProviderService';
+const echoPackage = 'example.shun.fixture.echo';
+const echoService = 'example.shun.fixture.echo.EchoProviderService';
 const authorCert =
     'ffb53d5ae3ef071d73b680c14c219c0662df7545a87e6042991ab11c862c52fe';
 const impostorCert =
@@ -54,7 +54,7 @@ DiscoveredPackage echo({
   String service = echoService,
   String? problem,
   List<String>? certs,
-  String? settings = 'example.xwshun.fixture.echo.SettingsActivity',
+  String? settings = 'example.shun.fixture.echo.SettingsActivity',
   int versionCode = 1,
 }) =>
     DiscoveredPackage(
@@ -200,7 +200,7 @@ void main() {
     await PluginDiscovery(bridge, PluginApprovalStore(prefs), restarted)
         .refresh();
     expect(entryOf(echoPackage, restarted).status, PluginStatus.ready);
-    final stored = prefs.getString('xwshun.plugins.approvals.v1')!;
+    final stored = prefs.getString('shun.plugins.approvals.v1')!;
     expect(stored, contains(authorCert));
     expect(stored, contains('"packageName":"$echoPackage"'));
   });
@@ -226,19 +226,19 @@ void main() {
   test('PLG04 冒用内置 ID 的包：拒绝，内置 SSH 不受影响', () async {
     bridge.installed = [
       DiscoveredPackage(
-        packageName: 'example.xwshun.fixture.rogue',
-        serviceClass: 'example.xwshun.fixture.rogue.RogueProviderService',
+        packageName: 'example.shun.fixture.rogue',
+        serviceClass: 'example.shun.fixture.rogue.RogueProviderService',
         descriptorJson: descriptor(
           id: 'builtin.ssh',
-          package: 'example.xwshun.fixture.rogue',
-          service: 'example.xwshun.fixture.rogue.RogueProviderService',
+          package: 'example.shun.fixture.rogue',
+          service: 'example.shun.fixture.rogue.RogueProviderService',
         ),
         signers: const [(sha256: impostorCert, androidDebug: false)],
       ),
     ];
     await discovery.refresh();
     expect(
-      entryOf('example.xwshun.fixture.rogue').status,
+      entryOf('example.shun.fixture.rogue').status,
       PluginStatus.rejected,
     );
     expect(registry.readyEntry(BuiltinPlugins.ssh)!.isBuiltin, isTrue);
@@ -275,7 +275,7 @@ void main() {
       discovery.approve(entryOf(echoPackage)),
       throwsA(isA<PluginApprovalRefused>()),
     );
-    expect(prefs.getString('xwshun.plugins.approvals.v1'), isNull);
+    expect(prefs.getString('shun.plugins.approvals.v1'), isNull);
   });
 
   test('卸载：条目变已卸载、批准记录保留；装回同一证书的包直接恢复可用', () async {
@@ -303,10 +303,10 @@ void main() {
   });
 
   test('批准记录损坏或含不认识的能力：当作没批准过，不猜', () async {
-    await prefs.setString('xwshun.plugins.approvals.v1', '{broken');
+    await prefs.setString('shun.plugins.approvals.v1', '{broken');
     expect(PluginApprovalStore(prefs).load(), isEmpty);
     await prefs.setString(
-      'xwshun.plugins.approvals.v1',
+      'shun.plugins.approvals.v1',
       jsonEncode([
         {
           'pluginId': 'example.fixture_echo',
@@ -482,7 +482,7 @@ void main() {
       await discovery.approve(entryOf(echoPackage));
       await discovery.openSettings(entryOf(echoPackage));
       expect(bridge.settingsOpened,
-          ['$echoPackage/example.xwshun.fixture.echo.SettingsActivity']);
+          ['$echoPackage/example.shun.fixture.echo.SettingsActivity']);
       await discovery.disable(entryOf(echoPackage));
       await expectLater(discovery.openSettings(entryOf(echoPackage)),
           throwsA(isA<PluginApprovalRefused>()));

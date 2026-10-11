@@ -7,7 +7,7 @@
 //   echo  另开一个 echo 会话（代替「别处在用的会话」）→ 进会话测试、开一个测试会话、发一行、离开 →
 //         原来那个 echo 会话还活着、照常回显，连接没被断开。
 //
-// 这不是 CI 测试。要先（详见 docs/xwshun/README.md 第 2 节「Mosh」）：
+// 这不是 CI 测试。要先（详见 docs/shun/README.md 第 2 节「Mosh」）：
 //   (cd tool/mosh-fixture && ./up.sh)
 //   adb -s emulator-5580 shell svc wifi disable          # 原因见本机手册第 3 节；测完一定 enable
 //   adb -s emulator-5580 install -r plugins/mosh/build/outputs/apk/release/mosh-release.apk
@@ -22,19 +22,19 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:netcatty_mobile/application/mosh_session.dart';
-import 'package:netcatty_mobile/application/plugin_discovery.dart';
-import 'package:netcatty_mobile/application/plugin_registry.dart';
-import 'package:netcatty_mobile/application/plugin_sessions.dart';
-import 'package:netcatty_mobile/presentation/screens/plugin_session_test_screen.dart';
-import 'package:netcatty_mobile/presentation/screens/plugins_screen.dart';
+import 'package:shun/application/mosh_session.dart';
+import 'package:shun/application/plugin_discovery.dart';
+import 'package:shun/application/plugin_registry.dart';
+import 'package:shun/application/plugin_sessions.dart';
+import 'package:shun/presentation/screens/plugin_session_test_screen.dart';
+import 'package:shun/presentation/screens/plugins_screen.dart';
 import 'package:plugin_api/plugin_api.dart' show SessionPhase;
 
 import 'mosh_session_test.dart'
     show Monitor, config, moshHost, settle, startApp, verifyFixture, waitFor;
 
-const echoPackage = 'example.xwshun.fixture.echo';
-const moshPackage = 'top.xdwa.xwshun.mosh';
+const echoPackage = 'example.shun.fixture.echo';
+const moshPackage = 'top.xdwa.shun.mosh';
 
 void report(String key, Object? value) => debugPrint('X12 $key=$value');
 

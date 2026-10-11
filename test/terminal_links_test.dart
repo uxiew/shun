@@ -6,11 +6,11 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/domain/terminal_link.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/presentation/terminal/terminal_view.dart';
-import 'package:netcatty_mobile/presentation/widgets/tailscale_check_card.dart'
+import 'package:shun/domain/terminal_link.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:shun/presentation/terminal/terminal_view.dart';
+import 'package:shun/presentation/widgets/tailscale_check_card.dart'
     show externalLinkLauncherProvider;
 
 // R19 / TER08、SEC08：终端里的链接。10-07 起点一下终端只叫键盘；长按选字时选中的是链接（或长按落在
@@ -48,7 +48,7 @@ void main() {
         'sms:10086?body=x',
         'market://details?id=com.evil',
         'ssh://root@host',
-        'top.xdwa.xwshun://callback?state=x',
+        'top.xdwa.shun://callback?state=x',
         'data:text/html,<script>alert(1)</script>',
       ]) {
         expect(review(address).canOpen, isFalse, reason: address);

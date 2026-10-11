@@ -122,8 +122,7 @@ class PluginBridgeException implements Exception {
 /// 与 Kotlin 端 PluginBridge 的通道。非 Android 平台上什么都发现不了（独立插件 APK 只有 Android 有）。
 class AndroidPluginBridge {
   AndroidPluginBridge({MethodChannel? channel})
-      : _channel =
-            channel ?? const MethodChannel('app.netcatty.mobile/plugins') {
+      : _channel = channel ?? const MethodChannel('top.xdwa.shun/plugins') {
     _channel.setMethodCallHandler((call) async {
       final m = call.arguments as Map<Object?, Object?>;
       final package = m['package'] as String? ?? '';

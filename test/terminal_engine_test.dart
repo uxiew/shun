@@ -1,19 +1,19 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/connection_diagnosis.dart';
-import 'package:netcatty_mobile/application/session_controller.dart';
-import 'package:netcatty_mobile/application/settings_controller.dart';
-import 'package:netcatty_mobile/application/terminal_engine.dart';
-import 'package:netcatty_mobile/domain/connection_route.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/models/settings.dart';
-import 'package:netcatty_mobile/domain/tmux/tmux_target.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/presentation/widgets/terminal_engine_status.dart';
+import 'package:shun/application/connection_diagnosis.dart';
+import 'package:shun/application/session_controller.dart';
+import 'package:shun/application/settings_controller.dart';
+import 'package:shun/application/terminal_engine.dart';
+import 'package:shun/domain/connection_route.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/models/settings.dart';
+import 'package:shun/domain/tmux/tmux_target.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:shun/presentation/widgets/terminal_engine_status.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // R17 起引擎建不起来时连接如实失败（docs/06：UI 显示实际引擎与错误）。R20 起只有 Ghostty，

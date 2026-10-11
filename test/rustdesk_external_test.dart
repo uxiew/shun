@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/infrastructure/plugins/rustdesk_external.dart';
+import 'package:shun/infrastructure/plugins/rustdesk_external.dart';
 
 import 'rustdesk_fakes.dart';
 

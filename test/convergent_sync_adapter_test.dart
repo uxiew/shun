@@ -1,9 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'fixtures/desktop_v2_vault.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/models/vault.dart';
-import 'package:netcatty_mobile/infrastructure/sync/convergent_sync_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/sync/sync_safety.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/models/vault.dart';
+import 'package:shun/infrastructure/sync/convergent_sync_adapter.dart';
+import 'package:shun/infrastructure/sync/sync_safety.dart';
 
 void main() {
   test('v2 preserves API settings and handles atomic-to-object setting changes',

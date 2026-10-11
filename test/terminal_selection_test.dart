@@ -5,9 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'support/xterm_terminal_adapter.dart';
-import 'package:netcatty_mobile/presentation/terminal/terminal_view.dart';
+import 'package:shun/presentation/terminal/terminal_view.dart';
 import 'package:xterm2/xterm.dart' show BufferRangeLine, CellOffset;
 
 // R19 / TER08：选字跨中文（占两格）、emoji、组合字符（e + 组合重音），复制出来的字对；

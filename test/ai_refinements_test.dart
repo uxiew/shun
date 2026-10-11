@@ -2,11 +2,11 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/domain/models/settings.dart';
-import 'package:netcatty_mobile/infrastructure/ai/ai_reply_parser.dart';
-import 'package:netcatty_mobile/infrastructure/ai/ai_workspace.dart';
-import 'package:netcatty_mobile/presentation/widgets/ai_panel.dart';
-import 'package:netcatty_mobile/presentation/widgets/ai_providers_page.dart';
+import 'package:shun/domain/models/settings.dart';
+import 'package:shun/infrastructure/ai/ai_reply_parser.dart';
+import 'package:shun/infrastructure/ai/ai_workspace.dart';
+import 'package:shun/presentation/widgets/ai_panel.dart';
+import 'package:shun/presentation/widgets/ai_providers_page.dart';
 
 void main() {
   late Map<String, String?> values;

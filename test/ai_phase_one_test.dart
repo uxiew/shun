@@ -4,9 +4,9 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:netcatty_mobile/domain/models/settings.dart';
-import 'package:netcatty_mobile/infrastructure/ai/ai_service.dart';
-import 'package:netcatty_mobile/infrastructure/ai/ai_workspace.dart';
+import 'package:shun/domain/models/settings.dart';
+import 'package:shun/infrastructure/ai/ai_service.dart';
+import 'package:shun/infrastructure/ai/ai_workspace.dart';
 
 Future<AiChatMessage> send(AiService service,
         {AiCancellation? token,

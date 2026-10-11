@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
 
 // R19 / GST04：粘贴、普通文字、功能键三条路各发什么。两个引擎各跑一遍。
 // 这里核对的「清洗」只是引擎替远端挡掉一部分控制字节，不代表远端不会执行粘贴的内容：

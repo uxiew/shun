@@ -7,14 +7,14 @@ plugins {
 apply(from = "../signing.gradle.kts")
 
 @Suppress("UNCHECKED_CAST")
-val signing = extra["xwshunSigning"] as List<String>
+val signing = extra["shunSigning"] as List<String>
 
 android {
-    namespace = "example.xwshun.fixture.fakebrowser"
+    namespace = "example.shun.fixture.fakebrowser"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "example.xwshun.fixture.fakebrowser"
+        applicationId = "example.shun.fixture.fakebrowser"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

@@ -14,7 +14,7 @@
    /* Read key from environment */
    char *env_key = getenv( "MOSH_KEY" );
 -  if ( env_key == NULL ) {
-+  /* xwshun: or from an inherited pipe named by MOSH_KEY_FD. The key then never enters the
++  /* shun: or from an inherited pipe named by MOSH_KEY_FD. The key then never enters the
 +     environment: unsetenv() below does not erase the initial environment block, which stays
 +     readable in /proc/<pid>/environ for the life of the process. */
 +  string key;

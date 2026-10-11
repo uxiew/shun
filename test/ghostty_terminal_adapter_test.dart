@@ -4,8 +4,8 @@ import 'dart:io';
 import 'package:flterm/flterm.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
 
 // R17：Ghostty 适配器。本机加载 fork 从源码编的 Ghostty 原生库，测的是真引擎，不是假对象。
 

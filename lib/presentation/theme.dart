@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 
 /// A Material representation of the desktop Netcatty theme catalogue.
-class NetcattyThemePreset {
-  const NetcattyThemePreset({
+class ShunThemePreset {
+  const ShunThemePreset({
     required this.id,
     required this.name,
     required this.brightness,
@@ -25,17 +25,17 @@ class NetcattyThemePreset {
   final Color error;
 }
 
-class NetcattyTheme {
+class ShunTheme {
   static const accent = Color(0xfff97316);
 
-  static final List<NetcattyThemePreset> _catalogue =
+  static final List<ShunThemePreset> _catalogue =
       _rawThemes.trim().split('\n').map(_parsePreset).toList(growable: false);
 
-  static List<NetcattyThemePreset> presets(Brightness brightness) => _catalogue
+  static List<ShunThemePreset> presets(Brightness brightness) => _catalogue
       .where((preset) => preset.brightness == brightness)
       .toList(growable: false);
 
-  static NetcattyThemePreset resolve(Brightness brightness, String id) {
+  static ShunThemePreset resolve(Brightness brightness, String id) {
     final available = presets(brightness);
     return available.firstWhere(
       (preset) => preset.id == id,
@@ -121,10 +121,10 @@ class NetcattyTheme {
     );
   }
 
-  static NetcattyThemePreset _parsePreset(String line) {
+  static ShunThemePreset _parsePreset(String line) {
     final values = line.split('|');
     final brightness = values[0] == 'd' ? Brightness.dark : Brightness.light;
-    return NetcattyThemePreset(
+    return ShunThemePreset(
       id: values[1],
       name: values[2],
       brightness: brightness,

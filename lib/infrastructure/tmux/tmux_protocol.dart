@@ -1,6 +1,6 @@
 /// tmux 远端命令的构造和输出解析（R21）。纯函数，不碰网络，方便逐条测。
 ///
-/// 所有命令都长一个样：sh -c 加单引号里的固定脚本，再跟 xwshun 和若干个单引号包着的参数。
+/// 所有命令都长一个样：sh -c 加单引号里的固定脚本，再跟 shun 和若干个单引号包着的参数。
 /// - 脚本是写死的常量：不含单引号、`!`、连续反斜杠和换行，所以不管远端登录 shell 是 sh、bash、zsh、
 ///   fish 还是 csh，单引号里的内容都原样交给 sh（fish 的单引号只认 `\'` 和 `\\`，csh 会在单引号里展开 `!`）。
 /// - 会变的东西只作为位置参数进去，而且事先按白名单校验过（socket 名/路径、uid、`$3` 这种 ID、纯数字）。
@@ -264,7 +264,7 @@ const tmuxAttachScript = '$_socketSnippet $_guardSnippet '
     r'[ "$g" = "$4" ] || exit 97; '
     r'exec tmux -u -S "$s" attach-session -t "$5"';
 
-const tmuxAttachMarker = 'XWSHUN-TMUX-ATTACH';
+const tmuxAttachMarker = 'SHUN-TMUX-ATTACH';
 
 final _sessionId = RegExp(r'^\$\d{1,9}$');
 final _clientTty = RegExp(r'^/dev/[A-Za-z0-9/_.-]{1,64}$');
@@ -298,7 +298,7 @@ String _command(String script, List<String> arguments) {
       throw ArgumentError.value(value, 'argument', 'character not allowed');
     }
   }
-  return "sh -c '$script' xwshun ${arguments.map((value) => "'$value'").join(' ')}";
+  return "sh -c '$script' shun ${arguments.map((value) => "'$value'").join(' ')}";
 }
 
 /// 位置参数的字符集：都是事先按白名单校验过的东西，这里再挡一次。

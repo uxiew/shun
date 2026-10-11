@@ -1,5 +1,5 @@
-import 'package:netcatty_mobile/application/external_remote.dart';
-import 'package:netcatty_mobile/infrastructure/plugins/rustdesk_external.dart';
+import 'package:shun/application/external_remote.dart';
+import 'package:shun/infrastructure/plugins/rustdesk_external.dart';
 
 // X07 测试共用：假平台（记下每次发出的链接、包名、证书）和内存存储。
 

@@ -2,7 +2,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:dartssh2/dartssh2.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
+import 'package:shun/domain/models/host.dart';
 
 /// 读取 tool/tmux-fixture/up.sh 生成的 .run/fixture.json（R21 的 tmux 测试环境）。
 ///

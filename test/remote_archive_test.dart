@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/remote_archive.dart';
+import 'package:shun/infrastructure/ssh/remote_archive.dart';
 
 void main() {
   test('compression quotes input paths and never overwrites an archive', () {

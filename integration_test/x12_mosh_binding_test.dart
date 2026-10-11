@@ -1,7 +1,7 @@
-// X12 设备验证：`xwshun.mosh` 只认 Mosh 插件现在的证书（所有者 10-07 决定）。真 App 页面、真插件桥、真安装包。
+// X12 设备验证：`shun.mosh` 只认 Mosh 插件现在的证书（所有者 10-07 决定）。真 App 页面、真插件桥、真安装包。
 //
 // 这不是 CI 测试。要先装两个包（都在本 worktree 里编出来）：
-//   adb -s emulator-5580 install -r plugins/out/echo-fakemosh.apk                          # 别的密钥签、自称 xwshun.mosh
+//   adb -s emulator-5580 install -r plugins/out/echo-fakemosh.apk                          # 别的密钥签、自称 shun.mosh
 //   adb -s emulator-5580 install -r plugins/mosh/build/outputs/apk/release/mosh-release.apk  # 真 Mosh 插件
 //   flutter test integration_test/x12_mosh_binding_test.dart -d emulator-5580
 // 输出以 "X12 " 开头的行作为证据。只做到「连接测试」（握手），不开 Mosh 会话，不需要 Mosh 测试环境。
@@ -11,14 +11,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:netcatty_mobile/app.dart';
-import 'package:netcatty_mobile/application/plugin_discovery.dart';
-import 'package:netcatty_mobile/application/plugin_registry.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/presentation/screens/plugins_screen.dart';
+import 'package:shun/app.dart';
+import 'package:shun/application/plugin_discovery.dart';
+import 'package:shun/application/plugin_registry.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/presentation/screens/plugins_screen.dart';
 
-const fakePackage = 'example.xwshun.fixture.fakemosh';
-const moshPackage = 'top.xdwa.xwshun.mosh';
+const fakePackage = 'example.shun.fixture.fakemosh';
+const moshPackage = 'top.xdwa.shun.mosh';
 
 void report(String key, Object? value) => debugPrint('X12 $key=$value');
 
@@ -32,7 +32,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
   WidgetController.hitTestWarningShouldBeFatal = true;
 
-  testWidgets('X12 xwshun.mosh 只认登记的证书', (tester) async {
+  testWidgets('X12 shun.mosh 只认登记的证书', (tester) async {
     final repository = await VaultRepository.open();
     final container = ProviderContainer(overrides: [
       vaultRepositoryProvider.overrideWithValue(repository),
@@ -40,7 +40,7 @@ void main() {
     addTearDown(container.dispose);
     await tester.pumpWidget(UncontrolledProviderScope(
       container: container,
-      child: const NetcattyApp(),
+      child: const ShunApp(),
     ));
     await settle(tester, 1500);
     final discovery = await container.read(pluginDiscoveryProvider.future);

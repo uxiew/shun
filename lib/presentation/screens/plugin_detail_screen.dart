@@ -55,7 +55,7 @@ String _named(String label, String wire) =>
 
 /// 中文界面用全角括号，英文界面用半角加空格。
 String _paren(Object? value) =>
-    NetcattyLocalizations.isEnglish ? ' ($value)' : '（$value）';
+    ShunLocalizations.isEnglish ? ' ($value)' : '（$value）';
 
 /// 一个插件的全部信息和操作（X04）：来源、证书、版本、能力、路线、权限，
 /// 批准 / 连接测试 / 停用 / 启用 / 撤销，以及插件自己的设置页入口。

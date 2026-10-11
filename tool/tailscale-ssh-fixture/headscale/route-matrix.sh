@@ -21,7 +21,7 @@ export ANDROID_SERIAL
 avd=$(adb emu avd name 2>/dev/null | head -1 | tr -d '\r')
 echo "设备 ${ANDROID_SERIAL}（AVD：${avd:-不是模拟器}）"
 case "$avd" in
-  xwshun-*|"") ;;
+  shun-*|"") ;;
   *) echo "这台模拟器不是本项目的（${avd}），不在上面跑" >&2; exit 1 ;;
 esac
 

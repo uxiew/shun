@@ -2,12 +2,12 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
 
 import 'fixtures/net/socks5_fixture.dart';
 import 'fixtures/net/trap_server.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 
 // RTE02 / NET03：选了代理但配置坏了、或代理本身失败时，必须明确失败，
 // 绝不能退回直连目标。目标由 TrapServer 扮演——它本身可以直连到达，

@@ -4,8 +4,8 @@ import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/domain/models/vault.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_export_service.dart';
+import 'package:shun/domain/models/vault.dart';
+import 'package:shun/infrastructure/storage/vault_export_service.dart';
 
 void main() {
   test(
@@ -26,7 +26,7 @@ void main() {
         savedBytes = bytes;
         savedType = type;
         savedExtensions = allowedExtensions;
-        return '/document/netcatty-mobile-export.json';
+        return '/document/shun-export.json';
       },
     );
     final vault = VaultData.fromJson({

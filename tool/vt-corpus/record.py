@@ -10,7 +10,7 @@
 测试把同一份字节喂给 Ghostty（和对照的 xterm2），在同一位置和 tmux 的屏幕比。tmux 是独立的第三个终端实现，
 用来判断两个引擎不一致时谁对。
 
-只用测试环境的镜像（xwshun-fixture:alpine3.22，tool/fixture-environment/up.sh 构建）起一个一次性容器，
+只用测试环境的镜像（shun-fixture:alpine3.22，tool/fixture-environment/up.sh 构建）起一个一次性容器，
 不连、不动正在跑的测试环境；容器里没有任何凭据。跑完删容器。
 
     python3 tool/vt-corpus/record.py              # 全部重录
@@ -31,8 +31,8 @@ VT_DIR = ROOT / 'test' / 'fixtures' / 'vt'
 CASES = VT_DIR / 'synthetic_cases.txt'
 ORACLE = VT_DIR / 'tmux_oracle.json'
 RECORDED = VT_DIR / 'recorded'
-IMAGE = 'xwshun-fixture:alpine3.22'
-CONTAINER = 'xwshun-vtcorpus-rec'
+IMAGE = 'shun-fixture:alpine3.22'
+CONTAINER = 'shun-vtcorpus-rec'
 COLS, ROWS = 80, 24
 
 ORACLE_CONF = f"""
@@ -56,6 +56,8 @@ set -g history-limit 2000
 set-environment -g PS1 '$ '
 """
 
+# 录 vim 场景时屏幕上显示的文件。里面的“欢迎使用 xwshun”是改名前录下的，和 test/fixtures/vt/ 里的录像逐字节对应：
+# 只改这里不重录，对比测试会报屏幕不一致；要改就照 README 重录全部素材。
 DEMO_PY = '''#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """演示文件：终端引擎对比（R20）。"""

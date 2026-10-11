@@ -4,10 +4,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:netcatty_mobile/app.dart';
-import 'package:netcatty_mobile/application/fork_features.dart';
-import 'package:netcatty_mobile/infrastructure/http_client_provider.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
+import 'package:shun/app.dart';
+import 'package:shun/application/fork_features.dart';
+import 'package:shun/infrastructure/http_client_provider.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -19,13 +19,13 @@ void main() {
   setUp(() {
     SharedPreferences.setMockInitialValues({
       // 模拟从上游数据带过来的"自动同步已开"残留：关掉 cloudSync 后它也不能生效。
-      'netcatty_mobile_settings_v1': '{"autoSyncEnabled":true}',
+      'shun_settings_v1': '{"autoSyncEnabled":true}',
     });
     // 必须 mock，否则设置页 await PackageInfo 时抛 MissingPluginException，
     // 更新检查根本走不到发请求那一步，测试会"假通过"。
     PackageInfo.setMockInitialValues(
-      appName: 'xwshun',
-      packageName: 'top.xdwa.xwshun',
+      appName: 'shun',
+      packageName: 'top.xdwa.shun',
       version: '1.4.7',
       buildNumber: '26',
       buildSignature: '',
@@ -62,7 +62,7 @@ void main() {
         httpClientProvider.overrideWithValue(client),
         if (features != null) forkFeaturesProvider.overrideWithValue(features),
       ],
-      child: const NetcattyApp(),
+      child: const ShunApp(),
     ));
     await tester.pump(const Duration(seconds: 1));
     await tester.tap(find.byIcon(Icons.settings_outlined));

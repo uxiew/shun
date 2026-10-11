@@ -4,14 +4,14 @@
 // 这不是 CI 测试。先装两个测试 App（见 plugins/README.md 的「X07 假 RustDesk」）：
 //   adb install -r plugins/out/fakerd.apk plugins/out/fakerd-custom.apk
 //   flutter test integration_test/rustdesk_bridge_test.dart -d <设备>
-// 跑完看 `adb logcat -d -s XwshunFakeRd`：应当只有最后那一次合规的请求，而且只有指定的那个包收到。
+// 跑完看 `adb logcat -d -s ShunFakeRd`：应当只有最后那一次合规的请求，而且只有指定的那个包收到。
 // 会重装 App、清空数据。输出以 "X07 " 开头的行作为证据。
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:netcatty_mobile/infrastructure/plugins/rustdesk_external.dart';
+import 'package:shun/infrastructure/plugins/rustdesk_external.dart';
 
-const custom = 'example.xwshun.fixture.fakerustdesk';
+const custom = 'example.shun.fixture.fakerustdesk';
 
 void report(String key, Object? value) => debugPrint('X07 $key=$value');
 
@@ -35,7 +35,7 @@ void main() {
     expect(official.signers, hasLength(1));
     expect(other.signers, hasLength(1));
     // 本 App 自己不算 rustdesk:// 的处理者。
-    expect(byPackage.keys, isNot(contains('top.xdwa.xwshun')));
+    expect(byPackage.keys, isNot(contains('top.xdwa.shun')));
 
     Future<String?> refused(String uri,
         {String? package, String? signer}) async {
@@ -92,7 +92,7 @@ void main() {
     final noPackage = await refused(good, package: '');
     report('noPackage', noPackage);
     expect(noPackage, contains('没有指定'));
-    final self = await refused(good, package: 'top.xdwa.xwshun');
+    final self = await refused(good, package: 'top.xdwa.shun');
     report('selfPackage', self);
     expect(self, contains('没有指定'));
 

@@ -141,7 +141,7 @@ class AiService {
       'messages': [
         {
           'role': 'system',
-          'content': 'You are Catty, the conversational SSH operations assistant inside Netcatty. '
+          'content': 'You are Catty, the conversational SSH operations assistant inside shun. '
               'Reply naturally and keep context across turns. Return one JSON object with '
               'a required "message" string and an optional "command" string. The terminal '
               'is already connected to the target below. Commands may be pasted into '

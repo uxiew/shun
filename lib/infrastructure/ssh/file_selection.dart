@@ -39,7 +39,7 @@ Future<TransferRoutePlan> prepareTransferRoute(FileSelection selection,
     }
     if (!sameTransferStorage(source, target)) {
       if (targetDirectory != null) {
-        ServerTransferCommands.batchPath('$targetDirectory/.netcatty-transfer');
+        ServerTransferCommands.batchPath('$targetDirectory/.shun-transfer');
       }
       for (final entry in selection.entries) {
         ServerTransferCommands.batchPath(entry.path);
@@ -189,7 +189,7 @@ Future<int> _serverTransfer(
   }
   // Unique staging directory; never resume another operation's partial data.
   final stage =
-      target.joinPath(directory, '.netcatty-transfer-${const Uuid().v4()}');
+      target.joinPath(directory, '.shun-transfer-${const Uuid().v4()}');
   final stagedPath = target.joinPath(stage, entry.name);
   final before = route == TransferRoute.serverDirect
       ? await _snapshot(source, entry, token)

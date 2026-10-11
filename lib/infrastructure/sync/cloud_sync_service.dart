@@ -349,7 +349,7 @@ class CloudSyncService {
       vault: vault,
       password: password,
       deviceId: deviceId,
-      deviceName: 'Netcatty Mobile',
+      deviceName: 'shun',
       appVersion: appVersion,
       previousVersion: previousVersion,
     );

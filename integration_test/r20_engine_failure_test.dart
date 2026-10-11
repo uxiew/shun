@@ -9,14 +9,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:netcatty_mobile/app.dart';
-import 'package:netcatty_mobile/application/connection_diagnosis.dart';
-import 'package:netcatty_mobile/application/home_navigation.dart';
-import 'package:netcatty_mobile/application/session_controller.dart';
-import 'package:netcatty_mobile/application/terminal_engine.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:shun/app.dart';
+import 'package:shun/application/connection_diagnosis.dart';
+import 'package:shun/application/home_navigation.dart';
+import 'package:shun/application/session_controller.dart';
+import 'package:shun/application/terminal_engine.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
 
 const _ssh = String.fromEnvironment('R17_SSH');
 
@@ -45,7 +45,7 @@ void main() {
     addTearDown(container.dispose);
     await tester.pumpWidget(UncontrolledProviderScope(
       container: container,
-      child: const NetcattyApp(),
+      child: const ShunApp(),
     ));
     await settle(tester);
     r20('fail.appStarted', true);

@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/domain/terminal_paste.dart';
+import 'package:shun/domain/terminal_paste.dart';
 
 // R19 / SEC10、TER09：粘贴前整理和数风险。预览里看到的就是要发的。
 void main() {

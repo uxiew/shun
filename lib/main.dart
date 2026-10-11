@@ -10,7 +10,7 @@ Future<void> main() async {
   runApp(
     ProviderScope(
       overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
-      child: const NetcattyApp(),
+      child: const ShunApp(),
     ),
   );
 }

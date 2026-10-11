@@ -4,9 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/presentation/terminal/terminal_view.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:shun/presentation/terminal/terminal_view.dart';
 
 // 所有者 10-07 定（R19 留下的第二项）：硬件键盘 Ctrl+K、Ctrl+A 发给服务器（nano 剪切一行、readline 回行首、
 // tmux/screen 的前缀键）；App 自己的清滚动区、全选挪到 Ctrl+Shift+K、Ctrl+Shift+A。

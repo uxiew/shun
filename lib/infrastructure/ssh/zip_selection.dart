@@ -33,7 +33,7 @@ Future<void> zipSelection(FileTransferService source, List<RemoteEntry> entries,
     await scan(entry, entry.name);
   }
   final temporary =
-      '$destination.${DateTime.now().microsecondsSinceEpoch}.netcatty-part';
+      '$destination.${DateTime.now().microsecondsSinceEpoch}.shun-part';
   try {
     await source.writeStream(temporary, _zip(source, members));
     await source.rename(temporary, destination);

@@ -3,14 +3,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/uuremote.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/models/vault.dart';
-import 'package:netcatty_mobile/infrastructure/plugins/uuremote_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
-import 'package:netcatty_mobile/presentation/screens/uuremote_screen.dart';
-import 'package:netcatty_mobile/presentation/screens/vault_screen.dart';
+import 'package:shun/application/uuremote.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/models/vault.dart';
+import 'package:shun/infrastructure/plugins/uuremote_adapter.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/presentation/localization/localized_widgets.dart';
+import 'package:shun/presentation/screens/uuremote_screen.dart';
+import 'package:shun/presentation/screens/vault_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'uuremote_fakes.dart';
@@ -253,7 +253,7 @@ void main() {
   testWidgets('没有请求时收到的回调：给提示，不弹确认框', (tester) async {
     await open(tester, const UuRemoteHostScreen(hostId: 'win'));
     platform.deliver(
-        'xwshun-uuremote://callback/bind?state=AAAAAAAAAAAAAAAAAAAAAA&anonymous_device_id=x&nonce=y');
+        'shun-uuremote://callback/bind?state=AAAAAAAAAAAAAAAAAAAAAA&anonymous_device_id=x&nonce=y');
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('uu-offer-confirm')), findsNothing);
     expect(find.textContaining('没有对应的请求'), findsOneWidget);
@@ -307,8 +307,8 @@ void main() {
   });
 
   testWidgets('英文界面：主机的 UU 页（各种状态）和设置总览都没有汉字', (tester) async {
-    NetcattyLocalizations.use('en');
-    addTearDown(() => NetcattyLocalizations.use('zh'));
+    ShunLocalizations.use('en');
+    addTearDown(() => ShunLocalizations.use('zh'));
     final han = RegExp(r'[一-鿿]');
     void noHan() =>
         expect(han.hasMatch(allText(tester)), isFalse, reason: allText(tester));

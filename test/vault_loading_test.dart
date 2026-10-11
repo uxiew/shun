@@ -3,9 +3,9 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/vault_controller.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
+import 'package:shun/application/vault_controller.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -14,7 +14,7 @@ void main() {
   test('vault metadata and snippets are available before secret hydration',
       () async {
     SharedPreferences.setMockInitialValues({
-      'netcatty_mobile_vault_v1': jsonEncode({
+      'shun_vault_v1': jsonEncode({
         'hosts': [
           {
             'id': 'host-1',
@@ -62,7 +62,7 @@ void main() {
           .setMockMethodCallHandler(secureStorageChannel, null);
     });
     SharedPreferences.setMockInitialValues({
-      'netcatty_mobile_vault_v1': jsonEncode({
+      'shun_vault_v1': jsonEncode({
         'hosts': [
           {
             'id': 'host-1',
@@ -108,7 +108,7 @@ void main() {
           .setMockMethodCallHandler(secureStorageChannel, null);
     });
     SharedPreferences.setMockInitialValues({
-      'netcatty_mobile_vault_v1': jsonEncode({
+      'shun_vault_v1': jsonEncode({
         'hosts': [
           {
             'id': 'host-1',
@@ -146,7 +146,7 @@ void main() {
           .setMockMethodCallHandler(secureStorageChannel, null);
     });
     SharedPreferences.setMockInitialValues({
-      'netcatty_mobile_vault_v1': jsonEncode({
+      'shun_vault_v1': jsonEncode({
         'hosts': [
           {
             'id': 'host-1',

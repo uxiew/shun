@@ -1,8 +1,8 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/presentation/screens/sftp_screen.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/presentation/screens/sftp_screen.dart';
 
 // 文件页按标签缓存的 SFTP 服务：关掉的标签要从表里删掉，不然它的会话、终端、SSH 客户端都回收不了
 // （R20 资源测试在设备上开关 500 次，504 个会话全被这张表拿着）。

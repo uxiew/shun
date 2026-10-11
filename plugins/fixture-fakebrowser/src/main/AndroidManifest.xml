@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- 没有 INTERNET 权限：就算想联网也联不了。 -->
-    <application android:label="Fake Browser (xwshun test only)" android:allowBackup="false">
+    <application android:label="Fake Browser (shun test only)" android:allowBackup="false">
         <activity
-            android:name="example.xwshun.fixture.fakebrowser.FakeBrowserActivity"
+            android:name="example.shun.fixture.fakebrowser.FakeBrowserActivity"
             android:exported="true"
             android:launchMode="singleTop">
             <intent-filter>

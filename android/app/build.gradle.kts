@@ -16,7 +16,7 @@ val hasReleaseSigning = listOf(
 ).all { !it.isNullOrBlank() }
 
 android {
-    namespace = "app.netcatty.mobile"
+    namespace = "top.xdwa.shun"
     compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
@@ -26,10 +26,10 @@ android {
     }
 
     defaultConfig {
-        // 本 fork 的安装身份，所有者 2026-09-29 指定。改回上游的 app.netcatty.mobile
-        // 会覆盖手机上的原版 Netcatty 及其数据。上面的 namespace 只是 Kotlin 代码包名，
-        // 不影响安装身份，保持上游值以减少与上游合并时的冲突。
-        applicationId = "top.xdwa.xwshun"
+        // 安装身份，所有者 2026-10-11 定为 top.xdwa.shun（之前是 top.xdwa.xwshun）。
+        // 改成上游的 app.netcatty.mobile 会覆盖手机上的原版 Netcatty 及其数据；
+        // 再改成别的值，手机会当成另一个 App，旧 App 的保险库、密钥不会跟过来。
+        applicationId = "top.xdwa.shun"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
         minSdk = flutter.minSdkVersion

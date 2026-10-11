@@ -5,7 +5,7 @@
 //   (cd tool/fixture-environment && ./up.sh)
 //   adb -s emulator-5580 reverse tcp:22201 tcp:22201
 //   另开一个终端预授权通知（不然一连上就弹「允许通知」挡住页面）：
-//   until adb -s emulator-5580 shell pm grant top.xdwa.xwshun android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done
+//   until adb -s emulator-5580 shell pm grant top.xdwa.shun android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done
 //   flutter test integration_test/r19_terminal_test.dart -d emulator-5580 \
 //     --dart-define=R17_SSH="$(python3 tool/fixture-environment/r17_config.py)"
 // 输出以 "R19 " 开头的行作为证据。会动手机剪贴板（写入测试文字），不会打开浏览器（启动器换成了记录用的假实现）。
@@ -18,16 +18,16 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:netcatty_mobile/app.dart';
-import 'package:netcatty_mobile/application/home_navigation.dart';
-import 'package:netcatty_mobile/application/session_controller.dart';
-import 'package:netcatty_mobile/application/settings_controller.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/presentation/widgets/tailscale_check_card.dart'
+import 'package:shun/app.dart';
+import 'package:shun/application/home_navigation.dart';
+import 'package:shun/application/session_controller.dart';
+import 'package:shun/application/settings_controller.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:shun/presentation/widgets/tailscale_check_card.dart'
     show externalLinkLauncherProvider;
 
 import 'r18_remote_capture.dart';
@@ -56,7 +56,7 @@ Future<(ActiveTerminalSession, SessionController, List<Uri>)> connectR19(
   final controller = container.read(sessionControllerProvider.notifier);
   await tester.pumpWidget(UncontrolledProviderScope(
     container: container,
-    child: const NetcattyApp(),
+    child: const ShunApp(),
   ));
   container.read(homeTabProvider.notifier).state = 1;
   final connected = controller.connect(

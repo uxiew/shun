@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/presentation/screens/snippets_screen.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/presentation/screens/snippets_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -12,7 +12,7 @@ void main() {
 
   testWidgets('snippet can be deleted after confirmation', (tester) async {
     SharedPreferences.setMockInitialValues({
-      'netcatty_mobile_vault_v1': jsonEncode({
+      'shun_vault_v1': jsonEncode({
         'hosts': const [],
         'keys': const [],
         'snippets': [

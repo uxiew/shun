@@ -1,13 +1,13 @@
 import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/tmux/tmux_target.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/tmux/tmux_protocol.dart';
-import 'package:netcatty_mobile/infrastructure/tmux/tmux_service.dart';
-import 'package:netcatty_mobile/presentation/widgets/system_management/tmux_manager_panel.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/tmux/tmux_target.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/tmux/tmux_protocol.dart';
+import 'package:shun/infrastructure/tmux/tmux_service.dart';
+import 'package:shun/presentation/widgets/system_management/tmux_manager_panel.dart';
 
 // R21：tmux 面板的界面行为。远端交互用假的 TmuxService 记录，真实 tmux 上的行为见 tmux_fixture_test.dart。
 void main() {

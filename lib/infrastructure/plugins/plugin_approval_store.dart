@@ -12,10 +12,10 @@ class PluginApprovalStore {
   PluginApprovalStore(this._preferences);
 
   final SharedPreferences _preferences;
-  static const _key = 'xwshun.plugins.approvals.v1';
+  static const _key = 'shun.plugins.approvals.v1';
 
   /// 用户停用的 pluginId（小写）。和批准记录分开存：停用不是撤销，重新启用不用再批（docs/15 §7）。
-  static const _disabledKey = 'xwshun.plugins.disabled.v1';
+  static const _disabledKey = 'shun.plugins.disabled.v1';
 
   List<ApprovedBinding> load() {
     final raw = _preferences.getString(_key);

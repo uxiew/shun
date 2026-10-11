@@ -15,7 +15,7 @@ abstract final class UuRemoteProtocol {
 
   /// 本 App 接收回调的地址。官方示例同样用自定义 scheme + host `callback`。
   /// 自定义 scheme 谁都能声明：state/nonce 只防「没发过的请求、重放」，证明不了回调真是 UU 发的（UUR06）。
-  static const callbackScheme = 'xwshun-uuremote';
+  static const callbackScheme = 'shun-uuremote';
   static const callbackHost = 'callback';
 
   /// 官方 UU 远程 APK 的签名证书 SHA-256（小写十六进制，无分隔符）。手机上的 UU 是这张证书签的就直接可用。
@@ -318,7 +318,7 @@ class UuProbe {
   /// 也声明能打开 `uuremote://` 的其他包。请求不会发给它们，只用来提醒用户。
   final List<String> otherHandlers;
 
-  /// 也声明了本 App 回调地址（`xwshun-uuremote://callback`）的其他包。自定义 scheme 谁都能声明：
+  /// 也声明了本 App 回调地址（`shun-uuremote://callback`）的其他包。自定义 scheme 谁都能声明：
   /// 有这样的包时，UU 回调会让系统弹「用哪个 App 打开」，选到它，回调（含加密设备标识）就到了它手里（UUR06）。
   final List<String> callbackRivals;
 }
@@ -447,7 +447,7 @@ class AndroidUuRemotePlatform implements UuRemotePlatform {
     unawaited(_drain());
   }
 
-  static const _channel = MethodChannel('top.xdwa.xwshun/uuremote');
+  static const _channel = MethodChannel('top.xdwa.shun/uuremote');
   final _callbacks = StreamController<String>.broadcast();
   final _early = <String>[];
   var _listening = false;

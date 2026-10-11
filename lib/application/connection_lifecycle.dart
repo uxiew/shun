@@ -166,7 +166,7 @@ class RestorableTab {
 class RestorableTabsStore {
   RestorableTabsStore(this._preferences);
 
-  static const _key = 'xwshun.r22.restorableTabs';
+  static const _key = 'shun.r22.restorableTabs';
 
   final SharedPreferences _preferences;
   String? _written;

@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
-import 'package:netcatty_mobile/infrastructure/plugins/android_plugin_bridge.dart';
+import 'package:shun/infrastructure/plugins/android_plugin_bridge.dart';
 
 /// 插件桥的测试替身（X12）：照 Kotlin 桥的行为——没连着时 ping 报 NOT_CONNECTED、connect 之后才算连着、
 /// 一个包只留一条连接——把宿主发给插件的每一下都记下来；插件那一侧的事件、输出由测试按真实顺序发。

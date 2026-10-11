@@ -6,24 +6,24 @@ import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/host_trust.dart';
-import 'package:netcatty_mobile/application/port_forward_controller.dart';
-import 'package:netcatty_mobile/application/session_controller.dart';
-import 'package:netcatty_mobile/application/vault_controller.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/server_monitor_service.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/sftp_service.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/system_management_service.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/transport/proxy_transport.dart';
+import 'package:shun/application/host_trust.dart';
+import 'package:shun/application/port_forward_controller.dart';
+import 'package:shun/application/session_controller.dart';
+import 'package:shun/application/vault_controller.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/infrastructure/ssh/server_monitor_service.dart';
+import 'package:shun/infrastructure/ssh/sftp_service.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/ssh/system_management_service.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/transport/proxy_transport.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fixtures/docker_fixture.dart';
 import 'fixtures/net/socks5_fixture.dart';
 import 'fixtures/net/trap_server.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
 
 import 'support/test_terminal.dart';
 
@@ -1537,7 +1537,7 @@ void main() {
 
     test('SEC06 加密私钥：口令对能登录；口令错、密文被改都在拨号前拒绝', () async {
       final f = fixture!;
-      final dir = await Directory.systemTemp.createTemp('xwshun-sec06-');
+      final dir = await Directory.systemTemp.createTemp('shun-sec06-');
       addTearDown(() => dir.delete(recursive: true));
       final file = File('${dir.path}/id')..writeAsStringSync(f.privateKeyPem);
       await Process.run('chmod', ['600', file.path]);

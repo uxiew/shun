@@ -5,12 +5,12 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:dartssh2/dartssh2.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/file_selection.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/server_transfer_commands.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/sftp_service.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/ssh/file_selection.dart';
+import 'package:shun/infrastructure/ssh/server_transfer_commands.dart';
+import 'package:shun/infrastructure/ssh/sftp_service.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 
 void main() {
   test(
@@ -175,8 +175,7 @@ void main() {
     expect(server.entries.containsKey('/folder/a'), isTrue);
     expect(server.copies, 1);
     expect(server.lists, ['/out']);
-    expect(
-        server.entries.keys.any((path) => path.contains('.netcatty-transfer-')),
+    expect(server.entries.keys.any((path) => path.contains('.shun-transfer-')),
         isFalse);
   });
 
@@ -250,8 +249,7 @@ void main() {
       expect(source.entries.containsKey('/folder/a'), isTrue);
       expect(source.copies, 1);
       expect(
-          target.entries.keys
-              .any((path) => path.contains('.netcatty-transfer-')),
+          target.entries.keys.any((path) => path.contains('.shun-transfer-')),
           isTrue);
       if (failure == 'collision') {
         expect(target.entries['/out/folder']!.size, 77);
@@ -336,8 +334,7 @@ void main() {
   final bash =
       Platform.isWindows ? 'C:/Program Files/Git/bin/bash.exe' : '/bin/bash';
   test('real cp/mv preserve files and reject existing destination', () async {
-    final fixture =
-        await Directory.systemTemp.createTemp('netcatty-copy-test-');
+    final fixture = await Directory.systemTemp.createTemp('shun-copy-test-');
     try {
       final source = File('${fixture.path}/source space\u0027\u0024.txt');
       await source.writeAsString('original');
@@ -366,8 +363,7 @@ void main() {
   // network login. It catches quoting/globbing bugs that command-string tests miss.
   test('real OpenSSH SFTP uploads a literal glob filename and a directory',
       () async {
-    final fixture =
-        await Directory.systemTemp.createTemp('netcatty-sftp-test-');
+    final fixture = await Directory.systemTemp.createTemp('shun-sftp-test-');
     try {
       final file = File('${fixture.path}/a[1]\u0027\u0024.txt');
       await file.writeAsString('literal');

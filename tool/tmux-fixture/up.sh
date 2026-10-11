@@ -9,7 +9,7 @@ rm -rf .run
 mkdir -p .run/secrets .run/client .run/hostkeys
 chmod 700 .run .run/client
 openssl rand -hex 16 > .run/secrets/ssh_password
-ssh-keygen -q -t ed25519 -N '' -C xwshun-tmux-fixture -f .run/client/id_ed25519
+ssh-keygen -q -t ed25519 -N '' -C shun-tmux-fixture -f .run/client/id_ed25519
 cp .run/client/id_ed25519.pub .run/secrets/id_ed25519.pub
 
 docker compose up -d --build >/dev/null

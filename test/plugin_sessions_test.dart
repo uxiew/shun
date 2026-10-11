@@ -4,11 +4,11 @@ import 'dart:typed_data';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/plugin_registry.dart';
-import 'package:netcatty_mobile/application/plugin_sessions.dart';
-import 'package:netcatty_mobile/domain/plugins/builtin_plugins.dart';
-import 'package:netcatty_mobile/domain/plugins/mosh_bootstrap.dart';
-import 'package:netcatty_mobile/infrastructure/plugins/android_plugin_bridge.dart';
+import 'package:shun/application/plugin_registry.dart';
+import 'package:shun/application/plugin_sessions.dart';
+import 'package:shun/domain/plugins/builtin_plugins.dart';
+import 'package:shun/domain/plugins/mosh_bootstrap.dart';
+import 'package:shun/infrastructure/plugins/android_plugin_bridge.dart';
 import 'package:plugin_api/plugin_api.dart';
 
 // X03 宿主侧会话状态机。桥是假的：这里测的是 Dart 这一层怎么对待插件发来的事件和字节。

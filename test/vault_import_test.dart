@@ -1,13 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/vault_controller.dart';
-import 'package:netcatty_mobile/application/vault_import.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/models/vault.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
-import 'package:netcatty_mobile/presentation/widgets/vault_import_dialog.dart';
+import 'package:shun/application/vault_controller.dart';
+import 'package:shun/application/vault_import.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/models/vault.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/presentation/localization/localized_widgets.dart';
+import 'package:shun/presentation/widgets/vault_import_dialog.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // 导入保险库文件：以前直接整库替换、不问一句，文件里没有的主机连同密码私钥被删。
@@ -336,8 +336,8 @@ void main() {
     });
 
     testWidgets('英文界面：带数字的句子整句翻译，主机名原样显示', (tester) async {
-      NetcattyLocalizations.use('en');
-      addTearDown(() => NetcattyLocalizations.use('zh'));
+      ShunLocalizations.use('en');
+      addTearDown(() => ShunLocalizations.use('zh'));
       await pick(tester, plan, null);
       expect(
         find.text('The file has 3 hosts: 1 will be added and 2 existing ones '
@@ -348,11 +348,11 @@ void main() {
       expect(find.widgetWithText(TextButton, 'Replace'), findsOneWidget);
       expect(find.text('db'), findsOneWidget);
       expect(
-        NetcattyLocalizations.text('导入完成（合并）：新增主机 1 台，更新主机 2 台，本机独有的主机保留：1'),
+        ShunLocalizations.text('导入完成（合并）：新增主机 1 台，更新主机 2 台，本机独有的主机保留：1'),
         'Imported (merge): hosts added 1, hosts updated 2, local-only hosts kept 1',
       );
       expect(
-        NetcattyLocalizations.text('导入失败：${const VaultChangedDuringImport()}'),
+        ShunLocalizations.text('导入失败：${const VaultChangedDuringImport()}'),
         'Import failed: The vault on this device changed while you were '
         'confirming; nothing was imported. Choose the file again.',
       );

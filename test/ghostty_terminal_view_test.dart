@@ -4,9 +4,9 @@ import 'package:flterm/flterm.dart' as flterm show TerminalView;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/presentation/terminal/ghostty_terminal_view.dart';
-import 'package:netcatty_mobile/presentation/terminal/terminal_view.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/presentation/terminal/ghostty_terminal_view.dart';
+import 'package:shun/presentation/terminal/terminal_view.dart';
 
 // R17 / GST02：Ghostty 视图的交接。flterm 一个控制器同一时刻只能挂一个 flterm 视图，
 // 第二个来挂直接抛 StateError；R16 的显示权换手时旧视图又不会立刻重建。这里直接造出

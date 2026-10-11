@@ -409,8 +409,8 @@ final rustDeskPlatformProvider =
 /// 存储名定了就不能改：改了就读不到已有的关联。
 final rustDeskStoreProvider = Provider<RustDeskStore>(
   (ref) => RustDeskStore(SecureProviderBackend(
-    prefsName: 'xwshun_rustdesk',
-    keychainAccount: 'xwshun.rustdesk',
+    prefsName: 'shun_rustdesk',
+    keychainAccount: 'shun.rustdesk',
   )),
 );
 

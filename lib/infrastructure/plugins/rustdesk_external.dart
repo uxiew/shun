@@ -362,7 +362,7 @@ abstract interface class RustDeskPlatform {
 
 /// Android 实现（`RustDeskBridge.kt`）。其他平台一律「不支持」。
 class AndroidRustDeskPlatform implements RustDeskPlatform {
-  static const _channel = MethodChannel('top.xdwa.xwshun/rustdesk');
+  static const _channel = MethodChannel('top.xdwa.shun/rustdesk');
 
   static bool get _supported => Platform.isAndroid;
 

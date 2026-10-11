@@ -9,7 +9,7 @@
 # 会先卸掉设备上的 App（清掉它的数据），测完再卸掉。
 #
 # 真机（所有者的日用手机）上多三条规矩，都是为了不碰到 App 以外的东西：
-# - 手机上已经装着 top.xdwa.xwshun 就不跑：卸掉会清掉所有者的数据，要所有者自己先处理。
+# - 手机上已经装着 top.xdwa.shun 就不跑：卸掉会清掉所有者的数据，要所有者自己先处理。
 # - 每次点按、滑动前确认前台是本 App、没锁屏；不是就停（锁屏后点下去会落在锁屏或别的 App 上）。
 # - 不用 monkey 启动（它除了启动还会注入随机事件），不 logcat -c（清掉的是所有者整台手机的日志）。
 set -euo pipefail
@@ -19,11 +19,10 @@ SERIAL=${1:?用法：tool/release-smoke.sh <设备序列号> [APK]}
 APK=${2:-build/app/outputs/flutter-apk/app-release.apk}
 ADB=(adb -s "$SERIAL")
 WORK=$(mktemp -d -t release-smoke)
-PKG=top.xdwa.xwshun
-# Activity 的 Kotlin 包名沿用原项目（app.netcatty.mobile），和 applicationId 不一样。
-ACTIVITY=$PKG/app.netcatty.mobile.MainActivity
+PKG=top.xdwa.shun
+ACTIVITY=$PKG/top.xdwa.shun.MainActivity
 # 界面导出放 /data/local/tmp，测完删掉：放 /sdcard 会在所有者的存储里留文件。
-UI_DUMP=/data/local/tmp/xwshun-smoke-ui.xml
+UI_DUMP=/data/local/tmp/shun-smoke-ui.xml
 
 if [[ "$("${ADB[@]}" emu avd name 2>/dev/null | head -1 | tr -d '\r')" != "" ]]; then
   REAL=0

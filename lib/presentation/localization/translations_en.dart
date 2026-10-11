@@ -226,7 +226,7 @@ const englishTranslations = <String, String>{
   '仅用于迁移或登录故障排查': 'Only for migration or sign-in troubleshooting',
   'GitHub Token（备用）': 'GitHub token (fallback)',
   'Gist ID（通常自动识别）': 'Gist ID (normally detected automatically)',
-  'Netcatty 同步主密码': 'Netcatty sync master password',
+  '同步主密码': 'Sync master password',
   '拉取并合并': 'Pull & merge',
   '上传': 'Upload',
   '立即同步': 'Sync now',
@@ -332,6 +332,7 @@ const englishTranslations = <String, String>{
   'SSH 密钥库': 'SSH keychain',
   '导入私钥与口令': 'Import private keys and passphrases',
   '导入 Netcatty JSON': 'Import Netcatty JSON',
+  '基于 Netcatty Mobile 修改': 'Modified from Netcatty Mobile',
   '支持桌面端解密后的保险库数据': 'Supports decrypted desktop vault data',
   '导出保险库 JSON': 'Export vault JSON',
   '不含密码、私钥和代理口令；换手机导入后要重新填写':
@@ -486,11 +487,11 @@ const englishTranslations = <String, String>{
   '上游地址': 'Upstream address',
   '多个上游地址使用换行或逗号分隔': 'Separate multiple upstreams with new lines or commas',
   '保存并重新加载': 'Save and reload',
-  'Netcatty 创建的反向代理会直接保存到该 Caddyfile。':
-      'Reverse proxies created by Netcatty are saved directly in this Caddyfile.',
+  'shun 创建的反向代理会直接保存到该 Caddyfile。':
+      'Reverse proxies created by shun are saved directly in this Caddyfile.',
   '配置入口': 'Configuration entry',
   '配置入口：': 'Configuration entry: ',
-  '还没有由 Netcatty 管理的反向代理站点': 'No Netcatty-managed reverse proxy sites yet',
+  '还没有由 shun 管理的反向代理站点': 'No shun-managed reverse proxy sites yet',
   '没有符合条件的反向代理站点': 'No matching reverse proxy sites',
   '无法读取 Caddy 配置': 'Unable to read Caddy configuration',
   'Caddy 操作失败': 'Caddy operation failed',
@@ -1552,8 +1553,8 @@ const englishTranslations = <String, String>{
       r'The Mosh plugin did not respond properly: ${error.message}',
   r'连不上 Mosh 插件：${error.message}':
       r'Could not connect to the Mosh plugin: ${error.message}',
-  '没有装 Mosh 插件（top.xdwa.xwshun.mosh）。装好后到「设置 → 插件（实验）」核对证书并批准，再连。':
-      'The Mosh plugin (top.xdwa.xwshun.mosh) is not installed. After installing it, verify its certificate and approve it in “Settings → Plugins (experimental)”, then connect again.',
+  '没有装 Mosh 插件（top.xdwa.shun.mosh）。装好后到「设置 → 插件（实验）」核对证书并批准，再连。':
+      'The Mosh plugin (top.xdwa.shun.mosh) is not installed. After installing it, verify its certificate and approve it in “Settings → Plugins (experimental)”, then connect again.',
   'Mosh 插件还没批准：到「设置 → 插件（实验）」核对证书后批准，再连。':
       'The Mosh plugin is not approved yet: verify its certificate in “Settings → Plugins (experimental)”, approve it, then connect again.',
   'Mosh 插件被停用了：到「设置 → 插件（实验）」启用它，再连。':
@@ -1707,7 +1708,7 @@ const englishReplacements = <(String, String)>[
   (' 个在连接', ' connecting'),
   (' 个等回到 App 再恢复', ' waiting for you to return to the app'),
   (' 个停了，要你处理', ' stopped, need you'),
-  ('xwshun 终端：', 'xwshun terminals: '),
+  ('shun 终端：', 'shun terminals: '),
   ('后台保活没开起来（', 'The background keep-alive did not start ('),
   (
     '）：App 在后台时系统可能停掉连接。回到 App 会再开一次。',
@@ -3035,8 +3036,8 @@ const englishReplacements = <(String, String)>[
   ('已挂载手机目录', 'Mounted phone folder'),
   ('已挂载', 'Mounted'),
   ('挂载目录失败', 'Failed to mount folder'),
-  ('文件 App：我的 iPhone/iPad/Netcatty', 'Files app: On My iPhone/iPad/Netcatty'),
-  ('Netcatty 文件夹为空', 'The Netcatty folder is empty'),
+  ('文件 App：我的 iPhone/iPad/shun', 'Files app: On My iPhone/iPad/shun'),
+  ('shun 文件夹为空', 'The shun folder is empty'),
   ('可从服务器下载或导入文件', 'Download from a server or import a file'),
   ('可直接上传或导入文件', 'Upload or import files directly'),
   ('当前会话不支持 SFTP', 'The current session does not support SFTP'),

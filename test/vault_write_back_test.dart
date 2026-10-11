@@ -1,8 +1,8 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/vault_controller.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
+import 'package:shun/application/vault_controller.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // R08 / NET10：连接产生的保险库回写（最近连接时间、识别出的系统）只补字段、基于最新数据、

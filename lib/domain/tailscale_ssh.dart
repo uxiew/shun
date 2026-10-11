@@ -14,7 +14,7 @@ enum SshLoginMode {
 /// 存在主机 data 里的键。桌面端 Netcatty 不认识它：同步过去的主机在桌面端照普通 SSH 连。
 ///
 /// 不复用 `authMethod`：那是桌面端也读写的字段，多一个它不认识的值，桌面端可能把整台主机读坏。
-const sshLoginModeKey = 'xwshunSshLogin';
+const sshLoginModeKey = 'shunSshLogin';
 
 /// 只认明确写着 `tailscale` 的主机。地址是不是 100.x、是不是从 Tailscale 目录导入的，一概不看（TSC07）：
 /// 自动换成 none 等于替用户换了一种身份去登录。

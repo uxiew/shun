@@ -2,10 +2,10 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/plugin_registry.dart';
-import 'package:netcatty_mobile/domain/device_references.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/plugins/builtin_plugins.dart';
+import 'package:shun/application/plugin_registry.dart';
+import 'package:shun/domain/device_references.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/plugins/builtin_plugins.dart';
 import 'package:plugin_api/plugin_api.dart';
 
 // X01：registry 的运行时装配。准入规则本身由 packages/plugin_api 的契约测试覆盖，

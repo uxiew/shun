@@ -2,7 +2,7 @@
 // 画面进 Ghostty。和 X08 的 mosh_runtime_test.dart 不同，这里不自己接线：走的就是用户点「连接」时的那条路
 // （SessionController → MoshBootstrapCoordinator → SshService.bootstrapMosh → 插件）。
 //
-// 这不是 CI 测试。要先（详见 docs/xwshun/README.md 第 2 节「Mosh」）：
+// 这不是 CI 测试。要先（详见 docs/shun/README.md 第 2 节「Mosh」）：
 //   (cd tool/mosh-fixture && ./up.sh)
 //   adb -s emulator-5580 install -r plugins/mosh/build/outputs/apk/release/mosh-release.apk
 //   flutter test integration_test/mosh_session_test.dart -d emulator-5580 \
@@ -12,7 +12,7 @@
 // 输出以 "X09 " 开头的行作为证据。场景：
 //   all     MOS01 回归 + MOS03（两段、输入、中文、vim、旋转改尺寸、大量彩色输出）、MOS04（五种路线）、MOS02（指纹、密码、缺 mosh-server）、
 //           运行时退出码 1 的说法
-//   kill    打出 "X09 kill.READY" 后在电脑上强杀插件：adb shell run-as top.xdwa.xwshun.mosh kill -9 <插件 pid>
+//   kill    打出 "X09 kill.READY" 后在电脑上强杀插件：adb shell run-as top.xdwa.shun.mosh kill -9 <插件 pid>
 //   ime     MOS05 输入法回放，只能经 tool/ime-replay.sh 跑（它替测试发广播给回放输入法）
 //   panel   R25 按键面板、大输入框经 Mosh 发：远端逐字节核对，终端输入次数 = 宿主写入次数
 import 'dart:convert';
@@ -24,21 +24,21 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:netcatty_mobile/app.dart';
-import 'package:netcatty_mobile/application/home_navigation.dart';
-import 'package:netcatty_mobile/application/host_trust.dart';
-import 'package:netcatty_mobile/application/mosh_session.dart';
-import 'package:netcatty_mobile/application/plugin_discovery.dart';
-import 'package:netcatty_mobile/application/plugin_registry.dart';
-import 'package:netcatty_mobile/application/plugin_sessions.dart';
-import 'package:netcatty_mobile/application/session_controller.dart';
-import 'package:netcatty_mobile/application/vault_controller.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/plugins/mosh_bootstrap.dart';
-import 'package:netcatty_mobile/domain/plugins/mosh_route.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:shun/app.dart';
+import 'package:shun/application/home_navigation.dart';
+import 'package:shun/application/host_trust.dart';
+import 'package:shun/application/mosh_session.dart';
+import 'package:shun/application/plugin_discovery.dart';
+import 'package:shun/application/plugin_registry.dart';
+import 'package:shun/application/plugin_sessions.dart';
+import 'package:shun/application/session_controller.dart';
+import 'package:shun/application/vault_controller.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/plugins/mosh_bootstrap.dart';
+import 'package:shun/domain/plugins/mosh_route.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
 
 import 'r18_ime_replay_test.dart' show imeReplayExpectations;
 import 'r18_remote_capture.dart' as r18;
@@ -47,7 +47,7 @@ const scenario = String.fromEnvironment('X09_SCENARIO', defaultValue: 'all');
 final config =
     jsonDecode(const String.fromEnvironment('X09_MOSH', defaultValue: '{}'))
         as Map<String, dynamic>;
-const moshPackage = 'top.xdwa.xwshun.mosh';
+const moshPackage = 'top.xdwa.shun.mosh';
 
 /// Mosh 标签和 SSH 标签用同一个终端引擎。R20 起只有 Ghostty（原来 X09_ENGINE=xterm2 能换旧引擎对照）。
 const engine = 'Ghostty';
@@ -96,7 +96,7 @@ class Monitor {
 
   /// 记账脚本记下的 mosh-server 启动次数（tool/mosh-fixture/shims/mosh-server）。
   Future<int> starts() async =>
-      int.parse(await run('cat /var/log/xwshun/mosh-server-starts.log 2>/dev/null | wc -l'));
+      int.parse(await run('cat /var/log/shun/mosh-server-starts.log 2>/dev/null | wc -l'));
 
   /// 此刻还在跑的 mosh-server（脱离出来、父进程是 1 的那个）。
   Future<int> running() async => int.parse(await run(
@@ -136,7 +136,7 @@ Future<(ProviderContainer, SessionController)> startApp(
   final controller = container.read(sessionControllerProvider.notifier);
   await tester.pumpWidget(UncontrolledProviderScope(
     container: container,
-    child: const NetcattyApp(),
+    child: const ShunApp(),
   ));
   container.read(homeTabProvider.notifier).state = 1;
   final discovery = await container.read(pluginDiscoveryProvider.future);

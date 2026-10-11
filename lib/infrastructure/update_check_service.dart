@@ -61,7 +61,7 @@ class UpdateCheckService {
         headers: const {
           'accept': 'application/vnd.github+json',
           'x-github-api-version': '2022-11-28',
-          'user-agent': 'Netcatty-Mobile',
+          'user-agent': 'shun',
         },
       ).timeout(requestTimeout);
     } on TimeoutException {

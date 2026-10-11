@@ -1,15 +1,15 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/device_links.dart';
-import 'package:netcatty_mobile/application/external_remote.dart';
-import 'package:netcatty_mobile/application/plugin_registry.dart';
-import 'package:netcatty_mobile/application/rustdesk.dart';
-import 'package:netcatty_mobile/application/tailscale_catalog_refresh.dart';
-import 'package:netcatty_mobile/application/uuremote.dart';
-import 'package:netcatty_mobile/domain/device_references.dart';
-import 'package:netcatty_mobile/domain/plugins/builtin_plugins.dart';
-import 'package:netcatty_mobile/infrastructure/plugins/rustdesk_external.dart';
+import 'package:shun/application/device_links.dart';
+import 'package:shun/application/external_remote.dart';
+import 'package:shun/application/plugin_registry.dart';
+import 'package:shun/application/rustdesk.dart';
+import 'package:shun/application/tailscale_catalog_refresh.dart';
+import 'package:shun/application/uuremote.dart';
+import 'package:shun/domain/device_references.dart';
+import 'package:shun/domain/plugins/builtin_plugins.dart';
+import 'package:shun/infrastructure/plugins/rustdesk_external.dart';
 import 'package:plugin_api/plugin_api.dart';
 
 import 'rustdesk_fakes.dart';

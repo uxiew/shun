@@ -3,12 +3,12 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/mosh_session.dart';
-import 'package:netcatty_mobile/application/plugin_registry.dart';
-import 'package:netcatty_mobile/application/plugin_sessions.dart';
-import 'package:netcatty_mobile/domain/plugins/builtin_plugins.dart';
-import 'package:netcatty_mobile/domain/plugins/mosh_bootstrap.dart';
-import 'package:netcatty_mobile/infrastructure/plugins/android_plugin_bridge.dart';
+import 'package:shun/application/mosh_session.dart';
+import 'package:shun/application/plugin_registry.dart';
+import 'package:shun/application/plugin_sessions.dart';
+import 'package:shun/domain/plugins/builtin_plugins.dart';
+import 'package:shun/domain/plugins/mosh_bootstrap.dart';
+import 'package:shun/infrastructure/plugins/android_plugin_bridge.dart';
 import 'package:plugin_api/plugin_api.dart';
 
 /// Mosh 插件这一侧的测试替身（X09）：真的 AndroidPluginBridge + PluginRegistry + PluginSessionManager，
@@ -62,7 +62,7 @@ class MoshPluginHarness implements MoshRuntime {
     manager = PluginSessionManager(bridge, registry);
   }
 
-  static const channel = MethodChannel('app.netcatty.mobile/plugins');
+  static const channel = MethodChannel('top.xdwa.shun/plugins');
   static const package = PluginMoshRuntime.packageName;
 
   static TestDefaultBinaryMessenger get _messenger =>

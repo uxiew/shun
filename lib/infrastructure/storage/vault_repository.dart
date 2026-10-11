@@ -49,29 +49,27 @@ class VaultRepository {
     this._backgroundImageService,
   );
 
-  static const _vaultKey = 'netcatty_mobile_vault_v1';
-  static const _settingsKey = 'netcatty_mobile_settings_v1';
-  static const _syncKey = 'netcatty_mobile_sync_v1';
-  static const _syncVersionKey = 'netcatty_mobile_sync_version_v1';
-  static const _syncReplicaKey = 'netcatty_mobile_pending_sync_v2';
-  static const _masterPasswordKey = 'netcatty.mobile.sync.masterPassword';
-  static const _aiApiKey = 'netcatty.mobile.ai.apiKey';
-  static const _deviceIdKey = 'netcatty_mobile_device_id_v1';
+  static const _vaultKey = 'shun_vault_v1';
+  static const _settingsKey = 'shun_settings_v1';
+  static const _syncKey = 'shun_sync_v1';
+  static const _syncVersionKey = 'shun_sync_version_v1';
+  static const _syncReplicaKey = 'shun_pending_sync_v2';
+  static const _masterPasswordKey = 'shun.sync.masterPassword';
+  static const _aiApiKey = 'shun.ai.apiKey';
+  static const _deviceIdKey = 'shun_device_id_v1';
 
   /// 哪些安全存储键存过非空凭据。只有键名（形如 `host.<id>.password`），没有值。
-  static const _secretIndexKey = 'xwshun_secret_index_v1';
+  static const _secretIndexKey = 'shun_secret_index_v1';
 
   final SharedPreferences _preferences;
   final FlutterSecureStorage _secureStorage;
   final BackgroundImageService _backgroundImageService;
   final _changes = StreamController<VaultChange>.broadcast();
   late final aiWorkspace = AiWorkspace(
-    read: (key) =>
-        _secureStorage.read(key: 'netcatty.mobile.ai.workspace.$key'),
+    read: (key) => _secureStorage.read(key: 'shun.ai.workspace.$key'),
     write: (key, value) => value == null
-        ? _secureStorage.delete(key: 'netcatty.mobile.ai.workspace.$key')
-        : _secureStorage.write(
-            key: 'netcatty.mobile.ai.workspace.$key', value: value),
+        ? _secureStorage.delete(key: 'shun.ai.workspace.$key')
+        : _secureStorage.write(key: 'shun.ai.workspace.$key', value: value),
   );
   VaultData? _cachedVault;
   Future<VaultData>? _vaultLoad;

@@ -5,8 +5,8 @@
 // 用法见 plan/v3/evidence/R09.md。它和正式 App 同一个包名，会覆盖设备上这个 App 的数据，
 // 只在测试设备/模拟器上跑。
 import 'package:flutter/material.dart';
-import 'package:netcatty_mobile/domain/models/vault.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
+import 'package:shun/domain/models/vault.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
 
 const markers = {
   'hostPassword': 'SEC05-HOST-PW-7f1c',

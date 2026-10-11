@@ -38,8 +38,8 @@ class VaultExportService {
           .convert(vaultWithoutSecrets(vault).toJson())),
     );
     final path = await _saveFile(
-      dialogTitle: '导出 Netcatty 保险库',
-      fileName: 'netcatty-mobile-export.json',
+      dialogTitle: '导出 shun 保险库',
+      fileName: 'shun-export.json',
       type: FileType.custom,
       allowedExtensions: const ['json'],
       // Android and iOS document pickers own the selected URI. file_picker

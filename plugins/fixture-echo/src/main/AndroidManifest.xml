@@ -2,22 +2,22 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- 看得到宿主（核对宿主证书），以及测「转交宿主 Binder」时的接收方。 -->
     <queries>
-        <package android:name="top.xdwa.xwshun" />
-        <package android:name="example.xwshun.fixture.rogue" />
+        <package android:name="top.xdwa.shun" />
+        <package android:name="example.shun.fixture.rogue" />
     </queries>
 
-    <application android:label="xwshun echo fixture" android:allowBackup="false">
+    <application android:label="shun echo fixture" android:allowBackup="false">
         <!-- exported 必须为 true 才能被别的 App 绑定。不靠 android:permission 挡人：独立作者签名的插件
              没法用 signature 权限认宿主；认人在每个 Binder 事务里做（CallerVerifier）。 -->
         <service
             android:name=".EchoProviderService"
             android:exported="true">
             <intent-filter>
-                <action android:name="top.xdwa.xwshun.plugin.action.PROVIDER_V1" />
+                <action android:name="top.xdwa.shun.plugin.action.PROVIDER_V1" />
             </intent-filter>
             <meta-data
-                android:name="top.xdwa.xwshun.plugin.DESCRIPTOR"
-                android:resource="@raw/xwshun_plugin" />
+                android:name="top.xdwa.shun.plugin.DESCRIPTOR"
+                android:resource="@raw/shun_plugin" />
         </service>
 
         <!-- 插件自己的设置页（X04）。宿主只认声明了这个 action 的导出 Activity，显式组件打开。 -->
@@ -26,7 +26,7 @@
             android:exported="true"
             android:label="Echo 设置">
             <intent-filter>
-                <action android:name="top.xdwa.xwshun.plugin.action.SETTINGS_V1" />
+                <action android:name="top.xdwa.shun.plugin.action.SETTINGS_V1" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>

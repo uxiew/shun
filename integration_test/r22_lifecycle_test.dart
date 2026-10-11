@@ -19,19 +19,19 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:netcatty_mobile/app.dart';
-import 'package:netcatty_mobile/application/home_navigation.dart';
-import 'package:netcatty_mobile/application/session_controller.dart';
-import 'package:netcatty_mobile/application/vault_controller.dart';
-import 'package:netcatty_mobile/domain/connection_route.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/tmux/tmux_target.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/tmux/tmux_service.dart';
-import 'package:netcatty_mobile/presentation/terminal/terminal_view.dart';
+import 'package:shun/app.dart';
+import 'package:shun/application/home_navigation.dart';
+import 'package:shun/application/session_controller.dart';
+import 'package:shun/application/vault_controller.dart';
+import 'package:shun/domain/connection_route.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/tmux/tmux_target.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:shun/infrastructure/tmux/tmux_service.dart';
+import 'package:shun/presentation/terminal/terminal_view.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -146,7 +146,7 @@ Future<SessionController> startApp(WidgetTester tester) async {
   addTearDown(_container.dispose);
   await tester.pumpWidget(UncontrolledProviderScope(
     container: _container,
-    child: const NetcattyApp(),
+    child: const ShunApp(),
   ));
   _container.read(homeTabProvider.notifier).state = 1;
   await frames(tester);
@@ -629,7 +629,7 @@ Future<void> _seedScenario(
   await until(() => controller.state.sessions.length == 2);
   await Future<void>.delayed(const Duration(seconds: 2));
   final saved = (await SharedPreferences.getInstance())
-          .getString('xwshun.r22.restorableTabs') ??
+          .getString('shun.r22.restorableTabs') ??
       '';
   r22('persisted', saved);
   r22('SEEDED', describe(controller));

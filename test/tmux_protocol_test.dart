@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/domain/tmux/tmux_target.dart';
-import 'package:netcatty_mobile/infrastructure/tmux/tmux_protocol.dart';
+import 'package:shun/domain/tmux/tmux_target.dart';
+import 'package:shun/infrastructure/tmux/tmux_protocol.dart';
 
 // R21：tmux 命令构造和输出解析的纯函数测试。真实 tmux 上的行为见 tmux_fixture_test.dart。
 void main() {
@@ -66,11 +66,11 @@ void main() {
     test('参数都按白名单进单引号；ID、tty 不合规就不构造命令', () {
       expect(
         tmuxKillCommand(target),
-        endsWith(r" xwshun 'D' '-' '1000' '$3:70:1700000000:1700000100' '$3'"),
+        endsWith(r" shun 'D' '-' '1000' '$3:70:1700000000:1700000100' '$3'"),
       );
       expect(
         tmuxProbeCommand(TmuxSocketSpec.path('/run/user/1000/tmux.sock')),
-        endsWith(" xwshun 'S' '/run/user/1000/tmux.sock'"),
+        endsWith(" shun 'S' '/run/user/1000/tmux.sock'"),
       );
       TmuxTarget withId(String id) => TmuxTarget(
             hostKey: target.hostKey,

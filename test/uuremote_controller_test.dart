@@ -2,15 +2,15 @@ import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/device_links.dart';
-import 'package:netcatty_mobile/application/plugin_registry.dart';
-import 'package:netcatty_mobile/application/tailscale_catalog_refresh.dart';
-import 'package:netcatty_mobile/application/external_remote.dart';
-import 'package:netcatty_mobile/application/uuremote.dart';
-import 'package:netcatty_mobile/domain/device_references.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/plugins/builtin_plugins.dart';
-import 'package:netcatty_mobile/infrastructure/plugins/uuremote_adapter.dart';
+import 'package:shun/application/device_links.dart';
+import 'package:shun/application/plugin_registry.dart';
+import 'package:shun/application/tailscale_catalog_refresh.dart';
+import 'package:shun/application/external_remote.dart';
+import 'package:shun/application/uuremote.dart';
+import 'package:shun/domain/device_references.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/plugins/builtin_plugins.dart';
+import 'package:shun/infrastructure/plugins/uuremote_adapter.dart';
 import 'package:plugin_api/plugin_api.dart';
 
 import 'uuremote_fakes.dart';
@@ -167,8 +167,7 @@ void main() {
           q['nonce'],
           matches(RegExp(
               r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')));
-      expect(
-          q['callback'], startsWith('xwshun-uuremote://callback/bind?state='));
+      expect(q['callback'], startsWith('shun-uuremote://callback/bind?state='));
       expect(backend.values['uuremote.pending.v1'], isNotNull);
 
       platform.deliver(
@@ -267,7 +266,7 @@ void main() {
       expect(attempt.window, UuWindow.fullscreen);
 
       platform.deliver(
-          'xwshun-uuremote://callback/control?state=AAAAAAAAAAAAAAAAAAAAAA&status=success');
+          'shun-uuremote://callback/control?state=AAAAAAAAAAAAAAAAAAAAAA&status=success');
       await settle();
       expect(c.state.attempts['h1']!.phase,
           ExternalLaunchPhase.launchedUnverified);
@@ -282,7 +281,7 @@ void main() {
       final uri = platform.launched.last;
       expect(uri, contains('window_type=1'));
       expect(queryOf(uri)['callback'],
-          startsWith('xwshun-uuremote://callback/control?state='));
+          startsWith('shun-uuremote://callback/control?state='));
       clock = clock.add(const Duration(seconds: 9));
       platform.deliver(callbackFor(uri, {'status': 'success'}));
       await settle();
@@ -396,7 +395,7 @@ void main() {
   group('UUR06 伪造、重放、串用', () {
     test('没有请求时伪造的回调：忽略', () async {
       platform.deliver(
-          'xwshun-uuremote://callback/bind?state=AAAAAAAAAAAAAAAAAAAAAA&anonymous_device_id=x&nonce=y');
+          'shun-uuremote://callback/bind?state=AAAAAAAAAAAAAAAAAAAAAA&anonymous_device_id=x&nonce=y');
       await settle();
       expect(c.state.offer, isNull);
       expect(c.state.notice, contains('没有对应的请求'));
@@ -420,7 +419,7 @@ void main() {
       final state = queryOf(queryOf(platform.launched.single)['callback']!
           .replaceFirst('?', '?x=1&'))['state']!;
       platform.deliver(
-          'xwshun-uuremote://callback/control?state=$state&status=success');
+          'shun-uuremote://callback/control?state=$state&status=success');
       await settle();
       expect(c.state.attempts['h1']!.phase,
           ExternalLaunchPhase.providerReportedFailure);

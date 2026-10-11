@@ -20,23 +20,23 @@ import 'package:cryptography/cryptography.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:netcatty_mobile/application/plugin_discovery.dart';
-import 'package:netcatty_mobile/application/plugin_registry.dart';
-import 'package:netcatty_mobile/application/plugin_sessions.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/plugins/builtin_plugins.dart';
-import 'package:netcatty_mobile/domain/plugins/mosh_bootstrap.dart';
-import 'package:netcatty_mobile/infrastructure/plugins/android_plugin_bridge.dart';
-import 'package:netcatty_mobile/infrastructure/plugins/plugin_approval_store.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/application/plugin_discovery.dart';
+import 'package:shun/application/plugin_registry.dart';
+import 'package:shun/application/plugin_sessions.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/plugins/builtin_plugins.dart';
+import 'package:shun/domain/plugins/mosh_bootstrap.dart';
+import 'package:shun/infrastructure/plugins/android_plugin_bridge.dart';
+import 'package:shun/infrastructure/plugins/plugin_approval_store.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:plugin_api/plugin_api.dart' hide Platform;
 import 'package:shared_preferences/shared_preferences.dart';
 
 const scenario =
     String.fromEnvironment('X08_SCENARIO', defaultValue: 'interop');
-const mosh = 'top.xdwa.xwshun.mosh';
-const echo = 'example.xwshun.fixture.echo';
+const mosh = 'top.xdwa.shun.mosh';
+const echo = 'example.shun.fixture.echo';
 final config =
     jsonDecode(const String.fromEnvironment('X08_MOSH', defaultValue: '{}'))
         as Map<String, dynamic>;
@@ -299,7 +299,7 @@ void main() {
         report('cycles.READY', 'check plugin processes now');
         await Future<void>.delayed(const Duration(seconds: 15));
       case 'kill':
-        // 电脑上看到 kill.READY 后：adb shell run-as top.xdwa.xwshun.mosh kill -9 <插件 pid>
+        // 电脑上看到 kill.READY 后：adb shell run-as top.xdwa.shun.mosh kill -9 <插件 pid>
         final (s, screen) = await openMosh();
         await screen.waitText(r'$');
         report('kill.sshBefore', await run('echo before'));
@@ -314,7 +314,7 @@ void main() {
         report('kill.serverLeft', await serverCount());
         await screen.dispose();
       case 'hostkill':
-        // 电脑上看到 hostkill.READY 后：adb shell run-as top.xdwa.xwshun kill -9 <宿主 pid>，再在电脑上数 mosh-server
+        // 电脑上看到 hostkill.READY 后：adb shell run-as top.xdwa.shun kill -9 <宿主 pid>，再在电脑上数 mosh-server
         final (_, screen) = await openMosh();
         await screen.waitText(r'$');
         await screen.type('echo before-host-dies\r');

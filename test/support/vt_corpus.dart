@@ -6,7 +6,7 @@ import 'dart:typed_data';
 import 'package:cryptography/dart.dart';
 import 'package:flterm/flterm.dart';
 import 'package:flutter/foundation.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'xterm_terminal_adapter.dart';
 
 /// R20「同一字节素材对比两个引擎」的工具：读素材、按不同切法喂给引擎、取屏幕快照。

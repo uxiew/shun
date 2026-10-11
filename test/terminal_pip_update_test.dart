@@ -5,25 +5,25 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/session_controller.dart';
-import 'package:netcatty_mobile/application/vault_controller.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/terminal_picture_in_picture_service.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/presentation/screens/terminal_screen.dart';
+import 'package:shun/application/session_controller.dart';
+import 'package:shun/application/vault_controller.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/ssh/terminal_picture_in_picture_service.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/presentation/screens/terminal_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // 画中画小窗里的文字是终端页按适配器的通知、隔 1 秒推给原生层的。R20 换成只剩 Ghostty 时查出：
 // flterm 只在模式这类状态变时通知，远端只是多出几行字的话，小窗一直停在旧内容上。
-const _channel = MethodChannel('app.netcatty.mobile/picture_in_picture');
+const _channel = MethodChannel('top.xdwa.shun/picture_in_picture');
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('画中画开着时远端来了新输出：一秒内推给小窗的文字里有它', (tester) async {
-    // flterm 的空闲任务碰上动画时，假时钟下推进时间会死循环（docs/xwshun/README.md 第 7 节）。
+    // flterm 的空闲任务碰上动画时，假时钟下推进时间会死循环（docs/shun/README.md 第 7 节）。
     final strategy = tester.binding.schedulingStrategy;
     tester.binding.schedulingStrategy =
         ({required int priority, required SchedulerBinding scheduler}) => true;

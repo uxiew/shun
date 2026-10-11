@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/plugins/mosh_route.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/plugins/mosh_route.dart';
 
 /// 读取 tool/mosh-fixture/up.sh 生成的 .run/fixture.json（X08、X09 的 Mosh 测试环境）。
 ///

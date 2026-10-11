@@ -9,9 +9,9 @@
 // 它和正式 App 同一个包名，会覆盖设备上这个 App 的数据，只在测试设备/模拟器上跑。
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
-import 'package:netcatty_mobile/application/tailscale_catalog_access.dart';
-import 'package:netcatty_mobile/infrastructure/tailscale/catalog_secret_store.dart';
-import 'package:netcatty_mobile/infrastructure/tailscale/tailscale_api.dart';
+import 'package:shun/application/tailscale_catalog_access.dart';
+import 'package:shun/infrastructure/tailscale/catalog_secret_store.dart';
+import 'package:shun/infrastructure/tailscale/tailscale_api.dart';
 
 String canary(String kind) => ['R11', kind, 'CANARY', '7d3e'].join('-');
 

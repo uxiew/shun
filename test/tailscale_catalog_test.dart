@@ -3,11 +3,11 @@ import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:netcatty_mobile/application/tailscale_catalog_access.dart';
-import 'package:netcatty_mobile/infrastructure/tailscale/catalog_secret_store.dart';
-import 'package:netcatty_mobile/infrastructure/tailscale/tailscale_api.dart';
-import 'package:netcatty_mobile/infrastructure/tailscale/tailscale_device.dart';
-import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
+import 'package:shun/application/tailscale_catalog_access.dart';
+import 'package:shun/infrastructure/tailscale/catalog_secret_store.dart';
+import 'package:shun/infrastructure/tailscale/tailscale_api.dart';
+import 'package:shun/infrastructure/tailscale/tailscale_device.dart';
+import 'package:shun/presentation/localization/localized_widgets.dart';
 
 // R11：只读 Tailscale 目录的 HTTP 适配。
 //
@@ -548,8 +548,8 @@ void main() {
   });
 
   test('运行时拼出来的报错整句在英文界面下能译完（不残留中文）', () async {
-    NetcattyLocalizations.use('en');
-    addTearDown(() => NetcattyLocalizations.use('zh-CN'));
+    ShunLocalizations.use('en');
+    addTearDown(() => ShunLocalizations.use('zh-CN'));
     final han = RegExp(r'[一-鿿]');
     final replies = <Reply>[
       const Reply(403, '{"message":"nope"}'),
@@ -565,7 +565,7 @@ void main() {
       final error = await client(const PastedAccessToken(pastedToken))
           .listDevices()
           .then<Object>((_) => fail('应当失败'), onError: (Object e) => e);
-      final english = NetcattyLocalizations.text('$error');
+      final english = ShunLocalizations.text('$error');
       expect(han.hasMatch(english), isFalse, reason: english);
     }
     fake.scripts[tokenPath] = [
@@ -574,7 +574,7 @@ void main() {
     final broad = await client(oauth)
         .listDevices()
         .then<Object>((_) => fail('应当失败'), onError: (Object e) => e);
-    final english = NetcattyLocalizations.text('$broad');
+    final english = ShunLocalizations.text('$broad');
     expect(han.hasMatch(english), isFalse, reason: english);
   });
 

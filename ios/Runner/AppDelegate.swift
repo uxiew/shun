@@ -22,7 +22,7 @@ import UIKit
   func didInitializeImplicitFlutterEngine(_ engineBridge: FlutterImplicitEngineBridge) {
     GeneratedPluginRegistrant.register(with: engineBridge.pluginRegistry)
     let channel = FlutterMethodChannel(
-      name: "app.netcatty.mobile/connection",
+      name: "top.xdwa.shun/connection",
       binaryMessenger: engineBridge.applicationRegistrar.messenger()
     )
     channel.setMethodCallHandler { [weak self] call, result in
@@ -45,7 +45,7 @@ import UIKit
       }
     }
     let pictureInPictureChannel = FlutterMethodChannel(
-      name: "app.netcatty.mobile/picture_in_picture",
+      name: "top.xdwa.shun/picture_in_picture",
       binaryMessenger: engineBridge.applicationRegistrar.messenger()
     )
     self.pictureInPictureChannel = pictureInPictureChannel
@@ -301,7 +301,7 @@ private final class TerminalPictureInPictureController: NSObject {
   private var startAttemptsRunning = false
   private var automaticStartRetries = 0
   private let renderQueue = DispatchQueue(
-    label: "app.netcatty.mobile.pip-render",
+    label: "top.xdwa.shun.pip-render",
     qos: .utility
   )
   private var renderGeneration = 0

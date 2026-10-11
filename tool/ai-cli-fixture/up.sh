@@ -3,8 +3,8 @@
 # 每次运行都换密码和主机密钥。连接参数写到 .run/fixture.json，设备测试的参数用 ./config.py 取。
 set -euo pipefail
 cd "$(dirname "$0")"
-NAME=xwshun-ai-cli
-IMAGE=xwshun-ai-cli:local
+NAME=shun-ai-cli
+IMAGE=shun-ai-cli:local
 
 docker rm -f "$NAME" >/dev/null 2>&1 || true
 rm -rf .run

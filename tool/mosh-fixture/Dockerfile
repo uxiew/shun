@@ -7,15 +7,15 @@ FROM alpine:3.22
 ARG PACKAGES="openssh-server mosh-server mosh-client tmux vim less ncurses-terminfo-base"
 RUN apk add --no-cache $PACKAGES
 COPY entrypoint.sh /entrypoint.sh
-COPY shims/ /opt/xwshun-shims/
+COPY shims/ /opt/shun-shims/
 # 记账用的假命令放在 /usr/local/bin，sshd 给登录用户的 PATH 里它排在 /usr/bin 前面（up.sh 会核对）：
 # - mosh-server：记一笔再原样交给真的（只有装了 mosh 的那台才有），用来数「远端启动了几次」；
 # - sudo、apk、apt-get 等：只记一笔、返回失败，用来证明 App 没有替用户安装、没有 sudo。
 # 在 apk add 之后才放进去，构建本身用的是真的 apk。
-RUN chmod +x /entrypoint.sh /opt/xwshun-shims/* \
- && install -d -m 1777 /var/log/xwshun \
+RUN chmod +x /entrypoint.sh /opt/shun-shims/* \
+ && install -d -m 1777 /var/log/shun \
  && for c in sudo doas su apk apt apt-get yum dnf pacman zypper brew pkg; do \
-      ln -s /opt/xwshun-shims/record-install "/usr/local/bin/$c"; \
+      ln -s /opt/shun-shims/record-install "/usr/local/bin/$c"; \
     done \
- && if [ -x /usr/bin/mosh-server ]; then ln -s /opt/xwshun-shims/mosh-server /usr/local/bin/mosh-server; fi
+ && if [ -x /usr/bin/mosh-server ]; then ln -s /opt/shun-shims/mosh-server /usr/local/bin/mosh-server; fi
 ENTRYPOINT ["/entrypoint.sh"]

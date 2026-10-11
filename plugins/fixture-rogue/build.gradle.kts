@@ -10,14 +10,14 @@ if (!project.hasProperty("signWith")) extra["signWith"] = "impostor"
 apply(from = "../signing.gradle.kts")
 
 @Suppress("UNCHECKED_CAST")
-val signing = extra["xwshunSigning"] as List<String>
+val signing = extra["shunSigning"] as List<String>
 
 android {
-    namespace = "example.xwshun.fixture.rogue"
+    namespace = "example.shun.fixture.rogue"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "example.xwshun.fixture.rogue"
+        applicationId = "example.shun.fixture.rogue"
         minSdk = 24
         targetSdk = 36
         versionCode = 1

@@ -6,21 +6,21 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/session_controller.dart';
-import 'package:netcatty_mobile/application/settings_controller.dart';
-import 'package:netcatty_mobile/application/vault_controller.dart';
-import 'package:netcatty_mobile/domain/connection_route.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/models/settings.dart';
-import 'package:netcatty_mobile/domain/tmux/tmux_target.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/presentation/screens/terminal_screen.dart';
+import 'package:shun/application/session_controller.dart';
+import 'package:shun/application/settings_controller.dart';
+import 'package:shun/application/vault_controller.dart';
+import 'package:shun/domain/connection_route.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/models/settings.dart';
+import 'package:shun/domain/tmux/tmux_target.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/presentation/screens/terminal_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flterm/flterm.dart' as flterm show TerminalView;
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/presentation/terminal/ghostty_terminal_view.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/presentation/terminal/ghostty_terminal_view.dart';
+import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -193,7 +193,7 @@ void main() {
     'connection progress is a dialog in its tab and existing terminal stays usable',
     (tester) async {
       // flterm 闲下来后排一个空闲任务压缩滚动区，碰上按钮水波纹这类动画时，假时钟下的 pumpAndSettle 会死循环
-      // （docs/xwshun/README.md 第 7 节）。让空闲任务不等动画，和页面逻辑无关。
+      // （docs/shun/README.md 第 7 节）。让空闲任务不等动画，和页面逻辑无关。
       final strategy = tester.binding.schedulingStrategy;
       tester.binding.schedulingStrategy =
           ({required int priority, required SchedulerBinding scheduler}) =>

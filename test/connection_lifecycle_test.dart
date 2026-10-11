@@ -6,19 +6,19 @@ import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/connection_lifecycle.dart';
-import 'package:netcatty_mobile/application/session_controller.dart';
-import 'package:netcatty_mobile/application/vault_controller.dart';
-import 'package:netcatty_mobile/domain/connection_route.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/tmux/tmux_target.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/connection_platform_service.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_login_watch.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/transport/proxy_transport.dart';
+import 'package:shun/application/connection_lifecycle.dart';
+import 'package:shun/application/session_controller.dart';
+import 'package:shun/application/vault_controller.dart';
+import 'package:shun/domain/connection_route.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/tmux/tmux_target.dart';
+import 'package:shun/infrastructure/ssh/connection_platform_service.dart';
+import 'package:shun/infrastructure/ssh/ssh_login_watch.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:shun/infrastructure/transport/proxy_transport.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // R22：连接生命周期。假的 SshService 和假的平台（保活服务、锁屏、网络），时钟由测试拨。
@@ -388,7 +388,7 @@ void main() {
       platform.locked = true;
       b.drop();
       await settle();
-      expect(platform.requests.last!.title, 'xwshun 终端：2 个连着，1 个等回到 App 再恢复');
+      expect(platform.requests.last!.title, 'shun 终端：2 个连着，1 个等回到 App 再恢复');
     });
   });
 
@@ -503,14 +503,14 @@ void main() {
       final session = await connected(host);
       await settle();
       final saved = (await SharedPreferences.getInstance())
-          .getString('xwshun.r22.restorableTabs')!;
+          .getString('shun.r22.restorableTabs')!;
       expect(saved, contains(session.id));
       expect(saved, isNot(contains('secret-pw')));
       await controller.close(0);
       await settle();
       expect(
           (await SharedPreferences.getInstance())
-              .getString('xwshun.r22.restorableTabs'),
+              .getString('shun.r22.restorableTabs'),
           isNull);
     });
 
@@ -519,7 +519,7 @@ void main() {
       await start(
         hosts: [host],
         preferences: {
-          'xwshun.r22.restorableTabs': jsonEncode([
+          'shun.r22.restorableTabs': jsonEncode([
             RestorableTab(id: 'tab-1', hostId: 'h1', label: 'web').toJson(),
             RestorableTab(
                     id: 'tab-2',
@@ -558,7 +558,7 @@ void main() {
       await start(
         hosts: [host],
         preferences: {
-          'xwshun.r22.restorableTabs': jsonEncode([
+          'shun.r22.restorableTabs': jsonEncode([
             RestorableTab(
                     id: 'tab-2',
                     hostId: 'h1',

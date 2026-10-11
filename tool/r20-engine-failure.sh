@@ -36,9 +36,9 @@ echo "包里的 .so：$(unzip -l "$WORK/signed.apk" | grep -o 'lib/arm64-v8a/[^ 
 
 "${ADB[@]}" reverse tcp:22201 tcp:22201 >/dev/null
 # 装同一个包名但签名不同的包会失败：先卸掉（会清掉设备上这个 App 的数据，项目模拟器上只有测试数据）。
-"${ADB[@]}" uninstall top.xdwa.xwshun >/dev/null 2>&1 || true
+"${ADB[@]}" uninstall top.xdwa.shun >/dev/null 2>&1 || true
 (for _ in $(seq 1 900); do
-  "${ADB[@]}" shell pm grant top.xdwa.xwshun android.permission.POST_NOTIFICATIONS 2>/dev/null && break
+  "${ADB[@]}" shell pm grant top.xdwa.shun android.permission.POST_NOTIFICATIONS 2>/dev/null && break
   sleep 0.3
 done >/dev/null 2>&1 &)
 
@@ -58,8 +58,8 @@ while kill -0 "$TEST" 2>/dev/null; do
 done
 wait "$TEST" && STATUS=0 || STATUS=$?
 # 进程还在不在、有没有崩：原生库没了，App 不该崩，只该说清楚。
-"${ADB[@]}" logcat -d -s AndroidRuntime:E | grep -E 'FATAL|top.xdwa.xwshun' || echo "logcat 里没有 FATAL"
-"${ADB[@]}" uninstall top.xdwa.xwshun >/dev/null 2>&1 || true
+"${ADB[@]}" logcat -d -s AndroidRuntime:E | grep -E 'FATAL|top.xdwa.shun' || echo "logcat 里没有 FATAL"
+"${ADB[@]}" uninstall top.xdwa.shun >/dev/null 2>&1 || true
 grep -E 'R20 |All tests passed|Some tests failed|EXCEPTION|Error' "$LOG" | grep -v 'R20 SHOT=' || true
 echo "日志 ${LOG}，截图 ${SHOTS}"
 exit "$STATUS"

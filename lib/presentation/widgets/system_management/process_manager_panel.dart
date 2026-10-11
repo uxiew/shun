@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
+import 'package:shun/presentation/localization/localized_widgets.dart';
 
 import '../../../domain/models/system_management.dart';
 import '../../../infrastructure/ssh/ssh_service.dart';

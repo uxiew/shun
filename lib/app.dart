@@ -13,15 +13,14 @@ import 'presentation/home_shell.dart';
 import 'presentation/localization/localized_widgets.dart';
 import 'presentation/theme.dart';
 
-class NetcattyApp extends ConsumerStatefulWidget {
-  const NetcattyApp({super.key});
+class ShunApp extends ConsumerStatefulWidget {
+  const ShunApp({super.key});
 
   @override
-  ConsumerState<NetcattyApp> createState() => _NetcattyAppState();
+  ConsumerState<ShunApp> createState() => _ShunAppState();
 }
 
-class _NetcattyAppState extends ConsumerState<NetcattyApp>
-    with WidgetsBindingObserver {
+class _ShunAppState extends ConsumerState<ShunApp> with WidgetsBindingObserver {
   late final ProviderSubscription<bool> _autoSyncSubscription;
 
   @override
@@ -66,18 +65,18 @@ class _NetcattyAppState extends ConsumerState<NetcattyApp>
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsControllerProvider);
-    NetcattyLocalizations.use(settings.language);
+    ShunLocalizations.use(settings.language);
     final mode = switch (settings.themeMode) {
       'light' => ThemeMode.light,
       'system' => ThemeMode.system,
       _ => ThemeMode.dark,
     };
     return MaterialApp(
-      // Android 最近任务列表显示的名字；与原版 Netcatty 同机并存时靠它区分。名称待所有者最终确认。
-      title: 'xwshun',
+      // Android 最近任务列表显示的名字；与原版 Netcatty 同机并存时靠它区分。所有者 2026-10-11 定为 shun。
+      title: 'shun',
       debugShowCheckedModeBanner: false,
-      theme: NetcattyTheme.build(Brightness.light, settings.uiThemeId),
-      darkTheme: NetcattyTheme.build(Brightness.dark, settings.uiThemeId),
+      theme: ShunTheme.build(Brightness.light, settings.uiThemeId),
+      darkTheme: ShunTheme.build(Brightness.dark, settings.uiThemeId),
       themeMode: mode,
       locale: settings.language == 'en'
           ? const Locale('en')

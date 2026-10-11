@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
+import 'package:shun/presentation/localization/localized_widgets.dart';
 
 import '../../domain/models/server_stats.dart';
 import '../../infrastructure/ssh/server_monitor_service.dart';

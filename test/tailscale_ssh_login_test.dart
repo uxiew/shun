@@ -2,15 +2,15 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/connection_diagnosis.dart';
-import 'package:netcatty_mobile/domain/connection_route.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/tailscale_ssh.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_login_watch.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/application/connection_diagnosis.dart';
+import 'package:shun/domain/connection_route.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/tailscale_ssh.dart';
+import 'package:shun/infrastructure/ssh/ssh_login_watch.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
 
 import 'fixtures/tailscale/tailssh_fixture.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 
 // R14：Tailscale SSH 外部认证。服务器是 tool/tailscale-ssh-fixture——照 tailssh v1.104.0 认证行为仿制、
 // 用同版本 x/crypto 的本机程序，不是真的 Tailscale。用户名选场景：accept / reject / check / evil-*。
@@ -206,7 +206,7 @@ Future<void> main() async {
     test('从 Tailscale 目录导入的主机、100.x 地址，不写登录方式时一律是普通 SSH', () {
       final imported = HostProfile({
         ...host('accept').data,
-        'xwshunCatalogSource': {'catalogId': 'c1', 'deviceId': 'd1'},
+        'shunCatalogSource': {'catalogId': 'c1', 'deviceId': 'd1'},
       });
       expect(sshLoginModeOf(imported), SshLoginMode.standard);
       expect(sshLoginModeOf(host('accept', tailscale: true)),

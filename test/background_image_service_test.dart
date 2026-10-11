@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/domain/models/settings.dart';
-import 'package:netcatty_mobile/infrastructure/storage/background_image_service.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
+import 'package:shun/domain/models/settings.dart';
+import 'package:shun/infrastructure/storage/background_image_service.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -15,7 +15,7 @@ void main() {
   setUp(() async {
     SharedPreferences.setMockInitialValues({});
     temporaryDirectory = await Directory.systemTemp.createTemp(
-      'netcatty-background-test-',
+      'shun-background-test-',
     );
     supportDirectory = Directory(
       '${temporaryDirectory.path}${Platform.pathSeparator}current-container',
@@ -95,7 +95,7 @@ void main() {
 
     final stored = await service.toStoredPath(currentFile.path);
 
-    expect(stored, 'netcatty-background:background-789.jpg');
+    expect(stored, 'shun-background:background-789.jpg');
     expect(
       await service.resolveStoredPath(stored),
       currentFile.absolute.path,
@@ -134,11 +134,11 @@ void main() {
 
     final preferences = await SharedPreferences.getInstance();
     final stored = jsonDecode(
-      preferences.getString('netcatty_mobile_settings_v1')!,
+      preferences.getString('shun_settings_v1')!,
     ) as Map<String, dynamic>;
     expect(
       stored['customBackgroundPath'],
-      'netcatty-background:background-999.jpg',
+      'shun-background:background-999.jpg',
     );
     expect(
       (await repository.loadSettings()).customBackgroundPath,
@@ -159,7 +159,7 @@ void main() {
         '/var/mobile/Containers/Data/Application/OLD-UUID/Library/'
         'Application Support/custom-backgrounds/background-legacy.jpg';
     SharedPreferences.setMockInitialValues({
-      'netcatty_mobile_settings_v1': jsonEncode(
+      'shun_settings_v1': jsonEncode(
         const AppSettings(
           customBackgroundEnabled: true,
           customBackgroundPath: oldIosPath,
@@ -175,11 +175,11 @@ void main() {
     expect(loaded.customBackgroundPath, currentFile.absolute.path);
     final preferences = await SharedPreferences.getInstance();
     final migrated = jsonDecode(
-      preferences.getString('netcatty_mobile_settings_v1')!,
+      preferences.getString('shun_settings_v1')!,
     ) as Map<String, dynamic>;
     expect(
       migrated['customBackgroundPath'],
-      'netcatty-background:background-legacy.jpg',
+      'shun-background:background-legacy.jpg',
     );
   });
 }

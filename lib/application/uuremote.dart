@@ -310,14 +310,14 @@ class UuRouteNeedsConfirmation implements Exception {
 }
 
 /// [UuAttempt.code] 的本地取值：UU 返回了设备，但用户没保存。和 UU 的错误码不重名。
-const uuDiscardedByUser = 'xwshun_discarded_by_user';
+const uuDiscardedByUser = 'shun_discarded_by_user';
 
 /// [UuAttempt.code] 的本地取值：绑定成功的回调到达时，手机上有别的 App 也声明了本 App 的回调地址，
 /// 返回的设备没有采用（原因见 [UuRemoteController] 的说明）。
-const uuCallbackContested = 'xwshun_callback_contested';
+const uuCallbackContested = 'shun_callback_contested';
 
 /// [UuAttempt.code] 的本地取值：等满 [uuPendingLifetime] UU 也没回报，请求自己作废了（和用户点「结束等待」区分开）。
-const uuWaitExpired = 'xwshun_wait_expired';
+const uuWaitExpired = 'shun_wait_expired';
 
 /// 本地最长等 UU 回调多久。官方：未登录排队最长 180 秒；前置拦截弹窗要用户点了才回调、没有超时。留足余量。
 const uuPendingLifetime = Duration(minutes: 10);
@@ -918,8 +918,8 @@ final uuRemotePlatformProvider =
 /// 存储名沿用 X06 定下的：改了就读不到已有的绑定。
 final uuRemoteStoreProvider = Provider<UuRemoteStore>(
   (ref) => UuRemoteStore(SecureProviderBackend(
-    prefsName: 'xwshun_uuremote',
-    keychainAccount: 'xwshun.uuremote',
+    prefsName: 'shun_uuremote',
+    keychainAccount: 'shun.uuremote',
   )),
 );
 

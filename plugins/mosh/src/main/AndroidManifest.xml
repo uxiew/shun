@@ -5,23 +5,23 @@
 
     <!-- 看得到宿主（核对宿主证书）。不申请 QUERY_ALL_PACKAGES。 -->
     <queries>
-        <package android:name="top.xdwa.xwshun" />
+        <package android:name="top.xdwa.shun" />
     </queries>
 
     <!-- extractNativeLibs：运行时是要 exec 的文件，必须由系统解出到 nativeLibraryDir。不设 sharedUserId。 -->
     <application
-        android:label="xwshun Mosh"
+        android:label="shun Mosh"
         android:allowBackup="false"
         android:extractNativeLibs="true">
         <service
             android:name=".MoshProviderService"
             android:exported="true">
             <intent-filter>
-                <action android:name="top.xdwa.xwshun.plugin.action.PROVIDER_V1" />
+                <action android:name="top.xdwa.shun.plugin.action.PROVIDER_V1" />
             </intent-filter>
             <meta-data
-                android:name="top.xdwa.xwshun.plugin.DESCRIPTOR"
-                android:resource="@raw/xwshun_plugin" />
+                android:name="top.xdwa.shun.plugin.DESCRIPTOR"
+                android:resource="@raw/shun_plugin" />
         </service>
     </application>
 </manifest>

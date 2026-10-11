@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
+import 'package:shun/presentation/localization/localized_widgets.dart';
 
 import '../../../domain/models/host.dart';
 import '../../../domain/tmux/tmux_target.dart';

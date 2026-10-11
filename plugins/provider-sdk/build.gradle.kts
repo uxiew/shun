@@ -8,7 +8,7 @@ plugins {
 }
 
 android {
-    namespace = "top.xdwa.xwshun.plugin.v1"
+    namespace = "top.xdwa.shun.plugin.v1"
     compileSdk = 36
 
     defaultConfig {
@@ -16,7 +16,7 @@ android {
     }
 
     buildFeatures {
-        // AGP 8 起 AIDL 默认关闭，不开会找不到 IXwshunProvider 等生成类。
+        // AGP 8 起 AIDL 默认关闭，不开会找不到 IShunProvider 等生成类。
         aidl = true
     }
 

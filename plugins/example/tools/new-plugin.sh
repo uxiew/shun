@@ -7,13 +7,13 @@
 # 从宿主安装包读出宿主证书填进去、跑一遍描述符自查；加 --build 再编出 APK。
 #
 #   plugins/example/tools/new-plugin.sh <包名> <pluginId> <显示名> --host-apk <宿主.apk> [选项]
-#   plugins/example/tools/new-plugin.sh com.alice.notes com.alice.notes "Alice 的笔记终端" --host-apk ~/Downloads/xwshun.apk --build
+#   plugins/example/tools/new-plugin.sh com.alice.notes com.alice.notes "Alice 的笔记终端" --host-apk ~/Downloads/shun.apk --build
 #
 # 选项：
 #   --host-apk <apk>        宿主安装包，用 apksigner 读它的签名证书（推荐，不会抄错）
 #   --host-sha256 <hex>     或者直接给宿主证书 SHA-256（宿主「设置 → 插件（实验）」最底下抄的）；两个都给就都信任
-#   --dir <目录>            新工程放哪，默认 ~/xwshun-plugins/<包名最后一段>，必须还不存在
-#   --keystore <文件>       新密钥库放哪，默认 ~/xwshun-plugin-keys/<包名最后一段>.jks，必须还不存在
+#   --dir <目录>            新工程放哪，默认 ~/shun-plugins/<包名最后一段>，必须还不存在
+#   --keystore <文件>       新密钥库放哪，默认 ~/shun-plugin-keys/<包名最后一段>.jks，必须还不存在
 #   --license <SPDX>        描述符里的 license，默认 Apache-2.0（样例的许可）；你的插件用别的许可就改
 #   --build                 生成完顺手 ./gradlew assembleRelease，并打印 APK 路径和你的证书 SHA-256
 #
@@ -26,7 +26,7 @@ say() { echo "== $*"; }
 
 here="$(cd "$(dirname "$0")" && pwd)"
 example="$(cd "$here/.." && pwd)"
-sdk="$(cd "$example/../provider-sdk" 2>/dev/null && pwd)" || die "找不到 provider-sdk：这个脚本要在 xwshun 仓库的 plugins/example/tools/ 下运行"
+sdk="$(cd "$example/../provider-sdk" 2>/dev/null && pwd)" || die "找不到 provider-sdk：这个脚本要在 shun 仓库的 plugins/example/tools/ 下运行"
 api="$(cd "$example/../../packages/plugin_api" 2>/dev/null && pwd)" || die "找不到 packages/plugin_api"
 
 [[ $# -ge 3 ]] || { sed -n '5,20p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
@@ -51,7 +51,7 @@ ident='^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$'
 [[ $plugin_id =~ $ident && ${#plugin_id} -le 128 ]] || die "pluginId「${plugin_id}」不行：规则同包名，最长 128 字符"
 case "$plugin_id" in
   builtin.*) die "pluginId 不能用 builtin. 开头：那是宿主自带插件保留的" ;;
-  xwshun.mosh) die "xwshun.mosh 是 Mosh 插件的 ID，宿主只认它那张证书，你的插件会被拒" ;;
+  shun.mosh) die "shun.mosh 是 Mosh 插件的 ID，宿主只认它那张证书，你的插件会被拒" ;;
 esac
 [[ -n $name && ${#name} -le 80 ]] || die "显示名要 1–80 个字符"
 printf '%s' "$name" | LC_ALL=C grep -q '[[:cntrl:]]' && die "显示名里不能有控制字符"
@@ -62,8 +62,8 @@ esac
 [[ -n $host_apk || -n $host_sha ]] || die "要告诉插件信任哪个宿主：--host-apk <宿主.apk>（推荐），或 --host-sha256 <64 位十六进制>"
 
 seg=${pkg##*.}
-dest=${dest:-$HOME/xwshun-plugins/$seg}
-keystore=${keystore:-$HOME/xwshun-plugin-keys/$seg.jks}
+dest=${dest:-$HOME/shun-plugins/$seg}
+keystore=${keystore:-$HOME/shun-plugin-keys/$seg.jks}
 [[ ! -e $dest ]] || die "$dest 已经存在，换一个 --dir，免得覆盖你的东西"
 [[ ! -e $keystore ]] || die "$keystore 已经存在：换一个 --keystore。脚本只新建密钥，不碰已有的（丢了密钥就没法给插件发新版本）"
 
@@ -112,7 +112,7 @@ cp "$example/LICENSE" "$dest/LICENSES/Apache-2.0.txt"
 # ---- 改包名、类名、pluginId、显示名 ----
 pkg_path=${pkg//.//}
 for src in main test; do
-  from="$dest/app/src/$src/java/example/xwshun/hello"
+  from="$dest/app/src/$src/java/example/shun/hello"
   [[ -d $from ]] || continue
   mkdir -p "$dest/app/src/$src/java/$pkg_path"
   mv "$from"/* "$dest/app/src/$src/java/$pkg_path/"
@@ -133,15 +133,15 @@ prompt="$seg> "
 export PKG="$pkg" PLUGIN_ID="$plugin_id" NAME="$name" TAG="$tag" PROMPT="$prompt" LICENSE_ID="$license"
 find "$dest/app" "$dest/settings.gradle.kts" "$dest/build.gradle.kts" -type f \
   \( -name '*.java' -o -name '*.kts' -o -name '*.xml' -o -name '*.json' \) -print0 | xargs -0 perl -pi -e '
-    s/example\.xwshun\.hello/$ENV{PKG}/g;
+    s/example\.shun\.hello/$ENV{PKG}/g;
     s/example\.hello_terminal/$ENV{PLUGIN_ID}/g;
     s/HelloProviderService/ProviderService/g;
     s/HelloSession/TerminalSession/g;
     s/HelloShellTest/TerminalShellTest/g;
     s/HelloShell/TerminalShell/g;
-    s/"XwshunHello"/"$ENV{TAG}"/g;
+    s/"ShunHello"/"$ENV{TAG}"/g;
     s/"hello> "/"$ENV{PROMPT}"/g;
-    s/Hello 终端（xwshun 插件样例）/$ENV{NAME}/g;
+    s/Hello 终端（shun 插件样例）/$ENV{NAME}/g;
     s/Hello 终端（样例）/$ENV{NAME}/g;
     s/Hello 终端/$ENV{NAME}/g;
     s/"license": "Apache-2.0"/"license": "$ENV{LICENSE_ID}"/g;
@@ -168,36 +168,36 @@ keyPassword=$password
 EOF
 umask 022
 {
-  echo "xwshunHostSha256=$host_list"
-  echo "xwshunSdkDir=provider-sdk"
+  echo "shunHostSha256=$host_list"
+  echo "shunSdkDir=provider-sdk"
 } >> "$dest/gradle.properties"
 
 cat > "$dest/NOTICE.md" <<EOF
 # NOTICE
 
-本工程由 xwshun 插件样例（plugins/example，Apache-2.0，Copyright 2026 xwfe）用 new-plugin.sh 生成。
+本工程由 shun 插件样例（plugins/example，Apache-2.0，Copyright 2026 xwfe）用 new-plugin.sh 生成。
 
-- \`provider-sdk/\`：xwshun 插件契约库，Apache-2.0，全文见 \`provider-sdk/LICENSE\`。
-- \`tools/plugin_api/\`：xwshun 的描述符判定代码（只给 \`tools/check-descriptor.sh\` 用，不编进 APK），Apache-2.0。
+- \`provider-sdk/\`：shun 插件契约库，Apache-2.0，全文见 \`provider-sdk/LICENSE\`。
+- \`tools/plugin_api/\`：shun 的描述符判定代码（只给 \`tools/check-descriptor.sh\` 用，不编进 APK），Apache-2.0。
 - \`app/\` 和构建脚本：从样例改来，Apache-2.0 全文见 \`LICENSES/Apache-2.0.txt\`。保留文件头的原版权行；你自己新写的代码按你选的许可。
 EOF
 
 cat > "$dest/README.md" <<EOF
 # $name
 
-xwshun 终端插件。包名 \`$pkg\`，pluginId \`$plugin_id\`。由 xwshun 的 \`plugins/example/tools/new-plugin.sh\` 生成。
+shun 终端插件。包名 \`$pkg\`，pluginId \`$plugin_id\`。由 shun 的 \`plugins/example/tools/new-plugin.sh\` 生成。
 
 \`\`\`bash
 ./gradlew assembleRelease                      # 产物 app/build/outputs/apk/release/app-release.apk
 ./gradlew :app:testDebugUnitTest               # 会话逻辑（TerminalShell）的 JVM 单测，不用装宿主
-tools/check-descriptor.sh app/src/main/res/raw/xwshun_plugin.json --package $pkg --service $pkg.ProviderService
+tools/check-descriptor.sh app/src/main/res/raw/shun_plugin.json --package $pkg --service $pkg.ProviderService
 adb install -r app/build/outputs/apk/release/app-release.apk
 \`\`\`
 
 - 签名：\`signing.properties\`（密码在里面，别提交）指向 \`$keystore\`。你的证书 SHA-256：\`$author_sha\`，用户批准时拿它核对。
-- 信任的宿主证书：\`gradle.properties\` 的 \`xwshunHostSha256\`。
+- 信任的宿主证书：\`gradle.properties\` 的 \`shunHostSha256\`。
 - 会话逻辑在 \`TerminalShell.java\`（纯 Java），接线在 \`TerminalSession.java\`、\`ProviderService.java\`。
-- 怎么装、批准、验证、出错怎么查：xwshun 仓库的 \`docs/plugin-authors/\`。
+- 怎么装、批准、验证、出错怎么查：shun 仓库的 \`docs/plugin-authors/\`。
 EOF
 
 say "改好的工程：$dest"
@@ -208,7 +208,7 @@ echo "   你的证书 SHA-256：${author_sha}（密钥库 ${keystore}，口令�
 # ---- 自查描述符 ----
 if command -v dart >/dev/null 2>&1; then
   say "自查描述符"
-  "$dest/tools/check-descriptor.sh" "$dest/app/src/main/res/raw/xwshun_plugin.json" \
+  "$dest/tools/check-descriptor.sh" "$dest/app/src/main/res/raw/shun_plugin.json" \
     --package "$pkg" --service "$pkg.ProviderService" || die "描述符自查没过，上面写了原因"
 else
   say "没有 dart，跳过描述符自查（可选的一步，宿主装上插件后会报同样的话）"

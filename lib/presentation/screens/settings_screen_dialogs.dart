@@ -18,7 +18,7 @@ class _ThemePickerState extends State<_ThemePicker> {
 
   @override
   Widget build(BuildContext context) {
-    final themes = NetcattyTheme.presets(widget.brightness)
+    final themes = ShunTheme.presets(widget.brightness)
         .where(
           (theme) =>
               query.isEmpty ||

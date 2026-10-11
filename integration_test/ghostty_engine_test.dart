@@ -17,14 +17,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:netcatty_mobile/application/session_controller.dart';
-import 'package:netcatty_mobile/application/terminal_engine.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/presentation/screens/terminal_screen.dart';
-import 'package:netcatty_mobile/presentation/terminal/ghostty_terminal_view.dart';
-import 'package:netcatty_mobile/presentation/terminal/terminal_view.dart';
+import 'package:shun/application/session_controller.dart';
+import 'package:shun/application/terminal_engine.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/presentation/screens/terminal_screen.dart';
+import 'package:shun/presentation/terminal/ghostty_terminal_view.dart';
+import 'package:shun/presentation/terminal/terminal_view.dart';
 
 const _raw = String.fromEnvironment('R17_SSH');
 

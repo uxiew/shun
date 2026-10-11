@@ -4,7 +4,7 @@ import '../models/host.dart';
 ///
 /// 只存 pluginId：证书由用户在插件页的批准记录绑定，这里不另存一份。本 fork 自己加的字段，
 /// 桌面端 Netcatty 不认识，同步时原样保留（HostProfile 不丢未知字段）。
-const pluginIdKey = 'xwshunPluginId';
+const pluginIdKey = 'shunPluginId';
 
 String? pluginIdOf(HostProfile host) {
   final value = host.data[pluginIdKey]?.toString().trim();

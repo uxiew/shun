@@ -18,10 +18,10 @@ val fakeVersionCode = ((findProperty("fakeRdVersionCode") as String?) ?: "2067")
 val hostOnly = (findProperty("fakeRdHostOnly") as String?) == "true"
 
 @Suppress("UNCHECKED_CAST")
-val signing = extra["xwshunSigning"] as List<String>
+val signing = extra["shunSigning"] as List<String>
 
 android {
-    namespace = "example.xwshun.fixture.fakerustdesk"
+    namespace = "example.shun.fixture.fakerustdesk"
     compileSdk = 36
 
     defaultConfig {

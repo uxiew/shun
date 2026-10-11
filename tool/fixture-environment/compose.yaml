@@ -8,11 +8,11 @@
 #
 # target、ssh-hop2、ssh-hop3 没有映射到本机端口，本机也解析不了它们的名字：
 # 只能经 SOCKS 或经 ssh-edge 跳板到达。这就是"仅代理可解析目标"和"直连必失败"的来源。
-name: xwshun-fixture
+name: shun-fixture
 
 x-node: &node
   build: .
-  image: xwshun-fixture:alpine3.22
+  image: shun-fixture:alpine3.22
   volumes:
     - ./.run/secrets:/run-secrets:ro
     - ./.run/hostkeys:/run-hostkeys

@@ -17,14 +17,14 @@ cd "$(dirname "$0")/.."
 SERIAL=${1:?用法：tool/r22-lifecycle.sh <设备序列号> <场景>}
 SCENARIO=${2:?用法：tool/r22-lifecycle.sh <设备序列号> <场景>}
 export ANDROID_SERIAL=$SERIAL
-PKG=top.xdwa.xwshun
+PKG=top.xdwa.shun
 OUT=../.toolchain/artifacts/r22-$(git rev-parse --short HEAD)
 mkdir -p "$OUT"
 LOG=$OUT/$SCENARIO-$(date +%H%M%S).log
 : > "$LOG"
 host() { echo "R22HOST $*" | tee -a "$LOG"; }
 
-container() { docker ps -a --format '{{.Names}}' | grep -m1 "xwshun-fixture-$1"; }
+container() { docker ps -a --format '{{.Names}}' | grep -m1 "shun-fixture-$1"; }
 EDGE=$(container ssh-edge)
 accepted() { docker logs "$EDGE" 2>&1 | grep -c 'Accepted' || true; }
 
@@ -166,13 +166,13 @@ do_action() {
       lifecycle_facts "before-notify-stop"
       adb shell cmd statusbar expand-notifications; sleep 2; shot "$SCENARIO-shade"
       if ! tap "全部断开"; then
-        expand_notification "xwshun 终端" || true; sleep 2; shot "$SCENARIO-shade-expanded"
+        expand_notification "shun 终端" || true; sleep 2; shot "$SCENARIO-shade-expanded"
         tap "全部断开"
       fi
       sleep 4; adb shell cmd statusbar collapse; lifecycle_facts "after-notify-stop" ;;
     stop-service)
       lifecycle_facts "before-stop-service"
-      adb shell am stopservice -n $PKG/app.netcatty.mobile.SshKeepAliveService | tee -a "$LOG"
+      adb shell am stopservice -n $PKG/top.xdwa.shun.SshKeepAliveService | tee -a "$LOG"
       sleep 4; lifecycle_facts "after-stop-service" ;;
     wifi-toggle)
       adb shell svc wifi disable; sleep 4; adb shell svc wifi enable; sleep 4
@@ -227,10 +227,10 @@ do_action() {
     target-rekey)
       # 删掉入口脚本的标记再重启，容器重新生成主机密钥（见 tool/fixture-environment/entrypoint.sh）。
       # 之后 .run/fixture.json 里 target 的指纹就旧了，用完要重新 up.sh。
-      docker exec "$(container target)" rm -f /etc/ssh/.xwshun-hostkey
+      docker exec "$(container target)" rm -f /etc/ssh/.shun-hostkey
       docker restart "$(container target)" >/dev/null; host "target restarted with a new host key $(date +%T)" ;;
     back)
-      host "before back: MainActivity records alive: $(adb shell dumpsys activity activities | grep -cE "Hist +#[0-9]+: ActivityRecord\{[^}]* $PKG/app.netcatty.mobile.MainActivity" || true)" \
+      host "before back: MainActivity records alive: $(adb shell dumpsys activity activities | grep -cE "Hist +#[0-9]+: ActivityRecord\{[^}]* $PKG/top.xdwa.shun.MainActivity" || true)" \
         "recent tasks of the app: $(adb shell dumpsys activity recents | grep -cE "Recent #[0-9]+: Task\{[^}]*$PKG" || true)"
       adb shell input keyevent KEYCODE_BACK; sleep 2
       host "after back: $(adb shell dumpsys activity activities | grep -m1 -E 'topResumedActivity|mResumedActivity')"
@@ -242,7 +242,7 @@ do_action() {
       foreground; sleep 3
       adb shell input keyevent KEYCODE_HOME; sleep 4
       # 「不保留活动」销毁 Activity 实例但留着记录（回来时按记录重建）：看记录的 state，DESTROYED 才算真销毁了。
-      host "MainActivity record: $(adb shell dumpsys activity activities | grep -A40 -E "Hist +#[0-9]+: ActivityRecord\{[^}]* $PKG/app.netcatty.mobile.MainActivity" | grep -m1 -oE 'state=[A-Z_]+')"
+      host "MainActivity record: $(adb shell dumpsys activity activities | grep -A40 -E "Hist +#[0-9]+: ActivityRecord\{[^}]* $PKG/top.xdwa.shun.MainActivity" | grep -m1 -oE 'state=[A-Z_]+')"
       lifecycle_facts "after-dont-keep"
       toggle_dont_keep
       host "always_finish_activities=$(adb shell settings get global always_finish_activities | tr -d '\r')" ;;
@@ -251,7 +251,7 @@ do_action() {
       adb shell input swipe 540 1300 540 150 250; sleep 2
       adb shell input keyevent KEYCODE_HOME; sleep 2
       host "recent tasks of the app: $(adb shell dumpsys activity recents | grep -cE "Recent #[0-9]+: Task\{[^}]*$PKG" || true)" \
-        "MainActivity records alive: $(adb shell dumpsys activity activities | grep -cE "Hist +#[0-9]+: ActivityRecord\{[^}]* $PKG/app.netcatty.mobile.MainActivity" || true)"
+        "MainActivity records alive: $(adb shell dumpsys activity activities | grep -cE "Hist +#[0-9]+: ActivityRecord\{[^}]* $PKG/top.xdwa.shun.MainActivity" || true)"
       lifecycle_facts "after-recents-swipe" ;;
     shot-*) shot "${name#shot-}" ;;   # 测试出完帧再请脚本截图（集成测试只在 pump 时出帧，等回执时屏幕是黑的）
     mem-*)

@@ -1,8 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/domain/models/vault.dart';
-import 'package:netcatty_mobile/infrastructure/sync/netcatty_crypto.dart';
+import 'package:shun/domain/models/vault.dart';
+import 'package:shun/infrastructure/sync/netcatty_crypto.dart';
 
 void main() {
   test(

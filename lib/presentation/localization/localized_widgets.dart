@@ -3,8 +3,8 @@ import 'package:flutter/material.dart';
 
 import 'translations_en.dart';
 
-class NetcattyLocalizations {
-  const NetcattyLocalizations._();
+class ShunLocalizations {
+  const ShunLocalizations._();
 
   static String _language = 'zh-CN';
 
@@ -27,7 +27,7 @@ class NetcattyLocalizations {
   }
 }
 
-String localized(String source) => NetcattyLocalizations.text(source);
+String localized(String source) => ShunLocalizations.text(source);
 
 class LText extends StatelessWidget {
   const LText(

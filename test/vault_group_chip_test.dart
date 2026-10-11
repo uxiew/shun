@@ -4,8 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/presentation/screens/vault_screen.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/presentation/screens/vault_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -22,7 +22,7 @@ void main() {
           .setMockMethodCallHandler(secureStorageChannel, null);
     });
     SharedPreferences.setMockInitialValues({
-      'netcatty_mobile_vault_v1': jsonEncode({
+      'shun_vault_v1': jsonEncode({
         'hosts': [
           {
             'id': 'host-1',

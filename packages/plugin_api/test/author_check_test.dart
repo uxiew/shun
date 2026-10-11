@@ -11,7 +11,7 @@ import 'package:test/test.dart';
 // 以及样例 plugins/example 的描述符本身能过——样例改坏了这里先挂，不用等装到设备上才发现。
 void main() {
   const sample =
-      '../../plugins/example/app/src/main/res/raw/xwshun_plugin.json';
+      '../../plugins/example/app/src/main/res/raw/shun_plugin.json';
   Map<String, Object?> sampleMap() =>
       jsonDecode(File(sample).readAsStringSync()) as Map<String, Object?>;
   AuthorCheck check(
@@ -27,8 +27,8 @@ void main() {
   test('样例的描述符：通过，没有提醒，包名和服务类与样例工程一致', () {
     final r = AuthorCheck.run(
       File(sample).readAsStringSync(),
-      packageName: 'example.xwshun.hello',
-      serviceClass: 'example.xwshun.hello.HelloProviderService',
+      packageName: 'example.shun.hello',
+      serviceClass: 'example.shun.hello.HelloProviderService',
     );
     expect(r.errors, isEmpty);
     expect(r.warnings, isEmpty);
@@ -120,7 +120,7 @@ void main() {
       Platform.resolvedExecutable,
       ['run', 'bin/check_descriptor.dart', ...args],
     );
-    final good = await cli([sample, '--package', 'example.xwshun.hello']);
+    final good = await cli([sample, '--package', 'example.shun.hello']);
     expect(good.exitCode, 0, reason: '${good.stdout}${good.stderr}');
     expect(good.stdout, contains('通过'));
 

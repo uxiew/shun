@@ -12,7 +12,7 @@
 #   --dart-define=X09_SCENARIO=ime" tool/ime-replay.sh emulator-5580 Ghostty integration_test/mosh_session_test.dart
 #
 # 测试打印 "R18 READY=<名字>" 时这里替它按：名字以 hw: 开头就用 sendevent 往模拟器的硬件键盘写扫描码
-# （要 AVD 的 hw.keyboard = yes 和 adb root，见 docs/xwshun/README.md），否则广播给回放输入法。
+# （要 AVD 的 hw.keyboard = yes 和 adb root，见 docs/shun/README.md），否则广播给回放输入法。
 #
 # 会临时把模拟器的默认输入法换成回放输入法，结束（含失败、Ctrl-C）后换回原来的输入法并卸载它。
 # 只在模拟器上用：真机上换默认输入法会动到所有者的输入法设置。
@@ -26,7 +26,7 @@ case "${2:-}" in
 esac
 TEST_FILE=${3:-integration_test/r18_ime_replay_test.dart}
 APK=plugins/out/replayime.apk
-IME=example.xwshun.fixture.replayime/.ReplayIme
+IME=example.shun.fixture.replayime/.ReplayIme
 ADB=(adb -s "$SERIAL")
 
 [[ "$("${ADB[@]}" emu avd name 2>/dev/null | head -1 | tr -d '\r')" != "" ]] \
@@ -43,7 +43,7 @@ ORIGINAL=$("${ADB[@]}" shell settings get secure default_input_method | tr -d '\
 LOG=$(mktemp -t r18-ime-replay)
 restore() {
   "${ADB[@]}" shell ime set "$ORIGINAL" >/dev/null 2>&1 || true
-  "${ADB[@]}" uninstall example.xwshun.fixture.replayime >/dev/null 2>&1 || true
+  "${ADB[@]}" uninstall example.shun.fixture.replayime >/dev/null 2>&1 || true
   echo "输入法已换回 $("${ADB[@]}" shell settings get secure default_input_method | tr -d '\r')；日志 $LOG"
 }
 trap restore EXIT
@@ -59,7 +59,7 @@ done
 "${ADB[@]}" reverse tcp:22201 tcp:22201 >/dev/null
 # 每次 flutter test 都重装 App，一连上就弹「允许通知」挡住输入法；装上就授权。
 (for _ in $(seq 1 900); do
-  "${ADB[@]}" shell pm grant top.xdwa.xwshun android.permission.POST_NOTIFICATIONS 2>/dev/null && break
+  "${ADB[@]}" shell pm grant top.xdwa.shun android.permission.POST_NOTIFICATIONS 2>/dev/null && break
   sleep 0.3
 done >/dev/null 2>&1 &)
 
@@ -116,8 +116,8 @@ while kill -0 "$TEST" 2>/dev/null; do
         done
         press "${seq_codes[@]}" ;;
       hw:*) echo "不认识的硬件键脚本 $SCRIPT" >&2 ;;
-      *) "${ADB[@]}" shell am broadcast -a example.xwshun.fixture.replayime.RUN \
-           -p example.xwshun.fixture.replayime --es script "$SCRIPT" >/dev/null ;;
+      *) "${ADB[@]}" shell am broadcast -a example.shun.fixture.replayime.RUN \
+           -p example.shun.fixture.replayime --es script "$SCRIPT" >/dev/null ;;
     esac
   done
   sleep 0.5

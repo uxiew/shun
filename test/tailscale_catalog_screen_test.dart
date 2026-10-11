@@ -7,19 +7,19 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:netcatty_mobile/application/tailscale_catalog_access.dart';
-import 'package:netcatty_mobile/application/tailscale_catalog_refresh.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/models/vault.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/tailscale/catalog_cache.dart';
-import 'package:netcatty_mobile/infrastructure/tailscale/catalog_cache_repository.dart';
-import 'package:netcatty_mobile/infrastructure/tailscale/catalog_secret_store.dart';
-import 'package:netcatty_mobile/infrastructure/tailscale/tailscale_api.dart';
-import 'package:netcatty_mobile/infrastructure/tailscale/tailscale_device.dart';
-import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
-import 'package:netcatty_mobile/presentation/screens/tailscale_catalog_screen.dart';
-import 'package:netcatty_mobile/presentation/widgets/host_editor.dart';
+import 'package:shun/application/tailscale_catalog_access.dart';
+import 'package:shun/application/tailscale_catalog_refresh.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/models/vault.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/tailscale/catalog_cache.dart';
+import 'package:shun/infrastructure/tailscale/catalog_cache_repository.dart';
+import 'package:shun/infrastructure/tailscale/catalog_secret_store.dart';
+import 'package:shun/infrastructure/tailscale/tailscale_api.dart';
+import 'package:shun/infrastructure/tailscale/tailscale_device.dart';
+import 'package:shun/presentation/localization/localized_widgets.dart';
+import 'package:shun/presentation/screens/tailscale_catalog_screen.dart';
+import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // R13 界面：目录页显示缓存时间和「不完整」（TSC05），控制面状态不说成「在线」（TSC03），
@@ -438,8 +438,8 @@ void main() {
   });
 
   testWidgets('英文界面：来源页和导入页渲染出来的文字里没有汉字', (tester) async {
-    NetcattyLocalizations.use('en');
-    addTearDown(() => NetcattyLocalizations.use('zh'));
+    ShunLocalizations.use('en');
+    addTearDown(() => ShunLocalizations.use('zh'));
     seedIncomplete();
     await saveHosts([
       HostProfile.create(

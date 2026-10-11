@@ -23,7 +23,7 @@ class CatalogBinding {
     this.appliedAddress,
   });
 
-  static const key = 'xwshunCatalogSource';
+  static const key = 'shunCatalogSource';
 
   final String catalogId;
   final String deviceId;

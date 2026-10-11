@@ -38,7 +38,7 @@ MoshRouteUnsupported? moshRouteProblem(RoutePlan plan) {
 }
 
 /// 主机上 Mosh UDP 端口范围的字段。本 fork 自己加的，桌面端 Netcatty 不认识，同步时原样保留（HostProfile 不丢未知字段）。
-const moshPortsKey = 'xwshunMoshPorts';
+const moshPortsKey = 'shunMoshPorts';
 
 /// 这台主机让 mosh-server 在哪个范围里挑 UDP 端口；没填用 mosh 默认的 60001–60999。
 /// 格式不对抛 [RouteConfigException]：连接前就停，不拿一个猜出来的范围去启动远端。

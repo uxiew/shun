@@ -1,23 +1,23 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/models/server_stats.dart';
-import 'package:netcatty_mobile/domain/models/settings.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/server_monitor_service.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/sftp_service.dart';
-import 'package:netcatty_mobile/presentation/theme.dart';
-import 'package:netcatty_mobile/presentation/widgets/custom_background.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/models/server_stats.dart';
+import 'package:shun/domain/models/settings.dart';
+import 'package:shun/infrastructure/ssh/server_monitor_service.dart';
+import 'package:shun/infrastructure/ssh/sftp_service.dart';
+import 'package:shun/presentation/theme.dart';
+import 'package:shun/presentation/widgets/custom_background.dart';
 
 void main() {
   test('desktop theme catalogue exposes 62 light and 62 dark themes', () {
-    expect(NetcattyTheme.presets(Brightness.light), hasLength(62));
-    expect(NetcattyTheme.presets(Brightness.dark), hasLength(62));
+    expect(ShunTheme.presets(Brightness.light), hasLength(62));
+    expect(ShunTheme.presets(Brightness.dark), hasLength(62));
     expect(
-      NetcattyTheme.resolve(Brightness.dark, 'tokyo-night').name,
+      ShunTheme.resolve(Brightness.dark, 'tokyo-night').name,
       'Tokyo Night',
     );
     expect(
-      NetcattyTheme.build(Brightness.light, 'rose-pine').brightness,
+      ShunTheme.build(Brightness.light, 'rose-pine').brightness,
       Brightness.light,
     );
   });

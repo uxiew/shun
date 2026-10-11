@@ -5,7 +5,7 @@
 #   source ../.toolchain/env.sh
 #   (cd tool/fixture-environment && ./up.sh)
 #   tool/remote-device/up.sh xdwmbp /opt/homebrew/share/android-commandlinetools/platform-tools/adb
-#   source /tmp/xwshun-remote-device/env
+#   source /tmp/shun-remote-device/env
 #   tool/r22-soak.sh 47131FDAP0040E default 30    # 不加省电豁免（出厂默认）
 #   tool/r22-soak.sh 47131FDAP0040E exempt 30     # 临时加省电豁免
 #
@@ -33,10 +33,10 @@ SERIAL=${1:?用法：tool/r22-soak.sh <设备序列号> default|exempt [分钟�
 MODE=${2:?用法：tool/r22-soak.sh <设备序列号> default|exempt [分钟，默认 30]}
 MINUTES=${3:-30}
 [[ $MODE == default || $MODE == exempt ]] || { echo "模式只能是 default 或 exempt"; exit 2; }
-REMOTE=${XWSHUN_REMOTE_HOST:-xdwmbp}
+REMOTE=${SHUN_REMOTE_HOST:-xdwmbp}
 RELAY_PORT=22211
 export ANDROID_SERIAL=$SERIAL
-PKG=top.xdwa.xwshun
+PKG=top.xdwa.shun
 OUT=../.toolchain/artifacts/r22-$(git rev-parse --short HEAD)
 mkdir -p "$OUT"
 STAMP=soak-$MODE-$(date +%H%M%S)
@@ -46,10 +46,10 @@ DEVICE_LOG=$OUT/$STAMP-device.log
 host() { echo "R22HOST $(date +%T) $*" | tee -a "$LOG"; }
 owner() { echo "OWNER: $*" | tee -a "$LOG"; }
 
-adb get-state >/dev/null || { echo "看不到 $SERIAL：先 tool/remote-device/up.sh，再 source /tmp/xwshun-remote-device/env"; exit 1; }
+adb get-state >/dev/null || { echo "看不到 $SERIAL：先 tool/remote-device/up.sh，再 source /tmp/shun-remote-device/env"; exit 1; }
 # 插回线后重建 reverse 要绕开包装脚本：它会再开一次 ssh -R，而那条还在，报端口被占。
-REAL_ADB=$(cat /tmp/xwshun-remote-device/real-adb 2>/dev/null || command -v adb)
-EDGE=$(docker ps --format '{{.Names}}' | grep -m1 xwshun-fixture-ssh-edge) || { echo "测试环境没起：(cd tool/fixture-environment && ./up.sh)"; exit 1; }
+REAL_ADB=$(cat /tmp/shun-remote-device/real-adb 2>/dev/null || command -v adb)
+EDGE=$(docker ps --format '{{.Names}}' | grep -m1 shun-fixture-ssh-edge) || { echo "测试环境没起：(cd tool/fixture-environment && ./up.sh)"; exit 1; }
 accepted() { docker logs "$EDGE" 2>&1 | grep -c 'Accepted' || true; }
 
 PHONE_IP=$(adb shell ip -4 addr show wlan0 | grep -oE 'inet [0-9.]+' | cut -d' ' -f2)
@@ -92,10 +92,10 @@ cleanup() {
   fi
   exec 7>&- 2>/dev/null   # 关掉转发的标准输入，xdwmbp 上的转发随之退出
   sleep 1
-  ssh "$REMOTE" rm -f /tmp/xwshun-tcp-relay.py 2>/dev/null
+  ssh "$REMOTE" rm -f /tmp/shun-tcp-relay.py 2>/dev/null
   host "restored: stay_on_while_plugged_in=$(adb shell settings get global stay_on_while_plugged_in 2>/dev/null | tr -d '\r')" \
     "app-installed=$(adb shell pm path $PKG 2>/dev/null | grep -c package || true)" \
-    "relay-left=$(ssh "$REMOTE" "pgrep -f xwshun-tcp-relay | wc -l" 2>/dev/null | tr -d ' ')"
+    "relay-left=$(ssh "$REMOTE" "pgrep -f shun-tcp-relay | wc -l" 2>/dev/null | tr -d ' ')"
   { echo "== 电脑这头"; grep -E '^R22HOST|^OWNER|relay' "$LOG"
     echo "== 手机里的测试日志"; grep -v -E 'R22 (ACTION|ACK)=' "$DEVICE_LOG"
   } > "$OUT/$STAMP-summary.txt"
@@ -107,8 +107,8 @@ trap cleanup EXIT
 # 上一轮中途退出时 App 可能还装着，私有目录里旧的 log.txt 带着 DONE，会让这一轮一开始就收工。
 adb uninstall $PKG >/dev/null 2>&1 || true
 adb reverse tcp:22201 tcp:22201 >/dev/null
-scp -q tool/remote-device/tcp-relay.py "$REMOTE:/tmp/xwshun-tcp-relay.py"
-exec 7> >(ssh "$REMOTE" python3 -u /tmp/xwshun-tcp-relay.py "$RELAY_IP" $RELAY_PORT "$PHONE_IP" 22201 \
+scp -q tool/remote-device/tcp-relay.py "$REMOTE:/tmp/shun-tcp-relay.py"
+exec 7> >(ssh "$REMOTE" python3 -u /tmp/shun-tcp-relay.py "$RELAY_IP" $RELAY_PORT "$PHONE_IP" 22201 \
   $((MINUTES * 120 + 5400)) >> "$LOG" 2>&1)
 sleep 3
 host "wifi path: phone $PHONE_IP -> $REMOTE $RELAY_IP:$RELAY_PORT -> this mac 22201;" \
@@ -116,7 +116,7 @@ host "wifi path: phone $PHONE_IP -> $REMOTE $RELAY_IP:$RELAY_PORT -> this mac 22
 
 # 手机上的取证脚本：一次 adb shell 拿全。只把本 App 的通知标题带出手机，别的通知不碰。
 adb shell 'cat > /data/local/tmp/life07-facts.sh' <<'EOF'
-P=top.xdwa.xwshun
+P=top.xdwa.shun
 d=$(dumpsys deviceidle)
 b=$(dumpsys battery)
 printf '%s ' \
@@ -223,7 +223,7 @@ do_action() {
       ensure_reverse
       for i in $(seq 1 30); do
         [[ $(top_is_app) == 1 ]] && break
-        (( i == 5 )) && owner "App 不在最前：请点开 xwshun。"
+        (( i == 5 )) && owner "App 不在最前：请点开 shun。"
         sleep 2
       done
       facts after-unlock ;;

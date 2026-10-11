@@ -78,7 +78,7 @@ List<SSHKeyPair>? loadHopIdentities(RouteHop hop) {
 /// 得到的是一把坏钥匙，要到服务器拒绝登录时才暴露，报错还指向「密码或私钥不对」。实测翻转一个字节就是这样。
 /// 认不出的密钥类型不拦，交给服务器验。
 bool keyPairSelfCheck(SSHKeyPair pair) {
-  final message = Uint8List.fromList(utf8.encode('xwshun identity self-check'));
+  final message = Uint8List.fromList(utf8.encode('shun identity self-check'));
   try {
     final signature = pair.sign(message);
     return switch ((pair.toPublicKey(), signature)) {

@@ -13,7 +13,7 @@ lines() { run_in "$1" "cat $2 2>/dev/null | wc -l"; }
 logins() { docker compose logs --no-log-prefix "$1" 2>/dev/null | grep -cE 'Accepted [a-z-]+ for ' || true; }
 
 printf '{"moshServerStarts":%s,"moshServerRunning":%s,"installAttempts":%s,"sshLogins":{"mosh":%s,"nomosh":%s}}\n' \
-  "$(lines mosh /var/log/xwshun/mosh-server-starts.log)" \
+  "$(lines mosh /var/log/shun/mosh-server-starts.log)" \
   "$(run_in mosh "ps -o ppid,comm | awk '\$1 == 1 && \$2 == \"mosh-server\"' | wc -l")" \
-  "$(( $(lines mosh /var/log/xwshun/install-attempts.log) + $(lines nomosh /var/log/xwshun/install-attempts.log) ))" \
+  "$(( $(lines mosh /var/log/shun/install-attempts.log) + $(lines nomosh /var/log/shun/install-attempts.log) ))" \
   "$(logins mosh)" "$(logins nomosh)"

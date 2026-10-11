@@ -5,20 +5,20 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/plugin_discovery.dart';
-import 'package:netcatty_mobile/application/plugin_registry.dart';
-import 'package:netcatty_mobile/application/plugin_sessions.dart';
-import 'package:netcatty_mobile/infrastructure/plugins/android_plugin_bridge.dart';
-import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
-import 'package:netcatty_mobile/presentation/screens/plugin_session_test_screen.dart';
-import 'package:netcatty_mobile/presentation/screens/plugins_screen.dart';
+import 'package:shun/application/plugin_discovery.dart';
+import 'package:shun/application/plugin_registry.dart';
+import 'package:shun/application/plugin_sessions.dart';
+import 'package:shun/infrastructure/plugins/android_plugin_bridge.dart';
+import 'package:shun/presentation/localization/localized_widgets.dart';
+import 'package:shun/presentation/screens/plugin_session_test_screen.dart';
+import 'package:shun/presentation/screens/plugins_screen.dart';
 import 'package:plugin_api/plugin_api.dart' show SessionPhase;
 import 'package:shared_preferences/shared_preferences.dart';
 
 // X12 给插件作者的两样东西：插件页底部的「本 App 的签名证书」，详情页的「会话测试」。
 // 桥是假的，插件那一侧的事件由测试按真实顺序发；真插件（plugins/example）在模拟器上走，见 evidence/X12.md。
 
-const pkg = 'example.xwshun.hello';
+const pkg = 'example.shun.hello';
 const author =
     '12f7a9732bba95dc8997abf01356938d6370c3ac641114042350af1f9ce8f4ef';
 const hostDebug =
@@ -29,7 +29,7 @@ DiscoveredPackage hello(
         List<String> permissions = const ['own-session-input-output']}) =>
     DiscoveredPackage(
       packageName: pkg,
-      serviceClass: 'example.xwshun.hello.HelloProviderService',
+      serviceClass: 'example.shun.hello.HelloProviderService',
       versionName: '0.1.0',
       versionCode: 1,
       signers: [(sha256: author, androidDebug: false)],
@@ -46,7 +46,7 @@ DiscoveredPackage hello(
         'platforms': ['android'],
         'permissions': permissions,
         'packageName': pkg,
-        'serviceClass': 'example.xwshun.hello.HelloProviderService',
+        'serviceClass': 'example.shun.hello.HelloProviderService',
         'license': 'GPL-3.0-or-later',
       }),
     );
@@ -337,8 +337,8 @@ void main() {
   });
 
   testWidgets('英文界面：会话测试页和插件页底部没有汉字', (tester) async {
-    NetcattyLocalizations.use('en');
-    addTearDown(() => NetcattyLocalizations.use('zh'));
+    ShunLocalizations.use('en');
+    addTearDown(() => ShunLocalizations.use('zh'));
     await startTest(tester);
     bridge
       ..event(1, 'active')

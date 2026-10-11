@@ -10,7 +10,7 @@
 //
 // 每次 flutter test 都重装 App，一连上 SSH 系统就弹「允许通知」（前台保活服务要），挡在 App 前面，
 // 软键盘出不来，表现为「等待软键盘弹出超时」。跑之前在另一个终端先预授权，装上就授：
-//   until adb -s emulator-5580 shell pm grant top.xdwa.xwshun android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done
+//   until adb -s emulator-5580 shell pm grant top.xdwa.shun android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done
 import 'dart:convert';
 
 import 'package:flterm/flterm.dart' as flterm show TerminalView;
@@ -19,12 +19,12 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:netcatty_mobile/app.dart';
-import 'package:netcatty_mobile/application/home_navigation.dart';
-import 'package:netcatty_mobile/application/session_controller.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:shun/app.dart';
+import 'package:shun/application/home_navigation.dart';
+import 'package:shun/application/session_controller.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
 
 const _raw = String.fromEnvironment('R17_SSH');
 
@@ -68,7 +68,7 @@ void main() {
       final controller = container.read(sessionControllerProvider.notifier);
       await tester.pumpWidget(UncontrolledProviderScope(
         container: container,
-        child: const NetcattyApp(),
+        child: const ShunApp(),
       ));
       container.read(homeTabProvider.notifier).state = 1;
       final host = HostProfile({

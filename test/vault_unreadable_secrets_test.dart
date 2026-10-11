@@ -3,18 +3,18 @@ import 'dart:async';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/credential_availability.dart';
-import 'package:netcatty_mobile/application/session_controller.dart';
-import 'package:netcatty_mobile/application/vault_controller.dart';
-import 'package:netcatty_mobile/domain/connection_route.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/models/vault.dart';
-import 'package:netcatty_mobile/domain/tmux/tmux_target.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
+import 'package:shun/application/credential_availability.dart';
+import 'package:shun/application/session_controller.dart';
+import 'package:shun/application/vault_controller.dart';
+import 'package:shun/domain/connection_route.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/models/vault.dart';
+import 'package:shun/domain/tmux/tmux_target.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
 
 // SEC06：安全存储里某条凭据解不开（设备密钥失效、密文被改）时——
 // 其余照常加载；用到它的连接在拨号前拒绝并说清原因；无关的保存不删那条密文；重新填写后恢复。
@@ -138,16 +138,16 @@ void main() {
     test('清单只有键名没有值；旧安装没有清单时按第一次读到的补上', () async {
       await seeded();
       final prefs = await SharedPreferences.getInstance();
-      final index = prefs.getStringList('xwshun_secret_index_v1')!;
+      final index = prefs.getStringList('shun_secret_index_v1')!;
       expect(index, containsAll(['host.h1.password', 'host.h2.password']));
       expect(index.join(), isNot(contains('pw-')), reason: '只记键名');
 
       storage.broken.clear();
-      await prefs.remove('xwshun_secret_index_v1'); // 升级前的安装
+      await prefs.remove('shun_secret_index_v1'); // 升级前的安装
       final first = await VaultRepository.open();
       await first.loadVault();
       expect(first.unreadableSecrets, isEmpty, reason: '没有清单就无从判断，不误报');
-      expect(prefs.getStringList('xwshun_secret_index_v1'),
+      expect(prefs.getStringList('shun_secret_index_v1'),
           containsAll(['host.h1.password', 'host.h2.password']));
 
       storage.values.remove('host.h2.password');

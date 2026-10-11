@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
-import 'package:netcatty_mobile/infrastructure/update_check_service.dart';
+import 'package:shun/infrastructure/update_check_service.dart';
 
 void main() {
   test('matching app and v-prefixed release versions are latest', () async {

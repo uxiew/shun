@@ -4,7 +4,7 @@
 #
 # 用法：
 #   1. 装好并打开 spike：adb install -r build/app/outputs/flutter-apk/app-release.apk
-#                         adb shell am start -n top.xdwa.xwshun.terminal_spike/.MainActivity
+#                         adb shell am start -n top.xdwa.shun.terminal_spike/.MainActivity
 #   2. tool/adb_key_check.sh [设备ID]     # 只有一台设备时可以不写
 #
 # 输出每个按键一行 PASS/FAIL，最后一行汇总；有 FAIL 时退出码 1。
@@ -13,7 +13,7 @@
 #
 # 撞墙时：
 # - 真机上开头几项（abc、方向键、Esc）FAIL，之后软键盘再也不出来：中文输入法（实测微信输入法）把注入的键
-#   当实体键盘、吃进了组字区，还切进了实体键盘模式。这个脚本只适合 Gboard，恢复办法见 docs/xwshun/README.md 第 7 节。
+#   当实体键盘、吃进了组字区，还切进了实体键盘模式。这个脚本只适合 Gboard，恢复办法见 docs/shun/README.md 第 7 节。
 # - 模拟器上只有 Esc FAIL、"实际"为空：Gboard 弹着时先拿到注入的 Esc，用来收起键盘，Flutter 收不到
 #   （logcat 里连 SPIKE_KEY 都没有）。键盘收起后再注入就正常发 1b。fork 修好"点终端叫回键盘"以后，
 #   脚本开头那一点会把键盘弹出来，所以这项会 FAIL。R04 时是 10/10，推测当时键盘没弹着（0.0.5 有叫不回键盘的问题），没复核。

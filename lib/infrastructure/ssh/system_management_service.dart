@@ -400,7 +400,7 @@ class SystemManagementService {
     final encodedAddress = base64Encode(utf8.encode(address));
     final encodedUpstreams = base64Encode(utf8.encode(jsonEncode(upstreams)));
     return '# netcatty-begin: ${site.id}\n'
-        '# Managed by Netcatty Mobile.\n'
+        '# Managed by shun.\n'
         '# netcatty-address: $encodedAddress\n'
         '# netcatty-upstreams: $encodedUpstreams\n'
         '$address {\n'
@@ -419,7 +419,7 @@ class SystemManagementService {
     final content = base64Encode(utf8.encode(buildCaddySiteSnippet(site)));
     return 'set -eu; '
         'config=${shellQuote(config)}; begin=${shellQuote(begin)}; end=${shellQuote(end)}; '
-        'config_backup="\$config.netcatty-backup.\$\$"; staged="\$config.netcatty-staged.\$\$"; '
+        'config_backup="\$config.shun-backup.\$\$"; staged="\$config.shun-staged.\$\$"; '
         'config_had=0; success=0; mkdir -p "\$(dirname "\$config")"; '
         'if [ -f "\$config" ]; then cp -p "\$config" "\$config_backup"; config_had=1; else : > "\$config"; fi; '
         'rollback() { [ "\$success" -eq 1 ] && return; '
@@ -442,7 +442,7 @@ class SystemManagementService {
     final begin = '# netcatty-begin: ${site.id}';
     final end = '# netcatty-end: ${site.id}';
     return 'set -eu; config=${shellQuote(config)}; begin=${shellQuote(begin)}; end=${shellQuote(end)}; '
-        'config_backup="\$config.netcatty-backup.\$\$"; staged="\$config.netcatty-staged.\$\$"; success=0; '
+        'config_backup="\$config.shun-backup.\$\$"; staged="\$config.shun-staged.\$\$"; success=0; '
         '[ -f "\$config" ] || { printf "Caddyfile not found\\n" >&2; exit 1; }; '
         'cp -p "\$config" "\$config_backup"; '
         'rollback() { [ "\$success" -eq 1 ] && return; rm -f "\$staged"; mv -f "\$config_backup" "\$config"; '
@@ -1414,7 +1414,7 @@ String shellQuote(String value) => "'${value.replaceAll("'", "'\\''")}'";
 const _processListCommand =
     'LC_ALL=C ps -eo pid=,ppid=,user=,stat=,pcpu=,pmem=,rss=,vsz=,etime=,comm=,args= 2>/dev/null || LC_ALL=C ps ww 2>/dev/null || LC_ALL=C ps 2>/dev/null';
 
-const _serviceListMarker = '__NETCATTY_SERVICE_METADATA__';
+const _serviceListMarker = '__SHUN_SERVICE_METADATA__';
 final _validServiceName = RegExp(r'^[a-zA-Z0-9_.:@+\-]{1,160}$');
 final _validCaddyId = RegExp(r'^[a-z0-9][a-z0-9-]{0,63}$');
 final _caddyBeginPattern = RegExp(

@@ -21,7 +21,7 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "xwshun-plugin-fixtures"
+rootProject.name = "shun-plugin-fixtures"
 include(":provider-sdk", ":fixture-echo", ":fixture-rogue", ":fixture-fakeuu", ":fixture-fakerustdesk", ":fixture-fakebrowser", ":fixture-replayime")
 // 真实插件（不是测试用）：Mosh 运行时（X08）。要先跑 mosh/native/build-mosh-client.sh。
 include(":mosh")

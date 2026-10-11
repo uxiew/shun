@@ -231,7 +231,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                   ? Brightness.dark
                                   : MediaQuery.platformBrightnessOf(context);
                           final selected =
-                              NetcattyTheme.resolve(brightness, uiThemeId);
+                              ShunTheme.resolve(brightness, uiThemeId);
                           return ListTile(
                             contentPadding: EdgeInsets.zero,
                             leading: CircleAvatar(
@@ -243,7 +243,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             ),
                             title: const LText('界面主题'),
                             subtitle: LText(
-                              '${selected.name} · ${NetcattyTheme.presets(brightness).length} 种可选',
+                              '${selected.name} · ${ShunTheme.presets(brightness).length} 种可选',
                             ),
                             trailing: const Icon(Icons.chevron_right),
                             onTap: () => _selectTheme(brightness),
@@ -506,7 +506,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             keyboardType: TextInputType.url,
                             decoration: LInputDecoration(
                               labelText: 'WebDAV 地址',
-                              hintText: 'https://dav.example.com/netcatty',
+                              hintText: 'https://dav.example.com/shun',
                             ),
                           ),
                           const SizedBox(height: 10),
@@ -582,7 +582,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             controller: s3Prefix,
                             decoration: LInputDecoration(
                               labelText: '对象前缀（可选）',
-                              hintText: 'netcatty/mobile',
+                              hintText: 'shun',
                             ),
                           ),
                           SwitchListTile(
@@ -662,7 +662,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           controller: masterPassword,
                           obscureText: true,
                           decoration: LInputDecoration(
-                            labelText: 'Netcatty 同步主密码',
+                            labelText: '同步主密码',
                           ),
                         ),
                         const SizedBox(height: 6),
@@ -833,9 +833,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   future: _packageInfo,
                   builder: (context, snapshot) => LText(
                     snapshot.hasData
-                        ? 'Netcatty Mobile ${snapshot.data!.version} · GPL-3.0-or-later'
-                        : 'Netcatty Mobile · GPL-3.0-or-later',
+                        ? 'shun ${snapshot.data!.version} · GPL-3.0-or-later'
+                        : 'shun · GPL-3.0-or-later',
                   ),
+                ),
+              ),
+              // GPL 要求修改版写明出处；原作者署名在 NOTICE.md。
+              Center(
+                child: LText(
+                  '基于 Netcatty Mobile 修改',
+                  style: Theme.of(context).textTheme.bodySmall,
                 ),
               ),
             ],
@@ -1106,7 +1113,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     }
     if (syncState.syncing) return '正在同步本地与云端数据…';
     if (syncState.lastError != null) {
-      if (NetcattyLocalizations.isEnglish) {
+      if (ShunLocalizations.isEnglish) {
         return 'Last auto-sync failed and will retry: ${syncState.lastError}';
       }
       return '上次自动同步失败，将自动重试：${syncState.lastError}';
@@ -1116,7 +1123,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final local = syncedAt.toLocal();
       final hour = local.hour.toString().padLeft(2, '0');
       final minute = local.minute.toString().padLeft(2, '0');
-      if (NetcattyLocalizations.isEnglish) {
+      if (ShunLocalizations.isEnglish) {
         return 'Last synced at $hour:$minute · syncs about 10 seconds after changes';
       }
       return '最近同步 $hour:$minute · 数据变更后约 10 秒自动同步';

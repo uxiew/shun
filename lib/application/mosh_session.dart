@@ -47,8 +47,8 @@ class PluginMoshRuntime implements MoshRuntime {
   final Ref _ref;
 
   /// 只认这一个插件：Mosh 的临时会话 key 只交给它（还要用户批准过它的证书）。
-  static const pluginId = 'xwshun.mosh';
-  static const packageName = 'top.xdwa.xwshun.mosh';
+  static const pluginId = 'shun.mosh';
+  static const packageName = 'top.xdwa.shun.mosh';
 
   @override
   Future<PluginEntry> prepare() async {
@@ -113,7 +113,7 @@ class PluginMoshRuntime implements MoshRuntime {
         .firstOrNull;
     return switch (seen?.status) {
       null =>
-        '没有装 Mosh 插件（top.xdwa.xwshun.mosh）。装好后到「设置 → 插件（实验）」核对证书并批准，再连。',
+        '没有装 Mosh 插件（top.xdwa.shun.mosh）。装好后到「设置 → 插件（实验）」核对证书并批准，再连。',
       PluginStatus.needsApproval =>
         'Mosh 插件还没批准：到「设置 → 插件（实验）」核对证书后批准，再连。',
       PluginStatus.disabled => 'Mosh 插件被停用了：到「设置 → 插件（实验）」启用它，再连。',

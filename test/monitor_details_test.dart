@@ -1,13 +1,13 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/domain/models/server_stats.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/server_monitor_service.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/sftp_service.dart';
-import 'package:netcatty_mobile/presentation/widgets/server_monitor_sheet.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/models/server_stats.dart';
+import 'package:shun/infrastructure/ssh/server_monitor_service.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/ssh/sftp_service.dart';
+import 'package:shun/presentation/widgets/server_monitor_sheet.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 
 void main() {
   test('two tabs of one server share storage while changed endpoints do not',

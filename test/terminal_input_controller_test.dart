@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_input_controller.dart';
+import 'package:shun/infrastructure/terminal/terminal_input_controller.dart';
 import 'package:xterm2/xterm.dart';
 
 void main() {

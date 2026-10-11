@@ -157,7 +157,7 @@ class MethodChannelConnectionPlatform implements ConnectionPlatform {
     _channel.setMethodCallHandler(_onCall);
   }
 
-  static const _channel = MethodChannel('app.netcatty.mobile/connection');
+  static const _channel = MethodChannel('top.xdwa.shun/connection');
   final _events = StreamController<ConnectionPlatformEvent>.broadcast();
 
   @override

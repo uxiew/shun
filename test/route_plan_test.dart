@@ -2,15 +2,15 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/domain/connection_route.dart';
-import 'package:netcatty_mobile/domain/models/host.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/ssh_service.dart';
-import 'package:netcatty_mobile/infrastructure/transport/proxy_transport.dart';
-import 'package:netcatty_mobile/presentation/localization/localized_widgets.dart';
+import 'package:shun/domain/connection_route.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/transport/proxy_transport.dart';
+import 'package:shun/presentation/localization/localized_widgets.dart';
 
 import 'fixtures/net/socks5_fixture.dart';
 import 'fixtures/net/trap_server.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 
 // R05：路线在拨号前一次算好（RoutePlan）。这里测四件事——
 // RTE01 矛盾配置不静默选一套；RTE03 路线算好后不受后续编辑影响；
@@ -45,14 +45,14 @@ RouteConfigException rejects(void Function() body, {String? echoed}) {
   try {
     body();
   } on RouteConfigException catch (error) {
-    NetcattyLocalizations.use('en');
+    ShunLocalizations.use('en');
     try {
-      var english = NetcattyLocalizations.text(error.message);
+      var english = ShunLocalizations.text(error.message);
       if (echoed != null) english = english.replaceAll(echoed, '');
       expect(english, isNot(matches(RegExp(r'[一-鿿]'))),
           reason: '英文界面下这条报错还有中文：$english');
     } finally {
-      NetcattyLocalizations.use('zh-CN');
+      ShunLocalizations.use('zh-CN');
     }
     return error;
   }

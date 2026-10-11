@@ -2,9 +2,9 @@ import 'dart:io';
 
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/external_remote.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/tailscale/catalog_secret_store.dart';
+import 'package:shun/application/external_remote.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/tailscale/catalog_secret_store.dart';
 
 /// 照 flutter_secure_storage 9.2.4 Android 端的规则建模（FlutterSecureStorage.java ensureOptions）：
 /// 一个进程里只有一个「当前文件」，只有调用带了非空 sharedPreferencesName 才切换，从不切回默认。
@@ -37,9 +37,9 @@ void main() {
   test('先用过 UU、RustDesk、目录的存储，再存主机密码：写进保险库自己的文件，重启后读得到', () {
     final plugin = StickyFilePlugin();
     final others = [
-      SecureProviderBackend(prefsName: 'xwshun_uuremote', keychainAccount: 'a')
+      SecureProviderBackend(prefsName: 'shun_uuremote', keychainAccount: 'a')
           .storage,
-      SecureProviderBackend(prefsName: 'xwshun_rustdesk', keychainAccount: 'b')
+      SecureProviderBackend(prefsName: 'shun_rustdesk', keychainAccount: 'b')
           .storage,
       FlutterSecureCatalogBackend.storage,
     ];

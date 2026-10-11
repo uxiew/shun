@@ -6,20 +6,20 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:netcatty_mobile/application/settings_controller.dart';
-import 'package:netcatty_mobile/domain/models/settings.dart';
-import 'package:netcatty_mobile/infrastructure/storage/vault_repository.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/sftp_service.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/file_selection.dart';
-import 'package:netcatty_mobile/infrastructure/ssh/zip_selection.dart';
-import 'package:netcatty_mobile/presentation/home_shell.dart';
-import 'package:netcatty_mobile/presentation/screens/sftp_screen.dart';
-import 'package:netcatty_mobile/presentation/widgets/terminal_special_keys.dart';
+import 'package:shun/application/settings_controller.dart';
+import 'package:shun/domain/models/settings.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/ssh/sftp_service.dart';
+import 'package:shun/infrastructure/ssh/file_selection.dart';
+import 'package:shun/infrastructure/ssh/zip_selection.dart';
+import 'package:shun/presentation/home_shell.dart';
+import 'package:shun/presentation/screens/sftp_screen.dart';
+import 'package:shun/presentation/widgets/terminal_special_keys.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/ghostty_terminal_adapter.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_text.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_input_controller.dart';
-import 'package:netcatty_mobile/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/infrastructure/terminal/terminal_text.dart';
+import 'package:shun/infrastructure/terminal/terminal_input_controller.dart';
+import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
 
 void main() {
   testWidgets('unavailable server copy requires explicit phone-relay consent',
@@ -201,7 +201,7 @@ void main() {
     final source = _MemoryTransferService('source')
       ..files['/a.txt'] = Uint8List.fromList([1, 2, 3]);
     final target = _MemoryTransferService('target')
-      ..files['/.a.txt.netcatty-part'] = Uint8List.fromList([9, 9]);
+      ..files['/.a.txt.shun-part'] = Uint8List.fromList([9, 9]);
     await transferSelection(
         FileSelection(source, await source.list('/'), move: true), target, '/');
     expect(target.files['/a.txt'], [1, 2, 3]);
@@ -846,5 +846,5 @@ class _CorruptTransferService extends _MemoryTransferService {
   _CorruptTransferService(super.name);
   @override
   Future<int?> fileSize(String path) async =>
-      path.endsWith('.netcatty-part') ? null : 0;
+      path.endsWith('.shun-part') ? null : 0;
 }

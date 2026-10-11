@@ -98,7 +98,7 @@ class _SftpPaneState extends State<_SftpPane> {
                                 subtitle: LText(
                                   source is MountableFileTransferService
                                       ? source.usesAppDocuments
-                                          ? '文件 App：我的 iPhone/iPad/Netcatty'
+                                          ? '文件 App：我的 iPhone/iPad/shun'
                                           : source.isMounted
                                               ? '已挂载：${source.mountedDirectoryName}'
                                               : '点文件夹按钮选择手机目录'
@@ -323,7 +323,7 @@ class _SftpPaneState extends State<_SftpPane> {
                           mountable != null && !mountable.isMounted
                               ? '尚未挂载手机目录\n点上方文件夹按钮选择目录'
                               : mountable?.usesAppDocuments == true
-                                  ? 'Netcatty 文件夹为空\n可从服务器下载或导入文件'
+                                  ? 'shun 文件夹为空\n可从服务器下载或导入文件'
                                   : service.isLocal
                                       ? '挂载目录为空\n可直接上传或导入文件'
                                       : '目录为空',
