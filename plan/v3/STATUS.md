@@ -1,8 +1,8 @@
 # 当前状态 V3
 
-日期：2026-10-10。已执行首批（R00–R04、X00）、网络路由三项（R05、R06、R07）、连接代次（R08）、凭据与入口统一（R09）、连接路径编辑器（R10）、插件注册表（X01）、只读 Tailscale 目录的 HTTP 适配（R11）、Android 独立插件发现与双向签名（X02）、目录缓存与非破坏合并（R12）、插件会话字节流与故障处理（X03）、目录页与批量导入（R13）、插件管理与授权界面（X04）、Tailscale 目录接入内置 provider（X05）、UU 远程适配（X06）、RustDesk 外部客户端联动（X07）、显式 Tailscale SSH 外部认证（R14）、目录到三类路由的端到端验收（R15）、会话与 xterm2 解耦（R16）、Ghostty 接进主 App（R17）、中文输入法与软硬键盘（R18）、滚动选择与粘贴、远端效果约束（R19）、TUI/性能门禁与 Ghostty 成为默认（R20）、tmux 安全恢复目标（R21）、Flutter 与 Android 连接生命周期（R22）、Mosh 运行时选择（X08）、Mosh 接进主 App（X09）和插件作者 SDK（X12），日用 UI（R25）做了第一部分「终端输入面板」；09-30 所有者同意用 arm64 模拟器补测，并定"最低兼容到安卓七八"；10-04 所有者提供真机（Pixel 9 Pro，接在 xdwmbp 上），R04 真机补测后 DONE；10-06 所有者在真机上用微信输入法复测语音输入（TER02）通过；10-08 所有者定了 SEC07 的凭据与后台恢复策略（见下）；10-10 所有者在场，在真机上跑完 LIFE07（前台 30 分钟 + 拔线锁屏 30 分钟以上，不加、加省电豁免各一轮，PASS）；当晚所有者让在真机上打开 TermRover、LobiShell 学布局和功能，看到的记在 `docs/20-reference-apps.md`，排成 R39–R50（见「下一批」）。
+日期：2026-10-11。已执行首批（R00–R04、X00）、网络路由三项（R05、R06、R07）、连接代次（R08）、凭据与入口统一（R09）、连接路径编辑器（R10）、插件注册表（X01）、只读 Tailscale 目录的 HTTP 适配（R11）、Android 独立插件发现与双向签名（X02）、目录缓存与非破坏合并（R12）、插件会话字节流与故障处理（X03）、目录页与批量导入（R13）、插件管理与授权界面（X04）、Tailscale 目录接入内置 provider（X05）、UU 远程适配（X06）、RustDesk 外部客户端联动（X07）、显式 Tailscale SSH 外部认证（R14）、目录到三类路由的端到端验收（R15）、会话与 xterm2 解耦（R16）、Ghostty 接进主 App（R17）、中文输入法与软硬键盘（R18）、滚动选择与粘贴、远端效果约束（R19）、TUI/性能门禁与 Ghostty 成为默认（R20）、tmux 安全恢复目标（R21）、Flutter 与 Android 连接生命周期（R22）、Mosh 运行时选择（X08）、Mosh 接进主 App（X09）和插件作者 SDK（X12），日用 UI（R25）做了第一部分「终端输入面板」；09-30 所有者同意用 arm64 模拟器补测，并定"最低兼容到安卓七八"；10-04 所有者提供真机（Pixel 9 Pro，接在 xdwmbp 上），R04 真机补测后 DONE；10-06 所有者在真机上用微信输入法复测语音输入（TER02）通过；10-08 所有者定了 SEC07 的凭据与后台恢复策略（见下）；10-10 所有者在场，在真机上跑完 LIFE07（前台 30 分钟 + 拔线锁屏 30 分钟以上，不加、加省电豁免各一轮，PASS）；当晚所有者让在真机上打开 TermRover、LobiShell 学布局和功能，看到的记在 `docs/20-reference-apps.md`，排成 R39–R50（见「下一批」）。
 
-- 基座：kmh1145/Netcatty-mobile `495f5d31`（v1.4.7），fork 分支 `xwshun/v3`，`origin` = `uxiew/xwshun`，所有者说推之前不 push。GPL-3.0-or-later 个人隔离实验；applicationId `top.xdwa.xwshun`。
+- 基座：kmh1145/Netcatty-mobile `495f5d31`（v1.4.7），fork 分支 `xwshun/v3`，`origin` = `uxiew/xwshun`，所有者说推之前不 push。GPL-3.0-or-later 个人隔离实验；App 名 shun、applicationId `top.xdwa.shun`（所有者 10-11 把名字和包名从 xwshun 改过来：插件接口、Mosh 插件包名和 pluginId `shun.mosh`、测试环境的容器名一起改了；和桌面端互通的同步文件名、加密格式、Caddy 标记沿用 netcatty 不动；evidence 里的旧名是当时的事实，不改）。
 - 任务：DONE 34（R00 R01 R02 R03 R04 R05 R06 R07 R08 R09 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 X00 X01 X02 X03 X04 X05 X06 X07 X08 X09 X12）、IN_PROGRESS 1（R25）、NOT_STARTED 17、DEFERRED 13。
 - 用例（共 148）：PASS 117、FAIL 2、BLOCKED 6、NOT_RUN 23。每条的实际动作和观察在 `evidence/`。
 - 最近一次全量（10-10 LIFE07 修租期后，只开着主测试环境）：`flutter test -j 2` 1112 过、47 跳过（tmux、mosh、Tailscale 的测试环境没开；tmux 32 条、mosh 13 条修复后另外单独跑过，全过）、0 失败；`flutter analyze` 无问题。`packages/plugin_api` 和 fork 的 flterm、libghostty 这次没改，测试数沿用 10-07（37、1157、514 条过）。
@@ -54,9 +54,9 @@
   断开的标签顶上有状态条和「重新连接」。顺带修了基座就有的：断开后终端还绑着已关的通道，转屏/回前台时 `SSHStateError` 抛进布局。
   模拟器上实测了通知断开、系统停服务、任务管理器停止、强行停止、Wi-Fi↔蜂窝 20 次、锁屏、省电、代理和 sshd 重启、三种 Activity 被结束、被结束后放回标签（evidence/R22.md）。**没上真机**。
 - 终端输入面板（R25 第一部分）：快捷键栏的 ⌨ 打开面板，左右滑动在「按键面板」（常用 / 符号 / 组合键 / F 键四页，键都 ≥48dp）和「大输入框」（系统输入法打字、语音，「发送」= 内容 + 回车，「只填入」不回车）之间切，用哪种会记住。所有键走同一个 sendKey/sendText 出口；大输入框按 R19 的粘贴语义发，目标认开始打字那一刻的连接，断了不发、恢复成新连接要点「改发到新连接」，发出去才清空。切换时远端最多收到一次尺寸变化。模拟器上两个引擎、真 bash、经 Mosh 都逐字节核对过，回放的微信语音和拼音进大输入框再发也对；R18 回放在最终代码上回归过。真机、真 TalkBack 没测。截图在 `../.toolchain/artifacts/r25-panel-shots-56816a4/`。顺带修了横屏收键盘时终端视图被重建、键盘自己弹回来。
-- 插件作者 SDK（X12）：`docs/plugin-authors/`（八步上手、能力一览、接口约定、出错对照、版本兼容、许可）、样例 `plugins/example`、一键起新插件的 `new-plugin.sh`（从零到出 APK 约 7 秒）、不在仓库里也能跑的描述符自查。SDK 和样例改 Apache-2.0（逐行比对过基座，没有搬来的代码），版权署名 xwfe。**独立复验**：另一个没参与编写的代理只读作者材料，用自己的密钥做出插件，在模拟器上走通授权、握手、收发、改尺寸、关闭（SDK01），它报的 12 条文档问题都已改。第三方终端插件现在能从主机列表连接：主机协议选「插件」，不给插件任何主机数据，插件自己联网（带代理/跳板的插件主机拒绝保存和连接，不悄悄去掉），停用/卸载后条目标不可用、不拉起插件。插件页的「连接测试」「会话测试」沿用已有连接，**X09 留下的「点连接测试会断开 Mosh 会话」修了**（模拟器上开着 Mosh 标签验过）。`xwshun.mosh` 绑测试证书，别的证书签的冒充者直接拒。修了一个宿主崩溃：插件在握手时抛异常，宿主整个闪退。
+- 插件作者 SDK（X12）：`docs/plugin-authors/`（八步上手、能力一览、接口约定、出错对照、版本兼容、许可）、样例 `plugins/example`、一键起新插件的 `new-plugin.sh`（从零到出 APK 约 7 秒）、不在仓库里也能跑的描述符自查。SDK 和样例改 Apache-2.0（逐行比对过基座，没有搬来的代码），版权署名 xwfe。**独立复验**：另一个没参与编写的代理只读作者材料，用自己的密钥做出插件，在模拟器上走通授权、握手、收发、改尺寸、关闭（SDK01），它报的 12 条文档问题都已改。第三方终端插件现在能从主机列表连接：主机协议选「插件」，不给插件任何主机数据，插件自己联网（带代理/跳板的插件主机拒绝保存和连接，不悄悄去掉），停用/卸载后条目标不可用、不拉起插件。插件页的「连接测试」「会话测试」沿用已有连接，**X09 留下的「点连接测试会断开 Mosh 会话」修了**（模拟器上开着 Mosh 标签验过）。`shun.mosh` 绑测试证书，别的证书签的冒充者直接拒。修了一个宿主崩溃：插件在握手时抛异常，宿主整个闪退。
 - Mosh 接进主 App（X09）：主机协议选 Mosh、路线直连，点连接 → 核对本机插件 → SSH 先核指纹再登录 → 只跑固定命令启动 mosh-server → **断开 SSH** → 把 SSH 实际连上的 IP、UDP 端口、临时 key 交给插件走 UDP。模拟器上点连接到出提示符 1.2–1.4 秒。SOCKS、TailSocks、HTTP 代理、跳板、代理 + 跳板五种路线都在任何网络动作之前拒绝（拨号、登录、远端启动、插件调用全是 0），编辑器里带代理/跳板的 Mosh 主机不让保存（不像 Telnet 那样悄悄去掉）。指纹不对、密码错、服务器没装 mosh-server 都停在 SSH，不给插件 key，不替用户安装、不 sudo（记账为 0）。输入和尺寸只有一个出口：回放输入法 8 段经 Mosh 到远端逐字节等于 R18 期望；转屏远端行列对。会话结束不自动重连、不重发输入，X08 留下的 `failed:exit-N` 说成了人话。Mosh 标签跟随终端引擎设置。
-- Mosh 运行时（X08）：选官方 mosh-client 1.4.0 从源码交叉编译（可重现），做成独立插件 APK `top.xdwa.xwshun.mosh`（2.8 MB、只有 arm64）；dart_mosh 因不查包方向位（自己的包弹回来后输入全丢）、关闭不通知服务器被否。会话 key 经管道交给子进程（给 mosh-client 打了小补丁），不进参数、环境、日志、文件。模拟器上连真 mosh-server：命令、中文、vim、改尺寸都对，10 轮开关 fd 不涨，杀插件宿主照常。顺带修了从 X03 起就有的「插件抛一个运行时异常整个宿主崩溃」。
+- Mosh 运行时（X08）：选官方 mosh-client 1.4.0 从源码交叉编译（可重现），做成独立插件 APK `top.xdwa.shun.mosh`（2.8 MB、只有 arm64）；dart_mosh 因不查包方向位（自己的包弹回来后输入全丢）、关闭不通知服务器被否。会话 key 经管道交给子进程（给 mosh-client 打了小补丁），不进参数、环境、日志、文件。模拟器上连真 mosh-server：命令、中文、vim、改尺寸都对，10 轮开关 fd 不涨，杀插件宿主照常。顺带修了从 X03 起就有的「插件抛一个运行时异常整个宿主崩溃」。
 - terminal spike 补了 Android 适配层和一份 flterm 中文输入补丁（R04，只在 spike 里）。真机上：集成测试通过，所有者的微信输入法打字全对，**语音输入会把同一句话整段重复发送**（flterm 每次提交就清空编辑区，输入法改写不了已出现的字），R18 已修。
 
 ## 两个 FAIL
@@ -104,7 +104,7 @@ R04 的发现到 R17 为止：dispose 后 write 段错误（上游改成抛错�
   只借鉴交互，不搬 LobiShell 的闭源界面素材和商标（docs/12）。归 R25（日用 UI 与参考交互），先于 R25 其余部分做。
 - 插件 SDK（`packages/plugin_api`、`plugins/provider-sdk`、插件描述符的 schema）和样例 `plugins/example` 用 **Apache-2.0** 给第三方作者（X12 查过这几处全是本 fork 新写的）；主 App 和 Mosh 插件仍是 GPL-3.0-or-later。
 - 第三方终端插件**开主机连接入口**（原来只能在插件详情页「会话测试」里用，写了插件也没法日常用）。按键面板的布局导入导出**先不做**，等所有者用一段时间面板再定。
-- `xwshun.mosh` 这个 pluginId **先绑现在的测试作者证书**：别的包自称 Mosh 插件，用户批准了也拿不到 Mosh 会话的 key。以后换正式签名时要同步改这个绑定，否则正式签名的 Mosh 插件会被当成冒充者拒掉。
+- `shun.mosh` 这个 pluginId **先绑现在的测试作者证书**：别的包自称 Mosh 插件，用户批准了也拿不到 Mosh 会话的 key。以后换正式签名时要同步改这个绑定，否则正式签名的 Mosh 插件会被当成冒充者拒掉。
 - R20 开工前：Ghostty 硬件 Ctrl+I/M 发 Tab、回车，Ctrl+C 有选区也发 ^C、复制挪到 Ctrl+Shift+C，和 xterm2 一样（已做，fork 顺带让 Ctrl+[ 发 Esc）；
   TER13 只在测试容器里跑 Claude Code、Codex **不登录**的界面（已做，流式输出 BLOCKED）；R20 候选包**不上真机**，只用模拟器。
 
@@ -115,7 +115,7 @@ R04 的发现到 R17 为止：dispose 后 write 段错误（上游改成抛错�
 
 ## 下一批
 
-`lizhi` 开着时，本项目模拟器用 `-port 5580` 起、adb 都带 `-s emulator-5580`（写在 docs/xwshun/README.md 第 7 节）。
+`lizhi` 开着时，本项目模拟器用 `-port 5580` 起、adb 都带 `-s emulator-5580`（写在 docs/shun/README.md 第 7 节）。
 **依赖已满足、可以开工的**：R23（恢复不重放与旧终端状态隔离，R21、R22 都做完了）、X10（Mosh 移动恢复，X09、R22 都做完了）、R25 的其余部分（无障碍、诊断），以及从 R25 拆出来的日用界面 R39–R44（R25 现在等它们做完）。
 R39–R44 建议顺序：R40 先把编辑器和批量导入里的两份路线编辑合成一个组件（行为不变，测试应全过）→ R39 连接类型 → R41 编辑页分区 → R42 终端里的 SSH/Mosh 切换 → R44 防截屏 → R43 主机列表。R39、R40、R42 各有一条要所有者先定的事（见「等所有者决定或提供」），定之前只做不动存储、不改规则的部分。R45–R50 是 P6，所有者点头才做。
 X11、X13 等 X10。R22 留下的：LIFE06 原生内存来源（见上表；10-10 排除了「终端按帧漏」）、凭据租期按墙上时钟（a067eff）修后没上真机复测、通知在「静音」区默认折叠（「全部断开」要展开才看得到）和冷启动不直接进终端页（给 R25）。
@@ -123,15 +123,15 @@ R20 留给后面的（详见 evidence/R20.md「没做的」）：真机一项没
 全屏程序里右上角「复制」按钮盖住终端右上角几个字（给 R25）；组合字符的重音画不出来、ANSI 模式 DECRQM 不回（上游，没修）。
 设备测试里 tester 模拟的硬件按键落不到终端焦点：要按硬件键只能 sendevent（`tool/ime-replay.sh`）。资源、泄漏诊断现成：`tool/r20-gate.sh <设备> resources|leak`。
 R25 第一部分留下的：大输入框草稿只在内存；没做整套 QWERTY；分屏只有页面测试。
-X12 留下的：「Mosh 这把测试证书」同时给 `plugins/fixture-*` 测试插件签名，用它签又自称 `xwshun.mosh` 的包仍能通过绑定检查——正式签名时给 Mosh 单独一把密钥；给第三方作者的宿主包现在只有本机 debug 包（见下）。
+X12 留下的：「Mosh 这把测试证书」同时给 `plugins/fixture-*` 测试插件签名，用它签又自称 `shun.mosh` 的包仍能通过绑定检查——正式签名时给 Mosh 单独一把密钥；给第三方作者的宿主包现在只有本机 debug 包（见下）。
 X09 留给后面的（详见 evidence/X09.md「没做的」）：Mosh 标签没有「重新连接」按钮（归 R42）；
 Tailscale SSH 登录 + 直连的 Mosh 逻辑上允许但没测；IPv6 目标没测；插件进程被系统回收和被强杀分不出来。
 X08 留给后面的：批准只绑能力不绑权限，插件更新后多要临时会话密钥不会回到待批准（X11）；Android 12+ 后台会杀子进程（X10）。
 R21 留给后面的：恢复失败后标签里残留上一屏 tmux 状态栏、附着边界上的按键去向（R23）。App 被杀后 tmux 目标不保留——R22 做了（标签放回、核对后附着）。
-设备测试的跑法写在 docs/xwshun/README.md 第 2 节：Ghostty（测试环境 + adb reverse + `r17_config.py`）、R18 的输入法回放和真机输入测试、R19 的手势/粘贴/远端效果、tmux（`tool/tmux-fixture`）、Mosh（`tool/mosh-fixture`；模拟器上要先关 Wi-Fi 才能经 `10.0.2.2` 连 TCP，见第 3 节）。
+设备测试的跑法写在 docs/shun/README.md 第 2 节：Ghostty（测试环境 + adb reverse + `r17_config.py`）、R18 的输入法回放和真机输入测试、R19 的手势/粘贴/远端效果、tmux（`tool/tmux-fixture`）、Mosh（`tool/mosh-fixture`；模拟器上要先关 Wi-Fi 才能经 `10.0.2.2` 连 TCP，见第 3 节）。
 两个代理并行时只多开一个 worktree：磁盘常年只剩几 GB，怎么腾见本机手册第 6 节。
 多个代理并行时：模拟器先拿锁（`mkdir ../.toolchain/locks/emulator`，写明是谁），规矩和撞过的墙见本机手册第 7 节（10-07 两次「后台循环抢到锁却没叫醒代理」，锁白占了 1.5 小时）。
-真机只接在 xdwmbp 上，用法和撞墙见 `tool/remote-device/README.md`；装着中文输入法的真机上别用 adb 注入按键（会把输入法弄进实体键盘模式，恢复办法在 `docs/xwshun/README.md` 第 7 节）。
+真机只接在 xdwmbp 上，用法和撞墙见 `tool/remote-device/README.md`；装着中文输入法的真机上别用 adb 注入按键（会把输入法弄进实体键盘模式，恢复办法在 `docs/shun/README.md` 第 7 节）。
 R14、R15 的测试环境：仿制 Tailscale SSH 服务器和 Headscale + 真 tailscaled（R15 加了远程 SOCKS 和跳板两个节点），用法见 `tool/tailscale-ssh-fixture/README.md`。
 设备关联：目录的存在主机上，UU 的存在 UU 自己的加密存储里（记主机 id），RustDesk 的存在 RustDesk 这边的加密存储里，`deviceLinksOf` 把三样拼起来。
 X05 顺带看到：连接完成前敲的字前几个被丢、后面照常送达（归 R23）。UX04 的「实际引擎」部分等 R17。
@@ -140,7 +140,7 @@ X04 留下的：App 启动时不自动发现插件（X09、X12 起连 Mosh/插�
 
 ## 等所有者决定或提供
 
-- Mosh 插件（X08）：正式包名、pluginId、签名（现在是 `top.xdwa.xwshun.mosh` / `xwshun.mosh`、测试作者密钥，`lib/domain/plugins/official_plugins.dart` 绑着它的证书，换签名要同步改）。它带着 GPL 的 mosh，搬去单独的仓库、单独分发后也要按 GPL-3.0-or-later 附源码。
+- Mosh 插件（X08）：正式包名、pluginId、签名（现在是 `top.xdwa.shun.mosh` / `shun.mosh`、测试作者密钥，`lib/domain/plugins/official_plugins.dart` 绑着它的证书，换签名要同步改）。它带着 GPL 的 mosh，搬去单独的仓库、单独分发后也要按 GPL-3.0-or-later 附源码。
 - 终端输入还剩的两个细节（R25 第一部分，现在的做法见 evidence/R25.md；Ctrl+I/M、Ctrl+C 两项 R20 前定了、已做）：
   1. 横屏 + 系统键盘在大输入框里打字时终端只剩 2 行：能接受，还是这时让输入框占满。
   2. 要不要加整套 QWERTY 页；大输入框的草稿要不要加密存盘（现在只在内存，App 被杀就没了）。

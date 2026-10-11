@@ -82,7 +82,7 @@ PartialSuccessError——x/crypto v0.57.0 收到它**不发 USERAUTH_FAILURE，�
 
 | 项 | R14 的做法 |
 |---|---|
-| 登录方式 | 主机上 `xwshunSshLogin: tailscale` 才算 Tailscale SSH，不动桌面端也读写的 `authMethod`；不看 100.x、不看目录绑定 |
+| 登录方式 | 主机上 `shunSshLogin: tailscale` 才算 Tailscale SSH，不动桌面端也读写的 `authMethod`；不看 100.x、不看目录绑定 |
 | Tailscale 模式发什么 | 不给 dartssh2 私钥、密码、键盘交互回调，它就只剩 none；私钥连解密都不解 |
 | 普通模式的 none | 借 dartssh2 的调试回调认出「要发 none 了」，登录成功后若是 none 就断开、不执行任何东西（依赖调试文字 `SSHClient._authWithNone`，升级 dartssh2 时对应测试会红）。不打补丁、不 vendor |
 | 普通模式碰上带链接的 banner | 立刻断开，提示改成 Tailscale SSH；不显示链接，不挂 30 分钟 |
