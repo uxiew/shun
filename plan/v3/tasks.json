@@ -2394,7 +2394,7 @@
       "id": "R40",
       "phase": "P4",
       "title": "链式连接路径与可复用代理，编辑器和批量导入共用",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [
         "R07",
         "R10",
@@ -2425,8 +2425,10 @@
       ],
       "stop_condition": "第二跳以后的跳板机自带代理要不要从「拒绝」放宽成「说明用不上」，所有者定了再改 docs/04；不改主机和代理的存储格式（桌面端要认）。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R40.md"
+      ],
+      "commit": "e6d6c84"
     },
     {
       "id": "R41",

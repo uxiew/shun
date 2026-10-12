@@ -24,8 +24,8 @@
     },
     {
       "path": "STATUS.md",
-      "size": 55147,
-      "sha256": "1fa5cfe972bbd9a8fe55a91e0bab4cc8a4cbdfbbffd305cdc57ee5e267e71cad"
+      "size": 55737,
+      "sha256": "9e854e2d1a1cc8a0e615153a421828910c494444fb7916dad4d8e6eaa5a78077"
     },
     {
       "path": "contracts/README.md",
@@ -135,7 +135,7 @@
     {
       "path": "docs/08-implementation-tasks.md",
       "size": 80096,
-      "sha256": "e277d487af46da7e33f841290010ee9192ea9e6488363e199f5c984e350347d3"
+      "sha256": "147a9132cb4617a019592275beebf963a8bcc8919bcfd0e23c12045b68f29f7a"
     },
     {
       "path": "docs/09-verification.md",
@@ -229,8 +229,8 @@
     },
     {
       "path": "tasks.json",
-      "size": 107567,
-      "sha256": "2f94abc7452a735798dcca8912ba13210a32d126660068158f2517b8a6a55f16"
+      "size": 107605,
+      "sha256": "cf9ec69fb304c68a3d1c6fecb1fbe0ceac93a5e24ad80ed83f4fdb0946893507"
     },
     {
       "path": "templates/evidence.md",
