@@ -24,8 +24,8 @@
     },
     {
       "path": "STATUS.md",
-      "size": 53810,
-      "sha256": "b12f4d03690788ffba7e2849ab13c547ed7c108c5c5602a1ada49a0867a8a63f"
+      "size": 54364,
+      "sha256": "570eacd0c0bdc2233dac1e429e2d45dc431cffb0ccdc92328f079e1efdb9dd46"
     },
     {
       "path": "contracts/README.md",
@@ -229,8 +229,8 @@
     },
     {
       "path": "tasks.json",
-      "size": 107377,
-      "sha256": "c180c76239d26567de63d1a231356f3851a270687caf1d6c0c70d05eca900b27"
+      "size": 107461,
+      "sha256": "e83589b4a704e14d150c03b8feaaed7238daacbb5708ac77018edf1eb82f5e7b"
     },
     {
       "path": "templates/evidence.md",

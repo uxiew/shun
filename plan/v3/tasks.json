@@ -2937,9 +2937,10 @@
       "owner_role": "实施代理",
       "evidence": [
         "evidence/R56.md",
-        "evidence/R56-R57-fault-matrix.md"
+        "evidence/R56-R57-fault-matrix.md",
+        "evidence/R56-R57-modularity.md"
       ],
-      "commit": "af17597"
+      "commit": "8bbb460"
     },
     {
       "id": "R57",
@@ -2980,9 +2981,10 @@
       "owner_role": "实施代理",
       "evidence": [
         "evidence/R57.md",
-        "evidence/R56-R57-fault-matrix.md"
+        "evidence/R56-R57-fault-matrix.md",
+        "evidence/R56-R57-modularity.md"
       ],
-      "commit": "af17597"
+      "commit": "8bbb460"
     }
   ],
   "plan_revision": "3.0"
