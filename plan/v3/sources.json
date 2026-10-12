@@ -622,6 +622,177 @@
       "note": "ensureOptions 只在调用带了非空 sharedPreferencesName 时切换文件、从不切回默认，「已初始化就返回」被作者注释掉（注释说会破坏混用）。所以 App 里每一份安全存储都必须显式写文件名，否则会跟着上一次调用的文件走（R14 计划外修复）。",
       "evidence_level": "PRIMARY_SOURCE_READ",
       "repository_head": null
+    },
+    {
+      "id": "S70",
+      "title": "OSH - Zero Trust SSH：美国 App Store",
+      "url": "https://apps.apple.com/us/app/osh-zero-trust-ssh/id6785531354",
+      "accessed_on": "2026-10-11",
+      "note": "开发者描述手机硬件签署审批、网关签短期 SSH 证书；只读商店资料，未装机、未验证网关协议，不能当作 SSH 终端或兼容 SDK。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S71",
+      "title": "OSH：另一地区 App Store 更新说明",
+      "url": "https://apps.apple.com/tn/app/osh-zero-trust-ssh/id6785531354?platform=tv",
+      "accessed_on": "2026-10-11",
+      "note": "抓取为 1.0.6，美国页为 1.0.4；更新提到推送中继及团队通知，旧简介不足以证明仅连接网关。商店链接的隐私页本轮未成功获取，不作为已读证据。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S72",
+      "title": "meshTerm SSH Client Tailscale：App Store",
+      "url": "https://apps.apple.com/us/app/meshterm-ssh-client-tailscale/id6761196011",
+      "accessed_on": "2026-10-11",
+      "note": "抓取为 2.2.0；内置 Tailscale、SSH/SFTP、持久会话和容器入口均为开发者声明，更新记录也描述按主机连接诊断；未安装实测。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S73",
+      "title": "meshTerm 官方用户指南",
+      "url": "https://docs.meshterm.com/meshterm.html",
+      "accessed_on": "2026-10-11",
+      "note": "None/tmux/mtRoam 持久性选择、命名会话、键盘和工作流参考。标题/正文仍见 2.1/2.1.11，不能与商店新版混成已验证矩阵。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S74",
+      "title": "meshTerm 官方 mtroamd 仓库",
+      "url": "https://github.com/AG-Studio-Apps/mtroamd",
+      "accessed_on": "2026-10-11",
+      "note": "独立持久终端 daemon，公开描述 QUIC 与 SSH 引导，仓库声明 AGPL-3.0-or-later。只读仓库说明，未冻结/构建/审计全部代码；不是 Mosh 或其 UDP 代理能力。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S75",
+      "title": "meshTerm 官方隐私说明",
+      "url": "https://docs.meshterm.com/privacy.html",
+      "accessed_on": "2026-10-11",
+      "note": "旧隐私文字与新版同步说明对私钥/known-host 范围不一致，推送另含开发者中继；只能记录声明及差异，不下零外连或已审计结论。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S76",
+      "title": "NovaScale, Built for Tailscale：App Store",
+      "url": "https://apps.apple.com/us/app/novascale-built-for-tailscale/id6749938291",
+      "accessed_on": "2026-10-11",
+      "note": "用户指定页面；抓取为 1.7.0，列出 SSH、SFTP、监控、网页及远程工作区。只读开发者产品说明，不验证会话恢复、付费权益或版本兼容。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S77",
+      "title": "NovaScale 官方产品页",
+      "url": "https://galaxnet.dev/nova/",
+      "accessed_on": "2026-10-11",
+      "note": "主机/会话/服务的一体入口；官网另列 Android 版及 libghostty，不能把 iOS 全部功能当 Android 等价能力。只作设计与实现线索。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S78",
+      "title": "NovaScale 官方 FAQ",
+      "url": "https://galaxnet.dev/nova/faq/",
+      "accessed_on": "2026-10-11",
+      "note": "说明进程终止后的恢复限制、FakeIP 下可能绑定非 VPN 网络以及远端工作区状态归属限制；shun 不采纳 VPN 旁路，协议细节仍须查原提供方并冻结版本。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S79",
+      "title": "NovaScale 使用的 libtailscale 仓库",
+      "url": "https://github.com/GalaxNet-Ltd/libtailscale",
+      "accessed_on": "2026-10-11",
+      "note": "公开 README 描述进程内用户态 Tailscale C 库；仅作为 R32 候选来源，未冻结 SHA、验证 Android ABI/生命周期或证明与本项目可直接兼容。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S80",
+      "title": "Dokodemo CLI - SSH Terminal — App Store",
+      "url": "https://apps.apple.com/us/app/dokodemo-cli-ssh-terminal/id6771627844",
+      "accessed_on": "2026-10-11",
+      "note": "以 App ID 确認所有者所称 Dokdemo 为 Dokodemo CLI（どこでもCLI），Satoshi Sakuma / Koyomi App Lab。公开介绍 SSH、多会话及 AI 状态提示；未安装或实测，不据此推导自动工具发现或原生对话恢复。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S81",
+      "title": "Dokodemo CLI 官方 FAQ",
+      "url": "https://shopkoyomi.com/article/?id=78&lang=en",
+      "accessed_on": "2026-10-11",
+      "note": "说明 AI 状态依赖 CLI 终端标题等信号及工具版本/配置；命令参考可复制粘贴，目录选择向当前终端发送 cd，测试连接不等于交互 shell 已可用。仅借鉴入口和提示，不采用向活动 TUI 注入探测命令。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S82",
+      "title": "Dokodemo CLI 官方 Tailscale 使用说明",
+      "url": "https://shopkoyomi.com/article/?id=77",
+      "accessed_on": "2026-10-11",
+      "note": "依赖独立 Tailscale App 建立网络；不将教程视为 Dokodemo 内嵌、管理或配置 Tailscale 的证据。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S83",
+      "title": "ShellDiver: SSH Client — App Store",
+      "url": "https://apps.apple.com/us/app/shelldiver-ssh-client/id6794262497",
+      "accessed_on": "2026-10-11",
+      "note": "Mathias Oysmueller / Ostrong Studios；抓取页为 1.2.0。说明 session 持有连接、snippets、启动命令及显式 jump 入口；自动重连会得到新 shell，不能当成原进程恢复。未实测；未找到自动 AI CLI 发现或恢复最后 AI 对话的声明。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S84",
+      "title": "ShellDiver 开发者隐私说明 §5.5",
+      "url": "https://www.ostrongstudios.de/datenschutzerklaerung/",
+      "accessed_on": "2026-10-11",
+      "note": "开发者说明 Apple Keychain、不可迁移的 Secure Enclave 密钥，以及自愿且默认关闭的 iCloud / 用户目录或 WebDAV Vault；Vault 声称本地 Argon2id + AES-GCM 和 QR 配对。属于声明而非审计，不能作为 Android 密钥或同步实现证据。详细产品页未成功抓取。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S85",
+      "title": "Claude Code CLI reference",
+      "url": "https://code.claude.com/docs/en/cli-reference",
+      "accessed_on": "2026-10-11",
+      "note": "已核对 --resume <id>、当前目录 --continue 与新会话 --session-id UUID。只是当前官方语义；实施须冻结真实版本，验证 ID 与项目关联、启动结果和恢复。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S86",
+      "title": "Codex CLI command reference — resume",
+      "url": "https://learn.chatgpt.com/docs/developer-commands?surface=cli",
+      "accessed_on": "2026-10-11",
+      "note": "官方 developers.openai.com/codex/cli/reference/ 访问时重定向至本页。codex resume 接受会话 ID；--last 默认按当前目录过滤，--all 扩大范围。未找到可据此指定新会话 ID 的启动参数，不臆造。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S87",
+      "title": "Gemini CLI session management",
+      "url": "https://geminicli.com/docs/cli/session-management/",
+      "accessed_on": "2026-10-11",
+      "note": "官方列出按 UUID 恢复及项目范围 --list-sessions。列表有提示词预览，shun 如适配只保留必要标识，不以可变序号作稳定会话身份。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
+    },
+    {
+      "id": "S88",
+      "title": "OpenCode CLI reference",
+      "url": "https://opencode.ai/docs/cli/",
+      "accessed_on": "2026-10-11",
+      "note": "官方列出 --session、--continue 及 session list / JSON 形式；项目关联、版本和解析必须实际验证。启动器不默认开启服务监听、分享或自动批准。",
+      "evidence_level": "PRIMARY_SOURCE_READ",
+      "repository_head": null
     }
   ],
   "revision": "3.0"

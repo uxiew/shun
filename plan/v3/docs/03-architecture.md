@@ -77,3 +77,13 @@ TerminalView可以重建，controller与SSH资源不归页面随意销毁；每�
 以docs/15为新增权威契约：TerminalSession、RemoteDesktopSession和ExternalLaunchAttempt不能合并为一个SSH active布尔值。TailscaleDeviceRef/RustDeskPeerRef/UuBindingRef分别属于各自provider；只经用户显式关联归到同一DeviceRecord，不按名称或IP自动合并。
 
 真正独立安装APK只用于有独立运行时和独立发布价值的provider。UU/RustDesk外部调用适配器无需再套一个空APK。终端引擎是构建期适配器，不开放运行期下载.so。
+
+## AI CLI 发现、启动与恢复的边界（R55–R57）
+
+沿用已验证 SSH client 和冻结 RoutePlan，在 application 层编排工具发现、新建与继续，UI 不直接拼命令。能力按工具实例和实际版本记录，识别结果、登录状态、进程存活和可恢复对话分别表示。固定规则探测与原生 resume 适配不需要新插件运行时，也不依赖 R54 的远端服务协议。
+
+只读探测使用独立有界通道；新建使用专用 PTY 或用户明确创建的 tmux 目标。启动请求绑定 request ID / connection generation，目录、可执行路径、参数分别校验与转义；发送后失联的结果仍是未知，不能靠重试实现所谓 exactly-once。现有 snippet 及 `openManagedTerminal` 不能直接承担这套持久化和路线语义。
+
+最近工作记录独立加密并版本化迁移，保存主机/用户/工具实例/项目路径或 worktree、工作项 ID、完整 tmux 身份和 window/pane 运行关联、可选原生会话 ID 与来源、最近成功访问时间。原生 ID 须由已验证适配或用户显式绑定取得；普通 tmux session ID 与 AI 对话 ID 不互相替代。工具内容与凭据不进记录。
+
+返回顺序为核对工作项/代次/运行关联后的活标签聚焦 → 完整远端目标核验后附着 → 用户显式按原生 ID 继续。只有终端存活证据时显示「返回终端 / 工具状态未知」，CLI 已退出则转原生继续入口。任何一层缺失都不默默变成新建。进程冷启动只恢复入口；存活进程内的页面重建与传输层恢复仍归 R22/R23，且不重跑 CLI，完整用户语义和验收见 [产品范围](02-product-scope.md) 与 AIC01–AIC09。

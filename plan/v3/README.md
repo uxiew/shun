@@ -18,10 +18,11 @@
 |[插件研究](docs/14-plugin-research.md) / [插件架构](docs/15-plugin-architecture.md)|社区事实、运行模型、签名、IPC和权限|
 |[Mosh](docs/16-mosh-plugin.md) / [远控](docs/17-remote-desktop-plugins.md)|真实插件与外部App接入边界|
 |[作者SDK](docs/18-plugin-author-sdk.md)|作者交付、签名、样例和调试|
-|[参考App](docs/20-reference-apps.md)|TermRover、LobiShell 实地看过的交互：学哪些、不学哪些，R39–R50 从这来|
-|[任务](docs/08-implementation-tasks.md) / [验收](docs/09-verification.md)|65项任务（52主线/13后续），148项用例|
+|[参考App](docs/20-reference-apps.md)|TermRover、LobiShell 实地观察；OSH、meshTerm、NovaScale、Dokodemo CLI、ShellDiver 官方资料；R39–R57 的取舍与证据边界|
+|[AI CLI 启动与继续](docs/02-product-scope.md)|工具发现已实现（R55）；项目启动、继续最后会话仍按 R56–R57 推进|
+|[任务](docs/08-implementation-tasks.md) / [验收](docs/09-verification.md)|72项任务（55主线/17后续），160项用例|
 |[交接](docs/10-agent-handoff.md) / [里程碑](docs/19-revised-milestones.md)|其他模型的启动与持续实施|
-|[来源](docs/13-sources.md)|63项公开原始资料及证据限制|
+|[来源](docs/13-sources.md)|88项公开原始资料及证据限制|
 
 **实施进度、已做的改动和下一批只看 [STATUS.md](STATUS.md)**，本页不重复。规划检查结果不当App测试。
 

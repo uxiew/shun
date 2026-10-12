@@ -490,3 +490,144 @@ https://github.com/tailscale/tailscale/issues/7589
 https://github.com/juliansteenbakker/flutter_secure_storage/blob/v9.2.4/flutter_secure_storage/android/src/main/java/com/it_nomads/fluttersecurestorage/FlutterSecureStorage.java
 
 ensureOptions 只在调用带了非空 sharedPreferencesName 时切换文件、从不切回默认，「已初始化就返回」被作者注释掉（注释说会破坏混用）。所以 App 里每一份安全存储都必须显式写文件名，否则会跟着上一次调用的文件走（R14 计划外修复）。
+
+## 2026-10-11 参考应用补充
+
+本批为官方公开资料阅读；未安装三个参考 App、未验证其网络/隐私实现。网页版本和地区缓存可能不同，访问日期不等于发布日期。
+
+<a id="s70"></a>
+## S70 OSH - Zero Trust SSH：美国 App Store
+
+[OSH - Zero Trust SSH：美国 App Store](https://apps.apple.com/us/app/osh-zero-trust-ssh/id6785531354)
+
+访问：2026-10-11；证据：PRIMARY_SOURCE_READ（公开资料，非产品实测）。开发者描述手机硬件签署审批、网关签短期 SSH 证书；只读商店资料，未装机、未验证网关协议，不能当作 SSH 终端或兼容 SDK。
+
+<a id="s71"></a>
+## S71 OSH：另一地区 App Store 更新说明
+
+[OSH：另一地区 App Store 更新说明](https://apps.apple.com/tn/app/osh-zero-trust-ssh/id6785531354?platform=tv)
+
+访问：2026-10-11；证据：PRIMARY_SOURCE_READ（公开资料，非产品实测）。抓取为 1.0.6，美国页为 1.0.4；更新提到推送中继及团队通知，旧简介不足以证明仅连接网关。商店链接的隐私页本轮未成功获取，不作为已读证据。
+
+<a id="s72"></a>
+## S72 meshTerm SSH Client Tailscale：App Store
+
+[meshTerm SSH Client Tailscale：App Store](https://apps.apple.com/us/app/meshterm-ssh-client-tailscale/id6761196011)
+
+访问：2026-10-11；证据：PRIMARY_SOURCE_READ（公开资料，非产品实测）。抓取为 2.2.0；内置 Tailscale、SSH/SFTP、持久会话和容器入口均为开发者声明，更新记录也描述按主机连接诊断；未安装实测。
+
+<a id="s73"></a>
+## S73 meshTerm 官方用户指南
+
+[meshTerm 官方用户指南](https://docs.meshterm.com/meshterm.html)
+
+访问：2026-10-11；证据：PRIMARY_SOURCE_READ（公开资料，非产品实测）。None/tmux/mtRoam 持久性选择、命名会话、键盘和工作流参考。标题/正文仍见 2.1/2.1.11，不能与商店新版混成已验证矩阵。
+
+<a id="s74"></a>
+## S74 meshTerm 官方 mtroamd 仓库
+
+[meshTerm 官方 mtroamd 仓库](https://github.com/AG-Studio-Apps/mtroamd)
+
+访问：2026-10-11；证据：PRIMARY_SOURCE_READ（公开资料，非产品实测）。独立持久终端 daemon，公开描述 QUIC 与 SSH 引导，仓库声明 AGPL-3.0-or-later。只读仓库说明，未冻结/构建/审计全部代码；不是 Mosh 或其 UDP 代理能力。
+
+<a id="s75"></a>
+## S75 meshTerm 官方隐私说明
+
+[meshTerm 官方隐私说明](https://docs.meshterm.com/privacy.html)
+
+访问：2026-10-11；证据：PRIMARY_SOURCE_READ（公开资料，非产品实测）。旧隐私文字与新版同步说明对私钥/known-host 范围不一致，推送另含开发者中继；只能记录声明及差异，不下零外连或已审计结论。
+
+<a id="s76"></a>
+## S76 NovaScale, Built for Tailscale：App Store
+
+[NovaScale, Built for Tailscale：App Store](https://apps.apple.com/us/app/novascale-built-for-tailscale/id6749938291)
+
+访问：2026-10-11；证据：PRIMARY_SOURCE_READ（公开资料，非产品实测）。用户指定页面；抓取为 1.7.0，列出 SSH、SFTP、监控、网页及远程工作区。只读开发者产品说明，不验证会话恢复、付费权益或版本兼容。
+
+<a id="s77"></a>
+## S77 NovaScale 官方产品页
+
+[NovaScale 官方产品页](https://galaxnet.dev/nova/)
+
+访问：2026-10-11；证据：PRIMARY_SOURCE_READ（公开资料，非产品实测）。主机/会话/服务的一体入口；官网另列 Android 版及 libghostty，不能把 iOS 全部功能当 Android 等价能力。只作设计与实现线索。
+
+<a id="s78"></a>
+## S78 NovaScale 官方 FAQ
+
+[NovaScale 官方 FAQ](https://galaxnet.dev/nova/faq/)
+
+访问：2026-10-11；证据：PRIMARY_SOURCE_READ（公开资料，非产品实测）。说明进程终止后的恢复限制、FakeIP 下可能绑定非 VPN 网络以及远端工作区状态归属限制；shun 不采纳 VPN 旁路，协议细节仍须查原提供方并冻结版本。
+
+<a id="s79"></a>
+## S79 NovaScale 使用的 libtailscale 仓库
+
+[NovaScale 使用的 libtailscale 仓库](https://github.com/GalaxNet-Ltd/libtailscale)
+
+访问：2026-10-11；证据：PRIMARY_SOURCE_READ（公开资料，非产品实测）。公开 README 描述进程内用户态 Tailscale C 库；仅作为 R32 候选来源，未冻结 SHA、验证 Android ABI/生命周期或证明与本项目可直接兼容。
+
+## 2026-10-11：Dokodemo CLI、ShellDiver 与 AI CLI 原生恢复
+
+S80–S88 均为本轮读取的官方资料，未安装参考应用、未连接真实主机、未执行 AI CLI 或登录模型账号。工具文档会随版本变化；命令语义不等于 shun 已实现或已验证。
+
+<a id="s80"></a>
+## S80 Dokodemo CLI - SSH Terminal — App Store
+
+[Dokodemo CLI - SSH Terminal — App Store](https://apps.apple.com/us/app/dokodemo-cli-ssh-terminal/id6771627844)
+
+访问：2026-10-11；证据层级：PRIMARY_SOURCE_READ。以 App ID 确認所有者所称 Dokdemo 为 Dokodemo CLI（どこでもCLI），Satoshi Sakuma / Koyomi App Lab。公开介绍 SSH、多会话及 AI 状态提示；未安装或实测，不据此推导自动工具发现或原生对话恢复。
+
+<a id="s81"></a>
+## S81 Dokodemo CLI 官方 FAQ
+
+[Dokodemo CLI 官方 FAQ](https://shopkoyomi.com/article/?id=78&lang=en)
+
+访问：2026-10-11；证据层级：PRIMARY_SOURCE_READ。说明 AI 状态依赖 CLI 终端标题等信号及工具版本/配置；命令参考可复制粘贴，目录选择向当前终端发送 cd，测试连接不等于交互 shell 已可用。仅借鉴入口和提示，不采用向活动 TUI 注入探测命令。
+
+<a id="s82"></a>
+## S82 Dokodemo CLI 官方 Tailscale 使用说明
+
+[Dokodemo CLI 官方 Tailscale 使用说明](https://shopkoyomi.com/article/?id=77)
+
+访问：2026-10-11；证据层级：PRIMARY_SOURCE_READ。依赖独立 Tailscale App 建立网络；不将教程视为 Dokodemo 内嵌、管理或配置 Tailscale 的证据。
+
+<a id="s83"></a>
+## S83 ShellDiver: SSH Client — App Store
+
+[ShellDiver: SSH Client — App Store](https://apps.apple.com/us/app/shelldiver-ssh-client/id6794262497)
+
+访问：2026-10-11；证据层级：PRIMARY_SOURCE_READ。Mathias Oysmueller / Ostrong Studios；抓取页为 1.2.0。说明 session 持有连接、snippets、启动命令及显式 jump 入口；自动重连会得到新 shell，不能当成原进程恢复。未实测；未找到自动 AI CLI 发现或恢复最后 AI 对话的声明。
+
+<a id="s84"></a>
+## S84 ShellDiver 开发者隐私说明 §5.5
+
+[ShellDiver 开发者隐私说明 §5.5](https://www.ostrongstudios.de/datenschutzerklaerung/)
+
+访问：2026-10-11；证据层级：PRIMARY_SOURCE_READ。开发者说明 Apple Keychain、不可迁移的 Secure Enclave 密钥，以及自愿且默认关闭的 iCloud / 用户目录或 WebDAV Vault；Vault 声称本地 Argon2id + AES-GCM 和 QR 配对。属于声明而非审计，不能作为 Android 密钥或同步实现证据。详细产品页未成功抓取。
+
+<a id="s85"></a>
+## S85 Claude Code CLI reference
+
+[Claude Code CLI reference](https://code.claude.com/docs/en/cli-reference)
+
+访问：2026-10-11；证据层级：PRIMARY_SOURCE_READ。已核对 --resume <id>、当前目录 --continue 与新会话 --session-id UUID。只是当前官方语义；实施须冻结真实版本，验证 ID 与项目关联、启动结果和恢复。
+
+<a id="s86"></a>
+## S86 Codex CLI command reference — resume
+
+[Codex CLI command reference — resume](https://learn.chatgpt.com/docs/developer-commands?surface=cli)
+
+访问：2026-10-11；证据层级：PRIMARY_SOURCE_READ。官方 developers.openai.com/codex/cli/reference/ 访问时重定向至本页。codex resume 接受会话 ID；--last 默认按当前目录过滤，--all 扩大范围。未找到可据此指定新会话 ID 的启动参数，不臆造。
+
+<a id="s87"></a>
+## S87 Gemini CLI session management
+
+[Gemini CLI session management](https://geminicli.com/docs/cli/session-management/)
+
+访问：2026-10-11；证据层级：PRIMARY_SOURCE_READ。官方列出按 UUID 恢复及项目范围 --list-sessions。列表有提示词预览，shun 如适配只保留必要标识，不以可变序号作稳定会话身份。
+
+<a id="s88"></a>
+## S88 OpenCode CLI reference
+
+[OpenCode CLI reference](https://opencode.ai/docs/cli/)
+
+访问：2026-10-11；证据层级：PRIMARY_SOURCE_READ。官方列出 --session、--continue 及 session list / JSON 形式；项目关联、版本和解析必须实际验证。启动器不默认开启服务监听、分享或自动批准。

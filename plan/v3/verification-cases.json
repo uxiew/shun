@@ -1652,8 +1652,8 @@
     },
     {
       "id": "UX07",
-      "action": "新建和编辑主机时弹出键盘、改了不保存就离开、填 Mosh 覆盖项、测试连接通过后再改路线。",
-      "expected": "操作栏始终点得到；没保存离开有确认；验证状态如实；覆盖项实际生效，没填时显示「自动」。",
+      "action": "新建和编辑主机时弹出键盘、改了不保存就离开、填 Mosh 覆盖项、测试连接通过后再改路线。 分别选择普通 shell 与指定 tmux 会话，检查其与 SSH/Mosh 的独立说明。",
+      "expected": "操作栏始终点得到；没保存离开有确认；验证状态如实；覆盖项实际生效，没填时显示「自动」。 连接方式不冒充持久性，缺 tmux 时如实说明且不创建会话。",
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": null,
@@ -1670,8 +1670,8 @@
     },
     {
       "id": "UX09",
-      "action": "目录设备在线、离线、没导入三种状态下看主机列表，点设备，打开每台主机的菜单。",
-      "expected": "状态带时间、不等于能连上；没导入的走导入；菜单只列可用动作。",
+      "action": "在两目录来源放入同名/同 IP 设备，覆盖控制面已连接、未连接、未知、缓存过期和未导入；切来源、刷新、移除来源，打开主机菜单。",
+      "expected": "来源隔离、状态带时间，与真实 SSH 状态分开；切来源不换活动会话的路线/身份，刷新不覆盖用户字段；未导入走导入，菜单只列可用动作。",
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": null,
@@ -1685,8 +1685,120 @@
       "result": "NOT_RUN",
       "inherited_from": null,
       "evidence": []
+    },
+    {
+      "id": "UX10",
+      "action": "同一主机经 Direct/SOCKS/Jump 连接，构造失败、取消、重连与无采样；检查本地诊断、导出脱敏、清除、数量/时间上限和秘密诱饵。",
+      "expected": "阶段/失败跳与真实事件一致，握手耗时不称 ping，未知不造值；无额外拨号/轮询/上传，事件无输入输出和凭据，清除及保留上限有效。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UX11",
+      "action": "选择普通 shell / 已有 tmux 目标，断线恢复、SSH/Mosh 切换、同名重建、换 tmux server/socket，检查旧画面与关标签行为。",
+      "expected": "主机/远端目标/恢复阶段清楚；按完整目标识别，同名不自动附着；历史不称存活，不重喂旧 VT、不重发输入/startup、不暗建或杀远端会话。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UX12",
+      "action": "从主机文件入口在 Direct/SOCKS/Jump 下浏览、预览超限文件、上传/下载；中途取消、改变连接代次、断线及覆盖结果未知。",
+      "expected": "只借用同目标/代次的已验证 client；预览资源有界，取消与中断明确；不另起 Direct，不自动覆盖/重传，不自动上传剪贴板内容。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "AIC01",
+      "action": "选定主机检测 claude/codex/gemini/opencode：PATH 与常见安装路径、非交互 PATH 差异、alias/function、多个安装、用户补充路径和未知工具。",
+      "expected": "结果绑定当前用户/主机与扫描范围，列出路径和可确认版本；缺失称此范围未发现，未知版本不猜能力；保留手动工具入口，不声称遍历所有容器/用户/未来工具。",
+      "level": "硬门禁",
+      "result": "PASS",
+      "inherited_from": null,
+      "evidence": [
+        "evidence/R55.md"
+      ]
+    },
+    {
+      "id": "AIC02",
+      "action": "经 Direct/SOCKS/Jump 探测；构造未知指纹、取消、超时、超限输出、恶意路径、包装脚本和失效 generation；监测命令、拨号及写入计数。",
+      "expected": "只用已验证目标 client 和冻结 RoutePlan，失败无 Direct；独立只读通道且有界，不向活动终端送字，不 source rc、不登录/安装/升级/读凭据/调用模型，未知副作用探测跳过。",
+      "level": "硬门禁",
+      "result": "PASS",
+      "inherited_from": null,
+      "evidence": [
+        "evidence/R55.md"
+      ]
+    },
+    {
+      "id": "AIC03",
+      "action": "在含空格、中文、引号、换行/控制字符及命令替换字符的路径/参数下启动，测试目录缺失、权限不足、工具变更及当前标签处于 AI/vim。",
+      "expected": "工具、目录和参数按受支持远端 shell 规则分离与转义，非法值拒绝；目录失败不回退到 home；仅用户选定新终端或专属 tmux 启动，不向其他活动程序注入 cd/命令，不降低 CLI 权限策略。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "AIC04",
+      "action": "双击新建；在 tmux 创建、工具启动、结果确认各边界断网/取消/超时，再恢复网络；记录请求 ID、generation 与远端进程计数。",
+      "expected": "同一动作不重复启动，旧回调无效；发送后结果不明显示未知且先核查请求归属，不自动重发、新建或杀 tmux，不重放提示词；不能把客户端请求 ID 当远端 exactly-once 证明。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "AIC05",
+      "action": "分别从活标签、断开 SSH、同名 tmux 重建、server/socket 更换、多窗口/窗格、窗格内程序已退出返回；同时设置不同主机/用户/项目/worktree。",
+      "expected": "活标签先核对工作项/连接代次/运行关联再聚焦，tmux 核验完整身份加 window/pane 与运行关联后返回；终端存活不等于原 AI 存活，只能确认终端时标未知，CLI 已退出则转显式原生继续；模糊目标要求重选，不新建、不抢其他窗格、不发送输入；失败不覆盖最后成功记录。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "AIC06",
+      "action": "原进程退出后，以固定版本 Claude/Codex 的已绑定原生 ID 继续；另造同目录更新对话、另一 worktree、失效/缺失 ID、配置身份更换与不支持版本。",
+      "expected": "回到原工具/用户/目录和同一对话，指定 ID 失效不改用 --last/--continue 或新建；无可靠 ID 提供历史选择器。Gemini/OpenCode/自定义仅声明实测模式，列表提示词不留存。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "AIC07",
+      "action": "后台、断网、锁屏、杀 App 后冷启动；迁移旧恢复记录，切换身份/删除主机/清除最近记录；检查加密存储、通知、日志、导出和备份。",
+      "expected": "进程冷启动只恢复卡片，点击继续才按策略验证/附着或原生继续；存活进程内运输层恢复仍按 R22/R23 且不重跑 CLI。遵守解锁和凭据租期，缓存标待检查；旧记录缺字段可修复，秘密/对话/草稿不落库或外泄，清除入口不杀远端任务。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "AIC08",
+      "action": "输入模拟 AI 状态标题：合法、伪造、残缺、超长、版本不匹配；等待状态过期、断线、切标签及后台没有新事件。",
+      "expected": "状态带来源与新鲜度，仅作提示；未知/过期不称完成或仍运行，不自动批准、执行、切目录或选择恢复 ID；迟到事件不污染别的工作项。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "AIC09",
+      "action": "在授权的测试主机上冻结 CLI/OS/tmux/候选版本，实跑 Claude/Codex 新建、留在 tmux 后返回、进程结束后按 ID 继续同段测试对话；其他工具逐模式登记。",
+      "expected": "记录同一主机/项目/对话身份和真实结果，受控对话可继续且不重复发送；欢迎页或 fixture 不能替代登录后的证据。未授权账号/额度或缺环境时对应模式保持未测，不宣称完整支持。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
     }
   ],
   "plan_revision": "3.0",
-  "count": 148
+  "count": 160
 }
