@@ -1743,27 +1743,33 @@
       "action": "在含空格、中文、引号、换行/控制字符及命令替换字符的路径/参数下启动，测试目录缺失、权限不足、工具变更及当前标签处于 AI/vim。",
       "expected": "工具、目录和参数按受支持远端 shell 规则分离与转义，非法值拒绝；目录失败不回退到 home；仅用户选定新终端或专属 tmux 启动，不向其他活动程序注入 cd/命令，不降低 CLI 权限策略。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R56-R57-fault-matrix.md"
+      ]
     },
     {
       "id": "AIC04",
       "action": "双击新建；在 tmux 创建、工具启动、结果确认各边界断网/取消/超时，再恢复网络；记录请求 ID、generation 与远端进程计数。",
       "expected": "同一动作不重复启动，旧回调无效；发送后结果不明显示未知且先核查请求归属，不自动重发、新建或杀 tmux，不重放提示词；不能把客户端请求 ID 当远端 exactly-once 证明。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R56-R57-fault-matrix.md"
+      ]
     },
     {
       "id": "AIC05",
       "action": "分别从活标签、断开 SSH、同名 tmux 重建、server/socket 更换、多窗口/窗格、窗格内程序已退出返回；同时设置不同主机/用户/项目/worktree。",
       "expected": "活标签先核对工作项/连接代次/运行关联再聚焦，tmux 核验完整身份加 window/pane 与运行关联后返回；终端存活不等于原 AI 存活，只能确认终端时标未知，CLI 已退出则转显式原生继续；模糊目标要求重选，不新建、不抢其他窗格、不发送输入；失败不覆盖最后成功记录。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R56-R57-fault-matrix.md"
+      ]
     },
     {
       "id": "AIC06",
@@ -1772,25 +1778,31 @@
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R56-R57-fault-matrix.md"
+      ]
     },
     {
       "id": "AIC07",
       "action": "后台、断网、锁屏、杀 App 后冷启动；迁移旧恢复记录，切换身份/删除主机/清除最近记录；检查加密存储、通知、日志、导出和备份。",
       "expected": "进程冷启动只恢复卡片，点击继续才按策略验证/附着或原生继续；存活进程内运输层恢复仍按 R22/R23 且不重跑 CLI。遵守解锁和凭据租期，缓存标待检查；旧记录缺字段可修复，秘密/对话/草稿不落库或外泄，清除入口不杀远端任务。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R56-R57-fault-matrix.md"
+      ]
     },
     {
       "id": "AIC08",
       "action": "输入模拟 AI 状态标题：合法、伪造、残缺、超长、版本不匹配；等待状态过期、断线、切标签及后台没有新事件。",
       "expected": "状态带来源与新鲜度，仅作提示；未知/过期不称完成或仍运行，不自动批准、执行、切目录或选择恢复 ID；迟到事件不污染别的工作项。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R56-R57-fault-matrix.md"
+      ]
     },
     {
       "id": "AIC09",
@@ -1799,7 +1811,9 @@
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R56-R57-fault-matrix.md"
+      ]
     }
   ],
   "plan_revision": "3.0",

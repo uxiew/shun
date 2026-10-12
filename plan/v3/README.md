@@ -19,7 +19,7 @@
 |[Mosh](docs/16-mosh-plugin.md) / [远控](docs/17-remote-desktop-plugins.md)|真实插件与外部App接入边界|
 |[作者SDK](docs/18-plugin-author-sdk.md)|作者交付、签名、样例和调试|
 |[参考App](docs/20-reference-apps.md)|TermRover、LobiShell 实地观察；OSH、meshTerm、NovaScale、Dokodemo CLI、ShellDiver 官方资料；R39–R57 的取舍与证据边界|
-|[AI CLI 启动与继续](docs/02-product-scope.md)|工具发现已验收（R55）；项目启动、最近工作和继续入口已接入，R56–R57 仍在验收|
+|[AI CLI 启动与继续](docs/02-product-scope.md)|工具发现已验收（R55）；项目启动、最近工作和继续入口的无账号矩阵已验收，R56–R57 仍待真实原生对话验证|
 |[任务](docs/08-implementation-tasks.md) / [验收](docs/09-verification.md)|72项任务（55主线/17后续），160项用例|
 |[交接](docs/10-agent-handoff.md) / [里程碑](docs/19-revised-milestones.md)|其他模型的启动与持续实施|
 |[来源](docs/13-sources.md)|88项公开原始资料及证据限制|

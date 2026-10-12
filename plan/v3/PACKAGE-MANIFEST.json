@@ -19,13 +19,13 @@
     },
     {
       "path": "README.md",
-      "size": 2730,
-      "sha256": "7c132a22a19312edfb8fefacf34cb5e45f795a50e7a79c947959c803c0e3fb70"
+      "size": 2766,
+      "sha256": "66820490ff595d59de27b448e8abf6701efa6cf7218ecd28050e1cb9729ad091"
     },
     {
       "path": "STATUS.md",
-      "size": 53522,
-      "sha256": "a093cabf73de85c2a941541ff05484c3a8d8fd22fe6c88fcfdd3d263da2e6d6b"
+      "size": 53810,
+      "sha256": "b12f4d03690788ffba7e2849ab13c547ed7c108c5c5602a1ada49a0867a8a63f"
     },
     {
       "path": "contracts/README.md",
@@ -104,8 +104,8 @@
     },
     {
       "path": "docs/02-product-scope.md",
-      "size": 13718,
-      "sha256": "595a4b9b62861d8db55b38b7c387d82fc4d76b3c7ca94dae0f190a7c674775ef"
+      "size": 13782,
+      "sha256": "1d2257973d8128a872ed217b7458832b1d854c1937f8c1288de83a85e79c21dc"
     },
     {
       "path": "docs/03-architecture.md",
@@ -139,8 +139,8 @@
     },
     {
       "path": "docs/09-verification.md",
-      "size": 37355,
-      "sha256": "45290054af8ee295aeeb9063c5f504e517fd730d8af429dfbb6f7283768a1ddf"
+      "size": 37552,
+      "sha256": "2572e5149abcd11041453b3527e15a20e9942edb75cb37b30c38c732fc9b7734"
     },
     {
       "path": "docs/10-agent-handoff.md",
@@ -194,8 +194,8 @@
     },
     {
       "path": "docs/20-reference-apps.md",
-      "size": 18788,
-      "sha256": "3db00a5cc2b7cb9072f22ee2411e1896e8ab1bf0a2f79b049c65588a78d341dc"
+      "size": 18879,
+      "sha256": "a2a126fd70f5b257a27fb07e39759a3da603749158fda35f014adea0601249db"
     },
     {
       "path": "legacy-task-map.json",
@@ -229,8 +229,8 @@
     },
     {
       "path": "tasks.json",
-      "size": 107247,
-      "sha256": "6d33d3fda43d2cffbb835075eaf47f9367b0be695570e2970cb5028b53c4efdf"
+      "size": 107377,
+      "sha256": "c180c76239d26567de63d1a231356f3851a270687caf1d6c0c70d05eca900b27"
     },
     {
       "path": "templates/evidence.md",
@@ -249,8 +249,8 @@
     },
     {
       "path": "verification-cases.json",
-      "size": 66447,
-      "sha256": "67bdbfd3baa101b9c5180370f1136b196663d64e0b623baf2d3ab8e71299942b"
+      "size": 66782,
+      "sha256": "8c70813b0bfe39f445fc01f768ad674bd816a39e96d6318626a8600ce0789047"
     }
   ],
   "application_build_performed": false,

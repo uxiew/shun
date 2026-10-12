@@ -2935,8 +2935,11 @@
       ],
       "stop_condition": "不能用现有 snippet 自动发送或未持久化的 openManagedTerminal 直接拼出启动器；结果不明须留作未知，不靠重试证明成功。",
       "owner_role": "实施代理",
-      "evidence": ["evidence/R56.md"],
-      "commit": null
+      "evidence": [
+        "evidence/R56.md",
+        "evidence/R56-R57-fault-matrix.md"
+      ],
+      "commit": "af17597"
     },
     {
       "id": "R57",
@@ -2975,8 +2978,11 @@
       ],
       "stop_condition": "没有可靠 ID 只能返回经核实的活终端或让用户选择，不能把新建称恢复；真实登录/额度未授权时相关运行证据保持未测，不影响受控边界测试。",
       "owner_role": "实施代理",
-      "evidence": ["evidence/R57.md"],
-      "commit": null
+      "evidence": [
+        "evidence/R57.md",
+        "evidence/R56-R57-fault-matrix.md"
+      ],
+      "commit": "af17597"
     }
   ],
   "plan_revision": "3.0"
