@@ -1088,7 +1088,7 @@ class SshService {
                 // remote process did not start. Consume the request now.
                 onExecAttempted?.call();
                 return client.execute(
-                  aiLaunch.sshCommand,
+                  aiLaunch.sshCommandWithReadyMarker,
                   pty: const SSHPtyConfig(
                       type: 'xterm-256color', width: 80, height: 24),
                   environment: _environment(target),
@@ -1103,7 +1103,7 @@ class SshService {
     }
     // 先绑定再收输出：标签在恢复途中被关、终端已释放时，绑定直接失败，一个订阅都不留。
     var sentInput = false;
-    var inputEnabled = purpose != ConnectionPurpose.restore;
+    var inputEnabled = purpose != ConnectionPurpose.restore && aiLaunch == null;
     final binding = terminal.bind(
       (bytes) {
         if (!inputEnabled) return;
@@ -1115,10 +1115,57 @@ class SshService {
     // 远端字节原样送进终端，不在网络分包处转成字符串（TER01）。
     // 带 PTY 的会话里远端已把 stderr 并进 stdout，stderr 通道基本是空的；两路共用终端的同一条字节流，
     // 和真实终端只有一条输入流一样。
-    final subscriptions = [
-      session.stdout.listen(terminal.feed),
-      session.stderr.listen(terminal.feed),
-    ];
+    final ready = aiLaunch == null ? null : Completer<void>();
+    final prelude = BytesBuilder(copy: false);
+    void output(Uint8List bytes) {
+      if (ready == null || ready.isCompleted) {
+        terminal.feed(bytes);
+        return;
+      }
+      prelude.add(bytes);
+      final raw = prelude.toBytes();
+      final index = latin1.decode(raw).indexOf(AiCliLaunchSpec.readyMarker);
+      if (index >= 0) {
+        prelude.clear();
+        inputEnabled = true;
+        ready.complete();
+        terminal.feed(Uint8List.sublistView(raw, 0, index));
+        terminal.feed(Uint8List.sublistView(
+            raw, index + AiCliLaunchSpec.readyMarker.length));
+      } else if (raw.length > 8192) {
+        ready.completeError(const AiCliLaunchUnknownException());
+      }
+    }
+
+    final subscriptions = aiLaunch == null
+        ? [
+            session.stdout.listen(terminal.feed),
+            session.stderr.listen(terminal.feed)
+          ]
+        : [session.stdout.listen(output), session.stderr.listen(output)];
+    if (ready != null) {
+      unawaited(session.done.then((_) {
+        if (!ready.isCompleted) {
+          ready.completeError(session.exitCode == 125 || session.exitCode == 126
+              ? AiCliLaunchRejectedException(session.exitCode!)
+              : const AiCliLaunchUnknownException());
+        }
+      }, onError: (Object _) {
+        if (!ready.isCompleted) {
+          ready.completeError(const AiCliLaunchUnknownException());
+        }
+      }));
+      try {
+        await pending
+            .waitFor(ready.future.timeout(const Duration(seconds: 15)));
+      } catch (_) {
+        binding.release();
+        for (final subscription in subscriptions) {
+          await subscription.cancel();
+        }
+        rethrow;
+      }
+    }
     final startup = target.startupCommand;
     if (startup != null &&
         startup.isNotEmpty &&

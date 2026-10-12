@@ -34,6 +34,9 @@ const englishTranslations = <String, String>{
   r'返回原终端': r'Return to original terminal',
   r'按会话 ID 继续': r'Resume by session ID',
   r'选择 Codex 历史': r'Choose Codex history',
+  r'选择 Claude 历史': r'Choose Claude history',
+  r'Claude 未取得确切会话 ID，需在工具中选择':
+      r'No exact Claude session ID is available; choose history in the tool',
   r'仅可重新新建': r'New session only',
   r'原终端仍连接；工具状态请在终端确认':
       r'The original terminal is connected; check the tool state there',

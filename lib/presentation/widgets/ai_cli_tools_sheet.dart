@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
 import '../../application/connection_lifecycle.dart';
+import '../../application/ai_cli_return.dart';
 import '../../application/home_navigation.dart';
 import '../../application/session_controller.dart';
 import '../../application/vault_controller.dart';
@@ -56,6 +57,7 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
   AiCliScanRequest _request = AiCliScanRequest();
   AiCliScanResult? _result;
   List<AiCliWorkItem> _recent = const [];
+  bool _recentUnreadable = false;
   final _tmuxGoneIds = <String>{};
   RoutePlan? _candidatePlan, _scannedPlan;
   AiCliProbeCancellation? _cancellation;
@@ -75,9 +77,14 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
   Future<void> _loadRecent() async {
     try {
       final items = await widget.recentWork.load(_scope);
-      if (mounted) setState(() => _recent = items);
+      if (mounted) {
+        setState(() {
+          _recent = items;
+          _recentUnreadable = false;
+        });
+      }
     } on Object {
-      if (mounted) setState(() => _error = '无法读取最近工作记录');
+      if (mounted) setState(() => _recentUnreadable = true);
     }
   }
 
@@ -274,8 +281,8 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
                   ),
                   FilledButton(
                     key: const ValueKey('ai-cli-confirm-launch'),
-                    onPressed: () => Navigator.pop(context,
-                        (directory: directory.trim(), useTmux: useTmux)),
+                    onPressed: () => Navigator.pop(
+                        context, (directory: directory, useTmux: useTmux)),
                     child: const LText('新建终端'),
                   ),
                 ],
@@ -338,26 +345,25 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
       _error = null;
     });
     try {
+      if (!_recentIdentityMatches()) return;
       final sessions = ref.read(sessionControllerProvider).sessions;
       final old = sessions
-          .where((session) =>
-              session.id == item.id &&
-              session.connected &&
-              session.aiTmuxRun?.sameAs(run) == true)
+          .where((session) => matchesAiWorkTerminal(session, item, widget.host))
           .firstOrNull;
       if (old != null && old.sshClient != null && !old.sshClient!.isClosed) {
         final client = old.sshClient!;
         await const AiCliTmuxService().verify(client, run);
         if (!mounted) return;
+        if (!_recentIdentityMatches()) return;
         final index = ref.read(sessionControllerProvider).sessions.indexWhere(
             (session) =>
                 identical(session, old) &&
                 session.connected &&
                 identical(session.sshClient, client));
         if (index >= 0) {
+          ref.read(sessionControllerProvider.notifier).activate(index);
           await _rememberReturn(item);
           if (!mounted) return;
-          ref.read(sessionControllerProvider.notifier).activate(index);
           ref.read(homeTabProvider.notifier).state = 1;
           Navigator.pop(context);
           return;
@@ -455,7 +461,12 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
   Future<void> _clearRecent() async {
     try {
       await widget.recentWork.clear(_scope);
-      if (mounted) setState(() => _recent = const []);
+      if (mounted) {
+        setState(() {
+          _recent = const [];
+          _recentUnreadable = false;
+        });
+      }
     } on Object {
       if (mounted) setState(() => _error = '无法清除最近工作记录');
     }
@@ -486,19 +497,15 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
     if (_launching) return;
     setState(() => _launching = true);
     try {
+      if (!_recentIdentityMatches()) return;
       final index = ref.read(sessionControllerProvider).sessions.indexWhere(
-          (session) =>
-              session.id == item.id &&
-              session.connected &&
-              session.aiTerminalOriginal);
+          (session) => matchesAiWorkTerminal(session, item, widget.host));
       if (index < 0) return;
+      ref.read(sessionControllerProvider.notifier).activate(index);
       await _rememberReturn(item);
       if (!mounted) return;
       final stillLive = ref.read(sessionControllerProvider).sessions.indexWhere(
-          (session) =>
-              session.id == item.id &&
-              session.connected &&
-              session.aiTerminalOriginal);
+          (session) => matchesAiWorkTerminal(session, item, widget.host));
       if (stillLive < 0) return;
       ref.read(sessionControllerProvider.notifier).activate(stillLive);
       ref.read(homeTabProvider.notifier).state = 1;
@@ -508,20 +515,27 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
     }
   }
 
+  bool _recentIdentityMatches() {
+    final hosts = ref.read(vaultControllerProvider).data?.hosts;
+    final current = hosts
+        ?.where((host) => host.id == sourceHostIdOf(widget.host))
+        .firstOrNull;
+    if (current != null && aiCliHostScope(current) == _scope) return true;
+    setState(() => _error = '主机身份已改变，请重新打开工具列表');
+    return false;
+  }
+
   Widget _recentCard(AiCliWorkItem item) {
     final state = widget.sessionState ??
         ref.watch(sessionControllerProvider) ??
         const SessionState();
     final liveIndex = state.sessions.indexWhere((session) =>
-        session.id == item.id &&
-        session.connected &&
-        session.aiTerminalOriginal);
+        item.tmuxRun == null &&
+        matchesAiWorkTerminal(session, item, widget.host));
     final tmux = item.tmuxRun != null && !_tmuxGoneIds.contains(item.id);
     final liveTmux = state.sessions.any((session) =>
-        session.id == item.id &&
-        session.connected &&
         item.tmuxRun != null &&
-        session.aiTmuxRun?.sameAs(item.tmuxRun!) == true);
+        matchesAiWorkTerminal(session, item, widget.host));
     final exact = item.exactResume() != null;
     final picker = item.historyPicker() != null;
     final label = liveIndex >= 0
@@ -531,46 +545,54 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
             : exact
                 ? '按会话 ID 继续'
                 : picker
-                    ? '选择 Codex 历史'
+                    ? item.tool == AiCliKind.codex
+                        ? '选择 Codex 历史'
+                        : '选择 Claude 历史'
                     : '仅可重新新建';
     return Card(
-      child: ListTile(
-        title: LText('${item.name} · ${item.projectDirectory}'),
-        subtitle: LText(liveIndex >= 0
-            ? '原终端仍连接；工具状态请在终端确认'
-            : tmux
-                ? '将核对原 session、窗口、窗格和进程，再返回终端'
-                : exact
-                    ? 'Claude 会话 ID 已记录；远端会话存在性待工具核验'
-                    : picker
-                        ? 'Codex 未取得确切会话 ID，需在工具中选择'
-                        : '没有可核验的继续目标'),
-        trailing: Row(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextButton(
-              key: ValueKey('ai-cli-recent-${item.id}'),
-              onPressed: _launching
-                  ? null
-                  : liveIndex >= 0
-                      ? () => _returnLive(item)
-                      : tmux && (_scannedPlan != null || liveTmux)
-                          ? () => _returnTmux(item)
-                          : _scannedPlan != null && (exact || picker)
-                              ? () => _resume(item)
-                              : null,
-              child: LText(label),
-            ),
-            IconButton(
-              key: ValueKey('ai-cli-new-from-recent-${item.id}'),
-              tooltip: localized('同项目新建'),
-              onPressed: _launching || _scannedPlan == null
-                  ? null
-                  : () => _launchFromRecent(item),
-              icon: const Icon(Icons.add),
-            ),
-          ],
-        ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          LText('${item.name} · ${item.projectDirectory}'),
+          const SizedBox(height: 4),
+          LText(liveIndex >= 0
+              ? '原终端仍连接；工具状态请在终端确认'
+              : tmux
+                  ? '将核对原 session、窗口、窗格和进程，再返回终端'
+                  : exact
+                      ? 'Claude 会话 ID 已记录；远端会话存在性待工具核验'
+                      : picker
+                          ? item.tool == AiCliKind.codex
+                              ? 'Codex 未取得确切会话 ID，需在工具中选择'
+                              : 'Claude 未取得确切会话 ID，需在工具中选择'
+                          : '没有可核验的继续目标'),
+          Wrap(
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              TextButton(
+                key: ValueKey('ai-cli-recent-${item.id}'),
+                onPressed: _launching
+                    ? null
+                    : liveIndex >= 0
+                        ? () => _returnLive(item)
+                        : tmux && (_scannedPlan != null || liveTmux)
+                            ? () => _returnTmux(item)
+                            : _scannedPlan != null && (exact || picker)
+                                ? () => _resume(item)
+                                : null,
+                child: LText(label),
+              ),
+              IconButton(
+                key: ValueKey('ai-cli-new-from-recent-${item.id}'),
+                tooltip: localized('同项目新建'),
+                onPressed: _launching || _scannedPlan == null
+                    ? null
+                    : () => _launchFromRecent(item),
+                icon: const Icon(Icons.add),
+              ),
+            ],
+          ),
+        ]),
       ),
     );
   }
@@ -684,6 +706,9 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
                     widget.session?.keyboardInteractive,
               );
       if (!mounted) return;
+      if (!opened && tmuxCreateAttempted) {
+        throw const AiCliLaunchUnknownException();
+      }
       if (opened) {
         if (record && openedTabId != null) {
           final item = AiCliWorkItem(
@@ -718,6 +743,7 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
               ? [tmuxUnknown, 'shun-ai-$requestId'].join('\n')
               : switch (error) {
                   AiCliLaunchUnknownException() => error.toString(),
+                  AiCliLaunchRejectedException(:final message) => message,
                   AiCliDiscoveryException(:final message) => message,
                   TmuxCommandException(:final message) => message,
                   FormatException(:final message) => message,
@@ -762,8 +788,9 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
               '检测范围：当前 SSH 用户的非交互 PATH、常见安装目录，以及你补充的位置。别名、shell 函数、其他用户和容器内的工具可能无法发现。'),
           const SizedBox(height: 8),
           const LText('找到工具不代表已登录。仅检查可执行文件和安装包标注的版本；不会运行工具、安装软件或调用模型。'),
-          if (_recent.isNotEmpty) ...[
+          if (_recent.isNotEmpty || _recentUnreadable) ...[
             const SizedBox(height: 12),
+            if (_recentUnreadable) const LText('无法读取最近工作记录'),
             Row(children: [
               const Expanded(
                   child: LText('最近工作（仅本机）',

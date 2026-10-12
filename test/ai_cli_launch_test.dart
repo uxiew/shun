@@ -50,6 +50,26 @@ void main() {
   });
 
   test('absolute tool, safe directory and bounded arguments are required', () {
+    for (final point in [
+      ...List.generate(32, (i) => i),
+      ...List.generate(33, (i) => 127 + i)
+    ]) {
+      final control = String.fromCharCode(point);
+      expect(
+          () => AiCliLaunchSpec(
+              executable: '/bin/$control', projectDirectory: '/tmp'),
+          throwsFormatException);
+      expect(
+          () => AiCliLaunchSpec(
+              executable: '/bin/codex', projectDirectory: '/tmp/$control'),
+          throwsFormatException);
+      expect(
+          () => AiCliLaunchSpec(
+              executable: '/bin/codex',
+              projectDirectory: '/tmp',
+              arguments: [control]),
+          throwsFormatException);
+    }
     expect(
         () => AiCliLaunchSpec(executable: '~/codex', projectDirectory: '/tmp'),
         throwsFormatException);

@@ -18,8 +18,10 @@ class AiCliWorkItem {
     validateAiCliPath(executable);
     validateAiCliPath(projectDirectory);
     if (!executable.startsWith('/') ||
+        !projectDirectory.startsWith('/') ||
         id.isEmpty ||
         id.length > 80 ||
+        RegExp(r'[\x00-\x1f\x7f-\x9f]').hasMatch(id) ||
         name.trim().isEmpty ||
         name.length > 80 ||
         RegExp(r'[\x00-\x1f\x7f-\x9f]').hasMatch(name)) {
@@ -56,13 +58,15 @@ class AiCliWorkItem {
           arguments: ['--resume', claudeSessionId!],
         );
 
-  /// For Codex, show its own project-filtered picker. This is a user choice,
+  /// Without an exact ID, show the tool's own picker. This is a user choice,
   /// not a claim that Shun knows which private conversation was last used.
-  AiCliLaunchSpec? historyPicker() => tool == AiCliKind.codex
+  AiCliLaunchSpec? historyPicker() => tool == AiCliKind.codex ||
+          (tool == AiCliKind.claude && claudeSessionId == null)
       ? AiCliLaunchSpec(
           executable: executable,
           projectDirectory: projectDirectory,
-          arguments: const ['resume'],
+          arguments:
+              tool == AiCliKind.codex ? const ['resume'] : const ['--resume'],
         )
       : null;
 

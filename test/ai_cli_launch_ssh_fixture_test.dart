@@ -5,6 +5,8 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/domain/ai_cli_launch.dart';
+import 'package:shun/domain/ai_cli.dart';
+import 'package:shun/domain/ai_cli_work.dart';
 import 'package:shun/domain/connection_route.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/infrastructure/ssh/ai_cli_discovery.dart';
@@ -141,7 +143,7 @@ chmod +x ~/r56/tool
       final host = edge();
       final terminal = newTestTerminal();
       addTearDown(terminal.dispose);
-      final session = await SshService().connectAiCli(
+      final opening = SshService().connectAiCli(
         sessionId: 'r56-missing',
         host: host,
         routePlan: plan(host),
@@ -152,9 +154,10 @@ chmod +x ~/r56/tool
             executable: '/home/fixture/r56/tool',
             projectDirectory: '~/r56/missing'),
       );
-      addTearDown(session.abort);
-      await session.sshSession!.done;
-      expect(session.sshSession!.exitCode, 125);
+      await expectLater(
+          opening,
+          throwsA(isA<AiCliLaunchRejectedException>()
+              .having((e) => e.exitCode, 'preflight exit code', 125)));
     }, skip: skip);
 
     test('new AI PTY writes nothing to an existing interactive terminal',
@@ -208,6 +211,162 @@ chmod +x ~/r56/tool
       await Future<void>.delayed(const Duration(milliseconds: 100));
       expect(await run(edge(), 'wc -c < ~/r56/oldinput'),
           '${int.parse(before) + 6}');
+    }, skip: skip);
+
+    test('AIC03 launching beside real vim does not type into or leave vim',
+        () async {
+      await run(edge(), 'rm -f ~/r56/vim.keys ~/r56/ran');
+      final vimHost = HostProfile({
+        ...edge().data,
+        'startupCommand':
+            'exec vim -Nu NONE -n -i NONE -w /home/fixture/r56/vim.keys'
+      });
+      final terminal = newTestTerminal();
+      addTearDown(terminal.dispose);
+      final vim = await SshService().connect(
+          sessionId: 'existing-vim',
+          host: vimHost,
+          routePlan: plan(vimHost),
+          verifyHostKey: verify,
+          terminal: terminal);
+      addTearDown(vim.abort);
+      for (var n = 0; n < 40 && !terminal.allText().contains('VIM'); n++) {
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      expect(terminal.allText(), contains('VIM'));
+      final before = await run(edge(), 'wc -c < ~/r56/vim.keys');
+      final next = newTestTerminal();
+      addTearDown(next.dispose);
+      final launched = await SshService().connectAiCli(
+          sessionId: 'beside-vim',
+          host: edge(),
+          routePlan: plan(edge()),
+          verifyHostKey: verify,
+          terminal: next,
+          attempt: ConnectionAttempt(),
+          launch: AiCliLaunchSpec(
+              executable: '/home/fixture/r56/tool',
+              projectDirectory: '/home/fixture/r56/project'));
+      addTearDown(launched.abort);
+      expect(await run(edge(), 'wc -c < ~/r56/vim.keys'), before);
+      expect(terminal.allText(), contains('VIM'));
+      expect(next.allText(), isNot(contains('SHUN_AI_READY')));
+      terminal.sendText(':q!\r');
+      await vim.sshSession!.done.timeout(const Duration(seconds: 5));
+      expect(vim.sshSession!.exitCode, 0);
+    }, skip: skip);
+
+    test(
+        'AIC03 remote literal paths/arguments, permission and executable changes',
+        () async {
+      String quote(String s) => "'${s.replaceAll("'", "'\\''")}'";
+      const project = "/home/fixture/r56/项目 ' \$(touch INJECTED)";
+      const executable = "/home/fixture/r56/tool ' \$(touch INJECTED)";
+      const argument = "value ' \$(touch INJECTED) ; `touch INJECTED`";
+      const body =
+          '#!/bin/sh\nprintf "%s\\n" "\$PWD" "\$1" > "\$HOME/r56/literals"\n';
+      await run(edge(),
+          'mkdir -p ${quote(project)}; printf %s ${quote(body)} > ${quote(executable)}; chmod +x ${quote(executable)}');
+      final spec = AiCliLaunchSpec(
+          executable: executable,
+          projectDirectory: project,
+          arguments: const [argument]);
+      final canonical = await SshService().withVerifiedClient(
+          routePlan: plan(edge()),
+          verifyHostKey: verify,
+          attempt: ConnectionAttempt(),
+          query: (client) => const AiCliDiscoveryService()
+              .canonicalProject(client, spec, AiCliProbeCancellation()));
+      expect(canonical, project);
+      final terminal = newTestTerminal();
+      addTearDown(terminal.dispose);
+      final session = await SshService().connectAiCli(
+          sessionId: 'literal-paths',
+          host: edge(),
+          routePlan: plan(edge()),
+          verifyHostKey: verify,
+          terminal: terminal,
+          attempt: ConnectionAttempt(),
+          launch: spec);
+      addTearDown(session.abort);
+      await session.sshSession!.done;
+      expect(session.sshSession!.exitCode, 0);
+      expect(await run(edge(), 'cat ~/r56/literals'), '$project\n$argument');
+      expect(await run(edge(), 'find ~/r56 -name INJECTED'), isEmpty);
+      for (final failure in ['permission', 'removed-tool', 'changed-mode']) {
+        await run(edge(),
+            'chmod 755 ${quote(project)} ${quote(executable)} 2>/dev/null || :');
+        if (failure == 'permission') {
+          await run(edge(), 'chmod 000 ${quote(project)}');
+        } else if (failure == 'removed-tool') {
+          await run(
+              edge(), 'mv ${quote(executable)} ${quote('$executable.saved')}');
+        } else {
+          await run(edge(),
+              'mv ${quote('$executable.saved')} ${quote(executable)}; chmod 600 ${quote(executable)}');
+        }
+        await expectLater(
+            SshService().withVerifiedClient(
+                routePlan: plan(edge()),
+                verifyHostKey: verify,
+                attempt: ConnectionAttempt(),
+                query: (client) => const AiCliDiscoveryService()
+                    .canonicalProject(client, spec, AiCliProbeCancellation())),
+            throwsA(isA<AiCliDiscoveryException>()));
+        final t = newTestTerminal();
+        addTearDown(t.dispose);
+        final changed = SshService().connectAiCli(
+            sessionId: failure,
+            host: edge(),
+            routePlan: plan(edge()),
+            verifyHostKey: verify,
+            terminal: t,
+            attempt: ConnectionAttempt(),
+            launch: spec);
+        await expectLater(
+            changed,
+            throwsA(isA<AiCliLaunchRejectedException>().having(
+                (e) => e.exitCode,
+                'preflight exit code',
+                failure == 'permission' ? 125 : 126)));
+      }
+      await run(edge(), 'chmod 755 ${quote(project)}');
+    }, skip: skip);
+
+    test(
+        'AIC06 inert adapter rejects invalid exact ID without any fallback or new run',
+        () async {
+      // This validates dispatch, NOT real Claude/Codex conversation continuity.
+      const body = r'''#!/bin/sh
+printf '%s\n' "$PWD" "$@" >> "$HOME/r56/resume-args"
+exit 44
+''';
+      final encoded = base64.encode(utf8.encode(body));
+      await run(edge(),
+          'printf %s $encoded | base64 -d > ~/r56/resume-tool; chmod +x ~/r56/resume-tool; rm -f ~/r56/resume-args');
+      final item = AiCliWorkItem(
+          id: 'old',
+          tool: AiCliKind.claude,
+          name: 'Claude',
+          executable: '/home/fixture/r56/resume-tool',
+          projectDirectory: '/home/fixture/r56/project',
+          openedAt: DateTime.now(),
+          claudeSessionId: '550e8400-e29b-41d4-a716-446655440000');
+      final t = newTestTerminal();
+      addTearDown(t.dispose);
+      final resumed = await SshService().connectAiCli(
+          sessionId: 'invalid-native-id',
+          host: edge(),
+          routePlan: plan(edge()),
+          verifyHostKey: verify,
+          terminal: t,
+          attempt: ConnectionAttempt(),
+          launch: item.exactResume()!);
+      addTearDown(resumed.abort);
+      await resumed.sshSession!.done;
+      expect(resumed.sshSession!.exitCode, 44);
+      expect(await run(edge(), 'cat ~/r56/resume-args'),
+          '/home/fixture/r56/project\n--resume\n550e8400-e29b-41d4-a716-446655440000');
     }, skip: skip);
   });
 }

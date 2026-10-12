@@ -252,12 +252,12 @@ const tmuxDetailsScript = '$_socketSnippet $_guardSnippet '
 /// Dedicated AI run: require exactly one window and pane and capture both
 /// stable tmux IDs plus the pane process ID before sending any tool command.
 const tmuxAiPaneScript = '$_socketSnippet $_guardSnippet '
-    r'v=$(tmux -S "$s" display-message -p -t "$5" "#{session_windows}:#{window_panes}:#{session_id}:#{window_id}:#{pane_id}:#{pane_pid}" 2>/dev/null) || exit 97; '
+    r'v=$(tmux -S "$s" display-message -p -t "$5" "#{session_windows}:#{window_panes}:#{session_id}:#{window_id}:#{pane_id}:#{pane_pid}:#{pane_dead}" 2>/dev/null) || exit 97; '
     r'[ -n "$v" ] || exit 97; printf "%s\n" "$v"';
 
 const _aiPaneGuardSnippet =
-    r'p=$(tmux -S "$s" display-message -p -t "$6" "#{session_id}:#{window_id}:#{pane_id}:#{pane_pid}" 2>/dev/null) || exit 97; '
-    r'[ "$p" = "$7" ] || exit 97;';
+    r'p=$(tmux -S "$s" display-message -p -t "$6" "#{session_windows}:#{window_panes}:#{session_id}:#{window_id}:#{pane_id}:#{pane_pid}:#{pane_dead}" 2>/dev/null) || exit 97; '
+    r'[ "$p" = "1:1:$7:0" ] || exit 97;';
 
 /// Startup text goes through stdin into the one verified pane. If that pane
 /// was replaced between creation and dispatch, nothing is sent anywhere.
@@ -396,9 +396,10 @@ String tmuxAiAttachCommand(AiCliTmuxRun run) => _command(tmuxAiAttachScript,
     String raw, TmuxTarget target) {
   final line = raw.trim();
   final parts = line.split(':');
-  if (parts.length != 6 ||
+  if (parts.length != 7 ||
       parts[0] != '1' ||
       parts[1] != '1' ||
+      parts[6] != '0' ||
       parts[2] != target.sessionId ||
       !RegExp(r'^@\d{1,9}$').hasMatch(parts[3]) ||
       !RegExp(r'^%\d{1,9}$').hasMatch(parts[4])) {

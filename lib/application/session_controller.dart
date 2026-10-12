@@ -469,8 +469,9 @@ class SessionController extends StateNotifier<SessionState> {
         if (aiExecAttempted) throw const AiCliLaunchUnknownException();
         return false;
       }
-      final reported =
-          aiExecAttempted ? const AiCliLaunchUnknownException() : error;
+      final reported = aiExecAttempted && error is! AiCliLaunchRejectedException
+          ? const AiCliLaunchUnknownException()
+          : error;
       state = state.copyWith(
         pendingConnections: state.pendingConnections
             .map(

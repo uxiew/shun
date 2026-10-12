@@ -336,6 +336,97 @@ void main() {
       expect(controller.state.selectedPending?.error,
           isA<AiCliLaunchUnknownException>());
     });
+
+    test(
+        'confirmed remote preflight rejection never opens a tab or records recent success',
+        () async {
+      var openedCount = 0;
+      final opening = controller.openAiCliTerminal(
+          requestId: 'rejected',
+          host: host,
+          routePlan: route(),
+          label: 'Claude',
+          launch: launch(),
+          verifyHostKey: accept,
+          onOpened: (_) => openedCount++);
+      await settle();
+      final call = service.aiCalls.single;
+      call.onExecAttempted?.call();
+      call.result.completeError(const AiCliLaunchRejectedException(125));
+      await expectLater(opening, throwsA(isA<AiCliLaunchRejectedException>()));
+      expect(controller.state.sessions, isEmpty);
+      expect(openedCount, 0);
+      expect(controller.state.selectedPending?.error,
+          isA<AiCliLaunchRejectedException>());
+    });
+
+    for (final attempted in [false, true]) {
+      test(
+          'AIC04 timeout ${attempted ? 'after' : 'before'} exec retains correct uncertainty and cannot replay',
+          () async {
+        var openedCount = 0;
+        final opened = controller.openAiCliTerminal(
+            requestId: 'timeout',
+            host: host,
+            routePlan: route(),
+            label: 'Claude',
+            launch: launch(),
+            verifyHostKey: accept,
+            onOpened: (_) => openedCount++);
+        await settle();
+        final call = service.aiCalls.single;
+        if (attempted) call.onExecAttempted?.call();
+        call.result.completeError(TimeoutException('withheld acknowledgement'));
+        await expectLater(
+            opened,
+            throwsA(attempted
+                ? isA<AiCliLaunchUnknownException>()
+                : isA<TimeoutException>()));
+        expect(openedCount, 0);
+        expect(controller.state.sessions, isEmpty);
+        expect(
+            () => controller.openAiCliTerminal(
+                requestId: 'timeout',
+                host: host,
+                routePlan: route(),
+                label: 'Claude',
+                launch: launch(),
+                verifyHostKey: accept),
+            throwsStateError);
+        expect(service.aiCalls, hasLength(1));
+      });
+
+      test(
+          'AIC04 cancellation ${attempted ? 'after' : 'before'} exec rejects late success and recent callback',
+          () async {
+        var openedCount = 0;
+        final opened = controller.openAiCliTerminal(
+            requestId: 'cancel',
+            host: host,
+            routePlan: route(),
+            label: 'Claude',
+            launch: launch(),
+            verifyHostKey: accept,
+            onOpened: (_) => openedCount++);
+        await settle();
+        final pending = controller.state.pendingConnections.single;
+        final call = service.aiCalls.single;
+        if (attempted) call.onExecAttempted?.call();
+        controller.cancelPendingConnection(pending.id);
+        final late = _FakeSession(pending.id, host);
+        call.result.complete(late);
+        if (attempted) {
+          await expectLater(
+              opened, throwsA(isA<AiCliLaunchUnknownException>()));
+        } else {
+          expect(await opened, isFalse);
+        }
+        expect(late.closedByUser, isTrue);
+        expect(openedCount, 0);
+        expect(controller.state.sessions, isEmpty);
+        expect(controller.state.pendingConnections, isEmpty);
+      });
+    }
   });
 }
 

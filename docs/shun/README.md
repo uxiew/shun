@@ -21,7 +21,17 @@ flutter test -j 4     # 全量约 1130 条（R20 时三套测试环境都开着�
 flutter analyze       # 应为 No issues found（连 spikes/、packages/ 一起查）
 ```
 
-R55 的 AI CLI 检测有两组本机测试。普通单元/widget 测试随全量执行；真实 SSH 路由测试连接同一套 Docker 主环境，须与会重启 sshd、统计连接数的 `integration_ssh_fixture_test.dart` 分开跑。全量命令用 `flutter test -j 4 --exclude-tags ai-cli-ssh-fixture`；主环境启动后单独执行 `flutter test test/ai_cli_ssh_fixture_test.dart`。这组验证 Direct、SOCKS、Jump、组合路线、拒绝未知指纹与错误代理口令、活动终端零探测输入；若同时启动 `tool/ai-cli-fixture`，还会只读检查本机隔离容器中真实安装的 Claude Code/Codex 文件和相邻 package.json，不登录或运行工具。检测范围、操作入口和版本含义见[使用手册](../user/README.md#20-ai-cli-工具检测)。
+R55 的 AI CLI 检测有两组本机测试。普通单元/widget 测试随全量执行；真实 SSH 路由测试连接同一套 Docker 主环境，须与会重启 sshd、统计连接数的 `integration_ssh_fixture_test.dart` 分开跑。全量命令用 `flutter test -j 4 --exclude-tags ai-cli-ssh-fixture`；主环境启动后单独执行 `flutter test test/ai_cli_ssh_fixture_test.dart`。这组验证 Direct、SOCKS、Jump、组合路线、拒绝未知指纹与错误代理口令、活动终端零探测输入；若同时启动 `tool/ai-cli-fixture`，还会只读检查本机隔离容器中真实安装的 Claude Code/Codex 文件和相邻 package.json，不登录或运行工具。检测范围、操作入口和版本含义见[使用手册](../user/README.md#20-发现启动与继续-ai-命令行工具)。
+
+R56/R57 无账号故障矩阵复跑（先启动主 SSH 环境和 `tool/tmux-fixture/up.sh`，不要与全量测试同时运行）：
+
+```bash
+flutter test --no-pub test/ai_cli_launch_ssh_fixture_test.dart
+flutter test --no-pub test/ai_cli_tmux_ssh_fixture_test.dart
+flutter test --no-pub test/ai_cli_fault_matrix_test.dart
+```
+
+Android 用专用 `shun-a35-4k`（仅 `emulator-5580`），启动方式见下文；执行 `bash tool/r56-ai-cli.sh`。脚本会清空该模拟器上的本项目测试数据、安装测试包、转发 22314、授权通知，运行真实界面/SSH/加密存储；后台按 HOME、息屏再唤醒。第一阶段完成断言后，在 SSH 仍连接时强制结束 App，因此 seed 日志的 `did not complete` 是有意中断；只有出现 `KILL_READY`、确认进程消失且第二进程 cold 全部通过，整轮才算成功。使用 `--no-uninstall` 保留两阶段之间的数据，不要拆成默认卸载的两次测试。日志和截图在 `../.toolchain/artifacts/r56-<基线提交>/`。凭据租期仅测试时缩短到 2 秒，不等于生产 10 分钟长时验收；不改 PIN、输入法或 Wi-Fi，不使用真实 AI 账号。测完卸载本项目包、移除 22314 reverse、关闭专用模拟器，两套 fixture 各用自己的 `down.sh` 关闭。结果范围见[故障矩阵证据](../../plan/v3/evidence/R56-R57-fault-matrix.md)。
 
 真实 SSH/SOCKS/跳板的集成测试要先起 Docker 测试环境：
 

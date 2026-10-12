@@ -41,6 +41,21 @@ class Recent implements AiCliRecentWorkStore {
   Future<void> clear(String hostScope) async => items = [];
 }
 
+class BrokenRecent extends Recent {
+  bool broken = true;
+  @override
+  Future<List<AiCliWorkItem>> load(String hostScope) async {
+    if (broken) throw const FormatException('corrupt envelope');
+    return super.load(hostScope);
+  }
+
+  @override
+  Future<void> clear(String hostScope) async {
+    broken = false;
+    await super.clear(hostScope);
+  }
+}
+
 final host = HostProfile({
   'id': 'h',
   'label': 'Test host',
@@ -207,6 +222,29 @@ void main() {
     expect(recent.items, isEmpty);
     expect(find.text('Claude Code · /repo'), findsNothing);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'corrupt recent records can be cleared even after discovery refresh',
+      (tester) async {
+    final recent = BrokenRecent();
+    await tester.pumpWidget(ProviderScope(
+        child: MaterialApp(
+            home: Scaffold(
+                body: AiCliToolsSheet(
+                    host: host,
+                    preferences: Preferences(),
+                    recentWork: recent,
+                    scan: (_, __) async => result())))));
+    await tester.pumpAndSettle();
+    expect(find.text('无法读取最近工作记录'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('ai-cli-refresh')));
+    await tester.pumpAndSettle();
+    expect(find.text('清除最近工作'), findsOneWidget);
+    await tester.tap(find.text('清除最近工作'));
+    await tester.pumpAndSettle();
+    expect(find.text('无法读取最近工作记录'), findsNothing);
+    expect(recent.broken, isFalse);
   });
 
   testWidgets('launch dialog shows tool and project before any SSH action',

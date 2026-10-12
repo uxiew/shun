@@ -36,6 +36,16 @@ void main() {
     expect(codex.historyPicker()!.arguments, ['resume']);
   });
 
+  test(
+      'legacy Claude pointer without a native ID opens only its explicit picker',
+      () {
+    final legacy = AiCliWorkItem.fromJson(
+        {...claude.toJson(), 'claudeSessionId': null, 'nativeIdSource': null})!;
+    expect(legacy.exactResume(), isNull);
+    expect(legacy.historyPicker()!.arguments, ['--resume']);
+    expect(legacy.historyPicker()!.projectDirectory, claude.projectDirectory);
+  });
+
   test('corrupt or mismatched native IDs cannot become resume targets', () {
     expect(
         AiCliWorkItem.fromJson({...claude.toJson(), 'tool': 'codex'}), isNull);

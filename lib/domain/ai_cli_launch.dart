@@ -43,13 +43,30 @@ class AiCliLaunchSpec {
   /// supported outer-shell syntax is POSIX single-quoted words; then /bin/sh
   /// checks the exact directory and executable before replacing itself.
   String get sshCommand {
+    return _command(ready: false);
+  }
+
+  static const readyMarker = '\x1eSHUN_AI_READY_v1\x1f';
+  String get sshCommandWithReadyMarker => _command(ready: true);
+
+  String _command({required bool ready}) {
     final words = [executable, ...arguments].map(_shellQuote).join(' ');
     final script = 'cd $_directoryExpression || exit 125\n'
         '[ -f ${_shellQuote(executable)} ] && '
         '[ -x ${_shellQuote(executable)} ] || exit 126\n'
+        '${ready ? 'printf ${_shellQuote(readyMarker)}\n' : ''}'
         'exec $words';
     return 'exec /bin/sh -c ${_shellQuote(script)}';
   }
+}
+
+/// The remote wrapper confirmed failure before executing the selected CLI.
+class AiCliLaunchRejectedException implements Exception {
+  const AiCliLaunchRejectedException(this.exitCode);
+  final int exitCode;
+  String get message => exitCode == 125 ? '项目目录不存在或无法进入' : '工具路径已失效，请重新检测';
+  @override
+  String toString() => message;
 }
 
 /// The exec request reached SSH, but its final remote effect is unconfirmed.

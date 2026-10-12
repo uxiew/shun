@@ -58,7 +58,7 @@ class AiCliTmuxRun {
         target: target,
         windowId: data['windowId'] as String,
         paneId: data['paneId'] as String,
-        panePid: (data['panePid'] as num).toInt(),
+        panePid: data['panePid'] as int,
       );
     } on Object {
       return null;
