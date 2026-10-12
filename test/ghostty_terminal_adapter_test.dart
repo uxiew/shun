@@ -77,6 +77,26 @@ void main() {
       terminal.feed(_bytes('hello'));
       expect(terminal.recentLines(24).first.text, 'hello');
     });
+
+    test('恢复新 PTY 前本地重置旧 VT、备用屏和未完成控制序列', () {
+      final terminal = _terminal();
+      final old = _Sink();
+      final fresh = _Sink();
+      final binding = terminal.bind(old.input);
+      terminal.feed(_bytes('old-main\r\n\x1b[?1049hold-alt\x1b]0;partial'));
+      expect(terminal.isAlternateScreen, isTrue);
+
+      binding.release();
+      terminal.resetForNewConnection();
+      terminal.bind(fresh.input);
+      terminal.feed(_bytes('new-shell'));
+
+      expect(terminal.isAlternateScreen, isFalse);
+      expect(terminal.allText(), contains('new-shell'));
+      expect(terminal.allText(), isNot(contains('old-main')));
+      expect(terminal.allText(), isNot(contains('old-alt')));
+      expect(fresh.sent, isEmpty, reason: '本地重置不写入新连接');
+    });
   });
 
   group('释放（GST02、SEC09）', () {

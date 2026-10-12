@@ -688,6 +688,9 @@ class SessionController extends StateNotifier<SessionState> {
         tmux = null;
       }
       old.terminal.showNotice('\r\n\x1b[33m正在恢复连接…\x1b[0m\r\n');
+      // No old stream may write into the new PTY's VT state. Once disconnected,
+      // the previous stream cannot provide a reliable completion receipt.
+      old.detachOutput();
       final replacement = await service.connect(
         sessionId: old.id,
         host: host,
@@ -717,9 +720,15 @@ class SessionController extends StateNotifier<SessionState> {
       _recoveries.remove(old.id);
       final current =
           state.sessions.indexWhere((value) => identical(value, old));
-      // 旧连接这一代到此为止：断开它的输出（两者共用一个 terminal），网络资源确保释放。
-      old.detachOutput();
+      // 旧连接这一代到此为止；输出已在开始恢复前隔离。
       old.abort();
+      replacement.inputResultUnknown = old.inputResultUnknown;
+      if (replacement.inputResultUnknown) {
+        const outcome = '这是恢复后的连接。断线前输入的最终执行结果未知；请先核查远端，不会自动重发。';
+        old.terminal.showNotice(
+          '\r\n\x1b[33m$outcome\x1b[0m\r\n',
+        );
+      }
       if (host.startupCommand?.isNotEmpty == true) {
         old.terminal.showNotice(
           '\x1b[33m已恢复为新的 shell，启动命令不会在恢复时重新执行。\x1b[0m\r\n',
@@ -732,6 +741,7 @@ class SessionController extends StateNotifier<SessionState> {
         activeIndex: state.activeIndex.clamp(0, sessions.length - 1),
         error: null,
       );
+      replacement.activateInput();
       _watchSession(replacement);
       if (_backgrounded) {
         replacement.monitor?.pause();
@@ -938,12 +948,19 @@ class SessionController extends StateNotifier<SessionState> {
     // 断了就把这一代的网络资源全部释放。shell 通道结束（比如输入了 exit）时，
     // 目标和各跳板的 SSH 连接可能还开着；不关的话每次断线恢复都会多留一整条链路（LIFE06）。
     // 借用这条连接的 SFTP、转发随之失效，不会被悄悄改走别的路线（docs/03）。
+    if (session.sentInputOnThisConnection) session.inputResultUnknown = true;
     session.abort();
     session.terminal.showNotice(
       _network.available
           ? '\r\n\x1b[33m连接已断开，正在自动恢复（最多 ${recoveryWindow.inMinutes} 分钟）…\x1b[0m\r\n'
           : '\r\n\x1b[33m连接已断开。手机现在没有网络，网络回来后自动恢复。\x1b[0m\r\n',
     );
+    if (session.inputResultUnknown) {
+      const outcome = '断线前输入的最终执行结果未知；请先核查远端，不会自动重发。';
+      session.terminal.showNotice(
+        '\x1b[33m$outcome\x1b[0m\r\n',
+      );
+    }
     _recoveries[session.id] = _Recovery(_now());
     if (!mounted) return;
     state = state.copyWith(sessions: [...state.sessions]);
@@ -1371,6 +1388,16 @@ class SessionController extends StateNotifier<SessionState> {
       throw StateError('目标终端连接已断开');
     }
     session.terminal.sendText(enter ? '$text\r' : text);
+  }
+
+  /// The user checked the remote state after an uncertain transport break.
+  /// This only dismisses the local warning; it sends no command or input.
+  void acknowledgeInputOutcome(String sessionId) {
+    final session =
+        state.sessions.where((value) => value.id == sessionId).firstOrNull;
+    if (session == null || !session.inputResultUnknown) return;
+    session.inputResultUnknown = false;
+    state = state.copyWith(sessions: [...state.sessions]);
   }
 
   /// [target] 现在还能不能收；能收返回 null（R19，SEC10）。

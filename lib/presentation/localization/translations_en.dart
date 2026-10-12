@@ -1,4 +1,14 @@
 const englishTranslations = <String, String>{
+  // R23: uncertain input after a transport break.
+  r'已核查': r'Checked',
+  r'断线前输入的结果未知。请先核查远端，再决定是否重试；应用不会自动重发。':
+      r'The result of input sent before disconnection is unknown. Check the remote state before retrying; the app will not resend it.',
+  r'断线前输入的结果未知，请核查远端。':
+      r'The result of input sent before disconnection is unknown; check the remote state.',
+  r'这是恢复后的连接。断线前输入的最终执行结果未知；请先核查远端，不会自动重发。':
+      r'This is the restored connection. The result of input sent before disconnection is unknown; check the remote state. The app will not resend it.',
+  r'断线前输入的最终执行结果未知；请先核查远端，不会自动重发。':
+      r'The result of input sent before disconnection is unknown; check the remote state. The app will not resend it.',
   // R55: bounded remote AI CLI discovery.
   r'AI 命令行工具': r'AI command-line tools',
   r'AI 工具': r'AI tools',

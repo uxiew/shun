@@ -106,6 +106,18 @@ final class GhosttyTerminalAdapter extends TerminalSessionAdapterBase {
     _contentChanged();
   }
 
+  @override
+  void resetForNewConnection() {
+    if (isDisposed) return;
+    // RIS is handled locally by Ghostty: reset modes, alternate screen,
+    // scrollback and any partial escape sequence. It never enters onOutput.
+    controller.clearSelection();
+    _write(Uint8List.fromList(const [0x1b, 0x63]));
+    _fedSinceBind = false;
+    input.clearModifiers();
+    _contentChanged();
+  }
+
   /// 屏幕上的字变了，通知监听者（画中画小窗按它刷新文字）。
   ///
   /// flterm 控制器自己只在模式、主备屏、工作目录这类状态变时通知，写进来的字只通知它的视图（内部的 frameChanges）。

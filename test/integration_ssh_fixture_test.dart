@@ -904,7 +904,8 @@ void main() {
         vaultRepositoryProvider.overrideWithValue(repository),
       ]);
       controller = container.read(sessionControllerProvider.notifier);
-      await remote('rm -f ~/startup.log ~/managed.log ~/net11-marker');
+      await remote(
+          'rm -f ~/startup.log ~/managed.log ~/net11-marker ~/r23-premature ~/r23-input.bin');
     });
 
     tearDown(() async {
@@ -936,9 +937,18 @@ void main() {
       await Future<void>.delayed(const Duration(seconds: 1));
       expect(await lines('~/startup.log'), 1, reason: 'Fresh 应执行一次');
 
+      controller.sendToSession(old.id, 'printf R23-OLD-SCREEN\r');
+      await waitUntil(() => old.terminal.allText().contains('R23-OLD-SCREEN'));
       controller.sendToSession(old.id, 'touch ~/net11-marker');
       await Future<void>.delayed(const Duration(milliseconds: 300));
       await dropAndRestore(old);
+      final restored =
+          controller.state.sessions.singleWhere((s) => s.id == old.id);
+      expect(restored.inputResultUnknown, isTrue);
+      expect(old.terminal.allText(), isNot(contains('R23-OLD-SCREEN')),
+          reason: '恢复后的新 shell 不能沿用旧画面');
+      expect(old.terminal.allText(), contains('结果未知'),
+          reason: '断线前最后输入是否执行成功无法从 SSH 写入推断');
 
       // 只按一个回车：如果旧的半行被重放进新 shell，这个回车会把它执行掉。
       controller.sendToSession(old.id, '', enter: true);
@@ -985,6 +995,63 @@ void main() {
       await dropAndRestore(managed);
       await Future<void>.delayed(const Duration(seconds: 1));
       expect(await lines('~/managed.log'), 1, reason: '恢复重跑了托管命令');
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
+    test('恢复连接提交前的输入直接丢弃，提交后才送给新 shell', () async {
+      final terminal = GhosttyTerminalAdapter();
+      final restored = await SshService().connect(
+        sessionId: 'r23-input-gate',
+        host: edgeHost({}),
+        verifyHostKey: verifyByLogicalName,
+        terminal: terminal,
+        purpose: ConnectionPurpose.restore,
+      );
+      addTearDown(() async {
+        await restored.close();
+        terminal.dispose();
+      });
+      terminal.sendText('touch ~/r23-premature\r');
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(
+          await remote('test -e ~/r23-premature && echo yes || echo no'), 'no');
+      restored.activateInput();
+      terminal.sendText('touch ~/r23-premature\r');
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      expect(await remote('test -e ~/r23-premature && echo yes || echo no'),
+          'yes');
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
+    test('NET11 多行输入断线：记录远端字节，恢复后不补发', () async {
+      await controller.connect(edgeHost({}), verifyByLogicalName);
+      final old = controller.state.sessions.single;
+      controller.sendToSession(old.id, 'stty raw -echo; cat > ~/r23-input.bin',
+          enter: true);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      old.terminal.paste('R23-one\nR23-two\nR23-three');
+      final deadline = DateTime.now().add(const Duration(seconds: 10));
+      var received = 0;
+      while (DateTime.now().isBefore(deadline)) {
+        received =
+            int.tryParse(await remote('wc -c < ~/r23-input.bin 2>/dev/null')) ??
+                0;
+        if (received >= 20) break;
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+      expect(received, greaterThanOrEqualTo(20));
+
+      await killEdgeSessions();
+      await waitUntil(() => !old.connected);
+      final delivered = await remote('od -An -tx1 ~/r23-input.bin');
+      await controller.reconnectDisconnected();
+      await waitUntil(() => controller.state.sessions
+          .any((s) => s.id == old.id && s.connected && !identical(s, old)));
+      final restored =
+          controller.state.sessions.singleWhere((s) => s.id == old.id);
+      expect(restored.inputResultUnknown, isTrue);
+      controller.sendToSession(restored.id, '', enter: true);
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(await remote('od -An -tx1 ~/r23-input.bin'), delivered,
+          reason: '新 shell 收到的手动回车不得带入旧输入或补发粘贴');
     }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
   });
 

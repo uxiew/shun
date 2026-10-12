@@ -78,6 +78,12 @@ abstract interface class TerminalSessionAdapter implements Listenable {
   /// App 自己的提示（断线、恢复中），直接显示，不经远端。
   void showNotice(String text);
 
+  /// A restored transport starts a new terminal program/PTY. Discard the old
+  /// VT state, including alternate screen, pending escape sequences and
+  /// scrollback, before binding its output. This is local only: no bytes go
+  /// to either remote connection.
+  void resetForNewConnection();
+
   /// 把输入和尺寸变化交给「当前代次」的连接。
   ///
   /// 同一时刻只有一个绑定有效：新的绑定立刻取代旧的，旧代次再也收不到任何字节（NET09、SEC09）。
@@ -190,6 +196,9 @@ abstract class TerminalSessionAdapterBase implements TerminalSessionAdapter {
 
   @override
   bool get isDisposed => _disposed;
+
+  @override
+  void resetForNewConnection() {}
 
   /// 最后一次发给远端的尺寸（列, 行）。只给测试和设备验证核对「远端尺寸跟上了没有」。
   @visibleForTesting

@@ -84,6 +84,15 @@ void main() {
     expect(tester.getSize(find.byKey(const ValueKey('terminal-area'))),
         terminalBefore,
         reason: '状态条叠在终端上，不占终端的位置');
+
+    live.inputResultUnknown = true;
+    controller.publish(controller.state.copyWith(sessions: [...controller.state.sessions]));
+    await tester.pump();
+    expect(find.textContaining('结果未知'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('terminal-input-checked')));
+    await tester.pump();
+    expect(live.inputResultUnknown, isFalse);
+    expect(find.byKey(const ValueKey('terminal-connection-banner')), findsNothing);
   });
 }
 

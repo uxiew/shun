@@ -698,6 +698,16 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
   Widget? _connectionBanner(ActiveTerminalSession session, SessionState state) {
     if (session.closedByUser) return null;
     if (session.connected) {
+      if (session.inputResultUnknown) {
+        return _ConnectionBanner(
+          key: const ValueKey('terminal-connection-banner'),
+          message: '断线前输入的结果未知。请先核查远端，再决定是否重试；应用不会自动重发。',
+          warning: true,
+          onAcknowledge: () => ref
+              .read(sessionControllerProvider.notifier)
+              .acknowledgeInputOutcome(session.id),
+        );
+      }
       final problem = state.keepAliveProblem;
       if (problem == null || !identical(session, state.active)) return null;
       return _ConnectionBanner(
@@ -712,9 +722,10 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
             ? '连接断了，正在自动恢复…'
             : '连接断了。手机现在没有网络，网络回来后自动恢复。'
         : session.restoreHold?.message ?? '连接已断开。';
+    final unknown = localized('断线前输入的结果未知，请核查远端。');
     return _ConnectionBanner(
       key: const ValueKey('terminal-connection-banner'),
-      message: message,
+      message: session.inputResultUnknown ? '$message $unknown' : message,
       recovering: recovering,
       onReconnect: () => unawaited(_reconnect(session)),
     );

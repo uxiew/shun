@@ -132,11 +132,11 @@ class ConnectionStage {
       ConnectionStep.shell => '正在打开终端',
       ConnectionStep.pty => '正在检查远端终端（PTY）',
       ConnectionStep.plugin => '正在核对本机的 Mosh 插件（还没连服务器）',
-      ConnectionStep.moshServer => '第 1 段 SSH：“$label”（$detail）已登录，正在启动 mosh-server',
+      ConnectionStep.moshServer =>
+        '第 1 段 SSH：“$label”（$detail）已登录，正在启动 mosh-server',
       ConnectionStep.moshUdp => '第 2 段 UDP：SSH 已断开，Mosh 插件正在直连 $detail',
       ConnectionStep.pluginHost => '正在核对本机的插件“$label”（还没打开会话）',
-      ConnectionStep.pluginSession =>
-        '插件“$label”正在打开会话：它自己联网，不经过本 App 的代理和跳板',
+      ConnectionStep.pluginSession => '插件“$label”正在打开会话：它自己联网，不经过本 App 的代理和跳板',
     };
   }
 
@@ -203,10 +203,14 @@ class ActiveTerminalSession {
     this.resumeTmux,
     this.restored = false,
     TerminalBinding? binding,
+    bool Function()? outboundInputOccurred,
+    void Function()? activateInput,
     List<StreamSubscription<Object?>> outputSubscriptions = const [],
   })  : _sshClients = sshClients,
         _routePlan = routePlan,
         _binding = binding,
+        _outboundInputOccurred = outboundInputOccurred,
+        _activateInput = activateInput,
         _outputSubscriptions = outputSubscriptions;
 
   /// App 上次被系统结束（或强行停止）前开着的标签，这次启动时放回来（R22，LIFE05）。
@@ -246,6 +250,18 @@ class ActiveTerminalSession {
 
   /// 终端输入交给这条连接的绑定。恢复时新连接一绑定，这条就失效，旧代次再发不出字节。
   final TerminalBinding? _binding;
+  final bool Function()? _outboundInputOccurred;
+  final void Function()? _activateInput;
+
+  /// A transport write does not prove remote execution. Keep the warning on
+  /// this tab until the user has checked the remote state and dismissed it.
+  bool inputResultUnknown = false;
+  bool get sentInputOnThisConnection => _outboundInputOccurred?.call() ?? false;
+
+  /// Restore input stays closed until SessionController commits this session
+  /// as the tab's current generation. Bytes typed during reconnection are
+  /// dropped, never queued for the new shell.
+  void activateInput() => _activateInput?.call();
 
   /// 目标和各跳板的 SSH 客户端。连接断了、凭据副本清掉时（[forgetSecrets]）清空：
   /// dartssh2 的客户端对象一直拿着解析好的私钥和密码回调，断了的连接留着它们没有用处。
@@ -310,10 +326,7 @@ class ActiveTerminalSession {
   SSHClient? get sshClient => sshClients.isEmpty ? null : sshClients.last;
   bool get isSsh => sshClient != null;
   Future<void> get done =>
-      sshSession?.done ??
-      telnetSocket?.done ??
-      plugin?.ended ??
-      Future.value();
+      sshSession?.done ?? telnetSocket?.done ?? plugin?.ended ?? Future.value();
 
   Future<void> ping({Duration timeout = const Duration(seconds: 8)}) async {
     if (!connected) throw StateError('SSH session is disconnected');
@@ -456,6 +469,7 @@ class SshService {
               keyboardInteractive,
               terminal,
               pending,
+              purpose,
             )
           : await _connectSsh(
               sessionId,
@@ -560,7 +574,8 @@ class SshService {
   }) async {
     try {
       attempt.throwIfCancelled();
-      if (routePlan.protocol != HostProtocol.ssh || routePlan.secretsForgotten) {
+      if (routePlan.protocol != HostProtocol.ssh ||
+          routePlan.secretsForgotten) {
         throw const FormatException('工具检测需要有效的 SSH 路线');
       }
       final clients = await _establishSsh(routePlan, verifyHostKey,
@@ -704,8 +719,10 @@ class SshService {
     }
 
     final subscriptions = [
-      session.stdout.listen(add, onDone: streamDone, onError: (_) => streamDone()),
-      session.stderr.listen(add, onDone: streamDone, onError: (_) => streamDone()),
+      session.stdout
+          .listen(add, onDone: streamDone, onError: (_) => streamDone()),
+      session.stderr
+          .listen(add, onDone: streamDone, onError: (_) => streamDone()),
     ];
     try {
       await finished.future.timeout(
@@ -763,6 +780,7 @@ class SshService {
         terminal,
         pending,
         tmuxAttach,
+        purpose,
       );
     }
     return _openShell(
@@ -917,9 +935,18 @@ class SshService {
       ),
     );
     pending.shell = session;
+    if (purpose == ConnectionPurpose.restore) {
+      terminal.resetForNewConnection();
+    }
     // 先绑定再收输出：标签在恢复途中被关、终端已释放时，绑定直接失败，一个订阅都不留。
+    var sentInput = false;
+    var inputEnabled = purpose != ConnectionPurpose.restore;
     final binding = terminal.bind(
-      session.write,
+      (bytes) {
+        if (!inputEnabled) return;
+        if (bytes.isNotEmpty) sentInput = true;
+        session.write(bytes);
+      },
       resize: session.resizeTerminal,
     );
     // 远端字节原样送进终端，不在网络分包处转成字符串（TER01）。
@@ -945,6 +972,8 @@ class SshService {
       sshSession: session,
       routePlan: plan,
       binding: binding,
+      outboundInputOccurred: () => sentInput,
+      activateInput: () => inputEnabled = true,
       outputSubscriptions: subscriptions,
     );
   }
@@ -966,6 +995,7 @@ class SshService {
     TerminalSessionAdapter terminal,
     ConnectionAttempt pending,
     TmuxTarget target,
+    ConnectionPurpose purpose,
   ) async {
     final client = clients.last;
     pending.report(const ConnectionStage(ConnectionStep.shell));
@@ -1052,9 +1082,17 @@ class SshService {
       await stdout.cancel();
       rethrow;
     }
+    if (purpose == ConnectionPurpose.restore) {
+      terminal.resetForNewConnection();
+    }
     // 先绑定（新代次一绑定就把终端当前尺寸发过去），再放行 tmux。
-    final binding =
-        terminal.bind(session.write, resize: session.resizeTerminal);
+    var sentInput = false;
+    var inputEnabled = purpose != ConnectionPurpose.restore;
+    final binding = terminal.bind((bytes) {
+      if (!inputEnabled) return;
+      if (bytes.isNotEmpty) sentInput = true;
+      session.write(bytes);
+    }, resize: session.resizeTerminal);
     forward = terminal.feed;
     if (marker.rest.isNotEmpty) terminal.feed(marker.rest);
     final subscriptions = [stdout, session.stderr.listen(terminal.feed)];
@@ -1074,6 +1112,8 @@ class SshService {
         clientPid: marker.pid,
       ),
       binding: binding,
+      outboundInputOccurred: () => sentInput,
+      activateInput: () => inputEnabled = true,
       outputSubscriptions: subscriptions,
     );
   }
@@ -1295,6 +1335,7 @@ class SshService {
     KeyboardInteractiveHandler? keyboardInteractive,
     TerminalSessionAdapter terminal,
     ConnectionAttempt pending,
+    ConnectionPurpose purpose,
   ) async {
     final endpoint = plan.target.endpoint;
     pending.report(ConnectionStage(
@@ -1308,7 +1349,16 @@ class SshService {
     );
     pending.telnetSocket = socket;
     pending.throwIfCancelled();
-    final binding = terminal.bind(socket.add);
+    if (purpose == ConnectionPurpose.restore) {
+      terminal.resetForNewConnection();
+    }
+    var sentInput = false;
+    var inputEnabled = purpose != ConnectionPurpose.restore;
+    final binding = terminal.bind((bytes) {
+      if (!inputEnabled) return;
+      if (bytes.isNotEmpty) sentInput = true;
+      socket.add(bytes);
+    });
     final output = socket.listen(
       (bytes) {
         final visible = <int>[];
@@ -1335,6 +1385,8 @@ class SshService {
       telnetSocket: socket,
       routePlan: plan,
       binding: binding,
+      outboundInputOccurred: () => sentInput,
+      activateInput: () => inputEnabled = true,
       outputSubscriptions: [output],
     );
   }

@@ -451,6 +451,7 @@ class _ConnectionBanner extends StatelessWidget {
     this.recovering = false,
     this.warning = false,
     this.onReconnect,
+    this.onAcknowledge,
   });
 
   final String message;
@@ -459,6 +460,7 @@ class _ConnectionBanner extends StatelessWidget {
   /// 不是断开，是提醒（比如后台保活没开起来）。
   final bool warning;
   final VoidCallback? onReconnect;
+  final VoidCallback? onAcknowledge;
 
   @override
   Widget build(BuildContext context) {
@@ -495,6 +497,12 @@ class _ConnectionBanner extends StatelessWidget {
                 key: const ValueKey('terminal-reconnect'),
                 onPressed: onReconnect,
                 child: const LText('重新连接'),
+              ),
+            if (onAcknowledge != null)
+              TextButton(
+                key: const ValueKey('terminal-input-checked'),
+                onPressed: onAcknowledge,
+                child: const LText('已核查'),
               ),
           ],
         ),
