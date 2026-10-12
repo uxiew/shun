@@ -165,6 +165,27 @@ flutter test test/integration_ssh_fixture_test.dart
     另装 `plugins/out/echo-author.apk`，`--dart-define=X09_MOSH=…` 照上面取，约 25 秒（不算构建）。测试不 pkill、只看前后差值，
     别人开着的 mosh-server 不受影响。报告行以 `X12 ` 开头。
 
+### R40 路线编辑设备回归
+
+`integration_test/r40_route_editor_test.dart` 在真实手机尺寸、系统键盘和加密保险库上测试两页共用链、三跳排序/移除、代理管理及旧内联代理转换；核对本地 OpenSSH 每跳指纹，并在目标执行 `hostname`。第二次启动使用另一 App 进程，重读代理引用、跳板顺序与密码，再验证删除代理后拒绝连接。目录批量导入用合成目录，不请求真实 Tailscale，也不拨目录里的地址。
+
+```bash
+source ../.toolchain/env.sh
+# 先确认没有其他本项目测试占用此环境；up.sh 会更换测试凭据。
+bash tool/fixture-environment/up.sh
+bash tool/fixture-environment/selfcheck.sh
+emulator -avd shun-a35-4k -port 5580 -no-window -no-snapshot -gpu host &
+adb -s emulator-5580 wait-for-device
+adb -s emulator-5580 shell getprop sys.boot_completed  # 等到 1
+bash tool/r40-route-editor.sh
+# 完成后清理本轮环境（其他项目/容器保持运行）：
+adb -s emulator-5580 uninstall top.xdwa.shun
+adb -s emulator-5580 emu kill
+bash tool/fixture-environment/down.sh
+```
+
+脚本只接受 `emulator-5580` 上的 `shun-a35-4k`，**会清空该模拟器的 shun 测试数据**。使用临时 define 文件传入 fixture 凭据，不把密码拼进命令或证据；截图、两阶段日志和明文凭据扫描摘要默认在 `../.toolchain/artifacts/r40-simulator-<提交>/`，可用 `R40_OUT` 指定新目录。脚本结束会撤销本轮端口转发、删除 define 文件；App 保留供检查，由以上命令卸载。真实设备/iOS 不在这条脚本范围内。
+
 ## 3. 模拟器
 
 现在只留一台 `shun-a35-4k`（Android 15，4 KiB 页，自带 Gboard），用的是你原有的 API 35 镜像。
