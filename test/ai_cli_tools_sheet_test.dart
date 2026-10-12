@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shun/domain/ai_cli_identity.dart';
 import 'package:shun/domain/ai_cli.dart';
 import 'package:shun/domain/ai_cli_work.dart';
 import 'package:shun/application/session_controller.dart';

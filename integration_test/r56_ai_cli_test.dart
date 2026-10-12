@@ -14,6 +14,7 @@ import 'package:shun/app.dart';
 import 'package:shun/application/home_navigation.dart';
 import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/vault_controller.dart';
+import 'package:shun/domain/ai_cli_identity.dart';
 import 'package:shun/domain/ai_cli.dart';
 import 'package:shun/domain/connection_route.dart';
 import 'package:shun/domain/models/host.dart';

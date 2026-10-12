@@ -3,12 +3,12 @@ import 'dart:convert';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/application/ai_cli_return.dart';
+import 'package:shun/domain/ai_cli_identity.dart';
 import 'package:shun/domain/ai_cli.dart';
 import 'package:shun/domain/ai_cli_launch.dart';
 import 'package:shun/domain/ai_cli_work.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
-import 'package:shun/infrastructure/storage/ai_cli_preferences.dart';
 import 'package:shun/infrastructure/storage/ai_cli_recent_work.dart';
 import 'support/test_terminal.dart';
 

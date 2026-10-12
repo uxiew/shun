@@ -18,6 +18,7 @@ import '../terminal/terminal_input_controller.dart';
 import '../terminal/terminal_session_adapter.dart';
 import '../tmux/tmux_protocol.dart';
 import '../transport/proxy_transport.dart';
+import 'ai_cli_launch_handshake.dart';
 import 'server_monitor_service.dart';
 import 'ssh_identity.dart';
 import 'ssh_login_watch.dart';
@@ -1115,50 +1116,29 @@ class SshService {
     // 远端字节原样送进终端，不在网络分包处转成字符串（TER01）。
     // 带 PTY 的会话里远端已把 stderr 并进 stdout，stderr 通道基本是空的；两路共用终端的同一条字节流，
     // 和真实终端只有一条输入流一样。
-    final ready = aiLaunch == null ? null : Completer<void>();
-    final prelude = BytesBuilder(copy: false);
-    void output(Uint8List bytes) {
-      if (ready == null || ready.isCompleted) {
-        terminal.feed(bytes);
-        return;
-      }
-      prelude.add(bytes);
-      final raw = prelude.toBytes();
-      final index = latin1.decode(raw).indexOf(AiCliLaunchSpec.readyMarker);
-      if (index >= 0) {
-        prelude.clear();
-        inputEnabled = true;
-        ready.complete();
-        terminal.feed(Uint8List.sublistView(raw, 0, index));
-        terminal.feed(Uint8List.sublistView(
-            raw, index + AiCliLaunchSpec.readyMarker.length));
-      } else if (raw.length > 8192) {
-        ready.completeError(const AiCliLaunchUnknownException());
-      }
-    }
-
-    final subscriptions = aiLaunch == null
+    final handshake = aiLaunch == null
+        ? null
+        : AiCliLaunchHandshake(
+            onConfirmed: () => inputEnabled = true, onOutput: terminal.feed);
+    final subscriptions = handshake == null
         ? [
             session.stdout.listen(terminal.feed),
             session.stderr.listen(terminal.feed)
           ]
-        : [session.stdout.listen(output), session.stderr.listen(output)];
-    if (ready != null) {
-      unawaited(session.done.then((_) {
-        if (!ready.isCompleted) {
-          ready.completeError(session.exitCode == 125 || session.exitCode == 126
-              ? AiCliLaunchRejectedException(session.exitCode!)
-              : const AiCliLaunchUnknownException());
-        }
-      }, onError: (Object _) {
-        if (!ready.isCompleted) {
-          ready.completeError(const AiCliLaunchUnknownException());
-        }
-      }));
+        : [
+            session.stdout
+                .listen(handshake.add, onError: (Object _) => handshake.fail()),
+            session.stderr
+                .listen(handshake.add, onError: (Object _) => handshake.fail()),
+          ];
+    if (handshake != null) {
+      unawaited(session.done.then((_) => handshake.finish(session.exitCode),
+          onError: (Object _) => handshake.fail()));
       try {
         await pending
-            .waitFor(ready.future.timeout(const Duration(seconds: 15)));
+            .waitFor(handshake.ready.timeout(const Duration(seconds: 15)));
       } catch (_) {
+        handshake.fail();
         binding.release();
         for (final subscription in subscriptions) {
           await subscription.cancel();

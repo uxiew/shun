@@ -9,6 +9,7 @@ import '../../application/ai_cli_return.dart';
 import '../../application/home_navigation.dart';
 import '../../application/session_controller.dart';
 import '../../application/vault_controller.dart';
+import '../../domain/ai_cli_identity.dart';
 import '../../domain/ai_cli.dart';
 import '../../domain/ai_cli_launch.dart';
 import '../../domain/ai_cli_work.dart';

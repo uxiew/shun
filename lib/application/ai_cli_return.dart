@@ -1,7 +1,7 @@
+import '../domain/ai_cli_identity.dart';
 import '../domain/ai_cli_work.dart';
 import '../domain/models/host.dart';
 import '../infrastructure/ssh/ssh_service.dart';
-import '../infrastructure/storage/ai_cli_preferences.dart';
 
 /// A saved tab ID alone does not prove that its current transport still owns
 /// the original work. Recheck this after every asynchronous operation.

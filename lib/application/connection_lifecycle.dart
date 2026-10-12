@@ -25,6 +25,7 @@ import '../infrastructure/ssh/ssh_service.dart';
 import '../infrastructure/transport/proxy_transport.dart';
 
 export '../domain/restore_hold.dart';
+export '../domain/host_identity.dart';
 
 /// 断线后最多自动恢复多久（docs/07 建议 120 秒）。过了就停，回到前台再给一轮，或者用户点「重新连接」。
 const recoveryWindow = Duration(seconds: 120);
@@ -114,13 +115,6 @@ RoutePlan rehydrateRoutePlan(
   }
   return fresh;
 }
-
-/// 标签对应的保险库主机 ID。临时标签（tmux、托管终端）的 host 是拷出来的，ID 是新生成的，
-/// 建它的时候把来源主机记在 [sourceHostIdKey] 里。
-const sourceHostIdKey = '_sourceHostId';
-
-String sourceHostIdOf(HostProfile host) =>
-    host.data[sourceHostIdKey]?.toString() ?? host.id;
 
 /// App 被系统结束（或强行停止）后，下次打开时要放回来的标签：只有「哪台主机、附着哪个 tmux 目标」，
 /// 没有凭据、没有画面、没有输入（LIFE05「仅恢复配置/目标」）。放回来的标签是断开的，用户点了才连。
