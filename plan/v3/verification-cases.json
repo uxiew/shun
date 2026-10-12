@@ -122,11 +122,12 @@
       "action": "在用户输入/多行发送中间断网；记录 fixture 接收到的字节，再恢复连接。",
       "expected": "新连接不自动收到旧输入、命令、Enter 或粘贴；不确定的旧发送标结果未知。",
       "level": "硬门禁",
-      "result": "FAIL",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
         "evidence/R03.md",
-        "evidence/X09.md"
+        "evidence/X09.md",
+        "evidence/R23.md"
       ]
     },
     {
@@ -1114,8 +1115,10 @@
       "action": "断线保存旧画面/草稿，再打开新shell或重附着tmux。",
       "expected": "旧屏显示为历史；不重放旧VT产生协议回应，不重发草稿，状态不假Active。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R23.md"
+      ],
       "inherited_from": null
     },
     {

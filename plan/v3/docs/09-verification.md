@@ -28,7 +28,7 @@
 | NET08 | 模拟 SOCKS REP 的拒绝、网络/主机不可达、命令不支持等结果。 | 错误分类准确，不能把 host unreachable 一律称为 DNS 失败。 | PASS |
 | NET09 | 快速连接→取消→再连，同时注入旧连接的晚到事件。 | generation 隔离；旧事件不能覆盖新状态或复活已停止连接。 | PASS |
 | NET10 | 两个主机同时通过不同代理账号连接；编辑其中一个配置。 | 凭据、routeSnapshot 和目标互不污染；运行连接不会换代理或身份。 | PASS |
-| NET11 | 在用户输入/多行发送中间断网；记录 fixture 接收到的字节，再恢复连接。 | 新连接不自动收到旧输入、命令、Enter 或粘贴；不确定的旧发送标结果未知。 | FAIL |
+| NET11 | 在用户输入/多行发送中间断网；记录 fixture 接收到的字节，再恢复连接。 | 新连接不自动收到旧输入、命令、Enter 或粘贴；不确定的旧发送标结果未知。 | PASS |
 | NET12 | 真实手机保持已有 VPN，启动 TailSocks 非 VPN 模式，连接/停止/重启代理。 | 本 App 不弹 VPN 授权、不替换当前 VPN；可连接或如实解释具体兼容限制；代理失败无直连。 | NOT_RUN |
 | SEC01 | 固定信任目标 A，经正常/替换的本地 SOCKS 端连接；检查 known_hosts key。 | 信任身份是逻辑目标及端口，不是 127.0.0.1 或代理端口；未确认时不用户认证。 | PASS |
 | SEC02 | 相同主机地址换一把 fixture host key。 | 硬阻断，不以普通重试忽略；没有发出 SSH 用户认证数据。 | PASS |
@@ -120,7 +120,7 @@
 | REG01 | 终端正常时打开既有SFTP/转发/监控，然后关闭目标client。 | 借用者同代次失效，不重建Direct；释放顺序正确。 | NOT_RUN |
 | REG02 | 配置有副作用计数的startup/managedAction；网络断开触发恢复与测试入口。 | 只有明确Fresh操作执行一次；Restore/Probe执行计数零。 | PASS |
 | REG03 | 含假秘密的HostProfile.toString、异常、原有JSON导出、同步往返。 | 默认文本脱敏；secret不意外外流；受管字段和未知字段不被破坏。 | PASS |
-| REG04 | 断线保存旧画面/草稿，再打开新shell或重附着tmux。 | 旧屏显示为历史；不重放旧VT产生协议回应，不重发草稿，状态不假Active。 | NOT_RUN |
+| REG04 | 断线保存旧画面/草稿，再打开新shell或重附着tmux。 | 旧屏显示为历史；不重放旧VT产生协议回应，不重发草稿，状态不假Active。 | PASS |
 | SUP01 | 清空依赖缓存，从记录的pin和asset hash重建debug/release。 | 源码、构建链和制品可追溯；main移动不会自动改变本fork依赖。 | NOT_RUN |
 | SUP02 | 变更base_repository/引擎flag并检查所有状态、文档、manifest。 | 基座和实际引擎一致，跨基座结果不可复用为PASS；无旧任务误勾。 | NOT_RUN |
 
