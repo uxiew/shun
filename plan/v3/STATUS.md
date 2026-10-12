@@ -1,5 +1,7 @@
 # 当前状态 V3
 
+10-12 R56/R57 已接入受控启动与最近工作入口，状态 IN_PROGRESS：选定工具与项目后可新开专用 SSH 终端或显式创建专属 tmux；首页/主机可回到仍存活的标签、经完整窗格核对的 tmux，或进入 Claude 指定 ID / Codex 历史选择器。隔离 OpenSSH、四版本 tmux 与本机单测已覆盖主要安全边界，详见 [R56](evidence/R56.md)、[R57](evidence/R57.md)。AIC03–AIC08 的完整故障/设备矩阵和 AIC09 真实账号会话连续性尚未完成，保持 NOT_RUN；未连接用户真实主机、未登录或调用 AI 模型。
+
 10-12 R23 已完成本机隔离验收：断线恢复在新 PTY 接管前隔离旧输出并重置 Ghostty 画面，接管前输入直接丢弃；确有终端字节写出时将最终执行结果标「未知」，核查后可手动清除，不自动重发。真实 OpenSSH 的 REG02/NET11 五项、四版本 tmux 恢复十二项通过；全量 `flutter test --no-pub -j 4 --exclude-tags ai-cli-ssh-fixture` 为 1162 过、15 跳过、0 失败；`flutter analyze --no-pub` 无问题。NET11/REG04 按本机证据改 PASS，未上设备，详见 [R23 证据](evidence/R23.md)。R56 的 R55/R21/R23 前置现已满足。
 
 10-12 R55 已实现并完成本机验收：SSH 主机详情及活动终端新增 AI CLI 发现入口；检测 Claude/Codex/Gemini/OpenCode 的受限路径及用户补充工具，展示来源和可确认的安装包标注版本。查询复用已验证路线/连接，独立有界通道，绝不执行被发现的工具。`flutter analyze --no-pub` 无问题；全量 `flutter test --no-pub -j 4 --exclude-tags ai-cli-ssh-fixture` 为 1128 过、47 跳过、0 失败；真实 OpenSSH/隔离 AI CLI fixture 单独 8 过。AIC01/AIC02 只按本机隔离证据记 PASS；未装设备、未登录/启动 AI CLI、未调用模型，快速启动和原生继续仍属 R56/R57。详见 [R55 证据](evidence/R55.md)。
@@ -13,7 +15,7 @@
 日期：2026-10-11。已执行首批（R00–R04、X00）、网络路由三项（R05、R06、R07）、连接代次（R08）、凭据与入口统一（R09）、连接路径编辑器（R10）、插件注册表（X01）、只读 Tailscale 目录的 HTTP 适配（R11）、Android 独立插件发现与双向签名（X02）、目录缓存与非破坏合并（R12）、插件会话字节流与故障处理（X03）、目录页与批量导入（R13）、插件管理与授权界面（X04）、Tailscale 目录接入内置 provider（X05）、UU 远程适配（X06）、RustDesk 外部客户端联动（X07）、显式 Tailscale SSH 外部认证（R14）、目录到三类路由的端到端验收（R15）、会话与 xterm2 解耦（R16）、Ghostty 接进主 App（R17）、中文输入法与软硬键盘（R18）、滚动选择与粘贴、远端效果约束（R19）、TUI/性能门禁与 Ghostty 成为默认（R20）、tmux 安全恢复目标（R21）、Flutter 与 Android 连接生命周期（R22）、Mosh 运行时选择（X08）、Mosh 接进主 App（X09）和插件作者 SDK（X12），日用 UI（R25）做了第一部分「终端输入面板」；09-30 所有者同意用 arm64 模拟器补测，并定"最低兼容到安卓七八"；10-04 所有者提供真机（Pixel 9 Pro，接在 xdwmbp 上），R04 真机补测后 DONE；10-06 所有者在真机上用微信输入法复测语音输入（TER02）通过；10-08 所有者定了 SEC07 的凭据与后台恢复策略（见下）；10-10 所有者在场，在真机上跑完 LIFE07（前台 30 分钟 + 拔线锁屏 30 分钟以上，不加、加省电豁免各一轮，PASS）；当晚所有者让在真机上打开 TermRover、LobiShell 学布局和功能，看到的记在 `docs/20-reference-apps.md`，排成 R39–R50（见「下一批」）。
 
 - 基座：kmh1145/Netcatty-mobile `495f5d31`（v1.4.7），fork 分支 `shun/v3`，`origin` = `uxiew/shun`（10-11 前分支叫 `xwshun/v3`、仓库叫 `uxiew/xwshun`；GitHub 上的仓库由所有者自己改名），所有者说推之前不 push。GPL-3.0-or-later 个人隔离实验；App 名 shun、applicationId `top.xdwa.shun`（所有者 10-11 把名字和包名从 xwshun 改过来：插件接口、Mosh 插件包名和 pluginId `shun.mosh`、测试环境的容器名一起改了；和桌面端互通的同步文件名、加密格式、Caddy 标记沿用 netcatty 不动；evidence 里的旧名是当时的事实，不改）。
-- 任务：DONE 36（R00 R01 R02 R03 R04 R05 R06 R07 R08 R09 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R55 X00 X01 X02 X03 X04 X05 X06 X07 X08 X09 X12）、IN_PROGRESS 1（R25）、NOT_STARTED 18、DEFERRED 17。
+- 任务：DONE 36（R00 R01 R02 R03 R04 R05 R06 R07 R08 R09 R10 R11 R12 R13 R14 R15 R16 R17 R18 R19 R20 R21 R22 R23 R55 X00 X01 X02 X03 X04 X05 X06 X07 X08 X09 X12）、IN_PROGRESS 3（R25 R56 R57）、NOT_STARTED 16、DEFERRED 17。
 - 用例（共 160）：PASS 121、FAIL 1、BLOCKED 6、NOT_RUN 32。每条的实际动作和观察在 `evidence/`。
 - 最近一次全量（10-11 改名 shun 后，三套测试环境——主环境、mosh、tmux——都开着）：`flutter test -j 4` 1157 过、2 跳过（1 条只在 Windows 跑、1 条默认不跑的耗时基准）、0 失败；`flutter analyze` 无问题。插件这边：provider-sdk 6 条、样例 Hello 9 条 JVM 单测过，`new-plugin.sh` 生成新插件并编出 APK；模拟器上 X03 stream、X12 Mosh 证书绑定、X12 样例插件从主机列表连接三项设备测试都过。搬到 `/Users/fodelf/xdw/shun/shun` 后只开主测试环境又跑一次：1112 过、47 跳过（tmux 32、mosh 13 没开环境，另 2 条照旧），0 失败，和搬之前同样条件下的数一致。
 - 门禁：G0 **PASS**（Ghostty Android 可行性有真机证据；GST01 在 R17 改成 PASS；原来 FAIL 的 TER02（真机复测）、TER06（模拟器）在 R18 改成 PASS）；G3 **PASS**（见下）；其余门禁 NOT_RUN。插件基础 GX0 的出口条件（X00–X03）在模拟器上都已满足，只差真机复核，所以仍记 NOT_RUN；Tailscale 的 G2（R15）同理，另外还差官方 Tailscale 的 check 和直连。Ghostty 的 G3 **PASS**：R20 做完了（Ghostty 是唯一引擎），10-07 晚又在真机 Pixel 9 Pro 上复核了发布包、TUI、资源、删库失败，都过（TER11/12、GST05、REL03 改为模拟器 + 真机 PASS）。所有者 10-07 定 G3 不要求 TER13 的登录部分（出口条件本身只写默认引擎、CJK/TUI/资源/16 KiB），TER13 这条用例仍记 BLOCKED；16 KiB 页只有模拟器证据，没有 16 KiB 真机。Mosh 的 GX2 要等 X10（移动恢复）。离 CORE_READY / FULL_READY 都还很远。
@@ -125,8 +127,8 @@ R04 的发现到 R17 为止：dispose 后 write 段错误（上游改成抛错�
 ## 下一批
 
 `lizhi` 开着时，本项目模拟器用 `-port 5580` 起、adb 都带 `-s emulator-5580`（写在 docs/shun/README.md 第 7 节）。
-**依赖已满足、可以开工的**：R56（AI CLI 项目启动器）、X10（Mosh 移动恢复），以及日用界面的 R39（连接类型）、R40（共用路线编辑器）、R44（敏感页保护）；仍需遵守各任务的范围与停止条件。R25 的无障碍、诊断可以独立推进，但完成仍要等 R39–R44 和 R57；R41 等 R39/R40，R42 等 R39/R23，R43 等 R39。
-R39–R44 建议顺序：R40 先把编辑器和批量导入里的两份路线编辑合成一个组件（行为不变，测试应全过）→ R39 连接类型 → R41 编辑页分区 → R42 终端里的 SSH/Mosh 切换 → R44 防截屏 → R43 主机列表。R39、R40、R42 各有一条要所有者先定的事（见「等所有者决定或提供」），定之前只做不动存储、不改规则的部分。R45–R54 是 P6，启用顺序由所有者定；OSH/meshTerm/NovaScale 该批研究没有将后续候选提升到主线。所有者随后明确新增的 AI CLI 需求单列 R55–R57 主线：R55、R23 已完成，下一项是 R56，再做 R57；R54 协议级工作区仍为 P6。R42 的 R23 依赖也已满足。
+**依赖已满足、可以继续的**：R56/R57（AI CLI 项目启动与继续验收）、X10（Mosh 移动恢复），以及日用界面的 R39（连接类型）、R40（共用路线编辑器）、R44（敏感页保护）；仍需遵守各任务的范围与停止条件。R25 的无障碍、诊断可以独立推进，但完成仍要等 R39–R44 和 R57；R41 等 R39/R40，R42 等 R39/R23，R43 等 R39。
+R39–R44 建议顺序：R40 先把编辑器和批量导入里的两份路线编辑合成一个组件（行为不变，测试应全过）→ R39 连接类型 → R41 编辑页分区 → R42 终端里的 SSH/Mosh 切换 → R44 防截屏 → R43 主机列表。R39、R40、R42 各有一条要所有者先定的事（见「等所有者决定或提供」），定之前只做不动存储、不改规则的部分。R45–R54 是 P6，启用顺序由所有者定；OSH/meshTerm/NovaScale 该批研究没有将后续候选提升到主线。所有者随后明确新增的 AI CLI 需求单列 R55–R57 主线：R55、R23 已完成，R56/R57 已接入但仍需按 AIC03–AIC09 验收；R54 协议级工作区仍为 P6。R42 的 R23 依赖也已满足。
 X11、X13 等 X10。R22 留下的：LIFE06 原生内存来源（见上表；10-10 排除了「终端按帧漏」）、凭据租期按墙上时钟（a067eff）修后没上真机复测、通知在「静音」区默认折叠（「全部断开」要展开才看得到）和冷启动不直接进终端页（给 R25）。
 R20 留给后面的（详见 evidence/R20.md「没做的」）：真机一项没上；TER13 的流式输出要登录；修了文件页泄漏后 Native Heap 开关 400 次仍涨 12.6 MiB（R22 单量过：不在引擎上，LIFE06 记 FAIL，见上表）；
 全屏程序里右上角「复制」按钮盖住终端右上角几个字（给 R25）；组合字符的重音画不出来、ANSI 模式 DECRQM 不回（上游，没修）。
