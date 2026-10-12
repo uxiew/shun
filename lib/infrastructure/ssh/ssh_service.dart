@@ -548,6 +548,30 @@ class SshService {
     }
   }
 
+  /// A user-selected read-only tool query without opening a shell/PTY or running
+  /// startup. All hops use the same route/trust/auth path as connection tests.
+  /// The callback borrows the final verified client; this method owns cleanup.
+  Future<T> withVerifiedClient<T>({
+    required RoutePlan routePlan,
+    required HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    required ConnectionAttempt attempt,
+    required Future<T> Function(SSHClient client) query,
+  }) async {
+    try {
+      attempt.throwIfCancelled();
+      if (routePlan.protocol != HostProtocol.ssh || routePlan.secretsForgotten) {
+        throw const FormatException('工具检测需要有效的 SSH 路线');
+      }
+      final clients = await _establishSsh(routePlan, verifyHostKey,
+          keyboardInteractive, attempt, ConnectionPurpose.probe);
+      attempt.throwIfCancelled();
+      return await attempt.waitFor(query(clients.last));
+    } finally {
+      attempt.releasePartial();
+    }
+  }
+
   /// 带 PTY 执行 `tty`，返回远端终端设备名（如 /dev/pts/3）。没拿到 PTY 时 dartssh2 会抛错。
   Future<String> _remoteTty(SSHClient client) async {
     final session = await client.execute(

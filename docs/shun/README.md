@@ -21,6 +21,8 @@ flutter test -j 4     # 全量约 1130 条（R20 时三套测试环境都开着�
 flutter analyze       # 应为 No issues found（连 spikes/、packages/ 一起查）
 ```
 
+R55 的 AI CLI 检测有两组本机测试。普通单元/widget 测试随全量执行；真实 SSH 路由测试连接同一套 Docker 主环境，须与会重启 sshd、统计连接数的 `integration_ssh_fixture_test.dart` 分开跑。全量命令用 `flutter test -j 4 --exclude-tags ai-cli-ssh-fixture`；主环境启动后单独执行 `flutter test test/ai_cli_ssh_fixture_test.dart`。这组验证 Direct、SOCKS、Jump、组合路线、拒绝未知指纹与错误代理口令、活动终端零探测输入；若同时启动 `tool/ai-cli-fixture`，还会只读检查本机隔离容器中真实安装的 Claude Code/Codex 文件和相邻 package.json，不登录或运行工具。检测范围、操作入口和版本含义见[使用手册](../user/README.md#20-ai-cli-工具检测)。
+
 真实 SSH/SOCKS/跳板的集成测试要先起 Docker 测试环境：
 
 ```bash

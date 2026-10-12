@@ -13,6 +13,7 @@ import '../../application/home_navigation.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/host_address_line.dart';
 import '../widgets/host_editor.dart';
+import '../widgets/ai_cli_tools_sheet.dart';
 import '../widgets/connection_prompts.dart';
 import '../widgets/host_system_icon.dart';
 import 'rustdesk_screen.dart';
@@ -377,6 +378,13 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
               icon: const Icon(Icons.connected_tv_outlined),
               label: const Text('RustDesk'),
             ),
+          if (host.protocol == HostProtocol.ssh)
+            TextButton.icon(
+              key: const ValueKey('host-ai-cli'),
+              onPressed: () => Navigator.pop(context, _HostAction.aiCli),
+              icon: const Icon(Icons.terminal),
+              label: const LText('AI 工具'),
+            ),
           TextButton.icon(
             onPressed: () => Navigator.pop(context, _HostAction.edit),
             icon: const Icon(Icons.edit_outlined),
@@ -395,6 +403,15 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       await _editHost(host);
     } else if (action == _HostAction.connect) {
       await _connect(host);
+    } else if (action == _HostAction.aiCli) {
+      await showModalBottomSheet<void>(
+          context: context,
+          useSafeArea: true,
+          isScrollControlled: true,
+          builder: (_) => AiCliToolsSheet(
+              host: host,
+              verifyHostKey: _verifyHostKey,
+              keyboardInteractive: _promptKeyboardInteractive));
     } else if (action == _HostAction.uuRemote) {
       await Navigator.of(context).push(MaterialPageRoute<void>(
         builder: (_) => UuRemoteHostScreen(hostId: host.id),
@@ -671,7 +688,7 @@ class _HostTile extends StatelessWidget {
       );
 }
 
-enum _HostAction { connect, edit, uuRemote, rustDesk }
+enum _HostAction { connect, edit, uuRemote, rustDesk, aiCli }
 
 class _DetailRow extends StatelessWidget {
   const _DetailRow({

@@ -1,4 +1,76 @@
 const englishTranslations = <String, String>{
+  // R55: bounded remote AI CLI discovery.
+  r'AI 命令行工具': r'AI command-line tools',
+  r'AI 工具': r'AI tools',
+  r'工具检测设置超出上限': r'Tool discovery settings exceed the size limit',
+  r'工具检测设置版本不支持': r'This version of tool discovery settings is not supported',
+  r'无法识别检测结果，未采用远端输出':
+      r'Unrecognized discovery result; remote output was discarded',
+  r'检测结果包含无效或超限字段': r'Discovery contains invalid or oversized fields',
+  r'检测用户信息无效': r'Invalid discovery user information',
+  r'检测工具记录无效': r'Invalid tool discovery record',
+  r'检测未返回绝对工具路径': r'Discovery did not return an absolute executable path',
+  r'检测返回了未请求的工具': r'Discovery returned a tool that was not requested',
+  r'检测结束信息无效': r'Invalid discovery completion record',
+  r'检测返回未知记录': r'Discovery returned an unknown record',
+  r'检测未完成，请重新检测': r'Discovery did not complete; scan again',
+  r'工具检测需要有效的 SSH 路线': r'Tool discovery requires a valid SSH route',
+  r'请先连接这台 SSH 主机': r'Connect to this SSH host first',
+  r'连接已失效，请重新检测': r'The connection is no longer valid; scan again',
+  r'连接已失效或检测已取消':
+      r'The connection is no longer valid or discovery was cancelled',
+  r'检测已取消': r'Discovery cancelled',
+  r'检测超时，已关闭查询通道': r'Discovery timed out; the query channel was closed',
+  r'检测输出超出上限，未采用不完整结果':
+      r'Discovery output exceeded the limit; incomplete results were discarded',
+  r'查询通道读取失败': r'Unable to read the query channel',
+  r'远端未能完成检测（需要 POSIX /bin/sh）':
+      r'Remote discovery failed (POSIX /bin/sh is required)',
+  r'检测输出编码无效': r'Invalid discovery output encoding',
+  r'自定义工具': r'Custom tool',
+  r'工具名称无效（最多 80 个字符）':
+      r'Invalid tool name (up to 80 characters; no controls or pipe separator)',
+  r'请使用绝对路径或 ~/ 开头的路径，不含控制字符':
+      r'Use an absolute path or ~/ path without control characters',
+  r'最多补充 16 个目录和 16 个工具': r'Add up to 16 directories and 16 tools',
+  r'自定义工具名称不能重复': r'Custom tool names must be unique',
+  r'上次检测': r'Previous scan',
+  r'检测完成': r'Discovery complete',
+  r'常见目录': r'Common directory',
+  r'补充目录': r'Added directory',
+  r'自定义路径': r'Custom path',
+  r'主机已删除或身份已修改，请重新打开工具列表':
+      r'The host was deleted or its identity changed; open the tool list again',
+  r'保存并检测': r'Save and scan',
+  r'取消检测': r'Cancel scan',
+  r'启动和原生继续能力尚未核验。可以在终端手动使用上述工具路径。':
+      r'Launch and native resume capabilities have not been verified. You can use these executable paths manually in a terminal.',
+  r'安装包标注版本：${item.packageVersion}（未运行工具核验）':
+      r'Package version: ${item.packageVersion} (not verified by running the tool)',
+  r'已达到检测数量上限，结果只覆盖部分范围。可缩小范围后重试。':
+      r'The discovery limit was reached. Results cover only part of the scope; narrow the scope and try again.',
+  r'找到工具不代表已登录。仅检查可执行文件和安装包标注的版本；不会运行工具、安装软件或调用模型。':
+      r'Finding a tool does not mean it is signed in. Discovery checks executable files and package versions, without running tools, installing software or calling a model.',
+  r'无法读取检测设置，请重新设置检测范围':
+      r'Unable to read discovery settings; configure the scan scope again',
+  r'检测未完成，请检查主机连接或检测范围':
+      r'Discovery did not complete; check the host connection or scan scope',
+  r'检测范围：当前 SSH 用户的非交互 PATH、常见安装目录，以及你补充的位置。别名、shell 函数、其他用户和容器内的工具可能无法发现。':
+      r'Scope: the current SSH user’s non-interactive PATH, common installation directories and your added locations. Aliases, shell functions, other users and tools inside containers may not be found.',
+  r'检测设置未能保存，请重试': r'Unable to save discovery settings; try again',
+  r'此范围未发现 · 可补充目录或工具路径':
+      r'Not found in this scope · Add a directory or executable path',
+  r'版本未核验': r'Version not verified',
+  r'自定义工具格式：名称 | /绝对路径': r'Custom tool format: Name | /absolute/path',
+  r'自定义工具（名称 | 路径）': r'Custom tools (Name | Path)',
+  r'补充检测范围': r'Add discovery locations',
+  r'补充目录和工具': r'Add directories and tools',
+  r'补充目录（每行一个）': r'Additional directories (one per line)',
+  r'设置只保存在本机，按主机和 SSH 用户分开。每项最多 16 条；保存空白可清除补充项。':
+      r'Settings stay on this device and are separate for each host and SSH user. Add up to 16 of each; save empty fields to clear them.',
+  r'重新检测': r'Scan again',
+  r'来源：${_sourceLabel(item.source)} · 已发现可执行文件':
+      r'Source: ${_sourceLabel(item.source)} · Executable found',
   // R22：连接生命周期（session_controller.dart、connection_lifecycle.dart、终端页的状态条）。整句精确匹配。
   '这台主机已经从保险库里删掉了。': 'This host has been deleted from the vault.',
   '这台主机已经从保险库里删掉了，没有自动恢复。要连就重新从主机列表打开。':
@@ -975,14 +1047,10 @@ const englishTranslations = <String, String>{
       r'\x1b[33mIt will not reconnect automatically or resend earlier input; the app cannot tell whether the plugin received the last keys typed before the disconnect.\r\n',
   '不能用「插件」协议连。Mosh 主机请把协议选成 Mosh。':
       'so it cannot be used with the Plugin protocol. Choose the Mosh protocol for Mosh hosts.',
-  '代理和跳板机':
-      'a proxy and jump hosts',
-  '关闭插件标签页？':
-      'Close the plugin tab?',
-  '将关闭插件会话：':
-      'This will close the plugin session: ',
-  r'插件 $id':
-      r'Plugin $id',
+  '代理和跳板机': 'a proxy and jump hosts',
+  '关闭插件标签页？': 'Close the plugin tab?',
+  '将关闭插件会话：': 'This will close the plugin session: ',
+  r'插件 $id': r'Plugin $id',
   r'插件 ${entry.pluginId} 自己联网':
       r'Plugin ${entry.pluginId} uses its own network',
   r'插件“$label”正在打开会话：它自己联网，不经过本 App 的代理和跳板':
@@ -997,8 +1065,7 @@ const englishTranslations = <String, String>{
       r'Plugin “$name” requests temporary credentials of its own session: sessions of such plugins (like Mosh) need one-time material this app first gets over SSH, ',
   r'插件“$name”被停用了：到「设置 → 插件（实验）」启用它，再连。':
       r'Plugin “$name” is disabled: enable it in Settings → Plugins (experimental), then connect.',
-  r'插件“$name”被拒绝了：$reason':
-      r'Plugin “$name” was rejected: $reason',
+  r'插件“$name”被拒绝了：$reason': r'Plugin “$name” was rejected: $reason',
   r'插件“$name”还没批准：到「设置 → 插件（实验）」核对证书后批准，再连。':
       r'Plugin “$name” is not approved yet: check its certificate in Settings → Plugins (experimental) and approve it, then connect.',
   '插件主机不走本 App 的连接路径：插件自己联网，不经过代理和跳板。':
@@ -1007,14 +1074,10 @@ const englishTranslations = <String, String>{
       r"Plugin hosts can only be direct: this host has $what configured. The plugin uses its own network, not this app's proxies or jump hosts; ",
   '插件主机要经插件连接，不能按普通 SSH 终端打开。':
       'Plugin hosts connect through their plugin and cannot be opened as a plain SSH terminal.',
-  '插件关掉了这个会话，没说原因。':
-      'The plugin closed this session without saying why.',
-  '插件只在 Android 上有。':
-      'Plugins are only available on Android.',
-  r'插件报告失败（$failure）。':
-      r'The plugin reported a failure ($failure).',
-  '插件结束了这个会话。':
-      'The plugin ended this session.',
+  '插件关掉了这个会话，没说原因。': 'The plugin closed this session without saying why.',
+  '插件只在 Android 上有。': 'Plugins are only available on Android.',
+  r'插件报告失败（$failure）。': r'The plugin reported a failure ($failure).',
+  '插件结束了这个会话。': 'The plugin ended this session.',
   '插件被停用、撤销批准、更新或断开了连接，会话已关闭。':
       'The plugin was disabled, its approval revoked, updated or disconnected; the session was closed.',
   '插件进程没了（被系统或手动结束）。':
@@ -1033,8 +1096,7 @@ const englishTranslations = <String, String>{
       'the plugin was not opened, and these settings are not silently removed. Switch the route to direct in the editor, or change the protocol back to SSH.',
   r'没有装插件“$pluginId”。装好后到「设置 → 插件（实验）」核对证书并批准，再连。':
       r'Plugin “$pluginId” is not installed. Install it, check its certificate and approve it in Settings → Plugins (experimental), then connect.',
-  '用哪个插件':
-      'Which plugin',
+  '用哪个插件': 'Which plugin',
   r'要再连，从保险库重新连接这台主机。\x1b[0m\r\n':
       r'To connect again, connect this host from the vault again.\x1b[0m\r\n',
   '还没有能用来连接的插件：装好终端插件后到「设置 → 插件（实验）」核对证书、批准。':
@@ -1047,8 +1109,7 @@ const englishTranslations = <String, String>{
       r'Cannot connect to plugin “$name”: ${check.message}',
   '选一个插件：协议选了「插件」，就要选用哪个插件连接。':
       'Choose a plugin: with the Plugin protocol you have to pick which plugin connects.',
-  '不可用':
-      'unavailable',
+  '不可用': 'unavailable',
   // X05：Tailscale 目录接入内置 provider。
   '目录设备引用无效': 'Invalid directory device reference',
   '没有主机引用这个来源，不需要恢复。新来源请用「添加来源」。':

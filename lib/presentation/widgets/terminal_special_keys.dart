@@ -24,6 +24,7 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
     required this.onAi,
     required this.onPortForward,
     required this.onSystemManagement,
+    this.onAiCli,
     required this.pictureInPicture,
     required this.onPictureInPicture,
     required this.fullscreen,
@@ -55,6 +56,7 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
   final VoidCallback? onAi;
   final VoidCallback? onPortForward;
   final VoidCallback? onSystemManagement;
+  final VoidCallback? onAiCli;
   final bool pictureInPicture;
   final VoidCallback? onPictureInPicture;
   final bool fullscreen;
@@ -119,9 +121,15 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
             children: [
               _quickKeyGrid(normalized, definitions),
               const SizedBox(height: 4),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                children: <Widget>[
+              LayoutBuilder(builder: (context, constraints) {
+                final actions = <Widget>[
+                  if (widget.onAiCli != null)
+                    IconButton(
+                      key: const ValueKey('terminal-action-ai-cli'),
+                      tooltip: localized('AI 命令行工具'),
+                      onPressed: widget.onAiCli,
+                      icon: const Icon(Icons.terminal),
+                    ),
                   if (widget.onAi != null)
                     IconButton(
                       key: const ValueKey('terminal-action-ai'),
@@ -186,10 +194,34 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                     onPressed: _hideKeyboard,
                     icon: const Icon(Icons.keyboard_hide_outlined),
                   ),
-                ]
-                    .map((button) => Expanded(child: button))
-                    .toList(growable: false),
-              ),
+                ];
+                final maxCount =
+                    (constraints.maxWidth / 48).floor().clamp(1, 20);
+                // Preserve the two keyboard controls when overflowing, rather
+                // than shrinking every action below its 48dp touch target.
+                final keyboard = actions.where((button) =>
+                    button.key ==
+                        const ValueKey('terminal-action-input-panel') ||
+                    button.key ==
+                        const ValueKey('terminal-action-hide-keyboard'));
+                final keptKeyboard = keyboard.take(maxCount - 1).toList();
+                final visible = widget.onAiCli != null &&
+                        actions.length > maxCount
+                    ? <Widget>[
+                        ...actions
+                            .where((button) => !keptKeyboard.contains(button))
+                            .take(maxCount - keptKeyboard.length - 1),
+                        ...keptKeyboard,
+                        _moreActions(context, normalized)
+                      ]
+                    : actions;
+                return Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                  children: visible
+                      .map((button) => Expanded(child: button))
+                      .toList(growable: false),
+                );
+              }),
             ],
           ),
         ),
@@ -263,7 +295,10 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
       );
 
   Widget _moreActions(BuildContext context, List<String> order) {
+    final aiCliLabel = localized('AI 命令行工具');
     final actions = <(String, String, IconData, VoidCallback?)>[
+      if (widget.onAiCli != null)
+        ('ai-cli', aiCliLabel, Icons.terminal, widget.onAiCli),
       if (widget.onAi != null)
         ('ai', localized('shu Agent'), Icons.auto_awesome, widget.onAi),
       (
@@ -301,6 +336,19 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
         localized('编辑快捷键'),
         Icons.tune,
         () => _customize(context, order),
+      ),
+      if (widget.onInputPanel != null)
+        (
+          'input-panel',
+          localized(widget.inputPanel ? '换回系统键盘' : '按键面板和大输入框'),
+          Icons.keyboard_alt_outlined,
+          widget.onInputPanel
+        ),
+      (
+        'hide-keyboard',
+        localized('收起键盘'),
+        Icons.keyboard_hide_outlined,
+        _hideKeyboard
       ),
     ];
     return PopupMenuButton<VoidCallback>(

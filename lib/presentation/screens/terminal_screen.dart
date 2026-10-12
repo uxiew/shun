@@ -20,6 +20,7 @@ import '../../domain/models/settings.dart';
 import '../../domain/route_description.dart';
 import '../../infrastructure/ai/ai_service.dart';
 import '../widgets/ai_panel.dart';
+import '../widgets/ai_cli_tools_sheet.dart';
 import '../widgets/ai_providers_page.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import '../../infrastructure/ssh/terminal_picture_in_picture_service.dart';
@@ -564,6 +565,17 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                 );
                                 ref.read(homeTabProvider.notifier).state = 2;
                               },
+                            ),
+                          )
+                      : null,
+                  onAiCli: inputSession.connected && inputSession.isSsh
+                      ? () => showModalBottomSheet<void>(
+                            context: context,
+                            useSafeArea: true,
+                            isScrollControlled: true,
+                            builder: (_) => AiCliToolsSheet(
+                              host: inputSession.host,
+                              session: inputSession,
                             ),
                           )
                       : null,
