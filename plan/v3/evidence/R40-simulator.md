@@ -57,3 +57,5 @@ flutter analyze --no-pub
 
 
 最终目录有六张截图：`chain-three.png`、`proxy-manager.png`、`catalog-chain.png`、`delete-impact.png`、`missing-proxy.png`、`english-manager.png`，已检查链节点操作、删除影响列表、错误提示和英文页面显示。`seed.log` / `cold.log` / `run.log` 为设备断言与进程记录，`seed-secrets.txt` / `cold-secrets.txt` 为明文扫描摘要；定向、分析与 fixture 自检日志也归集到最终目录，`manifest.json` 记录文件大小与 SHA256。
+
+后续：首跳代理显式选择、嵌套展开及再次设备回归见 [R40-choices](R40-choices.md)；本文保留当时的范围与状态。

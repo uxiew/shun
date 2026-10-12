@@ -24,8 +24,8 @@
     },
     {
       "path": "STATUS.md",
-      "size": 57257,
-      "sha256": "bd5673e0af6e679567e84c3c4b3dddb0db8030787b1ef6a66bebf68b8c4ebc84"
+      "size": 57898,
+      "sha256": "7c26598cb127a33a5614a30bc93637f0643e4838c4083ce47cc2104dd658dd2f"
     },
     {
       "path": "contracts/README.md",
@@ -114,8 +114,8 @@
     },
     {
       "path": "docs/04-network-routes.md",
-      "size": 4901,
-      "sha256": "0a113c9356a3c5719f8b10b86d1ca69ab6226582eb32e85e589606da67ea11d5"
+      "size": 6088,
+      "sha256": "060d35d51e63cb32f4bc504210e55e6a0c81c37501267decf3df03129f1c27c8"
     },
     {
       "path": "docs/05-tailscale.md",
@@ -134,13 +134,13 @@
     },
     {
       "path": "docs/08-implementation-tasks.md",
-      "size": 80096,
-      "sha256": "147a9132cb4617a019592275beebf963a8bcc8919bcfd0e23c12045b68f29f7a"
+      "size": 80089,
+      "sha256": "a00d9bf28b5956bc41904c09a7e5fdc11339f8df6ee98752bdc376a7e0868150"
     },
     {
       "path": "docs/09-verification.md",
-      "size": 37675,
-      "sha256": "3e82234bc06ed42703369e3f036dc39a7cd930d045b9cb6d71dc7a3432f0e605"
+      "size": 37672,
+      "sha256": "97bd9dcc8453b2b1d978237c40907d10bd65c7d9ebd34c169b55e632ae31567e"
     },
     {
       "path": "docs/10-agent-handoff.md",
@@ -229,8 +229,8 @@
     },
     {
       "path": "tasks.json",
-      "size": 107675,
-      "sha256": "7b1da5f3604e041cc3af7dd10f20db34156d79c3d0db5f94aa42c281bcc93a4e"
+      "size": 107703,
+      "sha256": "f4eea89f25a819127d45c13f92a7b764c4b024a3e4b53d4ae44fa67378287cfb"
     },
     {
       "path": "templates/evidence.md",
@@ -249,8 +249,8 @@
     },
     {
       "path": "verification-cases.json",
-      "size": 67143,
-      "sha256": "463d72c1951ea1fd586b92f8589d2e10d1e0087b4b56b46f1935747d199d8a21"
+      "size": 67175,
+      "sha256": "c32409d8c9b7597ff921faa5598402a2ba354d8d634e264b834eab419b961d84"
     }
   ],
   "application_build_performed": false,

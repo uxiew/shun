@@ -1649,10 +1649,11 @@
       "action": "在编辑器和批量导入里分别配直连、经代理、1–3 台跳板、代理加跳板；多台主机复用同一个代理；加一台自带代理或自带跳板的跳板机。",
       "expected": "链的顺序和实际连接一致；代理改一处全部生效；跳板机自带路线给出明确选择、不隐式套用；两处入口结果相同。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
       "evidence": [
-        "evidence/R40-simulator.md"
+        "evidence/R40-simulator.md",
+        "evidence/R40-choices.md"
       ]
     },
     {

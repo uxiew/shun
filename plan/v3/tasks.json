@@ -2394,7 +2394,7 @@
       "id": "R40",
       "phase": "P4",
       "title": "链式连接路径与可复用代理，编辑器和批量导入共用",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "depends_on": [
         "R07",
         "R10",
@@ -2428,9 +2428,10 @@
       "evidence": [
         "evidence/R40.md",
         "evidence/R40-chain.md",
-        "evidence/R40-simulator.md"
+        "evidence/R40-simulator.md",
+        "evidence/R40-choices.md"
       ],
-      "commit": "4a8e1a2"
+      "commit": "d4a9c96"
     },
     {
       "id": "R41",
