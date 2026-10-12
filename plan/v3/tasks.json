@@ -2427,9 +2427,10 @@
       "owner_role": "实施代理",
       "evidence": [
         "evidence/R40.md",
-        "evidence/R40-chain.md"
+        "evidence/R40-chain.md",
+        "evidence/R40-simulator.md"
       ],
-      "commit": "7777b1c"
+      "commit": "4a8e1a2"
     },
     {
       "id": "R41",
