@@ -31,16 +31,25 @@ trap 'exit 130' INT
 trap 'exit 143' TERM
 for port in 22201 21080 21081; do "${ADB[@]}" reverse "tcp:$port" "tcp:$port" >/dev/null; done
 "${ADB[@]}" reverse tcp:21082 tcp:21080 >/dev/null
+APK=${R40_APK:-build/app/outputs/flutter-apk/app-debug.apk}
+if [[ -z "${R40_APK:-}" ]]; then
+  flutter build apk --no-pub --debug --target-platform android-arm64 \
+    --target integration_test/r40_route_editor_test.dart \
+    --dart-define-from-file=tool/fixture-environment/.run/r40-defines.json > "$OUT/build.log" 2>&1
+fi
+[[ -f "$APK" ]] || { echo 'Missing R40 test APK'; exit 1; }
+shasum -a 256 "$APK" > "$OUT/apk-sha256.txt"
 "${ADB[@]}" shell pm clear "$PKG" >/dev/null 2>&1 || true
 for phase in seed cold; do
   "${ADB[@]}" shell am force-stop "$PKG"
   LOG="$OUT/$phase.log"
-  flutter test --no-pub --no-uninstall integration_test/r40_route_editor_test.dart -d "$SERIAL" \
+  flutter drive --no-pub --keep-app-running -d "$SERIAL" --driver test_driver/integration_test.dart \
+    --target integration_test/r40_route_editor_test.dart --use-application-binary "$APK" \
     --dart-define-from-file=tool/fixture-environment/.run/r40-defines.json > "$LOG" 2>&1 &
   test_pid=$!
   captured=' '
   while kill -0 "$test_pid" 2>/dev/null; do
-    for shot in chain-three proxy-manager catalog-chain delete-impact missing-proxy english-manager; do
+    for shot in jump-route-confirm jump-route-cycle chain-three proxy-manager catalog-chain delete-impact missing-proxy english-manager; do
       if [[ "$captured" != *" $shot "* ]] && grep -q "R40 SHOT=$shot" "$LOG"; then
         captured="$captured$shot "
         "${ADB[@]}" exec-out screencap -p > "$OUT/$shot.png"

@@ -139,6 +139,31 @@ void main() {
         }),
         node('peer', cfg['target']['name']),
         node('nested', 'ssh-edge', extra: {'proxyConfig': inline}),
+        node('proxy-edge', 'ssh-edge', extra: {'proxyConfig': inline}),
+        node('nested-b', cfg['hop2']['name'], extra: {
+          'hostChain': {
+            'hostIds': ['proxy-edge']
+          }
+        }),
+        node('nested-c', cfg['hop3']['name'], extra: {
+          'hostChain': {
+            'hostIds': ['nested-b']
+          }
+        }),
+        node('direct-edge', '127.0.0.1',
+            extra: {'port': 22201, 'proxyConfig': inline}),
+        node('choices-target', cfg['target']['name']),
+        node('choices-direct', cfg['target']['name']),
+        node('cycle-a', 'ssh-edge', extra: {
+          'hostChain': {
+            'hostIds': ['cycle-b']
+          }
+        }),
+        node('cycle-b', cfg['hop2']['name'], extra: {
+          'hostChain': {
+            'hostIds': ['cycle-a']
+          }
+        }),
         node('unsupported', cfg['target']['name'], extra: {
           'proxyConfig': {...inline, 'type': 'desktop-unknown'},
         }),
@@ -185,17 +210,21 @@ void main() {
     final dials = <int>[];
     final service = SshService(dialer: (address, port, {timeout}) {
       // Never permit a test failure to dial a real user host or tailnet.
-      expect(address, '127.0.0.1');
-      expect([21080, 21081, 21082], contains(port));
       dials.add(port);
+      expect(address, '127.0.0.1');
+      expect([21080, 21081, 21082, 22201], contains(port));
       return Socket.connect(address, port, timeout: timeout);
     });
-    Future<void> connect(String id, List<String> hops, int proxyPort) async {
+    Future<void> connect(String id, List<String> hops, int entryPort) async {
       final vault = await controller.ready();
       final selected = vault.hosts.singleWhere((h) => h.id == id);
       final verified = <String>[];
       final fingerprints = {
         'edge': cfg['sshEdge']['fingerprintSha256'],
+        'proxy-edge': cfg['sshEdge']['fingerprintSha256'],
+        'direct-edge': cfg['sshEdge']['fingerprintSha256'],
+        'nested-b': cfg['hop2']['fingerprintSha256'],
+        'nested-c': cfg['hop3']['fingerprintSha256'],
         'hop2': cfg['hop2']['fingerprintSha256'],
         'hop3': cfg['hop3']['fingerprintSha256'],
         id: cfg['target']['fingerprintSha256'],
@@ -214,8 +243,8 @@ void main() {
               utf8.decode(await client.run('hostname')).trim());
       expect(result, 'target');
       expect(verified, [...hops, id]);
-      expect(dials.last, proxyPort);
-      debugPrint('R40 SSH=$id hops=${hops.length} proxy=$proxyPort PASS');
+      expect(dials.last, entryPort);
+      debugPrint('R40 SSH=$id hops=${hops.length} entry=$entryPort PASS');
     }
 
     if (!cold) {
@@ -379,6 +408,42 @@ void main() {
       await saveHost();
       debugPrint(
           'R40 ROUTES=three-hop-limit-reorder-remove-catalog-clear-nested-rejection PASS');
+      await edit('choices-target');
+      await jump('nested-c');
+      expect(editor().plan, isNull);
+      await tap(tester, key('route-confirm-jumps'));
+      await screenshot(tester, 'jump-route-confirm');
+      await tap(tester, find.text('取消'));
+      expect(editor().draft.confirmation, isNull);
+      expect(editor().draft.jumpHostIds, ['nested-c']);
+      await tap(tester, key('route-confirm-jumps'));
+      await tap(tester, key('route-choice-proxy'));
+      expect(
+          editor().draft.jumpHostIds, ['proxy-edge', 'nested-b', 'nested-c']);
+      await saveHost();
+      await connect(
+          'choices-target', ['proxy-edge', 'nested-b', 'nested-c'], 21080);
+      expect((await host('nested-c')).hostChainIds, ['nested-b']);
+      expect(
+          (await host('proxy-edge')).data['proxyConfig']['password'] ==
+              inline['password'],
+          isTrue);
+      await edit('choices-direct');
+      await jump('cycle-a');
+      await tap(tester, key('route-confirm-jumps'));
+      await reveal(tester, key('route-choice-error'));
+      expect(editor().draft.jumpHostIds, ['cycle-a']);
+      await screenshot(tester, 'jump-route-cycle');
+      await tap(tester, key('route-clear'));
+      await jump('direct-edge');
+      await tap(tester, key('route-confirm-jumps'));
+      await tap(tester, key('route-choice-direct'));
+      expect(editor().draft.usesProxy, isFalse);
+      await saveHost();
+      await connect('choices-direct', ['direct-edge'], 22201);
+      debugPrint(
+          'R40 CHOICES=cancel-expand-three-use-proxy-explicit-direct-cycle-block PASS');
+
       await edit('unsupported');
       await reveal(tester, key('route-preview-error'));
       expect(editor().plan, isNull);
@@ -413,6 +478,26 @@ void main() {
       expect((await host('legacy')).data.containsKey('proxyConfig'), isFalse);
       await connect('legacy', ['hop3', 'hop2', 'edge'], 21082);
       await connect('peer', [], 21082);
+      await connect(
+          'choices-target', ['proxy-edge', 'nested-b', 'nested-c'], 21080);
+      await connect('choices-direct', ['direct-edge'], 22201);
+      final originalNested = await host('nested-b');
+      await controller.upsertHost(HostProfile({
+        ...originalNested.data,
+        'hostChain': {
+          'hostIds': ['edge']
+        }
+      }));
+      final beforeStale = dials.length;
+      await expectLater(connect('choices-target', [], 21080),
+          throwsA(isA<RouteConfigException>()));
+      expect(dials.length, beforeStale);
+      await edit('choices-target');
+      await reveal(tester, key('route-preview-error'));
+      expect(editor().plan, isNull);
+      await back(tester);
+      await controller.upsertHost(originalNested);
+      debugPrint('R40 CHOICES=cold-confirmation-source-change-zero-dial PASS');
       debugPrint(
           'R40 COLD=reference-order-unknown-fields-encrypted-password PASS pid=$pid');
       await edit('legacy');
@@ -425,6 +510,15 @@ void main() {
       expect((await controller.ready()).proxyProfiles.length, 1);
       await tap(tester, key('proxy-delete-$profileId'));
       await tap(tester, key('proxy-delete-confirm'));
+      // Frame settling does not await Android secure-storage I/O. Observe the
+      // completed deletion, with a bounded wait and the real UI error exposed.
+      final deleteDeadline = DateTime.now().add(const Duration(seconds: 10));
+      while (key('proxy-profile-$profileId').evaluate().isNotEmpty &&
+          key('proxy-manager-error').evaluate().isEmpty &&
+          DateTime.now().isBefore(deleteDeadline)) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(key('proxy-manager-error'), findsNothing);
       expect((await controller.ready()).proxyProfiles, isEmpty);
       await back(tester);
       await frames(tester);

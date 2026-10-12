@@ -6,6 +6,7 @@ import '../../domain/route_description.dart';
 import '../localization/localized_widgets.dart';
 import 'connection_route_draft.dart';
 import 'route_legs_view.dart';
+import 'jump_route_choice_dialog.dart';
 
 /// A chain editor over the same RoutePlan used for connecting. Incomplete or
 /// invalid drafts remain editable, but are never presented as validated routes.
@@ -20,6 +21,7 @@ class ConnectionRouteEditor extends StatefulWidget {
       required this.onSelectProxy,
       required this.onManageProxies,
       this.plan,
+      this.canConfirmRoutes = true,
       this.error,
       this.warnings = const [],
       this.targetHostId,
@@ -32,6 +34,7 @@ class ConnectionRouteEditor extends StatefulWidget {
   final VoidCallback onChanged, onManageProxies;
   final Future<String?> Function(Map<String, dynamic>? inline) onSelectProxy;
   final RoutePlan? plan;
+  final bool canConfirmRoutes;
   final String? error, targetHostId;
   final List<String> warnings;
   final String targetLabel, targetDetail;
@@ -42,8 +45,11 @@ class ConnectionRouteEditor extends StatefulWidget {
 
 class _ConnectionRouteEditorState extends State<ConnectionRouteEditor> {
   bool _selecting = false;
+  String? _choiceError;
   ConnectionRouteDraft get draft => widget.draft;
   void _change(VoidCallback change) {
+    draft.invalidateChoices();
+    _choiceError = null;
     change();
     widget.onChanged();
   }
@@ -56,6 +62,31 @@ class _ConnectionRouteEditorState extends State<ConnectionRouteEditor> {
       final id = await widget.onSelectProxy(
           convert && inline is Map ? Map<String, dynamic>.from(inline) : null);
       if (mounted && id != null) _change(() => draft.selectProxy(id));
+    } finally {
+      if (mounted) setState(() => _selecting = false);
+    }
+  }
+
+  Future<void> _confirmRoutes() async {
+    if (_selecting || !widget.canConfirmRoutes) return;
+    setState(() {
+      _selecting = true;
+      _choiceError = null;
+    });
+    try {
+      JumpRouteProposal propose() =>
+          proposeJumpRouteChoice(draft.choiceTarget(widget.targetHostId),
+              hosts: widget.hosts, proxyProfiles: widget.profiles);
+      final shown = propose();
+      final useProxy = await showJumpRouteChoice(context, shown);
+      if (!mounted || useProxy == null) return;
+      final current = propose();
+      if (!widget.canConfirmRoutes || !shown.sameRevision(current)) {
+        throw const RouteConfigException('跳板路线确认已失效，请重新确认。');
+      }
+      _change(() => draft.applyChoice(current.select(useFirstProxy: useProxy)));
+    } on RouteConfigException catch (error) {
+      if (mounted) setState(() => _choiceError = error.message);
     } finally {
       if (mounted) setState(() => _selecting = false);
     }
@@ -134,6 +165,28 @@ class _ConnectionRouteEditorState extends State<ConnectionRouteEditor> {
                   onPressed: () => _change(draft.clear),
                   child: const LText('清空路线')),
           ]),
+          if (draft.jumpHostIds.any((id) {
+            final host =
+                widget.hosts.where((host) => host.id == id).firstOrNull;
+            return host != null &&
+                (host.proxyProfileId?.isNotEmpty == true ||
+                    host.data['proxyConfig'] != null ||
+                    host.data['hostChain'] != null);
+          })) ...[
+            const LText('跳板自带路线需要明确确认；展开后仍最多 3 跳，后续跳板不能自带代理。'),
+            if (!widget.canConfirmRoutes)
+              const LText('代理凭据尚未就绪，请等待加载或修复无法读取的凭据。'),
+            TextButton(
+                key: const ValueKey('route-confirm-jumps'),
+                onPressed: _selecting || !widget.canConfirmRoutes
+                    ? null
+                    : _confirmRoutes,
+                child: const LText('检查并展开跳板路线')),
+          ],
+          if (_choiceError != null)
+            LText(_choiceError!,
+                key: const ValueKey('route-choice-error'),
+                style: TextStyle(color: Theme.of(context).colorScheme.error)),
           LText(widget.plan != null && widget.error == null
               ? '连接时会这样走'
               : '路线草稿（尚未通过校验）'),

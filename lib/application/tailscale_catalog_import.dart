@@ -21,6 +21,7 @@ class CatalogImportOptions {
     this.proxyProfileId,
     this.proxyConfig,
     this.jumpHostIds = const [],
+    this.jumpRouteConfirmation,
     this.authMethod = HostAuthMethod.auto,
     this.identityFileId,
     this.group,
@@ -34,9 +35,10 @@ class CatalogImportOptions {
   final String? proxyProfileId;
 
   /// 自定义代理，写进每台新主机（和编辑器里「自定义 HTTP / SOCKS5 代理」同一种存法）。
-  /// 手机端目前没有新建代理配置的入口，只有从桌面端导入的才有 [proxyProfileId] 可选。
+  /// 旧内联配置继续支持；共用路线编辑器也可新建并选择 [proxyProfileId]。
   final ProxyConfig? proxyConfig;
   final List<String> jumpHostIds;
+  final Object? jumpRouteConfirmation;
   final HostAuthMethod authMethod;
   final String? identityFileId;
   final String? group;
@@ -219,6 +221,8 @@ HostProfile _host(
   if (options.jumpHostIds.isNotEmpty) {
     data['hostChain'] = {
       'hostIds': [...options.jumpHostIds],
+      if (options.jumpRouteConfirmation != null)
+        jumpRouteConfirmationKey: options.jumpRouteConfirmation,
     };
   }
   final proxy = options.proxyProfileId ?? '';

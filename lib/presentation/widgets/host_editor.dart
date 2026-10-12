@@ -149,7 +149,8 @@ class _HostEditorState extends ConsumerState<HostEditor> {
 
   @override
   Widget build(BuildContext context) {
-    final vault = ref.watch(vaultControllerProvider).data;
+    final vaultState = ref.watch(vaultControllerProvider);
+    final vault = vaultState.data;
     final keys = vault?.keys ?? const <SshKeyProfile>[];
     final profiles = vault?.proxyProfiles ?? const <ProxyProfile>[];
     if (identityFileId != null &&
@@ -391,6 +392,11 @@ class _HostEditorState extends ConsumerState<HostEditor> {
               ],
               _section('连接路径'),
               ConnectionRouteEditor(
+                canConfirmRoutes: !vaultState.loading &&
+                    vaultState.error == null &&
+                    !vaultState.unreadableSecrets.any((key) =>
+                        key.startsWith('proxy.') ||
+                        key.endsWith('.proxyPassword')),
                 draft: route,
                 hosts: vault?.hosts ?? const [],
                 profiles: profiles,

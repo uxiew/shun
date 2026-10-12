@@ -71,6 +71,7 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
         proxyProfileId: _routeDraft.selectedProxyProfileId,
         proxyConfig: _routeDraft.selectedProxyConfig,
         jumpHostIds: _routeDraft.selectedJumpHostIds,
+        jumpRouteConfirmation: _routeDraft.confirmation,
         authMethod: _auth,
         identityFileId: _auth == HostAuthMethod.password ? null : _keyId,
         group: _group.text,
@@ -120,7 +121,8 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
 
   @override
   Widget build(BuildContext context) {
-    final vault = ref.watch(vaultControllerProvider).data;
+    final vaultState = ref.watch(vaultControllerProvider);
+    final vault = vaultState.data;
     final theme = Theme.of(context);
     final small = theme.textTheme.bodySmall;
     var previewIds = 0;
@@ -203,6 +205,10 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
           const LText('连接路径'),
           const SizedBox(height: 4),
           ConnectionRouteEditor(
+            canConfirmRoutes: !vaultState.loading &&
+                vaultState.error == null &&
+                !vaultState.unreadableSecrets.any((key) =>
+                    key.startsWith('proxy.') || key.endsWith('.proxyPassword')),
             draft: _routeDraft,
             hosts: vault?.hosts ?? const [],
             profiles: vault?.proxyProfiles ?? const [],

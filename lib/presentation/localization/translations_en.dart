@@ -1,4 +1,24 @@
 const englishTranslations = <String, String>{
+  '跳板路线确认已失效，请重新确认。':
+      'Jump route confirmation expired. Review and confirm again.',
+  '路线': 'Route',
+  '首跳': 'First hop',
+  '展开后跳板机超过 3 台。': 'Expansion exceeds the three jump host limit.',
+  '跳板自带路线需要明确确认；展开后仍最多 3 跳，后续跳板不能自带代理。':
+      'Confirm jump host routes explicitly. Expansion allows up to three hops; later hops cannot have their own proxy.',
+  '检查并展开跳板路线': 'Review and expand jump routes',
+  '确认跳板路线': 'Confirm jump route',
+  '展开后的跳板顺序：': 'Expanded jump order:',
+  '只修改当前路线，不修改原跳板主机。':
+      'Only this route changes. Original jump hosts remain unchanged.',
+  '首跳自带代理：': 'First hop proxy:',
+  '请选择也经这个代理，或直连这台跳板机；这会替换当前入口代理。':
+      'Choose this proxy or connect directly to the first hop. This replaces the current entry proxy.',
+  '直连这台跳板机': 'Connect directly to this jump host',
+  '展开并使用此路线': 'Expand and use this route',
+  '也经这个代理': 'Use this proxy too',
+  '代理凭据尚未就绪，请等待加载或修复无法读取的凭据。':
+      'Proxy credentials are not ready. Wait for loading or repair unreadable credentials.',
   // R40 chain editing and reusable proxy profiles.
   '代理名称不能为空': 'Proxy name is required',
   '代理或引用主机已变化，请重新打开后再操作。':

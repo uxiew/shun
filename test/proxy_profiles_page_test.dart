@@ -214,6 +214,41 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets('jump consent cancellation and a changed source are inert',
+      (tester) async {
+    final edge = host('consent-edge', extra: {'proxyProfileId': 'p'});
+    await repository
+        .saveVault((await repository.loadVault()).copyWith(hosts: [edge]));
+    await open(tester, HostEditor(host: host('target')));
+    await addRouteJump(tester, 'consent-edge');
+    await tapRoute(tester, find.byKey(const ValueKey('route-confirm-jumps')));
+    await tapRoute(tester, find.text('取消'));
+    var draft = tester
+        .widget<ConnectionRouteEditor>(find.byType(ConnectionRouteEditor))
+        .draft;
+    expect(draft.confirmation, isNull);
+    await tapRoute(tester, find.byKey(const ValueKey('route-confirm-jumps')));
+    await container
+        .read(vaultControllerProvider.notifier)
+        .upsertHost(HostProfile({...edge.data, 'hostname': 'changed.example'}));
+    await tester.pumpAndSettle();
+    await tapRoute(tester, find.byKey(const ValueKey('route-choice-proxy')));
+    expect(find.text('跳板路线确认已失效，请重新确认。'), findsOneWidget);
+    expect(draft.confirmation, isNull);
+    expect(draft.usesProxy, isFalse);
+    await tapRoute(tester, find.byKey(const ValueKey('route-confirm-jumps')));
+    await tapRoute(tester, find.byKey(const ValueKey('route-choice-proxy')));
+    expect(draft.confirmation, isNotNull);
+    expect(draft.selectedProxyProfileId, 'p');
+    await tapRoute(tester, find.byKey(const ValueKey('route-remove-proxy')));
+    expect(draft.confirmation, isNull);
+    expect(
+        tester
+            .widget<ConnectionRouteEditor>(find.byType(ConnectionRouteEditor))
+            .plan,
+        isNull);
+  });
+
   testWidgets('360dp English management and proxy form fit with keyboard',
       (tester) async {
     ShunLocalizations.use('en');

@@ -16,7 +16,9 @@ zig version                     # 应为 0.16.0；终端引擎（libghostty）�
 
 ## 2. 测试
 
-R40 的 `lib/presentation/widgets/connection_route_editor.dart` 是共用链式编辑器，接收页面已有 `RoutePlan`，通过 `describeRoute` 显示已验证的节点；无有效计划时只显示草稿和错误。`connection_route_draft.dart` 管理选择及兼容字段，保留未修正的失效引用和旧内联配置；不读仓库、不执行网络请求。两页负责预览和提交，只有 `resolveRoutePlan` 决定路线规则。当前仍拒绝跳板自带代理/嵌套路线，不自动继承或展开。
+R40 的 `lib/presentation/widgets/connection_route_editor.dart` 是共用链式编辑器，接收页面已有 `RoutePlan`，通过 `describeRoute` 显示已验证的节点；无有效计划时只显示草稿和错误。`connection_route_draft.dart` 管理选择及兼容字段，保留未修正的失效引用和旧内联配置；不读仓库、不执行网络请求。两页负责预览和提交，只有 `resolveRoutePlan` 决定路线规则。`domain/jump_route_choices.dart` 是 RoutePlan 库的一部分，集中做有界展开、首跳代理候选及确认复核；`jump_route_choice_dialog.dart` 只展示方案并返回明确选择。确认前、来源变化后和后续跳板自带代理时均拒绝执行。
+
+R40 确认信息保存在原 `hostChain` 的 `shunRouteConfirmation` 扩展中：只有版本、顺序、来源的非秘密路线信息和入口选择，没有密码或私钥。`hostIds`、`proxyProfileId` / `proxyConfig` 仍是完整平面路线，不迁移或修改其他主机；缺失/损坏/失效确认一律拒绝。旧客户端的确认语义未实测，不以 JSON 字段兼容冒充跨端执行兼容。
 
 代理 UI 分为 `proxy_profiles_page.dart`（列表、选择、删除确认）和 `proxy_profile_editor.dart`（表单、旧内联配置另存）。`domain/proxy_profiles.dart` 校验配置和确认范围；`VaultController.saveProxyProfile/deleteProxyProfile` 复用主机写入队列并复核旧配置、删除引用，调用现有仓库加密保存。未知桌面字段保留，删除不改主机引用；钥匙串/同步原有的直接 `replace` 路径并未因本轮改成统一事务队列。定向入口：
 
@@ -167,7 +169,7 @@ flutter test test/integration_ssh_fixture_test.dart
 
 ### R40 路线编辑设备回归
 
-`integration_test/r40_route_editor_test.dart` 在真实手机尺寸、系统键盘和加密保险库上测试两页共用链、三跳排序/移除、代理管理及旧内联代理转换；核对本地 OpenSSH 每跳指纹，并在目标执行 `hostname`。第二次启动使用另一 App 进程，重读代理引用、跳板顺序与密码，再验证删除代理后拒绝连接。目录批量导入用合成目录，不请求真实 Tailscale，也不拨目录里的地址。
+`integration_test/r40_route_editor_test.dart` 在真实手机尺寸、系统键盘和加密保险库上测试两页共用链、三跳排序/移除、代理管理及旧内联代理转换；核对本地 OpenSSH 每跳指纹，并在目标执行 `hostname`。第二次启动使用另一 App 进程，重读代理引用、跳板顺序与密码，再验证删除代理后拒绝连接。还覆盖递归三跳展开、首跳沿用代理/明确直连、取消、循环拒绝、确认跨进程保留和来源变化后零拨号。目录批量导入用合成目录，不请求真实 Tailscale，也不拨目录里的地址。
 
 ```bash
 source ../.toolchain/env.sh
@@ -184,7 +186,9 @@ adb -s emulator-5580 emu kill
 bash tool/fixture-environment/down.sh
 ```
 
-脚本只接受 `emulator-5580` 上的 `shun-a35-4k`，**会清空该模拟器的 shun 测试数据**。使用临时 define 文件传入 fixture 凭据，不把密码拼进命令或证据；截图、两阶段日志和明文凭据扫描摘要默认在 `../.toolchain/artifacts/r40-simulator-<提交>/`，可用 `R40_OUT` 指定新目录。脚本结束会撤销本轮端口转发、删除 define 文件；App 保留供检查，由以上命令卸载。真实设备/iOS 不在这条脚本范围内。
+脚本先用 `flutter build apk` 构建一次，再由 `flutter drive --keep-app-running` 运行两阶段，阶段间 force-stop 保留真实数据。仅复用本轮相同源码和 fixture 凭据构建的 APK 时，可设 `R40_APK` 跳过构建；不能复用 `flutter test` 生成的协议引导 APK。
+
+脚本只接受 `emulator-5580` 上的 `shun-a35-4k`，**会清空该模拟器的 shun 测试数据**。使用临时 define 文件传入 fixture 凭据，不把密码拼进命令或证据；截图、两阶段日志和明文凭据扫描摘要默认在 `../.toolchain/artifacts/r40-simulator-<提交>/`，可用 `R40_OUT` 指定新目录。21082 是 21080 认证 SOCKS 的第二个 adb 入口；首跳显式直连走 22201。脚本结束会撤销本轮端口转发、删除 define 文件；App 保留供检查，由以上命令卸载。真实设备/iOS 不在这条脚本范围内。
 
 ## 3. 模拟器
 

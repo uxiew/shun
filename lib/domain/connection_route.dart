@@ -1,7 +1,11 @@
+import 'dart:convert';
+
 import 'dart:io' show InternetAddress, InternetAddressType;
 
 import 'models/host.dart';
 import 'tailscale_ssh.dart' show sshLoginModeKey;
+
+part 'jump_route_choices.dart';
 
 /// 路由配置无法按用户的选择执行。一律在拨号前抛出，不会退回直连。
 class RouteConfigException implements Exception {
@@ -166,11 +170,17 @@ class RouteHop {
   /// 同样是深拷贝；主机没配私钥或私钥已被删除时为 null（沿用原来的认证回退）。
   final SshKeyProfile? key;
 
-  RouteHop _withoutSecrets() => RouteHop._(
-        HostProfile(_deepCopy(host.data)..remove('password')),
-        endpoint,
-        null,
-      );
+  RouteHop _withoutSecrets() {
+    final data = _deepCopy(host.data)
+      ..remove('password')
+      ..remove('telnetPassword');
+    final proxy = data['proxyConfig'];
+    if (proxy is Map) {
+      data['proxyConfig'] = Map<String, dynamic>.from(proxy)
+        ..remove('password');
+    }
+    return RouteHop._(HostProfile(data), endpoint, null);
+  }
 
   /// 这一跳是哪台机器、以谁的身份登录；不含密码和私钥内容。
   String get _shape => [
@@ -247,7 +257,7 @@ class RoutePlan {
 ///
 /// 规则：
 /// - 路线只由**目标主机**决定。跳板机只贡献地址和登录身份；跳板机自己配的代理或跳板
-///   不会被隐式套用（docs/04），出现就拒绝——忽略它等于绕过代理直连跳板机。
+///   不会被隐式套用（docs/04）。只有编辑器确认过的平面路线例外；确认失效仍拒绝。
 /// - 同一处有两套配置（既引用代理配置又自带代理）时拒绝，不设隐藏优先级，让用户在编辑器里选。
 /// - 缺失、格式不对、循环、超过 [maxJumpHosts] 跳、同一台机器出现两次、地址或端口非法，都拒绝。
 /// - 目标上同时有代理和跳板，就是「代理入口 + 跳板」（docs/04 的高级模式）：代理只用于手机连第一跳，
@@ -286,6 +296,7 @@ RoutePlan resolveRoutePlan(
   }
 
   final byId = {for (final host in hosts) host.id: host};
+  final confirmed = _confirmedJumpRoutes(target, jumpIds, byId, proxyProfiles);
   final seen = <String>{target.id};
   final jumps = <RouteHop>[];
   for (final id in jumpIds) {
@@ -296,13 +307,13 @@ RoutePlan resolveRoutePlan(
       throw RouteConfigException('跳板机必须使用 SSH：${jump.label}');
     }
     final jumpName = '跳板机“${jump.label}”';
-    if (_hasProxySetting(jump)) {
+    if (_hasProxySetting(jump) && !(confirmed && jumps.isEmpty)) {
       throw RouteConfigException(
         '$jumpName自己配置了代理，经它连接时不会隐式套用。'
         '需要「先经代理再走跳板」时，请把代理设在$targetName上，它会作为入口只用于连第一跳。',
       );
     }
-    if (_jumpIds(jump, jumpName).isNotEmpty) {
+    if (_jumpIds(jump, jumpName).isNotEmpty && !confirmed) {
       throw RouteConfigException(
         '$jumpName自己又配置了跳板机，不支持嵌套。请在$targetName上按顺序列出全部跳板机。',
       );

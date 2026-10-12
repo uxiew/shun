@@ -59,13 +59,26 @@ void main() {
       {required bool catalog}) async {
     final repository = await VaultRepository.open();
     await repository.saveVault(VaultData(hosts: [
-      edge,
+      HostProfile({
+        ...edge.data,
+        if (scenario == 'first-direct' ||
+            scenario == 'first-proxy' ||
+            scenario == 'expanded-proxy')
+          'proxyProfileId': 'p'
+      }),
       for (var i = 1; i < 3; i++)
-        HostProfile.create(
-            id: 'edge$i',
-            label: 'edge$i',
-            hostname: 'edge$i.example',
-            username: 'ops')
+        HostProfile({
+          ...HostProfile.create(
+                  id: 'edge$i',
+                  label: 'edge$i',
+                  hostname: 'edge$i.example',
+                  username: 'ops')
+              .data,
+          if (i == 1 && scenario.startsWith('expanded'))
+            'hostChain': {
+              'hostIds': ['edge']
+            },
+        })
     ], keys: [], snippets: [], customGroups: [], proxyProfiles: [
       proxy
     ]));
@@ -99,6 +112,16 @@ void main() {
     }
     expect(find.text('经代理'), findsNothing);
     expect(find.text('经跳板机'), findsNothing);
+    if (scenario.startsWith('first-') || scenario.startsWith('expanded')) {
+      await addRouteJump(
+          tester, scenario.startsWith('first-') ? 'edge' : 'edge1');
+      await tapRoute(tester, find.byKey(const ValueKey('route-confirm-jumps')));
+      await tapRoute(
+          tester,
+          find.byKey(ValueKey(scenario.endsWith('proxy')
+              ? 'route-choice-proxy'
+              : 'route-choice-direct')));
+    }
     final jumpCount = scenario.startsWith('jump')
         ? int.parse(scenario.substring(4))
         : scenario == 'combined'
@@ -132,6 +155,10 @@ void main() {
   }
 
   for (final scenario in [
+    'first-direct',
+    'first-proxy',
+    'expanded',
+    'expanded-proxy',
     'direct',
     'custom',
     'saved',
@@ -161,6 +188,12 @@ void main() {
         expect(host.host.hostChainIds, isEmpty);
         expect(host.host.proxyConfig, isNull);
         expect(host.host.proxyProfileId, isNull);
+      } else if (scenario.startsWith('first-') ||
+          scenario.startsWith('expanded')) {
+        expect(
+            host.host.proxyProfileId, scenario.endsWith('proxy') ? 'p' : null);
+        expect(host.host.hostChainIds,
+            scenario.startsWith('first-') ? ['edge'] : ['edge', 'edge1']);
       } else if (scenario == 'saved') {
         expect(host.host.proxyProfileId, 'p');
         expect(imported.host.proxyProfileId, 'p');
