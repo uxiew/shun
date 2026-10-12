@@ -1,93 +1,75 @@
-import 'package:flutter/material.dart';
-
 import '../../domain/models/host.dart';
 
-/// Existing R10 modes. The R40 chain UI is a separate, later change.
-enum ConnectionRouteMode { direct, proxy, jump }
-
-/// Editable route fields shared by the host form and catalog import.
-/// The owning page controls rebuilds, validation/preview and disposal. Hidden
-/// values survive mode switches, but only the selected route is serialized.
+/// Mutable presentation draft. It neither resolves routes nor writes storage.
+/// Existing malformed/unknown values remain visible to the route resolver until
+/// the user explicitly replaces or removes that part of the route.
 class ConnectionRouteDraft {
-  ConnectionRouteDraft.forHost(HostProfile? host)
-      : proxyHost = TextEditingController(text: host?.proxyConfig?.host),
-        proxyPort = TextEditingController(
-            text: host?.proxyConfig == null || host!.proxyConfig!.port == 0
-                ? ''
-                : host.proxyConfig!.port.toString()),
-        proxyUsername =
-            TextEditingController(text: host?.proxyConfig?.username),
-        proxyPassword =
-            TextEditingController(text: host?.proxyConfig?.password) {
-    jumpHostIds.addAll(host?.hostChainIds ?? const []);
-    proxyType = host?.proxyConfig?.type ?? ProxyType.socks5;
-    final hasProfile = host?.proxyProfileId?.isNotEmpty == true;
-    proxyMode = hasProfile ? 'profile:${host!.proxyProfileId}' : 'custom';
-    final hasProxy = hasProfile || host?.proxyConfig != null;
-    mode = jumpHostIds.isNotEmpty
-        ? ConnectionRouteMode.jump
-        : hasProxy
-            ? ConnectionRouteMode.proxy
-            : ConnectionRouteMode.direct;
-    entryProxy = jumpHostIds.isNotEmpty && hasProxy;
+  ConnectionRouteDraft.forHost(HostProfile? host) {
+    proxyProfileId = host?.proxyProfileId;
+    inlineProxy = host?.data['proxyConfig'];
+    final chain = host?.data['hostChain'];
+    if (chain != null &&
+        (chain is! Map ||
+            (chain['hostIds'] != null &&
+                (chain['hostIds'] is! List ||
+                    (chain['hostIds'] as List)
+                        .any((id) => id is! String || id.isEmpty))))) {
+      _unparsedChain = chain;
+    } else {
+      jumpHostIds.addAll(host?.hostChainIds ?? const []);
+    }
   }
 
-  ConnectionRouteDraft.forCatalogImport()
-      : proxyHost = TextEditingController(),
-        proxyPort = TextEditingController(),
-        proxyUsername = TextEditingController(),
-        proxyPassword = TextEditingController();
+  ConnectionRouteDraft.forCatalogImport();
 
-  final TextEditingController proxyHost,
-      proxyPort,
-      proxyUsername,
-      proxyPassword;
   final jumpHostIds = <String>[];
-  ConnectionRouteMode mode = ConnectionRouteMode.direct;
-  ProxyType proxyType = ProxyType.socks5;
-
-  /// Empty means unselected, `custom` is inline, `profile:<id>` is a reference.
-  String proxyMode = '';
-  bool entryProxy = false;
-  bool obscureProxyPassword = true;
+  Object? _unparsedChain;
+  String? proxyProfileId;
+  Object? inlineProxy;
 
   bool get usesProxy =>
-      mode == ConnectionRouteMode.proxy ||
-      (mode == ConnectionRouteMode.jump && entryProxy);
-  List<String> get selectedJumpHostIds =>
-      mode == ConnectionRouteMode.jump ? [...jumpHostIds] : const [];
-  String? get selectedProxyProfileId =>
-      usesProxy && proxyMode.startsWith('profile:')
-          ? proxyMode.substring('profile:'.length)
-          : null;
-  ProxyConfig? get selectedProxyConfig => usesProxy && proxyMode == 'custom'
-      ? ProxyConfig(
-          type: proxyType,
-          host: proxyHost.text.trim(),
-          port: int.tryParse(proxyPort.text.trim()) ?? 0,
-          username: proxyUsername.text.trim(),
-          password: proxyPassword.text)
+      proxyProfileId?.isNotEmpty == true || inlineProxy != null;
+  List<String> get selectedJumpHostIds => [...jumpHostIds];
+  String? get selectedProxyProfileId => proxyProfileId;
+  ProxyConfig? get selectedProxyConfig => inlineProxy is Map
+      ? ProxyConfig.fromJson(Map<String, dynamic>.from(inlineProxy as Map))
       : null;
+
+  void selectProxy(String id) {
+    proxyProfileId = id;
+    inlineProxy = null;
+  }
+
+  void removeProxy() {
+    proxyProfileId = null;
+    inlineProxy = null;
+  }
+
+  void addJump(String id) {
+    _unparsedChain = null;
+    jumpHostIds.add(id);
+  }
+
+  void clear() {
+    removeProxy();
+    _unparsedChain = null;
+    jumpHostIds.clear();
+  }
 
   /// Same desktop-compatible keys; Telnet explicitly strips route settings.
   void writeTo(Map<String, dynamic> data, {bool enabled = true}) {
-    final jumps = enabled ? selectedJumpHostIds : const <String>[];
-    if (jumps.isEmpty) {
-      data.remove('hostChain');
-    } else {
-      data['hostChain'] = {'hostIds': jumps};
-    }
-    final profile = enabled ? selectedProxyProfileId : null;
-    final custom = enabled ? selectedProxyConfig : null;
+    data.remove('hostChain');
     data.remove('proxyProfileId');
     data.remove('proxyConfig');
-    if (profile != null) data['proxyProfileId'] = profile;
-    if (custom != null) data['proxyConfig'] = custom.toJson();
-  }
-
-  void dispose() {
-    for (final c in [proxyHost, proxyPort, proxyUsername, proxyPassword]) {
-      c.dispose();
+    if (!enabled) return;
+    if (_unparsedChain != null) {
+      data['hostChain'] = _unparsedChain;
+    } else if (jumpHostIds.isNotEmpty) {
+      data['hostChain'] = {
+        'hostIds': [...jumpHostIds]
+      };
     }
+    if (proxyProfileId != null) data['proxyProfileId'] = proxyProfileId;
+    if (inlineProxy != null) data['proxyConfig'] = inlineProxy;
   }
 }

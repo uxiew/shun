@@ -11,6 +11,8 @@ import 'package:shun/application/port_forward_controller.dart';
 import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/connection_route.dart';
+import 'package:shun/domain/proxy_profiles.dart';
 import 'package:shun/infrastructure/ssh/server_monitor_service.dart';
 import 'package:shun/infrastructure/ssh/sftp_service.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
@@ -599,6 +601,78 @@ void main() {
         expect(dialer.dials, ['${proxy.host}:${proxy.port}']);
         expect(proxy.attempts.map((a) => a.requestedHost),
             ['edge.fixture.invalid']);
+      });
+
+      test('R40 可复用代理更新后两台主机下一次连接换入口，删除后零拨号', () async {
+        useMemorySecureStorage();
+        SharedPreferences.setMockInitialValues({});
+        final repository = await VaultRepository.open();
+        final controller = VaultController(repository);
+        addTearDown(controller.dispose);
+        final second = await Socks5Fixture.start(names: {
+          'edge.fixture.invalid': (
+            host: fixture!.edgeHost,
+            port: fixture.edgePort
+          ),
+        });
+        addTearDown(second.close);
+        ProxyProfile profile(Socks5Fixture endpoint) => ProxyProfile({
+              'id': 'shared',
+              'label': 'shared',
+              'config': {
+                'type': 'socks5',
+                'host': endpoint.host,
+                'port': endpoint.port,
+              },
+            });
+        final path = jumps();
+        final targets = [
+          for (final id in ['a', 'b'])
+            HostProfile({
+              ...targetVia(path, {'proxyProfileId': 'shared'}).data,
+              'id': id,
+            })
+        ];
+        final original = profile(proxy);
+        await controller.saveProxyProfile(original);
+        await controller.addHosts([...path, ...targets]);
+        Future<ActiveTerminalSession> connect(HostProfile host) async {
+          final vault = await controller.ready();
+          return SshService(dialer: dialer.call).connect(
+            terminal: GhosttyTerminalAdapter(),
+            sessionId: 'r40-${host.id}',
+            host: host,
+            hosts: vault.hosts,
+            keys: vault.keys,
+            proxyProfiles: vault.proxyProfiles,
+            verifyHostKey: verify,
+          );
+        }
+
+        final active = await connect(targets.first);
+        addTearDown(active.close);
+        expect(await runInSession(active, 'hostname'), 'target');
+        final updated = profile(second);
+        await controller.saveProxyProfile(updated, expected: original);
+        for (final host in targets) {
+          final session = await connect(host);
+          try {
+            expect(await runInSession(session, 'hostname'), 'target');
+          } finally {
+            await session.close();
+          }
+        }
+        expect(dialer.dials, [
+          '${proxy.host}:${proxy.port}',
+          '${second.host}:${second.port}',
+          '${second.host}:${second.port}'
+        ]);
+        expect(await runInSession(active, 'hostname'), 'target');
+        await controller.deleteProxyProfile(
+            ProxyDeletion(await controller.ready(), updated));
+        await expectLater(
+            connect(targets.first), throwsA(isA<RouteConfigException>()));
+        expect(dialer.dials.length, 3);
       });
 
       test('代理连不到第一跳：报第一跳、经代理阶段，不绕过代理', () async {

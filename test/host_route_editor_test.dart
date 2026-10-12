@@ -7,8 +7,9 @@ import 'package:shun/domain/models/vault.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'support/route_editor_actions.dart';
 
-// R10 / UX01：连接路径三选一 + 显式高级组合；实时显示按当前填写算出的路线；
+// R10 / R40 / UX01：链式编辑；实时显示按当前填写算出的路线；
 // SSH 端口和代理端口分开写、分开显示；路线有矛盾时不让保存。
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -28,6 +29,7 @@ void main() {
       });
 
   HostProfile? result;
+  late VaultRepository repository;
 
   Future<void> open(
     WidgetTester tester, {
@@ -41,7 +43,7 @@ void main() {
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(secureStorage, (call) async => null);
     SharedPreferences.setMockInitialValues({});
-    final repository = await VaultRepository.open();
+    repository = await VaultRepository.open();
     await repository.saveVault(VaultData.fromJson({
       'hosts': [
         saved('edge').toJson(),
@@ -123,62 +125,52 @@ void main() {
   testWidgets('经代理：SSH 端口和代理端口分开填、分开显示；保存各归各', (tester) async {
     await open(tester);
     await fillTarget(tester);
-    await tester.tap(find.text('经代理'));
-    await tester.pumpAndSettle();
     expect(find.widgetWithText(TextFormField, 'SSH 端口'), findsOneWidget);
-    expect(find.widgetWithText(TextFormField, '代理端口'), findsOneWidget);
-    await fill(tester, '代理地址', '127.0.0.1');
-    await fill(tester, '代理端口', '1080');
+    await createRouteProxy(tester);
+    expect(find.widgetWithText(TextFormField, '代理端口'),
+        findsNothing); // separate form
     expect(preview(tester), contains('2. SOCKS5 代理'));
     expect(preview(tester), contains('127.0.0.1:1080（代理之后怎么走由代理决定，App 看不到）'));
     expect(preview(tester), contains('SSH deploy@web.example.com:2222'));
     await save(tester);
     expect(result!.port, 2222);
-    expect(result!.proxyConfig!.port, 1080);
-    expect(result!.proxyConfig!.type, ProxyType.socks5);
+    final config = (await repository.loadVault())
+        .proxyProfiles
+        .singleWhere((p) => p.id == result!.proxyProfileId)
+        .config!;
+    expect(config.port, 1080);
+    expect(config.type, ProxyType.socks5);
     expect(result!.data.containsKey('hostChain'), isFalse);
   });
 
   testWidgets('代理端口填成 22、或与目标完全相同：提示可能填混了（不拦保存）', (tester) async {
     await open(tester);
     await fillTarget(tester);
-    await tester.tap(find.text('经代理'));
-    await tester.pumpAndSettle();
-    await fill(tester, '代理地址', '127.0.0.1');
-    await fill(tester, '代理端口', '22');
+    await createRouteProxy(tester, port: '22');
     expect(find.byKey(const ValueKey('route-preview-warning')), findsOneWidget);
     expect(preview(tester), contains('代理端口填的是 22'));
-    await fill(tester, '代理地址', 'web.example.com');
-    await fill(tester, '代理端口', '2222');
+    await createRouteProxy(tester, host: 'web.example.com', port: '2222');
     expect(preview(tester), contains('可能把两者填混了'));
   });
 
-  testWidgets('经跳板机但没选跳板：摘要报原因，保存被拒绝', (tester) async {
-    await open(tester);
-    await fillTarget(tester);
-    await tester.tap(find.text('经跳板机'));
-    await tester.pumpAndSettle();
+  testWidgets('缺失跳板：摘要报原因，保存被拒绝', (tester) async {
+    await open(tester,
+        host: saved('missing-chain', extra: {
+          'hostChain': {
+            'hostIds': ['missing']
+          }
+        }));
     expect(find.byKey(const ValueKey('route-preview-error')), findsOneWidget);
     await save(tester);
-    expect(result, isNull, reason: '不支持或矛盾的路线在保存前拒绝');
-    expect(find.text('选了「经跳板机」，但还没有添加跳板机。'), findsWidgets);
+    expect(result, isNull);
+    expect(find.textContaining('找不到跳板机'), findsWidgets);
   });
 
-  testWidgets('跳板 + 显式打开「先经代理」：摘要 手机 → 代理 → 跳板 → 目标；两样都保存', (tester) async {
+  testWidgets('添加跳板与代理：摘要 手机 → 代理 → 跳板 → 目标；两样都保存', (tester) async {
     await open(tester);
     await fillTarget(tester);
-    await tester.tap(find.text('经跳板机'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('add-jump-host')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('edge').last);
-    await tester.pumpAndSettle();
-    expect(find.widgetWithText(TextFormField, '代理地址'), findsNothing,
-        reason: '没打开高级开关时不出现代理设置');
-    await tester.tap(find.byKey(const ValueKey('entry-proxy-switch')));
-    await tester.pumpAndSettle();
-    await fill(tester, '代理地址', '127.0.0.1');
-    await fill(tester, '代理端口', '1080');
+    await addRouteJump(tester, 'edge');
+    await createRouteProxy(tester);
     final text = preview(tester);
     expect(text, contains('1. 手机'));
     expect(text, contains('2. SOCKS5 代理'));
@@ -186,18 +178,15 @@ void main() {
     expect(text, contains('4. 目标“web”'));
     await save(tester);
     expect(result!.hostChainIds, ['edge']);
-    expect(result!.proxyConfig!.host, '127.0.0.1');
+    expect(result!.proxyProfileId, isNotNull);
+    expect((await repository.loadVault()).proxyProfiles.single.config!.host,
+        '127.0.0.1');
   });
 
   testWidgets('跳板机自己带了代理：摘要说明不会隐式套用，保存被拒绝', (tester) async {
     await open(tester);
     await fillTarget(tester);
-    await tester.tap(find.text('经跳板机'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('add-jump-host')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('proxied-jump').last);
-    await tester.pumpAndSettle();
+    await addRouteJump(tester, 'proxied-jump');
     expect(preview(tester), contains('自己配置了代理，经它连接时不会隐式套用'));
     await save(tester);
     expect(result, isNull);
@@ -211,14 +200,14 @@ void main() {
       }),
     );
     expect(preview(tester), contains('SOCKS5 代理'), reason: '按已有数据打开在「经代理」');
-    await tester.tap(find.text('直连'));
+    await tester.tap(find.byKey(const ValueKey('route-clear')));
     await tester.pumpAndSettle();
     await save(tester);
     expect(result!.data.containsKey('proxyConfig'), isFalse);
     expect(result!.data.containsKey('proxyProfileId'), isFalse);
   });
 
-  testWidgets('已有「代理 + 跳板」的主机：打开时就在跳板模式且高级开关是开的', (tester) async {
+  testWidgets('已有代理和跳板：直接显示完整链，不出现旧模式开关', (tester) async {
     await open(
       tester,
       host: saved('combo', extra: {
@@ -228,9 +217,8 @@ void main() {
         'proxyConfig': {'type': 'socks5', 'host': '127.0.0.1', 'port': 1080},
       }),
     );
-    final toggle = tester.widget<SwitchListTile>(
-        find.byKey(const ValueKey('entry-proxy-switch')));
-    expect(toggle.value, isTrue);
+    expect(find.byKey(const ValueKey('entry-proxy-switch')), findsNothing);
+    expect(preview(tester), contains('2. SOCKS5 代理'));
     expect(preview(tester), contains('3. 跳板机“edge”'));
   });
 
@@ -266,27 +254,21 @@ void main() {
       await fillTarget(tester);
       await chooseMosh(tester);
       expect(find.byKey(const ValueKey('mosh-note')), findsOneWidget);
-      await tester.tap(find.text('经代理'));
-      await tester.pumpAndSettle();
-      await fill(tester, '代理地址', '127.0.0.1');
-      await fill(tester, '代理端口', '1055');
+      await createRouteProxy(tester, port: '1055');
       expect(preview(tester), contains('Mosh 只能直连'));
       expect(preview(tester), contains('经SOCKS5 代理 127.0.0.1:1055'));
       await save(tester);
       expect(result, isNull, reason: '存下来也连不上：保存前就拦住');
 
-      await tester.tap(find.text('经跳板机'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('add-jump-host')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('edge').last);
-      await tester.pumpAndSettle();
+      await tapRoute(tester, find.byKey(const ValueKey('route-remove-proxy')));
+      await addRouteJump(tester, 'edge');
       expect(preview(tester), contains('经跳板机 “edge”'));
       await save(tester);
       expect(result, isNull);
     });
 
-    testWidgets('直连：摘要写明两段（SSH 启动 mosh-server、之后 UDP），端口范围存进主机；没有「测试连接」', (tester) async {
+    testWidgets('直连：摘要写明两段（SSH 启动 mosh-server、之后 UDP），端口范围存进主机；没有「测试连接」',
+        (tester) async {
       await open(tester, verify: true);
       await fillTarget(tester);
       expect(find.byKey(const ValueKey('test-connection')), findsOneWidget);
@@ -294,11 +276,13 @@ void main() {
       expect(find.byKey(const ValueKey('test-connection')), findsNothing,
           reason: '测试连接只测 SSH 那段，给 Mosh 主机一个「通过」会误导');
       expect(preview(tester), contains('启动 mosh-server，之后 Mosh 会话走 UDP 直连'));
-      await tester.enterText(find.byKey(const ValueKey('mosh-ports')), '60001:70000');
+      await tester.enterText(
+          find.byKey(const ValueKey('mosh-ports')), '60001:70000');
       await save(tester);
       expect(result, isNull);
       expect(find.textContaining('Mosh UDP 端口范围写得不对'), findsOneWidget);
-      await tester.enterText(find.byKey(const ValueKey('mosh-ports')), '60101:60108');
+      await tester.enterText(
+          find.byKey(const ValueKey('mosh-ports')), '60101:60108');
       await save(tester);
       expect(result!.protocol, HostProtocol.mosh);
       expect(result!.data['shunMoshPorts'], '60101:60108');

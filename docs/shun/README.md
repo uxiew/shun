@@ -16,7 +16,15 @@ zig version                     # 应为 0.16.0；终端引擎（libghostty）�
 
 ## 2. 测试
 
-R40 第一阶段共用路线编辑入口是 `lib/presentation/widgets/connection_route_editor.dart`，可编辑状态和现有字段序列化在同目录的 `connection_route_draft.dart`。两页仍各自持有、释放草稿，负责预览、保存和原有表单校验；组件只接收数据与变更回调，不读取保险库、不拨号。路线规则仍由 `resolveRoutePlan` 决定。两种草稿构造保留各页默认值，`presentation` 保留布局和操作差异；链式界面及代理管理尚未实现。调整时先跑 `flutter test --no-pub test/connection_route_editor_test.dart test/host_route_editor_test.dart test/tailscale_catalog_screen_test.dart`，两页对照测试核对实际保存字段和最终路线。
+R40 的 `lib/presentation/widgets/connection_route_editor.dart` 是共用链式编辑器，接收页面已有 `RoutePlan`，通过 `describeRoute` 显示已验证的节点；无有效计划时只显示草稿和错误。`connection_route_draft.dart` 管理选择及兼容字段，保留未修正的失效引用和旧内联配置；不读仓库、不执行网络请求。两页负责预览和提交，只有 `resolveRoutePlan` 决定路线规则。当前仍拒绝跳板自带代理/嵌套路线，不自动继承或展开。
+
+代理 UI 分为 `proxy_profiles_page.dart`（列表、选择、删除确认）和 `proxy_profile_editor.dart`（表单、旧内联配置另存）。`domain/proxy_profiles.dart` 校验配置和确认范围；`VaultController.saveProxyProfile/deleteProxyProfile` 复用主机写入队列并复核旧配置、删除引用，调用现有仓库加密保存。未知桌面字段保留，删除不改主机引用；钥匙串/同步原有的直接 `replace` 路径并未因本轮改成统一事务队列。定向入口：
+
+```bash
+flutter test --no-pub test/connection_route_editor_test.dart test/host_route_editor_test.dart test/proxy_profiles_test.dart test/proxy_profiles_page_test.dart test/route_plan_test.dart test/route_fail_closed_test.dart test/localization_coverage_test.dart
+```
+
+两页对照测试覆盖直连、代理、1–3 跳和组合路线；管理测试覆盖引用更新/删除、过期确认拒绝、凭据与未知字段保留、内联转换及窄屏键盘布局。真实 SSH 路由回归仍用下文的隔离主环境，未启动的环境测试不计通过。
 
 ```bash
 flutter test -j 4     # 全量约 1130 条（R20 时三套测试环境都开着：1130 过、2 跳过——1 条只在 Windows 跑、1 条是默认不跑的耗时基准），约 3 分钟；没起测试环境时真实 SSH 的用例自动跳过。刚关模拟器、内存紧时不加 -j 4 可能被系统杀掉

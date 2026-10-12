@@ -27,6 +27,7 @@ import '../../infrastructure/update_check_service.dart';
 import '../theme.dart';
 import '../localization/localized_widgets.dart';
 import '../widgets/keychain_sheet.dart';
+import '../widgets/proxy_profiles_page.dart';
 import '../widgets/terminal_engine_status.dart';
 import '../widgets/custom_background.dart';
 import '../widgets/ai_providers_page.dart';
@@ -716,6 +717,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Card(
                 child: Column(
                   children: [
+                    ListTile(
+                      leading: const Icon(Icons.public),
+                      title: const LText('代理管理'),
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const ProxyProfilesPage())),
+                    ),
                     ListTile(
                       leading: const Icon(Icons.key_outlined),
                       title: const LText('SSH 密钥库'),

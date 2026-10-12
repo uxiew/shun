@@ -23,6 +23,7 @@ import 'keychain_sheet.dart';
 import 'route_legs_view.dart';
 import 'connection_route_draft.dart';
 import 'connection_route_editor.dart';
+import 'proxy_profiles_page.dart';
 
 class HostEditor extends ConsumerStatefulWidget {
   const HostEditor({
@@ -116,9 +117,6 @@ class _HostEditorState extends ConsumerState<HostEditor> {
       port,
       username,
       label,
-      route.proxyHost,
-      route.proxyPort,
-      route.proxyUsername,
     ]) {
       controller.addListener(_refresh);
     }
@@ -146,7 +144,6 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     ]) {
       controller.dispose();
     }
-    route.dispose();
     super.dispose();
   }
 
@@ -158,10 +155,6 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     if (identityFileId != null &&
         !keys.any((value) => value.id == identityFileId)) {
       identityFileId = null;
-    }
-    if (route.proxyMode.startsWith('profile:') &&
-        !profiles.any((value) => 'profile:${value.id}' == route.proxyMode)) {
-      route.proxyMode = 'custom';
     }
     final preview = _preview(vault);
 
@@ -402,10 +395,17 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                 hosts: vault?.hosts ?? const [],
                 profiles: profiles,
                 targetHostId: widget.host?.id,
-                presentation: ConnectionRouteEditorPresentation.host,
+                plan: preview.plan,
+                error: preview.error,
+                warnings: preview.warnings,
+                targetLabel: label.text,
+                targetDetail: '${username.text}@${hostname.text}:${port.text}',
+                onSelectProxy: (inline) => selectRouteProxy(context, inline),
+                onManageProxies: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const ProxyProfilesPage())),
                 onChanged: _refresh,
-                requiredValidator: _required,
-                portValidator: _validPort,
               ),
               if (protocol == HostProtocol.mosh) ...[
                 const SizedBox(height: 12),
@@ -422,7 +422,6 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                   validator: _validMoshPorts,
                 ),
               ],
-              _routePreview(preview),
               // 测试连接只走 SSH、只查 PTY，测不了 Mosh 的 UDP 那一段：给 Mosh 主机一个「测试通过」反而误导。
               if (widget.verifyHostKey != null && protocol != HostProtocol.mosh)
                 Align(
@@ -658,8 +657,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
               OutlinedButton(
                 key: const ValueKey('plugin-route-clear'),
                 onPressed: () => setState(() {
-                  route.mode = ConnectionRouteMode.direct;
-                  route.entryProxy = false;
+                  route.clear();
                 }),
                 child: const LText('改成直连（去掉这台主机上的代理和跳板设置）'),
               ),
@@ -794,11 +792,6 @@ class _HostEditorState extends ConsumerState<HostEditor> {
             (pluginId == null ? '选一个插件：协议选了「插件」，就要选用哪个插件连接。' : null),
         warnings: const [],
       );
-    }
-    if (route.mode == ConnectionRouteMode.jump &&
-        protocol != HostProtocol.telnet &&
-        route.jumpHostIds.isEmpty) {
-      return (plan: null, error: '选了「经跳板机」，但还没有添加跳板机。', warnings: const []);
     }
     final draft = _draft();
     try {

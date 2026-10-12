@@ -8,11 +8,11 @@ import '../../application/vault_controller.dart';
 import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/vault.dart';
-import '../../domain/route_description.dart';
 import '../../infrastructure/tailscale/catalog_cache.dart';
 import '../localization/localized_widgets.dart';
 import 'connection_route_draft.dart';
 import 'connection_route_editor.dart';
+import 'proxy_profiles_page.dart';
 
 /// 把选中的目录设备批量导入为主机。返回实际新建的台数，取消返回 null。
 ///
@@ -61,7 +61,6 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
     ]) {
       c.dispose();
     }
-    _routeDraft.dispose();
     super.dispose();
   }
 
@@ -81,13 +80,6 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
     VaultData vault,
     String Function() newId,
   ) {
-    if (_routeDraft.mode == ConnectionRouteMode.jump &&
-        _routeDraft.jumpHostIds.isEmpty) {
-      return (result: null, error: '选了「经跳板机」，但还没有添加跳板机。');
-    }
-    if (_routeDraft.usesProxy && _routeDraft.proxyMode.isEmpty) {
-      return (result: null, error: '选一个代理：已保存的配置，或者自定义。');
-    }
     try {
       return (
         result: buildCatalogImport(
@@ -137,6 +129,12 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
         : _preview(vault, () => 'preview-${previewIds++}');
     final result = preview.result;
     final count = result?.hosts.length ?? 0;
+    final routePlan = result != null && result.hosts.isNotEmpty && vault != null
+        ? resolveRoutePlan(result.hosts.first,
+            hosts: [...vault.hosts, ...result.hosts],
+            proxyProfiles: vault.proxyProfiles,
+            keys: vault.keys)
+        : null;
     return Scaffold(
       appBar: AppBar(
         title: const LText('导入为主机'),
@@ -208,7 +206,12 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
             draft: _routeDraft,
             hosts: vault?.hosts ?? const [],
             profiles: vault?.proxyProfiles ?? const [],
-            presentation: ConnectionRouteEditorPresentation.catalogImport,
+            plan: routePlan,
+            error: preview.error,
+            targetLabel: localized('所选设备'),
+            onSelectProxy: (inline) => selectRouteProxy(context, inline),
+            onManageProxies: () => Navigator.push(context,
+                MaterialPageRoute(builder: (_) => const ProxyProfilesPage())),
             onChanged: () => setState(() {}),
           ),
           const SizedBox(height: 16),
@@ -257,14 +260,13 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
             decoration: InputDecoration(labelText: localized('分组（可选）')),
           ),
           const SizedBox(height: 16),
-          _previewCard(vault, preview.error, result, small),
+          _previewCard(preview.error, result, small),
         ],
       ),
     );
   }
 
   Widget _previewCard(
-    VaultData? vault,
     String? error,
     CatalogImportResult? result,
     TextStyle? small,
@@ -272,19 +274,6 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
     final theme = Theme.of(context);
     final newHosts = localized('将新建主机：');
     final skipped = localized('跳过：');
-    String? route;
-    if (vault != null && result != null && result.hosts.isNotEmpty) {
-      try {
-        route = routeSummary(resolveRoutePlan(
-          result.hosts.first,
-          hosts: [...vault.hosts, ...result.hosts],
-          proxyProfiles: vault.proxyProfiles,
-          keys: vault.keys,
-        ));
-      } on RouteConfigException {
-        route = null;
-      }
-    }
     return Card(
       key: const ValueKey('catalog-import-preview'),
       color: error == null ? null : theme.colorScheme.errorContainer,
@@ -295,11 +284,6 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
           children: [
             if (error != null) LText(error),
             if (result != null) ...[
-              if (route != null) ...[
-                const LText('连接时会这样走'),
-                LText(route, style: small),
-                const SizedBox(height: 8),
-              ],
               Text(
                 '$newHosts${result.hosts.length}',
                 style: theme.textTheme.titleSmall,

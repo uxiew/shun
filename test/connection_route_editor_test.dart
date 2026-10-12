@@ -15,6 +15,7 @@ import 'package:shun/infrastructure/tailscale/tailscale_device.dart';
 import 'package:shun/presentation/widgets/catalog_import_sheet.dart';
 import 'package:shun/presentation/widgets/connection_route_editor.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
+import 'support/route_editor_actions.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -53,15 +54,21 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  Future<HostProfile> edit(WidgetTester tester, String scenario,
+  Future<({HostProfile host, VaultData vault})> edit(
+      WidgetTester tester, String scenario,
       {required bool catalog}) async {
     final repository = await VaultRepository.open();
-    await repository.saveVault(VaultData(
-        hosts: [edge],
-        keys: [],
-        snippets: [],
-        customGroups: [],
-        proxyProfiles: [proxy]));
+    await repository.saveVault(VaultData(hosts: [
+      edge,
+      for (var i = 1; i < 3; i++)
+        HostProfile.create(
+            id: 'edge$i',
+            label: 'edge$i',
+            hostname: 'edge$i.example',
+            username: 'ops')
+    ], keys: [], snippets: [], customGroups: [], proxyProfiles: [
+      proxy
+    ]));
     HostProfile? saved;
     final target = HostProfile.create(
         id: 'target', label: 'target', hostname: '100.64.0.9', username: 'ops');
@@ -90,60 +97,28 @@ void main() {
           find.byKey(const ValueKey('catalog-import-username')), 'ops');
       await tester.pumpAndSettle();
     }
-    if (scenario == 'combined') {
-      await tap(tester, find.text('经跳板机'));
-      await tap(
-          tester,
-          find.byKey(
-              ValueKey(catalog ? 'catalog-import-jump-0' : 'add-jump-host')));
-      await tap(tester, find.text('edge').last);
-      // Added hosts must leave the dropdown without leaving an invalid value.
-      expect(tester.takeException(), isNull);
-      await tap(tester, find.text('先经代理连第一台跳板机（高级）'));
-    } else {
-      await tap(tester, find.text('经代理'));
+    expect(find.text('经代理'), findsNothing);
+    expect(find.text('经跳板机'), findsNothing);
+    final jumpCount = scenario.startsWith('jump')
+        ? int.parse(scenario.substring(4))
+        : scenario == 'combined'
+            ? 1
+            : 0;
+    for (var i = 0; i < jumpCount; i++) {
+      await addRouteJump(tester, i == 0 ? 'edge' : 'edge$i');
     }
-    if (catalog) {
-      expect(
-          tester
-              .widget<TextButton>(
-                  find.byKey(const ValueKey('catalog-import-confirm')))
-              .onPressed,
-          isNull,
-          reason: 'catalog retains its explicit unselected proxy default');
+    if (scenario == 'saved') {
+      await tapRoute(tester, find.byKey(const ValueKey('route-add-proxy')));
+      await tapRoute(tester, find.byKey(const ValueKey('proxy-profile-p')));
+    } else if (scenario == 'custom' ||
+        scenario == 'combined' ||
+        scenario == 'direct-clear') {
+      await createRouteProxy(tester,
+          host: ' proxy.example ', password: ' secret with spaces ');
     }
-    final editor = find.byType(ConnectionRouteEditor);
-    final dropdown = find
-        .descendant(
-            of: editor, matching: find.byType(DropdownButtonFormField<String>))
-        .last;
-    if (scenario == 'saved' || catalog) {
-      await tap(tester, dropdown);
-      await tap(
-          tester,
-          find
-              .text(scenario == 'saved'
-                  ? (catalog ? 'saved-proxy' : '已保存 · saved-proxy')
-                  : '自定义 HTTP / SOCKS5 代理')
-              .last);
+    if (scenario == 'direct-clear') {
+      await tapRoute(tester, find.byKey(const ValueKey('route-clear')));
     }
-    if (scenario != 'saved') {
-      await tester.enterText(
-          find.byKey(
-              ValueKey(catalog ? 'catalog-import-proxy-host' : 'proxy-host')),
-          ' proxy.example ');
-      await tester.enterText(
-          find.byKey(
-              ValueKey(catalog ? 'catalog-import-proxy-port' : 'proxy-port')),
-          '1080');
-      final password = find.descendant(
-          of: editor,
-          matching: find.byWidgetPredicate(
-              (w) => w is TextField && w.decoration?.labelText == '代理密码（可选）'));
-      await tester.enterText(password, ' secret with spaces ');
-      await tester.pumpAndSettle();
-    }
-    if (scenario == 'direct-clear') await tap(tester, find.text('直连'));
     await tap(
         tester,
         catalog
@@ -153,10 +128,19 @@ void main() {
     final result = catalog ? (await repository.loadVault()).hosts.last : saved!;
     await tester.pumpWidget(const SizedBox.shrink());
     await tester.pumpAndSettle();
-    return result;
+    return (host: result, vault: await repository.loadVault());
   }
 
-  for (final scenario in ['custom', 'saved', 'combined', 'direct-clear']) {
+  for (final scenario in [
+    'direct',
+    'custom',
+    'saved',
+    'jump1',
+    'jump2',
+    'jump3',
+    'combined',
+    'direct-clear'
+  ]) {
     testWidgets(
         'R40 both real pages preserve route data and preview: $scenario',
         (tester) async {
@@ -167,23 +151,32 @@ void main() {
       final host = await edit(tester, scenario, catalog: false);
       SharedPreferences.setMockInitialValues({});
       final imported = await edit(tester, scenario, catalog: true);
-      for (final key in ['hostChain', 'proxyProfileId', 'proxyConfig']) {
-        expect(imported.data[key], host.data[key], reason: key);
-      }
-      String summary(HostProfile h) => routeSummary(
-          resolveRoutePlan(h, hosts: [edge, h], proxyProfiles: [proxy]));
+      expect(imported.host.hostChainIds, host.host.hostChainIds);
+      String summary(({HostProfile host, VaultData vault}) value) =>
+          routeSummary(resolveRoutePlan(value.host,
+              hosts: value.vault.hosts,
+              proxyProfiles: value.vault.proxyProfiles));
       expect(summary(imported), summary(host));
-      if (scenario == 'direct-clear') {
-        expect(host.hostChainIds, isEmpty);
-        expect(host.proxyConfig, isNull);
-        expect(host.proxyProfileId, isNull);
+      if (scenario == 'direct-clear' || scenario == 'direct') {
+        expect(host.host.hostChainIds, isEmpty);
+        expect(host.host.proxyConfig, isNull);
+        expect(host.host.proxyProfileId, isNull);
       } else if (scenario == 'saved') {
-        expect(host.proxyProfileId, 'p');
-        expect(host.proxyConfig, isNull);
+        expect(host.host.proxyProfileId, 'p');
+        expect(imported.host.proxyProfileId, 'p');
+      } else if (scenario.startsWith('jump')) {
+        expect(host.host.hostChainIds.length, int.parse(scenario.substring(4)));
       } else {
-        expect(host.proxyConfig!.host, 'proxy.example');
-        expect(host.proxyConfig!.password, ' secret with spaces ');
-        expect(host.hostChainIds, scenario == 'combined' ? ['edge'] : isEmpty);
+        ProxyConfig config(({HostProfile host, VaultData vault}) value) =>
+            value.vault.proxyProfiles
+                .singleWhere((p) => p.id == value.host.proxyProfileId)
+                .config!;
+        expect(config(imported).toJson(), config(host).toJson());
+        expect(config(host).host, 'proxy.example');
+        expect(config(host).password, ' secret with spaces ');
+        expect(host.host.hostChainIds,
+            scenario == 'combined' ? ['edge'] : isEmpty);
+        expect(host.host.proxyConfig, isNull);
       }
       expect(tester.takeException(), isNull);
     });

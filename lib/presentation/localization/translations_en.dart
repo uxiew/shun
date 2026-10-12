@@ -1,4 +1,40 @@
 const englishTranslations = <String, String>{
+  // R40 chain editing and reusable proxy profiles.
+  '代理名称不能为空': 'Proxy name is required',
+  '代理或引用主机已变化，请重新打开后再操作。':
+      'The proxy or its host references changed. Reopen and try again.',
+  '代理保存失败，请重试。': 'Could not save the proxy. Please try again.',
+  '新建代理': 'New proxy',
+  '编辑代理': 'Edit proxy',
+  '代理管理': 'Manage proxies',
+  '选择代理': 'Choose proxy',
+  '修改后，引用此代理的主机下次连接使用新配置；已连接的会话不变。':
+      'Hosts referencing this proxy use the new settings on their next connection. Active sessions stay unchanged.',
+  '代理名称': 'Proxy name',
+  '代理类型': 'Proxy type',
+  '显示或隐藏密码': 'Show or hide password',
+  '代理无法读取或已变化，请重新打开后再操作。':
+      'The proxy cannot be read or has changed. Reopen and try again.',
+  '删除代理': 'Delete proxy',
+  '以下主机引用此代理。删除后会因代理缺失而拒绝连接，请重新选择代理；不会自动改成直连。':
+      'These hosts reference this proxy. Deleting it blocks their connections until another proxy is chosen. They will not switch to a direct connection.',
+  '没有主机引用此代理。': 'No hosts reference this proxy.',
+  '代理删除失败，请重试。': 'Could not delete the proxy. Please try again.',
+  '还没有代理，点「新建代理」添加。': 'No proxies yet. Choose New proxy to add one.',
+  '代理配置缺失': 'Missing proxy profile',
+  '主机自带代理': 'Host inline proxy',
+  '清空路线': 'Clear route',
+  '路线草稿（尚未通过校验）': 'Route draft (not validated)',
+  '添加代理': 'Add proxy',
+  '更换代理': 'Change proxy',
+  '移除代理': 'Remove proxy',
+  '存为可复用代理': 'Save as reusable proxy',
+  '代理只用于手机连第一跳；后续由上一台跳板转发。':
+      'The phone uses the proxy only to reach the first hop. Later hops are forwarded by the preceding SSH host.',
+  '上移': 'Move up',
+  '下移': 'Move down',
+  '移除跳板机': 'Remove jump host',
+  '所选设备': 'Selected devices',
   // Dedicated AI tmux run and exact-pane return.
   r'AI tmux 目标与连接路线不匹配': r'AI tmux target and connection route do not match',
   r'AI tmux 标签已断开；请从最近工作入口核对原窗格后返回。':

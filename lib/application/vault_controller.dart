@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../domain/models/host.dart';
 import '../domain/models/vault.dart';
+import '../domain/proxy_profiles.dart';
 import '../infrastructure/storage/vault_repository.dart';
 import 'vault_import.dart';
 
@@ -121,6 +122,40 @@ class VaultController extends StateNotifier<VaultState> {
         }
         await replace(plan.result(mode));
         return plan;
+      });
+
+  /// Proxy writes share the host/import queue, so references cannot be lost to
+  /// an overlapping host save. Expected snapshots prevent stale form writes.
+  Future<void> saveProxyProfile(ProxyProfile profile,
+          {ProxyProfile? expected}) =>
+      _serialHostWrite(() async {
+        final vault = await ready();
+        final current = vault.proxyProfiles
+            .where((value) => value.id == profile.id)
+            .firstOrNull;
+        if (!sameProxyProfile(current, expected)) {
+          throw const ProxyProfileChanged();
+        }
+        validateProxyProfile(profile);
+        final profiles = [...vault.proxyProfiles];
+        final index = profiles.indexWhere((value) => value.id == profile.id);
+        if (index < 0) {
+          profiles.add(profile);
+        } else {
+          profiles[index] = profile;
+        }
+        await replace(vault.copyWith(proxyProfiles: profiles));
+      });
+
+  Future<void> deleteProxyProfile(ProxyDeletion shown) =>
+      _serialHostWrite(() async {
+        final vault = await ready();
+        if (!shown.matches(vault)) throw const ProxyProfileChanged();
+        // Keep references. The resolver rejects missing profiles before dialing.
+        await replace(vault.copyWith(
+            proxyProfiles: vault.proxyProfiles
+                .where((value) => value.id != shown.profile.id)
+                .toList()));
       });
 
   Future<void> upsertHost(HostProfile host) =>
