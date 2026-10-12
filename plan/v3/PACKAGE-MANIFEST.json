@@ -24,8 +24,8 @@
     },
     {
       "path": "STATUS.md",
-      "size": 54364,
-      "sha256": "570eacd0c0bdc2233dac1e429e2d45dc431cffb0ccdc92328f079e1efdb9dd46"
+      "size": 55147,
+      "sha256": "1fa5cfe972bbd9a8fe55a91e0bab4cc8a4cbdfbbffd305cdc57ee5e267e71cad"
     },
     {
       "path": "contracts/README.md",
@@ -139,8 +139,8 @@
     },
     {
       "path": "docs/09-verification.md",
-      "size": 37552,
-      "sha256": "2572e5149abcd11041453b3527e15a20e9942edb75cb37b30c38c732fc9b7734"
+      "size": 37675,
+      "sha256": "3e82234bc06ed42703369e3f036dc39a7cd930d045b9cb6d71dc7a3432f0e605"
     },
     {
       "path": "docs/10-agent-handoff.md",
@@ -229,8 +229,8 @@
     },
     {
       "path": "tasks.json",
-      "size": 107461,
-      "sha256": "e83589b4a704e14d150c03b8feaaed7238daacbb5708ac77018edf1eb82f5e7b"
+      "size": 107567,
+      "sha256": "2f94abc7452a735798dcca8912ba13210a32d126660068158f2517b8a6a55f16"
     },
     {
       "path": "templates/evidence.md",
@@ -249,8 +249,8 @@
     },
     {
       "path": "verification-cases.json",
-      "size": 66782,
-      "sha256": "8c70813b0bfe39f445fc01f768ad674bd816a39e96d6318626a8600ce0789047"
+      "size": 67100,
+      "sha256": "1363d3a292bc2f8e64fa3f026fb833a415e1195f929f0c565de68b6e0068c898"
     }
   ],
   "application_build_performed": false,

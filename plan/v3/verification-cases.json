@@ -1746,7 +1746,8 @@
       "result": "PASS",
       "inherited_from": null,
       "evidence": [
-        "evidence/R56-R57-fault-matrix.md"
+        "evidence/R56-R57-fault-matrix.md",
+        "evidence/R56-R57-modularity-regression.md"
       ]
     },
     {
@@ -1757,7 +1758,8 @@
       "result": "PASS",
       "inherited_from": null,
       "evidence": [
-        "evidence/R56-R57-fault-matrix.md"
+        "evidence/R56-R57-fault-matrix.md",
+        "evidence/R56-R57-modularity-regression.md"
       ]
     },
     {
@@ -1768,7 +1770,8 @@
       "result": "PASS",
       "inherited_from": null,
       "evidence": [
-        "evidence/R56-R57-fault-matrix.md"
+        "evidence/R56-R57-fault-matrix.md",
+        "evidence/R56-R57-modularity-regression.md"
       ]
     },
     {
@@ -1779,7 +1782,8 @@
       "result": "NOT_RUN",
       "inherited_from": null,
       "evidence": [
-        "evidence/R56-R57-fault-matrix.md"
+        "evidence/R56-R57-fault-matrix.md",
+        "evidence/R56-R57-modularity-regression.md"
       ]
     },
     {
@@ -1790,7 +1794,8 @@
       "result": "PASS",
       "inherited_from": null,
       "evidence": [
-        "evidence/R56-R57-fault-matrix.md"
+        "evidence/R56-R57-fault-matrix.md",
+        "evidence/R56-R57-modularity-regression.md"
       ]
     },
     {
@@ -1801,7 +1806,8 @@
       "result": "PASS",
       "inherited_from": null,
       "evidence": [
-        "evidence/R56-R57-fault-matrix.md"
+        "evidence/R56-R57-fault-matrix.md",
+        "evidence/R56-R57-modularity-regression.md"
       ]
     },
     {

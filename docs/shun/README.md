@@ -25,6 +25,8 @@ R55 的 AI CLI 检测有两组本机测试。普通单元/widget 测试随全量
 
 AI CLI 的身份规则在 `lib/domain/ai_cli_identity.dart` / `host_identity.dart`，首页、启动与返回共用，存储模块只负责读写。`lib/infrastructure/ssh/ai_cli_launch_handshake.dart` 负责启动确认的分包、长度限制与失败状态；`ssh_service.dart` 负责连接、15 秒期限、取消和释放资源。调整协议时先跑 `test/ai_cli_launch_handshake_test.dart` 和 `test/ai_cli_identity_test.dart`，再跑原有启动/存储/返回测试。身份序列化影响已保存入口，不能随重构修改；普通 SSH 原始字节流和 tmux 协议保持各自处理。
 
+启动 fixture 前先确认 Docker daemon 已运行（本机为 OrbStack），再运行各环境的 `up.sh`；先前环境未启动而跳过的测试不能算复验通过。模拟器要有足够空闲磁盘；清理本项目 Gradle transforms 缓存前，确认没有正在进行的构建并停止空闲 daemon，避免它保留已删除 JAR 的引用。历史测试日志/截图不作为构建缓存删除，其他项目的容器与 AVD 不清理。
+
 R56/R57 无账号故障矩阵复跑（先启动主 SSH 环境和 `tool/tmux-fixture/up.sh`，不要与全量测试同时运行）：
 
 ```bash

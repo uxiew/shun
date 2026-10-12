@@ -2938,7 +2938,8 @@
       "evidence": [
         "evidence/R56.md",
         "evidence/R56-R57-fault-matrix.md",
-        "evidence/R56-R57-modularity.md"
+        "evidence/R56-R57-modularity.md",
+        "evidence/R56-R57-modularity-regression.md"
       ],
       "commit": "8bbb460"
     },
@@ -2982,7 +2983,8 @@
       "evidence": [
         "evidence/R57.md",
         "evidence/R56-R57-fault-matrix.md",
-        "evidence/R56-R57-modularity.md"
+        "evidence/R56-R57-modularity.md",
+        "evidence/R56-R57-modularity-regression.md"
       ],
       "commit": "8bbb460"
     }
