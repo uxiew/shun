@@ -15,6 +15,7 @@ library;
 import 'dart:convert';
 
 import '../../domain/tmux/tmux_target.dart';
+import '../../domain/tmux/ai_cli_tmux_run.dart';
 
 /// 已经在真实 tmux 上走过全部测试的最老版本。更老的退回普通 SSH，不提供附着、新建、结束（R21 停止条件）。
 const tmuxOldestTested = TmuxVersion(2, 4);
@@ -248,6 +249,35 @@ const tmuxDetailsScript = '$_socketSnippet $_guardSnippet '
     '$tmuxRowSeparator#{client_pid}$tmuxRowSeparator#{client_tty}'
     r'" 2>&1; } | head -n 401 | cut -c 1-512';
 
+/// Dedicated AI run: require exactly one window and pane and capture both
+/// stable tmux IDs plus the pane process ID before sending any tool command.
+const tmuxAiPaneScript = '$_socketSnippet $_guardSnippet '
+    r'v=$(tmux -S "$s" display-message -p -t "$5" "#{session_windows}:#{window_panes}:#{session_id}:#{window_id}:#{pane_id}:#{pane_pid}" 2>/dev/null) || exit 97; '
+    r'[ -n "$v" ] || exit 97; printf "%s\n" "$v"';
+
+const _aiPaneGuardSnippet =
+    r'p=$(tmux -S "$s" display-message -p -t "$6" "#{session_id}:#{window_id}:#{pane_id}:#{pane_pid}" 2>/dev/null) || exit 97; '
+    r'[ "$p" = "$7" ] || exit 97;';
+
+/// Startup text goes through stdin into the one verified pane. If that pane
+/// was replaced between creation and dispatch, nothing is sent anywhere.
+const tmuxAiStartupScript = '$_socketSnippet $_guardSnippet '
+    '$_aiPaneGuardSnippet '
+    r't=$(cat); tmux -S "$s" send-keys -l -t "$6" -- "$t" && tmux -S "$s" send-keys -t "$6" Enter';
+
+/// The attach handshake rechecks the pane after the user terminal binds. A
+/// changed pane cannot be silently presented as the original AI run.
+const tmuxAiAttachScript = '$_socketSnippet $_guardSnippet '
+    '$_aiPaneGuardSnippet '
+    r'printf "\r\n'
+    '$tmuxAttachMarker'
+    r' %s %s\r\n" "$(tty)" "$$"; '
+    r'stty -echo 2>/dev/null; IFS= read -r x; '
+    r'g=$(tmux -S "$s" display-message -p -t "$5" "#{session_id}:#{pid}:#{start_time}:#{session_created}" 2>/dev/null); '
+    r'[ "$g" = "$4" ] || exit 97; '
+    '$_aiPaneGuardSnippet '
+    r'exec tmux -u -S "$s" attach-session -t "$5"';
+
 /// 附着脚本，在带 PTY 的 exec 通道里跑，不经交互式 shell（用户 .bashrc 里的自动 tmux 碰不到它，也不进 shell 历史）。
 ///
 /// 1. 核对 uid 和目标身份，不对就退出（95/96/97），不附着、不新建。
@@ -302,7 +332,7 @@ String _command(String script, List<String> arguments) {
 }
 
 /// 位置参数的字符集：都是事先按白名单校验过的东西，这里再挡一次。
-final _safeArgument = RegExp(r'^[A-Za-z0-9_./+@:$-]{1,240}$');
+final _safeArgument = RegExp(r'^[A-Za-z0-9_./+@:%$-]{1,240}$');
 
 /// 脚本能不能原样放进单引号、在常见登录 shell 里都不被改动。
 bool isPortableScript(String script) =>
@@ -352,6 +382,32 @@ String tmuxAttachCommand(TmuxTarget target) =>
 
 String tmuxDetailsCommand(TmuxTarget target) =>
     _command(tmuxDetailsScript, _targetArguments(target));
+
+String tmuxAiPaneCommand(TmuxTarget target) =>
+    _command(tmuxAiPaneScript, _targetArguments(target));
+
+String tmuxAiStartupCommand(AiCliTmuxRun run) => _command(tmuxAiStartupScript,
+    [..._targetArguments(run.target), run.paneId, run.paneGuard]);
+
+String tmuxAiAttachCommand(AiCliTmuxRun run) => _command(tmuxAiAttachScript,
+    [..._targetArguments(run.target), run.paneId, run.paneGuard]);
+
+({String windowId, String paneId, int panePid})? parseTmuxAiPane(
+    String raw, TmuxTarget target) {
+  final line = raw.trim();
+  final parts = line.split(':');
+  if (parts.length != 6 ||
+      parts[0] != '1' ||
+      parts[1] != '1' ||
+      parts[2] != target.sessionId ||
+      !RegExp(r'^@\d{1,9}$').hasMatch(parts[3]) ||
+      !RegExp(r'^%\d{1,9}$').hasMatch(parts[4])) {
+    return null;
+  }
+  final pid = int.tryParse(parts[5]);
+  if (pid == null || pid <= 0) return null;
+  return (windowId: parts[3], paneId: parts[4], panePid: pid);
+}
 
 String tmuxDetachCommand(TmuxClientBinding binding) {
   if (!_clientTty.hasMatch(binding.clientTty) || binding.clientPid <= 0) {

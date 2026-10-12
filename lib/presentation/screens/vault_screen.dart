@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
@@ -7,6 +9,7 @@ import '../../application/session_controller.dart';
 import '../../application/settings_controller.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/models/host.dart';
+import '../../domain/ai_cli_work.dart';
 import '../../domain/plugins/plugin_host.dart';
 import '../../domain/tailscale_ssh.dart';
 import '../../application/home_navigation.dart';
@@ -14,13 +17,17 @@ import '../widgets/empty_state.dart';
 import '../widgets/host_address_line.dart';
 import '../widgets/host_editor.dart';
 import '../widgets/ai_cli_tools_sheet.dart';
+import '../../infrastructure/storage/ai_cli_preferences.dart';
+import '../../infrastructure/storage/ai_cli_recent_work.dart';
 import '../widgets/connection_prompts.dart';
 import '../widgets/host_system_icon.dart';
 import 'rustdesk_screen.dart';
 import 'uuremote_screen.dart';
 
 class VaultScreen extends ConsumerStatefulWidget {
-  const VaultScreen({super.key});
+  const VaultScreen(
+      {super.key, this.recentWork = const SecureAiCliRecentWork()});
+  final AiCliRecentWorkStore recentWork;
 
   @override
   ConsumerState<VaultScreen> createState() => _VaultScreenState();
@@ -29,6 +36,35 @@ class VaultScreen extends ConsumerStatefulWidget {
 class _VaultScreenState extends ConsumerState<VaultScreen> {
   final _search = TextEditingController();
   String? _group;
+  AiCliWorkItem? _recentAi;
+  HostProfile? _recentAiHost;
+  String? _recentSignature;
+  bool _recentLoading = false;
+
+  Future<void> _loadRecentAi(List<HostProfile> hosts,
+      {bool force = false}) async {
+    final eligible =
+        hosts.where((h) => h.protocol == HostProtocol.ssh).toList();
+    final signature = eligible.map(aiCliHostScope).join('|');
+    if (_recentLoading || (!force && signature == _recentSignature)) return;
+    _recentLoading = true;
+    final found = await Future.wait([
+      for (final host in eligible)
+        widget.recentWork
+            .load(aiCliHostScope(host))
+            .then((items) => (host: host, item: items.firstOrNull))
+            .catchError((Object _) => (host: host, item: null)),
+    ]);
+    _recentLoading = false;
+    if (!mounted) return;
+    final latest = found.where((entry) => entry.item != null).toList()
+      ..sort((a, b) => b.item!.openedAt.compareTo(a.item!.openedAt));
+    setState(() {
+      _recentSignature = signature;
+      _recentAi = latest.firstOrNull?.item;
+      _recentAiHost = latest.firstOrNull?.host;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -36,6 +72,15 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     final settings = ref.watch(settingsControllerProvider);
     final viewMode = settings.serverViewMode;
     final vault = state.data;
+    if (vault != null) {
+      unawaited(_loadRecentAi(vault.hosts));
+    }
+    ref.listen(homeTabProvider, (_, tab) {
+      if (tab == 0) {
+        final hosts = ref.read(vaultControllerProvider).data?.hosts;
+        if (hosts != null) unawaited(_loadRecentAi(hosts, force: true));
+      }
+    });
     final groups = vault?.customGroups ?? const <String>[];
     final selectedGroup = groups.contains(_group) ? _group : null;
     if (_group != null && selectedGroup == null) {
@@ -124,6 +169,27 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
               ],
             ),
           ),
+          if (_recentAi != null && _recentAiHost != null)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
+              child: Card(
+                child: ListTile(
+                  key: const ValueKey('vault-recent-ai-work'),
+                  leading: const Icon(Icons.terminal),
+                  title: const LText('最近 AI 工作'),
+                  subtitle: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      LText(
+                          '${_recentAiHost!.label} · ${_recentAi!.name} · ${_recentAi!.projectDirectory}'),
+                      const LText('会话状态待核对'),
+                    ],
+                  ),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () => _showAiCli(_recentAiHost!),
+                ),
+              ),
+            ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
             child: TextField(
@@ -404,14 +470,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     } else if (action == _HostAction.connect) {
       await _connect(host);
     } else if (action == _HostAction.aiCli) {
-      await showModalBottomSheet<void>(
-          context: context,
-          useSafeArea: true,
-          isScrollControlled: true,
-          builder: (_) => AiCliToolsSheet(
-              host: host,
-              verifyHostKey: _verifyHostKey,
-              keyboardInteractive: _promptKeyboardInteractive));
+      await _showAiCli(host);
     } else if (action == _HostAction.uuRemote) {
       await Navigator.of(context).push(MaterialPageRoute<void>(
         builder: (_) => UuRemoteHostScreen(hostId: host.id),
@@ -420,6 +479,21 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       await Navigator.of(context).push(MaterialPageRoute<void>(
         builder: (_) => RustDeskHostScreen(hostId: host.id),
       ));
+    }
+  }
+
+  Future<void> _showAiCli(HostProfile host) async {
+    await showModalBottomSheet<void>(
+        context: context,
+        useSafeArea: true,
+        isScrollControlled: true,
+        builder: (_) => AiCliToolsSheet(
+            host: host,
+            verifyHostKey: _verifyHostKey,
+            keyboardInteractive: _promptKeyboardInteractive));
+    if (mounted) {
+      final hosts = ref.read(vaultControllerProvider).data?.hosts;
+      if (hosts != null) unawaited(_loadRecentAi(hosts, force: true));
     }
   }
 

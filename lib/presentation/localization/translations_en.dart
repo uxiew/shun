@@ -1,4 +1,80 @@
 const englishTranslations = <String, String>{
+  // Dedicated AI tmux run and exact-pane return.
+  r'AI tmux 目标与连接路线不匹配': r'AI tmux target and connection route do not match',
+  r'AI tmux 标签已断开；请从最近工作入口核对原窗格后返回。':
+      r'The AI tmux tab disconnected; verify the original pane from Recent Work before returning.',
+  r'AI tmux 目标无效': r'Invalid AI tmux target',
+  r'远端 tmux 不可用': r'Remote tmux is unavailable',
+  r'AI tmux 启动输出超出上限': r'AI tmux startup output exceeded the limit',
+  r'原 AI 窗格已结束或被替换，没有附着其他窗格':
+      r'The original AI pane ended or was replaced; no other pane was attached',
+  r'AI tmux 窗格查询输出超出上限': r'AI tmux pane query output exceeded the limit',
+  r'AI tmux 目标不再是独立的单窗格，不能继续':
+      r'The AI tmux target is no longer a dedicated single pane and cannot be resumed',
+  r'保留在专属 tmux 会话': r'Keep in a dedicated tmux session',
+  r'可在新终端启动，或选择专属 tmux 保留远端进程；Claude 支持按记录的 ID 尝试继续，Codex 可选择历史。实际登录和继续结果以工具显示为准。':
+      r'Launch in a new terminal or keep the remote process in a dedicated tmux session. Claude can try an exact recorded ID; Codex offers its history picker. Check the tool itself for login and resume results.',
+  r'远端需有 tmux；断线后可核对原窗格再返回':
+      r'Requires remote tmux; verify the original pane before returning after a disconnect',
+  r'请先完成当前主机的工具检测': r'Finish scanning this host first',
+  r'无法返回原 AI tmux 窗格，请检查终端状态':
+      r'Could not return to the original AI tmux pane; check the terminal state',
+  r'核对并返回 tmux': r'Verify and return to tmux',
+  r'将核对原 session、窗口、窗格和进程，再返回终端':
+      r'Checks the original session, window, pane, and process before returning to the terminal',
+  r'tmux 创建或启动结果未知。请先核查远端会话名，再决定是否新建。':
+      r'Tmux creation or launch has an unknown outcome. Check the named remote session before creating another.',
+  // R57: device-local recent AI work.
+  r'最近工作记录无效': r'Invalid recent work record',
+  r'项目目录不存在或无法进入': r'Project directory is missing or inaccessible',
+  r'工具路径已失效，请重新检测': r'Tool path is no longer valid; scan again',
+  r'无法确认项目实际路径': r'Could not verify the actual project path',
+  r'无法读取最近工作记录': r'Could not read recent work',
+  r'无法清除最近工作记录': r'Could not clear recent work',
+  r'返回原终端': r'Return to original terminal',
+  r'按会话 ID 继续': r'Resume by session ID',
+  r'选择 Codex 历史': r'Choose Codex history',
+  r'仅可重新新建': r'New session only',
+  r'原终端仍连接；工具状态请在终端确认':
+      r'The original terminal is connected; check the tool state there',
+  r'Claude 会话 ID 已记录；远端会话存在性待工具核验':
+      r'Claude session ID recorded; the tool must verify the remote session exists',
+  r'Codex 未取得确切会话 ID，需在工具中选择':
+      r'No exact Codex session ID was obtained; choose in Codex',
+  r'没有可核验的继续目标': r'No verifiable resume target',
+  r'终端已打开，但最近工作未能保存': r'Terminal opened, but recent work could not be saved',
+  r'最近工作（仅本机）': r'Recent work (this device only)',
+  r'最近 AI 工作': r'Recent AI work',
+  r'会话状态待核对': r'Session state needs verification',
+  r'清除最近工作': r'Clear recent work',
+  r'同项目新建': r'Start new in this project',
+  // R56: explicit AI CLI launch.
+  r'这次启动请求已经处理，不能重复发送':
+      r'This launch request has already been handled and cannot be sent again',
+  r'工具和路线不属于同一台 SSH 主机':
+      r'The tool and route do not belong to the same SSH host',
+  r'AI 工具已退出。此标签不会自动重启工具；可从工具列表显式新建。':
+      r'The AI tool has exited. This tab will not restart it automatically; you can explicitly create another session from the tool list.',
+  r'AI 工具只能在用户新建的专用终端启动':
+      r'AI tools can only launch in a dedicated terminal created by the user',
+  r'启动工具须使用检测返回的绝对路径':
+      r'Use the absolute executable path returned by discovery',
+  r'工具参数过多或包含控制字符':
+      r'Too many tool arguments or an argument contains control characters',
+  r'启动请求已发出，但结果未知。请先检查远端，再决定是否新建。':
+      r'The launch request was sent, but its result is unknown. Check the remote state before creating another session.',
+  r'新建 AI 工具终端': r'New AI tool terminal',
+  r'~/project 或 /绝对路径': r'~/project or /absolute/path',
+  r'会在新终端启动；普通 SSH 连接断开时工具可能结束。不会把命令发到现有终端。':
+      r'The tool will launch in a new terminal. It may exit if the ordinary SSH connection drops. No command is sent to an existing terminal.',
+  r'新建终端': r'Create terminal',
+  r'主机身份已改变，请重新打开工具列表': r'The host identity changed; reopen the tool list',
+  r'连接路线已改变，请重新检测工具': r'The route changed; scan for tools again',
+  r'启动未完成，请检查终端页的连接状态':
+      r'Launch did not complete; check the connection status on the terminal page',
+  r'项目目录': r'Project directory',
+  r'可在新终端启动；原生继续能力尚未核验。也可以在普通终端手动使用工具路径。':
+      r'You can launch in a new terminal. Native resume has not been verified; you can also use the executable path manually in a regular terminal.',
   // R23: uncertain input after a transport break.
   r'已核查': r'Checked',
   r'断线前输入的结果未知。请先核查远端，再决定是否重试；应用不会自动重发。':

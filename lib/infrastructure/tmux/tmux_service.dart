@@ -3,7 +3,6 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
-import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import '../../domain/tmux/tmux_target.dart';
 import '../ssh/ssh_service.dart';
@@ -128,9 +127,8 @@ class TmuxService {
     if (error != null) throw error;
   }
 
-  /// 执行一条远端命令：到期限就关通道，输出读到 [maxBytes] 就停（远端吐 20 MB 也只占这么多内存）。
-  /// 只给本类和测试用。
-  @visibleForTesting
+  /// 执行一条受控远端 tmux 命令，供专属 AI tmux 编排和测试使用。
+  /// 到期限就关通道，输出读到 [maxBytes] 就停。
   Future<({String output, int? exitCode, bool truncated})> runBounded(
     SSHClient client,
     String command, {

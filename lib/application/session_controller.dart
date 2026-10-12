@@ -6,9 +6,11 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../domain/connection_route.dart';
+import '../domain/ai_cli_launch.dart';
 import '../domain/models/host.dart';
 import '../domain/terminal_paste.dart';
 import '../domain/tmux/tmux_target.dart';
+import '../domain/tmux/ai_cli_tmux_run.dart';
 import '../infrastructure/ssh/connection_platform_service.dart';
 import '../infrastructure/ssh/ssh_login_watch.dart';
 import '../infrastructure/ssh/ssh_service.dart';
@@ -239,6 +241,7 @@ class SessionController extends StateNotifier<SessionState> {
   /// 这是「代次」的唯一真相：一个结果只有在它的尝试仍是这里登记的那一个、且没被取消时才算数，
   /// 否则一律关掉。取消、关标签、controller 销毁都会让尝试失效，迟到的成功不能复活连接（NET09）。
   final _attempts = <String, ConnectionAttempt>{};
+  final _aiLaunchRequestIds = <String>{};
   var _generation = 0;
 
   static const _backgroundPingInterval = Duration(seconds: 8);
@@ -272,7 +275,15 @@ class SessionController extends StateNotifier<SessionState> {
     KeyboardInteractiveHandler? keyboardInteractive,
     RoutePlan? routePlan,
     TmuxTarget? tmuxAttach,
+    AiCliLaunchSpec? aiLaunch,
+    AiCliTmuxRun? aiTmuxRun,
+    void Function(ActiveTerminalSession)? onOpened,
   }) async {
+    if ((aiLaunch != null || aiTmuxRun != null) &&
+        (host.protocol != HostProtocol.ssh ||
+            (aiLaunch != null && aiTmuxRun != null))) {
+      throw const FormatException('AI 工具只能在用户新建的专用终端启动');
+    }
     final sessionId = const Uuid().v4();
     final attempt = _beginAttempt(sessionId);
     attempt.onStage = (stage) {
@@ -301,6 +312,7 @@ class SessionController extends StateNotifier<SessionState> {
     );
     TerminalSessionAdapter? terminal;
     var handedOver = false;
+    var aiExecAttempted = false;
     try {
       // 终端先建：引擎（Ghostty 的原生库）建不起来时连接照常失败，失败页写清是哪个引擎，
       // 不先拨号再发现没地方显示，也不换成别的引擎凑合。
@@ -374,21 +386,45 @@ class SessionController extends StateNotifier<SessionState> {
                 terminal: terminal,
                 attempt: attempt,
               )
-            : await service.connect(
-                sessionId: sessionId,
-                host: connectionHost,
-                routePlan: plan,
-                verifyHostKey: verifyHostKey,
-                keyboardInteractive: keyboardInteractive,
-                terminal: terminal,
-                attempt: attempt,
-                tmuxAttach: tmuxAttach,
-              );
+            : aiTmuxRun != null
+                ? await service.connectAiTmux(
+                    sessionId: sessionId,
+                    host: connectionHost,
+                    routePlan: plan,
+                    verifyHostKey: verifyHostKey,
+                    keyboardInteractive: keyboardInteractive,
+                    terminal: terminal,
+                    attempt: attempt,
+                    run: aiTmuxRun,
+                  )
+                : aiLaunch != null
+                    ? await service.connectAiCli(
+                        sessionId: sessionId,
+                        host: connectionHost,
+                        routePlan: plan,
+                        verifyHostKey: verifyHostKey,
+                        keyboardInteractive: keyboardInteractive,
+                        terminal: terminal,
+                        attempt: attempt,
+                        launch: aiLaunch,
+                        onExecAttempted: () => aiExecAttempted = true,
+                      )
+                    : await service.connect(
+                        sessionId: sessionId,
+                        host: connectionHost,
+                        routePlan: plan,
+                        verifyHostKey: verifyHostKey,
+                        keyboardInteractive: keyboardInteractive,
+                        terminal: terminal,
+                        attempt: attempt,
+                        tmuxAttach: tmuxAttach,
+                      );
       }
       if (!_isCurrent(sessionId, attempt)) {
         // 迟到的成功：尝试已被取消或 controller 已销毁。连接此刻归这里，立刻关掉，不进标签。
         _endAttempt(sessionId, attempt);
         await session.close();
+        if (aiExecAttempted) throw const AiCliLaunchUnknownException();
         return false;
       }
       _endAttempt(sessionId, attempt);
@@ -404,6 +440,7 @@ class SessionController extends StateNotifier<SessionState> {
         activePendingId: wasSelected ? null : state.activePendingId,
         error: null,
       );
+      onOpened?.call(session);
       _watchSession(session);
       if (_backgrounded) {
         session.monitor?.pause();
@@ -429,22 +466,26 @@ class SessionController extends StateNotifier<SessionState> {
               state.activePendingId == sessionId ? null : state.activePendingId,
           error: null,
         );
+        if (aiExecAttempted) throw const AiCliLaunchUnknownException();
         return false;
       }
+      final reported =
+          aiExecAttempted ? const AiCliLaunchUnknownException() : error;
       state = state.copyWith(
         pendingConnections: state.pendingConnections
             .map(
               (value) => value.id == sessionId
                   ? value.copyWith(
                       phase: PendingConnectionPhase.failed,
-                      error: error,
+                      error: reported,
                       checkPrompt: null,
                     )
                   : value,
             )
             .toList(growable: false),
-        error: error,
+        error: reported,
       );
+      if (aiExecAttempted) throw reported;
       rethrow;
     } finally {
       // 没进标签的终端（失败、取消、迟到的成功）没有别人会用，就地释放。
@@ -470,6 +511,73 @@ class SessionController extends StateNotifier<SessionState> {
       parent.verifyHostKey,
       keyboardInteractive: parent.keyboardInteractive,
     );
+  }
+
+  /// One user action creates one new tab and one bounded SSH exec request.
+  /// The request ID is consumed even on timeout/cancel so UI retries never
+  /// silently issue a second launch for an uncertain first request.
+  Future<bool> openAiCliTerminal({
+    required String requestId,
+    required HostProfile host,
+    required RoutePlan routePlan,
+    required String label,
+    required AiCliLaunchSpec launch,
+    required HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    void Function(ActiveTerminalSession)? onOpened,
+  }) {
+    if (requestId.isEmpty || !_aiLaunchRequestIds.add(requestId)) {
+      throw StateError('这次启动请求已经处理，不能重复发送');
+    }
+    if (host.protocol != HostProtocol.ssh ||
+        routePlan.protocol != HostProtocol.ssh ||
+        routePlan.target.host.id != sourceHostIdOf(host)) {
+      throw const FormatException('工具和路线不属于同一台 SSH 主机');
+    }
+    final dedicated = HostProfile({
+      ...host.data,
+      'id': 'ai-$requestId',
+      'label': label,
+      '_ephemeralTerminal': true,
+      sourceHostIdKey: sourceHostIdOf(host),
+    });
+    return connect(dedicated, verifyHostKey,
+        keyboardInteractive: keyboardInteractive,
+        routePlan: routePlan,
+        aiLaunch: launch,
+        onOpened: onOpened);
+  }
+
+  Future<bool> openAiTmuxTerminal({
+    required String requestId,
+    required HostProfile host,
+    required RoutePlan routePlan,
+    required AiCliTmuxRun run,
+    required HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    void Function(ActiveTerminalSession)? onOpened,
+  }) {
+    if (requestId.isEmpty || !_aiLaunchRequestIds.add(requestId)) {
+      throw StateError('这次启动请求已经处理，不能重复发送');
+    }
+    if (host.protocol != HostProtocol.ssh ||
+        routePlan.protocol != HostProtocol.ssh ||
+        routePlan.target.host.id != sourceHostIdOf(host) ||
+        run.target.hostKey != routePlan.target.endpoint.authority) {
+      throw const FormatException('AI tmux 目标与连接路线不匹配');
+    }
+    final dedicated = HostProfile({
+      ...host.data,
+      'id': 'ai-tmux-$requestId',
+      'label': 'AI tmux: ${run.target.displayName}',
+      '_ephemeralTerminal': true,
+      sourceHostIdKey: sourceHostIdOf(host),
+    });
+    return connect(dedicated, verifyHostKey,
+        keyboardInteractive: keyboardInteractive,
+        routePlan: routePlan,
+        aiTmuxRun: run,
+        onOpened: onOpened);
   }
 
   /// 在新标签里附着一个 tmux 目标（R21）。只附着这个确定的目标：远端先核对它还在、还是同一个，
@@ -523,6 +631,12 @@ class SessionController extends StateNotifier<SessionState> {
     if (index < 0) return;
     final session = state.sessions[index];
     if (session.connected || session.closedByUser) return;
+    if (session.aiTmuxRun != null) {
+      session.restoreHold =
+          const RestoreHold.untilUser('AI tmux 标签已断开；请从最近工作入口核对原窗格后返回。');
+      state = state.copyWith(sessions: [...state.sessions]);
+      return;
+    }
     final protocol = session.host.protocol;
     if (session.plugin != null ||
         protocol == HostProtocol.mosh ||
@@ -909,6 +1023,7 @@ class SessionController extends StateNotifier<SessionState> {
   void _markDisconnected(ActiveTerminalSession session) {
     session.monitor?.stop();
     if (session.closedByUser || !session.connected) return;
+    session.aiTerminalOriginal = false;
     if (!mounted || !_owns(session)) {
       // 已被替换或已不在标签里的旧连接迟到的断开事件：只释放它自己，不碰界面状态。
       session.abort();
@@ -928,6 +1043,23 @@ class SessionController extends StateNotifier<SessionState> {
     }
     final tmux = session.tmux;
     final ssh = session.sshSession;
+    if (session.aiTmuxRun != null) {
+      session.restoreHold =
+          const RestoreHold.untilUser('AI tmux 标签已断开；请从最近工作入口核对原窗格后返回。');
+      session.abort();
+      if (mounted) state = state.copyWith(sessions: [...state.sessions]);
+      return;
+    }
+    if (session.aiLaunch != null &&
+        ssh != null &&
+        (ssh.exitCode != null || ssh.exitSignal != null)) {
+      session.restoreHold = const RestoreHold.untilUser(
+        'AI 工具已退出。此标签不会自动重启工具；可从工具列表显式新建。',
+      );
+      session.abort();
+      if (mounted) state = state.copyWith(sessions: [...state.sessions]);
+      return;
+    }
     if (tmux != null &&
         ssh != null &&
         (ssh.exitCode != null || ssh.exitSignal != null)) {
@@ -1162,6 +1294,7 @@ class SessionController extends StateNotifier<SessionState> {
     await store.save([
       for (final session in state.sessions)
         if (!session.closedByUser &&
+            session.aiTmuxRun == null &&
             !(session.host.data['_ephemeralTerminal'] == true &&
                 session.tmux == null &&
                 session.resumeTmux == null))

@@ -6,6 +6,8 @@ import 'dart:typed_data';
 import 'package:dartssh2/dartssh2.dart';
 
 import '../../domain/connection_route.dart';
+import '../../domain/ai_cli_launch.dart';
+import '../../domain/tmux/ai_cli_tmux_run.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/server_stats.dart';
 import '../../domain/plugins/mosh_bootstrap.dart';
@@ -199,6 +201,8 @@ class ActiveTerminalSession {
     this.telnetSocket,
     RoutePlan? routePlan,
     this.tmux,
+    this.aiLaunch,
+    this.aiTmuxRun,
     this.plugin,
     this.resumeTmux,
     this.restored = false,
@@ -211,7 +215,8 @@ class ActiveTerminalSession {
         _binding = binding,
         _outboundInputOccurred = outboundInputOccurred,
         _activateInput = activateInput,
-        _outputSubscriptions = outputSubscriptions;
+        _outputSubscriptions = outputSubscriptions,
+        aiTerminalOriginal = aiLaunch != null;
 
   /// App 上次被系统结束（或强行停止）前开着的标签，这次启动时放回来（R22，LIFE05）。
   ///
@@ -294,6 +299,12 @@ class ActiveTerminalSession {
   /// 断线恢复按其中的目标重新附着：远端先核对 uid、socket、server 代次、session ID 和创建时间，
   /// 对不上就停下，不按名字找替身、不新建（TMX04/TMX05）。
   final TmuxClientBinding? tmux;
+  final AiCliLaunchSpec? aiLaunch;
+  final AiCliTmuxRun? aiTmuxRun;
+
+  /// False as soon as this exec transport ends. Reconnecting the tab opens a
+  /// plain shell and must never be presented as the original AI process.
+  bool aiTerminalOriginal;
 
   /// 放回来的标签（[ActiveTerminalSession.restored]）上次附着的 tmux 目标；重新连接时照它附着、照样先核对。
   final TmuxTarget? resumeTmux;
@@ -435,6 +446,88 @@ class SshService {
     ConnectionPurpose purpose = ConnectionPurpose.fresh,
     ConnectionAttempt? attempt,
     TmuxTarget? tmuxAttach,
+  }) =>
+      _connect(
+        sessionId: sessionId,
+        host: host,
+        hosts: hosts,
+        keys: keys,
+        proxyProfiles: proxyProfiles,
+        routePlan: routePlan,
+        verifyHostKey: verifyHostKey,
+        keyboardInteractive: keyboardInteractive,
+        terminal: terminal,
+        purpose: purpose,
+        attempt: attempt,
+        tmuxAttach: tmuxAttach,
+      );
+
+  /// Explicit, typed AI CLI launch. A frozen SSH route is mandatory, and no
+  /// host startup command is used. This method does not expose arbitrary exec
+  /// to plugins or the ordinary reconnect path.
+  Future<ActiveTerminalSession> connectAiCli({
+    required String sessionId,
+    required HostProfile host,
+    required RoutePlan routePlan,
+    required HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    required TerminalSessionAdapter terminal,
+    required ConnectionAttempt attempt,
+    required AiCliLaunchSpec launch,
+    void Function()? onExecAttempted,
+  }) =>
+      _connect(
+        sessionId: sessionId,
+        host: host,
+        routePlan: routePlan,
+        verifyHostKey: verifyHostKey,
+        keyboardInteractive: keyboardInteractive,
+        terminal: terminal,
+        attempt: attempt,
+        aiLaunch: launch,
+        onExecAttempted: onExecAttempted,
+      );
+
+  /// Attach only while the dedicated AI session's exact window/pane still
+  /// match. This is an explicit user action, never a transport restore.
+  Future<ActiveTerminalSession> connectAiTmux({
+    required String sessionId,
+    required HostProfile host,
+    required RoutePlan routePlan,
+    required HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    required TerminalSessionAdapter terminal,
+    required ConnectionAttempt attempt,
+    required AiCliTmuxRun run,
+  }) =>
+      _connect(
+        sessionId: sessionId,
+        host: host,
+        routePlan: routePlan,
+        verifyHostKey: verifyHostKey,
+        keyboardInteractive: keyboardInteractive,
+        terminal: terminal,
+        attempt: attempt,
+        tmuxAttach: run.target,
+        aiTmuxRun: run,
+      );
+
+  Future<ActiveTerminalSession> _connect({
+    required String sessionId,
+    required HostProfile host,
+    List<HostProfile> hosts = const [],
+    List<SshKeyProfile> keys = const [],
+    List<ProxyProfile> proxyProfiles = const [],
+    RoutePlan? routePlan,
+    required HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    required TerminalSessionAdapter terminal,
+    ConnectionPurpose purpose = ConnectionPurpose.fresh,
+    ConnectionAttempt? attempt,
+    TmuxTarget? tmuxAttach,
+    AiCliLaunchSpec? aiLaunch,
+    AiCliTmuxRun? aiTmuxRun,
+    void Function()? onExecAttempted,
   }) async {
     final pending = attempt ?? ConnectionAttempt();
     final previous = _pendingConnections[sessionId];
@@ -442,6 +535,28 @@ class SshService {
     _pendingConnections[sessionId] = pending;
     try {
       pending.throwIfCancelled();
+      if (aiLaunch != null &&
+          (purpose != ConnectionPurpose.fresh || tmuxAttach != null)) {
+        throw const FormatException('AI 工具只能在用户新建的专用终端启动');
+      }
+      if (aiLaunch != null &&
+          (routePlan == null ||
+              routePlan.protocol != HostProtocol.ssh ||
+              routePlan.target.host.id !=
+                  (host.data['_sourceHostId']?.toString() ?? host.id))) {
+        throw const FormatException('工具和路线不属于同一台 SSH 主机');
+      }
+      if (aiTmuxRun != null &&
+          (purpose != ConnectionPurpose.fresh ||
+              aiLaunch != null ||
+              tmuxAttach != aiTmuxRun.target ||
+              routePlan == null ||
+              routePlan.protocol != HostProtocol.ssh ||
+              aiTmuxRun.target.hostKey != routePlan.target.endpoint.authority ||
+              routePlan.target.host.id !=
+                  (host.data['_sourceHostId']?.toString() ?? host.id))) {
+        throw const FormatException('AI tmux 目标与连接路线不匹配');
+      }
       if (host.protocol == HostProtocol.mosh) {
         // Mosh 主机走 MoshBootstrapCoordinator（SSH 只用来启动 mosh-server）。走到这里说明调用方漏判了协议：
         // 宁可失败，也不能悄悄给它开一个普通 SSH shell。
@@ -481,6 +596,9 @@ class SshService {
               purpose,
               pending,
               tmuxAttach,
+              aiLaunch,
+              aiTmuxRun,
+              onExecAttempted,
             );
       pending.handOver();
       return session;
@@ -582,6 +700,31 @@ class SshService {
           keyboardInteractive, attempt, ConnectionPurpose.probe);
       attempt.throwIfCancelled();
       return await attempt.waitFor(query(clients.last));
+    } finally {
+      attempt.releasePartial();
+    }
+  }
+
+  /// Explicit user action that may create a dedicated AI tmux session. The
+  /// caller consumes a request ID before calling this; a timeout is uncertain
+  /// and this method never retries the action.
+  Future<T> withVerifiedClientForAiTmux<T>({
+    required RoutePlan routePlan,
+    required HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    required ConnectionAttempt attempt,
+    required Future<T> Function(SSHClient client) action,
+  }) async {
+    try {
+      attempt.throwIfCancelled();
+      if (routePlan.protocol != HostProtocol.ssh ||
+          routePlan.secretsForgotten) {
+        throw const FormatException('工具检测需要有效的 SSH 路线');
+      }
+      final clients = await _establishSsh(routePlan, verifyHostKey,
+          keyboardInteractive, attempt, ConnectionPurpose.fresh);
+      attempt.throwIfCancelled();
+      return await attempt.waitFor(action(clients.last));
     } finally {
       attempt.releasePartial();
     }
@@ -761,6 +904,9 @@ class SshService {
     ConnectionPurpose purpose,
     ConnectionAttempt pending,
     TmuxTarget? tmuxAttach,
+    AiCliLaunchSpec? aiLaunch,
+    AiCliTmuxRun? aiTmuxRun,
+    void Function()? onExecAttempted,
   ) async {
     final clients = await _establishSsh(
       plan,
@@ -781,6 +927,7 @@ class SshService {
         pending,
         tmuxAttach,
         purpose,
+        aiTmuxRun,
       );
     }
     return _openShell(
@@ -793,6 +940,8 @@ class SshService {
       terminal,
       purpose,
       pending,
+      aiLaunch,
+      onExecAttempted,
     );
   }
 
@@ -916,6 +1065,8 @@ class SshService {
     TerminalSessionAdapter terminal,
     ConnectionPurpose purpose,
     ConnectionAttempt pending,
+    AiCliLaunchSpec? aiLaunch,
+    void Function()? onExecAttempted,
   ) async {
     final hops = plan.hops;
     final target = plan.target.host;
@@ -926,11 +1077,23 @@ class SshService {
       hops.length - 1,
       '打开终端失败',
       () => pending.waitFor(
-        client.shell(
-          pty:
-              const SSHPtyConfig(type: 'xterm-256color', width: 80, height: 24),
-          environment: _environment(target),
-        ),
+        aiLaunch == null
+            ? client.shell(
+                pty: const SSHPtyConfig(
+                    type: 'xterm-256color', width: 80, height: 24),
+                environment: _environment(target),
+              )
+            : (() {
+                // After issuing exec, even a timeout cannot prove that the
+                // remote process did not start. Consume the request now.
+                onExecAttempted?.call();
+                return client.execute(
+                  aiLaunch.sshCommand,
+                  pty: const SSHPtyConfig(
+                      type: 'xterm-256color', width: 80, height: 24),
+                  environment: _environment(target),
+                );
+              })(),
         onCancelled: (value) => value.close(),
       ),
     );
@@ -959,7 +1122,8 @@ class SshService {
     final startup = target.startupCommand;
     if (startup != null &&
         startup.isNotEmpty &&
-        purpose == ConnectionPurpose.fresh) {
+        purpose == ConnectionPurpose.fresh &&
+        aiLaunch == null) {
       session.write(Uint8List.fromList(utf8.encode('$startup\n')));
     }
     return ActiveTerminalSession(
@@ -971,6 +1135,7 @@ class SshService {
       sshClients: clients,
       sshSession: session,
       routePlan: plan,
+      aiLaunch: aiLaunch,
       binding: binding,
       outboundInputOccurred: () => sentInput,
       activateInput: () => inputEnabled = true,
@@ -996,6 +1161,7 @@ class SshService {
     ConnectionAttempt pending,
     TmuxTarget target,
     ConnectionPurpose purpose,
+    AiCliTmuxRun? aiTmuxRun,
   ) async {
     final client = clients.last;
     pending.report(const ConnectionStage(ConnectionStep.shell));
@@ -1005,7 +1171,9 @@ class SshService {
       '附着 tmux 失败',
       () => pending.waitFor(
         client.execute(
-          tmuxAttachCommand(target),
+          aiTmuxRun == null
+              ? tmuxAttachCommand(target)
+              : tmuxAiAttachCommand(aiTmuxRun),
           pty:
               const SSHPtyConfig(type: 'xterm-256color', width: 80, height: 24),
           environment: _environment(plan.target.host),
@@ -1111,6 +1279,7 @@ class SshService {
         clientTty: marker.tty,
         clientPid: marker.pid,
       ),
+      aiTmuxRun: aiTmuxRun,
       binding: binding,
       outboundInputOccurred: () => sentInput,
       activateInput: () => inputEnabled = true,

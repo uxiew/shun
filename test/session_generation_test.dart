@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/connection_route.dart';
+import 'package:shun/domain/ai_cli_launch.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/domain/models/vault.dart';
 import 'package:shun/domain/tmux/tmux_target.dart';
@@ -283,6 +284,59 @@ void main() {
       expect(late.closedByUser, isTrue);
     });
   });
+
+  group('AIC04 AI CLI launch request isolation', () {
+    setUp(() => start());
+    tearDown(() => container.dispose());
+    RoutePlan route() =>
+        resolveRoutePlan(host, hosts: [host], proxyProfiles: const []);
+    AiCliLaunchSpec launch() =>
+        AiCliLaunchSpec(executable: '/bin/claude', projectDirectory: '/repo');
+
+    test('same user action ID cannot dispatch a second exec', () async {
+      final first = controller.openAiCliTerminal(
+          requestId: 'one',
+          host: host,
+          routePlan: route(),
+          label: 'Claude',
+          launch: launch(),
+          verifyHostKey: accept);
+      await settle();
+      expect(service.aiCalls, hasLength(1));
+      expect(
+          () => controller.openAiCliTerminal(
+              requestId: 'one',
+              host: host,
+              routePlan: route(),
+              label: 'Claude',
+              launch: launch(),
+              verifyHostKey: accept),
+          throwsStateError);
+      expect(service.aiCalls, hasLength(1));
+      controller.cancelPendingConnection(
+          controller.state.pendingConnections.single.id);
+      service.aiCalls.single.result.completeError(StateError('cancelled'));
+      expect(await first, isFalse);
+    });
+
+    test('transport failure after exec attempt reports unknown', () async {
+      final opened = controller.openAiCliTerminal(
+          requestId: 'unknown',
+          host: host,
+          routePlan: route(),
+          label: 'Claude',
+          launch: launch(),
+          verifyHostKey: accept);
+      await settle();
+      final call = service.aiCalls.single;
+      call.onExecAttempted?.call();
+      call.result.completeError(StateError('lost after exec'));
+      await expectLater(opened, throwsA(isA<AiCliLaunchUnknownException>()));
+      expect(controller.state.sessions, isEmpty);
+      expect(controller.state.selectedPending?.error,
+          isA<AiCliLaunchUnknownException>());
+    });
+  });
 }
 
 class _Call {
@@ -297,6 +351,24 @@ class _Call {
 /// 每次 connect 都挂起，由测试决定结果什么时候、以什么形式到达。
 class _ScriptedSshService extends SshService {
   final calls = <_Call>[];
+  final aiCalls = <_AiCall>[];
+
+  @override
+  Future<ActiveTerminalSession> connectAiCli({
+    required String sessionId,
+    required HostProfile host,
+    required RoutePlan routePlan,
+    required HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    required TerminalSessionAdapter terminal,
+    required ConnectionAttempt attempt,
+    required AiCliLaunchSpec launch,
+    void Function()? onExecAttempted,
+  }) {
+    final call = _AiCall(onExecAttempted);
+    aiCalls.add(call);
+    return call.result.future;
+  }
 
   @override
   Future<ActiveTerminalSession> connect({
@@ -317,6 +389,12 @@ class _ScriptedSshService extends SshService {
     calls.add(call);
     return call.result.future;
   }
+}
+
+class _AiCall {
+  _AiCall(this.onExecAttempted);
+  final void Function()? onExecAttempted;
+  final result = Completer<ActiveTerminalSession>();
 }
 
 class _FakeSession extends ActiveTerminalSession {

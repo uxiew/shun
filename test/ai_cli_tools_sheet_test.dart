@@ -4,9 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/domain/ai_cli.dart';
+import 'package:shun/domain/ai_cli_work.dart';
+import 'package:shun/application/session_controller.dart';
+import 'package:shun/domain/connection_route.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/infrastructure/ssh/ai_cli_discovery.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/storage/ai_cli_preferences.dart';
+import 'package:shun/infrastructure/storage/ai_cli_recent_work.dart';
 import 'package:shun/presentation/widgets/ai_cli_tools_sheet.dart';
 import 'package:shun/presentation/widgets/terminal_special_keys.dart';
 
@@ -21,6 +26,19 @@ class Preferences implements AiCliPreferencesStore {
   Future<void> save(String scope, AiCliScanRequest request) async {
     data[scope] = request;
   }
+}
+
+class Recent implements AiCliRecentWorkStore {
+  List<AiCliWorkItem> items = [];
+  @override
+  Future<List<AiCliWorkItem>> load(String hostScope) async => items;
+  @override
+  Future<void> record(String hostScope, AiCliWorkItem item) async {
+    items = [item, ...items];
+  }
+
+  @override
+  Future<void> clear(String hostScope) async => items = [];
 }
 
 final host = HostProfile({
@@ -102,6 +120,7 @@ void main() {
                 body: AiCliToolsSheet(
                     host: host,
                     preferences: store,
+                    recentWork: Recent(),
                     scan: (r, c) async {
                       scans++;
                       request = r;
@@ -136,6 +155,7 @@ void main() {
                 body: AiCliToolsSheet(
                     host: host,
                     preferences: Preferences(),
+                    recentWork: Recent(),
                     scan: (r, c) {
                       token = c;
                       return pending.future;
@@ -149,6 +169,83 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('/bin/claude'), findsNothing);
     await tester.pumpWidget(const SizedBox());
+    expect(tester.takeException(), isNull);
+  });
+  testWidgets('recent Claude ID is visible and can be cleared', (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final recent = Recent()
+      ..items = [
+        AiCliWorkItem(
+          id: 'old-tab',
+          tool: AiCliKind.claude,
+          name: 'Claude Code',
+          executable: '/bin/claude',
+          projectDirectory: '/repo',
+          openedAt: DateTime.utc(2026, 10, 12),
+          claudeSessionId: '550e8400-e29b-41d4-a716-446655440000',
+        ),
+      ];
+    await tester.pumpWidget(ProviderScope(
+        child: MaterialApp(
+            home: Scaffold(
+                body: AiCliToolsSheet(
+                    host: host,
+                    preferences: Preferences(),
+                    recentWork: recent,
+                    sessionState: const SessionState(),
+                    scan: (_, __) async => result())))));
+    await tester.pumpAndSettle();
+    expect(find.text('Claude Code · /repo'), findsOneWidget);
+    expect(find.text('按会话 ID 继续'), findsOneWidget);
+    expect(find.byKey(const ValueKey('ai-cli-new-from-recent-old-tab')),
+        findsOneWidget);
+    await tester.tap(find.text('清除最近工作'));
+    await tester.pumpAndSettle();
+    expect(recent.items, isEmpty);
+    expect(find.text('Claude Code · /repo'), findsNothing);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('launch dialog shows tool and project before any SSH action',
+      (tester) async {
+    tester.view.physicalSize = const Size(360, 640);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    final terminal = newTestTerminal();
+    addTearDown(terminal.dispose);
+    final session = ActiveTerminalSession(
+      id: 'parent',
+      host: host,
+      terminal: terminal,
+      verifyHostKey: (_, __, ___) async => false,
+      keyboardInteractive: null,
+      routePlan: resolveRoutePlan(host, hosts: [host], proxyProfiles: const []),
+    );
+    await tester.pumpWidget(ProviderScope(
+        child: MaterialApp(
+            home: Scaffold(
+                body: AiCliToolsSheet(
+                    host: host,
+                    session: session,
+                    preferences: Preferences(),
+                    recentWork: Recent(),
+                    scan: (_, __) async => result())))));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('ai-cli-launch-/bin/claude')));
+    await tester.pumpAndSettle();
+    expect(find.text('Claude Code · /bin/claude'), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('ai-cli-project-directory')), findsOneWidget);
+    await tester.tap(find.text('保留在专属 tmux 会话'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<CheckboxListTile>(find.byType(CheckboxListTile)).value,
+        isTrue);
+    await tester.tap(find.text('取消').last);
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
 }

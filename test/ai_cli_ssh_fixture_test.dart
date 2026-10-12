@@ -199,6 +199,7 @@ chmod +x ~/r55/extra/claude
     }, skip: skip);
     test('borrowed live terminal receives no detection text and stays usable',
         () async {
+      await run(edge(), 'rm -f ~/r55/input');
       final terminal = newTestTerminal();
       addTearDown(terminal.dispose);
       final host = HostProfile({
@@ -220,15 +221,18 @@ chmod +x ~/r55/extra/claude
         await Future<void>.delayed(const Duration(milliseconds: 100));
       }
       final original = session.sshClient;
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      final before = await run(edge(), 'wc -c < ~/r55/input');
+      final beforeData = await run(edge(), 'cat ~/r55/input');
       final result = await discovery.discover(
           session, AiCliScanRequest(), AiCliProbeCancellation());
       expect(result.installations.any((x) => x.kind == AiCliKind.codex), true);
       expect(session.sshClient, same(original));
       expect(original!.isClosed, false);
-      expect(await run(edge(), 'wc -c < ~/r55/input'), '0');
+      expect(await run(edge(), 'wc -c < ~/r55/input'), before);
       session.terminal.sendText('still-working');
       await Future<void>.delayed(const Duration(milliseconds: 100));
-      expect(await run(edge(), 'cat ~/r55/input'), 'still-working');
+      expect(await run(edge(), 'cat ~/r55/input'), '${beforeData}still-working');
     }, skip: skip);
   });
   test('actual installed Claude/Codex: discovery only, without CLI invocation',

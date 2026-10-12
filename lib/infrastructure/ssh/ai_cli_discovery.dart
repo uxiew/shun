@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:dartssh2/dartssh2.dart';
 
 import '../../domain/ai_cli.dart';
+import '../../domain/ai_cli_launch.dart';
 import 'ai_cli_protocol.dart';
 import 'ssh_service.dart';
 
@@ -90,6 +91,39 @@ class AiCliDiscoveryService {
       throw const AiCliDiscoveryException('连接已失效或检测已取消');
     }
     return parseAiCliScan(output, request);
+  }
+
+  /// Resolve the chosen directory on the verified target without launching
+  /// the CLI. The new PTY repeats the checks to handle changes after preflight.
+  Future<String> canonicalProject(SSHClient client, AiCliLaunchSpec launch,
+      AiCliProbeCancellation cancel) async {
+    final output = await runAiCliProbe(
+      open: () async =>
+          _SshProbeChannel(await client.execute('exec /bin/sh -s')),
+      script: launch.projectProbeScript,
+      cancellation: cancel,
+      timeout: timeout,
+      maxBytes: 8192,
+    );
+    if (output == 'M\n') {
+      throw const AiCliDiscoveryException('项目目录不存在或无法进入');
+    }
+    if (output == 'E\n') {
+      throw const AiCliDiscoveryException('工具路径已失效，请重新检测');
+    }
+    if (!output.startsWith('P') || !output.endsWith('\n')) {
+      throw const AiCliDiscoveryException('无法确认项目实际路径');
+    }
+    final directory = output.substring(1, output.length - 1);
+    if (directory.contains('\n')) {
+      throw const AiCliDiscoveryException('无法确认项目实际路径');
+    }
+    try {
+      validateAiCliPath(directory);
+    } on FormatException {
+      throw const AiCliDiscoveryException('无法确认项目实际路径');
+    }
+    return directory;
   }
 }
 
