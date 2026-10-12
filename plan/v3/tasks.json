@@ -2426,9 +2426,10 @@
       "stop_condition": "第二跳以后的跳板机自带代理要不要从「拒绝」放宽成「说明用不上」，所有者定了再改 docs/04；不改主机和代理的存储格式（桌面端要认）。",
       "owner_role": "实施代理",
       "evidence": [
-        "evidence/R40.md"
+        "evidence/R40.md",
+        "evidence/R40-chain.md"
       ],
-      "commit": "e6d6c84"
+      "commit": "7777b1c"
     },
     {
       "id": "R41",
