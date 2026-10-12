@@ -16,6 +16,8 @@ zig version                     # 应为 0.16.0；终端引擎（libghostty）�
 
 ## 2. 测试
 
+R40 第一阶段共用路线编辑入口是 `lib/presentation/widgets/connection_route_editor.dart`，可编辑状态和现有字段序列化在同目录的 `connection_route_draft.dart`。两页仍各自持有、释放草稿，负责预览、保存和原有表单校验；组件只接收数据与变更回调，不读取保险库、不拨号。路线规则仍由 `resolveRoutePlan` 决定。两种草稿构造保留各页默认值，`presentation` 保留布局和操作差异；链式界面及代理管理尚未实现。调整时先跑 `flutter test --no-pub test/connection_route_editor_test.dart test/host_route_editor_test.dart test/tailscale_catalog_screen_test.dart`，两页对照测试核对实际保存字段和最终路线。
+
 ```bash
 flutter test -j 4     # 全量约 1130 条（R20 时三套测试环境都开着：1130 过、2 跳过——1 条只在 Windows 跑、1 条是默认不跑的耗时基准），约 3 分钟；没起测试环境时真实 SSH 的用例自动跳过。刚关模拟器、内存紧时不加 -j 4 可能被系统杀掉
 flutter analyze       # 应为 No issues found（连 spikes/、packages/ 一起查）
