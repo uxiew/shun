@@ -59,6 +59,24 @@ void main() {
     }
   }
 
+  test('R39 unknown target and jump protocols never dial as SSH', () async {
+    final unknown = hostWith({'protocol': 'future-desktop'});
+    expect(await connectError(unknown), isNotNull);
+    expect(dialer.dials, isEmpty);
+    final jump = HostProfile({...unknown.data, 'id': 'opaque-jump'});
+    expect(
+        await connectError(
+            hostWith({
+              'hostChain': {
+                'hostIds': ['opaque-jump']
+              }
+            }),
+            hosts: [jump]),
+        isNotNull);
+    expect(dialer.dials, isEmpty);
+    expect(target.accepted, 0);
+  });
+
   group('RTE02 代理配置无效时不拨号、不直连', () {
     late TrapServer proxyEndpoint;
     setUp(() async => proxyEndpoint = await TrapServer.start());

@@ -342,6 +342,10 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       orElse: () => host,
     );
     if (!mounted) return;
+    if (host.protocol == HostProtocol.unknown) {
+      await _editHost(host);
+      return;
+    }
     final key = vault.keys.cast<SshKeyProfile?>().firstWhere(
           (value) => value?.id == host.identityFileId,
           orElse: () => null,

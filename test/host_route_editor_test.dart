@@ -6,6 +6,8 @@ import 'package:shun/domain/models/host.dart';
 import 'package:shun/domain/models/vault.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
+import 'package:shun/presentation/widgets/host_address_line.dart';
+import 'package:shun/presentation/widgets/host_system_icon.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'support/route_editor_actions.dart';
 
@@ -109,6 +111,66 @@ void main() {
       ))
       .map((text) => text.data ?? '')
       .join(' | ');
+
+  testWidgets(
+      'R39 unknown type opens read-only without interpreting SSH fields',
+      (tester) async {
+    final opaque = saved('opaque', extra: {
+      'protocol': 'future-desktop',
+      'port': 'provider-specific',
+      'hostChain': {'hostIds': 'opaque-format'},
+      'futureOptions': {'keep': true},
+    });
+    await open(tester, host: opaque, verify: true);
+    expect(find.text('不支持的连接类型'), findsOneWidget);
+    expect(find.byType(TextFormField), findsNothing);
+    expect(find.text('保存'), findsNothing);
+    expect(find.text('测试连接'), findsNothing);
+    expect(tester.takeException(), isNull);
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    expect(result, isNull);
+    final stored = (await repository.loadVault())
+        .hosts
+        .singleWhere((h) => h.id == opaque.id);
+    expect(stored.toJson(), opaque.toJson());
+  });
+
+  testWidgets('R39 unknown list display never reads opaque SSH endpoint fields',
+      (tester) async {
+    final host = saved('opaque', extra: {
+      'protocol': 'future-desktop',
+      'port': 'provider-specific',
+    });
+    await tester.pumpWidget(ProviderScope(
+        child: MaterialApp(
+            home: Scaffold(
+      body:
+          Column(children: [HostAddressLine(host), HostSystemIcon(host: host)]),
+    ))));
+    expect(find.text('不支持的连接类型'), findsOneWidget);
+    expect(find.byIcon(Icons.help_outline), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets(
+      'R39 Telnet only requires its endpoint, not an unused SSH username',
+      (tester) async {
+    await open(tester);
+    await tester.tap(find.text('Telnet'));
+    await tester.pumpAndSettle();
+    await fill(tester, '名称', 'Telnet device');
+    await fill(tester, '主机名 / IP', 'telnet.example');
+    expect(find.widgetWithText(TextFormField, '用户名'), findsNothing);
+    expect(find.widgetWithText(TextFormField, '密码（可选）'), findsNothing);
+    await fill(tester, 'Telnet 端口', '0');
+    await save(tester);
+    expect(result, isNull);
+    await fill(tester, 'Telnet 端口', '23');
+    await save(tester);
+    expect(result!.protocol, HostProtocol.telnet);
+    expect(result!.username, isEmpty);
+  });
 
   testWidgets('默认直连：摘要是 手机 → 目标；保存后没有代理和跳板', (tester) async {
     await open(tester);
@@ -288,19 +350,35 @@ void main() {
       expect(result!.data['shunMoshPorts'], '60101:60108');
     });
 
-    testWidgets('切回 SSH：端口范围不留在主机上', (tester) async {
+    testWidgets('R39 SSH/Mosh 保存并重开：保留 Mosh 选项和身份字段', (tester) async {
       await open(
         tester,
         host: saved('old-mosh', extra: {
           'protocol': 'mosh',
           'shunMoshPorts': '60001',
+          'authMethod': 'password',
+          'desktop-extra': {'preserve': true},
         }),
       );
       await tester.tap(find.text('SSH'));
       await tester.pumpAndSettle();
       await save(tester);
       expect(result!.protocol, HostProtocol.ssh);
-      expect(result!.data.containsKey('shunMoshPorts'), isFalse);
+      expect(result!.data['shunMoshPorts'], '60001');
+      final ssh = result!;
+      await open(tester, host: ssh);
+      await chooseMosh(tester);
+      expect(
+          tester
+              .widget<TextFormField>(find.byKey(const ValueKey('mosh-ports')))
+              .controller!
+              .text,
+          '60001');
+      await save(tester);
+      expect(result!.protocol, HostProtocol.mosh);
+      expect(result!.username, ssh.username);
+      expect(result!.authMethod, ssh.authMethod);
+      expect(result!.data['desktop-extra'], {'preserve': true});
     });
   });
 }

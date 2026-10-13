@@ -31,6 +31,14 @@ class HostAddressLine extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    if (host.protocol == HostProtocol.unknown) {
+      return LText('不支持的连接类型',
+          key: const ValueKey('unsupported-host-address'),
+          style: style,
+          maxLines: maxLines,
+          overflow: overflow,
+          textAlign: textAlign);
+    }
     if (host.protocol != HostProtocol.plugin) {
       final address = '${host.username}@${host.hostname}:${host.port}';
       return LText(

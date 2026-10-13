@@ -3,6 +3,34 @@ import 'package:shun/domain/models/host.dart';
 import 'package:shun/domain/models/vault.dart';
 
 void main() {
+  test('missing legacy protocol is SSH; unknown types round-trip opaquely', () {
+    expect(HostProfile({'id': 'legacy'}).protocol, HostProtocol.ssh);
+    expect(HostProfile({'protocol': null}).protocol, HostProtocol.ssh);
+    for (final raw in [
+      'future-desktop',
+      '',
+      'SSH',
+      7,
+      {'type': 'future'}
+    ]) {
+      final data = {
+        'id': 'opaque',
+        'protocol': raw,
+        'port': 'provider-specific',
+        'futureOptions': {'mode': 2},
+      };
+      final host = HostProfile(data);
+      expect(host.protocol, HostProtocol.unknown);
+      final roundtrip = VaultData.fromJson(VaultData.fromJson({
+        'hosts': [host.copyWith(pinned: true).toJson()]
+      }).toJson())
+          .hosts
+          .single;
+      expect(roundtrip.protocol, HostProtocol.unknown);
+      expect(roundtrip.toJson(), {...data, 'pinned': true});
+    }
+  });
+
   test('host edits preserve unknown desktop fields', () {
     final host = HostProfile({
       'id': '1',

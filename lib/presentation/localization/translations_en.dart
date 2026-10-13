@@ -1,4 +1,9 @@
 const englishTranslations = <String, String>{
+  '不支持的连接类型': 'Unsupported connection type',
+  '此连接类型暂不支持，原配置已保留，不会改用 SSH。':
+      'This connection type is not supported. Its settings are preserved and it will not use SSH instead.',
+  '请在支持此类型的客户端中编辑；这里不会修改它的类型或设置。':
+      'Edit it in a client that supports this type. Its type and settings are left unchanged here.',
   '跳板路线确认已失效，请重新确认。':
       'Jump route confirmation expired. Review and confirm again.',
   '路线': 'Route',

@@ -24,6 +24,8 @@ import 'route_legs_view.dart';
 import 'connection_route_draft.dart';
 import 'connection_route_editor.dart';
 import 'proxy_profiles_page.dart';
+import 'unsupported_connection_page.dart';
+import 'connection_endpoint_fields.dart';
 
 class HostEditor extends ConsumerStatefulWidget {
   const HostEditor({
@@ -47,6 +49,7 @@ class HostEditor extends ConsumerStatefulWidget {
 }
 
 class _HostEditorState extends ConsumerState<HostEditor> {
+  late final bool _unsupported;
   final _form = GlobalKey<FormState>();
   late final TextEditingController label;
   late final TextEditingController hostname;
@@ -78,6 +81,8 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   void initState() {
     super.initState();
     final host = widget.host;
+    _unsupported = host?.protocol == HostProtocol.unknown;
+    if (_unsupported) return;
     route = ConnectionRouteDraft.forHost(host);
     label = TextEditingController(text: host?.label);
     hostname = TextEditingController(text: host?.hostname);
@@ -128,6 +133,10 @@ class _HostEditorState extends ConsumerState<HostEditor> {
 
   @override
   void dispose() {
+    if (_unsupported) {
+      super.dispose();
+      return;
+    }
     for (final controller in [
       label,
       hostname,
@@ -149,6 +158,9 @@ class _HostEditorState extends ConsumerState<HostEditor> {
 
   @override
   Widget build(BuildContext context) {
+    if (_unsupported) {
+      return UnsupportedConnectionPage(label: widget.host!.label);
+    }
     final vaultState = ref.watch(vaultControllerProvider);
     final vault = vaultState.data;
     final keys = vault?.keys ?? const <SshKeyProfile>[];
@@ -224,41 +236,13 @@ class _HostEditorState extends ConsumerState<HostEditor> {
               validator: _required,
             ),
             // 插件主机没有地址、端口、用户名：连哪里由插件自己的设置页决定，本 App 不交给它任何主机数据。
-            if (protocol != HostProtocol.plugin) ...[
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: hostname,
-                decoration: LInputDecoration(labelText: '主机名 / IP'),
-                keyboardType: TextInputType.url,
-                validator: _required,
+            if (protocol != HostProtocol.plugin)
+              ConnectionEndpointFields(
+                protocol: protocol,
+                hostname: hostname,
+                username: username,
+                port: port,
               ),
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: TextFormField(
-                      controller: username,
-                      decoration: LInputDecoration(labelText: '用户名'),
-                      validator: _required,
-                    ),
-                  ),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: TextFormField(
-                      controller: port,
-                      decoration: LInputDecoration(
-                        labelText: protocol == HostProtocol.telnet
-                            ? 'Telnet 端口'
-                            : 'SSH 端口',
-                      ),
-                      keyboardType: TextInputType.number,
-                      validator: _validPort,
-                    ),
-                  ),
-                ],
-              ),
-            ],
             const SizedBox(height: 12),
             TextFormField(
               controller: group,
@@ -698,11 +682,6 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   String? _required(String? value) =>
       value == null || value.trim().isEmpty ? '必填' : null;
 
-  String? _validPort(String? value) {
-    final parsed = int.tryParse(value ?? '');
-    return parsed == null || parsed < 1 || parsed > 65535 ? '端口无效' : null;
-  }
-
   String? _validMoshPorts(String? value) {
     try {
       parseMoshPorts(value);
@@ -759,11 +738,13 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     _setOrRemove(data, 'group', group.text.trim());
     _setOrRemove(data, 'identityFileId', identityFileId);
     _setOrRemove(data, 'startupCommand', startupCommand.text.trim());
-    // 只有 Mosh 主机才留端口范围；切回 SSH 时去掉，免得留一份看不见的设置。
+    // SSH/Mosh 共用表单：切回 SSH 保留 Mosh 选项，执行时仍只按当前协议。
     _setOrRemove(
       data,
       moshPortsKey,
-      protocol == HostProtocol.mosh ? moshPorts.text.trim() : null,
+      (protocol == HostProtocol.ssh || protocol == HostProtocol.mosh)
+          ? moshPorts.text.trim()
+          : null,
     );
     // 同理，只有插件主机才留 pluginId。
     _setOrRemove(

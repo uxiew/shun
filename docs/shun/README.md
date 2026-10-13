@@ -16,6 +16,8 @@ zig version                     # 应为 0.16.0；终端引擎（libghostty）�
 
 ## 2. 测试
 
+R39 首批：`HostProfile.protocol` 用 `unknown` 表示明确但不支持的协议，只有缺省/null 继续按旧 SSH 处理；原始 JSON 不改。RoutePlan 在拨号前拒绝未知目标/跳板，列表和 `UnsupportedConnectionPage` 不把未知字段当 SSH 配置解析。`ConnectionEndpointFields` 负责地址/用户名/端口显示与校验，草稿、凭据、路由仍由 HostEditor 及现有 RoutePlan 管理；Telnet 不索要未使用的 SSH 用户名。SSH/Mosh 保存时保留 Mosh 端口范围，仅在 Mosh 表单校验和运行时使用。定向回归见 `test/host_route_editor_test.dart`、`test/vault_model_test.dart`、`test/route_fail_closed_test.dart`。
+
 R40 的 `lib/presentation/widgets/connection_route_editor.dart` 是共用链式编辑器，接收页面已有 `RoutePlan`，通过 `describeRoute` 显示已验证的节点；无有效计划时只显示草稿和错误。`connection_route_draft.dart` 管理选择及兼容字段，保留未修正的失效引用和旧内联配置；不读仓库、不执行网络请求。两页负责预览和提交，只有 `resolveRoutePlan` 决定路线规则。`domain/jump_route_choices.dart` 是 RoutePlan 库的一部分，集中做有界展开、首跳代理候选及确认复核；`jump_route_choice_dialog.dart` 只展示方案并返回明确选择。确认前、来源变化后和后续跳板自带代理时均拒绝执行。
 
 R40 确认信息保存在原 `hostChain` 的 `shunRouteConfirmation` 扩展中：只有版本、顺序、来源的非秘密路线信息和入口选择，没有密码或私钥。`hostIds`、`proxyProfileId` / `proxyConfig` 仍是完整平面路线，不迁移或修改其他主机；缺失/损坏/失效确认一律拒绝。旧客户端的确认语义未实测，不以 JSON 字段兼容冒充跨端执行兼容。

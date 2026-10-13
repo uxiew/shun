@@ -48,6 +48,7 @@ List<RouteLeg> describeRoute(RoutePlan plan) {
         'SSH ${target.host.username}@${target.endpoint.authority}',
       // 插件主机不算路线（resolveRoutePlan 直接拒绝），走不到这里。
       HostProtocol.plugin => '插件',
+      HostProtocol.unknown => '不支持的连接类型',
     },
   ));
   return legs;

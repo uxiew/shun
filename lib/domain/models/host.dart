@@ -1,7 +1,7 @@
 import 'server_stats.dart';
 
 /// [plugin]：由第三方终端插件承载（X12），插件自己联网；用哪个插件见 domain/plugins/plugin_host.dart。
-enum HostProtocol { ssh, telnet, mosh, plugin }
+enum HostProtocol { ssh, telnet, mosh, plugin, unknown }
 
 enum HostAuthMethod { auto, password, key }
 
@@ -168,10 +168,17 @@ class HostProfile {
   List<String> get tags => (data['tags'] as List? ?? const [])
       .map((value) => value.toString())
       .toList(growable: false);
-  HostProtocol get protocol => HostProtocol.values.firstWhere(
-        (value) => value.name == data['protocol'],
-        orElse: () => HostProtocol.ssh,
-      );
+
+  /// Missing legacy protocol means SSH. An explicit unrecognized value never
+  /// grants SSH capabilities; the original value stays in [data] unchanged.
+  HostProtocol get protocol {
+    final raw = data['protocol'];
+    if (raw == null) return HostProtocol.ssh;
+    return HostProtocol.values.firstWhere(
+      (value) => value.name == raw,
+      orElse: () => HostProtocol.unknown,
+    );
+  }
 
   HostProfile copyWith({
     String? label,

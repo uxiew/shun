@@ -18,6 +18,9 @@ class HostSystemIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (host.protocol == HostProtocol.unknown) {
+      return Icon(Icons.help_outline, size: size);
+    }
     final distro = normalizeDistroId(systemInfo?.distro ?? host.distro);
     final color = _brandColors[distro] ?? Theme.of(context).colorScheme.primary;
     return Semantics(

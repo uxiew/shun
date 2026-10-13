@@ -271,6 +271,9 @@ RoutePlan resolveRoutePlan(
   required List<ProxyProfile> proxyProfiles,
   List<SshKeyProfile> keys = const [],
 }) {
+  if (target.protocol == HostProtocol.unknown) {
+    throw const RouteConfigException('此连接类型暂不支持，原配置已保留，不会改用 SSH。');
+  }
   if (target.protocol == HostProtocol.plugin) {
     // 插件自己联网：本 App 的直连、代理、跳板对它都不起作用，算出一条路线来反而像是在说它会这样走。
     throw const RouteConfigException('插件主机不走本 App 的连接路径：插件自己联网，不经过代理和跳板。');
