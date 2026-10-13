@@ -1,6 +1,6 @@
 {
   "plan_revision": "3.0",
-  "date": "2026-10-12",
+  "date": "2026-10-13",
   "files": [
     {
       "path": "AGENTS.md",
@@ -24,8 +24,8 @@
     },
     {
       "path": "STATUS.md",
-      "size": 57898,
-      "sha256": "7c26598cb127a33a5614a30bc93637f0643e4838c4083ce47cc2104dd658dd2f"
+      "size": 58777,
+      "sha256": "ae9751ba1d9c2fc95543c53b405ae9084a6c7e186c614a438ee1a8c33efbf2d0"
     },
     {
       "path": "contracts/README.md",
@@ -135,7 +135,7 @@
     {
       "path": "docs/08-implementation-tasks.md",
       "size": 80089,
-      "sha256": "a00d9bf28b5956bc41904c09a7e5fdc11339f8df6ee98752bdc376a7e0868150"
+      "sha256": "cf77eed6e9409ef8f091e616d87b0fcd703c07f02b05115c56f3b9e8745fb47f"
     },
     {
       "path": "docs/09-verification.md",
@@ -229,8 +229,8 @@
     },
     {
       "path": "tasks.json",
-      "size": 107703,
-      "sha256": "f4eea89f25a819127d45c13f92a7b764c4b024a3e4b53d4ae44fa67378287cfb"
+      "size": 107907,
+      "sha256": "67e00aae3791ef9dc91381d60e677662d4ca1658b04d971bf58757448ec403c9"
     },
     {
       "path": "templates/evidence.md",
@@ -249,8 +249,8 @@
     },
     {
       "path": "verification-cases.json",
-      "size": 67175,
-      "sha256": "c32409d8c9b7597ff921faa5598402a2ba354d8d634e264b834eab419b961d84"
+      "size": 67208,
+      "sha256": "bb44ccebf0b1998298c2a8977f3e07ca4a83c00f6fb3900df3a6895ef947f3bc"
     }
   ],
   "application_build_performed": false,

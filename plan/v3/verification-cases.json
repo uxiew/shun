@@ -1642,7 +1642,9 @@
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R39.md"
+      ]
     },
     {
       "id": "UX06",

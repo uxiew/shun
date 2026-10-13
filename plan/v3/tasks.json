@@ -2355,7 +2355,7 @@
       "id": "R39",
       "phase": "P4",
       "title": "新建连接先选类型，表单只放这种类型用得上的项",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [
         "R10",
         "X04",
@@ -2385,10 +2385,12 @@
         "UX05",
         "UX01"
       ],
-      "stop_condition": "Mosh 怎么放（类型里单独一格、和 SSH 共用表单）、RustDesk/UU 一次性迁移还是旧入口保留，所有者定了再动存储；插件没装只显示状态，不替用户安装。",
+      "stop_condition": "所有者 2026-10-13 已确认：Mosh 类型里单列、共用 SSH 表单、仍存 protocol: mosh；RustDesk/UU 一次性迁为独立条目并移除旧入口。迁移须覆盖旧关联及 UU 待回调、可重试且不丢秘密；验证新记录持久化前不得破坏源绑定。插件没装只显示状态，不替用户安装；现有路由拒绝规则不变。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R39.md"
+      ],
+      "commit": "30c0f81"
     },
     {
       "id": "R40",
