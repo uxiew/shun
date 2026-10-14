@@ -1,3 +1,5 @@
+import 'package:shun/presentation/widgets/vault_host_items.dart';
+import 'remote_entry_fakes.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -77,6 +79,7 @@ void main() {
         },
       );
     backend = MemoryBackend();
+    seedScreenEntries(backend.values, 'uuremote');
   });
 
   Future<void> open(WidgetTester tester, Widget home) async {
@@ -157,7 +160,7 @@ void main() {
     expect(find.byKey(const ValueKey('uu-launch-pip')), findsOneWidget);
     expect(platform.launched, hasLength(1));
     expect(allText(tester), isNot(contains(id)));
-    expect(backend.values['uuremote.bindings.v1'], contains('win'));
+    expect(backend.values['uuremote.entries.v2'], contains('win'));
   });
 
   testWidgets('确认框点「不要」：什么都不存，页面写明没保存', (tester) async {
@@ -173,7 +176,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('uu-offer-discard')));
     await tester.pumpAndSettle();
-    expect(backend.values['uuremote.bindings.v1'], isNull);
+    expect(storedField(backend.values, 'uuremote', 'records'), isEmpty);
     expect(find.textContaining('你没有保存'), findsOneWidget);
     expect(find.byKey(const ValueKey('uu-launch-fullscreen')), findsNothing);
   });
@@ -294,15 +297,14 @@ void main() {
     expect(pressed<OutlinedButton>('uu-bind'), isNotNull);
   });
 
-  testWidgets('保险库的主机详情：Android 上有「UU 远程」入口', (tester) async {
+  testWidgets('主机详情移除「UU 远程」旧入口，独立条目保留', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     addTearDown(() => debugDefaultTargetPlatformOverride = null);
     await open(tester, const Scaffold(body: VaultScreen()));
-    await tester.tap(find.text('win-pc'));
+    await tester.tap(find.descendant(
+        of: find.byType(VaultHostCard), matching: find.text('win-pc')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('host-uuremote')));
-    await tester.pumpAndSettle();
-    expect(find.byType(UuRemoteHostScreen), findsOneWidget);
+    expect(find.byKey(const ValueKey('host-uuremote')), findsNothing);
     debugDefaultTargetPlatformOverride = null;
   });
 

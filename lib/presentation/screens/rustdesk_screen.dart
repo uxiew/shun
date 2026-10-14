@@ -4,20 +4,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plugin_api/plugin_api.dart';
 
-import '../../application/external_remote.dart';
 import '../../application/plugin_registry.dart';
 import '../../application/rustdesk.dart';
-import '../../application/vault_controller.dart';
-import '../../domain/models/host.dart';
 import '../../infrastructure/plugins/rustdesk_external.dart';
 import '../localization/localized_widgets.dart';
 import '../widgets/catalog_text.dart';
+import '../widgets/remote_entry_widgets.dart';
 
 // RustDesk 外部客户端联动（X07）的界面。规则都在 application/rustdesk.dart；这里只负责说清楚：
 // 远控在 RustDesk 里进行，本 App 只把 ID 交给它；RustDesk 不回报，所以永远不说「已连接」「已断开」。
 
 const _limits =
-    '远控画面、密码、服务器设置和网络都在 RustDesk 里，本 App 只把这台主机的 RustDesk ID 交给它。RustDesk 不向本 App 回报结果：连没连上、什么时候断开，都要在 RustDesk 里看。';
+    '远控画面、密码、服务器设置和网络都在 RustDesk 里，本 App 只把这条连接的 RustDesk ID 交给它。RustDesk 不向本 App 回报结果：连没连上、什么时候断开，都要在 RustDesk 里看。';
 
 /// 一台主机的 RustDesk：填 ID、发起远控、最近一次请求。
 class RustDeskHostScreen extends ConsumerStatefulWidget {
@@ -40,11 +38,12 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(_rd.refreshApp());
+    unawaited(_rd.refreshApp().catchError((Object _) {}));
     // 用户多半是看了这页的提示，去装/更新 RustDesk 再回来：回来时重查，不用他退出重进。
     // 只重查手机上装了什么，不发任何请求。
-    _lifecycle =
-        AppLifecycleListener(onResume: () => unawaited(_rd.refreshApp()));
+    _lifecycle = AppLifecycleListener(
+      onResume: () => unawaited(_rd.refreshApp().catchError((Object _) {})),
+    );
   }
 
   @override
@@ -122,7 +121,7 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
     final ok = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const LText('删除这台主机的 RustDesk ID？'),
+        title: const LText('删除这条连接的 RustDesk ID？'),
         content: const LText(
           '只删本 App 里的这条关联。主机、它的 SSH 设置和别的关联都不动；RustDesk 里的设备、密码和服务器设置也不受影响。',
         ),
@@ -150,19 +149,23 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
   @override
   Widget build(BuildContext context) {
     final rd = ref.watch(rustDeskProvider);
-    final host = ref
-        .watch(vaultControllerProvider)
-        .data
-        ?.hosts
-        .where((h) => h.id == widget.hostId)
-        .firstOrNull;
+    final host = rd.entries.where((e) => e.id == widget.hostId).firstOrNull;
     final small = Theme.of(context).textTheme.bodySmall;
     final link = rd.linkOf(widget.hostId);
     final attempt = rd.attempts[widget.hostId];
     final editing = _editing || link == null;
     return Scaffold(
       appBar: AppBar(
-          title: Text(host == null ? 'RustDesk' : 'RustDesk · ${host.label}')),
+        title: Text(host == null ? 'RustDesk' : 'RustDesk · ${host.label}'),
+        actions: [
+          if (host != null)
+            RemoteEntryActions(
+              entry: host,
+              rename: (label) => _rd.renameEntry(host.id, label),
+              delete: () => _rd.deleteEntry(host.id),
+            ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -175,7 +178,7 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
           RustDeskAppStatusCard(app: rd.app),
           const SizedBox(height: 12),
           if (host == null)
-            const LText('这台主机已不在保险库里。')
+            const LText('这条远控连接已删除。')
           else
             Card(
               child: Padding(
@@ -183,7 +186,7 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const LText('这台主机的 RustDesk ID'),
+                    const LText('这条连接的 RustDesk ID'),
                     const SizedBox(height: 4),
                     if (editing) ...[
                       LText(
@@ -234,9 +237,12 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
                         key: const ValueKey('rd-peer-id'),
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
-                      catalogLine('保存时间：', catalogTime(link.createdAt),
-                          style: small),
-                      if (sshRouteOf(host) != RequestedRoute.systemDefault)
+                      catalogLine(
+                        '保存时间：',
+                        catalogTime(link.createdAt),
+                        style: small,
+                      ),
+                      if (host.routeWarning != RequestedRoute.systemDefault)
                         LText(
                           '这台主机的 SSH 经代理或跳板；RustDesk 不走这条路线，用它自己的网络。',
                           key: const ValueKey('rd-route-note'),
@@ -326,9 +332,10 @@ class _RustDeskSettingsScreenState
   void initState() {
     super.initState();
     final rd = ref.read(rustDeskProvider.notifier);
-    unawaited(rd.refreshApp());
-    _lifecycle =
-        AppLifecycleListener(onResume: () => unawaited(rd.refreshApp()));
+    unawaited(rd.refreshApp().catchError((Object _) {}));
+    _lifecycle = AppLifecycleListener(
+      onResume: () => unawaited(rd.refreshApp().catchError((Object _) {})),
+    );
   }
 
   @override
@@ -340,8 +347,7 @@ class _RustDeskSettingsScreenState
   @override
   Widget build(BuildContext context) {
     final rd = ref.watch(rustDeskProvider);
-    final hosts =
-        ref.watch(vaultControllerProvider).data?.hosts ?? const <HostProfile>[];
+    final hosts = rd.entries;
     final small = Theme.of(context).textTheme.bodySmall;
     return Scaffold(
       appBar: AppBar(title: const Text('RustDesk')),
@@ -350,7 +356,7 @@ class _RustDeskSettingsScreenState
         children: [
           const LText(_limits),
           const SizedBox(height: 4),
-          LText('在保险库里点开一台主机，选「RustDesk」来填 ID 和发起远控。', style: small),
+          LText('在首页添加连接时选择 RustDesk，无需 SSH 地址和用户名。', style: small),
           const SizedBox(height: 12),
           if (rd.notice != null) ...[
             LText(rd.notice!, key: const ValueKey('rd-notice')),
@@ -358,35 +364,20 @@ class _RustDeskSettingsScreenState
           ],
           RustDeskAppStatusCard(app: rd.app),
           const SizedBox(height: 16),
-          const LText('已填 RustDesk ID 的主机'),
-          if (rd.links.isEmpty)
-            LText('还没有主机填过 RustDesk ID。', style: small)
-          else
-            for (final link in rd.links)
-              Card(
-                child: ListTile(
-                  key: ValueKey('rd-link-${link.id}'),
-                  title: Text(hosts
-                          .where((h) => h.id == link.hostId)
-                          .firstOrNull
-                          ?.label ??
-                      localized('（主机已删除）')),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('RustDesk ID: ${link.peer.display}', style: small),
-                      catalogLine('保存时间：', catalogTime(link.createdAt),
-                          style: small),
-                    ],
-                  ),
-                  trailing: IconButton(
-                    tooltip: localized('删除'),
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () =>
-                        ref.read(rustDeskProvider.notifier).deleteLink(link.id),
-                  ),
+          for (final entry in hosts)
+            RemoteEntryTile(
+              entry: entry,
+              provider: 'RustDesk',
+              onOpen: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => RustDeskHostScreen(hostId: entry.id),
                 ),
               ),
+            ),
+          TextButton(
+            onPressed: () => ref.read(rustDeskProvider.notifier).retryLoad(),
+            child: const LText('重新读取本机远控记录'),
+          ),
         ],
       ),
     );
@@ -473,12 +464,13 @@ class RustDeskAppStatusCard extends ConsumerWidget {
             const LText('RustDesk 联动目前只支持 Android。')
           ],
         RustDeskNotInstalled() => [
-            catalogLine('没有装 RustDesk：', RustDeskProtocol.officialPackage,
-                key: const ValueKey('rd-not-installed')),
-            LText(
-              '请从 RustDesk 的 GitHub 发行页或 F-Droid 安装。装好后回到这里。',
-              style: small,
+            catalogLine(
+              '没有装 RustDesk：',
+              RustDeskProtocol.officialPackage,
+              key: const ValueKey('rd-not-installed'),
             ),
+            LText('请从 RustDesk 的 GitHub 发行页或 F-Droid 安装。装好后回到这里。',
+                style: small),
           ],
         RustDeskVersionTooOld(:final client) => [
             catalogLine('装着的 RustDesk 版本太旧：', client.versionName ?? '?',

@@ -1,5 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+
+import '../domain/remote_entry.dart';
+import '../infrastructure/storage/remote_entry_store.dart';
+import 'rustdesk_models.dart';
+import 'rustdesk_store.dart';
+export 'rustdesk_models.dart';
+export 'rustdesk_store.dart';
 import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,100 +17,6 @@ import '../infrastructure/plugins/rustdesk_external.dart';
 import 'external_remote.dart';
 import 'plugin_registry.dart';
 import 'vault_controller.dart';
-
-/// 一台保险库主机对应的 RustDesk ID：用户自己填的，本 App 没有办法从 RustDesk 里查出来。
-///
-/// 只存在本机的独立加密存储里，不进保险库：保险库要和桌面端同步，那边不认这个字段；
-/// 这条关联也不该跟着保险库导出（docs/17）。
-class RustDeskLink {
-  const RustDeskLink({
-    required this.id,
-    required this.hostId,
-    required this.peer,
-    required this.createdAt,
-  });
-
-  /// 本 App 给这条关联起的 ID（设备引用用它，不用 RustDesk ID）。
-  final String id;
-  final String hostId;
-  final RustDeskPeerId peer;
-  final DateTime createdAt;
-
-  Map<String, Object?> toJson() => {
-        'id': id,
-        'hostId': hostId,
-        'peerId': peer.value,
-        'createdAt': createdAt.toUtc().toIso8601String(),
-      };
-
-  /// 存储里的 ID 读出来要重新过一遍校验：过不了的条目丢掉，不拿去拼链接。
-  static RustDeskLink? fromJson(Object? json) {
-    if (json is! Map) return null;
-    final id = json['id'];
-    final hostId = json['hostId'];
-    final peerId = json['peerId'];
-    final created = json['createdAt'] is String
-        ? DateTime.tryParse(json['createdAt'] as String)
-        : null;
-    if (id is! String ||
-        hostId is! String ||
-        peerId is! String ||
-        created == null) {
-      return null;
-    }
-    try {
-      return RustDeskLink(
-        id: id,
-        hostId: hostId,
-        peer: RustDeskPeerId.parse(peerId),
-        createdAt: created,
-      );
-    } on RustDeskPeerIdRejected {
-      return null;
-    }
-  }
-}
-
-class RustDeskStore {
-  const RustDeskStore(this._backend);
-  final ProviderSecretBackend _backend;
-
-  static const _links = 'rustdesk.links.v1';
-  static const _trust = 'rustdesk.trust.v1';
-
-  /// 读不懂的条目丢掉（让用户重新填），不猜。
-  Future<List<RustDeskLink>> links() async {
-    final raw = await _backend.read(_links);
-    if (raw == null) return const [];
-    try {
-      return [
-        for (final item in jsonDecode(raw) as List)
-          if (RustDeskLink.fromJson(item) case final link?) link,
-      ];
-    } on Object {
-      return const [];
-    }
-  }
-
-  Future<void> saveLinks(List<RustDeskLink> links) => _backend.write(
-        _links,
-        jsonEncode([for (final l in links) l.toJson()]),
-      );
-
-  Future<RustDeskTrust?> trust() async {
-    final raw = await _backend.read(_trust);
-    if (raw == null) return null;
-    try {
-      return RustDeskTrust.fromJson(jsonDecode(raw));
-    } on Object {
-      return null;
-    }
-  }
-
-  Future<void> saveTrust(RustDeskTrust? trust) => trust == null
-      ? _backend.delete(_trust)
-      : _backend.write(_trust, jsonEncode(trust.toJson()));
-}
 
 /// 本 App 对一次 RustDesk 远控能知道的全部：交出去了，或者没交出去。
 ///
@@ -136,6 +49,7 @@ class RustDeskState {
     this.attempts = const {},
     this.notice,
     this.loaded = false,
+    this.entries = const [],
   });
 
   /// null：还没探测过。
@@ -146,6 +60,7 @@ class RustDeskState {
   final Map<String, RustDeskAttempt> attempts;
   final String? notice;
   final bool loaded;
+  final List<RemoteEntry> entries;
 
   RustDeskLink? linkOf(String hostId) =>
       links.where((l) => l.hostId == hostId).firstOrNull;
@@ -156,6 +71,7 @@ class RustDeskState {
     Map<String, RustDeskAttempt>? attempts,
     String? Function()? notice,
     bool? loaded,
+    List<RemoteEntry>? entries,
   }) =>
       RustDeskState(
         app: app ?? this.app,
@@ -163,6 +79,7 @@ class RustDeskState {
         attempts: attempts ?? this.attempts,
         notice: notice == null ? this.notice : notice(),
         loaded: loaded ?? this.loaded,
+        entries: entries ?? this.entries,
       );
 }
 
@@ -204,7 +121,10 @@ class RustDeskController extends StateNotifier<RustDeskState> {
         _now = now ?? DateTime.now,
         _random = random ?? Random.secure(),
         super(const RustDeskState()) {
-    _ready = _serial(_load);
+    _ready = _serial(
+      _load,
+      allowUnloaded: true,
+    );
   }
 
   final RustDeskPlatform _platform;
@@ -217,8 +137,24 @@ class RustDeskController extends StateNotifier<RustDeskState> {
 
   /// 所有改状态的操作排队执行：连点两下「远控」不会交叠着发两次探测和两条请求。
   Future<void> _queue = Future.value();
-  Future<T> _serial<T>(Future<T> Function() op) {
-    final result = _queue.then((_) => op());
+  bool _storageReady = false;
+  Future<T> _serial<T>(Future<T> Function() op, {bool allowUnloaded = false}) {
+    final result = _queue.then((_) async {
+      if (!allowUnloaded && !_storageReady) {
+        throw const RemoteEntryStorageException();
+      }
+      try {
+        return await op();
+      } on RemoteEntryStorageException {
+        _storageReady = false;
+        if (mounted) {
+          state = state.copyWith(
+            notice: () => const RemoteEntryStorageException().toString(),
+          );
+        }
+        rethrow;
+      }
+    });
     _queue = result.then((_) {}, onError: (Object _) {});
     return result;
   }
@@ -226,24 +162,74 @@ class RustDeskController extends StateNotifier<RustDeskState> {
   Future<void> get ready => _ready;
 
   void _require() => _registry.require(
-      BuiltinPlugins.rustdesk, Capability.remoteDesktopExternal);
+        BuiltinPlugins.rustdesk,
+        Capability.remoteDesktopExternal,
+      );
 
   Future<void> _load() async {
+    _storageReady = false;
     try {
+      await _store.local.initialize(_hosts);
+      _storageReady = true;
       final links = await _store.links();
       if (!mounted) return;
-      state = state.copyWith(links: links, loaded: true);
-      await _refresh();
-    } on Object catch (e) {
+      state = state.copyWith(
+          links: links,
+          loaded: true,
+          entries: _store.local.entries,
+          notice: () => null);
+    } on Object {
+      _storageReady = false;
       // 读不出来时照样把 loaded 置上：界面据此显示原因，而不是一直转圈。
       if (mounted) {
-        state =
-            state.copyWith(loaded: true, notice: () => '读取 RustDesk 关联失败：$e');
+        state = state.copyWith(
+          loaded: true,
+          notice: () => const RemoteEntryStorageException().toString(),
+        );
       }
+      return;
+    }
+    try {
+      await _refresh();
+    } on Object {
+      if (mounted) state = state.copyWith(notice: () => '检查远控客户端失败，请稍后重试。');
     }
   }
 
   Future<void> refreshApp() => _serial(_refresh);
+
+  Future<void> retryLoad() => _serial(_load, allowUnloaded: true);
+
+  Future<String> createEntry(String label) => _serial(() async {
+        final name = label.trim();
+        if (name.isEmpty || name.length > 200) {
+          throw const FormatException('名称须为 1–200 个字符');
+        }
+        final entry = RemoteEntry(id: _newId(), label: name);
+        await _store.local.saveEntry(entry);
+        state = state.copyWith(entries: _store.local.entries);
+        return entry.id;
+      });
+
+  Future<void> renameEntry(String id, String label) => _serial(() async {
+        final name = label.trim();
+        if (name.isEmpty || name.length > 200) {
+          throw const FormatException('名称须为 1–200 个字符');
+        }
+        final entry = state.entries.where((e) => e.id == id).firstOrNull;
+        if (entry == null) throw const RemoteEntryStorageException();
+        await _store.local.saveEntry(entry.renamed(name));
+        state = state.copyWith(entries: _store.local.entries);
+      });
+
+  Future<void> deleteEntry(String id) => _serial(() async {
+        await _store.local.deleteEntry(id);
+        state = state.copyWith(
+          entries: _store.local.entries,
+          links: await _store.links(),
+          attempts: {...state.attempts}..remove(id),
+        );
+      });
 
   Future<RustDeskProbe> _refresh() async {
     final probe = await _platform.probe();
@@ -264,7 +250,8 @@ class RustDeskController extends StateNotifier<RustDeskState> {
             current.signers.length != 1 ||
             current.signers.single != signer) {
           throw const RustDeskRequestRefused(
-              '确认期间这个 App 有变化（更新、换签或卸载），没有信任。请重新核对。');
+            '确认期间这个 App 有变化（更新、换签或卸载），没有信任。请重新核对。',
+          );
         }
         await _store.saveTrust(RustDeskTrust(package: package, signer: signer));
         await _refresh();
@@ -280,7 +267,7 @@ class RustDeskController extends StateNotifier<RustDeskState> {
         final peer = RustDeskPeerId.parse(input);
         final host = await _hostOf(hostId);
         final link = RustDeskLink(
-          id: _newId(),
+          id: state.linkOf(host.id)?.id ?? _newId(),
           hostId: host.id,
           peer: peer,
           createdAt: _now(),
@@ -326,8 +313,9 @@ class RustDeskController extends StateNotifier<RustDeskState> {
         // 默认认为用户要和 SSH 同一条路线；RustDesk 做不到（provider-managed 只接受系统默认网络），
         // 所以除非用户明确接受「RustDesk 走它自己的网络」，否则一律不发。判定用插件契约的同一条规则。
         final route = checkRoute(
-          BuiltinPlugins.descriptors
-              .singleWhere((d) => d.pluginId == BuiltinPlugins.rustdesk),
+          BuiltinPlugins.descriptors.singleWhere(
+            (d) => d.pluginId == BuiltinPlugins.rustdesk,
+          ),
           TransportKind.providerManaged,
           acceptProviderManagedNetwork
               ? RequestedRoute.systemDefault
@@ -375,7 +363,8 @@ class RustDeskController extends StateNotifier<RustDeskState> {
       RustDeskNotInstalled() =>
         throw const RustDeskRequestRefused('没有装 RustDesk'),
       RustDeskVersionTooOld() => throw const RustDeskRequestRefused(
-          'RustDesk 版本太旧，不接受别的 App 发来的连接请求，最低要求：${RustDeskProtocol.minVersionText}'),
+          'RustDesk 版本太旧，不接受别的 App 发来的连接请求，最低要求：${RustDeskProtocol.minVersionText}',
+        ),
       RustDeskSignerNeedsApproval() =>
         throw const RustDeskRequestRefused('还没核对过手机上这个 RustDesk 的签名证书'),
       RustDeskSignerChanged() =>
@@ -387,9 +376,16 @@ class RustDeskController extends StateNotifier<RustDeskState> {
   }
 
   Future<RemoteControlHost> _hostOf(String hostId) async {
-    final host = (await _hosts()).where((h) => h.id == hostId).firstOrNull;
-    if (host == null) throw const RustDeskRequestRefused('这台主机已不在保险库里');
-    return host;
+    final entry = state.entries.where((e) => e.id == hostId).firstOrNull;
+    if (entry == null) throw const RustDeskRequestRefused('这条远控连接已删除');
+    final source = entry.sourceHostId == null
+        ? null
+        : (await _hosts()).where((h) => h.id == entry.sourceHostId).firstOrNull;
+    return RemoteControlHost(
+      id: entry.id,
+      label: entry.label,
+      sshRoute: source?.sshRoute ?? entry.routeWarning,
+    );
   }
 
   void _setAttempt(String hostId, RustDeskAttempt attempt) {
@@ -403,15 +399,18 @@ class RustDeskController extends StateNotifier<RustDeskState> {
       .replaceAll('=', '');
 }
 
-final rustDeskPlatformProvider =
-    Provider<RustDeskPlatform>((ref) => AndroidRustDeskPlatform());
+final rustDeskPlatformProvider = Provider<RustDeskPlatform>(
+  (ref) => AndroidRustDeskPlatform(),
+);
 
 /// 存储名定了就不能改：改了就读不到已有的关联。
 final rustDeskStoreProvider = Provider<RustDeskStore>(
-  (ref) => RustDeskStore(SecureProviderBackend(
-    prefsName: 'shun_rustdesk',
-    keychainAccount: 'shun.rustdesk',
-  )),
+  (ref) => RustDeskStore(
+    SecureProviderBackend(
+      prefsName: 'shun_rustdesk',
+      keychainAccount: 'shun.rustdesk',
+    ),
+  ),
 );
 
 final rustDeskProvider =

@@ -1,4 +1,6 @@
+import 'remote_entry_fakes.dart';
 import 'dart:convert';
+import 'package:shun/infrastructure/storage/remote_entry_store.dart';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/application/device_links.dart';
@@ -47,6 +49,7 @@ void main() {
           id: 'h3', label: 'lab', sshRoute: RequestedRoute.proxyJump),
     ];
     clock = DateTime.utc(2026, 9, 30, 12);
+    seedRemoteEntries(backend.values, 'rustdesk', hosts);
     c = build();
     await c.ready;
   });
@@ -64,7 +67,7 @@ void main() {
       await c.saveLink('h1', 'office-pc');
       expect(c.state.links, hasLength(1));
       expect(c.state.linkOf('h1')!.peer.value, 'office-pc');
-      expect(c.state.linkOf('h1')!.id, isNot(first));
+      expect(c.state.linkOf('h1')!.id, first);
       expect(platform.launched, isEmpty);
     });
 
@@ -78,7 +81,7 @@ void main() {
         throwsA(isA<RustDeskRequestRefused>()),
       );
       expect(c.state.links, isEmpty);
-      expect(backend.values, isEmpty);
+      expect(storedField(backend.values, 'rustdesk', 'records'), isEmpty);
     });
 
     test('两台主机填同一个 RustDesk ID：两条各自独立的关联', () async {
@@ -91,35 +94,39 @@ void main() {
       expect(c.state.linkOf('h2')!.peer.value, '123456789');
     });
 
-    test('重开后从存储读回；存储里不合规的 ID 被丢掉，不拿去拼链接', () async {
+    test('重开遇到损坏 ID：阻止整份存储启用，不丢记录也不发链接', () async {
       await c.saveLink('h1', '123456789');
-      final stored = jsonDecode(backend.values['rustdesk.links.v1']!) as List;
+      final stored = storedField(backend.values, 'rustdesk', 'records') as List;
       stored.add({
         'id': 'tampered',
         'hostId': 'h2',
         'peerId': '1?password=x',
         'createdAt': clock.toIso8601String(),
       });
-      backend.values['rustdesk.links.v1'] = jsonEncode(stored);
+      final snapshot =
+          jsonDecode(backend.values['rustdesk.entries.v2']!) as Map;
+      snapshot['records'] = stored;
+      backend.values['rustdesk.entries.v2'] = jsonEncode(snapshot);
 
       final reopened = build();
       addTearDown(reopened.dispose);
       await reopened.ready;
-      expect(reopened.state.links.single.hostId, 'h1');
+      expect(reopened.state.links, isEmpty);
+      expect(reopened.state.notice, contains('迁移失败'));
       await expectLater(
-          reopened.launch('h2'), throwsA(isA<RustDeskRequestRefused>()));
+          reopened.launch('h2'), throwsA(isA<RemoteEntryStorageException>()));
       expect(platform.launched, isEmpty);
     });
 
-    test('存储坏了：当成没有关联，不崩', () async {
-      backend.values['rustdesk.links.v1'] = '{not json';
+    test('存储坏了：显示失败，禁止写入，不回退', () async {
+      backend.values['rustdesk.entries.v2'] = '{not json';
       backend.values['rustdesk.trust.v1'] = '[1,2';
       final reopened = build();
       addTearDown(reopened.dispose);
       await reopened.ready;
       expect(reopened.state.loaded, isTrue);
       expect(reopened.state.links, isEmpty);
-      expect(reopened.state.app, isA<RustDeskReady>());
+      expect(reopened.state.notice, contains('迁移失败'));
     });
 
     test('SSH、目录设备、UU 绑定、RustDesk 关联聚成一条；引用里没有 RustDesk ID', () async {
@@ -294,13 +301,15 @@ void main() {
       expect(platform.launched, isEmpty);
     });
 
-    test('没填 ID、主机不在了：不发', () async {
+    test('没填 ID 不发；删除 SSH 主机不删除独立远控条目', () async {
       await expectLater(c.launch('h1'), throwsA(isA<RustDeskRequestRefused>()));
       await c.saveLink('h1', '123456789');
       hosts = const [];
+      await c.launch('h1');
+      expect(platform.launched, hasLength(1));
+      await c.deleteEntry('h1');
       await expectLater(c.launch('h1'), throwsA(isA<RustDeskRequestRefused>()));
-      expect(platform.launched, isEmpty);
-      expect(c.state.attempts, isEmpty);
+      expect(platform.launched, hasLength(1));
     });
 
     test('改了 ID：上一次请求的记录不再挂在这台主机上', () async {
@@ -397,8 +406,9 @@ void main() {
         c.trustClient('com.example.notinstalled', 'cert-mine'),
         throwsA(isA<RustDeskRequestRefused>()),
       );
-      expect(backend.values, isEmpty);
+      expect(storedField(backend.values, 'rustdesk', 'records'), isEmpty);
       expect(c.state.app, isA<RustDeskNotInstalled>());
+      expect(backend.values['rustdesk.trust.v1'], isNull);
     });
 
     test('信任的客户端换了签名：停下，不发；重新信任后恢复', () async {

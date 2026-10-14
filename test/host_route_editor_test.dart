@@ -37,6 +37,7 @@ void main() {
     WidgetTester tester, {
     HostProfile? host,
     bool verify = false,
+    HostProtocol initialProtocol = HostProtocol.ssh,
   }) async {
     tester.view.physicalSize = const Size(900, 4000);
     tester.view.devicePixelRatio = 1;
@@ -71,6 +72,7 @@ void main() {
                   MaterialPageRoute(
                     builder: (_) => HostEditor(
                       host: host,
+                      initialProtocol: initialProtocol,
                       verifyHostKey:
                           verify ? (_, __, ___) async => false : null,
                     ),
@@ -156,8 +158,7 @@ void main() {
   testWidgets(
       'R39 Telnet only requires its endpoint, not an unused SSH username',
       (tester) async {
-    await open(tester);
-    await tester.tap(find.text('Telnet'));
+    await open(tester, initialProtocol: HostProtocol.telnet);
     await tester.pumpAndSettle();
     await fill(tester, '名称', 'Telnet device');
     await fill(tester, '主机名 / IP', 'telnet.example');

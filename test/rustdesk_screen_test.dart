@@ -1,3 +1,5 @@
+import 'package:shun/presentation/widgets/vault_host_items.dart';
+import 'remote_entry_fakes.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
@@ -53,6 +55,7 @@ void main() {
     }));
     platform = FakeRustDeskPlatform();
     backend = MemoryRustDeskBackend();
+    seedScreenEntries(backend.values, 'rustdesk');
   });
 
   Future<void> open(WidgetTester tester, Widget home) async {
@@ -92,16 +95,16 @@ void main() {
 
     await saveId(tester, 'rustdesk://password/hunter2');
     expect(find.textContaining('不要粘贴链接'), findsOneWidget);
-    expect(backend.values, isEmpty);
+    expect(storedField(backend.values, 'rustdesk', 'records'), isEmpty);
     await saveId(tester, '123456789?password=hunter2');
     expect(find.textContaining('服务器或密钥'), findsOneWidget);
-    expect(backend.values, isEmpty);
+    expect(storedField(backend.values, 'rustdesk', 'records'), isEmpty);
     expect(find.byKey(const ValueKey('rd-launch')), findsNothing);
 
     await saveId(tester, '123 456 789');
     expect(tester.widget<Text>(find.byKey(const ValueKey('rd-peer-id'))).data,
         '123 456 789');
-    expect(backend.values['rustdesk.links.v1'], contains('"123456789"'));
+    expect(backend.values['rustdesk.entries.v2'], contains('"123456789"'));
     expect(find.byKey(const ValueKey('rd-launch')), findsOneWidget);
     expect(platform.launched, isEmpty);
     expect(find.byKey(const ValueKey('rd-attempt')), findsNothing);
@@ -289,21 +292,20 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('rd-delete-confirm')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('rd-id-field')), findsOneWidget);
-    expect(backend.values['rustdesk.links.v1'], '[]');
+    expect(storedField(backend.values, 'rustdesk', 'records'), isEmpty);
     expect(platform.launched, isEmpty);
     // 主机还在保险库里。
     expect((await vault.loadVault()).hosts.map((h) => h.id), contains('win'));
   });
 
-  testWidgets('保险库的主机详情：Android 上有「RustDesk」入口', (tester) async {
+  testWidgets('主机详情移除「RustDesk」旧入口，独立条目保留', (tester) async {
     debugDefaultTargetPlatformOverride = TargetPlatform.android;
     addTearDown(() => debugDefaultTargetPlatformOverride = null);
     await open(tester, const Scaffold(body: VaultScreen()));
-    await tester.tap(find.text('win-pc'));
+    await tester.tap(find.descendant(
+        of: find.byType(VaultHostCard), matching: find.text('win-pc')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('host-rustdesk')));
-    await tester.pumpAndSettle();
-    expect(find.byType(RustDeskHostScreen), findsOneWidget);
+    expect(find.byKey(const ValueKey('host-rustdesk')), findsNothing);
     debugDefaultTargetPlatformOverride = null;
   });
 
@@ -313,10 +315,10 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await open(tester, const RustDeskSettingsScreen());
     expect(find.text('win-pc'), findsOneWidget);
-    expect(find.text('RustDesk ID: 123 456 789'), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.delete_outline));
+    await tester.tap(find.byKey(const ValueKey('remote-RustDesk-win')));
     await tester.pumpAndSettle();
-    expect(find.text('还没有主机填过 RustDesk ID。'), findsOneWidget);
+    expect(find.byType(RustDeskHostScreen), findsOneWidget);
+    expect(find.byKey(const ValueKey('rd-peer-id')), findsOneWidget);
   });
 
   testWidgets('英文界面：主机的 RustDesk 页（各种状态）和设置总览都没有汉字', (tester) async {

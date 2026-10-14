@@ -68,7 +68,10 @@ void main() {
                   onPressed: () async {
                     result = await Navigator.push<HostProfile>(
                       context,
-                      MaterialPageRoute(builder: (_) => HostEditor(host: host)),
+                      MaterialPageRoute(
+                          builder: (_) => HostEditor(
+                              host: host,
+                              initialProtocol: HostProtocol.plugin)),
                     );
                   },
                   child: const Text('open'),
@@ -116,7 +119,6 @@ void main() {
     await approve('com.x.secret', 'com.x.secret');
     await open(tester);
     await openEditor(tester);
-    await tester.tap(find.text('插件'));
     await tester.pumpAndSettle();
     expect(find.widgetWithText(TextFormField, '主机名 / IP'), findsNothing);
     expect(find.widgetWithText(TextFormField, '用户名'), findsNothing);
@@ -221,7 +223,6 @@ void main() {
   testWidgets('没有能用的插件：说清楚去哪装、去哪批准，Mosh 不在这里', (tester) async {
     await open(tester);
     await openEditor(tester);
-    await tester.tap(find.text('插件'));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('plugin-none-usable')), findsOneWidget);
   });

@@ -14,6 +14,7 @@
   也别再随手改：换了值手机就当成另一个 App，旧 App 的保险库、密钥不会跟过来。
 - 没真机/没授权的用例写 NOT_RUN 或 BLOCKED，不许拿 mock、参考 App 或计划校验冒充通过。
 
-工具链装在仓库外的 `../.toolchain/`，不依赖全局环境。每个终端先执行 `source ../.toolchain/env.sh`。
+Zig 由仓库 `mise.toml` 固定为 0.16.0，不跟随全局版本；其余工具链按 `docs/shun/README.md` 配置。
+每个终端先用 `mise which zig` 设置 `SHUN_ZIG_EXECUTABLE`，再 `source ../.toolchain/env.sh`，最后把真实 Zig 所在目录放到 PATH 最前（避免 hooks 丢失自定义变量后命中旧包装器）。
 只加 Flutter 的 PATH 不够：少了 `NO_PROXY`，`flutter test` 会全部在 loading 阶段失败。
 怎么跑测试、模拟器、真机，以及怎么清理，都写在 `docs/shun/README.md`。

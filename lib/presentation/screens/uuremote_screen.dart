@@ -4,14 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plugin_api/plugin_api.dart';
 
-import '../../application/external_remote.dart';
 import '../../application/plugin_registry.dart';
 import '../../application/uuremote.dart';
-import '../../application/vault_controller.dart';
-import '../../domain/models/host.dart';
 import '../../infrastructure/plugins/uuremote_adapter.dart';
 import '../localization/localized_widgets.dart';
 import '../widgets/catalog_text.dart';
+import '../widgets/remote_entry_widgets.dart';
 
 // UU 远程（X06）的界面。规则都在 application/uuremote.dart；这里只负责说清楚：
 // 远控在 UU 远程里进行，本 App 只发起、只显示 UU 报告的结果；全屏 UU 不回报，所以永远不说「已连接」。
@@ -51,8 +49,11 @@ class _UuRemoteListenerState extends ConsumerState<UuRemoteListener> {
   Future<void> _confirm(UuBindOffer offer) async {
     _asking = true;
     try {
-      final vault = ref.read(vaultControllerProvider).data;
-      final host = vault?.hosts.where((h) => h.id == offer.hostId).firstOrNull;
+      final host = ref
+          .read(uuRemoteProvider)
+          .entries
+          .where((h) => h.id == offer.hostId)
+          .firstOrNull;
       final controller = ref.read(uuRemoteProvider.notifier);
       final ok = await showDialog<bool>(
         context: context,
@@ -63,11 +64,11 @@ class _UuRemoteListenerState extends ConsumerState<UuRemoteListener> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              catalogLine('要关联到主机：', host?.label ?? offer.hostId),
+              catalogLine('要保存到连接：', host?.label ?? offer.hostId),
               const SizedBox(height: 8),
               const LText(
                 'UU 只给了一个加密的设备标识，本 App 看不到设备名，也不会把它显示、导出或复制。'
-                '关联之后可以在这台主机上用 UU 远程发起远控；本 App 不会自动发起。',
+                '保存后可从这条连接发起 UU 远控；本 App 不会自动发起。',
               ),
               const SizedBox(height: 8),
               const LText(
@@ -91,13 +92,13 @@ class _UuRemoteListenerState extends ConsumerState<UuRemoteListener> {
       );
       if (ok == true) {
         try {
-          await controller.confirmOffer();
+          await controller.confirmOffer(expected: offer);
           _snack('已关联 UU 远程。');
         } on Object catch (e) {
           _snack('$e');
         }
       } else {
-        controller.discardOffer();
+        controller.discardOffer(expected: offer);
       }
     } finally {
       _asking = false;
@@ -129,10 +130,11 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(_uu.refreshApp());
+    unawaited(_uu.refreshApp().catchError((Object _) {}));
     // 用户多半是看了这页的提示，去装/更新 UU 或卸载别的 App 再回来：回来时重查，不用他退出重进。
-    _lifecycle =
-        AppLifecycleListener(onResume: () => unawaited(_uu.refreshApp()));
+    _lifecycle = AppLifecycleListener(
+      onResume: () => unawaited(_uu.refreshApp().catchError((Object _) {})),
+    );
   }
 
   @override
@@ -222,12 +224,7 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
   @override
   Widget build(BuildContext context) {
     final uu = ref.watch(uuRemoteProvider);
-    final host = ref
-        .watch(vaultControllerProvider)
-        .data
-        ?.hosts
-        .where((h) => h.id == widget.hostId)
-        .firstOrNull;
+    final host = uu.entries.where((e) => e.id == widget.hostId).firstOrNull;
     final small = Theme.of(context).textTheme.bodySmall;
     final binding = uu.bindingOf(widget.hostId);
     final pending = uu.pending;
@@ -242,7 +239,14 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
       appBar: AppBar(
           title: Text(host == null
               ? localized('UU 远程')
-              : '${localized('UU 远程')} · ${host.label}')),
+              : '${localized('UU 远程')} · ${host.label}'),
+          actions: [
+            if (host != null)
+              RemoteEntryActions(
+                  entry: host,
+                  rename: (label) => _uu.renameEntry(host.id, label),
+                  delete: () => _uu.deleteEntry(host.id))
+          ]),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -252,7 +256,7 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
           UuCallbackRivalsNote(rivals: uu.callbackRivals),
           const SizedBox(height: 12),
           if (host == null)
-            const LText('这台主机已不在保险库里。')
+            const LText('这条远控连接已删除。')
           else
             Card(
               child: Padding(
@@ -278,7 +282,7 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
                       ),
                     if (binding != null && binding.valid)
                       LText('UU 不把设备名告诉第三方 App，所以这里只显示绑定时间。', style: small),
-                    if (sshRouteOf(host) != RequestedRoute.systemDefault)
+                    if (host.routeWarning != RequestedRoute.systemDefault)
                       LText(
                         '这台主机的 SSH 经代理或跳板；UU 远程不走这条路线，用它自己的网络。',
                         key: const ValueKey('uu-route-note'),
@@ -400,9 +404,10 @@ class _UuRemoteSettingsScreenState
   void initState() {
     super.initState();
     final uu = ref.read(uuRemoteProvider.notifier);
-    unawaited(uu.refreshApp());
-    _lifecycle =
-        AppLifecycleListener(onResume: () => unawaited(uu.refreshApp()));
+    unawaited(uu.refreshApp().catchError((Object _) {}));
+    _lifecycle = AppLifecycleListener(
+      onResume: () => unawaited(uu.refreshApp().catchError((Object _) {})),
+    );
   }
 
   @override
@@ -414,8 +419,7 @@ class _UuRemoteSettingsScreenState
   @override
   Widget build(BuildContext context) {
     final uu = ref.watch(uuRemoteProvider);
-    final hosts =
-        ref.watch(vaultControllerProvider).data?.hosts ?? const <HostProfile>[];
+    final hosts = uu.entries;
     final small = Theme.of(context).textTheme.bodySmall;
     return Scaffold(
       appBar: AppBar(title: const LText('UU 远程')),
@@ -424,42 +428,25 @@ class _UuRemoteSettingsScreenState
         children: [
           const LText(_limits),
           const SizedBox(height: 4),
-          LText('在保险库里点开一台主机，选「UU 远程」来绑定和发起远控。', style: small),
+          LText('在首页添加连接时选择 UU 远程，无需 SSH 地址和用户名。', style: small),
           const SizedBox(height: 12),
           UuAppStatusCard(app: uu.app),
           UuCallbackRivalsNote(rivals: uu.callbackRivals),
           const SizedBox(height: 16),
-          const LText('绑定'),
-          if (uu.bindings.isEmpty)
-            LText('还没有 UU 绑定。', style: small)
-          else
-            for (final binding in uu.bindings)
-              Card(
-                child: ListTile(
-                  key: ValueKey('uu-binding-${binding.id}'),
-                  title: Text(hosts
-                          .where((h) => h.id == binding.hostId)
-                          .firstOrNull
-                          ?.label ??
-                      localized('（主机已删除）')),
-                  subtitle: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      catalogLine('绑定时间：', catalogTime(binding.createdAt),
-                          style: small),
-                      if (!binding.valid)
-                        LText('已失效：UU 报告设备不存在或换了账号', style: small),
-                    ],
-                  ),
-                  trailing: IconButton(
-                    tooltip: localized('删除绑定'),
-                    icon: const Icon(Icons.delete_outline),
-                    onPressed: () => ref
-                        .read(uuRemoteProvider.notifier)
-                        .deleteBinding(binding.id),
-                  ),
+          for (final entry in hosts)
+            RemoteEntryTile(
+              entry: entry,
+              provider: 'UU 远程',
+              onOpen: () => Navigator.of(context).push(
+                MaterialPageRoute<void>(
+                  builder: (_) => UuRemoteHostScreen(hostId: entry.id),
                 ),
               ),
+            ),
+          TextButton(
+            onPressed: () => ref.read(uuRemoteProvider.notifier).retryLoad(),
+            child: const LText('重新读取本机远控记录'),
+          ),
         ],
       ),
     );

@@ -1,4 +1,57 @@
 const englishTranslations = <String, String>{
+  '检查远控客户端失败，请稍后重试。': 'Could not check remote clients. Retry later.',
+  '绑定确认已变化，请重新确认。': 'The binding offer has changed. Confirm it again.',
+  '不支持多签名客户端': 'Clients signed by multiple certificates are not supported',
+  '使用外部 App 自己的网络；不继承 SSH 代理或跳板。未安装时可以先保存条目。':
+      'Uses the external app’s network, not SSH proxies or jump hosts. You can save an entry before installing the client.',
+  '保存后可从这条连接发起 UU 远控；本 App 不会自动发起。':
+      'After saving, you can launch UU from this connection. This app never launches it automatically.',
+  '删除这条连接的 RustDesk ID？': 'Clear the RustDesk ID for this connection?',
+  '删除远控连接？': 'Delete remote connection?',
+  '删除远控连接': 'Delete remote connection',
+  '只删除本机条目和绑定，并作废它的待回调；不影响 SSH、其他远控连接或外部 App。':
+      'Deletes only this local entry and binding, and invalidates its pending callback. SSH, other remote connections and external apps are unchanged.',
+  '可用 · SSH 终端': 'Available · SSH terminal',
+  '可用 · 仅 Windows/macOS 目标': 'Available · Windows/macOS targets only',
+  '可用 · 仅直连 UDP': 'Available · Direct UDP only',
+  '可用 · 外部客户端': 'Available · External client',
+  '可用 · 插件自己联网': 'Available · Plugin-managed network',
+  '可用 · 明文，仅直连': 'Available · Unencrypted, direct only',
+  '名称须为 1–200 个字符': 'Name must contain 1–200 characters',
+  '回调地址冲突，绑定不可用': 'Callback address conflict: binding is unavailable',
+  '在首页添加连接时选择 RustDesk，无需 SSH 地址和用户名。':
+      'Choose RustDesk when adding a connection. No SSH address or username is required.',
+  '在首页添加连接时选择 UU 远程，无需 SSH 地址和用户名。':
+      'Choose UU when adding a connection. No SSH address or username is required.',
+  '客户端不接受跨 App 请求': 'The client does not accept cross-app requests',
+  '插件检查失败，请重试': 'Plugin check failed. Retry.',
+  '新建远控连接': 'New remote connection',
+  '未安装 Mosh 插件，可先保存配置': 'Mosh plugin not installed; configuration can be saved',
+  '未安装，可先保存条目': 'Not installed; entries can be saved',
+  '正在检查客户端': 'Checking client',
+  '正在检查插件': 'Checking plugins',
+  '添加连接': 'Add connection',
+  '添加连接时先选择类型。远控条目仅保存在本机。':
+      'Choose a type before adding a connection. Remote entries are stored only on this device.',
+  '版本过旧，请更新客户端': 'Client version is too old. Update it.',
+  '等待 UU 回调': 'Waiting for UU callback',
+  '签名证书已变化，需要重新核对': 'Signing certificate changed. Verify it again.',
+  '签名证书待批准': 'Signing certificate needs approval',
+  '终端插件': 'Terminal plugins',
+  '要保存到连接：': 'Save to connection: ',
+  '请填写名称': 'Enter a name',
+  '还没有终端连接': 'No terminal connections yet',
+  '这条远控连接已删除': 'This remote connection has been deleted',
+  '这条远控连接已删除。': 'This remote connection has been deleted.',
+  '这条连接的 RustDesk ID': 'RustDesk ID for this connection',
+  '远控存储未就绪或迁移失败；原记录保留，请重试。':
+      'Remote storage is not ready or migration failed. Original records are preserved. Retry.',
+  '远控画面、密码、服务器设置和网络都在 RustDesk 里，本 App 只把这条连接的 RustDesk ID 交给它。RustDesk 不向本 App 回报结果：连没连上、什么时候断开，都要在 RustDesk 里看。':
+      'The desktop, passwords, servers and network are managed by RustDesk. This app only hands over the connection ID. RustDesk does not report connection or disconnection status to this app.',
+  '选择连接类型': 'Choose connection type',
+  '重新读取本机远控记录': 'Reload local remote entries',
+  '仅本机保存': 'Local only',
+  'Mosh 插件不可用：': 'Mosh plugin unavailable: ',
   '不支持的连接类型': 'Unsupported connection type',
   '此连接类型暂不支持，原配置已保留，不会改用 SSH。':
       'This connection type is not supported. Its settings are preserved and it will not use SSH instead.',
@@ -1874,7 +1927,7 @@ const englishTranslations = <String, String>{
       'MoshBootstrapResult(port: \$port, key: <hidden>)',
   "\$low:\$high', 'portRange', 'UDP 端口范围无效":
       "\$low:\$high', 'portRange', 'Invalid UDP port range",
-  "BAD_ARGS', 'Mosh 目标或材料无效": "BAD_ARGS', 'Invalid Mosh target or material",
+  'BAD_ARGS\', \'Mosh 目标或材料无效': 'BAD_ARGS\', \'Invalid Mosh target or material',
   '插件没有申请临时会话密钥权限，不能交给它 Mosh 会话材料':
       'The plugin did not request the ephemeral session-key permission, so Mosh session material cannot be handed to it',
 };
@@ -1882,6 +1935,16 @@ const englishTranslations = <String, String>{
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  (
+    '保存后可从这条连接发起 UU 远控；本 App 不会自动发起。',
+    'After saving, you can launch UU from this connection. This app never launches it automatically.'
+  ),
+  ('Mosh 插件不可用：', 'Mosh plugin unavailable: '),
+  ('仅本机保存', 'Local only'),
+  ('终端插件', 'Terminal plugins'),
+  ('删除远控连接', 'Delete remote connection'),
+  ('重命名', 'Rename'),
+  ('名称须为 1–200 个字符', 'Name must contain 1–200 characters'),
   // R22：连接生命周期里带插值的句子，按片段翻；放在最前面，免得被「会话」「连接」之类拆碎。
   (
     '断线后 ',

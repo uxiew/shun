@@ -3,12 +3,27 @@
 Netcatty-mobile 的实验 fork，叫 shun（分支 `shun/v3`，remote `origin` = `uxiew/shun`，所有者说推之前不 push）。这里只讲在这台 Mac 上怎么跑、怎么测、怎么装、怎么清理。
 App 怎么用看 [使用手册](../user/README.md)；做什么、做到哪看 `plan/v3/STATUS.md`。命令都在仓库根目录执行。
 
-## 1. 先 source 环境
+## 1. mise 固定 Zig，再 source 环境
+
+`mise.toml` 只为本项目固定 Zig 0.16.0。全局 Homebrew 的 Zig 0.17.0 保留，其他项目不受影响；不要修改 Ghostty 版本检查来兼容 0.17。Flutter 使用 3.47.7 / Dart 3.13.5，当前主锁文件只更新了新 Flutter 必需的 5 项依赖。
 
 ```bash
-source ../.toolchain/env.sh     # 每开一个终端都要做；只影响当前终端
-flutter --version               # 应为 3.44.4
-zig version                     # 应为 0.16.0；终端引擎（libghostty）的原生库要它从源码编
+# 下载前可按本机配置执行 proxy；首次执行 mise install 只安装本项目缺少的工具。
+mise install zig@0.16.0
+export SHUN_ZIG_EXECUTABLE="$(mise which zig)"
+# FLUTTER_SDK、ANDROID_HOME、JAVA_HOME 先按本机真实位置设置，见迁移说明。
+source ../.toolchain/env.sh
+# source 会把旧包装器放在最前；新 Flutter hooks 不传自定义变量，须用真实二进制路径。
+export PATH="$(dirname "$SHUN_ZIG_EXECUTABLE"):$PATH"
+flutter --version               # 3.47.7 / Dart 3.13.5
+zig version                     # 0.16.0
+```
+
+以上只影响当前终端；不用 `mise use --global`，也不用卸载 Homebrew 的 Zig。仓库外 `../.toolchain/env.sh` 与旧 Zig 包装器未修改。若 native 下载报 HTTP 400，本机已复现为 Zig 与当前代理的组合问题：仅对构建命令移除六个代理变量再试，保留 localhost 的 NO_PROXY，不改 App 的 RoutePlan：
+
+```bash
+env -u http_proxy -u https_proxy -u all_proxy -u HTTP_PROXY -u HTTPS_PROXY -u ALL_PROXY \
+  flutter test --no-pub -j 1 test/remote_entry_migration_test.dart --reporter expanded
 ```
 
 不做的后果：`flutter test` 全部在 loading 阶段报 `HttpException: Connection closed before full header was received`
@@ -17,6 +32,12 @@ zig version                     # 应为 0.16.0；终端引擎（libghostty）�
 ## 2. 测试
 
 R39 首批：`HostProfile.protocol` 用 `unknown` 表示明确但不支持的协议，只有缺省/null 继续按旧 SSH 处理；原始 JSON 不改。RoutePlan 在拨号前拒绝未知目标/跳板，列表和 `UnsupportedConnectionPage` 不把未知字段当 SSH 配置解析。`ConnectionEndpointFields` 负责地址/用户名/端口显示与校验，草稿、凭据、路由仍由 HostEditor 及现有 RoutePlan 管理；Telnet 不索要未使用的 SSH 用户名。SSH/Mosh 保存时保留 Mosh 端口范围，仅在 Mosh 表单校验和运行时使用。定向回归见 `test/host_route_editor_test.dart`、`test/vault_model_test.dart`、`test/route_fail_closed_test.dart`。
+
+R39 独立远控：`domain/remote_entry.dart` 定义仅本机的条目元数据；`infrastructure/storage/remote_entry_store.dart` 负责一次性迁移和加密快照的写入/读回验证；两个 provider 的 typed store、controller 仍分别管理自己的秘密和调用。存储文件/钥匙串 namespace 不变，新增 `rustdesk.entries.v2` / `uuremote.entries.v2`，每个快照同时保存条目、绑定及 UU pending。v1 键仅保留作恢复副本；只要 v2 存在，读取损坏也不回退旧数据，避免复活已删除条目/已消费回调。恢复旧副本不是自动回滚，需先确认当前数据和待回调已失效，不能直接降级 App 复用旧 pending。
+
+旧 owner ID 在各 provider namespace 内继续作为本地条目 ID，源 SSH ID 和目录引用另存为显式关联元数据；新建条目不关联任何 SSH 主机。`deviceLinksOf` 接收迁移后的条目元数据，不按名称/IP 合并，SSH 删除后仍能保留原有跨 provider 关联。迁入条目保留旧路由提示，发起时复核仍在的源主机路线；外部远控永不继承 SSH 路由。`ConnectionTypeScreen` 只选择类型/探测可用性，不连接、不授权；新建 SSH/Mosh 共用表单并可互换；编辑旧条目仍保留原协议转换入口，用于修复带残留路线的旧插件配置。首页远控列表和条目编辑操作已拆成共用 widgets，旧主机详情入口不再保留。
+
+新增定向入口：`test/remote_entry_migration_test.dart`（完整迁移、读写中断、冷启动待回调、删除和设备关联），`test/connection_type_screen_test.dart`（类型入口/无 SSH 字段/客户端状态），并回归原 RustDesk、UU、HostEditor 和路由测试。**本轮执行结果只看 `plan/v3/evidence/R39.md`，测试文件存在不代表已通过。**
 
 R40 的 `lib/presentation/widgets/connection_route_editor.dart` 是共用链式编辑器，接收页面已有 `RoutePlan`，通过 `describeRoute` 显示已验证的节点；无有效计划时只显示草稿和错误。`connection_route_draft.dart` 管理选择及兼容字段，保留未修正的失效引用和旧内联配置；不读仓库、不执行网络请求。两页负责预览和提交，只有 `resolveRoutePlan` 决定路线规则。`domain/jump_route_choices.dart` 是 RoutePlan 库的一部分，集中做有界展开、首跳代理候选及确认复核；`jump_route_choice_dialog.dart` 只展示方案并返回明确选择。确认前、来源变化后和后续跳板自带代理时均拒绝执行。
 
@@ -301,8 +322,7 @@ $S/sdkmanager --uninstall "ndk;28.2.13676358" "platforms;android-36" "build-tool
 
 API 35 镜像是你原有的，`lizhi` 模拟器在用，**不要卸**。
 
-brew 为本项目装的（2026-10-04）：`zig@0.16` 和它依赖的 `llvm@21`、`lld@21`，共约 1.8 GB。
-卸了（`brew uninstall zig@0.16 lld@21 llvm@21`）就编不了 libghostty 的原生库，主 App 接上 Ghostty 后连 App 都构建不了。
+迁移前机器在 2026-10-04 用 brew 安装过 `zig@0.16`、`llvm@21`、`lld@21`，这不是当前机器的安装清单。当前（2026-10-14）项目 Zig 0.16.0 由 mise 管理；Homebrew 的 Zig 0.17.0 / LLVM 22 / LLD 22 保留作全局工具。不要照旧清单卸载软件；删除 mise 中的版本前先核对其他项目是否也依赖它，移除项目 `mise.toml` 不会自动卸载全局工具。
 
 ## 7. 撞墙时
 

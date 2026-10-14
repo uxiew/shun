@@ -1,3 +1,4 @@
+import 'remote_entry_fakes.dart';
 import 'dart:async';
 
 import 'package:fake_async/fake_async.dart';
@@ -57,6 +58,7 @@ void main() {
           id: 'h2', label: 'mac', sshRoute: RequestedRoute.socks5Connect),
     ];
     clock = DateTime.utc(2026, 9, 30, 12);
+    seedRemoteEntries(backend.values, 'uuremote', hosts);
     c = build();
     await c.ready;
     await c.approveSigner('cert-a');
@@ -168,7 +170,7 @@ void main() {
           matches(RegExp(
               r'^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$')));
       expect(q['callback'], startsWith('shun-uuremote://callback/bind?state='));
-      expect(backend.values['uuremote.pending.v1'], isNotNull);
+      expect(storedField(backend.values, 'uuremote', 'pending'), isNotNull);
 
       platform.deliver(
           callbackFor(uri, {'anonymous_device_id': id, 'nonce': q['nonce']!}));
@@ -180,7 +182,7 @@ void main() {
       await c.confirmOffer();
       expect(c.state.bindingOf('h1')!.anonymousDeviceId, id);
       expect(
-          backend.values['uuremote.bindings.v1'], contains('Zm9v+YmFy/YmF6=='));
+          backend.values['uuremote.entries.v2'], contains('Zm9v+YmFy/YmF6=='));
       expect(platform.launched, hasLength(1), reason: '回调后不自动远控');
       expect('${c.state.bindingOf('h1')}', isNot(contains(id)));
     });
@@ -221,7 +223,7 @@ void main() {
       await settle();
       c.discardOffer();
       expect(c.state.offer, isNull);
-      expect(backend.values['uuremote.bindings.v1'], isNull);
+      expect(storedField(backend.values, 'uuremote', 'records'), isEmpty);
       expect(c.state.attempts['h1']!.code, uuDiscardedByUser);
     });
 
@@ -247,7 +249,7 @@ void main() {
       platform.failLaunch = '没有找到 UU 远程';
       await expectLater(c.startBind('h1'), throwsA(isA<UuLaunchFailed>()));
       expect(c.state.pending, isNull);
-      expect(backend.values['uuremote.pending.v1'], isNull);
+      expect(storedField(backend.values, 'uuremote', 'pending'), isNull);
       expect(c.state.attempts['h1']!.phase, ExternalLaunchPhase.launchFailed);
     });
   });
@@ -354,7 +356,7 @@ void main() {
       clock = clock.add(uuPendingLifetime);
       await c.refreshApp();
       expect(c.state.pending, isNull);
-      expect(backend.values['uuremote.pending.v1'], isNull);
+      expect(storedField(backend.values, 'uuremote', 'pending'), isNull);
       final attempt = c.state.attempts['h1']!;
       expect(attempt.unconfirmed, isTrue);
       expect(attempt.code, uuWaitExpired);
@@ -366,9 +368,11 @@ void main() {
     test('等满 10 分钟没有回报、页面一直开着没人动：到点也自己作废（定时器）', () {
       fakeAsync((async) {
         final start = DateTime.utc(2026, 9, 30, 12);
+        final timedBackend = MemoryBackend();
+        seedRemoteEntries(timedBackend.values, 'uuremote', hosts);
         final timed = UuRemoteController(
           platform: platform,
-          store: UuRemoteStore(MemoryBackend()),
+          store: UuRemoteStore(timedBackend),
           registry: PluginRegistry(
             policy: AdmissionPolicy(builtinIds: BuiltinPlugins.ids),
           ),
@@ -469,7 +473,7 @@ void main() {
       expect(c.state.offer, isNull);
       expect(c.state.pending, isNull);
       expect(c.state.attempts['h1']!.code, uuCallbackContested);
-      expect(backend.values['uuremote.bindings.v1'], isNull);
+      expect(storedField(backend.values, 'uuremote', 'records'), isEmpty);
     });
 
     test('冷启动：请求存盘，新进程里回调照样对得上', () async {

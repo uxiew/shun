@@ -31,12 +31,16 @@ class HostEditor extends ConsumerStatefulWidget {
   const HostEditor({
     super.key,
     this.host,
+    this.initialProtocol = HostProtocol.ssh,
+    this.initialPluginId,
     this.onDelete,
     this.verifyHostKey,
     this.keyboardInteractive,
   });
 
   final HostProfile? host;
+  final HostProtocol initialProtocol;
+  final String? initialPluginId;
   final Future<bool> Function()? onDelete;
 
   /// 测试连接用的指纹核对和交互式登录。和正式连接用同一套，测试不能绕过指纹确认。
@@ -87,7 +91,11 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     label = TextEditingController(text: host?.label);
     hostname = TextEditingController(text: host?.hostname);
     username = TextEditingController(text: host?.username);
-    port = TextEditingController(text: (host?.port ?? 22).toString());
+    port = TextEditingController(
+      text: (host?.port ??
+              (widget.initialProtocol == HostProtocol.telnet ? 23 : 22))
+          .toString(),
+    );
     password = TextEditingController(text: host?.password);
     group = TextEditingController(text: host?.group);
     tags = TextEditingController(text: host?.tags.join(', '));
@@ -107,12 +115,12 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     moshPorts = TextEditingController(
       text: host?.data[moshPortsKey]?.toString() ?? '',
     );
-    protocol = host?.protocol ?? HostProtocol.ssh;
+    protocol = host?.protocol ?? widget.initialProtocol;
     authMethod = host?.authMethod ?? HostAuthMethod.auto;
     loginMode = host == null ? SshLoginMode.standard : sshLoginModeOf(host);
     identityFileId = host?.identityFileId;
     pinned = host?.pinned ?? false;
-    pluginId = host == null ? null : pluginIdOf(host);
+    pluginId = host == null ? widget.initialPluginId : pluginIdOf(host);
     // App 启动时不自动发现插件（X04）：编辑器里要列出能选的插件，先让发现跑一次。
     unawaited(
         ref.read(pluginHostDiscoveryProvider.future).catchError((Object _) {}));
@@ -187,37 +195,42 @@ class _HostEditorState extends ConsumerState<HostEditor> {
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
           children: [
-            SegmentedButton<HostProtocol>(
-              segments: [
-                const ButtonSegment(
-                  value: HostProtocol.ssh,
-                  label: LText('SSH'),
-                  icon: Icon(Icons.lock_outline),
-                ),
-                const ButtonSegment(
-                  value: HostProtocol.telnet,
-                  label: LText('Telnet'),
-                  icon: Icon(Icons.cable),
-                ),
-                const ButtonSegment(
-                  value: HostProtocol.mosh,
-                  label: LText('Mosh'),
-                  icon: Icon(Icons.wifi_tethering),
-                ),
-                const ButtonSegment(
-                  value: HostProtocol.plugin,
-                  label: LText('插件'),
-                  icon: Icon(Icons.extension_outlined),
-                ),
-              ],
-              selected: {protocol},
-              onSelectionChanged: (value) => setState(() {
-                protocol = value.first;
-                if (port.text == '22' || port.text == '23') {
-                  port.text = protocol == HostProtocol.telnet ? '23' : '22';
-                }
-              }),
-            ),
+            if (widget.host != null ||
+                protocol == HostProtocol.ssh ||
+                protocol == HostProtocol.mosh)
+              SegmentedButton<HostProtocol>(
+                segments: [
+                  const ButtonSegment(
+                    value: HostProtocol.ssh,
+                    label: Text('SSH'),
+                    icon: Icon(Icons.lock_outline),
+                  ),
+                  const ButtonSegment(
+                    value: HostProtocol.mosh,
+                    label: Text('Mosh'),
+                    icon: Icon(Icons.wifi_tethering),
+                  ),
+                  if (widget.host != null) ...[
+                    const ButtonSegment(
+                        value: HostProtocol.telnet,
+                        label: Text('Telnet'),
+                        icon: Icon(Icons.cable)),
+                    const ButtonSegment(
+                        value: HostProtocol.plugin,
+                        label: LText('插件'),
+                        icon: Icon(Icons.extension_outlined)),
+                  ],
+                ],
+                selected: {protocol},
+                onSelectionChanged: (value) => setState(() {
+                  protocol = value.first;
+                  if (port.text == '22' || port.text == '23') {
+                    port.text = protocol == HostProtocol.telnet ? '23' : '22';
+                  }
+                }),
+              )
+            else
+              LText(protocol == HostProtocol.telnet ? 'Telnet' : '终端插件'),
             if (protocol == HostProtocol.mosh)
               Padding(
                 padding: const EdgeInsets.only(top: 8),
@@ -433,12 +446,13 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                       setState(() => unlinkCatalog = value),
                 ),
               _section('高级选项'),
-              TextFormField(
-                controller: startupCommand,
-                minLines: 1,
-                maxLines: 4,
-                decoration: LInputDecoration(labelText: '连接后执行命令（可选）'),
-              ),
+              if (protocol == HostProtocol.ssh)
+                TextFormField(
+                  controller: startupCommand,
+                  minLines: 1,
+                  maxLines: 4,
+                  decoration: LInputDecoration(labelText: '连接后执行命令（可选）'),
+                ),
               const SizedBox(height: 12),
               LayoutBuilder(
                 builder: (context, constraints) {
@@ -482,20 +496,21 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                   );
                 },
               ),
-              if (widget.host != null && widget.onDelete != null) ...[
-                const SizedBox(height: 28),
-                OutlinedButton.icon(
-                  key: const ValueKey('delete-host-from-editor'),
-                  onPressed: _delete,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.error,
-                    side:
-                        BorderSide(color: Theme.of(context).colorScheme.error),
+            ],
+            if (widget.host != null && widget.onDelete != null) ...[
+              const SizedBox(height: 28),
+              OutlinedButton.icon(
+                key: const ValueKey('delete-host-from-editor'),
+                onPressed: _delete,
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error,
+                  side: BorderSide(
+                    color: Theme.of(context).colorScheme.error,
                   ),
-                  icon: const Icon(Icons.delete_outline),
-                  label: const LText('删除此服务器'),
                 ),
-              ],
+                icon: const Icon(Icons.delete_outline),
+                label: const LText('删除此服务器'),
+              ),
             ],
           ],
         ),

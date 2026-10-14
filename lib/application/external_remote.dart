@@ -3,6 +3,7 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:plugin_api/plugin_api.dart';
 
 import '../domain/models/host.dart';
+import 'tailscale_catalog_refresh.dart';
 
 // 外部远控 App 的适配器（UU 远程 X06、RustDesk X07）共用的部分。
 // 远控在外部 App 里进行，这边只看得到主机的 id、名字和 SSH 路线，各自的绑定存在各自的加密存储里。
@@ -13,14 +14,23 @@ class RemoteControlHost {
     required this.id,
     required this.label,
     required this.sshRoute,
+    this.catalogId,
+    this.deviceId,
   });
 
   factory RemoteControlHost.of(HostProfile host) => RemoteControlHost(
-      id: host.id, label: host.label, sshRoute: sshRouteOf(host));
+        id: host.id,
+        label: host.label,
+        sshRoute: sshRouteOf(host),
+        catalogId: CatalogBinding.of(host)?.catalogId,
+        deviceId: CatalogBinding.of(host)?.deviceId,
+      );
 
   final String id;
   final String label;
   final RequestedRoute sshRoute;
+  final String? catalogId;
+  final String? deviceId;
 }
 
 /// 主机的 SSH 路线归成插件契约里的几种。HTTP 代理也归到「经代理」：这里只关心是不是直连。

@@ -1,5 +1,12 @@
 import 'dart:async';
 import 'dart:convert';
+
+import '../domain/remote_entry.dart';
+import '../infrastructure/storage/remote_entry_store.dart';
+import 'uuremote_models.dart';
+import 'uuremote_store.dart';
+export 'uuremote_models.dart';
+export 'uuremote_store.dart';
 import 'dart:math';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -10,289 +17,6 @@ import '../infrastructure/plugins/uuremote_adapter.dart';
 import 'external_remote.dart';
 import 'plugin_registry.dart';
 import 'vault_controller.dart';
-
-/// 一条 UU 远程绑定：用户在 UU 里选了一台 Windows/macOS 设备，UU 返回加密设备标识，用户确认后挂到一台保险库主机上。
-///
-/// 只存在本机的独立安全存储里，不进保险库：加密标识和生成它时登录的 UU 账号绑定，换手机、换账号都用不了，
-/// 同步过去没有意义；它又是敏感值，不能跟着保险库导出（docs/17）。
-class UuBinding {
-  const UuBinding({
-    required this.id,
-    required this.hostId,
-    required this.anonymousDeviceId,
-    required this.createdAt,
-    this.invalidReason,
-    this.invalidAt,
-  });
-
-  final String id;
-  final String hostId;
-
-  /// UU 返回的加密设备标识。不透明：不解密、不显示、不写日志、不复制到剪贴板。
-  final String anonymousDeviceId;
-  final DateTime createdAt;
-
-  /// UU 报告这条绑定失效的原因（目前只有 device_not_found：设备解绑、被删或换了 UU 账号）。
-  final String? invalidReason;
-  final DateTime? invalidAt;
-
-  bool get valid => invalidReason == null;
-
-  UuBinding invalidated(String reason, DateTime at) => UuBinding(
-        id: id,
-        hostId: hostId,
-        anonymousDeviceId: anonymousDeviceId,
-        createdAt: createdAt,
-        invalidReason: reason,
-        invalidAt: at,
-      );
-
-  Map<String, Object?> toJson() => {
-        'id': id,
-        'hostId': hostId,
-        'anonymousDeviceId': anonymousDeviceId,
-        'createdAt': createdAt.toUtc().toIso8601String(),
-        if (invalidReason != null) 'invalidReason': invalidReason,
-        if (invalidAt != null)
-          'invalidAt': invalidAt!.toUtc().toIso8601String(),
-      };
-
-  static UuBinding? fromJson(Object? json) {
-    if (json is! Map) return null;
-    final id = json['id'];
-    final hostId = json['hostId'];
-    final device = json['anonymousDeviceId'];
-    final created = json['createdAt'] is String
-        ? DateTime.tryParse(json['createdAt'] as String)
-        : null;
-    if (id is! String ||
-        hostId is! String ||
-        device is! String ||
-        created == null) {
-      return null;
-    }
-    return UuBinding(
-      id: id,
-      hostId: hostId,
-      anonymousDeviceId: device,
-      createdAt: created,
-      invalidReason: json['invalidReason'] is String
-          ? json['invalidReason'] as String
-          : null,
-      invalidAt: json['invalidAt'] is String
-          ? DateTime.tryParse(json['invalidAt'] as String)
-          : null,
-    );
-  }
-
-  /// 调试输出里不带加密标识。
-  @override
-  String toString() =>
-      'UuBinding($id -> host $hostId${valid ? '' : ', invalid'})';
-}
-
-/// 等 UU 回调的请求。同一时刻只有一个（官方：UU 同一时刻只处理一个第三方请求）。
-///
-/// state、nonce 是一次性的随机值：只有它们对上，回调才算这个请求的；用过、过期、被用户结束等待就作废。
-/// 存进安全存储：UU 在前台远控时本 App 可能被系统杀掉，回调来时要能在新进程里对上。
-class UuPendingRequest {
-  const UuPendingRequest({
-    required this.kind,
-    required this.state,
-    required this.hostId,
-    required this.createdAt,
-    required this.expiresAt,
-    this.nonce,
-    this.bindingId,
-  });
-
-  final UuCallbackKind kind;
-  final String state;
-
-  /// 只有绑定请求有（控制请求官方没有 nonce 字段）。
-  final String? nonce;
-  final String hostId;
-
-  /// 控制请求对应的绑定。
-  final String? bindingId;
-  final DateTime createdAt;
-  final DateTime expiresAt;
-
-  Map<String, Object?> toJson() => {
-        'kind': kind.name,
-        'state': state,
-        if (nonce != null) 'nonce': nonce,
-        'hostId': hostId,
-        if (bindingId != null) 'bindingId': bindingId,
-        'createdAt': createdAt.toUtc().toIso8601String(),
-        'expiresAt': expiresAt.toUtc().toIso8601String(),
-      };
-
-  static UuPendingRequest? fromJson(Object? json) {
-    if (json is! Map) return null;
-    final kind =
-        UuCallbackKind.values.where((k) => k.name == json['kind']).firstOrNull;
-    final state = json['state'];
-    final hostId = json['hostId'];
-    DateTime? time(Object? v) => v is String ? DateTime.tryParse(v) : null;
-    final created = time(json['createdAt']);
-    final expires = time(json['expiresAt']);
-    if (kind == null ||
-        state is! String ||
-        hostId is! String ||
-        created == null ||
-        expires == null) {
-      return null;
-    }
-    return UuPendingRequest(
-      kind: kind,
-      state: state,
-      nonce: json['nonce'] is String ? json['nonce'] as String : null,
-      hostId: hostId,
-      bindingId:
-          json['bindingId'] is String ? json['bindingId'] as String : null,
-      createdAt: created,
-      expiresAt: expires,
-    );
-  }
-}
-
-class UuRemoteStore {
-  const UuRemoteStore(this._backend);
-  final ProviderSecretBackend _backend;
-
-  static const _bindings = 'uuremote.bindings.v1';
-  static const _pending = 'uuremote.pending.v1';
-  static const _approved = 'uuremote.approvedSigner.v1';
-
-  /// 读不懂的条目丢掉（让用户重新绑定），不猜。
-  Future<List<UuBinding>> bindings() async {
-    final raw = await _backend.read(_bindings);
-    if (raw == null) return const [];
-    try {
-      return [
-        for (final item in jsonDecode(raw) as List)
-          if (UuBinding.fromJson(item) case final binding?) binding,
-      ];
-    } on Object {
-      return const [];
-    }
-  }
-
-  Future<void> saveBindings(List<UuBinding> bindings) => _backend.write(
-        _bindings,
-        jsonEncode([for (final b in bindings) b.toJson()]),
-      );
-
-  Future<UuPendingRequest?> pending() async {
-    final raw = await _backend.read(_pending);
-    if (raw == null) return null;
-    try {
-      return UuPendingRequest.fromJson(jsonDecode(raw));
-    } on Object {
-      return null;
-    }
-  }
-
-  Future<void> savePending(UuPendingRequest? request) => request == null
-      ? _backend.delete(_pending)
-      : _backend.write(_pending, jsonEncode(request.toJson()));
-
-  Future<String?> approvedSigner() => _backend.read(_approved);
-
-  Future<void> saveApprovedSigner(String? sha256) => sha256 == null
-      ? _backend.delete(_approved)
-      : _backend.write(_approved, sha256);
-}
-
-/// UU 远控这件事本 App 能知道的全部状态。故意没有「已连接」：
-/// 全屏 UU 从不回报；小窗的成功只是 UU 在那一刻的报告（ExternalLaunchPhase 同样没有 connected）。
-class UuAttempt {
-  const UuAttempt({
-    required this.kind,
-    required this.phase,
-    required this.at,
-    this.window,
-    this.code,
-    this.unconfirmed = false,
-  });
-
-  final UuCallbackKind kind;
-  final ExternalLaunchPhase phase;
-  final DateTime at;
-  final UuWindow? window;
-
-  /// UU 报告的错误码 / reason 原文，或本 App 的拒收原因。
-  final String? code;
-
-  /// 用户结束了等待：UU 之后再回报也不算数。
-  final bool unconfirmed;
-}
-
-/// UU 绑定成功回调、等用户确认的那一刻。只在内存里：确认前 App 被杀，就当没绑，用户重新绑一次。
-class UuBindOffer {
-  const UuBindOffer({
-    required this.hostId,
-    required this.anonymousDeviceId,
-    required this.receivedAt,
-  });
-  final String hostId;
-  final String anonymousDeviceId;
-  final DateTime receivedAt;
-}
-
-class UuRemoteState {
-  const UuRemoteState({
-    this.app,
-    this.bindings = const [],
-    this.pending,
-    this.offer,
-    this.attempts = const {},
-    this.notice,
-    this.loaded = false,
-    this.callbackRivals = const [],
-  });
-
-  /// null：还没探测过。
-  final UuAppStatus? app;
-
-  /// 最近一次探测到的、也声明了本 App 回调地址的其他包（见 [UuProbe.callbackRivals]）。
-  final List<String> callbackRivals;
-  final List<UuBinding> bindings;
-  final UuPendingRequest? pending;
-  final UuBindOffer? offer;
-
-  /// 按主机 id：最近一次绑定或远控的结果。
-  final Map<String, UuAttempt> attempts;
-
-  /// 最近一条给用户看的提示（比如忽略了一条回调），不含加密标识。
-  final String? notice;
-  final bool loaded;
-
-  UuBinding? bindingOf(String hostId) =>
-      bindings.where((b) => b.hostId == hostId).firstOrNull;
-
-  UuRemoteState copyWith({
-    UuAppStatus? app,
-    List<UuBinding>? bindings,
-    UuPendingRequest? Function()? pending,
-    UuBindOffer? Function()? offer,
-    Map<String, UuAttempt>? attempts,
-    String? Function()? notice,
-    bool? loaded,
-    List<String>? callbackRivals,
-  }) =>
-      UuRemoteState(
-        callbackRivals: callbackRivals ?? this.callbackRivals,
-        app: app ?? this.app,
-        bindings: bindings ?? this.bindings,
-        pending: pending == null ? this.pending : pending(),
-        offer: offer == null ? this.offer : offer(),
-        attempts: attempts ?? this.attempts,
-        notice: notice == null ? this.notice : notice(),
-        loaded: loaded ?? this.loaded,
-      );
-}
 
 class UuRequestRefused implements Exception {
   const UuRequestRefused(this.message);
@@ -318,9 +42,6 @@ const uuCallbackContested = 'shun_callback_contested';
 
 /// [UuAttempt.code] 的本地取值：等满 [uuPendingLifetime] UU 也没回报，请求自己作废了（和用户点「结束等待」区分开）。
 const uuWaitExpired = 'shun_wait_expired';
-
-/// 本地最长等 UU 回调多久。官方：未登录排队最长 180 秒；前置拦截弹窗要用户点了才回调、没有超时。留足余量。
-const uuPendingLifetime = Duration(minutes: 10);
 
 /// UU 远程的绑定与远控（X06）。规则见 plan/v3/docs/17「X06 固定的官方口径」。
 ///
@@ -348,9 +69,9 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
         super(const UuRemoteState()) {
     _callbacks = _platform.callbacks.listen((raw) {
       // 回调处理出错（比如存储写不进去）只提示，不能变成未捕获异常，也不能卡住后面的回调。
-      _serial(() => _handle(raw)).catchError(
-        (Object e) => _notice('处理 UU 回调时出错：$e'),
-      );
+      _serial(
+        () => _handle(raw),
+      ).catchError((Object e) => _notice('处理 UU 回调时出错：$e'));
     });
     // 等回调的请求一变（发出、对上、结束等待），就按它的到期时间重新定时。挂在状态上而不是各处手动调，免得漏。
     _stopWatching = addListener((next) {
@@ -366,7 +87,7 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
         unawaited(_serial(_expireIfDue).catchError((Object _) {}));
       });
     }, fireImmediately: false);
-    _ready = _serial(_load);
+    _ready = _serial(_load, allowUnloaded: true);
   }
 
   final UuRemotePlatform _platform;
@@ -383,8 +104,24 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
 
   /// 所有改状态的操作排队执行：回调可能和用户点击同时到，交叠会让一个回调对上两次。
   Future<void> _queue = Future.value();
-  Future<T> _serial<T>(Future<T> Function() op) {
-    final result = _queue.then((_) => op());
+  bool _storageReady = false;
+  Future<T> _serial<T>(Future<T> Function() op, {bool allowUnloaded = false}) {
+    final result = _queue.then((_) async {
+      if (!allowUnloaded && !_storageReady) {
+        throw const RemoteEntryStorageException();
+      }
+      try {
+        return await op();
+      } on RemoteEntryStorageException {
+        _storageReady = false;
+        if (mounted) {
+          state = state.copyWith(
+            notice: () => const RemoteEntryStorageException().toString(),
+          );
+        }
+        rethrow;
+      }
+    });
     _queue = result.then((_) {}, onError: (Object _) {});
     return result;
   }
@@ -392,10 +129,15 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
   Future<void> get ready => _ready;
 
   void _require() => _registry.require(
-      BuiltinPlugins.uuremote, Capability.remoteDesktopExternal);
+        BuiltinPlugins.uuremote,
+        Capability.remoteDesktopExternal,
+      );
 
   Future<void> _load() async {
+    _storageReady = false;
     try {
+      await _store.local.initialize(_hosts);
+      _storageReady = true;
       var pending = await _store.pending();
       if (pending != null && !_now().isBefore(pending.expiresAt)) {
         await _store.savePending(null);
@@ -405,6 +147,8 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
       if (!mounted) return;
       state = state.copyWith(
         bindings: bindings,
+        entries: _store.local.entries,
+        notice: () => null,
         pending: () => pending,
         // 「最近一次」只在内存里。App 被杀后重开、请求还在等：补一条，不然页面只有「最多等到」、没说在等什么。
         attempts: pending == null
@@ -421,16 +165,62 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
               },
         loaded: true,
       );
-      await _refresh();
-    } on Object catch (e) {
+    } on Object {
+      _storageReady = false;
       // 读不出来时照样把 loaded 置上：界面据此显示原因，而不是一直转圈；回调来了会因为没有请求而被忽略。
       if (mounted) {
-        state = state.copyWith(loaded: true, notice: () => '读取 UU 绑定失败：$e');
+        state = state.copyWith(
+          loaded: true,
+          notice: () => const RemoteEntryStorageException().toString(),
+        );
       }
+      return;
+    }
+    try {
+      await _refresh();
+    } on Object {
+      if (mounted) state = state.copyWith(notice: () => '检查远控客户端失败，请稍后重试。');
     }
   }
 
   Future<void> refreshApp() => _serial(_refresh);
+
+  Future<void> retryLoad() => _serial(_load, allowUnloaded: true);
+
+  Future<String> createEntry(String label) => _serial(() async {
+        final name = label.trim();
+        if (name.isEmpty || name.length > 200) {
+          throw const FormatException('名称须为 1–200 个字符');
+        }
+        final entry = RemoteEntry(id: _newState(), label: name);
+        await _store.local.saveEntry(entry);
+        state = state.copyWith(entries: _store.local.entries);
+        return entry.id;
+      });
+
+  Future<void> renameEntry(String id, String label) => _serial(() async {
+        final name = label.trim();
+        if (name.isEmpty || name.length > 200) {
+          throw const FormatException('名称须为 1–200 个字符');
+        }
+        final entry = state.entries.where((e) => e.id == id).firstOrNull;
+        if (entry == null) throw const RemoteEntryStorageException();
+        await _store.local.saveEntry(entry.renamed(name));
+        state = state.copyWith(entries: _store.local.entries);
+      });
+
+  Future<void> deleteEntry(String id) => _serial(() async {
+        await _store.local.deleteEntry(id);
+        state = state.copyWith(
+          entries: _store.local.entries,
+          bindings: await _store.bindings(),
+          attempts: {...state.attempts}..remove(id),
+          pending: () => _store.local.pending == null
+              ? null
+              : UuPendingRequest.fromJson(_store.local.pending),
+          offer: () => state.offer?.hostId == id ? null : state.offer,
+        );
+      });
 
   /// 等回调的请求到点就自己作废，记成「结果未确认」。
   ///
@@ -539,8 +329,9 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
         // 默认认为用户要和 SSH 同一条路线；UU 做不到（provider-managed 只接受系统默认网络），
         // 所以除非用户明确接受「UU 走它自己的网络」，否则一律不发。判定用插件契约的同一条规则。
         final route = checkRoute(
-          BuiltinPlugins.descriptors
-              .singleWhere((d) => d.pluginId == BuiltinPlugins.uuremote),
+          BuiltinPlugins.descriptors.singleWhere(
+            (d) => d.pluginId == BuiltinPlugins.uuremote,
+          ),
           TransportKind.providerManaged,
           acceptProviderManagedNetwork
               ? RequestedRoute.systemDefault
@@ -607,16 +398,18 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
       });
 
   /// 用户确认把 UU 返回的设备挂到主机上。同一台主机只有一条 UU 绑定：重新绑定替换旧的。
-  Future<void> confirmOffer() => _serial(() async {
+  Future<void> confirmOffer({UuBindOffer? expected}) => _serial(() async {
         final offer = state.offer;
+        if (expected != null && !identical(expected, offer)) {
+          throw const UuRequestRefused('绑定确认已变化，请重新确认。');
+        }
         if (offer == null) return;
-        final hosts = await _hosts();
-        if (!hosts.any((h) => h.id == offer.hostId)) {
+        if (!state.entries.any((e) => e.id == offer.hostId)) {
           state = state.copyWith(offer: () => null);
-          throw const UuRequestRefused('要关联的主机已经不在了，没有保存。');
+          throw const UuRequestRefused('这条远控连接已删除');
         }
         final binding = UuBinding(
-          id: _newState(),
+          id: state.bindingOf(offer.hostId)?.id ?? _newState(),
           hostId: offer.hostId,
           anonymousDeviceId: offer.anonymousDeviceId,
           createdAt: _now(),
@@ -631,8 +424,9 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
       });
 
   /// 用户不要这次绑定：加密标识从内存里丢掉，什么都不存。
-  void discardOffer() {
+  void discardOffer({UuBindOffer? expected}) {
     final offer = state.offer;
+    if (expected != null && !identical(expected, offer)) return;
     if (offer == null) return;
     state = state.copyWith(
       offer: () => null,
@@ -655,7 +449,9 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
             if (b.id != bindingId) b,
         ];
         await _store.saveBindings(bindings);
-        state = state.copyWith(bindings: bindings);
+        state = state.copyWith(
+            bindings: bindings,
+            pending: () => UuPendingRequest.fromJson(_store.local.pending));
       });
 
   void clearNotice() {
@@ -672,7 +468,8 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
         throw const UuRequestRefused('UU 远程联动目前只支持 Android'),
       UuNotInstalled() => throw const UuRequestRefused('没有装 UU 远程'),
       UuVersionTooOld() => throw const UuRequestRefused(
-          'UU 远程版本太旧，最低要求：${UuRemoteProtocol.minVersionText}'),
+          'UU 远程版本太旧，最低要求：${UuRemoteProtocol.minVersionText}',
+        ),
       UuSchemeNotHandled() =>
         throw const UuRequestRefused('装着的 UU 远程不接受跨 App 请求'),
       UuSignerNeedsApproval() =>
@@ -690,7 +487,8 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
     final rivals = state.callbackRivals;
     if (rivals.isEmpty) return;
     throw UuRequestRefused(
-        '另有 App 也声明了本 App 的 UU 回调地址，UU 的回报可能被它截走或冒充。先卸载它再试：${rivals.join(', ')}');
+      '另有 App 也声明了本 App 的 UU 回调地址，UU 的回报可能被它截走或冒充。先卸载它再试：${rivals.join(', ')}',
+    );
   }
 
   Future<void> _requireNoPending() async {
@@ -705,9 +503,16 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
   }
 
   Future<RemoteControlHost> _hostOf(String hostId) async {
-    final host = (await _hosts()).where((h) => h.id == hostId).firstOrNull;
-    if (host == null) throw const UuRequestRefused('这台主机已不在保险库里');
-    return host;
+    final entry = state.entries.where((e) => e.id == hostId).firstOrNull;
+    if (entry == null) throw const UuRequestRefused('这条远控连接已删除');
+    final source = entry.sourceHostId == null
+        ? null
+        : (await _hosts()).where((h) => h.id == entry.sourceHostId).firstOrNull;
+    return RemoteControlHost(
+      id: entry.id,
+      label: entry.label,
+      sshRoute: source?.sshRoute ?? entry.routeWarning,
+    );
   }
 
   /// 先存请求再发：UU 可能在发完之前就回调（本 App 被切到后台时也可能被杀）。发送失败就撤回请求。
@@ -912,15 +717,18 @@ class UuRemoteController extends StateNotifier<UuRemoteState> {
   }
 }
 
-final uuRemotePlatformProvider =
-    Provider<UuRemotePlatform>((ref) => AndroidUuRemotePlatform());
+final uuRemotePlatformProvider = Provider<UuRemotePlatform>(
+  (ref) => AndroidUuRemotePlatform(),
+);
 
 /// 存储名沿用 X06 定下的：改了就读不到已有的绑定。
 final uuRemoteStoreProvider = Provider<UuRemoteStore>(
-  (ref) => UuRemoteStore(SecureProviderBackend(
-    prefsName: 'shun_uuremote',
-    keychainAccount: 'shun.uuremote',
-  )),
+  (ref) => UuRemoteStore(
+    SecureProviderBackend(
+      prefsName: 'shun_uuremote',
+      keychainAccount: 'shun.uuremote',
+    ),
+  ),
 );
 
 final uuRemoteProvider =
@@ -930,7 +738,8 @@ final uuRemoteProvider =
     platform: ref.watch(uuRemotePlatformProvider),
     store: ref.watch(uuRemoteStoreProvider),
     registry: ref.read(pluginRegistryProvider.notifier),
-    hosts: () async =>
-        [for (final h in (await vault.ready()).hosts) RemoteControlHost.of(h)],
+    hosts: () async => [
+      for (final h in (await vault.ready()).hosts) RemoteControlHost.of(h),
+    ],
   );
 });

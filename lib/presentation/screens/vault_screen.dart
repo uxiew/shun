@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -15,13 +14,18 @@ import '../../domain/plugins/plugin_host.dart';
 import '../../domain/tailscale_ssh.dart';
 import '../../application/home_navigation.dart';
 import '../widgets/empty_state.dart';
-import '../widgets/host_address_line.dart';
 import '../widgets/host_editor.dart';
 import '../widgets/ai_cli_tools_sheet.dart';
 import '../../infrastructure/storage/ai_cli_recent_work.dart';
 import '../widgets/connection_prompts.dart';
 import '../widgets/host_system_icon.dart';
+import '../widgets/vault_host_items.dart';
 import 'rustdesk_screen.dart';
+import 'connection_type_screen.dart';
+import '../../application/rustdesk.dart';
+import '../../application/uuremote.dart';
+import '../widgets/remote_entry_widgets.dart';
+import '../widgets/remote_connections.dart';
 import 'uuremote_screen.dart';
 
 class VaultScreen extends ConsumerStatefulWidget {
@@ -162,7 +166,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                   }),
                 ),
                 IconButton(
-                  tooltip: localized('添加主机'),
+                  tooltip: localized('添加连接'),
                   onPressed: () => _editHost(),
                   icon: const Icon(Icons.add_circle_outline),
                 ),
@@ -254,57 +258,83 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
               ),
             ),
           Expanded(
-            child: state.loading && vault == null
-                ? const Center(child: CircularProgressIndicator())
-                : hosts.isEmpty
-                    ? EmptyState(
+            child: RefreshIndicator(
+              onRefresh: () async {
+                await ref.read(vaultControllerProvider.notifier).load();
+                await ref.read(rustDeskProvider.notifier).retryLoad();
+                await ref.read(uuRemoteProvider.notifier).retryLoad();
+              },
+              child: CustomScrollView(
+                slivers: [
+                  SliverToBoxAdapter(
+                    child: RemoteConnections(
+                      query: _search.text,
+                      visible: selectedGroup == null,
+                    ),
+                  ),
+                  if (state.loading && vault == null)
+                    const SliverToBoxAdapter(
+                      child: Center(child: CircularProgressIndicator()),
+                    )
+                  else if (hosts.isEmpty)
+                    SliverToBoxAdapter(
+                      child: EmptyState(
                         icon: Icons.dns_outlined,
-                        title: '还没有服务器',
-                        subtitle: '添加 SSH 或 Telnet 连接，云同步后也会出现在这里。',
+                        title: '还没有终端连接',
+                        subtitle: '添加连接时先选择类型。远控条目仅保存在本机。',
                         action: FilledButton.icon(
                           onPressed: () => _editHost(),
                           icon: const Icon(Icons.add),
-                          label: const LText('添加主机'),
+                          label: const LText('添加连接'),
                         ),
-                      )
-                    : RefreshIndicator(
-                        onRefresh: () =>
-                            ref.read(vaultControllerProvider.notifier).load(),
-                        child: switch (viewMode) {
-                          'grid' => GridView.builder(
-                              padding: const EdgeInsets.all(12),
-                              gridDelegate:
-                                  const SliverGridDelegateWithMaxCrossAxisExtent(
-                                maxCrossAxisExtent: 230,
-                                mainAxisExtent: 148,
-                                crossAxisSpacing: 10,
-                                mainAxisSpacing: 10,
-                              ),
-                              itemCount: hosts.length,
-                              itemBuilder: (_, index) => _HostCard(
-                                host: hosts[index],
-                                onConnect: () => _showHostDetails(hosts[index]),
-                                onEdit: () => _editHost(hosts[index]),
-                              ),
-                            ),
-                          'tree' => _HostTree(
-                              hosts: hosts,
-                              onConnect: _showHostDetails,
-                              onEdit: _editHost,
-                            ),
-                          _ => ListView.separated(
-                              padding: const EdgeInsets.all(12),
-                              itemCount: hosts.length,
-                              separatorBuilder: (_, __) =>
-                                  const SizedBox(height: 8),
-                              itemBuilder: (_, index) => _HostTile(
-                                host: hosts[index],
-                                onConnect: () => _showHostDetails(hosts[index]),
-                                onEdit: () => _editHost(hosts[index]),
-                              ),
-                            ),
-                        },
                       ),
+                    )
+                  else if (viewMode == 'grid')
+                    SliverPadding(
+                      padding: const EdgeInsets.all(12),
+                      sliver: SliverGrid(
+                        gridDelegate:
+                            const SliverGridDelegateWithMaxCrossAxisExtent(
+                          maxCrossAxisExtent: 230,
+                          mainAxisExtent: 148,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
+                        delegate: SliverChildBuilderDelegate(
+                          (_, index) => VaultHostCard(
+                            host: hosts[index],
+                            onConnect: () => _showHostDetails(hosts[index]),
+                            onEdit: () => _editHost(hosts[index]),
+                          ),
+                          childCount: hosts.length,
+                        ),
+                      ),
+                    )
+                  else if (viewMode == 'tree')
+                    SliverToBoxAdapter(
+                      child: VaultHostTree(
+                        hosts: hosts,
+                        onConnect: _showHostDetails,
+                        onEdit: _editHost,
+                      ),
+                    )
+                  else
+                    SliverPadding(
+                      padding: const EdgeInsets.all(12),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (_, index) => VaultHostTile(
+                            host: hosts[index],
+                            onConnect: () => _showHostDetails(hosts[index]),
+                            onEdit: () => _editHost(hosts[index]),
+                          ),
+                          childCount: hosts.length,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
+            ),
           ),
         ],
       ),
@@ -432,22 +462,6 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
           ),
         ),
         actions: [
-          // UU 远程只做了 Android（X06）；远控在 UU 里进行，和 SSH 是并列的两件事。
-          if (defaultTargetPlatform == TargetPlatform.android)
-            TextButton.icon(
-              key: const ValueKey('host-uuremote'),
-              onPressed: () => Navigator.pop(context, _HostAction.uuRemote),
-              icon: const Icon(Icons.desktop_windows_outlined),
-              label: const LText('UU 远程'),
-            ),
-          // RustDesk 同样只做了 Android（X07）：把主机的 RustDesk ID 交给手机上的 RustDesk 去连。
-          if (defaultTargetPlatform == TargetPlatform.android)
-            TextButton.icon(
-              key: const ValueKey('host-rustdesk'),
-              onPressed: () => Navigator.pop(context, _HostAction.rustDesk),
-              icon: const Icon(Icons.connected_tv_outlined),
-              label: const Text('RustDesk'),
-            ),
           if (host.protocol == HostProtocol.ssh)
             TextButton.icon(
               key: const ValueKey('host-ai-cli'),
@@ -475,14 +489,6 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       await _connect(host);
     } else if (action == _HostAction.aiCli) {
       await _showAiCli(host);
-    } else if (action == _HostAction.uuRemote) {
-      await Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => UuRemoteHostScreen(hostId: host.id),
-      ));
-    } else if (action == _HostAction.rustDesk) {
-      await Navigator.of(context).push(MaterialPageRoute<void>(
-        builder: (_) => RustDeskHostScreen(hostId: host.id),
-      ));
     }
   }
 
@@ -517,6 +523,37 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       keyboardInteractivePrompt(context)(name, instruction, prompts);
 
   Future<void> _editHost([HostProfile? host]) async {
+    ConnectionTypeChoice? choice;
+    if (host == null) {
+      choice = await Navigator.of(context).push<ConnectionTypeChoice>(
+        MaterialPageRoute(builder: (_) => const ConnectionTypeScreen()),
+      );
+      if (!mounted || choice == null) return;
+      if (choice.remote != null) {
+        final name = await remoteEntryName(context);
+        if (!mounted || name == null) return;
+        try {
+          final rustdesk = choice.remote == RemoteConnectionType.rustdesk;
+          final id = rustdesk
+              ? await ref.read(rustDeskProvider.notifier).createEntry(name)
+              : await ref.read(uuRemoteProvider.notifier).createEntry(name);
+          if (!mounted) return;
+          await Navigator.of(context).push(
+            MaterialPageRoute<void>(
+              builder: (_) => rustdesk
+                  ? RustDeskHostScreen(hostId: id)
+                  : UuRemoteHostScreen(hostId: id),
+            ),
+          );
+        } on Object catch (e) {
+          if (mounted) {
+            ScaffoldMessenger.of(context)
+                .showSnackBar(SnackBar(content: LText('$e')));
+          }
+        }
+        return;
+      }
+    }
     final vault = await ref.read(vaultControllerProvider.notifier).ready();
     var resolvedHost = host;
     if (host != null) {
@@ -532,6 +569,8 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       useSafeArea: true,
       builder: (_) => HostEditor(
         host: resolvedHost,
+        initialProtocol: choice?.protocol ?? HostProtocol.ssh,
+        initialPluginId: choice?.pluginId,
         onDelete: resolvedHost == null
             ? null
             : () => _confirmDeleteHost(resolvedHost!),
@@ -609,164 +648,7 @@ class _VaultGroupChip extends StatelessWidget {
       );
 }
 
-class _HostTree extends StatelessWidget {
-  const _HostTree({
-    required this.hosts,
-    required this.onConnect,
-    required this.onEdit,
-  });
-
-  final List<HostProfile> hosts;
-  final ValueChanged<HostProfile> onConnect;
-  final ValueChanged<HostProfile> onEdit;
-
-  @override
-  Widget build(BuildContext context) {
-    final grouped = <String, List<HostProfile>>{};
-    for (final host in hosts) {
-      grouped
-          .putIfAbsent(
-              host.group?.trim().isNotEmpty == true
-                  ? host.group!.trim()
-                  : '未分组',
-              () => <HostProfile>[])
-          .add(host);
-    }
-    final groups = grouped.keys.toList()
-      ..sort((a, b) {
-        if (a == '未分组') return 1;
-        if (b == '未分组') return -1;
-        return a.toLowerCase().compareTo(b.toLowerCase());
-      });
-    return ListView.builder(
-      padding: const EdgeInsets.all(12),
-      itemCount: groups.length,
-      itemBuilder: (context, index) {
-        final group = groups[index];
-        final children = grouped[group]!;
-        return Card(
-          margin: const EdgeInsets.only(bottom: 10),
-          clipBehavior: Clip.antiAlias,
-          child: ExpansionTile(
-            initiallyExpanded: true,
-            leading: Icon(
-              group == '未分组'
-                  ? Icons.folder_off_outlined
-                  : Icons.folder_outlined,
-              color: Theme.of(context).colorScheme.primary,
-            ),
-            title: LText(group),
-            subtitle: LText('${children.length} 台服务器'),
-            children: [
-              for (final host in children)
-                ListTile(
-                  contentPadding: const EdgeInsets.only(left: 28, right: 8),
-                  onTap: () => onConnect(host),
-                  leading: HostSystemIcon(host: host, size: 38),
-                  title: LText(host.label),
-                  subtitle: HostAddressLine(host),
-                  trailing: IconButton(
-                    tooltip: localized('编辑'),
-                    onPressed: () => onEdit(host),
-                    icon: const Icon(Icons.more_vert),
-                  ),
-                ),
-            ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-class _HostCard extends StatelessWidget {
-  const _HostCard({
-    required this.host,
-    required this.onConnect,
-    required this.onEdit,
-  });
-  final HostProfile host;
-  final VoidCallback onConnect;
-  final VoidCallback onEdit;
-
-  @override
-  Widget build(BuildContext context) => Card(
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onConnect,
-          onLongPress: onEdit,
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    HostSystemIcon(host: host, size: 40),
-                    const Spacer(),
-                    if (host.pinned) const Icon(Icons.push_pin, size: 16),
-                    IconButton(
-                      onPressed: onEdit,
-                      visualDensity: VisualDensity.compact,
-                      icon: const Icon(Icons.more_horiz),
-                    ),
-                  ],
-                ),
-                const Spacer(),
-                LText(
-                  host.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 16),
-                ),
-                const SizedBox(height: 4),
-                HostAddressLine(
-                  host,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                if (host.group?.isNotEmpty == true)
-                  LText(
-                    host.group!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontSize: 11,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-        ),
-      );
-}
-
-class _HostTile extends StatelessWidget {
-  const _HostTile({
-    required this.host,
-    required this.onConnect,
-    required this.onEdit,
-  });
-  final HostProfile host;
-  final VoidCallback onConnect;
-  final VoidCallback onEdit;
-  @override
-  Widget build(BuildContext context) => Card(
-        child: ListTile(
-          onTap: onConnect,
-          leading: HostSystemIcon(host: host, size: 42),
-          title: LText(host.label),
-          subtitle: HostAddressLine(host),
-          trailing: IconButton(
-            onPressed: onEdit,
-            icon: const Icon(Icons.more_vert),
-          ),
-        ),
-      );
-}
-
-enum _HostAction { connect, edit, uuRemote, rustDesk, aiCli }
+enum _HostAction { connect, edit, aiCli }
 
 class _DetailRow extends StatelessWidget {
   const _DetailRow({
