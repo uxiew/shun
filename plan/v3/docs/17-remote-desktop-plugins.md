@@ -198,3 +198,10 @@ RustDesk核心及参考插件涉及AGPL，正式复用前审查来源、submodul
 ## 4. 设备聚合
 
 `DeviceRecord`仅是用户组织对象：可关联一个或多个SSH HostRef、TailscaleDeviceRef、UuBindingRef、RustDeskPeerRef。相同hostname不证明同设备；跨provider不自动复制身份、密码、地址或在线状态。UU Windows限制应在入口上清楚显示；Linux设备可以继续SSH或另行实测RustDesk能力，不借UU绑定接口伪造兼容。
+
+
+## R39 独立条目与迁移（2026-10-13）
+
+RustDesk/UU 不再依赖保险库中的 SSH 主机存在；新建类型页进入本机独立条目，主机详情的旧入口移除。每个 provider 用原安全存储 namespace 中的一份 v2 文档同时提交条目、绑定、待回调，读回一致后才启用；v1 保留作恢复副本，不参与日常读写或自动回退。重复/损坏/归属歧义使该 provider 停止操作，不静默丢记录。两 provider 独立迁移，一方失败不改另一方数据。
+
+旧 owner ID 保留在各 provider 内，UU 的 state、nonce、binding ID、createdAt、expiresAt 均不重写；升级不重发、不延时。旧版已删绑定而 pending 尚在时，只保留等待/结果，不复活绑定；同绑定 ID 指向不同所有者仍拒绝迁移。删除独立条目同时取消仅属于它的待回调；旧确认框不能确认后来出现的新 offer。设备引用仍用原绑定/关联 ID，不含远控秘密；保留用户原先明确的 SSH/目录来源，源 SSH 删除不级联删除远控。外部调用仍使用原签名校验和 provider-managed 网络规则，只显示已交给/对方报告，不宣称已连接。验收范围见 [R39 证据](../evidence/R39.md)。
