@@ -37,7 +37,7 @@ R39 独立远控：`domain/remote_entry.dart` 定义仅本机的条目元数据�
 
 旧 owner ID 在各 provider namespace 内继续作为本地条目 ID，源 SSH ID 和目录引用另存为显式关联元数据；新建条目不关联任何 SSH 主机。`deviceLinksOf` 接收迁移后的条目元数据，不按名称/IP 合并，SSH 删除后仍能保留原有跨 provider 关联。迁入条目保留旧路由提示，发起时复核仍在的源主机路线；外部远控永不继承 SSH 路由。`ConnectionTypeScreen` 只选择类型/探测可用性，不连接、不授权；新建 SSH/Mosh 共用表单并可互换；编辑旧条目仍保留原协议转换入口，用于修复带残留路线的旧插件配置。首页远控列表和条目编辑操作已拆成共用 widgets，旧主机详情入口不再保留。
 
-新增定向入口：`test/remote_entry_migration_test.dart`（完整迁移、读写中断、冷启动待回调、删除和设备关联），`test/connection_type_screen_test.dart`（类型入口/无 SSH 字段/客户端状态），并回归原 RustDesk、UU、HostEditor 和路由测试。**本轮执行结果只看 `plan/v3/evidence/R39.md`，测试文件存在不代表已通过。**
+新增定向入口：`test/remote_entry_migration_test.dart`（完整迁移、读写中断、冷启动待回调、删除和设备关联），`test/connection_type_screen_test.dart`（类型入口/无 SSH 字段/客户端状态），并回归原 RustDesk、UU、HostEditor 和路由测试。设备脚本的环境、安全检查与四阶段流程见 [R39 Android 验收](r39-device-acceptance.md)。**本轮执行结果只看 `plan/v3/evidence/R39.md`，测试文件存在不代表已通过。**
 
 R40 的 `lib/presentation/widgets/connection_route_editor.dart` 是共用链式编辑器，接收页面已有 `RoutePlan`，通过 `describeRoute` 显示已验证的节点；无有效计划时只显示草稿和错误。`connection_route_draft.dart` 管理选择及兼容字段，保留未修正的失效引用和旧内联配置；不读仓库、不执行网络请求。两页负责预览和提交，只有 `resolveRoutePlan` 决定路线规则。`domain/jump_route_choices.dart` 是 RoutePlan 库的一部分，集中做有界展开、首跳代理候选及确认复核；`jump_route_choice_dialog.dart` 只展示方案并返回明确选择。确认前、来源变化后和后续跳板自带代理时均拒绝执行。
 

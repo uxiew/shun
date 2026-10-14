@@ -1637,8 +1637,8 @@
     },
     {
       "id": "UX05",
-      "action": "新建 SSH、Mosh、Telnet、RustDesk、UU、插件各一条；升级迁移一台挂着 RustDesk ID 和 UU 绑定的旧 SSH 主机。",
-      "expected": "每种类型只出现它用得上的项；RustDesk/UU 不要求 SSH 字段；迁移后 ID 与绑定照常可用、不进保险库；不认识的类型原样保留。",
+      "action": "新建 SSH、Mosh、Telnet、RustDesk、UU、插件各一条；迁移挂着 RustDesk ID、UU 绑定及有效待回调的旧 SSH 主机；删除源 SSH 后杀进程，由回调冷启动并确认，再重启核验设备关联。",
+      "expected": "每种类型只出现它用得上的项；RustDesk/UU 不要求 SSH 字段；迁移不改变绑定 ID、pending 归属及截止时间，回调只消费一次且确认前不替换绑定；删除源 SSH 后显式目录关联保留；秘密不进保险库或明文存储；未知类型原样保留。",
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": null,
