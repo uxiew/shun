@@ -34,6 +34,16 @@ Future<void> r39Forms(
     }
     await r39HideKeyboard(tester);
     await r39Tap(tester, find.widgetWithText(TextButton, '保存'));
+    await r39WaitFor(
+        tester,
+        () =>
+            container
+                .read(vaultControllerProvider)
+                .data
+                ?.hosts
+                .any((h) => h.label == 'R39 $type') ==
+            true,
+        reason: '$type save must finish before reading the vault');
     final saved =
         (await vault.ready()).hosts.singleWhere((h) => h.label == 'R39 $type');
     expect(saved.protocol.name, type.toLowerCase());
@@ -62,6 +72,16 @@ Future<void> r39Forms(
   await r39Type(tester, find.widgetWithText(TextFormField, '名称'), 'R39 plugin');
   await r39HideKeyboard(tester);
   await r39Tap(tester, find.widgetWithText(TextButton, '保存'));
+  await r39WaitFor(
+      tester,
+      () =>
+          container
+              .read(vaultControllerProvider)
+              .data
+              ?.hosts
+              .any((h) => h.label == 'R39 plugin') ==
+          true,
+      reason: 'Plugin save must finish before reading the vault');
   final plugin =
       (await vault.ready()).hosts.singleWhere((h) => h.label == 'R39 plugin');
   expect(plugin.protocol.name, 'plugin');
@@ -77,6 +97,9 @@ Future<void> r39Forms(
     await r39Select(tester, type);
     await r39Type(tester, r39Key('remote-entry-name'), 'R39 new $type');
     await r39Tap(tester, r39Key('remote-entry-save'));
+    await r39WaitFor(
+        tester, () => r39Key('remote-entry-actions').evaluate().isNotEmpty,
+        reason: 'Remote entry must be persisted and opened');
     expect(find.widgetWithText(TextFormField, '主机名 / IP'), findsNothing);
     expect(find.widgetWithText(TextFormField, '用户名'), findsNothing);
     expect((await vault.ready()).hosts, hasLength(hostCount));
@@ -84,6 +107,13 @@ Future<void> r39Forms(
     await r39Tap(tester, find.text('重命名'));
     await r39Type(tester, r39Key('remote-entry-name'), 'R39 renamed $type');
     await r39Tap(tester, r39Key('remote-entry-save'));
+    await r39WaitFor(
+        tester,
+        () => (type == 'RustDesk'
+                ? container.read(rustDeskProvider).entries
+                : container.read(uuRemoteProvider).entries)
+            .any((e) => e.label == 'R39 renamed $type'),
+        reason: 'Remote rename must be persisted');
     await tester.pageBack();
     await r39Frames(tester);
     await r39Tap(tester, find.text('R39 renamed $type'));
@@ -95,9 +125,16 @@ Future<void> r39Forms(
       expect((status! as RustDeskSignerNeedsApproval).client.signers,
           {cfg.fixtureSigner});
       await r39Tap(tester, r39Key('rd-approve'));
+      await r39WaitFor(
+          tester, () => container.read(rustDeskProvider).app is RustDeskReady,
+          reason: 'Test RustDesk signer approval must finish');
       await r39Type(tester, r39Key('rd-id-field'), cfg.peer);
       await r39HideKeyboard(tester);
       await r39Tap(tester, r39Key('rd-save'));
+      await r39WaitFor(
+          tester, () => container.read(rustDeskProvider).links.length == 2,
+          reason: 'New RustDesk ID must be persisted before launching');
+      await r39Frames(tester);
       await r39Tap(tester, r39Key('rd-launch'), settle: false);
       await r39Gate(tester, 'return-rustdesk');
     } else {
@@ -107,13 +144,17 @@ Future<void> r39Forms(
       expect(status, isA<UuSignerNeedsApproval>());
       expect((status! as UuSignerNeedsApproval).signer, cfg.fixtureSigner);
       await r39Tap(tester, r39Key('uu-approve'));
-      await r39Tap(tester, r39Key('uu-bind'));
-      for (var i = 0;
-          i < 100 && r39Key('uu-offer-confirm').evaluate().isEmpty;
-          i++) {
-        await tester.pump(const Duration(milliseconds: 100));
-      }
+      await r39WaitFor(
+          tester, () => container.read(uuRemoteProvider).app is UuReady,
+          reason: 'Test UU signer approval must finish');
+      await r39Tap(tester, r39Key('uu-bind'), settle: false);
+      await r39WaitFor(
+          tester, () => r39Key('uu-offer-confirm').evaluate().isNotEmpty,
+          reason: 'Native UU callback must open the offer dialog');
       await r39Tap(tester, r39Key('uu-offer-confirm'));
+      await r39WaitFor(
+          tester, () => container.read(uuRemoteProvider).bindings.length == 2,
+          reason: 'Confirmed UU binding must be persisted');
       expect(container.read(uuRemoteProvider).pending, isNull);
       expect(container.read(uuRemoteProvider).bindings, hasLength(2));
       await r39Tap(tester, r39Key('uu-launch-fullscreen'), settle: false);

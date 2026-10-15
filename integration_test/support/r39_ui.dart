@@ -10,6 +10,18 @@ Finder r39Key(String value) => find.byKey(ValueKey(value));
 Future<void> r39Frames(WidgetTester tester) =>
     tester.pumpAndSettle(const Duration(milliseconds: 100));
 
+/// Settled frames do not imply that Android secure-storage writes have finished.
+/// Wait for the observable result, using the binding clock in both test modes.
+Future<void> r39WaitFor(WidgetTester tester, bool Function() ready,
+    {required String reason,
+    Duration timeout = const Duration(seconds: 10)}) async {
+  final deadline = tester.binding.clock.now().add(timeout);
+  while (!ready() && tester.binding.clock.now().isBefore(deadline)) {
+    await tester.pump(const Duration(milliseconds: 100));
+  }
+  expect(ready(), isTrue, reason: reason);
+}
+
 Future<void> r39Tap(WidgetTester tester, Finder finder,
     {bool settle = true}) async {
   if (finder.evaluate().isEmpty) {

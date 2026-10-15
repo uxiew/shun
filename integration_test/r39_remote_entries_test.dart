@@ -191,6 +191,16 @@ void main() {
       expect(binding.anonymousDeviceId == cfg.oldOpaque, isTrue,
           reason: 'Callback alone must not replace the binding');
       await r39Tap(tester, r39Key('uu-offer-confirm'));
+      await r39WaitFor(
+          tester,
+          () =>
+              container
+                  .read(uuRemoteProvider)
+                  .bindings
+                  .single
+                  .anonymousDeviceId ==
+              cfg.newOpaque,
+          reason: 'Cold callback confirmation must finish persisting');
       expect(container.read(uuRemoteProvider).offer, isNull);
       expect(container.read(uuRemoteProvider).bindings.single.id,
           R39Fixture.binding);

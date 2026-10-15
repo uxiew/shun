@@ -19,7 +19,8 @@ from urllib.parse import urlencode, urlparse, urlunparse
 ROOT = Path(__file__).resolve().parents[1]
 CHAIN = ROOT.parent / '.toolchain'
 SDK = CHAIN / 'android-sdk'
-AVD = 'shun-a35-4k'
+AVD_APIS = {'shun-a35-4k': '35', 'shun-r39-a30': '30'}
+AVD = os.environ.get('SHUN_R39_AVD', 'shun-a35-4k')
 SERIAL = 'emulator-5580'
 PKG = 'top.xdwa.shun'
 PACKAGES = {
@@ -68,6 +69,9 @@ def environment():
                SHUN_ZIG_EXECUTABLE=str(zig), PUB_HOSTED_URL='https://pub.dev',
                CI='true', NO_PROXY='localhost,127.0.0.1,::1',
                no_proxy='localhost,127.0.0.1,::1')
+    # Plugins may request an older compile SDK than the app. Discover/reuse it
+    # explicitly instead of letting AGP silently install a duplicate component.
+    env['ORG_GRADLE_PROJECT_android.builder.sdkDownload'] = 'false'
     env['PATH'] = os.pathsep.join(map(str, [zig.parent, flutter / 'bin',
         java / 'bin', SDK / 'platform-tools', SDK / 'emulator'])) + os.pathsep + env['PATH']
     return env
@@ -81,21 +85,33 @@ def shell(*args, check=True):
     return adb('shell', shlex.join(map(str, args)), check=check)
 
 
+def emulator_process_matches(command):
+    try:
+        args = shlex.split(command)
+        return (args[args.index('-avd') + 1] == AVD
+                and args[args.index('-port') + 1] == '5580'
+                and Path(args[0]).resolve().is_relative_to((SDK / 'emulator').resolve()))
+    except (ValueError, IndexError):
+        return False
+
+
 def check_device():
+    require(AVD in AVD_APIS, 'Unsupported R39 emulator profile')
     require(adb('get-state') == 'device', f'Expected {SERIAL}')
     require(adb('emu', 'avd', 'name').splitlines()[0] == AVD,
             f'Refusing any AVD other than {AVD}')
     require(shell('getprop', 'ro.kernel.qemu') == '1', 'Refusing a physical device')
-    require(shell('getprop', 'ro.build.version.sdk') == '35', 'Expected Android 35')
+    require(shell('getprop', 'ro.build.version.sdk') == AVD_APIS[AVD],
+            f'Expected Android {AVD_APIS[AVD]}')
     config = CHAIN / 'avd' / f'{AVD}.ini'
     expected = str((CHAIN / 'avd' / f'{AVD}.avd').resolve())
     require(config.is_file() and f'path={expected}' in config.read_text().splitlines(),
             'Dedicated AVD config is missing or points outside the project')
     # Verify the running process, not just an easily duplicated AVD name.
     processes = run(['ps', '-axo', 'command=']).splitlines()
-    matches = [p for p in processes if '-avd ' + AVD in p and '-port 5580' in p]
-    require(len(matches) == 1 and str(SDK) in matches[0],
-            'Expected one emulator process from the project SDK on port 5580')
+    matches = [p for p in processes if emulator_process_matches(p)]
+    require(len(matches) == 1,
+            'Expected one emulator process from the selected SDK on port 5580')
 
 
 def preflight(env, *, build=False):

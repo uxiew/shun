@@ -102,7 +102,7 @@ class R39DeviceTests(unittest.TestCase):
             (chain / 'avd' / f'{device.AVD}.ini').write_text('path=/some/other/avd\n')
             with patch.object(device, 'CHAIN', chain), \
                     patch.object(device, 'adb', side_effect=['device', device.AVD]), \
-                    patch.object(device, 'shell', side_effect=['1', '35']), \
+                    patch.object(device, 'shell', side_effect=['1', device.AVD_APIS[device.AVD]]), \
                     patch.object(device, 'run') as run:
                 with self.assertRaisesRegex(RuntimeError, 'outside the project'):
                     device.check_device()
@@ -121,13 +121,46 @@ class R39DeviceTests(unittest.TestCase):
             ]:
                 with patch.object(device, 'CHAIN', chain), \
                         patch.object(device, 'adb', side_effect=['device', device.AVD]), \
-                        patch.object(device, 'shell', side_effect=['1', '35']), \
+                        patch.object(device, 'shell', side_effect=['1', device.AVD_APIS[device.AVD]]), \
                         patch.object(device, 'run', return_value=process):
                     if accepted:
                         device.check_device()
                     else:
                         with self.assertRaisesRegex(RuntimeError, 'emulator process'):
                             device.check_device()
+
+    def test_reused_emulator_symlink_is_checked_by_real_binary_location(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            sdk = root / 'project-sdk'
+            existing = root / 'homebrew-emulator'
+            sdk.mkdir()
+            existing.mkdir()
+            (sdk / 'emulator').symlink_to(existing, target_is_directory=True)
+            with patch.object(device, 'SDK', sdk):
+                self.assertTrue(device.emulator_process_matches(
+                    f'{existing}/qemu -avd {device.AVD} -port 5580'))
+                for command in (
+                    f'{root}/other/qemu -avd {device.AVD} -port 5580',
+                    f'{existing}/qemu -avd {device.AVD}-other -port 5580',
+                    f'{existing}/qemu -avd {device.AVD} -port 55800',
+                    f'{existing}/qemu -avd',
+                ):
+                    self.assertFalse(device.emulator_process_matches(command))
+
+    def test_unknown_profile_refused_before_contacting_device(self):
+        with patch.object(device, 'AVD', 'personal-phone'), \
+                patch.object(device, 'adb') as adb:
+            with self.assertRaisesRegex(RuntimeError, 'Unsupported'):
+                device.check_device()
+            adb.assert_not_called()
+
+    def test_build_environment_disables_implicit_sdk_installation(self):
+        with patch.dict(device.os.environ, {'PATH': '/usr/bin'}, clear=True), \
+                patch.object(device, 'run', side_effect=['/fixture/bin/zig', '0.16.0']):
+            env = device.environment()
+        self.assertEqual(env['ORG_GRADLE_PROJECT_android.builder.sdkDownload'], 'false')
+        self.assertEqual(env['ANDROID_HOME'], str(device.SDK))
 
     def test_storage_scan_accepts_no_plaintext_and_requires_both_namespaces(self):
         def archive(rows):
