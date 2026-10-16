@@ -1116,7 +1116,7 @@
 
 ## R41 主机编辑页分区、高级折叠、底部操作栏和 Mosh 覆盖项
 
-阶段：P4；状态：NOT_STARTED；依赖：R39, R40；角色：实施代理。
+阶段：P4；状态：DONE；依赖：R39, R40；角色：实施代理。
 
 **范围**：编辑页按 基本信息 → 认证 → 连接路径 → 首选连接方式（SSH / Mosh，带一句「建议先用 SSH，连上后能切 Mosh」）→ 高级 排。「普通 SSH / Tailscale SSH」和认证方式并成一排。高级默认折叠、按组分：Mosh（mosh-server 路径、UDP 端口范围、locale，默认显示「自动」，旁边写什么时候才要改）、tmux、超时与保活、启动命令。底部固定一栏：路线验证状态 +【测试连接】【取消】【保存】。Mosh 覆盖项真正传给引导命令；mosh-server 路径为「自动」时按固定顺序探测常见位置（/usr/bin、/usr/local/bin、/opt/homebrew/bin、~/.local/bin、nix profile）。 借鉴 meshTerm 的持久性说明，把普通 shell / 已选择的 tmux 会话与 SSH / Mosh 协议分开展示；解释本地历史、网络连接和远端进程的区别，不增加 mtRoam 或自动安装选项。来源见 docs/20。
 

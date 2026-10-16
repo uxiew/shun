@@ -2439,7 +2439,7 @@
       "id": "R41",
       "phase": "P4",
       "title": "主机编辑页分区、高级折叠、底部操作栏和 Mosh 覆盖项",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R39",
         "R40"
@@ -2467,8 +2467,10 @@
       ],
       "stop_condition": "不加 sudo 密码、Wake-on-LAN、Port Knocking 这类字段（R37、R25 停止条件）。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R41.md"
+      ],
+      "commit": "96e0053"
     },
     {
       "id": "R42",

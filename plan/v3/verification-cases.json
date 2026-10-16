@@ -1412,7 +1412,8 @@
       "result": "PASS",
       "inherited_from": null,
       "evidence": [
-        "evidence/X08.md"
+        "evidence/X08.md",
+        "evidence/R41.md"
       ]
     },
     {
@@ -1663,9 +1664,11 @@
       "action": "新建和编辑主机时弹出键盘、改了不保存就离开、填 Mosh 覆盖项、测试连接通过后再改路线。 分别选择普通 shell 与指定 tmux 会话，检查其与 SSH/Mosh 的独立说明。",
       "expected": "操作栏始终点得到；没保存离开有确认；验证状态如实；覆盖项实际生效，没填时显示「自动」。 连接方式不冒充持久性，缺 tmux 时如实说明且不创建会话。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R41.md"
+      ]
     },
     {
       "id": "UX08",
