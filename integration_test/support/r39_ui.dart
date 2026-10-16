@@ -22,6 +22,16 @@ Future<void> r39WaitFor(WidgetTester tester, bool Function() ready,
   expect(ready(), isTrue, reason: reason);
 }
 
+/// ShunApp defaults to zh-CN, where the AppBar back tooltip is 「返回」.
+/// WidgetTester.pageBack only looks for the English 'Back' tooltip (or a
+/// Cupertino button), so on the real app it finds nothing and fails.
+Future<void> r39Back(WidgetTester tester) async {
+  final back = find.byType(BackButton);
+  expect(back, findsOneWidget, reason: 'One AppBar back button expected');
+  await tester.tap(back);
+  await r39Frames(tester);
+}
+
 Future<void> r39Tap(WidgetTester tester, Finder finder,
     {bool settle = true}) async {
   if (finder.evaluate().isEmpty) {

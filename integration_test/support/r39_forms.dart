@@ -114,8 +114,7 @@ Future<void> r39Forms(
                 : container.read(uuRemoteProvider).entries)
             .any((e) => e.label == 'R39 renamed $type'),
         reason: 'Remote rename must be persisted');
-    await tester.pageBack();
-    await r39Frames(tester);
+    await r39Back(tester);
     await r39Tap(tester, find.text('R39 renamed $type'));
     if (type == 'RustDesk') {
       final rd = container.read(rustDeskProvider.notifier);
@@ -160,8 +159,7 @@ Future<void> r39Forms(
       await r39Tap(tester, r39Key('uu-launch-fullscreen'), settle: false);
       await r39Gate(tester, 'return-uu');
     }
-    await tester.pageBack();
-    await r39Frames(tester);
+    await r39Back(tester);
   }
   // Deleting the source SSH entry must not silently remove its route warning.
   // Exercise the migrated entry itself, not only a newly created lookalike.
@@ -182,8 +180,7 @@ Future<void> r39Forms(
     await r39Tap(tester, r39Key('$prefix-route-accept'), settle: false);
     await r39Gate(
         tester, isRd ? 'return-migrated-rustdesk' : 'return-migrated-uu');
-    await tester.pageBack();
-    await r39Frames(tester);
+    await r39Back(tester);
   }
   await r39Gate(tester, 'shot-entries');
 }
