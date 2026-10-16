@@ -258,14 +258,16 @@ void main() {
     expect(status(tester), startsWith('未验证：测试通过后改了'));
   });
 
-  testWidgets('Mosh 主机没有测试连接，状态说明要连接时才验证；建议不提还没做的终端内切换', (tester) async {
+  testWidgets('Mosh 主机没有测试连接，状态说明要连接时才验证；建议指到终端里的切换（R42），不说切网不断', (tester) async {
     await open(tester, host: ssh({'protocol': 'mosh'}));
     expect(key('test-connection'), findsNothing);
     expect(status(tester), contains('Mosh 要真正连接时才验证'));
     await reveal(tester, key('protocol-advice'));
     final advice = tester.widget<Text>(find.descendant(
         of: key('protocol-advice'), matching: find.byType(Text)));
-    expect(advice.data, isNot(contains('连上后能切')));
+    expect(advice.data, contains('能切到 Mosh'));
+    expect(advice.data, isNot(contains('漫游')));
+    expect(advice.data, isNot(contains('切网不断')));
   });
 
   testWidgets('tmux 说明：SSH 写清普通 shell 重连是新 shell、去哪里选 tmux；不提按名字自动附着',
@@ -292,7 +294,7 @@ void main() {
     expect(note, isNot(contains('恢复原')));
   });
 
-  testWidgets('tmux 说明：Mosh 主机说明没有 tmux 面板、关标签程序就结束，不写测试连接', (tester) async {
+  testWidgets('tmux 说明：Mosh 主机说明直连是普通 shell、想留住程序先 SSH 附着 tmux 再切，不写测试连接', (tester) async {
     await open(tester, host: ssh({'protocol': 'mosh'}));
     await reveal(tester, key('advanced-tmux'));
     await tester.tap(key('advanced-tmux'));
@@ -302,8 +304,9 @@ void main() {
             of: key('tmux-persistence-note'), matching: find.byType(Text)))
         .map((t) => t.data)
         .join('\n');
-    expect(note, contains('Mosh 标签没有「系统管理 → tmux」面板'));
+    expect(note, contains('开的是 mosh-server 里的普通 shell'));
     expect(note, contains('接不回原来那个'));
+    expect(note, contains('还是同一个 tmux 会话'));
     expect(note, isNot(contains('测试连接')));
   });
 

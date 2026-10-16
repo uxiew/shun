@@ -444,6 +444,7 @@ class _TerminalPaneState extends State<_TerminalPane> {
 }
 
 /// 断开的标签顶上那一条（R22）：现在是什么状态、为什么，加「重新连接」。
+/// 原地切换连接方式时（R42）也用它显示进度，加「取消」。
 class _ConnectionBanner extends StatelessWidget {
   const _ConnectionBanner({
     super.key,
@@ -452,6 +453,7 @@ class _ConnectionBanner extends StatelessWidget {
     this.warning = false,
     this.onReconnect,
     this.onAcknowledge,
+    this.onCancel,
   });
 
   final String message;
@@ -461,6 +463,7 @@ class _ConnectionBanner extends StatelessWidget {
   final bool warning;
   final VoidCallback? onReconnect;
   final VoidCallback? onAcknowledge;
+  final VoidCallback? onCancel;
 
   @override
   Widget build(BuildContext context) {
@@ -503,6 +506,12 @@ class _ConnectionBanner extends StatelessWidget {
                 key: const ValueKey('terminal-input-checked'),
                 onPressed: onAcknowledge,
                 child: const LText('已核查'),
+              ),
+            if (onCancel != null)
+              TextButton(
+                key: const ValueKey('terminal-switch-cancel'),
+                onPressed: onCancel,
+                child: const LText('取消'),
               ),
           ],
         ),

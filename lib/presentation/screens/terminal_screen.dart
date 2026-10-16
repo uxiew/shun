@@ -15,8 +15,10 @@ import '../../application/settings_controller.dart';
 import '../../application/terminal_compose.dart';
 import '../../application/terminal_engine.dart';
 import '../../application/vault_controller.dart';
+import '../../domain/host_identity.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/settings.dart';
+import '../../domain/plugins/mosh_install_hint.dart';
 import '../../domain/route_description.dart';
 import '../../infrastructure/ai/ai_service.dart';
 import '../widgets/ai_panel.dart';
@@ -31,6 +33,7 @@ import '../widgets/empty_state.dart';
 import '../widgets/custom_background.dart';
 import '../widgets/ai_chat_sheet.dart';
 import '../widgets/connection_prompts.dart';
+import '../widgets/connection_transport_sheet.dart';
 import '../widgets/host_address_line.dart';
 import '../widgets/host_system_icon.dart';
 import '../widgets/port_forward_sheet.dart';
@@ -374,6 +377,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                               ),
                       ),
                       if (visibleSession != null)
+                        TransportBadge(session: visibleSession),
+                      if (visibleSession != null)
                         IconButton(
                           key: const ValueKey(
                             'terminal-performance-monitor',
@@ -698,6 +703,18 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
   Widget? _connectionBanner(ActiveTerminalSession session, SessionState state) {
     if (session.closedByUser) return null;
     if (session.connected) {
+      // 原地切换中（R42）：旧的一边还连着、照常能打字，新的一边核对过了才换。
+      if (state.switching[session.id] case final progress?) {
+        final usable = localized('切完之前这个标签照常能用。');
+        return _ConnectionBanner(
+          key: const ValueKey('terminal-connection-banner'),
+          message: '${progress.describe()} $usable',
+          recovering: true,
+          onCancel: () => ref
+              .read(sessionControllerProvider.notifier)
+              .cancelSwitch(session.id),
+        );
+      }
       if (session.inputResultUnknown) {
         return _ConnectionBanner(
           key: const ValueKey('terminal-connection-banner'),
@@ -738,6 +755,14 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
             verifyHostKey: hostKeyVerifier(context, ref),
             keyboardInteractive: keyboardInteractivePrompt(context),
           );
+    } on MoshServerMissing catch (error) {
+      // 等待卡片里也写了；这里再给出这台服务器的安装命令（不代装）。
+      if (!mounted) return;
+      await showMoshInstallHint(
+        context,
+        hint: error.hint,
+        hostId: sourceHostIdOf(session.host),
+      );
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -787,6 +812,14 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                     when session.host.protocol == HostProtocol.plugin &&
                         session.connected =>
                   _pluginCloseText(session),
+                // Mosh-tmux（R42）：mosh-server 退出只带走它里面的 tmux 客户端，会话留在远端。
+                _
+                    when session.plugin != null &&
+                        session.tmux != null &&
+                        session.connected =>
+                  '只分离这个标签的 tmux 客户端：关掉 Mosh 会话后，它里面的 tmux 客户端跟着退出，tmux 会话 '
+                      '${session.tmux!.target.displayName}（${session.tmux!.target.sessionId}）和里面的程序留在远端，'
+                      '不发送 Ctrl-C，也不结束会话。',
                 // Mosh：插件让 mosh-client 按协议通知服务器关闭，远端的 mosh-server 和 shell 随之退出。
                 _ when session.plugin != null && session.connected =>
                   '将断开 ${session.host.label} 的 Mosh 会话：服务器上这次的 mosh-server 和里面的 shell 会一起退出，'

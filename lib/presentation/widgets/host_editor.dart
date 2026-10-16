@@ -461,9 +461,9 @@ class _HostEditorState extends ConsumerState<HostEditor> {
       if (sshLike)
         Padding(
           padding: const EdgeInsets.only(top: 8),
-          // 在终端里切换连接方式是 R42 的事，还没做：不能写「连上后能切」。
+          // R42：终端顶上的 SSH / MOSH 徽标能切换。不写「切网不断」——X10 还没在真机上证实。
           child: LText(
-            '建议先用 SSH 确认能连上，再改成 Mosh。',
+            '建议先用 SSH，连上后点终端顶上的「SSH」徽标能切到 Mosh。',
             key: const ValueKey('protocol-advice'),
             style: small,
           ),
@@ -643,8 +643,8 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   Widget _persistenceNote() {
     final lines = protocol == HostProtocol.mosh
         ? const [
-            'Mosh 开的是 mosh-server 里的普通 shell。关标签或服务器重启时，mosh-server 和里面的程序一起结束；再连接是新起的 mosh-server，接不回原来那个。',
-            'Mosh 标签没有「系统管理 → tmux」面板。想断开后程序还在，就在 Mosh 终端里自己运行 tmux。',
+            '从主机列表直接连 Mosh，开的是 mosh-server 里的普通 shell。关标签或服务器重启时，mosh-server 和里面的程序一起结束；「重新连接」是新起的 mosh-server，接不回原来那个。',
+            '想断开后程序还在：先用 SSH 连上，在「系统管理 → tmux」里附着一个 tmux 会话，再点终端顶上的徽标切到 Mosh——还是同一个 tmux 会话。这样的 Mosh 标签断了，点「重新连接」会核对后附着回那个会话。',
             'App 里留着的终端画面只是这台手机上的历史，不代表远端还开着。',
           ]
         : const [

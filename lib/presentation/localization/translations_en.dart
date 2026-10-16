@@ -1861,8 +1861,8 @@ const englishTranslations = <String, String>{
       r'\r\n\x1b[33m[Mosh] $reason It will not reconnect automatically.\x1b[0m\r\n',
   r'\x1b[33m不会自动重连，也不会重发断开前的输入；断开前最后打的字有没有到远端，App 无法确认。\r\n':
       r'\x1b[33mIt will not reconnect automatically or resend earlier input; the app cannot tell whether the last keystrokes before the disconnect reached the server.\r\n',
-  r'要再连，从保险库重新连接这台主机：会在服务器上新起一个 mosh-server，不是原来那个会话。\x1b[0m\r\n':
-      r'To connect again, open this host from the vault: that starts a new mosh-server on the server, not the old session.\x1b[0m\r\n',
+  r'要再连，点上面的「重新连接」：会在服务器上新起一个 mosh-server，不是原来那个会话。\x1b[0m\r\n':
+      r'To connect again, tap Reconnect above: that starts a new mosh-server on the server, not the old session.\x1b[0m\r\n',
   'Mosh 只能直连，不能经代理或跳板机引导':
       'Mosh only works over a direct connection; it cannot be bootstrapped through a proxy or jump host',
   '拿不到这次 SSH 连上的 IP 地址，不知道 Mosh 的 UDP 该发往哪里':
@@ -1942,8 +1942,8 @@ const englishTranslations = <String, String>{
   // R41：主机编辑页分区、高级折叠、底部操作栏。
   '首选连接方式': 'Preferred connection method',
   '连接类型': 'Connection type',
-  '建议先用 SSH 确认能连上，再改成 Mosh。':
-      'Confirm it connects over SSH first, then switch to Mosh.',
+  '建议先用 SSH，连上后点终端顶上的「SSH」徽标能切到 Mosh。':
+      'Start with SSH; once connected, tap the SSH badge at the top of the terminal to switch to Mosh.',
   '高级': 'Advanced',
   '已填写': 'Set',
   'Mosh 启动参数': 'Mosh launch options',
@@ -1987,20 +1987,147 @@ const englishTranslations = <String, String>{
       'The terminal screen kept in the app is only history on this phone; it does not mean the remote side is still running.',
   '「测试连接」会只读查一次远端有没有 tmux、有几个会话，不新建、不附着。':
       '“Test connection” checks read-only whether the server has tmux and how many sessions it has; it creates and attaches nothing.',
-  'Mosh 开的是 mosh-server 里的普通 shell。关标签或服务器重启时，mosh-server 和里面的程序一起结束；再连接是新起的 mosh-server，接不回原来那个。':
-      'Mosh opens a plain shell inside mosh-server. Closing the tab or rebooting the server ends mosh-server and its programs; connecting again starts a new mosh-server and cannot get the old one back.',
-  'Mosh 标签没有「系统管理 → tmux」面板。想断开后程序还在，就在 Mosh 终端里自己运行 tmux。':
-      'Mosh tabs have no “System management → tmux” panel. To keep programs running after a disconnect, run tmux yourself in the Mosh terminal.',
+  '从主机列表直接连 Mosh，开的是 mosh-server 里的普通 shell。关标签或服务器重启时，mosh-server 和里面的程序一起结束；「重新连接」是新起的 mosh-server，接不回原来那个。':
+      'Connecting with Mosh from the host list opens a plain shell inside mosh-server. Closing the tab or rebooting the server ends mosh-server and its programs; Reconnect starts a new mosh-server and cannot get the old one back.',
+  '想断开后程序还在：先用 SSH 连上，在「系统管理 → tmux」里附着一个 tmux 会话，再点终端顶上的徽标切到 Mosh——还是同一个 tmux 会话。这样的 Mosh 标签断了，点「重新连接」会核对后附着回那个会话。':
+      'To keep programs running after a disconnect: connect with SSH, attach a tmux session in System management → tmux, then tap the badge at the top of the terminal to switch to Mosh — it stays the same tmux session. If such a Mosh tab drops, Reconnect verifies that session and attaches it again.',
   'tmux：远端没有 tmux。这台机器只能开普通 shell，断开后里面的程序随之结束。本 App 不会替你安装。':
       'tmux: the server has no tmux. This machine can only open a plain shell, and its programs end when you disconnect. This app does not install it for you.',
   '会话密钥已清除': 'The session key has been wiped',
-  'MoshBootstrapResult(port: \$port, key: <已隐藏>)':
-      'MoshBootstrapResult(port: \$port, key: <hidden>)',
+  r'MoshBootstrapResult(port: $port, serverPid: $serverPid, key: <已隐藏>)':
+      r'MoshBootstrapResult(port: $port, serverPid: $serverPid, key: <hidden>)',
   "\$low:\$high', 'portRange', 'UDP 端口范围无效":
       "\$low:\$high', 'portRange', 'Invalid UDP port range",
   'BAD_ARGS\', \'Mosh 目标或材料无效': 'BAD_ARGS\', \'Invalid Mosh target or material',
   '插件没有申请临时会话密钥权限，不能交给它 Mosh 会话材料':
       'The plugin did not request the ephemeral session-key permission, so Mosh session material cannot be handed to it',
+
+  // R42：终端里的连接方式（徽标、菜单、原地切换、缺 mosh-server 的安装提示、选 tmux 会话）。
+  '连接方式': 'Connection method',
+  '这个标签不是 SSH 或 Mosh，没有可切换的方式。':
+      'This tab is not SSH or Mosh, so there is nothing to switch.',
+  '这个标签已经断开了。先点「重新连接」，连上以后再切换。':
+      'This tab is disconnected. Tap Reconnect first, then switch once it is connected.',
+  'AI 工具的专用标签不切换连接方式。':
+      'Dedicated AI tool tabs do not switch connection method.',
+  '「系统管理」里开的一次性命令标签不切换连接方式。':
+      'One-off command tabs opened from System management do not switch connection method.',
+  '正在切换，等这一次结束。': 'A switch is in progress. Wait for it to finish.',
+  '拿不到这条 SSH 实际连上的 IP，不知道 Mosh 的 UDP 该发往哪里。':
+      'Could not get the IP this SSH connection actually reached, so there is nowhere to send Mosh UDP.',
+  '这个标签没有记下路线，不能原地切到 Mosh。':
+      'This tab did not record its route, so it cannot switch to Mosh in place.',
+  r'Mosh 只能直连：这台主机的连接路径是${problem.description}，UDP 走不了代理和跳板机。':
+      r'Mosh only works directly: this host connects via ${problem.description}, and UDP cannot go through proxies or jump hosts.',
+  '切换过程中原来的 SSH 断了，没有切换：刚开的 Mosh 已关，tmux 会话不受影响。':
+      'The original SSH dropped during the switch, so nothing was switched: the new Mosh session was closed and the tmux session is unaffected.',
+  '切换过程中这条 SSH 上又开了端口转发，没有切换，转发也没动。再点一次会重新列出要停掉的转发。':
+      'A port forward was opened on this SSH during the switch, so nothing was switched and no forward was touched. Tap again to see the updated list of forwards that would stop.',
+  r'这台主机的地址改过（tmux 会话 ${target.displayName} 是在 ${target.hostKey} 上查到的），没有切换。':
+      r'This host’s address has changed (tmux session ${target.displayName} was found on ${target.hostKey}), so nothing was switched.',
+  r'这台主机的地址改过（tmux 会话 ${tmuxAttach.displayName} 是在 ${tmuxAttach.hostKey} 上查到的），没有附着。':
+      r'This host’s address has changed (tmux session ${tmuxAttach.displayName} was found on ${tmuxAttach.hostKey}), so it was not attached.',
+  r'新的 SSH 没能附着到 tmux 会话 ${target.displayName}（${target.sessionId}），没有切换。':
+      r'The new SSH connection could not attach tmux session ${target.displayName} (${target.sessionId}), so nothing was switched.',
+  r'Mosh 会话结束了，下面是断开前的画面。tmux 会话 ${tmux.displayName}（${tmux.sessionId}）如果还在，':
+      r'The Mosh session ended; below is the screen from before the disconnect. If tmux session ${tmux.displayName} (${tmux.sessionId}) still exists, ',
+  '点「重新连接」会新起一个 mosh-server、核对还是不是原来那个再附着，不新建。':
+      'Reconnect starts a new mosh-server, verifies it is still the same session and only then attaches; it never creates one.',
+  r'\x1b[33m[Mosh] 这个标签附着的是 tmux 会话 ${tmux.displayName}（${tmux.sessionId}）。':
+      r'\x1b[33m[Mosh] This tab was attached to tmux session ${tmux.displayName} (${tmux.sessionId}). ',
+  r'Mosh 结束只带走 tmux 客户端，会话和里面的程序留在服务器上（除非是会话自己结束的）。\x1b[0m\r\n':
+      r'Ending Mosh only took the tmux client with it; the session and its programs stay on the server (unless the session itself ended).\x1b[0m\r\n',
+  r'正在切到 ${to.label}…': r'Switching to ${to.label}…',
+  r'正在切到 ${to.label}：$step': r'Switching to ${to.label}: $step',
+  '切完之前这个标签照常能用。': 'This tab keeps working until the switch completes.',
+  r'切换到 $to（同一个 tmux 会话）': r'Switch to $to (same tmux session)',
+  r'用 $to 另开一个': r'Open another tab with $to',
+  r'另开一个 $to 标签（新的 shell），这个标签和里面的 shell 不动。':
+      r'Opens another $to tab (a new shell); this tab and its shell stay as they are.',
+  r'在这条 SSH 上起 mosh-server，附着同一个 tmux 会话 ${tmux!.displayName}（${tmux.sessionId}），':
+      r'Starts mosh-server over this SSH and attaches the same tmux session ${tmux!.displayName} (${tmux.sessionId}); ',
+  r'重新登录 SSH，附着同一个 tmux 会话 ${tmux!.displayName}（${tmux.sessionId}），':
+      r'Logs in over SSH again and attaches the same tmux session ${tmux!.displayName} (${tmux.sessionId}); ',
+  '核对过才换过去，然后关掉这条 SSH。不重发任何输入。':
+      'the tab moves over only after that is verified, then this SSH is closed. No input is resent.',
+  '核对过才换过去，然后关掉 Mosh。不重发任何输入。':
+      'the tab moves over only after that is verified, then Mosh is closed. No input is resent.',
+  r'把 ${option.transport.label} 设为这台主机的默认': r'Make ${option.transport.label} the default for this host',
+  r'以后从主机列表连这台都用 ${option.transport.label}。开着的标签不变，Mosh 的端口、路径设置照旧留着。':
+      r'Connecting this host from the host list will use ${option.transport.label}. Open tabs do not change, and Mosh port and path settings are kept.',
+  r'已把 ${option.transport.label} 设为这台主机的默认': r'${option.transport.label} is now the default for this host',
+  '选 tmux 会话…': 'Pick a tmux session…',
+  '选 tmux 会话': 'Pick a tmux session',
+  '要先有一个连着的 SSH 标签才能列出这台主机上的 tmux 会话（Mosh 标签自己查不了）。':
+      'Listing tmux sessions on this host needs a connected SSH tab (a Mosh tab cannot query them itself).',
+  '只读列出会话，选了在新标签里附着；按完整身份核对，不按名字、不新建。':
+      'Lists sessions read-only; the one you pick is attached in a new tab, verified by its full identity, never by name, and nothing is created.',
+  '这些端口转发会停掉': 'These port forwards will stop',
+  r'切到 Mosh 后这条 SSH 会关掉，上面的 ${forwards.length} 条转发跟着停：':
+      r'Switching to Mosh closes this SSH, and these ${forwards.length} forwards stop with it:',
+  'Mosh 不带端口转发。要留着它们就别切，或者另开一个 SSH 标签重新开转发。':
+      'Mosh does not carry port forwards. To keep them, do not switch, or open another SSH tab and start the forwards there.',
+  '停掉并切换': 'Stop and switch',
+  r'已切到 ${option.to.label}，还是同一个 tmux 会话': r'Switched to ${option.to.label}; still the same tmux session',
+  r'没有切换，原来的连接不变：$error': r'Not switched; the original connection is unchanged: $error',
+  '已断开 · 终端里是断开前的画面（历史）':
+      'Disconnected · the terminal shows the screen from before the disconnect (history)',
+  '正在自动恢复…': 'Recovering automatically…',
+  '正在重新附着…': 'Re-attaching…',
+  '普通 shell：跟着这条连接走，断了就没了；切换会另开一个标签。':
+      'Plain shell: it lives with this connection and is gone when it drops; switching opens another tab.',
+  '这个 SSH 标签已经断开了。': 'This SSH tab is disconnected.',
+  '这台服务器上没有 tmux。': 'This server has no tmux.',
+  r'tmux 版本不在实测范围（${probe.versionLine}），不列会话。':
+      r'tmux version is outside the tested range (${probe.versionLine}), so sessions are not listed.',
+  r'${_socket.describe()} 上现在没有 tmux 会话。': r'There is no tmux session on ${_socket.describe()} right now.',
+  '读不出 tmux 会话列表。': 'Could not read the tmux session list.',
+  '只读列出；要新建、结束或换 socket，用「系统管理 → tmux」。':
+      'Read-only list. To create, end or change socket, use System management → tmux.',
+  r'列不出来：${snapshot.error}': r'Could not list: ${snapshot.error}',
+  r'${row.sessionId} · ${row.windows} 个窗口 · 已有 ${row.attached} 个客户端附着':
+      r'${row.sessionId} · ${row.windows} windows · ${row.attached} clients attached',
+  r'${row.sessionId} · ${row.windows} 个窗口': r'${row.sessionId} · ${row.windows} windows',
+  '只分离这个标签的 tmux 客户端：关掉 Mosh 会话后，它里面的 tmux 客户端跟着退出，tmux 会话 ':
+      'Only this tab’s tmux client is detached: once the Mosh session closes, the tmux client inside it exits, and tmux session ',
+  '服务器上没有 mosh-server': 'mosh-server is not installed on the server',
+  r'认出来的系统：${hint.distro}': r'Detected system: ${hint.distro}',
+  '在服务器上用 root 执行这一条（或自己在前面加 sudo / doas）：':
+      'Run this on the server as root (or prefix it with sudo / doas yourself):',
+  '在服务器上执行这一条：': 'Run this on the server:',
+  '已复制安装命令': 'Install command copied',
+  '填进 SSH 标签（不回车）': 'Type into SSH tab (no Enter)',
+  '已填进 SSH 标签，没有回车。看过再自己按回车。':
+      'Typed into the SSH tab without Enter. Check it, then press Enter yourself.',
+  '本 App 不替你安装，也不用 sudo。装好以后再点一次切换。':
+      'This app does not install it for you and never uses sudo. Switch again after installing.',
+  '没认出的系统': 'Unrecognized system',
+  '服务器上没有 /etc/os-release，或者认不出是哪个发行版。用它自己的包管理器装 mosh，包名一般就叫 mosh。':
+      'The server has no /etc/os-release, or the distribution was not recognized. Install mosh with its own package manager; the package is usually called mosh.',
+  '没有这个发行版的现成命令。用它自己的包管理器装 mosh，包名一般就叫 mosh。':
+      'There is no ready-made command for this distribution. Install mosh with its own package manager; the package is usually called mosh.',
+  'NixOS 不建议用命令临时装：在 configuration.nix 里加 programs.mosh.enable = true;，':
+      'On NixOS, do not install it ad hoc: add programs.mosh.enable = true; to configuration.nix, ',
+  '再 sudo nixos-rebuild switch（它会顺带放行 Mosh 的 UDP 端口）。':
+      'then run sudo nixos-rebuild switch (it also opens the Mosh UDP ports).',
+  'RHEL 本体的 epel-release 不在默认源，先按 EPEL 官方说明启用 EPEL 再装。':
+      'On RHEL itself epel-release is not in the default repositories; enable EPEL by its official instructions first.',
+  'mosh.org 没列 Void；这是 Void 仓库里 mosh 包的装法。':
+      'mosh.org does not list Void; this is how the mosh package installs from the Void repositories.',
+  'mosh.org 没列这一系；CentOS / Rocky / Alma 的 mosh 在 EPEL 里。':
+      'mosh.org does not list this family; on CentOS / Rocky / Alma, mosh is in EPEL.',
+  'mosh-server 没有报出自己的进程号（或报了不止一个），没法核对 Mosh 里附着的是不是这个 tmux 会话，没有用它':
+      'mosh-server did not report its process ID (or reported more than one), so it cannot be verified which tmux session Mosh attached; it was not used',
+  '同一个 mosh-server 下面出现了不止一个 tmux 客户端，分不出哪个是这次的，没有切换':
+      'More than one tmux client appeared under the same mosh-server and this one could not be told apart, so nothing was switched',
+  r'${timeout.inSeconds} 秒内没看到 Mosh 附着到 tmux 会话“${target.displayName}”（${target.sessionId}）。':
+      r'Mosh did not attach tmux session “${target.displayName}” (${target.sessionId}) within ${timeout.inSeconds} seconds.',
+  '最常见的是 UDP 到不了服务器（防火墙没放行 Mosh 的端口）。':
+      'Most often UDP cannot reach the server (the firewall does not allow the Mosh ports).',
+  r'Mosh 会话在附着上 tmux 会话“${target.displayName}”（${target.sessionId}）之前就结束了：${describeMoshEnd(session)}':
+      r'The Mosh session ended before it attached tmux session “${target.displayName}” (${target.sessionId}): ${describeMoshEnd(session)}',
+  r'第 2 段 UDP：Mosh 插件正在直连 $detail；SSH 先留着，核对 tmux 会话“$label”附着上了再断开':
+      r'Leg 2, UDP: the Mosh plugin is connecting directly to $detail; SSH stays open until tmux session “$label” is verified as attached',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
