@@ -90,10 +90,13 @@ void main() {
         'password': 'kept',
       });
       await open(tester, host: host);
-      await tester.tap(find.text('Tailscale SSH'));
+      // R41：普通 SSH 的认证方式和 Tailscale SSH 并成了一个「认证方式」选择。
+      await tester.tap(find.byKey(const ValueKey('ssh-login-mode')));
       await tester.pumpAndSettle();
-      expect(find.text('认证方式'), findsNothing);
+      await tester.tap(find.text('Tailscale SSH').last);
+      await tester.pumpAndSettle();
       expect(find.text('密码（可选）'), findsNothing);
+      expect(find.text('SSH 私钥'), findsNothing);
       expect(
           find.byKey(const ValueKey('tailscale-login-note')), findsOneWidget);
       expect(
@@ -137,8 +140,11 @@ void main() {
             .data,
         contains('代理出口所在的节点（代理地址 127.0.0.1:1055）'),
       );
-      await tester.tap(find.text('普通 SSH'));
+      await tester.tap(find.byKey(const ValueKey('ssh-login-mode')));
       await tester.pumpAndSettle();
+      await tester.tap(find.text('自动（私钥 / 密码 / 交互式）').last);
+      await tester.pumpAndSettle();
+      expect(find.text('密码（可选）'), findsOneWidget);
       await tester.tap(find.text('保存'));
       await tester.pumpAndSettle();
       expect(result!.data.containsKey(sshLoginModeKey), isFalse,

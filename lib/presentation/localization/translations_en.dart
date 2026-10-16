@@ -1935,10 +1935,46 @@ const englishTranslations = <String, String>{
       'Leave empty to search PATH first, then /usr/bin, /usr/local/bin, /opt/homebrew/bin, ~/.local/bin and the nix profile. Fill it in only when mosh-server lives elsewhere and connecting reports “mosh-server was not found”, e.g. /opt/mosh/bin/mosh-server.',
   '留空用 en_US.UTF-8。连接时报「没有可用的 UTF-8 语言环境」才填服务器上有的，比如 C.UTF-8。':
       'Leave empty to use en_US.UTF-8. Fill in one the server has, such as C.UTF-8, only when connecting reports “no usable UTF-8 locale”.',
-  '在服务器上用 command -v mosh-server 查实际位置，把完整路径填到主机的 Mosh 设置里；清空就改回自动查找。SSH 这一段是通的。':
-      'Run command -v mosh-server on the server to find where it is, and enter the full path in this host’s Mosh settings; clear it to search automatically again. The SSH leg works.',
-  '服务器上没有要用的 UTF-8 locale（没填时用 en_US.UTF-8）。先在服务器上用 locale -a 看有哪些 UTF-8 locale（很多系统自带 C.UTF-8），填到主机的 Mosh locale 里；或者让管理员生成一个（比如 locale-gen en_US.UTF-8）。':
-      'The server lacks the UTF-8 locale being used (en_US.UTF-8 when none is set). Run locale -a on the server to see which UTF-8 locales exist (many systems ship C.UTF-8) and enter one as this host’s Mosh locale, or ask the administrator to generate one (for example locale-gen en_US.UTF-8).',
+  '在服务器上用 command -v mosh-server 查实际位置，把完整路径填到主机编辑页「高级 → Mosh 启动参数」里；清空就改回自动查找。SSH 这一段是通的。':
+      'Run command -v mosh-server on the server to find where it is, and enter the full path under Advanced → Mosh launch options in the host editor; clear it to search automatically again. The SSH leg works.',
+  '服务器上没有要用的 UTF-8 locale（没填时用 en_US.UTF-8）。先在服务器上用 locale -a 看有哪些 UTF-8 locale（很多系统自带 C.UTF-8），填到主机编辑页「高级 → Mosh 启动参数」的 locale 里；或者让管理员生成一个（比如 locale-gen en_US.UTF-8）。':
+      'The server lacks the UTF-8 locale being used (en_US.UTF-8 when none is set). Run locale -a on the server to see which UTF-8 locales exist (many systems ship C.UTF-8) and enter one as the locale under Advanced → Mosh launch options in the host editor, or ask the administrator to generate one (for example locale-gen en_US.UTF-8).',
+  // R41：主机编辑页分区、高级折叠、底部操作栏。
+  '首选连接方式': 'Preferred connection method',
+  '连接类型': 'Connection type',
+  '建议先用 SSH 确认能连上，再改成 Mosh。':
+      'Confirm it connects over SSH first, then switch to Mosh.',
+  '高级': 'Advanced',
+  '已填写': 'Set',
+  'Mosh 启动参数': 'Mosh launch options',
+  'Mosh UDP 端口范围': 'Mosh UDP port range',
+  '建议留空让 App 自动处理；连接时报错、提示要改这里再填。':
+      'Leave these empty and let the app handle them; fill one in only when connecting fails with an error that points here.',
+  '超时与保活': 'Timeouts and keepalive',
+  '一般不用改。网络很慢、经多跳代理时连接总超时，再把超时调大。':
+      'Usually no need to change these. Raise the timeouts only when connections keep timing out on a very slow network or through several proxy hops.',
+  '填整数秒，或留空用自动': 'Enter whole seconds, or leave empty for automatic',
+  '连上后在 shell 里执行一次；断线恢复时不会再执行。':
+      'Runs once in the shell after connecting; it does not run again when a dropped connection is restored.',
+  '配置有问题，按上面的提示改好才能保存':
+      'The configuration has problems; fix them as shown above before saving',
+  '插件自己联网，这里测试不了':
+      'The plugin does its own networking, so it cannot be tested here',
+  'Telnet 没有测试连接；保存后连接时才知道通不通':
+      'Telnet has no connection test; you only find out whether it works when you connect after saving',
+  'Mosh 要真正连接时才验证：测试连接只测得了 SSH 那一段':
+      'Mosh is only verified when you really connect: Test connection can only check the SSH leg',
+  '未验证': 'Not verified',
+  '已验证：这组地址、认证和路线刚测试连接成功':
+      'Verified: Test connection just succeeded with this address, authentication and route',
+  '未验证：测试通过后改了地址、端口、认证或路线':
+      'Not verified: the address, port, authentication or route changed after the test passed',
+  '未验证：点「测试连接」核对指纹、登录和路线':
+      'Not verified: tap “Test connection” to check the fingerprint, login and route',
+  '放弃没保存的改动？': 'Discard unsaved changes?',
+  '这次的修改还没保存，离开后就没了。':
+      'These changes have not been saved and will be lost if you leave.',
+  '放弃改动': 'Discard changes',
   '会话密钥已清除': 'The session key has been wiped',
   'MoshBootstrapResult(port: \$port, key: <已隐藏>)':
       'MoshBootstrapResult(port: \$port, key: <hidden>)',

@@ -33,7 +33,7 @@ Future<void> r39Forms(
           tester, find.widgetWithText(TextFormField, '用户名'), 'fixture');
     }
     await r39HideKeyboard(tester);
-    await r39Tap(tester, find.widgetWithText(TextButton, '保存'));
+    await r39Tap(tester, r39Key('host-editor-save'));
     await r39WaitFor(
         tester,
         () =>
@@ -71,7 +71,7 @@ Future<void> r39Forms(
   expect(find.widgetWithText(TextFormField, '用户名'), findsNothing);
   await r39Type(tester, find.widgetWithText(TextFormField, '名称'), 'R39 plugin');
   await r39HideKeyboard(tester);
-  await r39Tap(tester, find.widgetWithText(TextButton, '保存'));
+  await r39Tap(tester, r39Key('host-editor-save'));
   await r39WaitFor(
       tester,
       () =>

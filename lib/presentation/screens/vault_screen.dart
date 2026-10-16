@@ -567,6 +567,8 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      // 下滑关闭会直接 pop，绕过编辑器「有没保存的改动」的确认（R41）；关闭走 ×、取消或返回键。
+      enableDrag: false,
       builder: (_) => HostEditor(
         host: resolvedHost,
         initialProtocol: choice?.protocol ?? HostProtocol.ssh,

@@ -53,9 +53,17 @@ void main() {
     );
     await tester.pump();
 
+    // R41：超时与保活是高级里默认收起的一组。
     await tester.scrollUntilVisible(
-      find.text('Keepalive 间隔'),
+      find.byKey(const ValueKey('advanced-timeouts')),
       500,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.tap(find.byKey(const ValueKey('advanced-timeouts')));
+    await tester.pump();
+    await tester.scrollUntilVisible(
+      find.text('认证超时'),
+      200,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pump();

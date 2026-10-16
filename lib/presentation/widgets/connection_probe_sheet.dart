@@ -22,12 +22,16 @@ class ConnectionProbeSheet extends ConsumerStatefulWidget {
     required this.plan,
     required this.verifyHostKey,
     this.keyboardInteractive,
+    this.onSucceeded,
   });
 
   final HostProfile host;
   final RoutePlan plan;
   final HostKeyVerifier verifyHostKey;
   final KeyboardInteractiveHandler? keyboardInteractive;
+
+  /// 只在指纹、登录、PTY 都通过时调用一次。编辑器据此显示「已验证」（R41）。
+  final VoidCallback? onSucceeded;
 
   @override
   ConsumerState<ConnectionProbeSheet> createState() =>
@@ -72,6 +76,7 @@ class _ConnectionProbeSheetState extends ConsumerState<ConnectionProbeSheet> {
         _outcome = outcome;
         _state = _ProbeState.succeeded;
       });
+      widget.onSucceeded?.call();
     } on ConnectionCancelledException {
       if (mounted) setState(() => _state = _ProbeState.cancelled);
     } catch (error) {

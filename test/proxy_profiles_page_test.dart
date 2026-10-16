@@ -222,7 +222,9 @@ void main() {
     await open(tester, HostEditor(host: host('target')));
     await addRouteJump(tester, 'consent-edge');
     await tapRoute(tester, find.byKey(const ValueKey('route-confirm-jumps')));
-    await tapRoute(tester, find.text('取消'));
+    // R41 起编辑页底部栏也有「取消」：只点对话框里的。
+    await tapRoute(tester,
+        find.descendant(of: find.byType(AlertDialog), matching: find.text('取消')));
     var draft = tester
         .widget<ConnectionRouteEditor>(find.byType(ConnectionRouteEditor))
         .draft;

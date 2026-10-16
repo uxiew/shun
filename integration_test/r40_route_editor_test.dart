@@ -49,6 +49,9 @@ Future<void> tap(WidgetTester tester, Finder finder) async {
 Future<void> back(WidgetTester tester) async {
   if (find.byType(HostEditor).evaluate().isNotEmpty) {
     await tap(tester, find.byIcon(Icons.close));
+    // R41: closing with unsaved edits asks first; this helper always meant discard.
+    final discard = find.byKey(const ValueKey('host-editor-discard'));
+    if (discard.evaluate().isNotEmpty) await tap(tester, discard);
   } else {
     await tester.pageBack();
   }
@@ -192,7 +195,7 @@ void main() {
 
     Future<void> saveHost() async {
       await hideKeyboard(tester);
-      await tap(tester, find.widgetWithText(TextButton, '保存'));
+      await tap(tester, find.byKey(const ValueKey('host-editor-save')));
       expect(find.byType(HostEditor), findsNothing);
       await hostResult;
     }
@@ -395,7 +398,7 @@ void main() {
       await jump('nested');
       await reveal(tester, key('route-preview-error'));
       expect(editor().plan, isNull);
-      await tap(tester, find.widgetWithText(TextButton, '保存'));
+      await tap(tester, find.byKey(const ValueKey('host-editor-save')));
       expect(find.byType(HostEditor), findsOneWidget);
       await tap(tester, key('route-clear'));
       expect(editor().draft.usesProxy, isFalse);
@@ -413,7 +416,9 @@ void main() {
       expect(editor().plan, isNull);
       await tap(tester, key('route-confirm-jumps'));
       await screenshot(tester, 'jump-route-confirm');
-      await tap(tester, find.text('取消'));
+      // The editor's bottom bar also has 取消 since R41; cancel the dialog itself.
+      await tap(tester,
+          find.descendant(of: find.byType(AlertDialog), matching: find.text('取消')));
       expect(editor().draft.confirmation, isNull);
       expect(editor().draft.jumpHostIds, ['nested-c']);
       await tap(tester, key('route-confirm-jumps'));
@@ -455,7 +460,7 @@ void main() {
               .initialValue,
           isNull);
       await back(tester);
-      await tap(tester, find.widgetWithText(TextButton, '保存'));
+      await tap(tester, find.byKey(const ValueKey('host-editor-save')));
       expect(find.byType(HostEditor), findsOneWidget);
       await back(tester);
       expect((await host('unsupported')).data['proxyConfig']['type'],
@@ -526,7 +531,7 @@ void main() {
       expect(editor().draft.selectedProxyProfileId, profileId);
       expect(editor().plan, isNull);
       await screenshot(tester, 'missing-proxy');
-      await tap(tester, find.widgetWithText(TextButton, '保存'));
+      await tap(tester, find.byKey(const ValueKey('host-editor-save')));
       expect(find.byType(HostEditor), findsOneWidget);
       final count = dials.length;
       await expectLater(
