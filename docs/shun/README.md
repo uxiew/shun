@@ -39,6 +39,8 @@ R39 独立远控：`domain/remote_entry.dart` 定义仅本机的条目元数据�
 
 新增定向入口：`test/remote_entry_migration_test.dart`（完整迁移、读写中断、冷启动待回调、删除和设备关联），`test/connection_type_screen_test.dart`（类型入口/无 SSH 字段/客户端状态），并回归原 RustDesk、UU、HostEditor 和路由测试。设备脚本的环境、安全检查与四阶段流程见 [R39 Android 验收](r39-device-acceptance.md)。**本轮执行结果只看 `plan/v3/evidence/R39.md`，测试文件存在不代表已通过。**
 
+R41 主机编辑页（分区、高级折叠、底部操作栏）的定向入口是 `test/host_editor_r41_test.dart`；Mosh 覆盖项和测试连接的只读 tmux 查询在 `test/mosh_fixture_test.dart` 的 R41 两组（要先 `tool/mosh-fixture/up.sh`，含 Debian 那台 moshalt）。键盘弹出时真实触摸点保存、真实返回键要确认，在模拟器上用 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r41-device.py` 跑（用法、拦截哪些设备见脚本开头）。结果只看 `plan/v3/evidence/R41.md`。
+
 R40 的 `lib/presentation/widgets/connection_route_editor.dart` 是共用链式编辑器，接收页面已有 `RoutePlan`，通过 `describeRoute` 显示已验证的节点；无有效计划时只显示草稿和错误。`connection_route_draft.dart` 管理选择及兼容字段，保留未修正的失效引用和旧内联配置；不读仓库、不执行网络请求。两页负责预览和提交，只有 `resolveRoutePlan` 决定路线规则。`domain/jump_route_choices.dart` 是 RoutePlan 库的一部分，集中做有界展开、首跳代理候选及确认复核；`jump_route_choice_dialog.dart` 只展示方案并返回明确选择。确认前、来源变化后和后续跳板自带代理时均拒绝执行。
 
 R40 确认信息保存在原 `hostChain` 的 `shunRouteConfirmation` 扩展中：只有版本、顺序、来源的非秘密路线信息和入口选择，没有密码或私钥。`hostIds`、`proxyProfileId` / `proxyConfig` 仍是完整平面路线，不迁移或修改其他主机；缺失/损坏/失效确认一律拒绝。旧客户端的确认语义未实测，不以 JSON 字段兼容冒充跨端执行兼容。
