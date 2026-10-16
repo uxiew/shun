@@ -1,6 +1,6 @@
 # R39 Android 设备验收
 
-从仓库根目录执行。**已在 Android 30 跑到第四阶段：前三阶段通过，表单脚本过早读取异步保存结果而失败；等待修复已过本机测试，设备复验未完成。** 实际结果只记录在 `plan/v3/evidence/R39.md`。
+从仓库根目录执行。**2026-10-16 已在 Android 30 专用模拟器上四阶段全部通过；API 35 配置和真机没跑。** 实际结果只记录在 `plan/v3/evidence/R39.md`。
 
 ## 准备与执行
 
@@ -9,6 +9,8 @@
 3. 使用已固定的 mise Zig 0.16.0；Flutter/JDK 默认本机路径，可用 `FLUTTER_SDK` / `JAVA_HOME` 指定。下载前按本机配置启用 `proxy`，不改全局 SDK 配置；驱动连接本机 VM 时单独移除代理变量。
 
 2026-10-15 本机复用的是 Homebrew ADB 37.0.1、模拟器 32.1.15 和 API 30 镜像 r10，未升级它们。当前代理无法完成 `dl.google.com` 的 TLS 握手，但 Google 官方别名 `dl-ssl.google.com` 可用：SDK 安装命令临时设置 `SDK_TEST_BASE_URL=https://dl-ssl.google.com/android/repository/`；项目专用 `../.toolchain/gradle-home/init.d/r39-google-alias.gradle` 只将 Google Maven 的同路径 HTTPS 主机名替换为该别名。Java 下载通过当前命令的 `JAVA_TOOL_OPTIONS` 设置代理与 localhost 例外。没有关闭 TLS/校验、使用第三方镜像或修改应用 RoutePlan；换网络后先实测，不把这个局部配置复制成全局设置。
+
+构建卡在 `Running Gradle task 'assembleDebug'` 十几分钟、CPU 很低，先别当成卡死：多半是 Gradle 在重新下 Flutter 引擎包（`io.flutter:arm64_v8a_debug`，约 180 MB）。本机 `~/.zshrc` 把 `FLUTTER_STORAGE_BASE_URL` 设成了镜像，在不读它的 shell（如 `bash -c`）里跑就是默认地址，Gradle 把它当成另一个仓库，不复用已有缓存。10-16 走代理这样重下一次，主 APK 构建从 24 秒变成 1197 秒。想复用缓存，就用和上次构建相同的 `FLUTTER_STORAGE_BASE_URL`。
 
 ```bash
 python3 tool/r39-device.py check
@@ -40,6 +42,8 @@ SHUN_R39_AVD=shun-r39-a30 SHUN_R39_DISPOSABLE=1 python3 tool/r39-device.py run
 四个阶段必须有不同 PID（进程号）和同一 runId。`migrate` 的驱动断开只有在匹配本轮 runId、PID 和 `kill-ready` 后才算预期中断；其他超时/断开均失败。
 
 真实存储是异步的：页面 `pumpAndSettle` 结束不等于父页面已经保存完。表单测试使用有截止时间的 `r39WaitFor` 等待可观察状态发布后再读回；超时必须失败，不能只延长固定 sleep 或吞掉 `singleWhere` 异常。
+
+返回上一页用 `r39Back`，不要用 `WidgetTester.pageBack()`。后者只找英文提示 `Back`；本验收起的是真实 `ShunApp`，默认 zh-CN，返回键提示是「返回」，会报 `One back button expected on screen`，看着像页面没返回键，其实是找不到文字。单元测试用裸 `MaterialApp`（英文）所以不会碰到。
 
 旧格式注入不等于“安装上一版发行 APK 后升级”。假客户端接到请求不等于真实远控成功；不连接真实主机、登录真实账号或安装官方远控客户端。
 

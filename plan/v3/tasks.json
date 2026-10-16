@@ -2355,7 +2355,7 @@
       "id": "R39",
       "phase": "P4",
       "title": "新建连接先选类型，表单只放这种类型用得上的项",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "depends_on": [
         "R10",
         "X04",
@@ -2390,7 +2390,7 @@
       "evidence": [
         "evidence/R39.md"
       ],
-      "commit": "1c0dcdf"
+      "commit": "4e03eb0"
     },
     {
       "id": "R40",
