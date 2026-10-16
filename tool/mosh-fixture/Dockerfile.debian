@@ -1,0 +1,14 @@
+# 测试专用：glibc（Debian 13）+ OpenSSH + mosh 1.4，给 R41 的 Mosh 覆盖项用。不要拿来跑任何真实服务。
+# - mosh-server 挪到 /opt/mosh-alt/bin：不在 PATH，也不在自动探测的常见位置，只有在主机上填路径才起得来。
+# - 不装 locales：只有 glibc 自带的 C.UTF-8，没有 en_US.UTF-8。默认的 -l LANG=en_US.UTF-8 会被 mosh-server 拒绝
+#   （needs a UTF-8 native locale），填 C.UTF-8 才起得来。Alpine 那台的 musl 把什么 locale 都当 UTF-8，测不出这条。
+# 用 trixie 是因为 entrypoint 的 PerSourcePenalties 要 OpenSSH 9.8+。procps：测试用 ps 核对参数、pkill 清残留。
+FROM debian:trixie-slim
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends openssh-server mosh procps \
+ && rm -rf /var/lib/apt/lists/* \
+ && install -d /opt/mosh-alt/bin \
+ && mv /usr/bin/mosh-server /opt/mosh-alt/bin/mosh-server
+COPY entrypoint.sh /entrypoint.sh
+RUN chmod +x /entrypoint.sh
+ENTRYPOINT ["/entrypoint.sh"]

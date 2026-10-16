@@ -476,4 +476,111 @@ void main() {
       expect(controller.state.sessions.single, same(tab));
     }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
   });
+
+  // R41：moshalt 是 Debian，mosh-server 只在 /opt/mosh-alt/bin（不在 PATH、不在自动探测的位置），
+  // 只有 glibc 自带的 C.UTF-8。主机上的覆盖项要经协调器、真 SSH、真 mosh-server 生效。
+  group('R41 mosh-server 路径与 locale 覆盖（moshalt）', () {
+    final altSkip = skip != false
+        ? skip
+        : fixture!.moshaltPort == null
+            ? '这份 fixture 没有 moshalt：重跑 tool/mosh-fixture/up.sh（结果按 NOT_RUN 记录）'
+            : false;
+
+    HostProfile alt([Map<String, Object?> extra = const {}]) =>
+        fixture!.host(port: fixture.moshaltPort, extra: extra);
+
+    Future<String> onAlt(String command) =>
+        fixture!.exec(command, service: 'moshalt');
+
+    /// 此刻 moshalt 上在跑的 mosh-server 的完整命令行（去重：没被客户端连过的 mosh-server
+    /// 会先 fork 一个等着起 shell 的子进程，参数一样）。
+    Future<List<String>> running() async =>
+        (await onAlt('ps -eo args= | grep -E "^[^ ]*mosh-server new" || true'))
+            .split('\n')
+            .where((line) => line.isNotEmpty)
+            .toSet()
+            .toList();
+
+    tearDown(() async {
+      if (fixture?.moshaltPort == null) return;
+      await onAlt(
+          'pkill -x mosh-server; rm -rf /home/mosh/bin /home/mosh/.local; true');
+    });
+
+    Future<Object?> failure(HostProfile host) =>
+        connect(host).then<Object?>((_) => null, onError: (Object e) => e);
+
+    Matcher failsWith(MoshBootstrapFailure f) =>
+        isA<MoshBootstrapException>().having((e) => e.failure, 'failure', f);
+
+    test('自动：PATH 和常见位置都没有，如实报「没找到」；没碰插件', () async {
+      expect(
+          await failure(alt()), failsWith(MoshBootstrapFailure.serverMissing));
+      expect(plugin.opens, isEmpty);
+      expect(await running(), isEmpty);
+    }, skip: altSkip);
+
+    test('只填路径：mosh-server 真的被起了，但没有 en_US.UTF-8 拒绝启动', () async {
+      final error =
+          await failure(alt({moshServerPathKey: fixture!.moshaltServerPath}));
+      // 走到了 mosh-server 自己的报错，说明路径生效了；是 locale 问题，不是「没找到」。
+      expect(error, failsWith(MoshBootstrapFailure.localeUnsupported));
+      expect(plugin.opens, isEmpty);
+    }, skip: altSkip);
+
+    test('路径 + C.UTF-8：起来了，远端参数就是主机上填的值，插件拿到范围内端口', () async {
+      final f = fixture!;
+      await connect(alt({
+        moshServerPathKey: f.moshaltServerPath,
+        moshLocaleKey: f.moshaltLocale,
+        moshPortsKey: '60111:60118',
+      }));
+      expect(plugin.opens, hasLength(1));
+      final args =
+          (plugin.opens.single.arguments as Map).cast<String, Object?>();
+      expect(args['udpPort'] as int, inInclusiveRange(60111, 60118));
+      final lines = await running();
+      expect(lines, hasLength(1));
+      expect(lines.single,
+          '/opt/mosh-alt/bin/mosh-server new -s -c 256 -l LANG=C.UTF-8 -p 60111:60118');
+    }, skip: altSkip);
+
+    test('路径写错：报「指定的路径不对」，不回退到自动探测', () async {
+      expect(
+        await failure(alt({
+          moshServerPathKey: '/opt/nope/mosh-server',
+          moshLocaleKey: 'C.UTF-8',
+        })),
+        failsWith(MoshBootstrapFailure.serverPathMissing),
+      );
+      expect(plugin.opens, isEmpty);
+      expect(await running(), isEmpty);
+    }, skip: altSkip);
+
+    test('~/ 路径按服务器上这个用户的 HOME 展开', () async {
+      await onAlt('install -d -o mosh -g mosh /home/mosh/bin && '
+          'ln -s /opt/mosh-alt/bin/mosh-server /home/mosh/bin/mosh-server');
+      await connect(alt({
+        moshServerPathKey: '~/bin/mosh-server',
+        moshLocaleKey: 'C.UTF-8',
+      }));
+      expect(plugin.opens, hasLength(1));
+      expect(
+          (await running()).single,
+          startsWith(
+              '/home/mosh/bin/mosh-server new -s -c 256 -l LANG=C.UTF-8'));
+    }, skip: altSkip);
+
+    test('自动探测在真实服务器上找到 ~/.local/bin', () async {
+      await onAlt(
+          'install -d -o mosh -g mosh /home/mosh/.local /home/mosh/.local/bin && '
+          'ln -s /opt/mosh-alt/bin/mosh-server /home/mosh/.local/bin/mosh-server');
+      await connect(alt({moshLocaleKey: 'C.UTF-8'}));
+      expect(plugin.opens, hasLength(1));
+      expect(
+          (await running()).single,
+          startsWith(
+              '/home/mosh/.local/bin/mosh-server new -s -c 256 -l LANG=C.UTF-8'));
+    }, skip: altSkip);
+  });
 }

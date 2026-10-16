@@ -31,6 +31,12 @@ class MoshFixture {
   int get nomoshPort => json['nomoshPort'] as int;
   String get nomoshFingerprint => json['nomoshFingerprintSha256'] as String;
 
+  /// Debian 那台（R41）：mosh-server 不在默认位置、没有 en_US.UTF-8。旧版 up.sh 起的环境里没有，为 null。
+  int? get moshaltPort => json['moshaltPort'] as int?;
+  String? get moshaltFingerprint => json['moshaltFingerprintSha256'] as String?;
+  String? get moshaltServerPath => json['moshaltServerPath'] as String?;
+  String? get moshaltLocale => json['moshaltLocale'] as String?;
+
   /// up.sh 只把这几个 UDP 端口映射出来，bootstrap 要让 mosh-server 在里面挑。
   String get udpPorts => (json['udpPorts'] as List).join(':');
 
@@ -50,7 +56,12 @@ class MoshFixture {
       });
 
   Future<bool> verify(HostProfile host, String algorithm, String fp) async =>
-      fp == (host.port == nomoshPort ? nomoshFingerprint : fingerprint);
+      fp ==
+      switch (host.port) {
+        final p when p == nomoshPort => nomoshFingerprint,
+        final p when p == moshaltPort => moshaltFingerprint,
+        _ => fingerprint,
+      };
 
   /// 此刻的计数（tool/mosh-fixture/counts.sh）。看差值，不看绝对值。
   Future<Map<String, dynamic>> counts() async {

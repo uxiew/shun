@@ -1,7 +1,9 @@
-# Mosh 测试环境（X08、X09）
+# Mosh 测试环境（X08、X09、R41）
 
-两台容器：`mosh` 是 OpenSSH + Alpine 打包的官方 mosh 1.4.0（服务器和客户端都有）+ tmux；`nomosh` 只有 OpenSSH，
-当「服务器上没装 mosh」。账号、密码、客户端密钥两台一样。端口只绑 127.0.0.1。
+三台容器：`mosh` 是 OpenSSH + Alpine 打包的官方 mosh 1.4.0（服务器和客户端都有）+ tmux；`nomosh` 只有 OpenSSH，
+当「服务器上没装 mosh」；`moshalt` 是 Debian 13（glibc），mosh-server 只在 `/opt/mosh-alt/bin`（不在 PATH、
+不在自动探测的位置）、只有 C.UTF-8 没有 en_US.UTF-8，测主机上的 mosh-server 路径和 locale 覆盖（R41）。
+账号、密码、客户端密钥三台一样。端口只绑 127.0.0.1。
 和 `../fixture-environment` 是两个独立的 compose 项目（`shun-mosh`），起停互不影响。
 
 ```bash
@@ -15,6 +17,10 @@
 | `127.0.0.1:22301/tcp` | `mosh` 的 SSH（用户 `mosh`），手工 bootstrap 用 |
 | `127.0.0.1:60101–60108/udp` | mosh-server 的 UDP；bootstrap 时 `-p 60101:60108` 让它只在这几个端口里挑 |
 | `127.0.0.1:22302/tcp` | `nomosh` 的 SSH，同一个账号 |
+| `127.0.0.1:22303/tcp` | `moshalt` 的 SSH，同一个账号。只测引导，不映射 UDP |
+
+`moshalt` 上不填覆盖项时会报「没有找到 mosh-server」；只填路径会报 locale 不支持；路径和 C.UTF-8 都填才起得来。
+`up.sh` 会核对这三条前提，不满足就拒绝出环境。它没有记账脚本，`counts.sh` 不统计它。
 
 **记账（X09）**：容器里的 `mosh-server`、`sudo`、`apk`、`apt-get` 等被换成 `shims/` 里的脚本——mosh-server 先记一行
 （`/var/log/shun/mosh-server-starts.log`）再交给真的，安装类命令只记一行（`install-attempts.log`）就失败返回。

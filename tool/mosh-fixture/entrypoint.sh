@@ -1,7 +1,13 @@
 #!/bin/sh
 # 凭据全部来自 up.sh 临时生成、只读挂载进来的 /run-secrets，容器销毁即作废。
 set -eu
-adduser -D -s /bin/sh mosh
+# Alpine 是 busybox 的 adduser，Debian（moshalt）用 useradd。Debian 的 sshd 还要 /run/sshd。
+if command -v useradd >/dev/null 2>&1; then
+  useradd -m -s /bin/sh mosh
+  mkdir -p /run/sshd
+else
+  adduser -D -s /bin/sh mosh
+fi
 echo "mosh:$(cat /run-secrets/ssh_password)" | chpasswd
 install -d -m 700 -o mosh -g mosh /home/mosh/.ssh
 install -m 600 -o mosh -g mosh /run-secrets/id_ed25519.pub /home/mosh/.ssh/authorized_keys
