@@ -5,13 +5,17 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/application/session_controller.dart';
 import 'package:shun/domain/connection_route.dart';
 import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/models/vault.dart';
 import 'package:shun/domain/plugins/mosh_route.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/tmux/tmux_protocol.dart';
 import 'package:shun/presentation/widgets/connection_probe_sheet.dart';
+import 'package:shun/presentation/widgets/connection_route_editor.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import 'support/route_editor_actions.dart';
 
 // R41 / UX07：底部操作栏在键盘上方点得到；没保存离开要确认；高级按组折叠、没填写「自动」；
 // 「已验证」只在测试连接真的成功后、且地址/端口/认证/路线没变时显示。
@@ -35,7 +39,11 @@ void main() {
   HostProfile? result;
   var closed = false;
 
-  Future<void> open(WidgetTester tester, {HostProfile? host}) async {
+  Future<void> open(
+    WidgetTester tester, {
+    HostProfile? host,
+    List<HostProfile> vaultHosts = const [],
+  }) async {
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -45,6 +53,11 @@ void main() {
         .setMockMethodCallHandler(secureStorage, (call) async => null);
     SharedPreferences.setMockInitialValues({});
     final repository = await VaultRepository.open();
+    if (vaultHosts.isNotEmpty) {
+      await repository.saveVault(VaultData.fromJson({
+        'hosts': [for (final h in vaultHosts) h.toJson()],
+      }));
+    }
     probe = _ProbeSsh();
     result = null;
     closed = false;
@@ -330,6 +343,26 @@ void main() {
         describeProbeTmux(
             const ProbeOutcome(tty: '/dev/pts/1', tmuxProblem: 'exec 被拒绝')),
         allOf(contains('SSH 和终端都通了'), endsWith('exec 被拒绝')));
+  });
+
+  testWidgets('验证状态：测试通过后改路线（加一台跳板）立即回到未验证', (tester) async {
+    final edge = HostProfile({
+      'id': 'edge',
+      'label': 'edge',
+      'hostname': 'edge.example.com',
+      'port': 22,
+      'username': 'ops',
+      'protocol': 'ssh',
+    });
+    await open(tester, host: ssh(), vaultHosts: [edge]);
+    await tester.tap(key('test-connection'));
+    await tester.pumpAndSettle();
+    Navigator.of(tester.element(key('connection-probe-sheet'))).pop();
+    await tester.pumpAndSettle();
+    expect(status(tester), startsWith('已验证'));
+    await reveal(tester, find.byType(ConnectionRouteEditor));
+    await addRouteJump(tester, 'edge');
+    expect(status(tester), startsWith('未验证：测试通过后改了'));
   });
 }
 
