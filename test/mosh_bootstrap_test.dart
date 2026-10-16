@@ -26,13 +26,104 @@ Matcher _fails(MoshBootstrapFailure f) => throwsA(
 
 void main() {
   group('命令', () {
-    test('固定命令，只有端口范围可变', () {
-      expect(MoshBootstrap.command(),
-          'mosh-server new -s -c 256 -l LANG=en_US.UTF-8 -p 60001:60999');
+    test('sh -c 加固定脚本，只有三个单引号包着的位置参数可变', () {
+      final auto = MoshBootstrap.command();
+      expect(auto, startsWith("sh -c '"));
+      expect(auto, endsWith("' shun '60001:60999' 'auto' 'en_US.UTF-8'"));
       expect(MoshBootstrap.command(portRange: (60101, 60108)),
-          'mosh-server new -s -c 256 -l LANG=en_US.UTF-8 -p 60101:60108');
+          endsWith("' shun '60101:60108' 'auto' 'en_US.UTF-8'"));
       expect(MoshBootstrap.command(portRange: (60101, 60101)),
-          endsWith('-p 60101'));
+          endsWith("' shun '60101' 'auto' 'en_US.UTF-8'"));
+      final custom = MoshBootstrap.command(
+          serverPath: '/opt/mosh/bin/mosh-server', locale: 'C.UTF-8');
+      expect(
+          custom,
+          endsWith(
+              "' shun '60001:60999' '/opt/mosh/bin/mosh-server' 'C.UTF-8'"));
+      // 脚本部分不随参数变：用户填的东西进不了脚本。
+      String script(String command) =>
+          command.substring(7, command.indexOf("' shun '"));
+      expect(script(custom), script(auto));
+      final body = script(auto);
+      for (final banned in ["'", '!', r'\', '\n', '\r']) {
+        expect(body, isNot(contains(banned)), reason: banned);
+      }
+      expect(body, contains(r'exec "$m" new -s -c 256 -l "LANG=$l" -p "$p"'));
+      // 自动探测：先 PATH，再按固定顺序。
+      var at = body.indexOf('command -v mosh-server');
+      expect(at, greaterThan(0));
+      for (final location in MoshBootstrap.probeLocations) {
+        final next = body.indexOf('"$location"');
+        expect(next, greaterThan(at), reason: location);
+        at = next;
+      }
+    });
+
+    test('路径和 locale 不合规就不拼命令（注入、相对路径、空段、..）', () {
+      for (final bad in [
+        'mosh-server',
+        'auto',
+        'opt/mosh',
+        '/',
+        '~',
+        '~/',
+        '~user/bin/mosh-server',
+        '/opt/mosh server',
+        "/opt/'x",
+        '/opt/"x',
+        r'/opt/$(id)',
+        '/opt/`id`',
+        '/opt/a;b',
+        '/opt/a|b',
+        '/opt/a&b',
+        r'/opt/a\b',
+        '/opt/a\nb',
+        '/opt/../bin/mosh-server',
+        '/opt/./mosh-server',
+        '/opt//x',
+        '/opt/x/',
+        '/${'a' * 200}',
+      ]) {
+        expect(MoshBootstrap.isValidServerPath(bad), isFalse, reason: bad);
+        expect(
+            () => MoshBootstrap.command(serverPath: bad), throwsArgumentError,
+            reason: bad);
+      }
+      for (final good in [
+        '/usr/bin/mosh-server',
+        '~/.local/bin/mosh-server',
+        '/opt/mosh-1.4/bin/mosh-server',
+        '/nix/store/abc+def/bin/mosh-server',
+      ]) {
+        expect(MoshBootstrap.isValidServerPath(good), isTrue, reason: good);
+      }
+      for (final bad in [
+        '',
+        'C',
+        'en_US',
+        'en_US.ISO-8859-1',
+        'zh_CN.GBK',
+        'LANG=C.UTF-8',
+        "C.UTF-8'",
+        'C.UTF-8; id',
+        'C.UTF-8 ',
+        '../x.UTF-8',
+        r'C.UTF-8$(id)',
+      ]) {
+        expect(MoshBootstrap.isValidLocale(bad), isFalse, reason: bad);
+        expect(() => MoshBootstrap.command(locale: bad), throwsArgumentError,
+            reason: bad);
+      }
+      for (final good in [
+        'C.UTF-8',
+        'C.utf8',
+        'POSIX.UTF-8',
+        'en_US.UTF-8',
+        'zh_CN.utf8',
+        'sr_RS.UTF-8@latin',
+      ]) {
+        expect(MoshBootstrap.isValidLocale(good), isTrue, reason: good);
+      }
     });
 
     test('端口范围无效就不拼命令', () {
@@ -169,6 +260,12 @@ void main() {
             _fails(MoshBootstrapFailure.serverMissing),
             reason: out);
       }
+    });
+
+    test('指定的 mosh-server 路径不能执行：单独报出来，不算「没装」', () {
+      expect(
+          () => MoshBootstrap.parse(_b('${MoshBootstrap.pathNotExecutable}\n')),
+          _fails(MoshBootstrapFailure.serverPathMissing));
     });
 
     test('空输出、只有别的话', () {

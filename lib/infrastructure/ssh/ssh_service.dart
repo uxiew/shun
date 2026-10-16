@@ -764,6 +764,8 @@ class SshService {
     KeyboardInteractiveHandler? keyboardInteractive,
     required ConnectionAttempt attempt,
     (int, int) portRange = MoshBootstrap.defaultPortRange,
+    String? serverPath,
+    String? locale,
     Duration timeout = const Duration(seconds: 20),
   }) async {
     try {
@@ -771,7 +773,11 @@ class SshService {
       if (plan.entry is! DirectEntry || plan.jumps.isNotEmpty) {
         throw StateError('Mosh 只能直连，不能经代理或跳板机引导');
       }
-      final command = MoshBootstrap.command(portRange: portRange);
+      final command = MoshBootstrap.command(
+        portRange: portRange,
+        serverPath: serverPath,
+        locale: locale,
+      );
       final clients = await _establishSsh(
         plan,
         verifyHostKey,

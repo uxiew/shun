@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 /// Mosh 的 SSH 引导：宿主经已核验的 SSH 连接执行固定命令拉起 mosh-server，再从输出里取 UDP 端口和会话 key（docs/16 第 3 步）。
 ///
-/// 这里只有两样纯函数：拼命令（没有任何用户输入能进去）和解析输出（不信任远端、有界、失败即关）。
+/// 这里只有两样纯函数：拼命令（用户能影响的只有三个按白名单校验过的位置参数，进不了脚本本身）和解析输出（不信任远端、有界、失败即关）。
 /// 什么时候执行、经哪条 SSH、失败怎么展示是 X09 的事。
 ///
 /// 会话 key 是秘密：解析结果里的 key 只是字节，[MoshBootstrapResult.toString] 不打印它，错误信息里也从不带原始输出。
@@ -17,20 +17,96 @@ class MoshBootstrap {
   /// 远端输出最多收这么多字节；超过就不解析、直接失败（防止恶意或失控的输出把宿主撑爆）。
   static const maxOutputBytes = 64 * 1024;
 
-  /// 固定命令。只有端口范围是参数，而且是校验过的整数，不经过任何字符串拼接用户数据。
+  /// 没填 locale 时交给 mosh-server 的备用值。
+  static const defaultLocale = 'en_US.UTF-8';
+
+  /// mosh-server 路径为「自动」时，PATH 里找不到再按这个顺序看的位置（`$HOME` 由远端 sh 展开）。
+  /// 固定写在脚本里，不含任何用户输入。
+  static const probeLocations = [
+    '/usr/bin/mosh-server',
+    '/usr/local/bin/mosh-server',
+    '/opt/homebrew/bin/mosh-server',
+    r'$HOME/.local/bin/mosh-server',
+    r'$HOME/.nix-profile/bin/mosh-server',
+    '/nix/var/nix/profiles/default/bin/mosh-server',
+    '/run/current-system/sw/bin/mosh-server',
+  ];
+
+  /// 指定的路径不能执行时脚本打印的固定一行；解析时据此报 [MoshBootstrapFailure.serverPathMissing]。
+  static const pathNotExecutable = 'shun: mosh-server path not executable';
+
+  /// 远端执行的固定脚本，三个位置参数：端口范围、mosh-server 路径（`auto` 或校验过的路径）、locale。
+  ///
+  /// 交给 `sh -c` 而不是让登录 shell 直接跑：登录 shell 可能是 fish、csh，`for`、`case` 写法都不一样。
+  /// 不能出现单引号、`!`、反斜杠和换行，否则在部分登录 shell 里会被改写（同 tmux_protocol 的 isPortableScript）。
+  /// PATH 优先：和以前直接跑 `mosh-server`、和官方 `mosh` 一样，只是找不到时不再直接失败。
+  static final _script = [
+    r'p=$1; l=$3; case $2 in',
+    r'auto) m=$(command -v mosh-server 2>/dev/null);',
+    r'if [ -z "$m" ]; then for c in',
+    probeLocations.map((path) => '"$path"').join(' '),
+    r'; do if [ -x "$c" ]; then m=$c; break; fi; done; fi;',
+    r'if [ -z "$m" ]; then echo "mosh-server: not found" >&2; exit 127; fi;;',
+    r'"~/"*) m="$HOME/${2#"~/"}";;',
+    r'*) m=$2;;',
+    r'esac;',
+    r'if [ -f "$m" ] && [ -x "$m" ]; then :; else echo',
+    '"$pathNotExecutable" >&2; exit 126; fi;',
+    r'exec "$m" new -s -c 256 -l "LANG=$l" -p "$p"',
+  ].join(' ');
+
+  /// 用户填的 mosh-server 路径：`/` 或 `~/` 开头，每段只有字母、数字和 `._+-`，没有空段和 `.`、`..` 段，
+  /// 最长 200 字符。这个字符集放进单引号在任何 shell 里都是字面量。
+  static bool isValidServerPath(String value) {
+    if (value.length > 200) return false;
+    final String rest;
+    if (value.startsWith('~/')) {
+      rest = value.substring(2);
+    } else if (value.startsWith('/')) {
+      rest = value.substring(1);
+    } else {
+      return false;
+    }
+    return rest
+        .split('/')
+        .every((s) => _pathSegment.hasMatch(s) && s != '.' && s != '..');
+  }
+
+  static final _pathSegment = RegExp(r'^[A-Za-z0-9._+-]+$');
+
+  /// mosh-server 只认 UTF-8：`C.UTF-8`、`en_US.UTF-8`、`zh_CN.utf8`、`sr_RS.UTF-8@latin` 这类。
+  static bool isValidLocale(String value) => _locale.hasMatch(value);
+
+  static final _locale = RegExp(
+    r'^(?:C|POSIX|[A-Za-z]{2,8}(?:_[A-Za-z0-9]{2,8})?)\.[Uu][Tt][Ff]-?8(?:@[A-Za-z0-9]{1,16})?$',
+  );
+
+  /// 固定命令。用户能影响的只有端口范围、mosh-server 路径和 locale 三个位置参数，都按白名单校验、单引号包着。
   ///
   /// - `-s`：mosh-server 绑定到这次 SSH 连接的本地地址（官方 mosh 脚本的默认做法）。
   /// - `-c 256`：告诉服务器客户端支持 256 色（宿主的终端引擎支持）。
-  /// - `-l LANG=en_US.UTF-8`：远端默认 locale 不是 UTF-8 时，mosh-server 改用这个；远端没装这个 locale 时，
+  /// - `-l LANG=<locale>`：远端默认 locale 不是 UTF-8 时，mosh-server 改用这个；远端没装这个 locale 时，
   ///   mosh-server 会报「needs a UTF-8 native locale」，解析时识别成 [MoshBootstrapFailure.localeUnsupported]。
+  ///   glibc 系统常见没生成 en_US.UTF-8、只有 C.UTF-8，这时在主机上填 locale 就能起。
   /// - 不带 `--` 和要运行的命令：跑用户的登录 shell，和直接 `mosh host` 一样。
-  static String command({(int, int) portRange = defaultPortRange}) {
+  /// - [serverPath]：null 表示「自动」，见 [probeLocations]；否则必须过 [isValidServerPath]。
+  /// - [locale]：null 用 [defaultLocale]；否则必须过 [isValidLocale]。
+  static String command({
+    (int, int) portRange = defaultPortRange,
+    String? serverPath,
+    String? locale,
+  }) {
     final (low, high) = portRange;
     if (low < 1 || high > 65535 || low > high) {
       throw ArgumentError.value('$low:$high', 'portRange', 'UDP 端口范围无效');
     }
+    if (serverPath != null && !isValidServerPath(serverPath)) {
+      throw ArgumentError.value(serverPath, 'serverPath');
+    }
+    final lang = locale ?? defaultLocale;
+    if (!isValidLocale(lang)) throw ArgumentError.value(lang, 'locale');
     final ports = low == high ? '$low' : '$low:$high';
-    return 'mosh-server new -s -c 256 -l LANG=en_US.UTF-8 -p $ports';
+    return "sh -c '$_script' shun '$ports' '${serverPath ?? 'auto'}' '$lang'";
   }
 
   static final _prefix = ascii.encode('MOSH CONNECT ');
@@ -146,6 +222,9 @@ class MoshBootstrap {
 
   static MoshBootstrapFailure _whyNoConnect(
       Uint8List bytes, bool mentionsConnect) {
+    if (_contains(bytes, ascii.encode(pathNotExecutable))) {
+      return MoshBootstrapFailure.serverPathMissing;
+    }
     if (_contains(bytes, ascii.encode('needs a UTF-8 native locale'))) {
       return MoshBootstrapFailure.localeUnsupported;
     }
@@ -182,10 +261,14 @@ enum MoshBootstrapFailure {
 
   /// 远端没有可用的 UTF-8 locale。
   localeUnsupported(
-      '远端没有可用的 UTF-8 语言环境，mosh-server 拒绝启动（需要在服务器上生成 en_US.UTF-8 等 UTF-8 locale）'),
+      '远端没有可用的 UTF-8 语言环境，mosh-server 拒绝启动（在这台主机的 Mosh 设置里填服务器已有的 UTF-8 locale，或在服务器上生成 en_US.UTF-8）'),
 
-  /// 远端没装 mosh-server。
-  serverMissing('远端没有安装 mosh-server');
+  /// 路径是「自动」，PATH 和 [MoshBootstrap.probeLocations] 里都没有 mosh-server。
+  serverMissing(
+      '远端没有找到 mosh-server（已查 PATH 和常见安装位置）。没装就请管理员装；装在别处就在这台主机的 Mosh 设置里填 mosh-server 路径'),
+
+  /// 用户指定的 mosh-server 路径在远端不存在或不能执行。
+  serverPathMissing('指定的 mosh-server 路径在服务器上不存在或不能执行；改正路径，或清空改回自动');
 
   const MoshBootstrapFailure(this.message);
   final String message;

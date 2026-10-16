@@ -170,7 +170,7 @@ class MoshBootstrapCoordinator {
     attempt.throwIfCancelled();
     final unsupported = moshRouteProblem(plan);
     if (unsupported != null) throw unsupported;
-    final ports = moshPortRangeOf(host);
+    final options = moshServerOptionsOf(host);
     attempt.report(const ConnectionStage(ConnectionStep.plugin));
     final entry = await attempt.waitFor(_runtime.prepare());
     final outcome = await _ssh.bootstrapMosh(
@@ -178,7 +178,9 @@ class MoshBootstrapCoordinator {
       verifyHostKey: verifyHostKey,
       keyboardInteractive: keyboardInteractive,
       attempt: attempt,
-      portRange: ports,
+      portRange: options.portRange,
+      serverPath: options.serverPath,
+      locale: options.locale,
     );
     final authority = outcome.authority;
     if (attempt.isCancelled) {

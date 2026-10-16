@@ -67,6 +67,8 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   late final TextEditingController connectTimeout;
   late final TextEditingController authTimeout;
   late final TextEditingController moshPorts;
+  late final TextEditingController moshServerPath;
+  late final TextEditingController moshLocale;
   late final ConnectionRouteDraft route;
   late HostProtocol protocol;
   late HostAuthMethod authMethod;
@@ -115,6 +117,12 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     moshPorts = TextEditingController(
       text: host?.data[moshPortsKey]?.toString() ?? '',
     );
+    moshServerPath = TextEditingController(
+      text: host?.data[moshServerPathKey]?.toString() ?? '',
+    );
+    moshLocale = TextEditingController(
+      text: host?.data[moshLocaleKey]?.toString() ?? '',
+    );
     protocol = host?.protocol ?? widget.initialProtocol;
     authMethod = host?.authMethod ?? HostAuthMethod.auto;
     loginMode = host == null ? SshLoginMode.standard : sshLoginModeOf(host);
@@ -158,6 +166,8 @@ class _HostEditorState extends ConsumerState<HostEditor> {
       connectTimeout,
       authTimeout,
       moshPorts,
+      moshServerPath,
+      moshLocale,
     ]) {
       controller.dispose();
     }
@@ -423,6 +433,33 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                     helperMaxLines: 3,
                   ),
                   validator: _validMoshPorts,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const ValueKey('mosh-server-path'),
+                  controller: moshServerPath,
+                  decoration: LInputDecoration(
+                    labelText: 'mosh-server 路径',
+                    hintText: '自动',
+                    helperText:
+                        '留空就先按 PATH 找，再查 /usr/bin、/usr/local/bin、/opt/homebrew/bin、~/.local/bin、nix profile。'
+                        '装在别处、连接时报「没有找到 mosh-server」才填，如 /opt/mosh/bin/mosh-server。',
+                    helperMaxLines: 3,
+                  ),
+                  validator: _validMoshServerPath,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  key: const ValueKey('mosh-locale'),
+                  controller: moshLocale,
+                  decoration: LInputDecoration(
+                    labelText: 'Mosh locale',
+                    hintText: '自动',
+                    helperText:
+                        '留空用 en_US.UTF-8。连接时报「没有可用的 UTF-8 语言环境」才填服务器上有的，比如 C.UTF-8。',
+                    helperMaxLines: 3,
+                  ),
+                  validator: _validMoshLocale,
                 ),
               ],
               // 测试连接只走 SSH、只查 PTY，测不了 Mosh 的 UDP 那一段：给 Mosh 主机一个「测试通过」反而误导。
@@ -706,6 +743,24 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     }
   }
 
+  String? _validMoshServerPath(String? value) {
+    try {
+      parseMoshServerPath(value);
+      return null;
+    } on RouteConfigException catch (error) {
+      return error.message;
+    }
+  }
+
+  String? _validMoshLocale(String? value) {
+    try {
+      parseMoshLocale(value);
+      return null;
+    } on RouteConfigException catch (error) {
+      return error.message;
+    }
+  }
+
   Future<void> _openKeychain() => showModalBottomSheet<void>(
         context: context,
         isScrollControlled: true,
@@ -754,13 +809,15 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     _setOrRemove(data, 'identityFileId', identityFileId);
     _setOrRemove(data, 'startupCommand', startupCommand.text.trim());
     // SSH/Mosh 共用表单：切回 SSH 保留 Mosh 选项，执行时仍只按当前协议。
-    _setOrRemove(
-      data,
-      moshPortsKey,
-      (protocol == HostProtocol.ssh || protocol == HostProtocol.mosh)
-          ? moshPorts.text.trim()
-          : null,
-    );
+    final keepsMosh =
+        protocol == HostProtocol.ssh || protocol == HostProtocol.mosh;
+    for (final (key, controller) in [
+      (moshPortsKey, moshPorts),
+      (moshServerPathKey, moshServerPath),
+      (moshLocaleKey, moshLocale),
+    ]) {
+      _setOrRemove(data, key, keepsMosh ? controller.text.trim() : null);
+    }
     // 同理，只有插件主机才留 pluginId。
     _setOrRemove(
       data,

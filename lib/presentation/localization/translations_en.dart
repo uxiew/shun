@@ -1919,9 +1919,26 @@ const englishTranslations = <String, String>{
       'The port returned by mosh-server is outside the requested range',
   'mosh-server 返回的会话密钥格式不对':
       'The session key returned by mosh-server is malformed',
-  '远端没有可用的 UTF-8 语言环境，mosh-server 拒绝启动（需要在服务器上生成 en_US.UTF-8 等 UTF-8 locale）':
-      'The server has no usable UTF-8 locale, so mosh-server refused to start (generate a UTF-8 locale such as en_US.UTF-8 on the server)',
-  '远端没有安装 mosh-server': 'mosh-server is not installed on the server',
+  '远端没有可用的 UTF-8 语言环境，mosh-server 拒绝启动（在这台主机的 Mosh 设置里填服务器已有的 UTF-8 locale，或在服务器上生成 en_US.UTF-8）':
+      'The server has no usable UTF-8 locale, so mosh-server refused to start (enter a UTF-8 locale the server has in this host’s Mosh settings, or generate en_US.UTF-8 on the server)',
+  // R41：mosh-server 路径与 locale 覆盖。
+  '远端没有找到 mosh-server（已查 PATH 和常见安装位置）。没装就请管理员装；装在别处就在这台主机的 Mosh 设置里填 mosh-server 路径':
+      'mosh-server was not found on the server (PATH and common install locations were checked). If it is not installed, ask the administrator; if it is installed elsewhere, enter its path in this host’s Mosh settings',
+  '指定的 mosh-server 路径在服务器上不存在或不能执行；改正路径，或清空改回自动':
+      'The mosh-server path you entered does not exist on the server or is not executable; fix the path, or clear it to go back to automatic',
+  'mosh-server 路径写得不对：\$text（写 / 或 ~/ 开头的完整路径，如 /opt/mosh/bin/mosh-server；只能有字母、数字和 . _ + - /）':
+      'Invalid mosh-server path: \$text (use a full path starting with / or ~/, such as /opt/mosh/bin/mosh-server; only letters, digits and . _ + - / are allowed)',
+  'Mosh locale 写得不对：\$text（写成 C.UTF-8、en_US.UTF-8 这类 UTF-8 locale）':
+      'Invalid Mosh locale: \$text (use a UTF-8 locale such as C.UTF-8 or en_US.UTF-8)',
+  'mosh-server 路径': 'mosh-server path',
+  '留空就先按 PATH 找，再查 /usr/bin、/usr/local/bin、/opt/homebrew/bin、~/.local/bin、nix profile。装在别处、连接时报「没有找到 mosh-server」才填，如 /opt/mosh/bin/mosh-server。':
+      'Leave empty to search PATH first, then /usr/bin, /usr/local/bin, /opt/homebrew/bin, ~/.local/bin and the nix profile. Fill it in only when mosh-server lives elsewhere and connecting reports “mosh-server was not found”, e.g. /opt/mosh/bin/mosh-server.',
+  '留空用 en_US.UTF-8。连接时报「没有可用的 UTF-8 语言环境」才填服务器上有的，比如 C.UTF-8。':
+      'Leave empty to use en_US.UTF-8. Fill in one the server has, such as C.UTF-8, only when connecting reports “no usable UTF-8 locale”.',
+  '在服务器上用 command -v mosh-server 查实际位置，把完整路径填到主机的 Mosh 设置里；清空就改回自动查找。SSH 这一段是通的。':
+      'Run command -v mosh-server on the server to find where it is, and enter the full path in this host’s Mosh settings; clear it to search automatically again. The SSH leg works.',
+  '服务器上没有要用的 UTF-8 locale（没填时用 en_US.UTF-8）。先在服务器上用 locale -a 看有哪些 UTF-8 locale（很多系统自带 C.UTF-8），填到主机的 Mosh locale 里；或者让管理员生成一个（比如 locale-gen en_US.UTF-8）。':
+      'The server lacks the UTF-8 locale being used (en_US.UTF-8 when none is set). Run locale -a on the server to see which UTF-8 locales exist (many systems ship C.UTF-8) and enter one as this host’s Mosh locale, or ask the administrator to generate one (for example locale-gen en_US.UTF-8).',
   '会话密钥已清除': 'The session key has been wiped',
   'MoshBootstrapResult(port: \$port, key: <已隐藏>)':
       'MoshBootstrapResult(port: \$port, key: <hidden>)',

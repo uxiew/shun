@@ -118,7 +118,41 @@ void main() {
       expect(moshPortRangeOf(mosh({moshPortsKey: '60001:60010'})), (60001, 60010));
       // 拼出来的命令里只有校验过的数字。
       expect(MoshBootstrap.command(portRange: parseMoshPorts('60001:60010')),
-          'mosh-server new -s -c 256 -l LANG=en_US.UTF-8 -p 60001:60010');
+          endsWith("' shun '60001:60010' 'auto' 'en_US.UTF-8'"));
+    });
+  });
+
+  group('mosh-server 路径与 locale（R41）', () {
+    test('空着就是自动；填了原样交给命令；写错在连接前就拒绝', () {
+      final auto = moshServerOptionsOf(mosh());
+      expect(auto.serverPath, isNull);
+      expect(auto.locale, isNull);
+      expect(auto.portRange, (60001, 60999));
+      final custom = moshServerOptionsOf(mosh({
+        moshServerPathKey: ' ~/.local/bin/mosh-server ',
+        moshLocaleKey: 'C.UTF-8',
+        moshPortsKey: '60101:60108',
+      }));
+      expect(custom.serverPath, '~/.local/bin/mosh-server');
+      expect(custom.locale, 'C.UTF-8');
+      expect(
+          MoshBootstrap.command(
+            portRange: custom.portRange,
+            serverPath: custom.serverPath,
+            locale: custom.locale,
+          ),
+          endsWith(
+              "' shun '60101:60108' '~/.local/bin/mosh-server' 'C.UTF-8'"));
+      for (final bad in [
+        {moshServerPathKey: 'mosh-server; id'},
+        {moshServerPathKey: 'bin/mosh-server'},
+        {moshLocaleKey: 'en_US'},
+        {moshLocaleKey: r'C.UTF-8$(id)'},
+      ]) {
+        expect(() => moshServerOptionsOf(mosh(bad)),
+            throwsA(isA<RouteConfigException>()),
+            reason: '$bad');
+      }
     });
   });
 
@@ -299,6 +333,28 @@ void main() {
       expect(connectionHint(pending.error!), contains('改回 SSH'));
     });
 
+    test('主机上的 mosh-server 路径、locale、端口原样交给引导；写错就不引导', () async {
+      expect(
+          await controller.connect(
+              mosh({
+                moshServerPathKey: '/opt/mosh/bin/mosh-server',
+                moshLocaleKey: 'C.UTF-8',
+                moshPortsKey: '60101:60108',
+              }),
+              accept),
+          isTrue);
+      expect(ssh.lastOptions, (
+        portRange: (60101, 60108),
+        serverPath: '/opt/mosh/bin/mosh-server',
+        locale: 'C.UTF-8',
+      ));
+      await expectLater(
+        controller.connect(mosh({moshLocaleKey: 'en_US'}), accept),
+        throwsA(isA<RouteConfigException>()),
+      );
+      expect(ssh.bootstraps, 1, reason: '写错的 locale 在引导前就停了');
+    });
+
     test('插件不能用：停在本机这一步，不去服务器上启动任何东西', () async {
       plugin.unavailable = const MoshPluginUnavailable('Mosh 插件还没批准');
       await expectLater(controller.connect(mosh(), accept),
@@ -347,6 +403,7 @@ class _FakeBootstrapSsh extends SshService {
   var bootstraps = 0;
   var shells = 0;
   Completer<void>? gate;
+  MoshServerOptions? lastOptions;
 
   @override
   Future<MoshBootstrapOutcome> bootstrapMosh({
@@ -355,9 +412,13 @@ class _FakeBootstrapSsh extends SshService {
     KeyboardInteractiveHandler? keyboardInteractive,
     required ConnectionAttempt attempt,
     (int, int) portRange = MoshBootstrap.defaultPortRange,
+    String? serverPath,
+    String? locale,
     Duration timeout = const Duration(seconds: 20),
   }) async {
     bootstraps++;
+    lastOptions =
+        (portRange: portRange, serverPath: serverPath, locale: locale);
     await gate?.future;
     return MoshBootstrapOutcome(
       '10.0.2.2',

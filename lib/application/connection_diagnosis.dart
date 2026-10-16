@@ -27,8 +27,11 @@ String? connectionHint(Object error) {
     MoshBootstrapException(failure: MoshBootstrapFailure.serverMissing) =>
       '请服务器管理员安装 mosh（Debian/Ubuntu：apt install mosh；Alpine：apk add mosh-server）。'
           '本 App 不会替你安装，也不会用 sudo。SSH 这一段是通的。',
+    MoshBootstrapException(failure: MoshBootstrapFailure.serverPathMissing) =>
+      '在服务器上用 command -v mosh-server 查实际位置，把完整路径填到主机的 Mosh 设置里；清空就改回自动查找。SSH 这一段是通的。',
     MoshBootstrapException(failure: MoshBootstrapFailure.localeUnsupported) =>
-      '在服务器上生成一个 UTF-8 语言环境（比如 locale-gen en_US.UTF-8），再连。',
+      '服务器上没有要用的 UTF-8 locale（没填时用 en_US.UTF-8）。先在服务器上用 locale -a 看有哪些 UTF-8 locale（很多系统自带 C.UTF-8），'
+          '填到主机的 Mosh locale 里；或者让管理员生成一个（比如 locale-gen en_US.UTF-8）。',
     MoshBootstrapException() =>
       '服务器上的 mosh-server 给出的连接信息不可信，没有用它；SSH 这一段是通的。检查服务器登录脚本有没有往输出里打东西。',
     RouteConfigException() => '路线配置有问题：到主机编辑器的「连接路径」里改，保存前会检查。',

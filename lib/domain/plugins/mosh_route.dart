@@ -60,6 +60,51 @@ const moshPortsKey = 'shunMoshPorts';
   return (low, high);
 }
 
+/// 主机上指定的 mosh-server 路径（R41）。没填 = 自动：先 PATH，再按 [MoshBootstrap.probeLocations]。同样是本 fork 加的字段。
+const moshServerPathKey = 'shunMoshServerPath';
+
+/// 主机上指定的 locale（R41）。没填 = 自动：用 [MoshBootstrap.defaultLocale]。
+const moshLocaleKey = 'shunMoshLocale';
+
+/// 交给引导命令的三个覆盖项。null 表示自动。
+typedef MoshServerOptions = ({
+  (int, int) portRange,
+  String? serverPath,
+  String? locale,
+});
+
+/// 任何一项格式不对都抛 [RouteConfigException]：连接前就停，不拿猜出来的值去远端启动 mosh-server。
+MoshServerOptions moshServerOptionsOf(HostProfile host) => (
+      portRange: moshPortRangeOf(host),
+      serverPath: parseMoshServerPath(host.data[moshServerPathKey]?.toString()),
+      locale: parseMoshLocale(host.data[moshLocaleKey]?.toString()),
+    );
+
+/// 空白返回 null（自动）。
+String? parseMoshServerPath(String? raw) {
+  final text = raw?.trim() ?? '';
+  if (text.isEmpty) return null;
+  if (!MoshBootstrap.isValidServerPath(text)) {
+    throw RouteConfigException(
+      'mosh-server 路径写得不对：$text（写 / 或 ~/ 开头的完整路径，如 /opt/mosh/bin/mosh-server；'
+      '只能有字母、数字和 . _ + - /）',
+    );
+  }
+  return text;
+}
+
+/// 空白返回 null（自动）。
+String? parseMoshLocale(String? raw) {
+  final text = raw?.trim() ?? '';
+  if (text.isEmpty) return null;
+  if (!MoshBootstrap.isValidLocale(text)) {
+    throw RouteConfigException(
+      'Mosh locale 写得不对：$text（写成 C.UTF-8、en_US.UTF-8 这类 UTF-8 locale）',
+    );
+  }
+  return text;
+}
+
 /// 用户选的路线 Mosh 承载不了。抛出时还没有拨出任何连接。
 class MoshRouteUnsupported implements Exception {
   const MoshRouteUnsupported(this.route, this.description);

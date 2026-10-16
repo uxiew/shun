@@ -277,7 +277,7 @@ void main() {
       expect(error, isA<MoshBootstrapException>());
       expect((error! as MoshBootstrapException).failure,
           MoshBootstrapFailure.serverMissing);
-      expect('$error', '远端没有安装 mosh-server');
+      expect('$error', MoshBootstrapFailure.serverMissing.message);
       final d = await delta(before, await f.counts());
       expect(d['loginsNomosh'], 1, reason: 'SSH 这一段是通的');
       expect(d['installAttempts'], 0, reason: '记账的 sudo/apk/apt-get 一次都没被调用');
