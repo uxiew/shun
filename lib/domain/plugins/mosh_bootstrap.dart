@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
+import '../tmux/tmux_target.dart';
+
 /// Mosh 的 SSH 引导：宿主经已核验的 SSH 连接执行固定命令拉起 mosh-server，再从输出里取 UDP 端口和会话 key（docs/16 第 3 步）。
 ///
 /// 这里只有两样纯函数：拼命令（用户能影响的只有三个按白名单校验过的位置参数，进不了脚本本身）和解析输出（不信任远端、有界、失败即关）。
@@ -40,7 +42,7 @@ class MoshBootstrap {
   /// 交给 `sh -c` 而不是让登录 shell 直接跑：登录 shell 可能是 fish、csh，`for`、`case` 写法都不一样。
   /// 不能出现单引号、`!`、反斜杠和换行，否则在部分登录 shell 里会被改写（同 tmux_protocol 的 isPortableScript）。
   /// PATH 优先：和以前直接跑 `mosh-server`、和官方 `mosh` 一样，只是找不到时不再直接失败。
-  static final _script = [
+  static final _locate = [
     r'p=$1; l=$3; case $2 in',
     r'auto) m=$(command -v mosh-server 2>/dev/null);',
     r'if [ -z "$m" ]; then for c in',
@@ -52,8 +54,39 @@ class MoshBootstrap {
     r'esac;',
     r'if [ -f "$m" ] && [ -x "$m" ]; then :; else echo',
     '"$pathNotExecutable" >&2; exit 126; fi;',
-    r'exec "$m" new -s -c 256 -l "LANG=$l" -p "$p"',
   ].join(' ');
+
+  static const _start = r'exec "$m" new -s -c 256 -l "LANG=$l" -p "$p"';
+
+  static final _script = '$_locate $_start';
+
+  /// 附着 tmux 的变体（R42）：第 4–8 个位置参数是 socket 种类（D/L/S）、socket 名或路径、uid、
+  /// R21 的核对串（`$ID:server pid:server 启动时间:会话创建时间`）和会话 ID。
+  ///
+  /// 先按 R21 的规矩核对：登录的还是那个 uid、socket 还在、server 还是那一代、会话还是那一个；
+  /// 对不上就按 tmux_protocol 的约定退出（95 没有 tmux、96 换了用户、97 目标不在了），不起 mosh-server、
+  /// 不建会话。核对过了才让 mosh-server 的子进程直接 exec `tmux -u -S <socket> attach-session -t $ID`：
+  /// 按会话 ID 附着（tmux 对 `$` 开头的目标只精确匹配 ID，不退回到按名字或前缀找），不带 -d，
+  /// 不踢掉别的客户端；不经交互式 shell，用户 .bashrc 里的东西碰不到它。
+  ///
+  /// 核对和附着之间隔着「Mosh 客户端连上」：mosh-server 先把子进程建好，等第一个客户端的包到了才放它 exec
+  /// （mosh 1.4.0 `mosh-server.cc`）。这一小段里会话可能变，所以切换方还要在 SSH 上按父进程再核一次
+  /// （tmux_protocol 的 `tmuxClientByParentCommand`）：核不到就不算切换成功。
+  static final _tmuxScript = [
+    _locate,
+    r'case "$4" in S) s=$5;; L) s=${TMUX_TMPDIR:-/tmp}/tmux-$(id -u)/$5;; *) s=${TMUX_TMPDIR:-/tmp}/tmux-$(id -u)/default;; esac;',
+    r'[ "$(id -u)" = "$6" ] || exit 96;',
+    r't=$(command -v tmux 2>/dev/null); [ -n "$t" ] || exit 95;',
+    r'[ -S "$s" ] || exit 97;',
+    r'g=$("$t" -S "$s" display-message -p -t "$8" "#{session_id}:#{pid}:#{start_time}:#{session_created}" 2>/dev/null);',
+    r'[ "$g" = "$7" ] || exit 97;',
+    _start,
+    r'-- "$t" -u -S "$s" attach-session -t "$8"',
+  ].join(' ');
+
+  /// tmux 变体的位置参数只收这些字符（同 tmux_protocol）：都来自按白名单解析过的 [TmuxTarget]。
+  static final _tmuxArgument = RegExp(r'^[A-Za-z0-9_./+@:%$-]{1,240}$');
+  static final _tmuxSessionId = RegExp(r'^\$\d{1,9}$');
 
   /// 用户填的 mosh-server 路径：`/` 或 `~/` 开头，每段只有字母、数字和 `._+-`，没有空段和 `.`、`..` 段，
   /// 最长 200 字符。这个字符集放进单引号在任何 shell 里都是字面量。
@@ -91,10 +124,12 @@ class MoshBootstrap {
   /// - 不带 `--` 和要运行的命令：跑用户的登录 shell，和直接 `mosh host` 一样。
   /// - [serverPath]：null 表示「自动」，见 [probeLocations]；否则必须过 [isValidServerPath]。
   /// - [locale]：null 用 [defaultLocale]；否则必须过 [isValidLocale]。
+  /// - [tmux]：给了就不跑登录 shell，而是核对后附着这个 tmux 会话（R42，见 [_tmuxScript]）。
   static String command({
     (int, int) portRange = defaultPortRange,
     String? serverPath,
     String? locale,
+    TmuxTarget? tmux,
   }) {
     final (low, high) = portRange;
     if (low < 1 || high > 65535 || low > high) {
@@ -106,11 +141,32 @@ class MoshBootstrap {
     final lang = locale ?? defaultLocale;
     if (!isValidLocale(lang)) throw ArgumentError.value(lang, 'locale');
     final ports = low == high ? '$low' : '$low:$high';
-    return "sh -c '$_script' shun '$ports' '${serverPath ?? 'auto'}' '$lang'";
+    final base = "shun '$ports' '${serverPath ?? 'auto'}' '$lang'";
+    if (tmux == null) return "sh -c '$_script' $base";
+    if (!_tmuxSessionId.hasMatch(tmux.sessionId)) {
+      throw ArgumentError.value(tmux.sessionId, 'tmux.sessionId');
+    }
+    final extra = [
+      ...switch (tmux.socket.kind) {
+        TmuxSocketKind.standard => ['D', '-'],
+        TmuxSocketKind.named => ['L', tmux.socket.value],
+        TmuxSocketKind.path => ['S', tmux.socket.value],
+      },
+      '${tmux.uid}',
+      tmux.guard,
+      tmux.sessionId,
+    ];
+    for (final value in extra) {
+      if (!_tmuxArgument.hasMatch(value)) {
+        throw ArgumentError.value(value, 'tmux', 'character not allowed');
+      }
+    }
+    return "sh -c '$_tmuxScript' $base ${extra.map((v) => "'$v'").join(' ')}";
   }
 
   static final _prefix = ascii.encode('MOSH CONNECT ');
   static final _mention = ascii.encode('MOSH CONNECT');
+  static final _detachedPrefix = ascii.encode('[mosh-server detached, pid = ');
 
   /// 解析 `mosh-server new` 的输出（stdout 和 stderr 合在一起传进来，顺序无所谓）。
   ///
@@ -131,6 +187,8 @@ class MoshBootstrap {
     Uint8List? key;
     var found = 0;
     var mentionsConnect = false;
+    int? serverPid;
+    var pidLines = 0;
     var start = 0;
     while (start <= bytes.length) {
       var end = bytes.indexOf(0x0a, start);
@@ -140,6 +198,11 @@ class MoshBootstrap {
       if (lineEnd > start && bytes[lineEnd - 1] == 0x0d) lineEnd--;
       final line = Uint8List.sublistView(bytes, start, lineEnd);
       if (_contains(line, _mention)) mentionsConnect = true;
+      final pid = _parseDetachedPid(line);
+      if (pid != null) {
+        pidLines++;
+        serverPid = pid;
+      }
       final parsed = _parseLine(line);
       if (parsed != null) {
         found++;
@@ -166,7 +229,31 @@ class MoshBootstrap {
       key.fillRange(0, key.length, 0);
       throw const MoshBootstrapException(MoshBootstrapFailure.badKey);
     }
-    return MoshBootstrapResult._(port, key);
+    // pid 行只用来核对「附着 tmux 的是不是这个 mosh-server 拉起的」（R42）。不是恰好一行就当没有：
+    // 多一行可能是 motd 或恶意服务器夹带的，分不出哪个是真的。
+    return MoshBootstrapResult._(port, key,
+        serverPid: pidLines == 1 ? serverPid : null);
+  }
+
+  /// 整行必须恰好是 `[mosh-server detached, pid = <1–10 位、不以 0 开头、大于 1 的数>]`。
+  /// pid 1 是 init：父进程是它的孤儿进程太多，拿它核对什么都证明不了。
+  static int? _parseDetachedPid(Uint8List line) {
+    if (line.length < _detachedPrefix.length + 2) return null;
+    for (var i = 0; i < _detachedPrefix.length; i++) {
+      if (line[i] != _detachedPrefix[i]) return null;
+    }
+    if (line.last != 0x5d) return null; // ]
+    final digits = Uint8List.sublistView(
+        line, _detachedPrefix.length, line.length - 1);
+    if (digits.isEmpty || digits.length > 10 || digits.first == 0x30) {
+      return null;
+    }
+    var pid = 0;
+    for (final c in digits) {
+      if (c < 0x30 || c > 0x39) return null;
+      pid = pid * 10 + (c - 0x30);
+    }
+    return pid > 1 && pid <= 0x7fffffff ? pid : null;
   }
 
   /// 整行必须恰好是 `MOSH CONNECT <1–5 位、不以 0 开头的端口> <22 个 base64 字符>`，前后不许夹别的字节。
@@ -285,9 +372,13 @@ class MoshBootstrapException implements Exception {
 
 /// 解析出的连接材料。key 是 22 个 base64 字符的 ASCII 字节，交给插件后调用 [wipe]。
 class MoshBootstrapResult {
-  MoshBootstrapResult._(this.port, this._key);
+  MoshBootstrapResult._(this.port, this._key, {this.serverPid});
 
   final int port;
+
+  /// mosh-server 转到后台后的进程号（它自己印的 `[mosh-server detached, pid = N]`）。
+  /// 它拉起的 shell 或 tmux 客户端的父进程就是它。没印、印了不止一行、写得不对时为 null。
+  final int? serverPid;
   final Uint8List _key;
   var _wiped = false;
 
@@ -303,7 +394,8 @@ class MoshBootstrapResult {
   }
 
   @override
-  String toString() => 'MoshBootstrapResult(port: $port, key: <已隐藏>)';
+  String toString() =>
+      'MoshBootstrapResult(port: $port, serverPid: $serverPid, key: <已隐藏>)';
 }
 
 /// 交给 Mosh 插件的一次会话目标：宿主按路由解析好的数字 IP + 这次 bootstrap 的结果。

@@ -5,6 +5,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/domain/plugins/mosh_bootstrap.dart';
+import 'package:shun/domain/tmux/tmux_target.dart';
 
 const _key = 'v450/k6rhyS3hwDL4ejCIQ'; // 规范 base64（最后一位 Q 的低 4 位为 0）
 const _real = '\r\n'
@@ -126,6 +127,64 @@ void main() {
       }
     });
 
+    TmuxTarget target({
+      TmuxSocketSpec socket = const TmuxSocketSpec.standard(),
+      String sessionId = r'$3',
+    }) =>
+        TmuxTarget(
+          hostKey: 'box:22',
+          unixUser: 'ops',
+          uid: 1000,
+          socket: socket,
+          server: const TmuxServerIdentity(
+              socketPath: '/tmp/tmux-1000/default', pid: 4242, startTime: 17),
+          sessionId: sessionId,
+          sessionCreated: 99,
+          displayName: "w'o\$(id)rk",
+        );
+
+    test('附着 tmux（R42）：前三个参数不变，后五个是 socket、uid、核对串、会话 ID；名字不进命令', () {
+      final command = MoshBootstrap.command(
+          portRange: (60101, 60108), tmux: target());
+      expect(command, startsWith("sh -c '"));
+      expect(
+          command,
+          endsWith("' shun '60101:60108' 'auto' 'en_US.UTF-8' "
+              "'D' '-' '1000' '\$3:4242:17:99' '\$3'"));
+      expect(command, isNot(contains(r'$(id)rk')), reason: '会话名只给人看，不进命令');
+      expect(
+          MoshBootstrap.command(
+              tmux: target(socket: TmuxSocketSpec.named('work.sock'))),
+          endsWith("'L' 'work.sock' '1000' '\$3:4242:17:99' '\$3'"));
+      expect(
+          MoshBootstrap.command(
+              tmux: target(socket: TmuxSocketSpec.path('/run/t/s'))),
+          endsWith("'S' '/run/t/s' '1000' '\$3:4242:17:99' '\$3'"));
+      final body = command.substring(7, command.indexOf("' shun '"));
+      for (final banned in ["'", '!', r'\', '\n', '\r']) {
+        expect(body, isNot(contains(banned)), reason: banned);
+      }
+      // 先找 mosh-server，再核对 tmux 目标，最后才 exec：核对不过就不起。
+      final locate = body.indexOf('command -v mosh-server');
+      final guard = body.indexOf('display-message');
+      final start = body.indexOf(r'exec "$m" new');
+      expect(locate, lessThan(guard));
+      expect(guard, lessThan(start));
+      expect(body, contains(r'[ "$g" = "$7" ] || exit 97;'));
+      expect(body,
+          endsWith(r'-- "$t" -u -S "$s" attach-session -t "$8"'));
+      expect(body, isNot(contains('attach-session -d')));
+      expect(body, isNot(contains('new-session')));
+    });
+
+    test(r'附着 tmux：目标里的会话 ID 不是 `$数字` 就不拼', () {
+      for (final bad in ['3', r'$', r'$3;id', 'work', r'$3 ']) {
+        expect(() => MoshBootstrap.command(tmux: target(sessionId: bad)),
+            throwsArgumentError,
+            reason: bad);
+      }
+    });
+
     test('端口范围无效就不拼命令', () {
       for (final r in [(0, 10), (10, 65536), (60010, 60001), (-1, 5)]) {
         expect(() => MoshBootstrap.command(portRange: r), throwsArgumentError,
@@ -139,6 +198,38 @@ void main() {
       final r = MoshBootstrap.parse(_b(_real));
       expect(r.port, 60101);
       expect(ascii.decode(r.printableKey), _key);
+      expect(r.serverPid, 27);
+    });
+
+    test('detached 行（R42）：只认恰好一行、整行合规矩、pid 大于 1', () {
+      const connect = 'MOSH CONNECT 60101 $_key\n';
+      int? pid(String tail) =>
+          MoshBootstrap.parse(_b('$connect$tail')).serverPid;
+      expect(pid('[mosh-server detached, pid = 4321]\r\n'), 4321);
+      expect(pid(''), isNull, reason: '没印就是不知道');
+      expect(
+          pid('[mosh-server detached, pid = 11]\n'
+              '[mosh-server detached, pid = 4321]\n'),
+          isNull,
+          reason: '两行分不出哪个是真的');
+      for (final bad in [
+        '[mosh-server detached, pid = 1]', // init
+        '[mosh-server detached, pid = 0]',
+        '[mosh-server detached, pid = 0123]',
+        '[mosh-server detached, pid = 12345678901]',
+        '[mosh-server detached, pid = 12a]',
+        '[mosh-server detached, pid = ]',
+        'x[mosh-server detached, pid = 4321]',
+        '[mosh-server detached, pid = 4321] ',
+        '[mosh-server detached, pid =  4321]',
+        '[mosh-server detached, pid = 43\r21]',
+      ]) {
+        expect(pid('$bad\n'), isNull, reason: bad);
+      }
+      // toString 里有 pid，仍然没有 key。
+      final r = MoshBootstrap.parse(_b(_real));
+      expect('$r', contains('serverPid: 27'));
+      expect('$r', isNot(contains(_key)));
     });
 
     test('toString 不带 key；wipe 之后 key 全 0、再取报错', () {

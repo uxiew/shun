@@ -114,6 +114,51 @@ class TmuxService {
   Future<void> detach(SSHClient client, TmuxClientBinding binding) =>
       _action(client, tmuxDetachCommand(binding));
 
+  /// 目标会话上父进程是 [parentPid] 的那个客户端（R42：mosh-server 拉起的 tmux attach），还没附着上时为 null。
+  /// 目标不在了、换了一代抛 [TmuxTargetGoneException]；不止一个匹配（不该发生）就不认，抛错。
+  Future<TmuxClientBinding?> clientUnder(
+    SSHClient client,
+    TmuxTarget target,
+    int parentPid,
+  ) async {
+    final result = await _run(
+      client,
+      tmuxClientByParentCommand(target, parentPid),
+      timeout: probeTimeout,
+      maxBytes: 16 * 1024,
+    );
+    final error = tmuxExitError(result.exitCode, result.output);
+    if (error != null) throw error;
+    final matches = parseClientsByParent(result.output);
+    if (matches.length > 1) {
+      throw const TmuxCommandException(
+          '同一个 mosh-server 下面出现了不止一个 tmux 客户端，分不出哪个是这次的，没有切换');
+    }
+    if (matches.isEmpty) return null;
+    return TmuxClientBinding(
+      target: target,
+      clientTty: matches.single.tty,
+      clientPid: matches.single.pid,
+    );
+  }
+
+  /// 这个确定的客户端还附着在它的目标会话上吗。目标不在了抛 [TmuxTargetGoneException]。
+  Future<bool> clientPresent(
+    SSHClient client,
+    TmuxClientBinding binding,
+  ) async {
+    final result = await _run(
+      client,
+      tmuxClientPresentCommand(binding),
+      timeout: probeTimeout,
+      maxBytes: 16 * 1024,
+    );
+    if (result.exitCode == TmuxExit.clientGone) return false;
+    final error = tmuxExitError(result.exitCode, result.output);
+    if (error != null) throw error;
+    return true;
+  }
+
   Future<void> _action(SSHClient client, String command,
       {String? stdin}) async {
     final result = await _run(

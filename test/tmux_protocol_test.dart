@@ -36,9 +36,62 @@ void main() {
         tmuxMouseUnsetScript,
         tmuxDetachScript,
         tmuxAttachScript,
+        tmuxClientByParentScript,
+        tmuxClientPresentScript,
       ]) {
         expect(isPortableScript(script), isTrue, reason: script);
       }
+    });
+
+    test('R42 的两个只读核对：先核目标身份，只列客户端，不分离、不建、不杀', () {
+      for (final script in [tmuxClientByParentScript, tmuxClientPresentScript]) {
+        expect(script, contains(r'[ "$g" = "$4" ] || exit 97'));
+        expect(script, contains(r'[ "$(id -u)" = "$3" ] || exit 96'));
+        expect(script, contains(r'list-clients -t "$5"'));
+        for (final verb in [
+          'detach-client',
+          'kill-',
+          'new-session',
+          'attach-session',
+          'send-keys',
+          'set-option',
+        ]) {
+          expect(script, isNot(contains(verb)), reason: verb);
+        }
+      }
+      expect(
+        tmuxClientByParentCommand(target, 4321),
+        endsWith(r" shun 'D' '-' '1000' '$3:70:1700000000:1700000100' '$3' '4321'"),
+      );
+      for (final bad in [1, 0, -5]) {
+        expect(() => tmuxClientByParentCommand(target, bad), throwsArgumentError,
+            reason: '$bad');
+      }
+      const binding =
+          TmuxClientBinding(target: target, clientTty: '/dev/pts/4', clientPid: 88);
+      expect(
+        tmuxClientPresentCommand(binding),
+        endsWith(r" '$3' '/dev/pts/4' '88'"),
+      );
+      expect(
+        () => tmuxClientPresentCommand(const TmuxClientBinding(
+            target: target, clientTty: '/dev/pts/4; id', clientPid: 88)),
+        throwsArgumentError,
+      );
+    });
+
+    test('按父进程找到的客户端：只认 M 行，终端和 pid 不合规矩的丢掉', () {
+      expect(
+        parseClientsByParent('M\t/dev/pts/7\t991\n'
+            'M\t/dev/pts/7; id\t992\n'
+            'M\t/dev/pts/8\t0\n'
+            'M\t/dev/pts/9\tabc\n'
+            'X\t/dev/pts/1\t5\n'
+            'M\t/dev/ttys004\t12\textra\n'
+            'garbage\n'),
+        [(tty: '/dev/pts/7', pid: 991)],
+      );
+      expect(parseClientsByParent(''), isEmpty);
     });
 
     test('会话操作一律按 ID、先核对身份；附着不带 -d、带 -u；没有一处按名字', () {

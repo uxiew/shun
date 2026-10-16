@@ -241,6 +241,25 @@ const tmuxDetachScript = '$_socketSnippet $_guardSnippet '
     r'tmux -S "$s" list-clients -t "$5" -F "#{client_tty}:#{client_pid}" 2>/dev/null | grep -x -F -q -- "$6:$7" || exit 98; '
     r'exec tmux -S "$s" detach-client -t "$6"';
 
+/// 找父进程是指定 pid 的那个 tmux 客户端（只读，R42）。参数在 [tmuxKillScript] 之后再加父进程 pid。
+///
+/// 切到 Mosh 时用：mosh-server 把子进程 exec 成 `tmux attach`，客户端的父进程就是它自己报的那个 pid。
+/// 在这个会话的客户端里找到它，才算证明「Mosh 里附着的就是这个会话」；只看「多了一个客户端」会把同一时刻
+/// 从电脑上附着进来的那个当成它。先读 `/proc/PID/status` 的 PPid（Linux，BusyBox 的 ps 不认 -p），
+/// 读不到再问 `ps -o ppid= -p`（macOS、BSD）。每个匹配打一行 `M<Tab>终端<Tab>pid`。
+/// 同一会话最多看 64 个客户端。不含 `!`：用 `-gt 0` 挡掉不是数字的 pid。
+const tmuxClientByParentScript = '$_socketSnippet $_guardSnippet '
+    r'tmux -S "$s" list-clients -t "$5" -F "#{client_pid}:#{client_tty}" 2>/dev/null | head -n 64 | '
+    r'while IFS=: read -r c y; do [ "$c" -gt 0 ] 2>/dev/null || continue; '
+    r'q=$(sed -n "s/^PPid:[[:space:]]*//p" /proc/$c/status 2>/dev/null); '
+    r'[ -n "$q" ] || q=$(ps -o ppid= -p "$c" 2>/dev/null | tr -d " "); '
+    r'[ "$q" = "$6" ] && printf "M\t%s\t%s\n" "$y" "$c"; done; exit 0';
+
+/// 这个确定的客户端（终端 + pid）还附着在目标会话上吗（只读，R42）。参数同 [tmuxDetachScript]；在就退出 0，不在 98。
+/// 从 Mosh 切回 SSH 时，先用它确认新的 SSH 客户端真的附着上了，再分离 Mosh 那一个。
+const tmuxClientPresentScript = '$_socketSnippet $_guardSnippet '
+    r'tmux -S "$s" list-clients -t "$5" -F "#{client_tty}:#{client_pid}" 2>/dev/null | grep -x -F -q -- "$6:$7" || exit 98';
+
 /// 一个 session 的窗口和客户端（只读，按 ID，先核对身份）。参数同 [tmuxKillScript]。
 const tmuxDetailsScript = '$_socketSnippet $_guardSnippet '
     r'{ tmux -u -S "$s" list-windows -t "$5" -F "W'
@@ -410,16 +429,37 @@ String tmuxAiAttachCommand(AiCliTmuxRun run) => _command(tmuxAiAttachScript,
   return (windowId: parts[3], paneId: parts[4], panePid: pid);
 }
 
-String tmuxDetachCommand(TmuxClientBinding binding) {
+String tmuxDetachCommand(TmuxClientBinding binding) =>
+    _command(tmuxDetachScript, _clientArguments(binding));
+
+String tmuxClientPresentCommand(TmuxClientBinding binding) =>
+    _command(tmuxClientPresentScript, _clientArguments(binding));
+
+List<String> _clientArguments(TmuxClientBinding binding) {
   if (!_clientTty.hasMatch(binding.clientTty) || binding.clientPid <= 0) {
     throw ArgumentError.value(binding.clientTty, 'clientTty');
   }
-  return _command(tmuxDetachScript, [
+  return [
     ..._targetArguments(binding.target),
     binding.clientTty,
     '${binding.clientPid}',
-  ]);
+  ];
 }
+
+/// [parentPid] 必须大于 1：pid 1 是 init，父进程是它的孤儿太多，匹配上也证明不了什么。
+String tmuxClientByParentCommand(TmuxTarget target, int parentPid) {
+  if (parentPid <= 1) throw ArgumentError.value(parentPid, 'parentPid');
+  return _command(tmuxClientByParentScript,
+      [..._targetArguments(target), '$parentPid']);
+}
+
+/// 解析 [tmuxClientByParentScript] 的输出。终端设备名或 pid 不合规矩的行丢掉。
+List<({String tty, int pid})> parseClientsByParent(String raw) => [
+      for (final line in const LineSplitter().convert(raw))
+        if (line.split('\t') case ['M', final tty, final pid]
+            when _clientTty.hasMatch(tty) && _positive(pid) != null)
+          (tty: tty, pid: _positive(pid)!),
+    ];
 
 /// 解析附着脚本报回来的那一行（[tmuxAttachMarker] 之后的终端设备和 pid）。认不出来返回 null。
 ({String tty, int pid})? parseAttachMarker(String line) {

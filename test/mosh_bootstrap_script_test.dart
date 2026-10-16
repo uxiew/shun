@@ -11,6 +11,7 @@ import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/domain/plugins/mosh_bootstrap.dart';
+import 'package:shun/domain/tmux/tmux_target.dart';
 
 const _key = 'v450/k6rhyS3hwDL4ejCIQ';
 
@@ -171,6 +172,101 @@ void main() {
         final r = await run(shell, MoshBootstrap.command(serverPath: '~/dir'));
         expect(r.exitCode, 126);
       });
+
+      // R42：附着 tmux 的变体。假 tmux 只会回 display-message（打印 $HOME/guard 里的串），
+      // 假 mosh-server 只打印参数：看核对不过时根本不起 mosh-server，过了时 `--` 后面是按 ID 的 attach。
+      group('附着 tmux（R42）', () {
+        late ServerSocket socket;
+        late String socketPath;
+        late int uid;
+        const guard = r'$3:4242:1700000000:1700000100';
+
+        TmuxTarget target({int? asUid, String? path}) => TmuxTarget(
+              hostKey: '127.0.0.1:22',
+              unixUser: 'me',
+              uid: asUid ?? uid,
+              socket: TmuxSocketSpec.path(path ?? socketPath),
+              server: TmuxServerIdentity(
+                  socketPath: path ?? socketPath,
+                  pid: 4242,
+                  startTime: 1700000000),
+              sessionId: r'$3',
+              sessionCreated: 1700000100,
+              displayName: 'work',
+            );
+
+        setUp(() async {
+          uid = int.parse(
+              ((await Process.run('id', ['-u'])).stdout as String).trim());
+          socketPath = '${root.path}/s';
+          socket = await ServerSocket.bind(
+              InternetAddress(socketPath, type: InternetAddressType.unix), 0);
+          await fake('$pathBin/mosh-server', 'PATH');
+          await File('$pathBin/tmux').writeAsString(
+            '#!/bin/sh\n'
+            'case "\$*" in *display-message*) cat "\$HOME/guard";; *) echo "TMUX RAN \$*" >&2;; esac\n',
+          );
+          await Process.run('chmod', ['755', '$pathBin/tmux']);
+          await File('$home/guard').writeAsString('$guard\n');
+        });
+
+        tearDown(() => socket.close());
+
+        test('核对过了：mosh-server 的子进程是按会话 ID 的 attach，不带 -d、不经 shell', () async {
+          final r = await run(shell, MoshBootstrap.command(tmux: target()),
+              withPathBin: true);
+          expect(r.exitCode, 0, reason: r.output);
+          expect(
+              r.output,
+              contains('PATH ARGS:new -s -c 256 -l LANG=en_US.UTF-8 -p 60001:60999 '
+                  '-- $pathBin/tmux -u -S $socketPath attach-session -t \$3'));
+          expect(r.output, isNot(contains('TMUX RAN')),
+              reason: '核对只调 display-message，附着由 mosh-server 的子进程做');
+          expect(parse(r.output).port, 60001);
+        });
+
+        test('换了用户：退出 96，mosh-server 一次都不起', () async {
+          final r = await run(
+              shell, MoshBootstrap.command(tmux: target(asUid: uid + 1)),
+              withPathBin: true);
+          expect(r.exitCode, 96);
+          expect(r.output, isNot(contains('ARGS:')));
+        });
+
+        test('socket 不在 / 会话换了（同名重建、server 重启）：退出 97，不起、不建', () async {
+          final gone = await run(
+              shell,
+              MoshBootstrap.command(tmux: target(path: '${root.path}/none')),
+              withPathBin: true);
+          expect(gone.exitCode, 97);
+          expect(gone.output, isNot(contains('ARGS:')));
+          for (final other in [
+            r'$3:4242:1700000000:1700000999', // 同号新会话
+            r'$3:5555:1700000500:1700000100', // server 换了一代
+            '', // 3.5a 找不到目标时只输出空字段
+          ]) {
+            await File('$home/guard').writeAsString('$other\n');
+            final r = await run(shell, MoshBootstrap.command(tmux: target()),
+                withPathBin: true);
+            expect(r.exitCode, 97, reason: other);
+            expect(r.output, isNot(contains('ARGS:')), reason: other);
+          }
+        });
+
+        test('服务器没有 tmux：退出 95', () async {
+          await File('$pathBin/tmux').delete();
+          final r = await run(shell, MoshBootstrap.command(tmux: target()),
+              withPathBin: true);
+          expect(r.exitCode, 95);
+          expect(r.output, isNot(contains('ARGS:')));
+        },
+            skip: ['/usr/bin/tmux', '/bin/tmux'].any((p) => File(p).existsSync())
+                ? '本机系统目录里有 tmux'
+                : false);
+      },
+          skip: MoshBootstrap.isValidServerPath('${Directory.systemTemp.path}/x')
+              ? false
+              : '临时目录路径含白名单外的字符');
     });
   }
 }
