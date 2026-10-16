@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:dartssh2/dartssh2.dart' show SSHClient;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -8,6 +9,9 @@ import 'package:uuid/uuid.dart';
 import '../domain/connection_route.dart';
 import '../domain/ai_cli_launch.dart';
 import '../domain/models/host.dart';
+import '../domain/models/vault.dart';
+import '../domain/plugins/mosh_bootstrap.dart';
+import '../domain/plugins/mosh_route.dart';
 import '../domain/terminal_paste.dart';
 import '../domain/tmux/tmux_target.dart';
 import '../domain/tmux/ai_cli_tmux_run.dart';
@@ -19,9 +23,12 @@ import '../infrastructure/terminal/terminal_session_adapter.dart';
 import '../infrastructure/tmux/tmux_protocol.dart';
 import '../infrastructure/tmux/tmux_service.dart';
 import 'connection_lifecycle.dart';
+import 'connection_switch.dart';
 import 'credential_availability.dart';
 import 'mosh_session.dart';
 import 'plugin_host_session.dart';
+import 'plugin_terminal.dart';
+import 'port_forward_controller.dart';
 import 'terminal_engine.dart';
 import 'vault_controller.dart';
 
@@ -84,6 +91,7 @@ class SessionState {
     this.recovering = const {},
     this.networkAvailable = true,
     this.keepAliveProblem,
+    this.switching = const {},
   });
 
   static const _notProvided = Object();
@@ -102,6 +110,9 @@ class SessionState {
 
   /// 后台保活服务没开起来的原因；开着或者用不着时为 null。
   final String? keepAliveProblem;
+
+  /// 正在原地切换连接方式的标签（R42，按标签 id）。切完、失败、取消都会移掉。
+  final Map<String, TransportSwitchProgress> switching;
 
   ActiveTerminalSession? get active => sessions.isEmpty
       ? null
@@ -125,6 +136,7 @@ class SessionState {
     Set<String>? recovering,
     bool? networkAvailable,
     Object? keepAliveProblem = _notProvided,
+    Map<String, TransportSwitchProgress>? switching,
   }) =>
       SessionState(
         sessions: sessions ?? this.sessions,
@@ -139,10 +151,14 @@ class SessionState {
         keepAliveProblem: identical(keepAliveProblem, _notProvided)
             ? this.keepAliveProblem
             : keepAliveProblem as String?,
+        switching: switching ?? this.switching,
       );
 }
 
 final sshServiceProvider = Provider((ref) => SshService());
+
+/// 切换连接方式时核对 tmux 客户端用的（R42）。测试换成不连服务器的替身。
+final tmuxServiceProvider = Provider<TmuxService>((ref) => const TmuxService());
 
 final sessionControllerProvider =
     StateNotifierProvider<SessionController, SessionState>(
@@ -364,6 +380,14 @@ class SessionController extends StateNotifier<SessionState> {
             ],
           );
         }
+        // tmux 目标是在某个地址上查到的（R21 的 hostKey）。这次要到达的不是那里，就可能是另一台机器上的
+        // 同号会话：不附着。从当前标签附着时用的就是它自己的路线，只有重新连接时保险库改过地址才会撞上。
+        if (tmuxAttach != null &&
+            plan.target.endpoint.authority != tmuxAttach.hostKey) {
+          throw RouteChangedException(
+            '这台主机的地址改过（tmux 会话 ${tmuxAttach.displayName} 是在 ${tmuxAttach.hostKey} 上查到的），没有附着。',
+          );
+        }
         // 要用的凭据解不开就在拨号前拒绝，不拿空密码去试（SEC06）。冻结的路线自带建连时的凭据副本，不再查保险库。
         final problem = routePlan != null
             ? null
@@ -374,10 +398,13 @@ class SessionController extends StateNotifier<SessionState> {
               );
         if (problem != null) throw CredentialUnavailableException(problem);
         // Mosh 主机：SSH 只用来启动 mosh-server，会话由插件经 UDP 承载（X09）。路线不是直连在这里面第一步就拒绝。
+        // 给了 tmux 目标的 Mosh（R42：Mosh-tmux 标签重新连接）只附着那个目标，核对不过就停。
         session = connectionHost.protocol == HostProtocol.mosh
             ? await MoshBootstrapCoordinator(
-                    service, ref.read(moshRuntimeProvider))
-                .connect(
+                service,
+                ref.read(moshRuntimeProvider),
+                tmux: ref.read(tmuxServiceProvider),
+              ).connect(
                 sessionId: sessionId,
                 host: connectionHost,
                 plan: plan,
@@ -385,6 +412,7 @@ class SessionController extends StateNotifier<SessionState> {
                 keyboardInteractive: keyboardInteractive,
                 terminal: terminal,
                 attempt: attempt,
+                tmux: tmuxAttach,
               )
             : aiTmuxRun != null
                 ? await service.connectAiTmux(
@@ -609,6 +637,457 @@ class SessionController extends StateNotifier<SessionState> {
     );
   }
 
+  /// 正在重新连的 Mosh、插件标签（旧标签 id）。新会话连上前旧标签一直留着，按两次不开两个。
+  final _replacing = <String>{};
+
+  /// [replacement] 是刚为 [old] 新开的会话（在标签条末尾）：把它挪到 [old] 的位置，释放 [old]。
+  /// [old] 已经被关了就什么都不动，新标签留在末尾。
+  void _replaceTab(
+    ActiveTerminalSession old,
+    ActiveTerminalSession replacement,
+  ) {
+    if (!mounted || !_owns(old) || !_owns(replacement)) return;
+    final activeWasReplacement = identical(state.active, replacement);
+    final activeBefore = state.active;
+    final sessions = [...state.sessions]
+      ..removeWhere((value) => identical(value, replacement));
+    final at = sessions.indexWhere((value) => identical(value, old));
+    sessions[at] = replacement;
+    final active = activeWasReplacement || identical(activeBefore, old)
+        ? at
+        : sessions.indexWhere((value) => identical(value, activeBefore));
+    _attempts.remove(old.id)?.cancel();
+    _recoveries.remove(old.id);
+    state = state.copyWith(
+      sessions: sessions,
+      activeIndex: active < 0 ? 0 : active,
+    );
+    _publishRecoveries();
+    unawaited(old.close());
+    old.terminal.dispose();
+  }
+
+  // ---- 终端里的连接方式（R42）----
+
+  ActiveTerminalSession? _sessionById(String id) =>
+      state.sessions.where((value) => value.id == id).firstOrNull;
+
+  /// 标签条上那个菜单要显示的东西：现在走什么、能不能切、能不能设为默认、不能的话为什么。
+  /// 只查本机（保险库、Mosh 插件状态），不碰服务器。不是 SSH / Mosh 的标签返回 null。
+  Future<TransportMenu?> transportMenu(String sessionId) async {
+    final session = _sessionById(sessionId);
+    final current = session == null ? null : transportOf(session);
+    if (session == null || current == null) return null;
+    final vault = await vaultController.ready();
+    final source = vault.hosts
+        .where((value) => value.id == sourceHostIdOf(session.host))
+        .firstOrNull;
+    final inPlace = session.tmux != null;
+    String? blocked;
+    if (!session.connected) {
+      blocked = '这个标签已经断开了。先点「重新连接」，连上以后再切换。';
+    } else if (session.aiLaunch != null || session.aiTmuxRun != null) {
+      blocked = 'AI 工具的专用标签不切换连接方式。';
+    } else if (isManagedTerminal(session)) {
+      blocked = '「系统管理」里开的一次性命令标签不切换连接方式。';
+    } else if (source == null) {
+      blocked = '这台主机已经从保险库里删掉了。';
+    } else if (state.switching.containsKey(sessionId)) {
+      blocked = '正在切换，等这一次结束。';
+    } else if (current.other == TabTransport.mosh) {
+      // 原地切走的是这个标签自己的 SSH；另开一个按保险库现在的配置。
+      blocked = inPlace
+          ? _moshRouteBlocked(session.routePlan) ??
+              (session.directPeer == null
+                  ? '拿不到这条 SSH 实际连上的 IP，不知道 Mosh 的 UDP 该发往哪里。'
+                  : _moshOptionsBlocked(source))
+          : _moshHostBlocked(source, vault);
+      blocked ??= await ref.read(moshRuntimeProvider).unavailableReason();
+    }
+    if (!mounted) return null;
+    final hostDefault =
+        source == null ? null : TabTransport.ofProtocol(source.protocol);
+    return TransportMenu(
+      current: current,
+      switchTo: TransportSwitchOption(
+        from: current,
+        inPlace: inPlace,
+        blocked: blocked,
+      ),
+      hostDefault: hostDefault,
+      setDefault: hostDefault == null || hostDefault == current
+          ? null
+          : DefaultTransportOption(
+              transport: current,
+              blocked: current == TabTransport.mosh
+                  ? _moshHostBlocked(source!, vault)
+                  : null,
+            ),
+    );
+  }
+
+  static String? _moshRouteBlocked(RoutePlan? plan) {
+    if (plan == null) return '这个标签没有记下路线，不能原地切到 Mosh。';
+    final problem = moshRouteProblem(plan);
+    return problem == null
+        ? null
+        : 'Mosh 只能直连：这台主机的连接路径是${problem.description}，UDP 走不了代理和跳板机。';
+  }
+
+  static String? _moshOptionsBlocked(HostProfile source) {
+    try {
+      moshServerOptionsOf(source);
+      return null;
+    } on RouteConfigException catch (error) {
+      return '$error';
+    }
+  }
+
+  static String? _moshHostBlocked(HostProfile source, VaultData vault) {
+    try {
+      final plan = resolveRoutePlan(
+        source.copyWith(protocol: HostProtocol.mosh),
+        hosts: vault.hosts,
+        proxyProfiles: vault.proxyProfiles,
+        keys: vault.keys,
+      );
+      return _moshRouteBlocked(plan) ?? _moshOptionsBlocked(source);
+    } on RouteConfigException catch (error) {
+      return '$error';
+    }
+  }
+
+  /// 切到另一种连接方式（R42）。
+  ///
+  /// - 普通标签另开一个新标签（按保险库现在的配置，和从主机列表连一样，只是不跑启动命令），原标签和它的 shell 不动。
+  /// - tmux 标签原地切：新的一边附着同一个 tmux 会话、核对过了，标签才换过去，然后分离旧客户端、关掉旧连接。
+  ///   全程不发任何输入；切完之前旧的一边照常能用。中途失败、取消，新的一边全部关掉，原标签不动。
+  ///
+  /// [stoppingForwards]：从 SSH 原地切到 Mosh 会关掉这条 SSH，挂在上面的端口转发随之停掉。界面先列给用户、
+  /// 用户确认了才调这里，传的就是用户看过的那几条；切换期间又多出来的不在里面，就不切（[ForwardsChangedException]）。
+  ///
+  /// 返回 true 表示切成了（或新标签开出来了）；取消、结果迟到返回 false；失败抛出原因。
+  Future<bool> switchTransport(
+    String sessionId, {
+    required HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    Set<String> stoppingForwards = const {},
+  }) async {
+    final menu = await transportMenu(sessionId);
+    final session = _sessionById(sessionId);
+    if (menu == null || session == null) return false;
+    final option = menu.switchTo;
+    if (option.blocked case final reason?) throw TransportSwitchBlocked(reason);
+    if (!option.inPlace) {
+      return _openInOtherTransport(
+          session, option.to, verifyHostKey, keyboardInteractive);
+    }
+    return option.to == TabTransport.mosh
+        ? _switchTmuxToMosh(session, stoppingForwards)
+        : _switchTmuxToSsh(session, verifyHostKey, keyboardInteractive);
+  }
+
+  /// 取消正在进行的原地切换。新的一边关掉，原标签不动。
+  void cancelSwitch(String sessionId) {
+    if (!state.switching.containsKey(sessionId)) return;
+    _attempts.remove(sessionId)?.cancel();
+  }
+
+  /// 把这个标签现在的方式设为这台主机的默认（R42）。只改保险库里这台主机的协议，开着的标签都不动；
+  /// Mosh 的端口、路径、locale 这些选项本来就留在主机上（R39），改回 SSH 也不丢。
+  Future<void> setDefaultTransport(String sessionId) async {
+    final menu = await transportMenu(sessionId);
+    final session = _sessionById(sessionId);
+    final option = menu?.setDefault;
+    if (session == null || option == null) return;
+    if (option.blocked case final reason?) throw TransportSwitchBlocked(reason);
+    final protocol = option.transport.protocol;
+    await vaultController.updateHost(
+      sourceHostIdOf(session.host),
+      (current) => current.protocol == protocol ||
+              TabTransport.ofProtocol(current.protocol) == null
+          ? null
+          : HostProfile({...current.data, 'protocol': protocol.name}),
+    );
+  }
+
+  Future<bool> _openInOtherTransport(
+    ActiveTerminalSession session,
+    TabTransport to,
+    HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+  ) async {
+    final vault = await vaultController.ready();
+    final source = vault.hosts
+        .where((value) => value.id == sourceHostIdOf(session.host))
+        .firstOrNull;
+    if (source == null) {
+      throw const TransportSwitchBlocked('这台主机已经从保险库里删掉了。');
+    }
+    return connect(
+      transportCopy(source, to),
+      verifyHostKey,
+      keyboardInteractive: keyboardInteractive,
+    );
+  }
+
+  void _setSwitching(String id, TransportSwitchProgress progress) {
+    if (!mounted) return;
+    state = state.copyWith(switching: {...state.switching, id: progress});
+  }
+
+  void _clearSwitching(String id) {
+    if (!mounted || !state.switching.containsKey(id)) return;
+    state = state.copyWith(switching: {...state.switching}..remove(id));
+  }
+
+  /// 原地切换的提交：标签位置、id 不变，里面换成新的连接和它的终端。旧的由调用方随后收尾。
+  void _swapInPlace(
+    ActiveTerminalSession old,
+    ActiveTerminalSession replacement,
+  ) {
+    final sessions = [...state.sessions];
+    final at = sessions.indexWhere((value) => identical(value, old));
+    sessions[at] = replacement;
+    state = state.copyWith(sessions: sessions, error: null);
+    replacement.activateInput();
+    _watchSession(replacement);
+    if (_backgrounded) replacement.monitor?.pause();
+  }
+
+  /// SSH 的 tmux 标签原地切到 Mosh：在这个标签已登录的 SSH 上跑固定的引导命令（先核对 tmux 目标），
+  /// Mosh 会话开在一块还没挂到页面上的新终端上；用这条 SSH 核对 Mosh 那一侧的 tmux 客户端附着在同一个会话上
+  /// 以后，标签才换过去；再停掉用户确认过的端口转发、精确分离旧的 SSH tmux 客户端、关掉这条 SSH。
+  Future<bool> _switchTmuxToMosh(
+    ActiveTerminalSession old,
+    Set<String> stoppingForwards,
+  ) async {
+    final binding = old.tmux!;
+    final client = old.sshClient!;
+    final peer = old.directPeer!;
+    final plan = old.routePlan!;
+    final vault = await vaultController.ready();
+    final source = vault.hosts
+        .where((value) => value.id == sourceHostIdOf(old.host))
+        .firstOrNull;
+    if (source == null) {
+      throw const TransportSwitchBlocked('这台主机已经从保险库里删掉了。');
+    }
+    final options = moshServerOptionsOf(source);
+    final forwards = ref.read(portForwardControllerProvider.notifier);
+    final runtime = ref.read(moshRuntimeProvider);
+    final tmux = ref.read(tmuxServiceProvider);
+    final attempt = _beginAttempt(old.id);
+    _setSwitching(old.id, const TransportSwitchProgress(TabTransport.mosh));
+    attempt.onStage = (stage) => _setSwitching(
+        old.id, TransportSwitchProgress(TabTransport.mosh, stage));
+    TerminalSessionAdapter? terminal;
+    PluginTerminalWiring? wiring;
+    var committed = false;
+    try {
+      attempt.report(const ConnectionStage(ConnectionStep.plugin));
+      final entry = await attempt.waitFor(runtime.prepare());
+      attempt.report(ConnectionStage(
+        ConnectionStep.moshServer,
+        label: plan.target.host.label,
+        detail: plan.target.endpoint.authority,
+      ));
+      final outcome = await attempt.waitFor(
+        service.startMoshServer(
+          client,
+          peer: peer,
+          portRange: options.portRange,
+          serverPath: options.serverPath,
+          locale: options.locale,
+          tmux: binding.target,
+        ),
+        onCancelled: (value) => value.material.wipe(),
+      );
+      final serverPid = outcome.material.serverPid!;
+      terminal = newTerminal();
+      attempt.report(ConnectionStage(
+        ConnectionStep.moshTmux,
+        label: binding.target.displayName,
+        detail: outcome.authority,
+      ));
+      final plugin = await attempt.waitFor(
+        runtime.open(
+          entry,
+          cols: MoshBootstrapCoordinator.initialCols,
+          rows: MoshBootstrapCoordinator.initialRows,
+          target: MoshSessionTarget(outcome.udpHost, outcome.material),
+        ),
+        onCancelled: (value) => unawaited(value.close()),
+      );
+      wiring = MoshTerminalProvider.wire(
+        terminal: terminal,
+        session: plugin,
+        udpAuthority: outcome.authority,
+      );
+      final moshClient = await attempt.waitFor(verifyMoshTmuxClient(
+        client,
+        target: binding.target,
+        serverPid: serverPid,
+        session: plugin,
+        tmux: tmux,
+      ));
+      if (!_isCurrent(old.id, attempt) || !_owns(old)) {
+        throw const ConnectionCancelledException();
+      }
+      if (!old.connected) {
+        throw const TransportSwitchBlocked(
+            '切换过程中原来的 SSH 断了，没有切换：刚开的 Mosh 已关，tmux 会话不受影响。');
+      }
+      final onThis = forwards.forwardsOn(old);
+      if (onThis.any((item) => !stoppingForwards.contains(item.id))) {
+        throw const ForwardsChangedException();
+      }
+      final replacement = wiring.toSession(
+        sessionId: old.id,
+        host: transportCopy(source, TabTransport.mosh, label: old.host.label),
+        plan: plan,
+        verifyHostKey: old.verifyHostKey,
+        keyboardInteractive: old.keyboardInteractive,
+        tmux: moshClient,
+      );
+      _endAttempt(old.id, attempt);
+      committed = true;
+      _swapInPlace(old, replacement);
+      // 旧的一边：先停用户确认过的端口转发，再只分离这个标签自己的 SSH tmux 客户端（终端 + pid 都对上才分离），
+      // 最后关这条 SSH。分离不成（它已经不在了）不要紧：SSH 一关，那个客户端也就退了，会话本身不受影响。
+      for (final item in onThis) {
+        await forwards.stop(item.id);
+      }
+      try {
+        await tmux.detach(client, binding);
+      } on Object {
+        // 见上
+      }
+      await old.close();
+      old.terminal.dispose();
+      return true;
+    } catch (error) {
+      if (!committed) {
+        await wiring?.cancel();
+        terminal?.dispose();
+      }
+      final stale = !committed && !_isCurrent(old.id, attempt);
+      _endAttempt(old.id, attempt);
+      if (committed || stale || error is ConnectionCancelledException) {
+        return committed;
+      }
+      rethrow;
+    } finally {
+      _clearSwitching(old.id);
+    }
+  }
+
+  /// Mosh 的 tmux 标签原地切回 SSH：新登录一条 SSH（沿用这个标签冻结的路线和身份），按 R21 的握手附着同一个
+  /// tmux 目标（远端先核对），再确认新客户端确实附着上了，标签才换过去；然后分离 Mosh 那一侧的客户端、关掉 Mosh。
+  Future<bool> _switchTmuxToSsh(
+    ActiveTerminalSession old,
+    HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+  ) async {
+    final moshSide = old.tmux!;
+    final target = moshSide.target;
+    final vault = await vaultController.ready();
+    final source = vault.hosts
+        .where((value) => value.id == sourceHostIdOf(old.host))
+        .firstOrNull;
+    if (source == null) {
+      throw const TransportSwitchBlocked('这台主机已经从保险库里删掉了。');
+    }
+    final host = transportCopy(source, TabTransport.ssh, label: old.host.label);
+    // 沿用这个标签冻结的路线：目标是在那条路线上查到的。凭据副本清掉了就按保险库补回，补之前核对路线没变。
+    final frozen = old.routePlan;
+    final plan = frozen == null
+        ? resolveRoutePlan(host,
+            hosts: vault.hosts,
+            proxyProfiles: vault.proxyProfiles,
+            keys: vault.keys)
+        : frozen.secretsForgotten
+            ? rehydrateRoutePlan(frozen,
+                sourceHostId: source.id,
+                hosts: vault.hosts,
+                proxyProfiles: vault.proxyProfiles,
+                keys: vault.keys)
+            : frozen;
+    if (plan.target.endpoint.authority != target.hostKey) {
+      throw RouteChangedException(
+        '这台主机的地址改过（tmux 会话 ${target.displayName} 是在 ${target.hostKey} 上查到的），没有切换。',
+      );
+    }
+    final tmux = ref.read(tmuxServiceProvider);
+    final attempt = _beginAttempt(old.id);
+    _setSwitching(old.id, const TransportSwitchProgress(TabTransport.ssh));
+    attempt.onStage = (stage) => _setSwitching(
+        old.id, TransportSwitchProgress(TabTransport.ssh, stage));
+    TerminalSessionAdapter? terminal;
+    ActiveTerminalSession? replacement;
+    var committed = false;
+    try {
+      terminal = newTerminal();
+      replacement = await service.connect(
+        sessionId: old.id,
+        host: host,
+        routePlan: plan,
+        verifyHostKey: verifyHostKey,
+        keyboardInteractive: keyboardInteractive,
+        terminal: terminal,
+        attempt: attempt,
+        tmuxAttach: target,
+      );
+      final sshClient = replacement.sshClient!;
+      final present = await attempt.waitFor(
+          _waitClientPresent(tmux, sshClient, replacement.tmux!));
+      if (!present) {
+        throw TmuxCommandException(
+            '新的 SSH 没能附着到 tmux 会话 ${target.displayName}（${target.sessionId}），没有切换。');
+      }
+      if (!_isCurrent(old.id, attempt) || !_owns(old)) {
+        throw const ConnectionCancelledException();
+      }
+      _endAttempt(old.id, attempt);
+      committed = true;
+      _swapInPlace(old, replacement);
+      try {
+        await tmux.detach(sshClient, moshSide);
+      } on Object {
+        // 已经不在了也一样：下面关掉 Mosh，那个客户端随 mosh-server 一起退出。
+      }
+      await old.close();
+      old.terminal.dispose();
+      return true;
+    } catch (error) {
+      if (!committed) {
+        await replacement?.close();
+        terminal?.dispose();
+      }
+      final stale = !committed && !_isCurrent(old.id, attempt);
+      _endAttempt(old.id, attempt);
+      if (committed || stale || error is ConnectionCancelledException) {
+        return committed;
+      }
+      rethrow;
+    } finally {
+      _clearSwitching(old.id);
+    }
+  }
+
+  /// R21 的握手只证明远端核对过了、要 exec attach；再用同一条 SSH 看它确实成了这个会话的客户端。最多等 6 秒。
+  Future<bool> _waitClientPresent(
+    TmuxService tmux,
+    SSHClient client,
+    TmuxClientBinding binding,
+  ) async {
+    for (var i = 0; i < 20; i++) {
+      if (await tmux.clientPresent(client, binding)) return true;
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    }
+    return false;
+  }
+
   /// 一轮恢复：等着恢复的标签各试一次，不看退避时间（测试和「重新连接」用；平时由 [_recoveryTimer] 按退避驱动）。
   Future<void> reconnectDisconnected() => _runRecoveries(force: true);
 
@@ -622,7 +1101,9 @@ class SessionController extends StateNotifier<SessionState> {
   /// 试的还是「恢复」：不跑启动命令，tmux 标签只附着原来那个目标、远端核对不过就停（REG02、TMX04）。
   /// 放回来的标签（[ActiveTerminalSession.restored]）按保险库现在的配置连，界面给的 [verifyHostKey] 核对指纹。
   ///
-  /// Mosh 和插件会话结束了就是结束了：这里关掉旧标签、按主机重新开一个新会话（新的 shell），不冒充原来那个。
+  /// Mosh 和插件会话结束了就是结束了：按主机重新开一个新会话（新的 mosh-server、新的 shell），不冒充原来那个，
+  /// 不重发断开前的输入。旧标签留着当历史，新的连上了才顶替它的位置（R42）；连不上时旧标签不动，
+  /// 原因在新开的等待页里。Mosh-tmux 标签只附着原来那个 tmux 目标，远端核对不过就停（不新建、不按名字找）。
   Future<void> reconnect(
     String sessionId, {
     required HostKeyVerifier verifyHostKey,
@@ -654,12 +1135,31 @@ class SessionController extends StateNotifier<SessionState> {
         );
         return;
       }
-      await close(index);
-      await connect(
-        source,
-        verifyHostKey,
-        keyboardInteractive: keyboardInteractive,
-      );
+      if (!_replacing.add(session.id)) return; // 已经在重新连了：再点一下不再开一个
+      try {
+        final tmux = session.tmux?.target ?? session.resumeTmux;
+        final mosh = transportOf(session) == TabTransport.mosh;
+        // 保险库里的 Mosh 主机、普通标签：就按它连，和从主机列表连一样。切换开出来的、附着 tmux 的、
+        // 或者主机默认已经改成 SSH 的：按保险库现在的配置做一份 Mosh 副本，标签名照旧。
+        final host = mosh &&
+                (tmux != null ||
+                    source.protocol != HostProtocol.mosh ||
+                    session.host.data[transportCopyKey] == true)
+            ? transportCopy(source, TabTransport.mosh,
+                label: session.host.label)
+            : source;
+        ActiveTerminalSession? opened;
+        final ok = await connect(
+          host,
+          verifyHostKey,
+          keyboardInteractive: keyboardInteractive,
+          tmuxAttach: mosh ? tmux : null,
+          onOpened: (value) => opened = value,
+        );
+        if (ok && opened != null) _replaceTab(session, opened!);
+      } finally {
+        _replacing.remove(session.id);
+      }
       return;
     }
     session.restoreHold = null;
@@ -771,12 +1271,16 @@ class SessionController extends StateNotifier<SessionState> {
       } else if (old.restored && old.resumeTmux != null) {
         // 放回来的 tmux 标签：按保险库现在的配置算路线，到达的还得是原来那台机器，
         // 否则目标是在别的机器上查到的，不附着（R21 的 hostKey 规则）。
-        final source = vault!.hosts
+        final stored = vault!.hosts
             .where((value) => value.id == sourceHostIdOf(old.host))
             .firstOrNull;
-        if (source == null) {
+        if (stored == null) {
           throw const RouteChangedException('这台主机已经从保险库里删掉了。');
         }
+        // 主机默认是 Mosh、这个标签是 SSH（在终端里切过，R42）：按标签自己的方式算。
+        final source = stored.protocol == old.host.protocol
+            ? stored
+            : stored.copyWith(protocol: old.host.protocol);
         plan = resolveRoutePlan(
           source,
           hosts: vault.hosts,
@@ -789,11 +1293,16 @@ class SessionController extends StateNotifier<SessionState> {
           );
         }
       } else if (old.restored) {
-        // 放回来的普通标签：用保险库里这台主机现在的配置。
-        host = vault!.hosts
+        // 放回来的普通标签：用保险库里这台主机现在的配置。切换开出来的标签（R42）按它自己的方式再做一份副本。
+        final stored = vault!.hosts
                 .where((value) => value.id == sourceHostIdOf(old.host))
                 .firstOrNull ??
             (throw const RouteChangedException('这台主机已经从保险库里删掉了。'));
+        host = old.host.data[transportCopyKey] == true &&
+                stored.protocol != old.host.protocol
+            ? transportCopy(stored, TabTransport.ofProtocol(old.host.protocol)!,
+                label: old.host.label)
+            : stored;
         final problem = unreadableCredentialProblem(
           host,
           vault,
@@ -1033,11 +1542,22 @@ class SessionController extends StateNotifier<SessionState> {
     if (session.plugin case final plugin?) {
       // Mosh 会话结束了就是结束了，不自动重连：重连等于在服务器上再起一个 mosh-server、开一个新 shell，
       // 冒充不了原来那个会话（docs/16 第 6 步）；断开前的输入也不重发。要不要再连由用户决定。
-      session.restoreHold = const RestoreHold.untilUser(
-        '会话已结束。点「重新连接」会新开一个会话（新的 shell），不是接回原来那个。',
+      // Mosh-tmux（R42）：tmux 会话不跟着 Mosh 结束，重新连接会核对后附着它，但同样不自动连。
+      final tmux = session.tmux?.target;
+      session.restoreHold = RestoreHold.untilUser(
+        tmux == null
+            ? '会话已结束。点「重新连接」会新开一个会话（新的 shell），不是接回原来那个。'
+            : 'Mosh 会话结束了，下面是断开前的画面。tmux 会话 ${tmux.displayName}（${tmux.sessionId}）如果还在，'
+                '点「重新连接」会新起一个 mosh-server、核对还是不是原来那个再附着，不新建。',
       );
       session.abort();
       session.terminal.showNotice(plugin.endNotice ?? '');
+      if (tmux != null) {
+        session.terminal.showNotice(
+          '\x1b[33m[Mosh] 这个标签附着的是 tmux 会话 ${tmux.displayName}（${tmux.sessionId}）。'
+          'Mosh 结束只带走 tmux 客户端，会话和里面的程序留在服务器上（除非是会话自己结束的）。\x1b[0m\r\n',
+        );
+      }
       if (!mounted) return;
       state = state.copyWith(sessions: [...state.sessions]);
       return;
@@ -1298,12 +1818,15 @@ class SessionController extends StateNotifier<SessionState> {
             session.aiTmuxRun == null &&
             !(session.host.data['_ephemeralTerminal'] == true &&
                 session.tmux == null &&
-                session.resumeTmux == null))
+                session.resumeTmux == null &&
+                session.host.data[transportCopyKey] != true))
           RestorableTab(
             id: session.id,
             hostId: sourceHostIdOf(session.host),
             label: session.host.label,
             tmux: session.tmux?.target ?? session.resumeTmux,
+            // 记下标签自己的 SSH / Mosh：切换过的标签和主机默认的方式可以不一样（R42）。
+            protocol: transportOf(session)?.protocol,
           ),
     ]);
   }
@@ -1330,16 +1853,21 @@ class SessionController extends StateNotifier<SessionState> {
         }
         // tmux 标签照 openTmuxTerminal 的样子拷一份；拷贝里不留密码和启动命令（连接时路线按保险库现算）。
         // 普通标签直接用保险库里的主机对象，不能在它上面删字段。
-        final host = tab.tmux == null
+        // 标签走的和主机默认的不是同一种（在终端里切过，R42）：也拷一份，协议照标签的。
+        final protocol = tab.protocol ?? source.protocol;
+        final switched = protocol != source.protocol;
+        final host = tab.tmux == null && !switched
             ? source
             : HostProfile({
                 for (final entry in source.data.entries)
                   if (entry.key != 'password' && entry.key != 'startupCommand')
                     entry.key: entry.value,
-                'id': 'tmux-${const Uuid().v4()}',
+                'id': '${tab.tmux == null ? protocol.name : 'tmux'}-${const Uuid().v4()}',
                 'label': tab.label,
+                'protocol': protocol.name,
                 '_ephemeralTerminal': true,
                 sourceHostIdKey: source.id,
+                if (switched) transportCopyKey: true,
               });
         final how = tab.tmux == null
             ? '点「重新连接」按现在的配置连（不跑启动命令）。'

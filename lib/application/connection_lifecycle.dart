@@ -93,10 +93,18 @@ RoutePlan rehydrateRoutePlan(
   required List<ProxyProfile> proxyProfiles,
   required List<SshKeyProfile> keys,
 }) {
-  final source = hosts.where((value) => value.id == sourceHostId).firstOrNull;
-  if (source == null) {
+  final stored = hosts.where((value) => value.id == sourceHostId).firstOrNull;
+  if (stored == null) {
     throw const RouteChangedException('这台主机已经从保险库里删掉了，没有自动恢复。要连就重新从主机列表打开。');
   }
+  // 标签用的是 SSH、保险库里这台默认 Mosh（或反过来）：在终端里切过、或者设过默认（R42）。
+  // 这不算路线变了：按标签自己的方式重算，地址、代理、跳板、身份仍然一项不差地比。
+  const sshLike = {HostProtocol.ssh, HostProtocol.mosh};
+  final source = stored.protocol != forgotten.protocol &&
+          sshLike.contains(stored.protocol) &&
+          sshLike.contains(forgotten.protocol)
+      ? stored.copyWith(protocol: forgotten.protocol)
+      : stored;
   final RoutePlan fresh;
   try {
     fresh = resolveRoutePlan(
@@ -124,6 +132,7 @@ class RestorableTab {
     required this.hostId,
     required this.label,
     this.tmux,
+    this.protocol,
   });
 
   final String id;
@@ -133,11 +142,15 @@ class RestorableTab {
   final String label;
   final TmuxTarget? tmux;
 
+  /// 这个标签走的是 SSH 还是 Mosh（R42：可以和主机的默认方式不同）。旧版本记的没有，按主机的默认。
+  final HostProtocol? protocol;
+
   Map<String, Object?> toJson() => {
         'id': id,
         'hostId': hostId,
         'label': label,
         if (tmux != null) 'tmux': tmux!.toJson(),
+        if (protocol != null) 'protocol': protocol!.name,
       };
 
   static RestorableTab? fromJson(Object? value) {
@@ -152,7 +165,22 @@ class RestorableTab {
         : null;
     // 记着 tmux 却读不回来：宁可不放回这个标签，也不让它变成一个普通 shell 标签。
     if (tmuxJson != null && tmux == null) return null;
-    return RestorableTab(id: id, hostId: hostId, label: label, tmux: tmux);
+    // 只认 SSH 和 Mosh；记了别的（读坏了）就不放回，免得换一种方式去连。
+    final rawProtocol = value['protocol'];
+    final protocol = switch (rawProtocol) {
+      null => null,
+      'ssh' => HostProtocol.ssh,
+      'mosh' => HostProtocol.mosh,
+      _ => HostProtocol.unknown,
+    };
+    if (protocol == HostProtocol.unknown) return null;
+    return RestorableTab(
+      id: id,
+      hostId: hostId,
+      label: label,
+      tmux: tmux,
+      protocol: protocol,
+    );
   }
 }
 
