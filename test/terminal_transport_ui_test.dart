@@ -266,6 +266,35 @@ void main() {
     expect(find.textContaining('没有回车'), findsOneWidget);
   });
 
+  testWidgets('从保险库连 Mosh 主机、服务器缺 mosh-server：失败页给「看安装命令」', (tester) async {
+    await open(tester, const []);
+    controller.publish(SessionState(
+      pendingConnections: [
+        PendingTerminalConnection(
+          id: 'p',
+          host: HostProfile({
+            'id': 'h1',
+            'label': 'box',
+            'hostname': 'box.example.com',
+            'username': 'ops',
+            'protocol': 'mosh',
+          }),
+          phase: PendingConnectionPhase.failed,
+          error: MoshServerMissing(moshInstallHint(
+              parseOsRelease('ID=alpine\nPRETTY_NAME="Alpine Linux v3.22"\n'))),
+        ),
+      ],
+      activePendingId: 'p',
+    ));
+    await tester.pump();
+    await tester.tap(key('mosh-install-hint-open'));
+    await tester.pumpAndSettle();
+    expect(find.text('认出来的系统：Alpine Linux v3.22'), findsOneWidget);
+    expect(find.text('apk add mosh'), findsOneWidget);
+    expect(find.textContaining('用 root 执行'), findsOneWidget);
+    expect(key('mosh-install-paste'), findsNothing, reason: '没有这台的 SSH 标签就不给「填进」');
+  });
+
   testWidgets('关 Mosh-tmux 标签：说只分离客户端、会话留在远端，不说 shell 会退出', (tester) async {
     final m = tab('m',
         protocol: 'mosh',

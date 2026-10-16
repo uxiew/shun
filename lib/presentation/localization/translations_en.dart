@@ -2091,6 +2091,7 @@ const englishTranslations = <String, String>{
   '只分离这个标签的 tmux 客户端：关掉 Mosh 会话后，它里面的 tmux 客户端跟着退出，tmux 会话 ':
       'Only this tab’s tmux client is detached: once the Mosh session closes, the tmux client inside it exits, and tmux session ',
   '服务器上没有 mosh-server': 'mosh-server is not installed on the server',
+  '看安装命令': 'Show install command',
   r'认出来的系统：${hint.distro}': r'Detected system: ${hint.distro}',
   '在服务器上用 root 执行这一条（或自己在前面加 sudo / doas）：':
       'Run this on the server as root (or prefix it with sudo / doas yourself):',
