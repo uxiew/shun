@@ -355,7 +355,12 @@ enum MoshBootstrapFailure {
       '远端没有找到 mosh-server（已查 PATH 和常见安装位置）。没装就请管理员装；装在别处就在主机编辑页「高级 → Mosh 启动参数」里填 mosh-server 路径'),
 
   /// 用户指定的 mosh-server 路径在远端不存在或不能执行。
-  serverPathMissing('指定的 mosh-server 路径在服务器上不存在或不能执行；改正路径，或清空改回自动');
+  serverPathMissing('指定的 mosh-server 路径在服务器上不存在或不能执行；改正路径，或清空改回自动'),
+
+  /// 附着 tmux 的变体（R42）里，mosh-server 没报出自己的进程号，或报了不止一个。
+  /// 没有它就核对不了 Mosh 里附着的是不是这个会话，所以不用这次的 mosh-server（没人连的话它 60 秒后自己退出）。
+  noServerPid(
+      'mosh-server 没有报出自己的进程号（或报了不止一个），没法核对 Mosh 里附着的是不是这个 tmux 会话，没有用它');
 
   const MoshBootstrapFailure(this.message);
   final String message;

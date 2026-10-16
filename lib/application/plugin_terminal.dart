@@ -5,6 +5,7 @@ import 'package:plugin_api/plugin_api.dart';
 
 import '../domain/connection_route.dart';
 import '../domain/models/host.dart';
+import '../domain/tmux/tmux_target.dart';
 import '../infrastructure/ssh/ssh_service.dart';
 import '../infrastructure/terminal/terminal_session_adapter.dart';
 import 'plugin_sessions.dart';
@@ -55,7 +56,23 @@ class PluginTerminalProvider implements PluginTerminalLink {
     required TerminalSessionAdapter terminal,
     required HostKeyVerifier verifyHostKey,
     KeyboardInteractiveHandler? keyboardInteractive,
-  }) {
+  }) =>
+      wire(link, terminal).toSession(
+        sessionId: sessionId,
+        host: host,
+        plan: plan,
+        verifyHostKey: verifyHostKey,
+        keyboardInteractive: keyboardInteractive,
+      );
+
+  /// 只接线、先不做成标签：输入、尺寸、输出从这一刻起都走这个会话。
+  ///
+  /// R42 的 Mosh-tmux 要等核对完才知道 Mosh 那一侧的 tmux 客户端是哪个，标签在那之后才建；
+  /// 这期间输出照常进终端（那块终端还没挂到页面上），mosh-client 不会因为没人读而卡住。
+  static PluginTerminalWiring wire(
+    PluginTerminalProvider link,
+    TerminalSessionAdapter terminal,
+  ) {
     final TerminalBinding binding;
     try {
       binding = terminal.bind(link._input, resize: link._resize);
@@ -67,17 +84,7 @@ class PluginTerminalProvider implements PluginTerminalLink {
     link._binding = binding;
     final output = link.session.output.listen(terminal.feed);
     link._watch();
-    return ActiveTerminalSession(
-      id: sessionId,
-      host: host,
-      terminal: terminal,
-      verifyHostKey: verifyHostKey,
-      keyboardInteractive: keyboardInteractive,
-      routePlan: plan,
-      plugin: link,
-      binding: binding,
-      outputSubscriptions: [output],
-    );
+    return PluginTerminalWiring._(link, terminal, binding, output);
   }
 
   @override
@@ -137,5 +144,43 @@ class PluginTerminalProvider implements PluginTerminalLink {
     if (size == null || session.phase != SessionPhase.active) return;
     _pendingSize = null;
     unawaited(session.resize(size.$1, size.$2).catchError((Object _) {}));
+  }
+}
+
+/// [PluginTerminalProvider.wire] 接好的线：要么 [toSession] 做成标签，要么 [cancel] 拆掉并关会话。
+class PluginTerminalWiring {
+  PluginTerminalWiring._(this.link, this.terminal, this._binding, this._output);
+
+  final PluginTerminalProvider link;
+  final TerminalSessionAdapter terminal;
+  final TerminalBinding _binding;
+  final StreamSubscription<Object?> _output;
+
+  ActiveTerminalSession toSession({
+    required String sessionId,
+    required HostProfile host,
+    RoutePlan? plan,
+    required HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    TmuxClientBinding? tmux,
+  }) =>
+      ActiveTerminalSession(
+        id: sessionId,
+        host: host,
+        terminal: terminal,
+        verifyHostKey: verifyHostKey,
+        keyboardInteractive: keyboardInteractive,
+        routePlan: plan,
+        plugin: link,
+        tmux: tmux,
+        binding: _binding,
+        outputSubscriptions: [_output],
+      );
+
+  /// 没做成标签就不要了：解绑、断输出、请插件关会话。终端归调用方。
+  Future<void> cancel() async {
+    _binding.release();
+    await _output.cancel();
+    await link.close();
   }
 }

@@ -11,6 +11,7 @@ import '../../domain/tmux/ai_cli_tmux_run.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/server_stats.dart';
 import '../../domain/plugins/mosh_bootstrap.dart';
+import '../../domain/plugins/mosh_install_hint.dart';
 import '../../domain/restore_hold.dart';
 import '../../domain/tailscale_ssh.dart';
 import '../../domain/tmux/tmux_target.dart';
@@ -98,6 +99,9 @@ enum ConnectionStep {
   /// Mosh 第二段：SSH 已断开，材料交给插件，由它经 UDP 直连。
   moshUdp,
 
+  /// Mosh 附着 tmux 的第二段（R42）：插件在连 UDP，SSH 先留着，核对 Mosh 那一侧附着的是这个 tmux 会话再断开。
+  moshTmux,
+
   /// 插件主机（X12）：核对本机的插件装着、批准了、可用。还没打开会话。
   pluginHost,
 
@@ -144,6 +148,8 @@ class ConnectionStage {
       ConnectionStep.moshServer =>
         '第 1 段 SSH：“$label”（$detail）已登录，正在启动 mosh-server',
       ConnectionStep.moshUdp => '第 2 段 UDP：SSH 已断开，Mosh 插件正在直连 $detail',
+      ConnectionStep.moshTmux =>
+        '第 2 段 UDP：Mosh 插件正在直连 $detail；SSH 先留着，核对 tmux 会话“$label”附着上了再断开',
       ConnectionStep.pluginHost => '正在核对本机的插件“$label”（还没打开会话）',
       ConnectionStep.pluginSession => '插件“$label”正在打开会话：它自己联网，不经过本 App 的代理和跳板',
     };
@@ -213,6 +219,7 @@ class ActiveTerminalSession {
     this.plugin,
     this.resumeTmux,
     this.restored = false,
+    this.directPeer,
     TerminalBinding? binding,
     bool Function()? outboundInputOccurred,
     void Function()? activateInput,
@@ -323,6 +330,10 @@ class ActiveTerminalSession {
   ///
   /// 有它时 [sshClients] 是空的：Mosh 只在引导时用了一下 SSH，随即关掉，所以这种标签没有 SFTP、监控、端口转发。
   final PluginTerminalLink? plugin;
+
+  /// 直连时这条 SSH 实际连上的 IP（主机名由系统解析过的那一个）；经代理、经跳板、或不是 SSH 时为 null。
+  /// 在已登录的 SSH 标签上切到 Mosh 时（R42），UDP 就发往它：和新开 Mosh 一样，SSH 和 UDP 去的是同一台机器。
+  final InternetAddress? directPeer;
 
   /// 远端输出送进 [terminal] 的订阅。恢复时新旧连接共用同一个 terminal，
   /// 旧连接释放时必须先断开这里，旧通道迟到的字节才不会混进新 shell 的画面。
@@ -811,30 +822,156 @@ class SshService {
         label: target.host.label,
         detail: target.endpoint.authority,
       ));
-      final output = await _atHop(
+      return await _atHop(
         plan,
         0,
         '启动 mosh-server 失败',
-        () => attempt.waitFor(_runBounded(clients.last, command, timeout)),
+        () => attempt.waitFor(_startMoshServer(
+            clients.last, peer, command, portRange, timeout,
+            tmux: false)),
+        passThrough: _isBootstrapVerdict,
       );
-      try {
-        return MoshBootstrapOutcome(
-          peer.address,
-          _parseMoshBootstrap(output.bytes, output.exitCode, portRange),
-        );
-      } finally {
-        output.bytes.fillRange(0, output.bytes.length, 0);
-      }
     } finally {
       attempt.releasePartial();
+    }
+  }
+
+  /// R42：在一条**已经登录好、不归这里管**的 SSH 上起 mosh-server（终端里从 SSH 标签切到 Mosh）。
+  ///
+  /// 和 [bootstrapMosh] 同一条固定命令、同样的上限和解析，只是不再拨号、不再登录，用完也不关这条 SSH。
+  /// [peer] 是这条 SSH 实际连上的 IP（[ActiveTerminalSession.directPeer]），UDP 发往它。
+  /// [tmux] 给了就先核对这个目标、让 mosh-server 附着它（见 [MoshBootstrap.command]）。
+  Future<MoshBootstrapOutcome> startMoshServer(
+    SSHClient client, {
+    required InternetAddress peer,
+    (int, int) portRange = MoshBootstrap.defaultPortRange,
+    String? serverPath,
+    String? locale,
+    TmuxTarget? tmux,
+    Duration timeout = const Duration(seconds: 20),
+  }) =>
+      _startMoshServer(
+        client,
+        peer,
+        MoshBootstrap.command(
+          portRange: portRange,
+          serverPath: serverPath,
+          locale: locale,
+          tmux: tmux,
+        ),
+        portRange,
+        timeout,
+        tmux: tmux != null,
+      );
+
+  /// R42：Mosh 附着 tmux 的引导（Mosh-tmux 标签重新连接时用）。和 [bootstrapMosh] 一样直连、先核指纹再登录，
+  /// 不同的是 SSH **一直开着到 [then] 返回**：mosh-server 要等 Mosh 客户端连上才放子进程去附着，
+  /// 调用方在 [then] 里打开插件会话、用这条 SSH 核对 Mosh 那一侧的 tmux 客户端确实附着在目标上。
+  /// 成功、失败、取消都不交出 SSH，返回前全部关掉。
+  Future<T> bootstrapMoshTmux<T>({
+    required RoutePlan plan,
+    required HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    required ConnectionAttempt attempt,
+    (int, int) portRange = MoshBootstrap.defaultPortRange,
+    String? serverPath,
+    String? locale,
+    required TmuxTarget tmux,
+    required Future<T> Function(SSHClient client, MoshBootstrapOutcome outcome)
+        then,
+    Duration timeout = const Duration(seconds: 20),
+  }) async {
+    try {
+      attempt.throwIfCancelled();
+      if (plan.entry is! DirectEntry || plan.jumps.isNotEmpty) {
+        throw StateError('Mosh 只能直连，不能经代理或跳板机引导');
+      }
+      final command = MoshBootstrap.command(
+        portRange: portRange,
+        serverPath: serverPath,
+        locale: locale,
+        tmux: tmux,
+      );
+      final clients = await _establishSsh(
+        plan,
+        verifyHostKey,
+        keyboardInteractive,
+        attempt,
+        ConnectionPurpose.fresh,
+      );
+      final peer = attempt.directPeer;
+      if (peer == null) {
+        throw StateError('拿不到这次 SSH 连上的 IP 地址，不知道 Mosh 的 UDP 该发往哪里');
+      }
+      attempt.report(ConnectionStage(
+        ConnectionStep.moshServer,
+        label: plan.target.host.label,
+        detail: plan.target.endpoint.authority,
+      ));
+      final outcome = await _atHop(
+        plan,
+        0,
+        '启动 mosh-server 失败',
+        () => attempt.waitFor(_startMoshServer(
+            clients.last, peer, command, portRange, timeout,
+            tmux: true)),
+        passThrough: _isBootstrapVerdict,
+      );
+      return await then(clients.last, outcome);
+    } finally {
+      attempt.releasePartial();
+    }
+  }
+
+  /// 远端给出的明确结论（没装、路径不对、tmux 目标不在了……）原样抛给调用方，不包成「哪一跳哪一步」的报错：
+  /// 失败页、恢复策略都按类型认它们。
+  static bool _isBootstrapVerdict(Object error) =>
+      error is MoshBootstrapException || error is TmuxCommandException;
+
+  Future<MoshBootstrapOutcome> _startMoshServer(
+    SSHClient client,
+    InternetAddress peer,
+    String command,
+    (int, int) portRange,
+    Duration timeout, {
+    required bool tmux,
+  }) async {
+    final output = await _runBounded(client, command, timeout);
+    try {
+      final result =
+          _parseMoshBootstrap(output.bytes, output.exitCode, portRange, tmux);
+      if (tmux && result.serverPid == null) {
+        result.wipe();
+        throw const MoshBootstrapException(MoshBootstrapFailure.noServerPid);
+      }
+      return MoshBootstrapOutcome(peer.address, result);
+    } on MoshBootstrapException catch (error) {
+      if (error.failure != MoshBootstrapFailure.serverMissing) rethrow;
+      // 只读 os-release 认发行版，给对应的安装命令；读不到也照样说「没装」，只是没有现成的命令。
+      throw MoshServerMissing(moshInstallHint(await _readOsRelease(client)));
+    } finally {
+      output.bytes.fillRange(0, output.bytes.length, 0);
+    }
+  }
+
+  /// 只读的一条固定命令，5 秒、最多 4 KiB。任何失败都当「不知道」。
+  Future<OsRelease?> _readOsRelease(SSHClient client) async {
+    try {
+      final output = await _runBounded(
+          client, osReleaseCommand, const Duration(seconds: 5));
+      if (output.exitCode != 0) return null;
+      return parseOsRelease(utf8.decode(output.bytes, allowMalformed: true));
+    } on Object {
+      return null;
     }
   }
 
   static MoshBootstrapResult _parseMoshBootstrap(
     Uint8List output,
     int? exitCode,
-    (int, int) portRange,
-  ) {
+    (int, int) portRange, [
+    bool tmux = false,
+  ]) {
     try {
       return MoshBootstrap.parse(output, portRange: portRange);
     } on MoshBootstrapException catch (error) {
@@ -842,6 +979,13 @@ class SshService {
       if (error.failure == MoshBootstrapFailure.noConnectLine &&
           exitCode == 127) {
         throw const MoshBootstrapException(MoshBootstrapFailure.serverMissing);
+      }
+      // tmux 变体的核对没过（没有 tmux、换了用户、目标不在了）：mosh-server 根本没起。
+      if (tmux &&
+          error.failure == MoshBootstrapFailure.noConnectLine &&
+          const {TmuxExit.missing, TmuxExit.wrongUser, TmuxExit.targetGone}
+              .contains(exitCode)) {
+        throw tmuxExitError(exitCode, '')!;
       }
       rethrow;
     }
@@ -1185,6 +1329,7 @@ class SshService {
       sshSession: session,
       routePlan: plan,
       aiLaunch: aiLaunch,
+      directPeer: pending.directPeer,
       binding: binding,
       outboundInputOccurred: () => sentInput,
       activateInput: () => inputEnabled = true,
@@ -1329,6 +1474,7 @@ class SshService {
         clientPid: marker.pid,
       ),
       aiTmuxRun: aiTmuxRun,
+      directPeer: pending.directPeer,
       binding: binding,
       outboundInputOccurred: () => sentInput,
       activateInput: () => inputEnabled = true,
@@ -1344,12 +1490,14 @@ class SshService {
     String stage,
     Future<T> Function() step, {
     SshBannerDeadlineSocket? guard,
+    bool Function(Object error)? passThrough,
   }) async {
     try {
       return await step();
     } on ConnectionCancelledException {
       rethrow;
     } catch (error) {
+      if (passThrough?.call(error) ?? false) rethrow;
       final hop = plan.hops[index];
       final who = index == plan.jumps.length
           ? '目标“${hop.host.label}”'

@@ -94,11 +94,7 @@ class _PortForwardSheetState extends ConsumerState<PortForwardSheet> {
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.swap_horiz),
-                  title: LText(
-                    item.kind == ForwardKind.dynamic
-                        ? 'SOCKS5 127.0.0.1:${item.localPort}'
-                        : '127.0.0.1:${item.localPort} → ${item.remoteHost}:${item.remotePort}',
-                  ),
+                  title: LText(item.describe()),
                   trailing: IconButton(
                     onPressed: () => ref
                         .read(portForwardControllerProvider.notifier)

@@ -4,13 +4,17 @@ import 'dart:math';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plugin_api/plugin_api.dart';
 
+import 'package:dartssh2/dartssh2.dart' show SSHClient;
+
 import '../domain/connection_route.dart';
 import '../domain/models/host.dart';
 import '../domain/plugins/mosh_bootstrap.dart';
 import '../domain/plugins/mosh_route.dart';
+import '../domain/tmux/tmux_target.dart';
 import '../infrastructure/plugins/android_plugin_bridge.dart';
 import '../infrastructure/ssh/ssh_service.dart';
 import '../infrastructure/terminal/terminal_session_adapter.dart';
+import '../infrastructure/tmux/tmux_service.dart';
 import 'plugin_discovery.dart';
 import 'plugin_registry.dart';
 import 'plugin_sessions.dart';
@@ -20,6 +24,10 @@ import 'plugin_terminal.dart';
 abstract interface class MoshRuntime {
   /// 找到能用的 Mosh 插件并确认能和它说话。只在本机做，不碰服务器；不能用抛 [MoshPluginUnavailable]。
   Future<PluginEntry> prepare();
+
+  /// 只看不连（R42）：终端菜单开着时问一句 Mosh 插件现在能不能用，不能用就把 Mosh 项变灰并写原因。
+  /// 按当下的证书和描述符核对，但不握手、不连插件、不碰服务器。能用返回 null。
+  Future<String?> unavailableReason();
 
   /// 把这次 bootstrap 的材料交给插件开会话。无论成败，返回前宿主这边的 key 都已清零。
   Future<PluginTerminalSession> open(
@@ -52,6 +60,22 @@ class PluginMoshRuntime implements MoshRuntime {
 
   @override
   Future<PluginEntry> prepare() async {
+    final entry = await _readyEntry();
+    await _connect(_ref.read(androidPluginBridgeProvider), entry);
+    return entry;
+  }
+
+  @override
+  Future<String?> unavailableReason() async {
+    try {
+      await _readyEntry();
+      return null;
+    } on MoshPluginUnavailable catch (error) {
+      return error.message;
+    }
+  }
+
+  Future<PluginEntry> _readyEntry() async {
     final bridge = _ref.read(androidPluginBridgeProvider);
     if (!bridge.supported) {
       throw const MoshPluginUnavailable('Mosh 只在 Android 上有：它由单独安装的 Mosh 插件提供。');
@@ -74,7 +98,6 @@ class PluginMoshRuntime implements MoshRuntime {
         is RouteUnsupported) {
       throw const MoshPluginUnavailable('装着的 Mosh 插件没有声明支持直连，不能用它连 Mosh。');
     }
-    await _connect(bridge, entry);
     return entry;
   }
 
@@ -149,15 +172,23 @@ final moshRuntimeProvider = Provider<MoshRuntime>(PluginMoshRuntime.new);
 ///
 /// 插件只拿到这次会话的数字 IP、UDP 端口和临时 key；SSH 密码、私钥、代理口令、Tailscale 凭据都不经过它（PLG14）。
 class MoshBootstrapCoordinator {
-  MoshBootstrapCoordinator(this._ssh, this._runtime);
+  MoshBootstrapCoordinator(
+    this._ssh,
+    this._runtime, {
+    TmuxService tmux = const TmuxService(),
+  }) : _tmux = tmux;
 
   final SshService _ssh;
   final MoshRuntime _runtime;
+  final TmuxService _tmux;
 
   /// 插件会话先按这个尺寸开；终端视图一量出实际尺寸就改过去（和 SSH 的 PTY 一样）。
-  static const _initialCols = 80;
-  static const _initialRows = 24;
+  static const initialCols = 80;
+  static const initialRows = 24;
 
+  /// [tmux] 给了就不开登录 shell，而是核对后附着这个 tmux 目标（R42：Mosh-tmux 标签重新连接）。
+  /// 这时 SSH 一直留到 Mosh 那一侧的 tmux 客户端核对上了再关（[verifyMoshTmuxClient]）；核不上就关掉
+  /// 刚开的 Mosh 会话、报错，不按名字找替身、不新建。
   Future<ActiveTerminalSession> connect({
     required String sessionId,
     required HostProfile host,
@@ -166,6 +197,7 @@ class MoshBootstrapCoordinator {
     KeyboardInteractiveHandler? keyboardInteractive,
     required TerminalSessionAdapter terminal,
     required ConnectionAttempt attempt,
+    TmuxTarget? tmux,
   }) async {
     attempt.throwIfCancelled();
     final unsupported = moshRouteProblem(plan);
@@ -173,6 +205,34 @@ class MoshBootstrapCoordinator {
     final options = moshServerOptionsOf(host);
     attempt.report(const ConnectionStage(ConnectionStep.plugin));
     final entry = await attempt.waitFor(_runtime.prepare());
+    if (tmux != null) {
+      final session = await _ssh.bootstrapMoshTmux(
+        plan: plan,
+        verifyHostKey: verifyHostKey,
+        keyboardInteractive: keyboardInteractive,
+        attempt: attempt,
+        portRange: options.portRange,
+        serverPath: options.serverPath,
+        locale: options.locale,
+        tmux: tmux,
+        then: (client, outcome) => _openTmux(
+          client,
+          outcome,
+          entry: entry,
+          tmux: tmux,
+          sessionId: sessionId,
+          host: host,
+          plan: plan,
+          verifyHostKey: verifyHostKey,
+          keyboardInteractive: keyboardInteractive,
+          terminal: terminal,
+          attempt: attempt,
+        ),
+      );
+      // 引导用的 SSH 已在 bootstrapMoshTmux 里关掉；之后取消这次尝试不再动已经做成的标签。
+      attempt.handOver();
+      return session;
+    }
     final outcome = await _ssh.bootstrapMosh(
       plan: plan,
       verifyHostKey: verifyHostKey,
@@ -195,8 +255,8 @@ class MoshBootstrapCoordinator {
     final session = await attempt.waitFor(
       _runtime.open(
         entry,
-        cols: _initialCols,
-        rows: _initialRows,
+        cols: initialCols,
+        rows: initialRows,
         target: MoshSessionTarget(outcome.udpHost, outcome.material),
       ),
       onCancelled: (session) => unawaited(session.close()),
@@ -213,6 +273,103 @@ class MoshBootstrapCoordinator {
       keyboardInteractive: keyboardInteractive,
     );
   }
+
+  Future<ActiveTerminalSession> _openTmux(
+    SSHClient client,
+    MoshBootstrapOutcome outcome, {
+    required PluginEntry entry,
+    required TmuxTarget tmux,
+    required String sessionId,
+    required HostProfile host,
+    required RoutePlan plan,
+    required HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    required TerminalSessionAdapter terminal,
+    required ConnectionAttempt attempt,
+  }) async {
+    final serverPid = outcome.material.serverPid!;
+    final authority = outcome.authority;
+    attempt.report(ConnectionStage(
+      ConnectionStep.moshTmux,
+      label: tmux.displayName,
+      detail: authority,
+    ));
+    final session = await attempt.waitFor(
+      _runtime.open(
+        entry,
+        cols: initialCols,
+        rows: initialRows,
+        target: MoshSessionTarget(outcome.udpHost, outcome.material),
+      ),
+      onCancelled: (session) => unawaited(session.close()),
+    );
+    final wiring = MoshTerminalProvider.wire(
+      terminal: terminal,
+      session: session,
+      udpAuthority: authority,
+    );
+    try {
+      final binding = await attempt.waitFor(verifyMoshTmuxClient(
+        client,
+        target: tmux,
+        serverPid: serverPid,
+        session: session,
+        tmux: _tmux,
+      ));
+      return wiring.toSession(
+        sessionId: sessionId,
+        host: host,
+        plan: plan,
+        verifyHostKey: verifyHostKey,
+        keyboardInteractive: keyboardInteractive,
+        tmux: binding,
+      );
+    } catch (_) {
+      await wiring.cancel();
+      rethrow;
+    }
+  }
+}
+
+/// 等 Mosh 那一侧的 tmux 客户端附着上（R42），用还开着的 [client]（SSH）核对：目标会话还是原来那个
+/// （R21 的完整身份），且它的客户端里有一个父进程就是这次的 mosh-server（[serverPid]）。
+///
+/// mosh-server 等 Mosh 客户端的第一个包到了才放子进程去附着，所以要等：每 [interval] 查一次，最多 [timeout]。
+/// Mosh 会话先结束了（附着时会话已经没了、UDP 不通）、目标变了、到点还没看到，都抛错——调用方据此不切换。
+/// 只读：只列客户端，不分离、不新建。
+Future<TmuxClientBinding> verifyMoshTmuxClient(
+  SSHClient client, {
+  required TmuxTarget target,
+  required int serverPid,
+  required PluginTerminalSession session,
+  TmuxService tmux = const TmuxService(),
+  Duration timeout = const Duration(seconds: 20),
+  Duration interval = const Duration(milliseconds: 300),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (true) {
+    if (session.phase.isTerminal) {
+      throw MoshTmuxAttachException(
+          'Mosh 会话在附着上 tmux 会话“${target.displayName}”（${target.sessionId}）之前就结束了：${describeMoshEnd(session)}');
+    }
+    final binding = await tmux.clientUnder(client, target, serverPid);
+    if (binding != null) return binding;
+    if (DateTime.now().isAfter(deadline)) {
+      throw MoshTmuxAttachException(
+          '${timeout.inSeconds} 秒内没看到 Mosh 附着到 tmux 会话“${target.displayName}”（${target.sessionId}）。'
+          '最常见的是 UDP 到不了服务器（防火墙没放行 Mosh 的端口）。');
+    }
+    await Future<void>.delayed(interval);
+  }
+}
+
+/// Mosh 没能附着到那个 tmux 会话：没有切换，刚开的 Mosh 会话已关。
+class MoshTmuxAttachException implements Exception {
+  const MoshTmuxAttachException(this.message);
+  final String message;
+
+  @override
+  String toString() => message;
 }
 
 /// Mosh 插件会话接到标签的终端上（X09）。接线和第三方终端插件共用 [PluginTerminalProvider]，这里只定 Mosh 的说法。
@@ -238,6 +395,17 @@ class MoshTerminalProvider extends PluginTerminalProvider {
         terminal: terminal,
         verifyHostKey: verifyHostKey,
         keyboardInteractive: keyboardInteractive,
+      );
+
+  /// 只接线，标签稍后再做（见 [PluginTerminalProvider.wire]）。
+  static PluginTerminalWiring wire({
+    required TerminalSessionAdapter terminal,
+    required PluginTerminalSession session,
+    required String udpAuthority,
+  }) =>
+      PluginTerminalProvider.wire(
+        MoshTerminalProvider._(session, 'UDP $udpAuthority'),
+        terminal,
       );
 }
 
@@ -294,5 +462,5 @@ String moshEndNotice(PluginTerminalSession session) {
   if (normal) return '\r\n\x1b[33m[Mosh] $reason 不会自动重连。\x1b[0m\r\n';
   return '\r\n\x1b[31m[Mosh] $reason\x1b[0m\r\n'
       '\x1b[33m不会自动重连，也不会重发断开前的输入；断开前最后打的字有没有到远端，App 无法确认。\r\n'
-      '要再连，从保险库重新连接这台主机：会在服务器上新起一个 mosh-server，不是原来那个会话。\x1b[0m\r\n';
+      '要再连，点上面的「重新连接」：会在服务器上新起一个 mosh-server，不是原来那个会话。\x1b[0m\r\n';
 }

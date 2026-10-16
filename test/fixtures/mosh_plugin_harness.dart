@@ -91,6 +91,9 @@ class MoshPluginHarness implements MoshRuntime {
   }
 
   @override
+  Future<String?> unavailableReason() async => unavailable?.message;
+
+  @override
   Future<PluginTerminalSession> open(
     PluginEntry entry, {
     required int cols,

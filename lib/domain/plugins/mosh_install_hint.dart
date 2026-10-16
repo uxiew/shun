@@ -5,6 +5,17 @@
 /// 看过了自己按回车。命令照 mosh.org 「Getting Mosh」写；那里没列的发行版在 [MoshInstallHint.note] 里说明来源。
 library;
 
+import 'mosh_bootstrap.dart';
+
+/// 远端没有 mosh-server（[MoshBootstrapFailure.serverMissing]），带着按这台服务器的 os-release 选好的安装提示。
+/// 是 [MoshBootstrapException] 的一种：只认失败类型的地方（失败页提示、恢复策略）照旧。
+class MoshServerMissing extends MoshBootstrapException {
+  const MoshServerMissing(this.hint)
+      : super(MoshBootstrapFailure.serverMissing);
+
+  final MoshInstallHint hint;
+}
+
 /// `/etc/os-release` 里认发行版要用的几项。
 class OsRelease {
   const OsRelease({
