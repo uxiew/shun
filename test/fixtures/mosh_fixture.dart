@@ -73,13 +73,19 @@ class MoshFixture {
   }
 
   /// 在装了 mosh 的那台里以 root 执行（docker exec，不经 SSH，不算一次登录）。
-  Future<String> exec(String command, {String service = 'mosh'}) async {
+  /// [user] 给了就换成这个用户（docker exec -u）：容器里的 su/sudo 是记账 shim，一调用就报「disabled」。
+  Future<String> exec(
+    String command, {
+    String service = 'mosh',
+    String? user,
+  }) async {
     final result = await Process.run('docker', [
       'compose',
       '-f',
       'tool/mosh-fixture/compose.yaml',
       'exec',
       '-T',
+      if (user != null) ...['-u', user],
       service,
       'sh',
       '-c',

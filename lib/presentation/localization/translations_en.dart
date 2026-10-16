@@ -1975,6 +1975,24 @@ const englishTranslations = <String, String>{
   '这次的修改还没保存，离开后就没了。':
       'These changes have not been saved and will be lost if you leave.',
   '放弃改动': 'Discard changes',
+  'tmux 与断开之后': 'tmux and after disconnecting',
+  '普通 shell': 'Plain shell',
+  '上面选的 SSH / Mosh 只管网络这一段怎么走；断开以后远端程序还在不在，要看它跑在哪。':
+      'The SSH / Mosh choice above only decides how the network leg works; whether remote programs survive a disconnect depends on where they run.',
+  '普通 shell：现在连这台主机开的都是它。连接一断，shell 和里面前台的程序一起结束；重新连接得到的是一个新 shell，不是原来那个。':
+      'Plain shell: what connecting to this host opens today. When the connection drops, the shell and its foreground programs end; reconnecting gives you a new shell, not the old one.',
+  'tmux 会话：程序跑在服务器上的 tmux 里，连接断了也继续跑。连上后在终端快捷键栏「系统管理 → tmux」里选一个已有会话附着；认的是那个会话本身，同名新建的不会被当成它，也不会悄悄新建。':
+      'tmux session: programs run inside tmux on the server and keep running when the connection drops. After connecting, attach an existing session from “System management → tmux” in the terminal shortcut bar. It tracks that exact session: one recreated under the same name is not treated as it, and nothing is created silently.',
+  'App 里留着的终端画面只是这台手机上的历史，不代表远端还开着。':
+      'The terminal screen kept in the app is only history on this phone; it does not mean the remote side is still running.',
+  '「测试连接」会只读查一次远端有没有 tmux、有几个会话，不新建、不附着。':
+      '“Test connection” checks read-only whether the server has tmux and how many sessions it has; it creates and attaches nothing.',
+  'Mosh 开的是 mosh-server 里的普通 shell。关标签或服务器重启时，mosh-server 和里面的程序一起结束；再连接是新起的 mosh-server，接不回原来那个。':
+      'Mosh opens a plain shell inside mosh-server. Closing the tab or rebooting the server ends mosh-server and its programs; connecting again starts a new mosh-server and cannot get the old one back.',
+  'Mosh 标签没有「系统管理 → tmux」面板。想断开后程序还在，就在 Mosh 终端里自己运行 tmux。':
+      'Mosh tabs have no “System management → tmux” panel. To keep programs running after a disconnect, run tmux yourself in the Mosh terminal.',
+  'tmux：远端没有 tmux。这台机器只能开普通 shell，断开后里面的程序随之结束。本 App 不会替你安装。':
+      'tmux: the server has no tmux. This machine can only open a plain shell, and its programs end when you disconnect. This app does not install it for you.',
   '会话密钥已清除': 'The session key has been wiped',
   'MoshBootstrapResult(port: \$port, key: <已隐藏>)':
       'MoshBootstrapResult(port: \$port, key: <hidden>)',
@@ -1988,6 +2006,28 @@ const englishTranslations = <String, String>{
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // R41：测试连接顺带的 tmux 结果（connection_probe_sheet.dart）。版本、会话数、原因是运行时才知道的，
+  // 只能按片段换；放在最前面，免得被后面更短的片段（比如单个标点）先拆碎。
+  (
+    'tmux：没查出来，不影响上面的结果（SSH 和终端都通了）：',
+    'tmux: could not check (this does not change the result above; SSH and the terminal both work): '
+  ),
+  ('tmux：远端的 ', 'tmux: the server’s '),
+  (
+    ' 不在本 App 实测过的版本里，只能当普通 shell 用。',
+    ' is not a version this app has been tested with, so it can only be used as a plain shell.'
+  ),
+  ('tmux：远端有 ', 'tmux: the server has '),
+  (
+    '，默认 socket 上还没有会话。要用就连上后在「系统管理 → tmux」里新建。',
+    ', with no session on the default socket yet. To use it, create one under “System management → tmux” after connecting.'
+  ),
+  ('，默认 socket 上有 ', ', with '),
+  (
+    ' 个会话。连上后在「系统管理 → tmux」里选一个附着。',
+    ' session(s) on the default socket. After connecting, pick one to attach under “System management → tmux”.'
+  ),
+  ('，但会话列表没读出来：', ', but its session list could not be read: '),
   (
     '保存后可从这条连接发起 UU 远控；本 App 不会自动发起。',
     'After saving, you can launch UU from this connection. This app never launches it automatically.'
@@ -2777,8 +2817,8 @@ const englishReplacements = <(String, String)>[
     'The phone connects to the target directly without an app proxy; any VPN you have on still applies.'
   ),
   (
-    '按当前填写的配置走一遍：会核对指纹、登录，然后只检查远端终端，不打开 shell，不执行启动命令。',
-    'Runs through the current settings: verifies the host key and logs in, then only checks the remote terminal. It opens no shell and runs no startup command.'
+    '按当前填写的配置走一遍：会核对指纹、登录，然后只检查远端终端、只读查一次有没有 tmux；不打开 shell，不执行启动命令，不建 tmux 会话。',
+    'Runs through the current settings: verifies the host key and logs in, then only checks the remote terminal and, read-only, whether tmux is there. It opens no shell, runs no startup command and creates no tmux session.'
   ),
   (
     '服务器拒绝了登录：确认用户名；用密码的检查密码，用私钥的确认服务器上 authorized_keys 里有这把公钥。',

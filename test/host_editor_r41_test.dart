@@ -8,6 +8,8 @@ import 'package:shun/domain/models/host.dart';
 import 'package:shun/domain/plugins/mosh_route.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/tmux/tmux_protocol.dart';
+import 'package:shun/presentation/widgets/connection_probe_sheet.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -252,12 +254,90 @@ void main() {
         of: key('protocol-advice'), matching: find.byType(Text)));
     expect(advice.data, isNot(contains('连上后能切')));
   });
+
+  testWidgets('tmux 说明：SSH 写清普通 shell 重连是新 shell、去哪里选 tmux；不提按名字自动附着',
+      (tester) async {
+    await open(tester, host: ssh());
+    await reveal(tester, key('advanced-tmux'));
+    expect(
+        tester
+            .widget<Text>(find.descendant(
+                of: key('advanced-tmux-state'), matching: find.byType(Text)))
+            .data,
+        '普通 shell');
+    await tester.tap(key('advanced-tmux'));
+    await tester.pumpAndSettle();
+    final note = tester
+        .widgetList<Text>(find.descendant(
+            of: key('tmux-persistence-note'), matching: find.byType(Text)))
+        .map((t) => t.data)
+        .join('\n');
+    expect(note, contains('重新连接得到的是一个新 shell，不是原来那个'));
+    expect(note, contains('「系统管理 → tmux」'));
+    expect(note, contains('只是这台手机上的历史'));
+    expect(note, contains('不新建、不附着'));
+    expect(note, isNot(contains('恢复原')));
+  });
+
+  testWidgets('tmux 说明：Mosh 主机说明没有 tmux 面板、关标签程序就结束，不写测试连接', (tester) async {
+    await open(tester, host: ssh({'protocol': 'mosh'}));
+    await reveal(tester, key('advanced-tmux'));
+    await tester.tap(key('advanced-tmux'));
+    await tester.pumpAndSettle();
+    final note = tester
+        .widgetList<Text>(find.descendant(
+            of: key('tmux-persistence-note'), matching: find.byType(Text)))
+        .map((t) => t.data)
+        .join('\n');
+    expect(note, contains('Mosh 标签没有「系统管理 → tmux」面板'));
+    expect(note, contains('接不回原来那个'));
+    expect(note, isNot(contains('测试连接')));
+  });
+
+  testWidgets('测试连接的结果里单独一块写 tmux：远端没有就说没有、不替你装', (tester) async {
+    await open(tester, host: ssh());
+    probe.tmux = const TmuxProbe(availability: TmuxAvailability.missing);
+    await tester.tap(key('test-connection'));
+    await tester.pumpAndSettle();
+    expect(key('probe-succeeded'), findsOneWidget);
+    expect(
+        find.descendant(
+            of: key('probe-tmux'), matching: find.textContaining('远端没有 tmux')),
+        findsOneWidget);
+  });
+
+  test('describeProbeTmux：每种情况都说清楚，查失败不算测试连接失败；Telnet 没有这一项', () {
+    ProbeOutcome with_(TmuxAvailability a,
+            {List<TmuxSessionRow> sessions = const [], String? problem}) =>
+        ProbeOutcome(
+          tty: '/dev/pts/1',
+          tmux: TmuxProbe(
+              availability: a,
+              versionLine: 'tmux 3.5a',
+              sessions: sessions,
+              problem: problem),
+        );
+    expect(describeProbeTmux(const ProbeOutcome(tty: null)), isNull);
+    expect(describeProbeTmux(with_(TmuxAvailability.missing)),
+        contains('本 App 不会替你安装'));
+    expect(describeProbeTmux(with_(TmuxAvailability.unsupported)),
+        contains('tmux 3.5a 不在本 App 实测过的版本里'));
+    expect(
+        describeProbeTmux(with_(TmuxAvailability.noServer)), contains('还没有会话'));
+    expect(describeProbeTmux(with_(TmuxAvailability.failed, problem: '输出自相矛盾')),
+        endsWith('没读出来：输出自相矛盾'));
+    expect(
+        describeProbeTmux(
+            const ProbeOutcome(tty: '/dev/pts/1', tmuxProblem: 'exec 被拒绝')),
+        allOf(contains('SSH 和终端都通了'), endsWith('exec 被拒绝')));
+  });
 }
 
 /// 只替换「测试连接」：按 [fail] 成功或失败，记次数。不碰网络。
 class _ProbeSsh extends SshService {
   var fail = false;
   var probes = 0;
+  TmuxProbe? tmux;
 
   @override
   Future<ProbeOutcome> probe({
@@ -273,6 +353,6 @@ class _ProbeSsh extends SshService {
     probes++;
     await Future<void>.delayed(Duration.zero);
     if (fail) throw StateError('登录被拒绝');
-    return const ProbeOutcome(tty: '/dev/pts/1');
+    return ProbeOutcome(tty: '/dev/pts/1', tmux: tmux);
   }
 }

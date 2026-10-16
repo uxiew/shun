@@ -17,6 +17,7 @@ import '../../domain/tmux/tmux_target.dart';
 import '../terminal/terminal_input_controller.dart';
 import '../terminal/terminal_session_adapter.dart';
 import '../tmux/tmux_protocol.dart';
+import '../tmux/tmux_service.dart';
 import '../transport/proxy_transport.dart';
 import 'ai_cli_launch_handshake.dart';
 import 'server_monitor_service.dart';
@@ -69,9 +70,14 @@ class RouteHopException implements IOException {
 enum ConnectionPurpose { fresh, restore, probe }
 
 /// 测试连接的结果。[tty] 是远端分配的终端设备名（如 /dev/pts/3），Telnet 没有这一项。
+///
+/// [tmux] 是顺带的只读 tmux 查询（R41）：让用户在保存前就知道这台机器能不能用 tmux。
+/// 查不出来时 [tmux] 为 null、原因在 [tmuxProblem]，但不算测试连接失败——SSH 和 PTY 已经通了。
 class ProbeOutcome {
-  const ProbeOutcome({required this.tty});
+  const ProbeOutcome({required this.tty, this.tmux, this.tmuxProblem});
   final String? tty;
+  final TmuxProbe? tmux;
+  final String? tmuxProblem;
 }
 
 enum ConnectionStep {
@@ -674,7 +680,17 @@ class SshService {
         '检查终端（PTY）失败',
         () => attempt.waitFor(_remoteTty(clients.last)),
       );
-      return ProbeOutcome(tty: tty);
+      // R21 的只读查询：socket 不在就不调 tmux，不起 server、不建也不附着会话。
+      // 查失败只记原因：没有 tmux 的机器照样能用普通 shell，不该把测试连接算成失败。
+      try {
+        final tmux = await attempt.waitFor(const TmuxService()
+            .probe(clients.last, const TmuxSocketSpec.standard()));
+        return ProbeOutcome(tty: tty, tmux: tmux);
+      } on ConnectionCancelledException {
+        rethrow;
+      } catch (error) {
+        return ProbeOutcome(tty: tty, tmuxProblem: '$error');
+      }
     } finally {
       // 测试连接不交出任何资源：成功、失败、取消都在这里全部关掉。
       attempt.releasePartial();

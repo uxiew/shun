@@ -555,6 +555,16 @@ class _HostEditorState extends ConsumerState<HostEditor> {
             ],
           ),
         _AdvancedGroup(
+          id: 'tmux',
+          title: 'tmux 与断开之后',
+          hint: '上面选的 SSH / Mosh 只管网络这一段怎么走；断开以后远端程序还在不在，要看它跑在哪。',
+          filled: false,
+          state: '普通 shell',
+          expanded: _expanded.contains('tmux'),
+          onToggle: () => _toggle('tmux'),
+          children: [_persistenceNote()],
+        ),
+        _AdvancedGroup(
           id: 'timeouts',
           title: '超时与保活',
           hint: '一般不用改。网络很慢、经多跳代理时连接总超时，再把超时调大。',
@@ -626,6 +636,42 @@ class _HostEditorState extends ConsumerState<HostEditor> {
             ],
           ),
       ];
+
+  /// 连接方式和「断开后程序还在不在」是两回事（R41，借鉴 meshTerm 的持久性说明）。
+  /// 这里只说明，不存会话名：按名字自动附着会碰到 tmux 的前缀匹配，选会话按 R21 的完整目标在终端里做。
+  /// 不能写「重连就恢复原来的 shell」：普通 SSH 重连拿到的是新 shell。
+  Widget _persistenceNote() {
+    final lines = protocol == HostProtocol.mosh
+        ? const [
+            'Mosh 开的是 mosh-server 里的普通 shell。关标签或服务器重启时，mosh-server 和里面的程序一起结束；再连接是新起的 mosh-server，接不回原来那个。',
+            'Mosh 标签没有「系统管理 → tmux」面板。想断开后程序还在，就在 Mosh 终端里自己运行 tmux。',
+            'App 里留着的终端画面只是这台手机上的历史，不代表远端还开着。',
+          ]
+        : const [
+            '普通 shell：现在连这台主机开的都是它。连接一断，shell 和里面前台的程序一起结束；重新连接得到的是一个新 shell，不是原来那个。',
+            'tmux 会话：程序跑在服务器上的 tmux 里，连接断了也继续跑。连上后在终端快捷键栏「系统管理 → tmux」里选一个已有会话附着；认的是那个会话本身，同名新建的不会被当成它，也不会悄悄新建。',
+            'App 里留着的终端画面只是这台手机上的历史，不代表远端还开着。',
+            '「测试连接」会只读查一次远端有没有 tmux、有几个会话，不新建、不附着。',
+          ];
+    final style = Theme.of(context).textTheme.bodySmall;
+    return Column(
+      key: const ValueKey('tmux-persistence-note'),
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (final line in lines)
+          Padding(
+            padding: const EdgeInsets.only(bottom: 6),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text('• ', style: style),
+                Expanded(child: LText(line, style: style)),
+              ],
+            ),
+          ),
+      ],
+    );
+  }
 
   /// 底部固定的操作栏：验证状态 +【测试连接】【取消】【保存】（R41）。
   /// 测试连接只有普通 SSH 有：它只走 SSH、只查 PTY，测不了 Mosh 的 UDP，也不开远端会话。
@@ -1286,6 +1332,7 @@ class _AdvancedGroup extends StatelessWidget {
     required this.expanded,
     required this.onToggle,
     required this.children,
+    this.state,
   });
 
   final String id;
@@ -1293,6 +1340,9 @@ class _AdvancedGroup extends StatelessWidget {
   final String hint;
   final bool filled;
   final bool expanded;
+
+  /// 收起时标题下那一行。不给就按 [filled] 写「已填写」或「自动」；只有说明的组自己给。
+  final String? state;
   final VoidCallback onToggle;
   final List<Widget> children;
 
@@ -1315,7 +1365,7 @@ class _AdvancedGroup extends StatelessWidget {
                     children: [
                       LText(title, style: theme.textTheme.titleSmall),
                       LText(
-                        filled ? '已填写' : '自动',
+                        state ?? (filled ? '已填写' : '自动'),
                         key: ValueKey('advanced-$id-state'),
                         style: theme.textTheme.bodySmall,
                       ),

@@ -9,12 +9,14 @@ import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
 import '../../infrastructure/ssh/ssh_login_watch.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
+import '../../infrastructure/tmux/tmux_protocol.dart';
 import '../localization/localized_widgets.dart';
 import 'route_legs_view.dart';
 import 'tailscale_check_card.dart';
 
 /// 测试连接：按编辑器里当前（可能还没保存）的配置，走一遍和正式连接完全相同的路线和指纹核对，
-/// 逐段显示走到了哪一步；登录后只检查远端终端（PTY），不打开 shell、不执行启动命令（R10）。
+/// 逐段显示走到了哪一步；登录后只检查远端终端（PTY）、只读查一次 tmux，不打开 shell、不执行启动命令、
+/// 不建也不附着 tmux 会话（R10、R41）。
 class ConnectionProbeSheet extends ConsumerStatefulWidget {
   const ConnectionProbeSheet({
     super.key,
@@ -99,6 +101,9 @@ class _ConnectionProbeSheetState extends ConsumerState<ConnectionProbeSheet> {
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
     final running = _state == _ProbeState.running;
+    final tmux = _state == _ProbeState.succeeded && _outcome != null
+        ? describeProbeTmux(_outcome!)
+        : null;
     return SafeArea(
       child: SingleChildScrollView(
         key: const ValueKey('connection-probe-sheet'),
@@ -110,7 +115,7 @@ class _ConnectionProbeSheetState extends ConsumerState<ConnectionProbeSheet> {
             LText('测试连接', style: theme.textTheme.titleLarge),
             const SizedBox(height: 4),
             LText(
-              '按当前填写的配置走一遍：会核对指纹、登录，然后只检查远端终端，不打开 shell，不执行启动命令。',
+              '按当前填写的配置走一遍：会核对指纹、登录，然后只检查远端终端、只读查一次有没有 tmux；不打开 shell，不执行启动命令，不建 tmux 会话。',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
@@ -147,6 +152,16 @@ class _ConnectionProbeSheetState extends ConsumerState<ConnectionProbeSheet> {
                     ? '已连通。'
                     : '登录成功，远端分配了终端：${_outcome!.tty}。',
               ),
+            if (tmux != null) ...[
+              const SizedBox(height: 8),
+              _ResultBox(
+                key: const ValueKey('probe-tmux'),
+                icon: Icons.layers_outlined,
+                color: scheme.surfaceContainerHigh,
+                onColor: scheme.onSurface,
+                text: tmux,
+              ),
+            ],
             if (_state == _ProbeState.failed) ...[
               _ResultBox(
                 key: const ValueKey('probe-failed'),
@@ -186,6 +201,29 @@ class _ConnectionProbeSheetState extends ConsumerState<ConnectionProbeSheet> {
       ),
     );
   }
+}
+
+/// 测试连接顺带查到的 tmux 情况。只说有没有、有几个会话、去哪里选；不替用户选，也不按名字自动附着（R21）。
+/// Telnet 没有这一项，返回 null。
+String? describeProbeTmux(ProbeOutcome outcome) {
+  final tmux = outcome.tmux;
+  if (tmux == null) {
+    final problem = outcome.tmuxProblem;
+    return problem == null ? null : 'tmux：没查出来，不影响上面的结果（SSH 和终端都通了）：$problem';
+  }
+  final version = tmux.versionLine.isEmpty ? 'tmux' : tmux.versionLine;
+  final problem = tmux.problem ?? '?';
+  return switch (tmux.availability) {
+    TmuxAvailability.missing =>
+      'tmux：远端没有 tmux。这台机器只能开普通 shell，断开后里面的程序随之结束。本 App 不会替你安装。',
+    TmuxAvailability.unsupported =>
+      'tmux：远端的 $version 不在本 App 实测过的版本里，只能当普通 shell 用。',
+    TmuxAvailability.noServer =>
+      'tmux：远端有 $version，默认 socket 上还没有会话。要用就连上后在「系统管理 → tmux」里新建。',
+    TmuxAvailability.ready =>
+      'tmux：远端有 $version，默认 socket 上有 ${tmux.sessions.length} 个会话。连上后在「系统管理 → tmux」里选一个附着。',
+    TmuxAvailability.failed => 'tmux：远端有 $version，但会话列表没读出来：$problem',
+  };
 }
 
 enum _StageStatus { running, done, failed, cancelled }

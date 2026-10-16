@@ -164,6 +164,9 @@ void main() {
       500,
       scrollable: find.byType(Scrollable).first,
     );
+    // scrollUntilVisible 最后的 ensureVisible 只改了滚动位置，不 pump 就点的是旧坐标，
+    // 会点到底部操作栏上。
+    await tester.pump();
     await tester.tap(find.byKey(const ValueKey('delete-host-from-editor')));
     await tester.pumpAndSettle();
 

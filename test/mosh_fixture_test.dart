@@ -15,8 +15,10 @@ import 'package:shun/domain/models/host.dart';
 import 'package:shun/domain/plugins/mosh_bootstrap.dart';
 import 'package:shun/domain/plugins/mosh_route.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/tmux/tmux_protocol.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'package:shun/presentation/widgets/connection_probe_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fixtures/mosh_fixture.dart';
@@ -582,5 +584,90 @@ void main() {
           startsWith(
               '/home/mosh/.local/bin/mosh-server new -s -c 256 -l LANG=C.UTF-8'));
     }, skip: altSkip);
+  });
+
+  // R41 / UX07：测试连接顺带只读查 tmux。只看 mosh 用户默认 socket 上的 tmux：
+  // 查询前后会话一样多、没起 server、没执行启动命令；没有 tmux 的机器（moshalt）如实说没有。
+  group('R41 测试连接只读查 tmux，不建会话', () {
+    Future<ProbeOutcome> probe(HostProfile host) => ssh.probe(
+          host: host,
+          routePlan:
+              resolveRoutePlan(host, hosts: [host], proxyProfiles: const []),
+          verifyHostKey: fixture!.verify,
+          attempt: ConnectionAttempt(),
+        );
+
+    HostProfile sshHost({int? port}) => fixture!.host(port: port, extra: {
+          'protocol': 'ssh',
+          // 测试连接不该执行它：执行了就会留下这个文件。
+          'startupCommand': 'touch /tmp/r41-probe-startup-ran',
+        });
+
+    // 以登录用户身份执行：测试连接查的是这个用户默认 socket 上的 tmux。
+    Future<String> asUser(String command) =>
+        fixture!.exec(command, user: fixture.user);
+
+    Future<String> sessions() =>
+        asUser('tmux list-sessions -F "#{session_id}" 2>/dev/null || true');
+    Future<String> servers() =>
+        fixture!.exec('pgrep -u ${fixture.user} -x tmux | wc -l');
+
+    tearDown(() async {
+      if (fixture == null) return;
+      await asUser('tmux kill-server 2>/dev/null; true');
+      await fixture.exec('rm -f /tmp/r41-probe-startup-ran');
+    });
+
+    test('有 tmux、没有 server：说还没有会话；查完仍没有 server、socket 目录也没被建出来', () async {
+      final f = fixture!;
+      await asUser(
+          'tmux kill-server 2>/dev/null; rm -rf /tmp/tmux-\$(id -u); true');
+      final outcome = await probe(sshHost());
+      expect(outcome.tty, startsWith('/dev/pts/'));
+      expect(outcome.tmux?.availability, TmuxAvailability.noServer,
+          reason: '${outcome.tmux?.problem ?? outcome.tmuxProblem}');
+      expect(describeProbeTmux(outcome), contains('默认 socket 上还没有会话'));
+      expect(await servers(), '0', reason: '查询不该起 tmux server');
+      expect(
+          await asUser('test -e /tmp/tmux-\$(id -u) && echo made || echo none'),
+          'none');
+      expect(
+          await f.exec(
+              'test -e /tmp/r41-probe-startup-ran && echo ran || echo no'),
+          'no');
+    }, skip: skip);
+
+    test('已有一个会话：报 1 个、去哪里选；查完还是那一个会话，没新建、没附着', () async {
+      await asUser('tmux new-session -d -s r41keep');
+      final before = await sessions();
+      expect(before.split('\n'), hasLength(1));
+      final outcome = await probe(sshHost());
+      expect(outcome.tmux?.availability, TmuxAvailability.ready);
+      expect(outcome.tmux!.sessions, hasLength(1));
+      expect(describeProbeTmux(outcome), contains('有 1 个会话'));
+      expect(describeProbeTmux(outcome), contains('「系统管理 → tmux」'));
+      expect(await sessions(), before);
+      expect(await asUser('tmux list-clients 2>/dev/null | wc -l'), '0',
+          reason: '测试连接不附着');
+    }, skip: skip);
+
+    test('没有 tmux 的机器（moshalt）：如实说没有、不会替你装；测试连接本身仍算成功', () async {
+      final f = fixture!;
+      if (f.moshaltPort == null) {
+        markTestSkipped('这份 fixture 没有 moshalt：重跑 tool/mosh-fixture/up.sh');
+        return;
+      }
+      expect(await f.exec('command -v tmux || echo none', service: 'moshalt'),
+          'none');
+      final outcome = await probe(sshHost(port: f.moshaltPort));
+      expect(outcome.tty, startsWith('/dev/pts/'));
+      expect(outcome.tmux?.availability, TmuxAvailability.missing);
+      expect(describeProbeTmux(outcome), contains('远端没有 tmux'));
+      expect(
+          await f.exec(
+              'test -e /tmp/r41-probe-startup-ran && echo ran || echo no',
+              service: 'moshalt'),
+          'no');
+    }, skip: skip);
   });
 }
