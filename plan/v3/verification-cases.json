@@ -1675,9 +1675,11 @@
       "action": "tmux 标签和普通标签分别在 SSH 与 Mosh 之间切换；代理主机、插件没装时打开菜单；设为默认；Mosh 标签断开后重新连接；服务器缺 mosh-server。",
       "expected": "tmux 会话不变、不重发输入；普通标签另开、不关原 shell；不可用项写原因；重新连接是新会话；只给安装命令，不代装。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "BLOCKED",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R42.md"
+      ]
     },
     {
       "id": "UX09",
@@ -1711,9 +1713,11 @@
       "action": "选择普通 shell / 已有 tmux 目标，断线恢复、SSH/Mosh 切换、同名重建、换 tmux server/socket，检查旧画面与关标签行为。",
       "expected": "主机/远端目标/恢复阶段清楚；按完整目标识别，同名不自动附着；历史不称存活，不重喂旧 VT、不重发输入/startup、不暗建或杀远端会话。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "BLOCKED",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R42.md"
+      ]
     },
     {
       "id": "UX12",

@@ -2476,7 +2476,7 @@
       "id": "R42",
       "phase": "P4",
       "title": "终端里的连接方式：SSH/Mosh 徽标、切换、设为默认、Mosh 重新连接",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [
         "X09",
         "R21",
@@ -2515,8 +2515,10 @@
       ],
       "stop_condition": "X10 没在真机上过之前不宣称网络切换不断线；tmux 目标按 R21 的规则拼命令，附着不到就停下问，不暗建 tmux 会话；不替用户安装 mosh。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R42.md"
+      ],
+      "commit": "c7f1e87"
     },
     {
       "id": "R43",
