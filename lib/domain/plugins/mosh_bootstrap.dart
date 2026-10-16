@@ -261,11 +261,11 @@ enum MoshBootstrapFailure {
 
   /// 远端没有可用的 UTF-8 locale。
   localeUnsupported(
-      '远端没有可用的 UTF-8 语言环境，mosh-server 拒绝启动（在这台主机的 Mosh 设置里填服务器已有的 UTF-8 locale，或在服务器上生成 en_US.UTF-8）'),
+      '远端没有可用的 UTF-8 语言环境，mosh-server 拒绝启动（在主机编辑页「高级 → Mosh 启动参数」里填服务器已有的 UTF-8 locale，或在服务器上生成 en_US.UTF-8）'),
 
   /// 路径是「自动」，PATH 和 [MoshBootstrap.probeLocations] 里都没有 mosh-server。
   serverMissing(
-      '远端没有找到 mosh-server（已查 PATH 和常见安装位置）。没装就请管理员装；装在别处就在这台主机的 Mosh 设置里填 mosh-server 路径'),
+      '远端没有找到 mosh-server（已查 PATH 和常见安装位置）。没装就请管理员装；装在别处就在主机编辑页「高级 → Mosh 启动参数」里填 mosh-server 路径'),
 
   /// 用户指定的 mosh-server 路径在远端不存在或不能执行。
   serverPathMissing('指定的 mosh-server 路径在服务器上不存在或不能执行；改正路径，或清空改回自动');

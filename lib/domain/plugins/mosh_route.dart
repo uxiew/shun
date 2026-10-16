@@ -86,8 +86,7 @@ String? parseMoshServerPath(String? raw) {
   if (text.isEmpty) return null;
   if (!MoshBootstrap.isValidServerPath(text)) {
     throw RouteConfigException(
-      'mosh-server 路径写得不对：$text（写 / 或 ~/ 开头的完整路径，如 /opt/mosh/bin/mosh-server；'
-      '只能有字母、数字和 . _ + - /）',
+      'mosh-server 路径写得不对：$text（写 / 或 ~/ 开头的完整路径，如 /opt/mosh/bin/mosh-server；只能有字母、数字和 . _ + - /）',
     );
   }
   return text;

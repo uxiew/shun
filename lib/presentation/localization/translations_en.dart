@@ -1919,11 +1919,11 @@ const englishTranslations = <String, String>{
       'The port returned by mosh-server is outside the requested range',
   'mosh-server 返回的会话密钥格式不对':
       'The session key returned by mosh-server is malformed',
-  '远端没有可用的 UTF-8 语言环境，mosh-server 拒绝启动（在这台主机的 Mosh 设置里填服务器已有的 UTF-8 locale，或在服务器上生成 en_US.UTF-8）':
-      'The server has no usable UTF-8 locale, so mosh-server refused to start (enter a UTF-8 locale the server has in this host’s Mosh settings, or generate en_US.UTF-8 on the server)',
+  '远端没有可用的 UTF-8 语言环境，mosh-server 拒绝启动（在主机编辑页「高级 → Mosh 启动参数」里填服务器已有的 UTF-8 locale，或在服务器上生成 en_US.UTF-8）':
+      'The server has no usable UTF-8 locale, so mosh-server refused to start (enter a UTF-8 locale the server has under Advanced → Mosh launch options in the host editor, or generate en_US.UTF-8 on the server)',
   // R41：mosh-server 路径与 locale 覆盖。
-  '远端没有找到 mosh-server（已查 PATH 和常见安装位置）。没装就请管理员装；装在别处就在这台主机的 Mosh 设置里填 mosh-server 路径':
-      'mosh-server was not found on the server (PATH and common install locations were checked). If it is not installed, ask the administrator; if it is installed elsewhere, enter its path in this host’s Mosh settings',
+  '远端没有找到 mosh-server（已查 PATH 和常见安装位置）。没装就请管理员装；装在别处就在主机编辑页「高级 → Mosh 启动参数」里填 mosh-server 路径':
+      'mosh-server was not found on the server (PATH and common install locations were checked). If it is not installed, ask the administrator; if it is installed elsewhere, enter its path under Advanced → Mosh launch options in the host editor',
   '指定的 mosh-server 路径在服务器上不存在或不能执行；改正路径，或清空改回自动':
       'The mosh-server path you entered does not exist on the server or is not executable; fix the path, or clear it to go back to automatic',
   'mosh-server 路径写得不对：\$text（写 / 或 ~/ 开头的完整路径，如 /opt/mosh/bin/mosh-server；只能有字母、数字和 . _ + - /）':
