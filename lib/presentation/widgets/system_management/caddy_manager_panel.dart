@@ -4,6 +4,7 @@ import 'package:shun/presentation/localization/localized_widgets.dart';
 import '../../../domain/models/system_management.dart';
 import '../../../infrastructure/ssh/ssh_service.dart';
 import '../../../infrastructure/ssh/system_management_service.dart';
+import 'sudo_prompt.dart';
 
 class CaddyManagerPanel extends StatefulWidget {
   const CaddyManagerPanel({
@@ -63,7 +64,9 @@ class _CaddyManagerPanelState extends State<CaddyManagerPanel> {
     try {
       final status = await widget.service.caddyStatus(widget.session);
       final sites = status.installed
-          ? await widget.service.listCaddySites(widget.session, status)
+          ? await _withSudo(
+              () => widget.service.listCaddySites(widget.session, status),
+            )
           : const <CaddySite>[];
       if (!mounted) return;
       setState(() {
@@ -78,23 +81,12 @@ class _CaddyManagerPanelState extends State<CaddyManagerPanel> {
     }
   }
 
-  Future<T> _withSudo<T>(Future<T> Function() action) async {
-    try {
-      return await action();
-    } on CaddySudoPasswordRequired catch (error) {
-      final password = await _requestSudoPassword(error.message);
-      if (password == null) throw const _CaddyActionCancelled();
-      widget.service.setCaddySudoPassword(widget.session, password);
-      return action();
-    }
-  }
-
-  Future<String?> _requestSudoPassword(String message) async {
-    return showDialog<String>(
-      context: context,
-      builder: (context) => _CaddySudoPasswordDialog(message: message),
-    );
-  }
+  Future<T> _withSudo<T>(Future<T> Function() action) => runWithSudo(
+        context,
+        action,
+        (password) =>
+            widget.service.setCaddySudoPassword(widget.session, password),
+      );
 
   Future<void> _edit([CaddySite? existing]) async {
     final status = _status;
@@ -111,8 +103,8 @@ class _CaddyManagerPanelState extends State<CaddyManagerPanel> {
         const SnackBar(content: LText('Caddy 配置已更新并重新加载')),
       );
       await _refresh();
-    } on _CaddyActionCancelled {
-      // The password dialog was intentionally dismissed.
+    } on SudoDeclined {
+      // 用户不要 sudo：什么都没做，不算失败。
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -163,8 +155,8 @@ class _CaddyManagerPanelState extends State<CaddyManagerPanel> {
         const SnackBar(content: LText('反向代理站点已删除')),
       );
       await _refresh();
-    } on _CaddyActionCancelled {
-      // The password dialog was intentionally dismissed.
+    } on SudoDeclined {
+      // 用户不要 sudo：什么都没做，不算失败。
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -373,78 +365,6 @@ class _CaddyManagerPanelState extends State<CaddyManagerPanel> {
       ),
     );
   }
-}
-
-class _CaddyActionCancelled implements Exception {
-  const _CaddyActionCancelled();
-}
-
-class _CaddySudoPasswordDialog extends StatefulWidget {
-  const _CaddySudoPasswordDialog({required this.message});
-
-  final String message;
-
-  @override
-  State<_CaddySudoPasswordDialog> createState() =>
-      _CaddySudoPasswordDialogState();
-}
-
-class _CaddySudoPasswordDialogState extends State<_CaddySudoPasswordDialog> {
-  final controller = TextEditingController();
-  var obscure = true;
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
-
-  void _submit() {
-    if (controller.text.isNotEmpty) {
-      Navigator.pop(context, controller.text);
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-        icon: const Icon(Icons.lock_outline),
-        title: const LText('需要 sudo 权限'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              LText(widget.message),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                obscureText: obscure,
-                onSubmitted: (_) => _submit(),
-                decoration: LInputDecoration(
-                  labelText: 'sudo 密码',
-                  helperText: '密码仅在本次系统管理面板打开期间保留',
-                  suffixIcon: IconButton(
-                    onPressed: () => setState(() => obscure = !obscure),
-                    icon: Icon(
-                      obscure ? Icons.visibility : Icons.visibility_off,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const LText('取消'),
-          ),
-          FilledButton(
-            onPressed: _submit,
-            child: const LText('继续'),
-          ),
-        ],
-      );
 }
 
 class _CaddySiteDialog extends StatefulWidget {

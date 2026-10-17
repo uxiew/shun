@@ -7,6 +7,7 @@ import '../../../infrastructure/ssh/system_management_service.dart';
 import 'docker_compose_panel.dart';
 import 'docker_image_badge.dart';
 import 'management_filter_chip.dart';
+import 'sudo_prompt.dart';
 
 enum _ContainerFilter { all, running, stopped, paused }
 
@@ -69,18 +70,10 @@ class _DockerManagerPanelState extends State<DockerManagerPanel>
     if (!mounted) return;
     setState(() => _loading = true);
     try {
-      List<DockerContainerInfo> containers;
-      List<DockerImageInfo> images;
-      try {
-        containers = await widget.service.listDockerContainers(widget.session);
-        images = await widget.service.listDockerImages(widget.session);
-      } on DockerSudoPasswordRequired catch (error) {
-        final password = await _requestSudoPassword(error.message);
-        if (password == null) rethrow;
-        widget.service.setDockerSudoPassword(widget.session, password);
-        containers = await widget.service.listDockerContainers(widget.session);
-        images = await widget.service.listDockerImages(widget.session);
-      }
+      final (containers, images) = await _withSudo(() async => (
+            await widget.service.listDockerContainers(widget.session),
+            await widget.service.listDockerImages(widget.session),
+          ));
       if (!mounted) return;
       setState(() {
         _containers = containers;
@@ -94,60 +87,13 @@ class _DockerManagerPanelState extends State<DockerManagerPanel>
     }
   }
 
-  Future<String?> _requestSudoPassword(String message) async {
-    final controller = TextEditingController();
-    var obscure = true;
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          icon: const Icon(Icons.lock_outline),
-          title: const LText('需要 sudo 权限'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              LText(message),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                obscureText: obscure,
-                onSubmitted: (value) {
-                  if (value.isNotEmpty) Navigator.pop(context, value);
-                },
-                decoration: LInputDecoration(
-                  labelText: 'sudo 密码',
-                  helperText: '密码仅在本次系统管理面板打开期间保留',
-                  suffixIcon: IconButton(
-                    onPressed: () => setDialogState(() => obscure = !obscure),
-                    icon: Icon(
-                      obscure ? Icons.visibility : Icons.visibility_off,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const LText('取消'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (controller.text.isNotEmpty) {
-                  Navigator.pop(context, controller.text);
-                }
-              },
-              child: const LText('继续'),
-            ),
-          ],
-        ),
-      ),
-    );
-    controller.dispose();
-    return result;
-  }
+  /// Docker 和 Compose 共用一份 sudo 同意（见 [SystemManagementService.setDockerSudoPassword]）。
+  Future<T> _withSudo<T>(Future<T> Function() action) => runWithSudo(
+        context,
+        action,
+        (password) =>
+            widget.service.setDockerSudoPassword(widget.session, password),
+      );
 
   List<DockerContainerInfo> get _visibleContainers {
     final query = _containerSearch.text.trim().toLowerCase();
@@ -261,8 +207,10 @@ class _DockerManagerPanelState extends State<DockerManagerPanel>
   ) async {
     setState(() => _busy.add(id));
     try {
-      await action();
+      await _withSudo(action);
       await _refresh();
+    } on SudoDeclined {
+      // 用户不要 sudo：什么都没做，不算失败。
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -340,7 +288,6 @@ class _DockerManagerPanelState extends State<DockerManagerPanel>
                   service: widget.service,
                   onOpenTerminal: widget.onOpenTerminal,
                   onOpenConfig: widget.onOpenConfig,
-                  onRequestSudoPassword: _requestSudoPassword,
                 ),
               ],
             ),

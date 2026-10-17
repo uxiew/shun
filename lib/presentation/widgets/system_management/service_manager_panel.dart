@@ -5,6 +5,7 @@ import '../../../domain/models/system_management.dart';
 import '../../../infrastructure/ssh/ssh_service.dart';
 import '../../../infrastructure/ssh/system_management_service.dart';
 import 'management_filter_chip.dart';
+import 'sudo_prompt.dart';
 
 enum _ServiceFilter { all, running, stopped, failed }
 
@@ -91,19 +92,19 @@ class _ServiceManagerPanelState extends State<ServiceManagerPanel> {
     if (_busy.contains(service.name)) return;
     setState(() => _busy.add(service.name));
     try {
-      try {
-        await widget.service.serviceAction(widget.session, service, action);
-      } on ServiceSudoPasswordRequired catch (error) {
-        final password = await _requestSudoPassword(error.message);
-        if (password == null) return;
-        widget.service.setServiceSudoPassword(widget.session, password);
-        await widget.service.serviceAction(widget.session, service, action);
-      }
+      await runWithSudo(
+        context,
+        () => widget.service.serviceAction(widget.session, service, action),
+        (password) =>
+            widget.service.setServiceSudoPassword(widget.session, password),
+      );
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: LText('${service.name} 操作完成')),
       );
       await _refresh();
+    } on SudoDeclined {
+      // 用户不要 sudo：什么都没做，不算失败。
     } catch (error) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -112,61 +113,6 @@ class _ServiceManagerPanelState extends State<ServiceManagerPanel> {
     } finally {
       if (mounted) setState(() => _busy.remove(service.name));
     }
-  }
-
-  Future<String?> _requestSudoPassword(String message) async {
-    final controller = TextEditingController();
-    var obscure = true;
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setDialogState) => AlertDialog(
-          icon: const Icon(Icons.lock_outline),
-          title: const LText('需要 sudo 权限'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              LText(message),
-              const SizedBox(height: 12),
-              TextField(
-                controller: controller,
-                autofocus: true,
-                obscureText: obscure,
-                onSubmitted: (value) {
-                  if (value.isNotEmpty) Navigator.pop(context, value);
-                },
-                decoration: LInputDecoration(
-                  labelText: 'sudo 密码',
-                  helperText: '密码仅在本次系统管理面板打开期间保留',
-                  suffixIcon: IconButton(
-                    onPressed: () => setDialogState(() => obscure = !obscure),
-                    icon: Icon(
-                      obscure ? Icons.visibility : Icons.visibility_off,
-                    ),
-                  ),
-                ),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const LText('取消'),
-            ),
-            FilledButton(
-              onPressed: () {
-                if (controller.text.isNotEmpty) {
-                  Navigator.pop(context, controller.text);
-                }
-              },
-              child: const LText('继续'),
-            ),
-          ],
-        ),
-      ),
-    );
-    controller.dispose();
-    return result;
   }
 
   @override

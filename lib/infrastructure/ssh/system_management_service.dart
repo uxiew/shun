@@ -15,32 +15,41 @@ class RemoteCommandException implements Exception {
   String toString() => message;
 }
 
-class DockerSudoPasswordRequired implements Exception {
-  const DockerSudoPasswordRequired(this.message);
+/// 当前用户权限不够，要用 sudo 才能做。三个子类对应 Docker（含 Compose）、系统服务、Caddy，
+/// 各自记着用户同意过没有。
+///
+/// [passwordOptional] 为 true：还没问过用户要不要用 sudo。用户同意（免密 sudo 的机器密码可以留空）之前
+/// 一条 sudo 都不发。以前一碰到权限错就自动试 `sudo -n`，免密 sudo 的机器上直接以 root 执行了，用户不知道。
+/// 为 false：同意过了，但 sudo 要密码，或者刚才的密码不对。
+sealed class SudoRequired implements Exception {
+  const SudoRequired(this.message, {this.passwordOptional = false});
 
   final String message;
+  final bool passwordOptional;
 
   @override
   String toString() => message;
 }
 
-class ServiceSudoPasswordRequired implements Exception {
-  const ServiceSudoPasswordRequired(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
+class DockerSudoPasswordRequired extends SudoRequired {
+  const DockerSudoPasswordRequired(super.message, {super.passwordOptional});
 }
 
-class CaddySudoPasswordRequired implements Exception {
-  const CaddySudoPasswordRequired(this.message);
-
-  final String message;
-
-  @override
-  String toString() => message;
+class ServiceSudoPasswordRequired extends SudoRequired {
+  const ServiceSudoPasswordRequired(super.message, {super.passwordOptional});
 }
+
+class CaddySudoPasswordRequired extends SudoRequired {
+  const CaddySudoPasswordRequired(super.message, {super.passwordOptional});
+}
+
+/// 测试用：替掉 SSH exec，按命令给出输出和退出码。
+typedef RemoteCommandRunner
+    = Future<({String stdout, String stderr, int? exitCode})> Function(
+  ActiveTerminalSession session,
+  String command,
+  String? stdinText,
+);
 
 const caddyNotFoundMessage = '未检测到 Caddy，请先安装 Caddy 后再重试。';
 
@@ -63,6 +72,16 @@ enum _ServicePrivilege { direct, sudoNoPassword, sudoPassword }
 enum _DockerComposeBackend { plugin, standalone }
 
 class SystemManagementService {
+  SystemManagementService({RemoteCommandRunner? runCommand})
+      : _runCommand = runCommand;
+
+  final RemoteCommandRunner? _runCommand;
+
+  /// 用户在确认框里同意过用 sudo 的会话 id，分 Docker、系统服务、Caddy 三处记。
+  /// 只在这个面板的实例里，关了面板就忘，下次还要再问。
+  final _dockerSudoAllowed = <String>{};
+  final _serviceSudoAllowed = <String>{};
+  final _caddySudoAllowed = <String>{};
   final _dockerPrivileges = <String, _DockerPrivilege>{};
   final _sudoPasswords = <String, String>{};
   final _composeBackends = <String, _DockerComposeBackend>{};
@@ -292,12 +311,13 @@ class SystemManagementService {
     );
   }
 
+  /// 用户同意用 sudo 管系统服务。[password] 为空：只同意、没填密码，先试 `sudo -n`。
   void setServiceSudoPassword(
     ActiveTerminalSession session,
     String password,
   ) {
-    if (password.isEmpty) return;
-    _serviceSudoPasswords[session.id] = password;
+    _serviceSudoAllowed.add(session.id);
+    if (password.isNotEmpty) _serviceSudoPasswords[session.id] = password;
     _servicePrivileges.remove(session.id);
   }
 
@@ -471,12 +491,13 @@ class SystemManagementService {
     await _executeCaddyCommand(session, deleteCaddySiteCommand(status, site));
   }
 
+  /// 见 [setServiceSudoPassword]。
   void setCaddySudoPassword(
     ActiveTerminalSession session,
     String password,
   ) {
-    if (password.isEmpty) return;
-    _caddySudoPasswords[session.id] = password;
+    _caddySudoAllowed.add(session.id);
+    if (password.isNotEmpty) _caddySudoPasswords[session.id] = password;
     _caddyPrivileges.remove(session.id);
   }
 
@@ -813,12 +834,13 @@ class SystemManagementService {
         timeout: const Duration(minutes: 5));
   }
 
+  /// 见 [setServiceSudoPassword]。Compose 也算 Docker。
   void setDockerSudoPassword(
     ActiveTerminalSession session,
     String password,
   ) {
-    if (password.isEmpty) return;
-    _sudoPasswords[session.id] = password;
+    _dockerSudoAllowed.add(session.id);
+    if (password.isNotEmpty) _sudoPasswords[session.id] = password;
     _dockerPrivileges.remove(session.id);
     _composeBackends.remove(session.id);
   }
@@ -891,6 +913,13 @@ class SystemManagementService {
       return result.stdout;
     } on RemoteCommandException catch (error) {
       if (!_isDockerPermissionError(error.message)) rethrow;
+      if (!_dockerSudoAllowed.contains(session.id)) {
+        throw DockerSudoPasswordRequired(
+          '当前用户无权运行 Docker Compose，要用 sudo 以管理员身份再试吗？\n'
+          '${error.message}',
+          passwordOptional: true,
+        );
+      }
     }
     try {
       final result = await _executeSession(
@@ -960,6 +989,13 @@ class SystemManagementService {
       return result.stdout;
     } on RemoteCommandException catch (error) {
       if (!_isDockerPermissionError(error.message)) rethrow;
+      if (!_dockerSudoAllowed.contains(session.id)) {
+        throw DockerSudoPasswordRequired(
+          '当前用户无权访问 docker.sock，要用 sudo 以管理员身份再试吗？\n'
+          '${error.message}',
+          passwordOptional: true,
+        );
+      }
     }
 
     try {
@@ -1048,6 +1084,12 @@ class SystemManagementService {
       return result;
     } on RemoteCommandException catch (error) {
       if (!_isServicePermissionError(error.message)) rethrow;
+      if (!_serviceSudoAllowed.contains(session.id)) {
+        throw ServiceSudoPasswordRequired(
+          '管理系统服务需要管理员权限，要用 sudo 再试吗？\n${error.message}',
+          passwordOptional: true,
+        );
+      }
     }
     try {
       final result = await _executeSession(session, 'sudo -n $command');
@@ -1099,6 +1141,12 @@ class SystemManagementService {
         if (cached != _ServicePrivilege.sudoPassword) {
           if (!_isServicePermissionError(error.message)) rethrow;
           _caddyPrivileges.remove(session.id);
+          if (!_caddySudoAllowed.contains(session.id)) {
+            throw CaddySudoPasswordRequired(
+              '管理 Caddy 配置需要管理员权限，要用 sudo 再试吗？\n${error.message}',
+              passwordOptional: true,
+            );
+          }
         } else {
           _caddyPrivileges.remove(session.id);
           _caddySudoPasswords.remove(session.id);
@@ -1115,6 +1163,12 @@ class SystemManagementService {
         return result;
       } on RemoteCommandException catch (error) {
         if (!_isServicePermissionError(error.message)) rethrow;
+        if (!_caddySudoAllowed.contains(session.id)) {
+          throw CaddySudoPasswordRequired(
+            '管理 Caddy 配置需要管理员权限，要用 sudo 再试吗？\n${error.message}',
+            passwordOptional: true,
+          );
+        }
       }
     }
     try {
@@ -1163,6 +1217,18 @@ class SystemManagementService {
     Duration timeout = const Duration(seconds: 15),
     Set<int> acceptedExitCodes = const {0},
   }) async {
+    final runner = _runCommand;
+    if (runner != null) {
+      final value = await runner(session, command, stdinText).timeout(timeout);
+      return _checkExit(
+        _RemoteResult(
+          stdout: value.stdout,
+          stderr: value.stderr,
+          exitCode: value.exitCode ?? 0,
+        ),
+        acceptedExitCodes,
+      );
+    }
     final client = session.sshClient;
     if (client == null) {
       throw UnsupportedError('系统管理仅支持 SSH 连接');
@@ -1178,24 +1244,33 @@ class SystemManagementService {
         utf8.decoder.bind(process.stderr).join(),
       ]).timeout(timeout);
       await process.done.timeout(const Duration(seconds: 2));
-      final result = _RemoteResult(
-        stdout: values[0],
-        stderr: values[1],
-        exitCode: process.exitCode ?? 0,
+      return _checkExit(
+        _RemoteResult(
+          stdout: values[0],
+          stderr: values[1],
+          exitCode: process.exitCode ?? 0,
+        ),
+        acceptedExitCodes,
       );
-      if (!acceptedExitCodes.contains(result.exitCode)) {
-        final message = result.stderr.trim().isNotEmpty
-            ? result.stderr.trim()
-            : result.stdout.trim().isNotEmpty
-                ? result.stdout.trim()
-                : '远程命令执行失败';
-        throw RemoteCommandException(message, exitCode: result.exitCode);
-      }
-      return result;
     } on TimeoutException {
       process.close();
       throw TimeoutException('远程系统管理命令执行超时');
     }
+  }
+
+  static _RemoteResult _checkExit(
+    _RemoteResult result,
+    Set<int> acceptedExitCodes,
+  ) {
+    if (!acceptedExitCodes.contains(result.exitCode)) {
+      final message = result.stderr.trim().isNotEmpty
+          ? result.stderr.trim()
+          : result.stdout.trim().isNotEmpty
+              ? result.stdout.trim()
+              : '远程命令执行失败';
+      throw RemoteCommandException(message, exitCode: result.exitCode);
+    }
+    return result;
   }
 
   static bool _isDockerPermissionError(String message) {

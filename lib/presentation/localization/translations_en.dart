@@ -780,6 +780,11 @@ const englishTranslations = <String, String>{
       'Managing Caddy configuration requires administrator access and a sudo password.',
   r'管理 Caddy 配置需要管理员权限，且 sudo 需要密码。\n${error.message}':
       r'Managing Caddy configuration requires administrator access and a sudo password.\n${error.message}',
+  '用 sudo 再试？': 'Retry with sudo?',
+  '需要 sudo 密码': 'Sudo password required',
+  '免密 sudo 的服务器可以留空；密码只在这次系统管理面板打开期间保留':
+      'Leave empty if sudo needs no password on this server. The password is kept only while this system-management panel is open',
+  '用 sudo 继续': 'Continue with sudo',
   '进程': 'Processes',
   '服务': 'Services',
   'OpenRC 服务': 'OpenRC services',
@@ -3514,6 +3519,22 @@ const englishReplacements = <(String, String)>[
   (
     '当前用户无权访问 docker.sock，且 sudo 需要密码',
     'The current user cannot access docker.sock and sudo requires a password'
+  ),
+  (
+    '当前用户无权访问 docker.sock，要用 sudo 以管理员身份再试吗？',
+    'The current user cannot access docker.sock. Retry as administrator with sudo?'
+  ),
+  (
+    '当前用户无权运行 Docker Compose，要用 sudo 以管理员身份再试吗？',
+    'The current user cannot run Docker Compose. Retry as administrator with sudo?'
+  ),
+  (
+    '管理系统服务需要管理员权限，要用 sudo 再试吗？',
+    'Managing system services requires administrator access. Retry with sudo?'
+  ),
+  (
+    '管理 Caddy 配置需要管理员权限，要用 sudo 再试吗？',
+    'Managing Caddy configuration requires administrator access. Retry with sudo?'
   ),
   (
     '当前用户无权运行 Docker Compose，且 sudo 需要密码',

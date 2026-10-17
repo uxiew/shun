@@ -5,6 +5,7 @@ import '../../../domain/models/system_management.dart';
 import '../../../infrastructure/ssh/ssh_service.dart';
 import '../../../infrastructure/ssh/system_management_service.dart';
 import 'docker_image_badge.dart';
+import 'sudo_prompt.dart';
 
 class DockerComposePanel extends StatefulWidget {
   const DockerComposePanel({
@@ -13,14 +14,12 @@ class DockerComposePanel extends StatefulWidget {
     required this.service,
     required this.onOpenTerminal,
     required this.onOpenConfig,
-    required this.onRequestSudoPassword,
   });
 
   final ActiveTerminalSession session;
   final SystemManagementService service;
   final Future<void> Function(String label, String command) onOpenTerminal;
   final ValueChanged<String> onOpenConfig;
-  final Future<String?> Function(String message) onRequestSudoPassword;
 
   @override
   State<DockerComposePanel> createState() => _DockerComposePanelState();
@@ -58,25 +57,21 @@ class _DockerComposePanelState extends State<DockerComposePanel> {
     if (!mounted || _loading && _projects.isNotEmpty) return;
     setState(() => _loading = true);
     try {
-      await _load();
-    } on DockerSudoPasswordRequired catch (error) {
-      final password = await widget.onRequestSudoPassword(error.message);
-      if (password == null) {
-        if (mounted) setState(() => _error = error);
-        return;
-      }
-      widget.service.setDockerSudoPassword(widget.session, password);
-      try {
-        await _load();
-      } catch (error) {
-        if (mounted) setState(() => _error = error);
-      }
+      await _withSudo(_load);
     } catch (error) {
       if (mounted) setState(() => _error = error);
     } finally {
       if (mounted) setState(() => _loading = false);
     }
   }
+
+  /// 和容器、镜像共用一份 Docker 的 sudo 同意。
+  Future<T> _withSudo<T>(Future<T> Function() action) => runWithSudo(
+        context,
+        action,
+        (password) =>
+            widget.service.setDockerSudoPassword(widget.session, password),
+      );
 
   Future<void> _load() async {
     final containers =
@@ -158,22 +153,16 @@ class _DockerComposePanelState extends State<DockerComposePanel> {
     }
     setState(() => _busy.add(project.name));
     try {
-      await widget.service.dockerComposeAction(
-        widget.session,
-        project,
-        action,
+      await _withSudo(
+        () => widget.service.dockerComposeAction(
+          widget.session,
+          project,
+          action,
+        ),
       );
-      await _load();
-    } on DockerSudoPasswordRequired catch (error) {
-      final password = await widget.onRequestSudoPassword(error.message);
-      if (password == null) return;
-      widget.service.setDockerSudoPassword(widget.session, password);
-      await widget.service.dockerComposeAction(
-        widget.session,
-        project,
-        action,
-      );
-      await _load();
+      await _withSudo(_load);
+    } on SudoDeclined {
+      // 用户不要 sudo：什么都没做，不算失败。
     } catch (error) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
