@@ -50,6 +50,7 @@ class VaultImportPlan {
     required this.localOnlySnippets,
     required this.credentialsNotCarried,
     required this.keysWithoutMaterial,
+    required this.fingerprintsNotImported,
   });
 
   final VaultData incoming;
@@ -75,6 +76,9 @@ class VaultImportPlan {
   /// 导入后只有名字、没有私钥内容的私钥（本 App 导出的文件不带私钥；换手机导入时全是这种）。
   final List<SshKeyProfile> keysWithoutMaterial;
 
+  /// 文件里本机没核对过的服务器指纹条数。导入不收指纹（见 [result]），这些服务器第一次连时要重新核对。
+  final int fingerprintsNotImported;
+
   /// 本机没有任何独有条目时，合并和替换结果一样，确认框只给一个「导入」。
   bool get hasLocalOnly =>
       localOnlyHosts.isNotEmpty ||
@@ -96,8 +100,16 @@ class VaultImportPlan {
       ]);
 
   /// 按 [mode] 算出要保存的保险库，本机凭据按 [keepLocalSecrets] 的规则沿用。
+  ///
+  /// 受信指纹两种方式都只留本机的、文件里的一条不收：指纹记录的意思是「在这台手机上核对过」，
+  /// 一个文件担保不了。以前文件里本机没有的指纹直接加进来（替换时整份用文件的），等于让文件替用户
+  /// 点了「接受并记住」：改过的文件能先埋下攻击者的指纹，之后的中间人连核对框都不会触发。
+  /// 云同步也是这么对待指纹的（`retainLocalDeviceData`）。
   VaultData result(VaultImportMode mode) => keepLocalSecrets(
-        mode == VaultImportMode.merge ? _merge(incoming, local) : incoming,
+        _withLocalFingerprints(
+          mode == VaultImportMode.merge ? _merge(incoming, local) : incoming,
+          local,
+        ),
         local,
       );
 }
@@ -170,14 +182,36 @@ VaultImportPlan planVaultImport(VaultData incoming, VaultData local) {
       for (final value in carried.keys)
         if (value.privateKey.isEmpty) value,
     ],
+    fingerprintsNotImported: _fingerprintsNotOnThisPhone(incoming, local),
   );
+}
+
+String _trustKey(Map<String, dynamic> entry) =>
+    '${trustHostName('${entry['hostname'] ?? ''}')}:${(entry['port'] as num?)?.toInt() ?? 22}';
+
+/// 文件里有、本机没有一模一样记录（同一台、同一种密钥、同一个指纹）的指纹条数。
+int _fingerprintsNotOnThisPhone(VaultData incoming, VaultData local) {
+  String record(Map<String, dynamic> entry) =>
+      '${_trustKey(entry)} ${entry['keyType']} ${entry['fingerprint']}';
+  final mine = {
+    for (final entry in _maps(local.extras['knownHosts'])) record(entry),
+  };
+  return _maps(incoming.extras['knownHosts'])
+      .where((entry) => !mine.contains(record(entry)))
+      .length;
+}
+
+VaultData _withLocalFingerprints(VaultData vault, VaultData local) {
+  final json = _copy(vault.toJson())..remove('knownHosts');
+  final mine = local.extras['knownHosts'];
+  if (mine != null) json['knownHosts'] = jsonDecode(jsonEncode(mine));
+  return VaultData.fromJson(json);
 }
 
 /// 文件优先：两边都有的条目用文件的；本机独有的接在后面。
 ///
 /// extras 里其他不认识的字段同理：文件有的用文件的，文件没有的保留本机的。
-/// 受信指纹例外：同一台主机两边记录不一样时**保留本机的**——本机那条是在这台手机上核对过的，
-/// 不能被一个文件悄悄改掉（指纹变了必须阻断，见 host_trust.dart）。
+/// 受信指纹不在这里合并，由 [_withLocalFingerprints] 整份换回本机的。
 VaultData _merge(VaultData incoming, VaultData local) {
   final result = _copy(incoming.toJson());
   final mine = _copy(local.toJson());
@@ -200,10 +234,6 @@ VaultData _merge(VaultData incoming, VaultData local) {
       ..._strings(mine[key]),
     }.toList();
   }
-  if (result.containsKey('knownHosts') || mine.containsKey('knownHosts')) {
-    result['knownHosts'] = _mergeKnownHosts(
-        _maps(result['knownHosts']), _maps(mine['knownHosts']));
-  }
   return VaultData.fromJson(result);
 }
 
@@ -224,20 +254,6 @@ List<Map<String, dynamic>> _mergeEntities(
           ? !plain.contains(jsonEncode(value))
           : !ids.contains(_id(value)))
         value,
-  ];
-}
-
-List<Map<String, dynamic>> _mergeKnownHosts(
-  List<Map<String, dynamic>> theirs,
-  List<Map<String, dynamic>> ours,
-) {
-  String key(Map<String, dynamic> entry) =>
-      '${trustHostName('${entry['hostname'] ?? ''}')}:${(entry['port'] as num?)?.toInt() ?? 22}';
-  final known = {for (final value in ours) key(value)};
-  return [
-    ...ours,
-    for (final value in theirs)
-      if (!known.contains(key(value))) value,
   ];
 }
 

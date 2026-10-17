@@ -59,6 +59,10 @@ Future<VaultImportMode?> confirmVaultImport(
               const LText('这些私钥在文件里只有名字、没有内容（本 App 导出的文件不带私钥），导入后要重新导入私钥：'),
               Text(keys.join('、')),
             ],
+            if (plan.fingerprintsNotImported > 0) ...[
+              const SizedBox(height: 12),
+              const LText('文件里的服务器指纹不导入：本机没核对过的服务器，第一次连接时会请你重新核对。'),
+            ],
           ],
         ),
       ),

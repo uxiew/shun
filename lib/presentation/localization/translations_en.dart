@@ -996,6 +996,8 @@ const englishTranslations = <String, String>{
   // 导入确认框（vault_import_dialog.dart）。
   '导入保险库文件': 'Import vault file',
   '本机有、文件里没有的：': 'On this device but not in the file:',
+  '文件里的服务器指纹不导入：本机没核对过的服务器，第一次连接时会请你重新核对。':
+      'Server fingerprints in the file are not imported. Servers not yet verified on this device will ask you to verify them on first connection.',
   '选「合并」会保留它们。选「替换」会把它们连同密码和私钥一起删除，之后再导入不带凭据的备份也找不回来。':
       'Merge keeps them. Replace deletes them together with their passwords and private keys; importing a backup without credentials later will not bring those back.',
   '这些条目的地址、端口或用户名和本机不同，本机存的密码不会沿用，导入后要重新填：':

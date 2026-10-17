@@ -154,6 +154,12 @@ void main() {
       final same = planVaultImport(localVault(), localVault());
       expect(same.hasLocalOnly, isFalse);
       expect(same.credentialsNotCarried, isEmpty);
+      expect(same.fingerprintsNotImported, 0);
+    });
+
+    test('文件里本机没核对过的指纹数出来，确认框告诉用户不导入', () {
+      // web 那条指纹和本机的不一样，cache 那条本机没有。
+      expect(plan.fingerprintsNotImported, 2);
     });
   });
 
@@ -181,10 +187,9 @@ void main() {
       expect(office['password'], 'PROXY-PW');
     });
 
-    test('受信指纹：同一台主机两边不一样时保留本机核对过的，文件独有的加进来', () {
+    test('受信指纹：只留本机核对过的，文件里的一条不收（文件独有的也不收）', () {
       final known = (merged.extras['knownHosts'] as List).cast<Map>();
-      expect(known.map((e) => e['fingerprint']),
-          ['SHA256:local-verified', 'SHA256:cache']);
+      expect(known.map((e) => e['fingerprint']), ['SHA256:local-verified']);
     });
 
     test('extras 里的集合按 ID 合并；其他字段文件有的用文件的，文件没有的保留本机的', () {
@@ -227,6 +232,21 @@ void main() {
       expect(byId(replaced, 'moved').password, isNull);
       expect(replaced.extras.containsKey('notes'), isTrue);
       expect(replaced.extras['x-file-only'], 1);
+    });
+
+    test('受信指纹不跟着换：还是本机核对过的那份', () {
+      final known = (replaced.extras['knownHosts'] as List).cast<Map>();
+      expect(known.map((e) => e['fingerprint']), ['SHA256:local-verified']);
+    });
+
+    test('本机没有任何指纹时，导入后也没有', () {
+      final empty = VaultData.fromJson(
+        localVault().toJson()..remove('knownHosts'),
+      );
+      for (final mode in VaultImportMode.values) {
+        final result = planVaultImport(fileVault(), empty).result(mode);
+        expect(result.extras['knownHosts'], isNull, reason: '$mode');
+      }
     });
   });
 
