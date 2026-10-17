@@ -7,7 +7,7 @@
 //   echo  另开一个 echo 会话（代替「别处在用的会话」）→ 进会话测试、开一个测试会话、发一行、离开 →
 //         原来那个 echo 会话还活着、照常回显，连接没被断开。
 //
-// 这不是 CI 测试。要先（详见 docs/shun/README.md 第 2 节「Mosh」）：
+// 这不是 CI 测试。要先（详见 docs/dev/README.md 第 2 节「Mosh」）：
 //   (cd tool/mosh-fixture && ./up.sh)
 //   adb -s emulator-5580 shell svc wifi disable          # 原因见本机手册第 3 节；测完一定 enable
 //   adb -s emulator-5580 install -r plugins/mosh/build/outputs/apk/release/mosh-release.apk

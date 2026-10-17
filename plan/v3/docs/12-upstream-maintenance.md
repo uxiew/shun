@@ -2,7 +2,7 @@
 
 ## 高效二开的方式
 
-2026-10-04所有者定：清理原项目remote，origin设为`uxiew/xwshun`（10-11随App改名为`uxiew/shun`）；上游只保留基座SHA与可追溯记录，需要时按SHA临时fetch（见docs/architecture/base-decision.md）。不自动push或创建公开仓库。先固定绿色基线，然后网络硬化、目录、终端、平台分别小提交；不同时全局格式化/重命名/升级依赖，让后续cherry-pick与rebase成本可控。
+2026-10-04所有者定：清理原项目remote，origin设为`uxiew/xwshun`（10-11随App改名为`uxiew/shun`）；上游只保留基座SHA与可追溯记录，需要时按SHA临时fetch（见docs/decisions/base-decision.md）。不自动push或创建公开仓库。先固定绿色基线，然后网络硬化、目录、终端、平台分别小提交；不同时全局格式化/重命名/升级依赖，让后续cherry-pick与rebase成本可控。
 
 依赖有bug卡住时（2026-10-04所有者定）fork进`third_party/<名字>/`自己维护：记上游起点提交、差异表、同步办法，改动标`shun:`，不顺手升级版本（见`third_party/README.md`）。上游bug修复尽量独立补丁：无效代理、协商取消、增量UTF-8、重连startup等，与本产品Tailscale目录/引擎偏好分开。提交公共PR须有用户授权，临时密钥与个人设备截图不随补丁发出。
 

@@ -2,7 +2,7 @@
 //
 // 运行时是官方 mosh-client 1.4.0 的 Android 交叉编译版，先跑 native/build-mosh-client.sh 生成
 // build-native/jniLibs/arm64-v8a/libmoshclient.so，再构建本模块；没有它构建直接失败（不打一个缺运行时的包）。
-// 只打 arm64-v8a：只有它在设备上测过（docs/shun/README.md「只声明实测 ABI」）。
+// 只打 arm64-v8a：只有它在设备上测过（docs/dev/README.md「只声明实测 ABI」）。
 //
 // 参数：
 //   -PhostSha256=<宿主签名证书 SHA-256>   必填，插件只接受这张证书签的宿主

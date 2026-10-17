@@ -12,7 +12,7 @@
 #   --dart-define=X09_SCENARIO=ime" tool/ime-replay.sh emulator-5580 Ghostty integration_test/mosh_session_test.dart
 #
 # 测试打印 "R18 READY=<名字>" 时这里替它按：名字以 hw: 开头就用 sendevent 往模拟器的硬件键盘写扫描码
-# （要 AVD 的 hw.keyboard = yes 和 adb root，见 docs/shun/README.md），否则广播给回放输入法。
+# （要 AVD 的 hw.keyboard = yes 和 adb root，见 docs/dev/README.md），否则广播给回放输入法。
 #
 # 会临时把模拟器的默认输入法换成回放输入法，结束（含失败、Ctrl-C）后换回原来的输入法并卸载它。
 # 只在模拟器上用：真机上换默认输入法会动到所有者的输入法设置。

@@ -28,7 +28,7 @@
 
 **范围**：确认指定新仓库；默认Netcatty，记录个人实验/分发意图、dirty、原HEAD与依赖lock。无路径只保留本包，不使用历史项目路径。
 
-**落点**：observed-baselines.json；docs/architecture/base-decision.md；上游LICENSE/NOTICE/pubspec.lock。
+**落点**：observed-baselines.json；docs/decisions/base-decision.md；上游LICENSE/NOTICE/pubspec.lock。
 
 **交付物**：evidence/R00.md（实际执行后填写）；与范围对应的实现、测试及文档；不能只交截图或接口空壳。
 

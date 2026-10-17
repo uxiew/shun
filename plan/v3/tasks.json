@@ -125,7 +125,7 @@
       "scope": "确认指定新仓库；默认Netcatty，记录个人实验/分发意图、dirty、原HEAD与依赖lock。无路径只保留本包，不使用历史项目路径。",
       "code_targets": [
         "observed-baselines.json",
-        "docs/architecture/base-decision.md",
+        "docs/decisions/base-decision.md",
         "上游LICENSE/NOTICE/pubspec.lock"
       ],
       "deliverables": [

@@ -1,35 +1,26 @@
-# shun 开发文档
+# shun 的文档
 
-本目录面向维护者和后续开发 Agent，记录项目当前实现、关键约束和可复用的验证流程。开始修改前先阅读与任务相关的文档，不要只根据页面名称猜测数据流。
+这里只放 shun 自己写的文档。先按下表找到要看的那一份，别从头读。
 
-## 文档导航
+| 你是谁 / 想干什么 | 看这份 |
+|---|---|
+| 用 App：加服务器、连接、终端、tmux、文件、同步…… | [user/README.md](user/README.md) |
+| 用 Mosh：装插件、在服务器上装 mosh-server、切换、不用了怎么卸载清理 | [user/mosh.md](user/mosh.md) |
+| 在本机搭环境、跑测试、开模拟器、装真机、清磁盘；仓库里各目录是什么 | [dev/README.md](dev/README.md) |
+| 改代码前弄清楚：分层、一次连接的数据怎么走、改一处会牵连什么 | [dev/architecture.md](dev/architecture.md) |
+| 动密码、私钥、同步、插件信任、远端执行这类代码前要知道的规矩；提交前检查 | [dev/security.md](dev/security.md) |
+| R39 真机验收怎么做 | [dev/r39-device-acceptance.md](dev/r39-device-acceptance.md) |
+| 写插件：契约、能力、兼容、签名、许可、排错 | [plugin-authors/README.md](plugin-authors/README.md) |
+| 为什么这么定：基座选择、Mosh 运行时选择 | [decisions/](decisions/) |
 
-- [ARCHITECTURE.md](ARCHITECTURE.md)：分层、状态管理、SSH/SFTP、云同步、系统管理和原生桥接的数据流。
-- [DEVELOPMENT.md](DEVELOPMENT.md)：环境搭建、开发命令、测试矩阵、分支约定、CI 与 Release 流程。
-- [PROJECT_STRUCTURE.md](PROJECT_STRUCTURE.md)：仓库目录树、关键文件职责和常见修改入口。
-- [SECURITY.md](SECURITY.md)：凭据存储、同步加密、主机验证、日志/截图脱敏和提交前安全检查。
-- [shun/README.md](shun/README.md)：本地 fork 专用——工具链、模拟器、真机安装、测试环境和磁盘清理。
-- [user/README.md](user/README.md)：使用手册，写给用 App 的人。
-- [UPSTREAM_README.md](UPSTREAM_README.md)：上游 README 原文（功能介绍与截图）。
+不在 `docs/` 里的：项目规矩在 [../AGENTS.md](../AGENTS.md)，进度和任务在 [../plan/v3/STATUS.md](../plan/v3/STATUS.md)，
+每个任务的验证记录在 `../plan/v3/evidence/`，代码来源和许可在 [../NOTICE.md](../NOTICE.md)。
 
-## Agent 开发前检查
+## 改文档的规矩
 
-1. 运行 `git status -sb`，保留用户已有改动，不要清理不属于当前任务的文件。
-2. 阅读目标模块、对应模型和现有测试；涉及原生能力时同时检查 Dart 与 Android/iOS 两端。
-3. 修改 Vault 模型或同步格式时，必须保持未知 JSON 字段无损往返。
-4. 修改 SSH 会话时，必须考虑多标签、分屏、SFTP、端口转发、性能监控和后台生命周期的共享关系。
-5. 修改 SFTP 时，必须保持流式传输，不能把大文件整体读入内存；进度更新需要限频。
-6. 不要把账号、IP、Token、私钥、主机指纹、签名文件、OAuth Secret 或未脱敏截图加入仓库。
-7. 提交前至少执行格式检查、`flutter analyze` 和相关测试；发布前执行完整测试及 Android/iOS CI。
-
-## 架构原则
-
-- `domain` 保存可序列化模型，不依赖 Flutter UI。
-- `application` 管理跨页面状态和生命周期。
-- `infrastructure` 封装 SSH、SFTP、同步、安全存储、AI 和平台通道。
-- `presentation` 负责交互与渲染，不应自行实现加密协议或拼接复杂远程管理命令。
-- Android/iOS 原生代码只承担系统 API 无法由纯 Dart 完成的能力。
-
-## 文档维护
-
-功能、依赖方向、构建参数、CI Secret 名称、平台权限或目录结构发生变化时，应在同一提交中更新本目录。文档中只写变量名和示例占位符，不写真实凭据或维护者个人环境路径。
+- **一件事只写一处。** 别的文档要提到就链接过去。同一段说明抄两份，迟早一份改了另一份没改，读者不知道信哪个。
+- 用户看得到的行为改了，在同一个提交里改使用手册；Mosh 的改 `user/mosh.md`，其余改 `user/README.md`。
+- 验证过程、测了什么没测什么，写进 `plan/v3/evidence/`，不写进这里。
+- 不写真实的账号、IP、Token、私钥、主机指纹、签名文件。示例用 `box.example.com`、`ops` 这类占位。
+- Netcatty 的旧文档和截图 2026-10-17 已经删了，不要搬回来，也不要照着改写：那些写的是上游当时的代码和发布流程，
+  和现在的 shun 对不上。要写就照现在的代码写。

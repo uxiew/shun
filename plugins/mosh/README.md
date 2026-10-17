@@ -2,7 +2,7 @@
 
 独立安装的 APK（`top.xdwa.shun.mosh`，pluginId `shun.mosh`），给主 App 提供 Mosh 终端会话。
 里面是官方 mosh-client 1.4.0 的 Android 交叉编译版，每个会话一个子进程，经 PTY 接到宿主给的 socketpair 上。
-为什么选它、不选 Dart 的 dart_mosh，见 `docs/architecture/mosh-runtime-decision.md`；来源、许可、ABI 见同目录 `LICENSES.md`。
+为什么选它、不选 Dart 的 dart_mosh，见 `docs/decisions/mosh-runtime-decision.md`；来源、许可、ABI 见同目录 `LICENSES.md`。
 
 X08 做了运行时（能装、能和真 mosh-server 互通、生命周期不拖垮宿主）；X09 在主 App 里接上了：主机协议选 Mosh 后，
 宿主经 SSH 受控启动 mosh-server（只许直连），把数字 IP、端口、临时 key 交给本插件。怎么用见使用手册第 17 节「用 Mosh 连接」，

@@ -16,19 +16,20 @@ flutter run -d <设备ID>                    # 设备 ID 用 flutter devices 查
 tool/build-release.sh                     # 发布用的包：终端原生库从核对过的源码重编，只打 arm64
 ```
 
-手机接在另一台电脑上：`tool/remote-device/`。模拟器、装真机、清磁盘：[docs/shun/README.md](docs/shun/README.md)。
+手机接在另一台电脑上：`tool/remote-device/`。模拟器、装真机、清磁盘：[docs/dev/README.md](docs/dev/README.md)。
 
 ## 文档
 
 | 想做什么 | 看这里 |
 |---|---|
-| 用 App | [docs/user/README.md](docs/user/README.md) |
-| 在本机跑、测、装、清理；仓库里各目录是什么 | [docs/shun/README.md](docs/shun/README.md) |
+| 所有文档各给谁看 | [docs/README.md](docs/README.md) |
+| 用 App | [docs/user/README.md](docs/user/README.md)；Mosh 单独一份 [docs/user/mosh.md](docs/user/mosh.md) |
+| 在本机跑、测、装、清理；仓库里各目录是什么 | [docs/dev/README.md](docs/dev/README.md) |
+| 代码怎么分层、数据怎么走；敏感数据的规矩 | [docs/dev/architecture.md](docs/dev/architecture.md)、[docs/dev/security.md](docs/dev/security.md) |
 | 接着开发：规矩 → 进度 → 任务 | [AGENTS.md](AGENTS.md) → [plan/v3/STATUS.md](plan/v3/STATUS.md) → `plan/v3/tasks.json` |
 | 自己维护的依赖（libghostty / flterm） | [third_party/README.md](third_party/README.md) |
 | 写插件 | [docs/plugin-authors/README.md](docs/plugin-authors/README.md) |
 | 测试插件、Mosh 插件怎么编 | [plugins/README.md](plugins/README.md) |
-| 原项目留下的开发文档 | [docs/README.md](docs/README.md) |
 | 换 App 图标 | `tool/brand/render_icons.py` 开头 |
 
 ## 规矩

@@ -4,7 +4,7 @@
 // 插件没装时 Mosh 项变灰并写原因、「选 tmux 会话」只读列出并附着、关 tmux 标签只分离。
 // 真插件的原地切换（UX08 / UX11 的 Mosh 部分）要等 Mosh 插件的签名定下来，见 evidence/R42.md。
 //
-// 这不是 CI 测试。先（详见 docs/shun/README.md 第 2 节「Mosh」）：
+// 这不是 CI 测试。先（详见 docs/dev/README.md 第 2 节「Mosh」）：
 //   (cd tool/mosh-fixture && ./up.sh)
 //   adb -s emulator-5580 shell svc wifi disable          # 否则 10.0.2.2 的 TCP 不通
 //   adb -s emulator-5580 uninstall top.xdwa.shun.mosh    # 这组要的就是「插件没装」

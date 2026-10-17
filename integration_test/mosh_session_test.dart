@@ -2,7 +2,7 @@
 // 画面进 Ghostty。和 X08 的 mosh_runtime_test.dart 不同，这里不自己接线：走的就是用户点「连接」时的那条路
 // （SessionController → MoshBootstrapCoordinator → SshService.bootstrapMosh → 插件）。
 //
-// 这不是 CI 测试。要先（详见 docs/shun/README.md 第 2 节「Mosh」）：
+// 这不是 CI 测试。要先（详见 docs/dev/README.md 第 2 节「Mosh」）：
 //   (cd tool/mosh-fixture && ./up.sh)
 //   adb -s emulator-5580 install -r plugins/mosh/build/outputs/apk/release/mosh-release.apk
 //   flutter test integration_test/mosh_session_test.dart -d emulator-5580 \

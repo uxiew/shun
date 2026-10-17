@@ -23,7 +23,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('画中画开着时远端来了新输出：一秒内推给小窗的文字里有它', (tester) async {
-    // flterm 的空闲任务碰上动画时，假时钟下推进时间会死循环（docs/shun/README.md 第 7 节）。
+    // flterm 的空闲任务碰上动画时，假时钟下推进时间会死循环（docs/dev/README.md 第 7 节）。
     final strategy = tester.binding.schedulingStrategy;
     tester.binding.schedulingStrategy =
         ({required int priority, required SchedulerBinding scheduler}) => true;

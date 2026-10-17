@@ -193,7 +193,7 @@ void main() {
     'connection progress is a dialog in its tab and existing terminal stays usable',
     (tester) async {
       // flterm 闲下来后排一个空闲任务压缩滚动区，碰上按钮水波纹这类动画时，假时钟下的 pumpAndSettle 会死循环
-      // （docs/shun/README.md 第 7 节）。让空闲任务不等动画，和页面逻辑无关。
+      // （docs/dev/README.md 第 7 节）。让空闲任务不等动画，和页面逻辑无关。
       final strategy = tester.binding.schedulingStrategy;
       tester.binding.schedulingStrategy =
           ({required int priority, required SchedulerBinding scheduler}) =>

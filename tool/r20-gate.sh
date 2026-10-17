@@ -44,7 +44,7 @@ TEST=$!
 # 没有 root（真机）时：手机上每条连 22201 的 TCP，经 adb reverse（远程手机还要再过一段 ssh -R）到电脑这头，
 # 都变成一条连 127.0.0.1:22201 的连接；数电脑上客户端一侧是 22201 的已连上连接，打 "ssh-sockets=<个数> (电脑侧)"。
 # 不读手机的 /proc/net/tcp：没 root 读不到，读到了也是整台手机所有 App 的连接，不该存下来。
-# 前提是这期间没有别的东西连本机 22201（测试环境谁起谁用，见 docs/shun/README.md 第 7 节）。
+# 前提是这期间没有别的东西连本机 22201（测试环境谁起谁用，见 docs/dev/README.md 第 7 节）。
 ssh_sockets() {
   local pid inodes
   if [[ "$ROOT" != 0 ]]; then

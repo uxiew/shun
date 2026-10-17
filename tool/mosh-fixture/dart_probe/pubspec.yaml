@@ -10,7 +10,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  # 被评估的 Dart 候选，钉死版本（pub.dev 归档 sha256 3301f3c6…，见 docs/architecture/mosh-runtime-decision.md）。
+  # 被评估的 Dart 候选，钉死版本（pub.dev 归档 sha256 3301f3c6…，见 docs/decisions/mosh-runtime-decision.md）。
   dart_mosh: 0.0.4
   # 只用来把两条路径收到的字节画成屏幕文字再比较；和主 App 用同一个版本。
   xterm2: 5.2.0

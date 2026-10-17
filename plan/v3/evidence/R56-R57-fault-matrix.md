@@ -38,4 +38,4 @@
 - `locked-power.txt` 实测 `mWakefulness=Asleep`。仅测试缩短租期，不更改生产值。首轮脚本曾因 Flutter 默认卸载测试 App 而无法保留冷启动数据，改成 `--no-uninstall` 后复跑；未把该次失败当成功。另曾只在测试结束后 force-stop，已改为上述活跃连接期间杀进程并复跑，最终证据采用 PID 7206/7482。
 - 仓库外材料：`../.toolchain/artifacts/r56-1b7d652/`，含 `seed.log`、`cold.log`、`force-stop.txt`、`seed-live.png`、`before-lock.png`、`locked-power.txt`、`locked-notifications.txt`、私有文件名清单及本机测试日志。设备截图用于观察，不替代进程/计数断言；测试凭据不写入本证据或普通导出。
 
-复跑与收尾步骤见 `docs/shun/README.md`。收尾已卸载本项目模拟器测试包、删除 22314 reverse、关闭专用模拟器并释放本次锁；两套 fixture 已 down，临时凭据删除，其他模拟器/容器未操作。R56/R57 不改 DONE，G4/R30 不因此通过；下一项是获得真实测试主机/AI 账号与额度授权后的 AIC06/AIC09 连续性验证。
+复跑与收尾步骤见 `docs/dev/README.md`。收尾已卸载本项目模拟器测试包、删除 22314 reverse、关闭专用模拟器并释放本次锁；两套 fixture 已 down，临时凭据删除，其他模拟器/容器未操作。R56/R57 不改 DONE，G4/R30 不因此通过；下一项是获得真实测试主机/AI 账号与额度授权后的 AIC06/AIC09 连续性验证。

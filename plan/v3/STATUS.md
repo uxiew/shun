@@ -152,7 +152,7 @@ R04 的发现到 R17 为止：dispose 后 write 段错误（上游改成抛错�
 
 ## 下一批
 
-`lizhi` 开着时，本项目模拟器用 `-port 5580` 起、adb 都带 `-s emulator-5580`（写在 docs/shun/README.md 第 7 节）。
+`lizhi` 开着时，本项目模拟器用 `-port 5580` 起、adb 都带 `-s emulator-5580`（写在 docs/dev/README.md 第 7 节）。
 **依赖已满足、可以继续的**：R56/R57（AI CLI 项目启动与继续验收）、X10（Mosh 移动恢复），以及日用界面的 R42（终端里切换）、R43（主机列表）、R44（敏感页保护）；仍需遵守各任务的范围与停止条件。R25 的无障碍、诊断可以独立推进，但完成仍要等 R42–R44 和 R57。
 R39–R44 建议顺序：R40、R39、R41 已完成 → R42 终端里的 SSH/Mosh 切换（做到设备前，等 Mosh 插件签名的决定）→ R44 防截屏 → R43 主机列表。R42 还有两项需所有者决定（见待定项）。R45–R54 是 P6，启用顺序由所有者定；OSH/meshTerm/NovaScale 该批研究没有将后续候选提升到主线。所有者随后明确新增的 AI CLI 需求单列 R55–R57 主线：R55、R23 已完成，R56/R57 已完成无账号矩阵，仍需 AIC06/AIC09 真实原生对话验收；R54 协议级工作区仍为 P6。R42 的 R23 依赖也已满足。
 X11、X13 等 X10。R22 留下的：LIFE06 原生内存来源（见上表；10-10 排除了「终端按帧漏」）、凭据租期按墙上时钟（a067eff）修后没上真机复测、通知在「静音」区默认折叠（「全部断开」要展开才看得到）和冷启动不直接进终端页（给 R25）。
@@ -165,10 +165,10 @@ X09 留给后面的（详见 evidence/X09.md「没做的」）：Mosh 标签没�
 Tailscale SSH 登录 + 直连的 Mosh 逻辑上允许但没测；IPv6 目标没测；插件进程被系统回收和被强杀分不出来。
 X08 留给后面的：批准只绑能力不绑权限，插件更新后多要临时会话密钥不会回到待批准（X11）；Android 12+ 后台会杀子进程（X10）。
 R21 留给后面的两处恢复边界已由 R23 处理：恢复成功后旧 tmux 画面被本地重置，接管前输入被丢弃；恢复失败时旧画面只作为历史、状态条说明未连接。App 被杀后 tmux 目标不保留——R22 已处理（标签放回、核对后附着）。
-设备测试的跑法写在 docs/shun/README.md 第 2 节：Ghostty（测试环境 + adb reverse + `r17_config.py`）、R18 的输入法回放和真机输入测试、R19 的手势/粘贴/远端效果、tmux（`tool/tmux-fixture`）、Mosh（`tool/mosh-fixture`；模拟器上要先关 Wi-Fi 才能经 `10.0.2.2` 连 TCP，见第 3 节）。
+设备测试的跑法写在 docs/dev/README.md 第 2 节：Ghostty（测试环境 + adb reverse + `r17_config.py`）、R18 的输入法回放和真机输入测试、R19 的手势/粘贴/远端效果、tmux（`tool/tmux-fixture`）、Mosh（`tool/mosh-fixture`；模拟器上要先关 Wi-Fi 才能经 `10.0.2.2` 连 TCP，见第 3 节）。
 两个代理并行时只多开一个 worktree：磁盘常年只剩几 GB，怎么腾见本机手册第 6 节。
 多个代理并行时：模拟器先拿锁（`mkdir ../.toolchain/locks/emulator`，写明是谁），规矩和撞过的墙见本机手册第 7 节（10-07 两次「后台循环抢到锁却没叫醒代理」，锁白占了 1.5 小时）。
-真机只接在 xdwmbp 上，用法和撞墙见 `tool/remote-device/README.md`；装着中文输入法的真机上别用 adb 注入按键（会把输入法弄进实体键盘模式，恢复办法在 `docs/shun/README.md` 第 7 节）。
+真机只接在 xdwmbp 上，用法和撞墙见 `tool/remote-device/README.md`；装着中文输入法的真机上别用 adb 注入按键（会把输入法弄进实体键盘模式，恢复办法在 `docs/dev/README.md` 第 7 节）。
 R14、R15 的测试环境：仿制 Tailscale SSH 服务器和 Headscale + 真 tailscaled（R15 加了远程 SOCKS 和跳板两个节点），用法见 `tool/tailscale-ssh-fixture/README.md`。
 设备关联：目录的存在主机上，UU 的存在 UU 自己的加密存储里（记主机 id），RustDesk 的存在 RustDesk 这边的加密存储里，`deviceLinksOf` 把三样拼起来。
 X05 顺带看到的恢复期间输入边界已由 R23 明确：新连接接管标签前直接丢弃，不会排队到新 shell；接管后才送达。UX04 的「实际引擎」部分已由 R17 处理。

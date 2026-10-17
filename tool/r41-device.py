@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """R41 / UX07 on the disposable project AVD: real soft keyboard, real touch, real back key.
 
-How to run (emulator already booted on port 5580, see docs/shun/r39-device-acceptance.md):
+How to run (emulator already booted on port 5580, see docs/dev/r39-device-acceptance.md):
 
   SHUN_R39_AVD=shun-r39-a30 python3 tool/r41-device.py
 

@@ -328,7 +328,7 @@ API 35 镜像是你原有的，`lizhi` 模拟器在用，**不要卸**。
 
 ## 7. 撞墙时
 
-- **`git push` 报 `Repository not found`**：`uxiew/shun` 在 GitHub 上还没建（或还没从 `uxiew/xwshun` 改名过去），或者这把 SSH 钥匙没有写权限。推送等所有者说，见 `docs/architecture/base-decision.md`。
+- **`git push` 报 `Repository not found`**：`uxiew/shun` 在 GitHub 上还没建（或还没从 `uxiew/xwshun` 改名过去），或者这把 SSH 钥匙没有写权限。推送等所有者说，见 `docs/decisions/base-decision.md`。
 - **zsh 里把命令存进变量再执行，报 `command not found: adb -s ...`**：zsh 不按空格拆变量，改用 `bash -c '...'` 或函数。`export ANDROID_SERIAL=emulator-5580` 后 adb 默认就打到那台，最省事。
 - **`adb shell input text` 打字，分号后面的东西在模拟器上被当成命令执行了**：参数是交给模拟器的 shell 解释的，`;`、`$` 都会生效。整段用单引号包起来再传（`adb shell input text "'echo%s\$HOME'"`，`%s` 是空格），或者一次只打一条不带分号的命令。
 - **新 AVD 起不来，日志 `FATAL | Not enough space to create userdata partition ... need 7372.80 MB`**：
@@ -402,11 +402,11 @@ API 35 镜像是你原有的，`lizhi` 模拟器在用，**不要卸**。
 | 目录 | 内容 |
 |---|---|
 | `lib/` | App 本体（Flutter + Riverpod + dartssh2）。终端引擎只经 `lib/infrastructure/terminal/` 的适配层接入 |
-| `android/` | Android 工程和原生代码：SSH 保活前台服务、画中画、手机目录授权、插件桥 |
+| `android/` | Android 工程和原生代码：SSH 保活前台服务、画中画、手机目录授权、插件桥、拉起 UU 和 RustDesk 的桥 |
 | `packages/plugin_api/` | 插件契约 v1（Dart 端） |
 | `plugins/` | 插件的 Android 契约与 SDK（`provider-sdk/`）、插件样例（`example/`）、真实的 Mosh 插件（`mosh/`），加上只用于测试的插件 APK |
 | `third_party/` | 自己维护的上游 fork（现在是 libghostty / flterm），说明见 `third_party/README.md` |
 | `tool/` | 发布构建脚本（`build-release.sh`）；App 图标的源图和生成脚本（`brand/`，怎么改看 `render_icons.py` 开头）；测试工具：真实 SSH / 代理 / 跳板的 Docker 环境、多版本 tmux 环境（`tmux-fixture/`）、Tailscale 测试环境、假 Tailscale API、远程真机（`remote-device/`） |
 | `spikes/` | 终端引擎验证工程（R04，现在用来在 Android 上验 fork），不进 App |
 | `plan/v3/` | 计划、任务、用例、每批的实测证据 |
-| `docs/` | 使用手册（`user/`）、本机手册（本文件）、插件作者文档（`plugin-authors/`）、基座决定（`architecture/`），其余是上游原来的开发文档 |
+| `docs/` | 只有 shun 自己写的文档，地图在 `docs/README.md`：使用手册和 Mosh 使用指南（`user/`）、本机手册和架构、安全（`dev/`）、插件作者文档（`plugin-authors/`）、决策记录（`decisions/`） |

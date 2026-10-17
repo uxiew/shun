@@ -46,13 +46,13 @@ ssh -F /dev/null -o IdentityAgent=none -o IdentitiesOnly=yes -i .run/client/id_e
 cd dart_probe && flutter pub get && flutter test     # 23 条，约 2 分钟；没起 up.sh 时全部跳过
 ```
 
-结果和结论见 `plan/v3/evidence/X08.md`、`docs/architecture/mosh-runtime-decision.md`。
+结果和结论见 `plan/v3/evidence/X08.md`、`docs/decisions/mosh-runtime-decision.md`。
 「缺陷复现」那条断言的是 dart_mosh 0.0.4 的**错误行为**（反射包导致输入丢失）；哪天它挂了，说明上游修了，要重新评估。
 
 ## 模拟器怎么连到这里
 
 UDP：见 `plan/v3/evidence/X08.md`「设备上的 UDP 通路」。X09 的 App 要 SSH 和 UDP 发往同一个地址（10.0.2.2），
-TCP 经 10.0.2.2 要先关模拟器的 Wi-Fi，见 `docs/shun/README.md` 第 3 节。设备测试参数：`python3 x08_config.py`（X08、X09 共用）。
+TCP 经 10.0.2.2 要先关模拟器的 Wi-Fi，见 `docs/dev/README.md` 第 3 节。设备测试参数：`python3 x08_config.py`（X08、X09 共用）。
 
 ## 撞墙时
 

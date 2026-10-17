@@ -1,6 +1,6 @@
 # shun 使用手册
 
-写给用这个 App 的人。怎么构建、测试、装到手机，看 [本机手册](../shun/README.md)。
+写给用这个 App 的人。怎么构建、测试、装到手机，看 [本机手册](../dev/README.md)。
 
 shun 是 Netcatty 手机版的实验改版，功能还是那三样：SSH 终端、SFTP 文件管理、服务器管理面板。改的主要是三块：
 
@@ -46,7 +46,7 @@ shun 是 Netcatty 手机版的实验改版，功能还是那三样：SSH 终端�
 
 ## 1. 安装与搬数据
 
-- 要自己从源码构建再装，步骤见 [本机手册第 4 节](../shun/README.md#4-装到真机)。最低 Android 7.0，只给 64 位 ARM 手机（近几年的 Android 手机都是）。
+- 要自己从源码构建再装，步骤见 [本机手册第 4 节](../dev/README.md#4-装到真机)。最低 Android 7.0，只给 64 位 ARM 手机（近几年的 Android 手机都是）。
 - 包名是 `top.xdwa.shun`，和原版 Netcatty 能同时装在一台手机上，数据互不相通。
 - **以前装过旧名字 xwshun 的**（包名 `top.xdwa.xwshun`，2026-10-11 改名）：新的 shun 会装成另一个 App，旧 App 里的主机、密钥不会自己过来。
   在旧 App 里「设置 → 数据管理 → 导出保险库 JSON」，到 shun 里「导入 Netcatty JSON」。导出的文件**不带密码、私钥和代理口令**，
