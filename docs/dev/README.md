@@ -222,7 +222,7 @@ bash tool/fixture-environment/down.sh
 ```bash
 flutter emulators --launch shun-a35-4k    # 带窗口启动；首次启动会重建空系统
 flutter run -d emulator-5554                # 设备 ID 以 flutter devices 为准
-adb -s emulator-5554 logcat -s flutter      # 看 Dart 日志
+adb -s emulator-5554 logcat -s flutter      # 看 Flutter 框架报的错；App 自己不打日志（安全文档第 5 节）
 adb -s emulator-5554 emu kill               # 关机
 ```
 
