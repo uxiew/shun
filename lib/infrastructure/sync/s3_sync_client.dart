@@ -110,7 +110,10 @@ class S3SyncClient {
           (io.X509Certificate certificate, String host, int port) => true;
     final insecureClient = IOClient(native);
     try {
-      return http.Response.fromStream(await insecureClient.send(request));
+      // 要 await：不然 finally 先关了客户端，响应体还没读完。
+      return await http.Response.fromStream(
+        await insecureClient.send(request),
+      );
     } finally {
       insecureClient.close();
     }
