@@ -285,6 +285,7 @@ AI 命令行的「按会话 ID 继续」「同项目新建」点一下就启动�
 - **管不住的**：插件、UU 远程、RustDesk 自己联网，不走宿主的路线（contract.md 第 7 节，手册第 15、16 节）。
 - **默认不外连**：AI、云同步、检查更新都由 `ForkFeatures` 默认关掉，`test/fork_features_test.dart`「默认开关下冷启动、打开设置、后台恢复都不发网络请求」钉着。
 - Android 清单 `usesCleartextTraffic="false"`，没有自定义 `networkSecurityConfig`。
+- 清单只声明用得到的：权限是白名单，`MainActivity` 不接 VIEW（`test/android_manifest_test.dart` 钉着）。以前声明了 `ssh://` 链接和 `WAKE_LOCK`，都没代码用：前者让网页和别的 App 能拉起本 App，链接还被 Flutter 当深链路由交给导航；后者是 `SshKeepAliveService` 已经不拿的唤醒锁。iOS 的 `CFBundleURLTypes`（`ssh`、`shun`）同理删了。要加链接入口，先写处理和用户确认。
 
 ## 10. 提交前检查
 
