@@ -22,6 +22,15 @@ class SyncedVaultFile {
 
 class NetcattyCrypto {
   static const iterations = 600000;
+
+  /// 解密时肯算的最多次数。`kdfIterations` 在云端 meta 里是明文，能改云端文件的人填一个十亿，
+  /// 手机就一直算下去、同步卡住。桌面端和本 App 都写 [iterations]，这里留了 3 倍多的余地给以后提高；
+  /// 桌面端真调到更高，这里要跟着改，否则手机报 [iterationsOutOfRange] 解不开。
+  /// 下限只拦非正数：次数少不影响安全，密钥还是从用户的同步密码来，改小了只会解不开。
+  static const maxIterations = 2000000;
+
+  static const iterationsOutOfRange =
+      '云端文件的密钥派生次数超出范围，没有解密：可能被改过，也可能是更新版本的桌面端写的';
   static const saltLength = 32;
   static const ivLength = 12;
   static const tagLength = 16;
@@ -93,6 +102,10 @@ class NetcattyCrypto {
         file.meta['kdf'] != 'PBKDF2') {
       throw const FormatException('Unsupported Netcatty encryption format');
     }
+    final rounds = (file.meta['kdfIterations'] as num?)?.toInt() ?? iterations;
+    if (rounds < 1 || rounds > maxIterations) {
+      throw const FormatException(iterationsOutOfRange);
+    }
     final salt = base64Decode(file.meta['salt'] as String);
     final iv = base64Decode(file.meta['iv'] as String);
     final body = base64Decode(file.payload);
@@ -101,7 +114,7 @@ class NetcattyCrypto {
     }
     final key = await Pbkdf2(
       macAlgorithm: Hmac.sha256(),
-      iterations: (file.meta['kdfIterations'] as num?)?.toInt() ?? iterations,
+      iterations: rounds,
       bits: 256,
     ).deriveKeyFromPassword(password: password, nonce: salt);
     final box = SecretBox(

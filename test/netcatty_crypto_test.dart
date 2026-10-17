@@ -61,4 +61,32 @@ void main() {
       throwsA(isA<FormatException>()),
     );
   });
+
+  // meta 是云端明文：改成十亿次，手机不该一直算下去。超时设得很短，真去算就会红。
+  test(
+    'refuses an out-of-range kdfIterations before deriving any key',
+    () async {
+      final vault = VaultData.fromJson({'hosts': [], 'keys': []});
+      final encrypted = await NetcattyCrypto.encrypt(
+        vault: vault,
+        password: 'pw',
+        deviceId: 'mobile-test',
+        deviceName: 'Test Phone',
+        appVersion: 'test',
+      );
+      for (final rounds in [1000000000, NetcattyCrypto.maxIterations + 1, 0]) {
+        final tampered = SyncedVaultFile(
+          meta: {...encrypted.meta, 'kdfIterations': rounds},
+          payload: encrypted.payload,
+        );
+        await expectLater(
+          NetcattyCrypto.decrypt(tampered, 'pw')
+              .timeout(const Duration(seconds: 2)),
+          throwsA(isA<FormatException>().having((e) => e.message, 'message',
+              NetcattyCrypto.iterationsOutOfRange)),
+          reason: '$rounds',
+        );
+      }
+    },
+  );
 }

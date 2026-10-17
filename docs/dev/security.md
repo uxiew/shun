@@ -118,7 +118,7 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 
 **防误删**：`assertSafeSyncShrink`（`lib/infrastructure/sync/sync_safety.dart`）发现某类条目少了 10 个及以上，或者少了 3 个及以上且达到原来的一半，就拒绝上传，要用户手动确认。自动同步从不替用户确认。
 
-**改了会怎样**：改算法、迭代次数或字段名，桌面端就解不开。`test/netcatty_crypto_test.dart` 有一条用桌面端 Node/WebCrypto 生成的密文当夹具，改坏了它会红。另外 `decrypt` 直接用云端 `meta.kdfIterations`，没有上下限：被改成很大的数，手机会一直算下去。
+**改了会怎样**：改算法、迭代次数或字段名，桌面端就解不开。`test/netcatty_crypto_test.dart` 有一条用桌面端 Node/WebCrypto 生成的密文当夹具，改坏了它会红。`decrypt` 用云端 `meta.kdfIterations`，但只认 1–`NetcattyCrypto.maxIterations`（200 万），超了在算密钥之前就报 `iterationsOutOfRange`：meta 是明文，以前被改成十亿，手机就一直算下去。桌面端以后把次数调到 200 万以上，这个上限要跟着改，不然手机解不开。
 
 ## 3. 主机指纹
 

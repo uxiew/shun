@@ -2184,6 +2184,11 @@ const englishTranslations = <String, String>{
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // 同步解密的报错前面带着「FormatException: 」，只能按片段换。
+  (
+    '云端文件的密钥派生次数超出范围，没有解密：可能被改过，也可能是更新版本的桌面端写的',
+    'The cloud file asks for a key-derivation count outside the allowed range, so it was not decrypted. It may have been tampered with, or written by a newer desktop version'
+  ),
   // 系统管理确认框里接在名字后面的说明（名字是运行时才知道的）。放最前面，免得被后面的「停止」「重启」先拆碎。
   ('全部服务会停止，容器保留。', 'All services will stop; the containers are kept.'),
   ('全部服务会重启，期间中断。', 'All services will restart and are interrupted meanwhile.'),
