@@ -1,5 +1,7 @@
 # 当前状态 V3
 
+10-17 计划外安全修复（写文档时查出来，所有者让按建议修）：SFTP「在终端中打开当前目录」拒绝带控制字符的目录名并改按粘贴发（以前名字里藏 Ctrl-C 就能多执行一条命令）；系统管理权限不够时先问再用 sudo（以前自动 `sudo -n`），会中断服务的操作全部先确认；导入不再收文件里的服务器指纹；云同步解密的 PBKDF2 次数限 200 万；去掉没人处理的 `ssh://` 链接声明（Android、iOS）和 `WAKE_LOCK`；CI 对齐 Flutter 3.47.7。本机全量 1311 过、135 跳过（Docker/tmux 测试环境没起，按 NOT_RUN）、0 失败；**模拟器和真机都没跑（NOT_RUN）**。没动的：S3「允许不安全连接」仍接受任何证书（用户显式开、云同步默认关），防截屏归 R44。行为写在使用手册第 11、12、20 节和 `docs/dev/security.md`。
+
 10-17 R42 完成：终端标签条右侧的 SSH / MOSH 徽标和「连接方式」菜单，tmux 标签在 SSH 和 Mosh 之间原地切换（同一个会话、不发任何输入），普通标签另开、设为默认、Mosh「重新连接」、选 tmux 会话，全部在 Android 11 模拟器上装真 Mosh 插件从界面验过（UX08、UX11 PASS，模拟器）：SSH→Mosh 约 0.5–1.0 秒、登录 0 次，Mosh→SSH 约 1.0–1.4 秒，tmux 会话编号和创建时间不变、会话里的程序收到 0 字节，同名重建不附着、不新建、不起 mosh-server。所有者 10-17 定了两件事：Mosh 插件改认新的测试作者证书 `7feb5825…`；缺 mosh-server 时可以在 App 里装——确认框写清命令、sudo 密码自己在终端里输、要放行的端口和怎么卸载，确认后在一次性 SSH 标签里执行一次（取消 0 次、确认 1 次已在设备上核对）。设备测试撞出一个真 bug：菜单收起后指纹核对回调还用菜单的 ref，「用 Mosh 另开」和「安装…」连不上，已修（`1e66777`）。MOS07 的插件崩溃、初始化失败两种归 X10，仍 NOT_RUN。见 evidence/R42.md。
 
 10-17 docs/ 和 Netcatty 划清（所有者要求）：删掉上游 README 副本、9 张截图和 5 份按 Netcatty 代码写的开发文档；`docs/shun/` 改名 `docs/dev/`，决策记录挪到 `docs/decisions/`；按现在的代码新写 `docs/dev/architecture.md`、`docs/dev/security.md`；Mosh 单独一份 `docs/user/mosh.md`（安装、使用、排错、卸载清理）；`docs/README.md` 是文档地图。NOTICE.md 的署名照留。
