@@ -43,7 +43,7 @@ LobiShell 带密码的编辑页禁止截屏，截出来是全黑的，那几页�
 |---|---|
 | 串行/USB、本地 Shell 的表单里照样有「通过跳板机路由」「通过 SOCKS5 代理路由」「连接前需要 VPN」 | 对这些类型没有意义，用户会以为设了就生效。我们按类型只显示用得上的项（R39） |
 | TermRover 根本没有代理选项 | 我们的用户要走 TailSocks、公司代理（R06、R07），不能删 |
-| TermRover 在服务器缺 mosh-server 时帮你装 | 要 sudo。AGENTS 和 R25 的停止条件都写了不扩大 sudo。我们只给对应发行版的安装命令，让用户自己执行（R42） |
+| TermRover 在服务器缺 mosh-server 时帮你装 | 要 sudo。原来只给对应发行版的安装命令让用户自己执行；所有者 2026-10-17 改为可以装：确认框写清命令、sudo 密码、要放行的端口和怎么卸载，确认后在一次性 SSH 标签里执行一次（R42）。不是连接时自动装 |
 | TermRover 网页示意图里 Mosh 后面标着「ROAM」（漫游） | X10 没在真机上过之前，界面和手册都不说「漫游」「切网不断」 |
 | LobiShell 的「连接时终止过期的 mosh-server」 | 这是杀远端进程。要做也得用户每次明确点、看清杀哪几个，不放进自动连接流程；先不做 |
 | LobiShell 的 Wake-on-LAN、Wake webhook、Port Knocking、NFC/二维码标签 | 已经在 R37（后续） |
