@@ -319,13 +319,16 @@ class _SftpScreenState extends ConsumerState<SftpScreen> {
       _message('无法打开终端：对应的 SSH 会话已断开');
       return;
     }
+    final command = sftpTerminalCdCommand(path);
+    if (command == null) {
+      _message('目录名里有控制字符，不能在终端中打开');
+      return;
+    }
     try {
+      // 按粘贴发，不按打字发：远端开着 bracketed paste 时整条只算一次输入。先发再切标签，
+      // 目标换了连接（断线恢复成新 shell）时 pasteInto 抛错，用户留在 SFTP 里看得到为什么。
+      controller.pasteInto(service.session, command, enter: true);
       controller.activate(index);
-      controller.sendToSession(
-        service.session.id,
-        'cd ${quoteSftpTerminalPath(path)}',
-        enter: true,
-      );
       ref.read(homeTabProvider.notifier).state = 1;
     } catch (error) {
       _message('无法在终端中打开目录：$error');

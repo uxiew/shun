@@ -733,6 +733,8 @@ const englishTranslations = <String, String>{
   '无法打开终端：对应的 SSH 会话已断开':
       'Unable to open terminal: the SSH session is disconnected',
   r'无法在终端中打开目录：$error': r'Unable to open the folder in terminal: $error',
+  '目录名里有控制字符，不能在终端中打开':
+      'The folder name contains control characters, so it cannot be opened in the terminal',
   '重命名': 'Rename',
   '新名称': 'New name',
   '取消传输': 'Cancel transfer',

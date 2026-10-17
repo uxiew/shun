@@ -161,7 +161,8 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 **粘贴**：`PasteReview.of`（`lib/domain/terminal_paste.dart`）把 `\r\n` 和 `\r` 统一成 `\n`、去掉末尾换行、去掉 Tab 和换行以外的 C0 控制字符、DEL、C1；零宽和改文字方向的字符只计数提醒。`needsReview` 为真才弹预览：多行、末尾有换行、去掉过控制字符、有隐形字符，或 `text.length > 4096`（按 Dart 字符串长度，也就是 UTF-16 码元算）。之后 flterm 的 `paste` 按服务器的 bracketed paste（粘贴标记：开着时 shell 把整段当一次输入）状态包上标记，再把 ESC 等换成空格。
 
 - 走 `PasteReview` 的：剪贴板粘贴、命令片段（`SessionController.send`）。
-- **不走**的：AI 助手的命令（直接 `pasteInto`，见第 8 节）、mosh 安装命令的「填进 SSH 标签」、SFTP 的「在终端中打开当前目录」（`sendToSession` 按打字发 `cd '路径'`）。新加入口按粘贴发，别按打字发。
+- **不走**的：AI 助手的命令（直接 `pasteInto`，见第 8 节）、mosh 安装命令的「填进 SSH 标签」、SFTP 的「在终端中打开当前目录」。新加入口按粘贴发，别按打字发。
+- SFTP 那条用 `pasteInto` 发 `sftpTerminalCdCommand`（`lib/infrastructure/ssh/sftp_service.dart`）拼的 `cd '路径'`：单引号只防得住 shell，控制字符先到终端和 readline，在那里是按键，所以目录名里有 C0、DEL、C1（含 Tab、换行）就整条不发。以前按打字发、不查控制字符，服务器上一个叫 `a<Ctrl-C>touch x<回车>` 的目录，点一下就执行 `touch x`。测试：`test/sftp_terminal_usability_test.dart`「SFTP terminal cd refuses folder names with control characters」。
 
 **插件的输出**也喂进同一个 `GhosttyTerminalAdapter`（`lib/application/plugin_terminal.dart`），上面的防护对它同样有效；但没有专门测插件这一路的用例。
 

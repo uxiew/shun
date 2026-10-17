@@ -38,8 +38,20 @@ int? parseUnixPermissions(String value) {
 String? formatUnixPermissions(int? mode) =>
     mode == null ? null : (mode & 0xfff).toRadixString(8).padLeft(3, '0');
 
-String quoteSftpTerminalPath(String path) =>
-    "'${path.replaceAll("'", "'\\''")}'";
+/// 「在终端中打开当前目录」要发的 `cd` 命令；目录名里有控制字符（C0、DEL、C1，含 Tab 和换行）时
+/// 返回 null，不发。
+///
+/// 单引号只防得住 shell，防不住终端和 readline：控制字符到它们那里是按键。名字里藏一个 Ctrl-C，
+/// 前半截 `cd '…` 被取消，后半截就当一条新命令执行；Tab 会触发补全。所以整条拒绝，
+/// 也不替用户删掉那几个字：删了，cd 进去的就是另一个目录。
+String? sftpTerminalCdCommand(String path) {
+  for (final rune in path.runes) {
+    if (rune < 0x20 || rune == 0x7f || (rune >= 0x80 && rune <= 0x9f)) {
+      return null;
+    }
+  }
+  return "cd '${path.replaceAll("'", "'\\''")}'";
+}
 
 typedef TransferProgressCallback = void Function(int transferredBytes);
 

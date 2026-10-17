@@ -389,11 +389,27 @@ void main() {
   });
 
   test('SFTP terminal directory path is safely quoted for POSIX shells', () {
-    expect(quoteSftpTerminalPath('/srv/My Files'), "'/srv/My Files'");
+    expect(sftpTerminalCdCommand('/srv/My Files'), "cd '/srv/My Files'");
     expect(
-      quoteSftpTerminalPath("/srv/user's files"),
-      "'/srv/user'\\''s files'",
+      sftpTerminalCdCommand("/srv/user's files"),
+      "cd '/srv/user'\\''s files'",
     );
+    expect(sftpTerminalCdCommand('/srv/中文 目录'), "cd '/srv/中文 目录'");
+  });
+
+  // 终端和 readline 先于 shell 看到这些字：Ctrl-C 取消前半截，后半截就成了一条新命令。
+  test('SFTP terminal cd refuses folder names with control characters', () {
+    for (final name in [
+      '/tmp/a\x03touch pwned\r',
+      '/tmp/a\ntouch pwned',
+      '/tmp/a\tb',
+      '/tmp/a\x1b[200~b',
+      '/tmp/a\x7fb',
+      '/tmp/a\u009bb',
+      '/tmp/a\x15b',
+    ]) {
+      expect(sftpTerminalCdCommand(name), isNull, reason: name);
+    }
   });
 
   testWidgets(
