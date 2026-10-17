@@ -144,6 +144,5 @@ class ForwardsChangedException implements Exception {
   const ForwardsChangedException();
 
   @override
-  String toString() =>
-      '切换过程中这条 SSH 上又开了端口转发，没有切换，转发也没动。再点一次会重新列出要停掉的转发。';
+  String toString() => '切换过程中这条 SSH 上又开了端口转发，没有切换，转发也没动。再点一次会重新列出要停掉的转发。';
 }

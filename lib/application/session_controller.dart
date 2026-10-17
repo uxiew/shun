@@ -1021,8 +1021,8 @@ class SessionController extends StateNotifier<SessionState> {
     final tmux = ref.read(tmuxServiceProvider);
     final attempt = _beginAttempt(old.id);
     _setSwitching(old.id, const TransportSwitchProgress(TabTransport.ssh));
-    attempt.onStage = (stage) => _setSwitching(
-        old.id, TransportSwitchProgress(TabTransport.ssh, stage));
+    attempt.onStage = (stage) =>
+        _setSwitching(old.id, TransportSwitchProgress(TabTransport.ssh, stage));
     TerminalSessionAdapter? terminal;
     ActiveTerminalSession? replacement;
     var committed = false;
@@ -1039,8 +1039,8 @@ class SessionController extends StateNotifier<SessionState> {
         tmuxAttach: target,
       );
       final sshClient = replacement.sshClient!;
-      final present = await attempt.waitFor(
-          _waitClientPresent(tmux, sshClient, replacement.tmux!));
+      final present = await attempt
+          .waitFor(_waitClientPresent(tmux, sshClient, replacement.tmux!));
       if (!present) {
         throw TmuxCommandException(
             '新的 SSH 没能附着到 tmux 会话 ${target.displayName}（${target.sessionId}），没有切换。');
@@ -1862,7 +1862,8 @@ class SessionController extends StateNotifier<SessionState> {
                 for (final entry in source.data.entries)
                   if (entry.key != 'password' && entry.key != 'startupCommand')
                     entry.key: entry.value,
-                'id': '${tab.tmux == null ? protocol.name : 'tmux'}-${const Uuid().v4()}',
+                'id':
+                    '${tab.tmux == null ? protocol.name : 'tmux'}-${const Uuid().v4()}',
                 'label': tab.label,
                 'protocol': protocol.name,
                 '_ephemeralTerminal': true,

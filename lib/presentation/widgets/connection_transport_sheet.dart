@@ -44,7 +44,8 @@ class TransportBadge extends ConsumerWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
               decoration: BoxDecoration(
-                color: mosh ? scheme.tertiaryContainer : scheme.secondaryContainer,
+                color:
+                    mosh ? scheme.tertiaryContainer : scheme.secondaryContainer,
                 borderRadius: BorderRadius.circular(6),
               ),
               child: Row(
@@ -193,7 +194,9 @@ class _TransportSheetState extends ConsumerState<TransportSheet> {
       contentPadding: EdgeInsets.zero,
       enabled: option.blocked == null && progress == null,
       leading: Icon(
-        option.to == TabTransport.mosh ? Icons.bolt_outlined : Icons.lan_outlined,
+        option.to == TabTransport.mosh
+            ? Icons.bolt_outlined
+            : Icons.lan_outlined,
       ),
       title: LText(option.inPlace ? '切换到 $to（同一个 tmux 会话）' : '用 $to 另开一个'),
       subtitle: LText(how),
@@ -413,7 +416,8 @@ class _Facts extends StatelessWidget {
               : 'tmux 会话 ${tmux.displayName}（${tmux.sessionId}）· ${tmux.unixUser}@${tmux.hostKey} · ${tmux.socket.describe()}',
           style: small,
         ),
-        LText('状态：$status', key: const ValueKey('transport-status'), style: small),
+        LText('状态：$status',
+            key: const ValueKey('transport-status'), style: small),
       ],
     );
   }
@@ -650,8 +654,8 @@ class MoshInstallHintSheet extends ConsumerWidget {
                             content: LText('已填进 SSH 标签，没有回车。看过再自己按回车。'),
                           ));
                         } catch (error) {
-                          messenger.showSnackBar(
-                              SnackBar(content: LText('$error')));
+                          messenger
+                              .showSnackBar(SnackBar(content: LText('$error')));
                         }
                       },
                       icon: const Icon(Icons.keyboard_outlined),

@@ -12,23 +12,42 @@ void main() {
           ('Debian GNU/Linux 13 (trixie)', 'sudo apt-get install mosh', false),
       'NAME="Ubuntu"\nID=ubuntu\nID_LIKE=debian\nPRETTY_NAME="Ubuntu 24.04.1 LTS"\n':
           ('Ubuntu 24.04.1 LTS', 'sudo apt-get install mosh', false),
-      'NAME="Linux Mint"\nID=linuxmint\nID_LIKE="ubuntu debian"\n':
-          ('Linux Mint', 'sudo apt-get install mosh', false),
+      'NAME="Linux Mint"\nID=linuxmint\nID_LIKE="ubuntu debian"\n': (
+        'Linux Mint',
+        'sudo apt-get install mosh',
+        false
+      ),
       'NAME="Fedora Linux"\nID=fedora\nPRETTY_NAME="Fedora Linux 42 (Server Edition)"\n':
           ('Fedora Linux 42 (Server Edition)', 'sudo dnf install mosh', false),
       // Rocky 的 ID_LIKE 里有 fedora，但 mosh 在 EPEL：先看 ID。
-      'NAME="Rocky Linux"\nID="rocky"\nID_LIKE="rhel centos fedora"\n':
-          ('Rocky Linux', 'sudo dnf install epel-release && sudo dnf install mosh', false),
-      'NAME="Amazon Linux"\nID="amzn"\nID_LIKE="centos rhel fedora"\n':
-          ('Amazon Linux', 'sudo dnf install epel-release && sudo dnf install mosh', false),
+      'NAME="Rocky Linux"\nID="rocky"\nID_LIKE="rhel centos fedora"\n': (
+        'Rocky Linux',
+        'sudo dnf install epel-release && sudo dnf install mosh',
+        false
+      ),
+      'NAME="Amazon Linux"\nID="amzn"\nID_LIKE="centos rhel fedora"\n': (
+        'Amazon Linux',
+        'sudo dnf install epel-release && sudo dnf install mosh',
+        false
+      ),
       'NAME="Arch Linux"\nID=arch\n': ('Arch Linux', 'pacman -S mosh', true),
-      'NAME="Manjaro Linux"\nID=manjaro\nID_LIKE=arch\n':
-          ('Manjaro Linux', 'pacman -S mosh', true),
+      'NAME="Manjaro Linux"\nID=manjaro\nID_LIKE=arch\n': (
+        'Manjaro Linux',
+        'pacman -S mosh',
+        true
+      ),
       'NAME="openSUSE Tumbleweed"\nID="opensuse-tumbleweed"\nID_LIKE="opensuse suse"\n':
           ('openSUSE Tumbleweed', 'sudo zypper in mosh', false),
-      'NAME="SLES"\nID="sles"\nID_LIKE="suse"\n': ('SLES', 'sudo zypper in mosh', false),
-      'NAME="Alpine Linux"\nID=alpine\nPRETTY_NAME="Alpine Linux v3.22"\n':
-          ('Alpine Linux v3.22', 'apk add mosh', true),
+      'NAME="SLES"\nID="sles"\nID_LIKE="suse"\n': (
+        'SLES',
+        'sudo zypper in mosh',
+        false
+      ),
+      'NAME="Alpine Linux"\nID=alpine\nPRETTY_NAME="Alpine Linux v3.22"\n': (
+        'Alpine Linux v3.22',
+        'apk add mosh',
+        true
+      ),
       'NAME=Gentoo\nID=gentoo\n': ('Gentoo', 'emerge net-misc/mosh', true),
       'NAME=FreeBSD\nID=freebsd\n': ('FreeBSD', 'pkg install net/mosh', true),
     };
@@ -68,7 +87,8 @@ void main() {
     final hint = moshInstallHint(spoof);
     expect(hint.command, 'sudo apt-get install mosh');
     // ID_LIKE 里的怪字丢掉，合规矩的照用。
-    expect(parseOsRelease('ID=foo\nID_LIKE="\$(id) debian"\n')!.idLike, ['debian']);
+    expect(parseOsRelease('ID=foo\nID_LIKE="\$(id) debian"\n')!.idLike,
+        ['debian']);
     // 重复的键只认第一个；注释行不算。
     final first = parseOsRelease('# ID=arch\nID=fedora\nID=arch\n')!;
     expect(first.id, 'fedora');

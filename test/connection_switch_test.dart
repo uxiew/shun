@@ -148,7 +148,8 @@ void main() {
       // SSH 标签断了会自动恢复；用结束了的 Mosh 标签看「已断开」。
       await vault.upsertHost(box({'protocol': 'mosh'}));
       expect(await controller.connect(box(), accept), isTrue);
-      await plugin.providerDied((tab(1).plugin! as MoshTerminalProvider).session);
+      await plugin
+          .providerDied((tab(1).plugin! as MoshTerminalProvider).session);
       await settle();
       menu = await controller.transportMenu(tab(1).id);
       expect(menu!.switchTo.blocked, contains('已经断开'));
@@ -162,7 +163,8 @@ void main() {
           isTrue);
       final managed = await controller.transportMenu(tab(1).id);
       expect(managed!.switchTo.blocked, contains('一次性命令'));
-      await vault.upsertHost(box({'id': 't1', 'protocol': 'telnet', 'port': 23}));
+      await vault
+          .upsertHost(box({'id': 't1', 'protocol': 'telnet', 'port': 23}));
       expect(
           await controller.connect(
               box({'id': 't1', 'protocol': 'telnet', 'port': 23}), accept),
@@ -196,11 +198,11 @@ void main() {
 
     test('Mosh → SSH：新开 SSH 标签，Mosh 会话不关', () async {
       await vault.upsertHost(box({'protocol': 'mosh'}));
-      expect(await controller.connect(box({'protocol': 'mosh'}), accept), isTrue);
+      expect(
+          await controller.connect(box({'protocol': 'mosh'}), accept), isTrue);
       final mosh = tab(0);
       final link = mosh.plugin! as MoshTerminalProvider;
-      expect(
-          await controller.switchTransport(mosh.id, verifyHostKey: accept),
+      expect(await controller.switchTransport(mosh.id, verifyHostKey: accept),
           isTrue);
       expect(controller.state.sessions, hasLength(2));
       expect(identical(tab(0), mosh), isTrue);
@@ -212,10 +214,12 @@ void main() {
   });
 
   group('tmux 标签原地切到 Mosh', () {
-    test('同一个标签、同一个 tmux 会话；核对到 Mosh 的客户端才换，然后只分离旧的 SSH 客户端、关 SSH；不发任何输入', () async {
+    test('同一个标签、同一个 tmux 会话；核对到 Mosh 的客户端才换，然后只分离旧的 SSH 客户端、关 SSH；不发任何输入',
+        () async {
       final old = await sshTmuxTab();
       final oldClient = old.sshClient!;
-      final result = await controller.switchTransport(old.id, verifyHostKey: accept);
+      final result =
+          await controller.switchTransport(old.id, verifyHostKey: accept);
       expect(result, isTrue);
       final now = tab(1);
       expect(now.id, old.id, reason: '原地：标签 id、位置不变');
@@ -236,7 +240,8 @@ void main() {
       expect(old.connected, isFalse);
       expect(ssh.writes, isEmpty);
       expect(plugin.writes, isEmpty);
-      final open = (plugin.opens.single.arguments as Map).cast<String, Object?>();
+      final open =
+          (plugin.opens.single.arguments as Map).cast<String, Object?>();
       expect(open['udpHost'], '10.0.2.2');
       expect(controller.state.switching, isEmpty);
     });
@@ -251,7 +256,8 @@ void main() {
       expect(identical(tab(1), old), isTrue);
       expect(old.connected, isTrue);
       expect(tmux.detached, isEmpty);
-      expect(plugin.calls.where((c) => c.method == 'closeSession'), hasLength(1));
+      expect(
+          plugin.calls.where((c) => c.method == 'closeSession'), hasLength(1));
 
       tmux.clientUnderError = null;
       tmux.attachAfterPolls = 1000;
@@ -281,7 +287,10 @@ void main() {
     test('这条 SSH 上挂着端口转发：只停用户看过的那几条；多出来的就不切', () async {
       final old = await sshTmuxTab();
       final a = ActivePortForward(
-          id: 'a', kind: ForwardKind.dynamic, localPort: 1080, client: old.sshClient);
+          id: 'a',
+          kind: ForwardKind.dynamic,
+          localPort: 1080,
+          client: old.sshClient);
       final b = ActivePortForward(
           id: 'b',
           kind: ForwardKind.local,
@@ -290,7 +299,10 @@ void main() {
           remotePort: 80,
           client: old.sshClient);
       final elsewhere = ActivePortForward(
-          id: 'c', kind: ForwardKind.dynamic, localPort: 1081, client: tab(0).sshClient);
+          id: 'c',
+          kind: ForwardKind.dynamic,
+          localPort: 1081,
+          client: tab(0).sshClient);
       forwards.items.addAll([a, b, elsewhere]);
       expect(forwards.forwardsOn(old).map((f) => f.id), ['a', 'b']);
       await expectLater(
@@ -313,14 +325,16 @@ void main() {
       tmux.attachAfterPolls = 1000;
       final pending = controller.switchTransport(old.id, verifyHostKey: accept);
       await Future<void>.delayed(const Duration(milliseconds: 50));
-      expect(controller.state.switching[old.id]!.describe(), contains('核对 tmux 会话'));
+      expect(controller.state.switching[old.id]!.describe(),
+          contains('核对 tmux 会话'));
       controller.cancelSwitch(old.id);
       expect(await pending, isFalse);
       expect(identical(tab(1), old), isTrue);
       expect(old.connected, isTrue);
       expect(tmux.detached, isEmpty);
       await settle();
-      expect(plugin.calls.where((c) => c.method == 'closeSession'), hasLength(1));
+      expect(
+          plugin.calls.where((c) => c.method == 'closeSession'), hasLength(1));
       expect(controller.state.switching, isEmpty);
     });
   });
@@ -393,9 +407,11 @@ void main() {
       await plugin.providerDied((mosh.plugin! as MoshTerminalProvider).session);
       await settle();
       expect(mosh.restoreHold!.message, contains('核对还是不是原来那个'));
-      expect(mosh.terminal.allText().replaceAll('\n', ''), contains('会话和里面的程序留在服务器上'));
+      expect(mosh.terminal.allText().replaceAll('\n', ''),
+          contains('会话和里面的程序留在服务器上'));
 
-      ssh.tmuxBootstrapError = const TmuxTargetGoneException('原来的 tmux 会话已经不在了');
+      ssh.tmuxBootstrapError =
+          const TmuxTargetGoneException('原来的 tmux 会话已经不在了');
       await expectLater(
         controller.reconnect(mosh.id, verifyHostKey: accept),
         throwsA(isA<TmuxTargetGoneException>()),
@@ -437,7 +453,8 @@ void main() {
 
     test('经代理的主机不能把 Mosh 设为默认', () async {
       await vault.upsertHost(box({'protocol': 'mosh'}));
-      expect(await controller.connect(box({'protocol': 'mosh'}), accept), isTrue);
+      expect(
+          await controller.connect(box({'protocol': 'mosh'}), accept), isTrue);
       expect(await controller.switchTransport(tab(0).id, verifyHostKey: accept),
           isTrue);
       await controller.setDefaultTransport(tab(1).id);
@@ -468,7 +485,8 @@ void main() {
       final bootstrapsBefore = ssh.bootstraps;
       await launch();
       await settle();
-      final back = controller.state.sessions.firstWhere((s) => s.id == first.id);
+      final back =
+          controller.state.sessions.firstWhere((s) => s.id == first.id);
       expect(back.restored, isTrue);
       expect(back.connected, isFalse);
       expect(transportOf(back), TabTransport.mosh);
@@ -481,17 +499,24 @@ void main() {
       final now = controller.state.sessions
           .firstWhere((s) => s.plugin is MoshTerminalProvider);
       expect(now.tmux!.target.sameAs(target), isTrue);
-      expect(controller.state.sessions.where((s) => identical(s, back)), isEmpty);
+      expect(
+          controller.state.sessions.where((s) => identical(s, back)), isEmpty);
     });
 
     test('标签记住自己的 SSH / Mosh；读到别的协议就不放回', () {
       final tab = RestorableTab(
-          id: 'x', hostId: 'h1', label: 'tmux: work', tmux: target, protocol: HostProtocol.mosh);
-      final back = RestorableTab.fromJson(jsonDecode(jsonEncode(tab.toJson())))!;
+          id: 'x',
+          hostId: 'h1',
+          label: 'tmux: work',
+          tmux: target,
+          protocol: HostProtocol.mosh);
+      final back =
+          RestorableTab.fromJson(jsonDecode(jsonEncode(tab.toJson())))!;
       expect(back.protocol, HostProtocol.mosh);
       expect(back.tmux!.sameAs(target), isTrue);
       expect(
-          RestorableTab.fromJson({'id': 'x', 'hostId': 'h1', 'label': 'l'})!.protocol,
+          RestorableTab.fromJson({'id': 'x', 'hostId': 'h1', 'label': 'l'})!
+              .protocol,
           isNull);
       expect(
           RestorableTab.fromJson(
@@ -500,17 +525,25 @@ void main() {
     });
 
     test('保险库默认 Mosh、标签是 SSH：补回凭据按标签自己的方式算，不当成路线变了', () {
-      final sshPlan = resolveRoutePlan(box(), hosts: [box()], proxyProfiles: const []);
-      final hosts = [box({'protocol': 'mosh'})];
+      final sshPlan =
+          resolveRoutePlan(box(), hosts: [box()], proxyProfiles: const []);
+      final hosts = [
+        box({'protocol': 'mosh'})
+      ];
       final back = rehydrateRoutePlan(sshPlan.withoutSecrets(),
-          sourceHostId: 'h1', hosts: hosts, proxyProfiles: const [], keys: const []);
+          sourceHostId: 'h1',
+          hosts: hosts,
+          proxyProfiles: const [],
+          keys: const []);
       expect(back.protocol, HostProtocol.ssh);
       expect(back.target.host.password, 'R42-LOGIN-SECRET');
       // 地址变了照样拒绝。
       expect(
         () => rehydrateRoutePlan(sshPlan.withoutSecrets(),
             sourceHostId: 'h1',
-            hosts: [box({'protocol': 'mosh', 'hostname': 'other.example.com'})],
+            hosts: [
+              box({'protocol': 'mosh', 'hostname': 'other.example.com'})
+            ],
             proxyProfiles: const [],
             keys: const []),
         throwsA(isA<RouteChangedException>()),
@@ -591,8 +624,9 @@ class _Ssh extends SshService {
 
   static MoshBootstrapOutcome outcome() => MoshBootstrapOutcome(
         '10.0.2.2',
-        MoshBootstrap.parse(utf8.encode('MOSH CONNECT 60101 v450/k6rhyS3hwDL4ejCIQ\n'
-            '[mosh-server detached, pid = 4321]\n')),
+        MoshBootstrap.parse(
+            utf8.encode('MOSH CONNECT 60101 v450/k6rhyS3hwDL4ejCIQ\n'
+                '[mosh-server detached, pid = 4321]\n')),
       );
 
   @override
@@ -631,7 +665,9 @@ class _Ssh extends SshService {
       tmux: tmuxAttach == null
           ? null
           : TmuxClientBinding(
-              target: tmuxAttach, clientTty: '/dev/pts/$tty', clientPid: 100 + tty),
+              target: tmuxAttach,
+              clientTty: '/dev/pts/$tty',
+              clientPid: 100 + tty),
       binding: binding,
     );
   }
@@ -726,7 +762,8 @@ class _Tmux extends TmuxService {
       detached.add(binding);
 
   @override
-  Future<bool> clientPresent(SSHClient client, TmuxClientBinding binding) async {
+  Future<bool> clientPresent(
+      SSHClient client, TmuxClientBinding binding) async {
     presentChecks++;
     return present;
   }

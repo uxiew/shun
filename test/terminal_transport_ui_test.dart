@@ -58,13 +58,15 @@ void main() {
         tmux: tmux,
         plugin: plugin,
         // 一个不联网的 SSHClient：界面靠它认「这是连着的 SSH 标签」。
-        sshClients: ssh ? [SSHClient(_QuietSocket(), username: 'ops')] : const [],
+        sshClients:
+            ssh ? [SSHClient(_QuietSocket(), username: 'ops')] : const [],
       );
 
   late _Controller controller;
   late _Forwards forwards;
 
-  Future<void> open(WidgetTester tester, List<ActiveTerminalSession> tabs) async {
+  Future<void> open(
+      WidgetTester tester, List<ActiveTerminalSession> tabs) async {
     SharedPreferences.setMockInitialValues({});
     final repository = await VaultRepository.open();
     final messenger = tester.binding.defaultBinaryMessenger;
@@ -105,7 +107,9 @@ void main() {
 
   testWidgets('徽标写当前方式；菜单写主机、普通 shell、状态，普通标签是另开一个；不说切网不断', (tester) async {
     await open(tester, [tab('a')]);
-    expect(find.descendant(of: key('terminal-transport-badge'), matching: find.text('SSH')),
+    expect(
+        find.descendant(
+            of: key('terminal-transport-badge'), matching: find.text('SSH')),
         findsOneWidget);
     controller.menu = const TransportMenu(
       current: TabTransport.ssh,
@@ -131,7 +135,9 @@ void main() {
 
   testWidgets('切不了时变灰并写原因，点了也不切；和默认不同时有「设为默认」', (tester) async {
     await open(tester, [tab('m', protocol: 'mosh')..connected = false]);
-    expect(find.descendant(of: key('terminal-transport-badge'), matching: find.text('MOSH')),
+    expect(
+        find.descendant(
+            of: key('terminal-transport-badge'), matching: find.text('MOSH')),
         findsOneWidget);
     controller.menu = const TransportMenu(
       current: TabTransport.mosh,
@@ -156,7 +162,8 @@ void main() {
     expect(find.text('已把 Mosh 设为这台主机的默认'), findsOneWidget);
   });
 
-  testWidgets('tmux 标签原地切到 Mosh：先列出这条 SSH 上会停掉的转发，确认了才切，传的就是列出的那几条', (tester) async {
+  testWidgets('tmux 标签原地切到 Mosh：先列出这条 SSH 上会停掉的转发，确认了才切，传的就是列出的那几条',
+      (tester) async {
     final binding = const TmuxClientBinding(
         target: target, clientTty: '/dev/pts/4', clientPid: 41);
     final t = tab('t', tmux: binding);
@@ -176,7 +183,8 @@ void main() {
       hostDefault: TabTransport.ssh,
     );
     await openMenu(tester);
-    expect(find.textContaining(r'tmux 会话 work（$3）· ops@box.example.com:22'), findsOneWidget);
+    expect(find.textContaining(r'tmux 会话 work（$3）· ops@box.example.com:22'),
+        findsOneWidget);
     expect(find.text('切换到 Mosh（同一个 tmux 会话）'), findsOneWidget);
     expect(find.textContaining('不重发任何输入'), findsOneWidget);
 
@@ -292,7 +300,8 @@ void main() {
     expect(find.text('认出来的系统：Alpine Linux v3.22'), findsOneWidget);
     expect(find.text('apk add mosh'), findsOneWidget);
     expect(find.textContaining('用 root 执行'), findsOneWidget);
-    expect(key('mosh-install-paste'), findsNothing, reason: '没有这台的 SSH 标签就不给「填进」');
+    expect(key('mosh-install-paste'), findsNothing,
+        reason: '没有这台的 SSH 标签就不给「填进」');
   });
 
   testWidgets('关 Mosh-tmux 标签：说只分离客户端、会话留在远端，不说 shell 会退出', (tester) async {

@@ -81,7 +81,8 @@ String _display(String value) {
       buffer.write('…');
       break;
     }
-    final control = rune < 0x20 || rune == 0x7f || (rune >= 0x80 && rune < 0xa0);
+    final control =
+        rune < 0x20 || rune == 0x7f || (rune >= 0x80 && rune < 0xa0);
     final bidi = (rune >= 0x202a && rune <= 0x202e) ||
         (rune >= 0x2066 && rune <= 0x2069) ||
         rune == 0x200e ||

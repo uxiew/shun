@@ -2052,10 +2052,12 @@ const englishTranslations = <String, String>{
       'the tab moves over only after that is verified, then this SSH is closed. No input is resent.',
   '核对过才换过去，然后关掉 Mosh。不重发任何输入。':
       'the tab moves over only after that is verified, then Mosh is closed. No input is resent.',
-  r'把 ${option.transport.label} 设为这台主机的默认': r'Make ${option.transport.label} the default for this host',
+  r'把 ${option.transport.label} 设为这台主机的默认':
+      r'Make ${option.transport.label} the default for this host',
   r'以后从主机列表连这台都用 ${option.transport.label}。开着的标签不变，Mosh 的端口、路径设置照旧留着。':
       r'Connecting this host from the host list will use ${option.transport.label}. Open tabs do not change, and Mosh port and path settings are kept.',
-  r'已把 ${option.transport.label} 设为这台主机的默认': r'${option.transport.label} is now the default for this host',
+  r'已把 ${option.transport.label} 设为这台主机的默认':
+      r'${option.transport.label} is now the default for this host',
   '选 tmux 会话…': 'Pick a tmux session…',
   '选 tmux 会话': 'Pick a tmux session',
   '要先有一个连着的 SSH 标签才能列出这台主机上的 tmux 会话（Mosh 标签自己查不了）。':
@@ -2068,8 +2070,10 @@ const englishTranslations = <String, String>{
   'Mosh 不带端口转发。要留着它们就别切，或者另开一个 SSH 标签重新开转发。':
       'Mosh does not carry port forwards. To keep them, do not switch, or open another SSH tab and start the forwards there.',
   '停掉并切换': 'Stop and switch',
-  r'已切到 ${option.to.label}，还是同一个 tmux 会话': r'Switched to ${option.to.label}; still the same tmux session',
-  r'没有切换，原来的连接不变：$error': r'Not switched; the original connection is unchanged: $error',
+  r'已切到 ${option.to.label}，还是同一个 tmux 会话':
+      r'Switched to ${option.to.label}; still the same tmux session',
+  r'没有切换，原来的连接不变：$error':
+      r'Not switched; the original connection is unchanged: $error',
   '已断开 · 终端里是断开前的画面（历史）':
       'Disconnected · the terminal shows the screen from before the disconnect (history)',
   '正在自动恢复…': 'Recovering automatically…',
@@ -2080,14 +2084,16 @@ const englishTranslations = <String, String>{
   '这台服务器上没有 tmux。': 'This server has no tmux.',
   r'tmux 版本不在实测范围（${probe.versionLine}），不列会话。':
       r'tmux version is outside the tested range (${probe.versionLine}), so sessions are not listed.',
-  r'${_socket.describe()} 上现在没有 tmux 会话。': r'There is no tmux session on ${_socket.describe()} right now.',
+  r'${_socket.describe()} 上现在没有 tmux 会话。':
+      r'There is no tmux session on ${_socket.describe()} right now.',
   '读不出 tmux 会话列表。': 'Could not read the tmux session list.',
   '只读列出；要新建、结束或换 socket，用「系统管理 → tmux」。':
       'Read-only list. To create, end or change socket, use System management → tmux.',
   r'列不出来：${snapshot.error}': r'Could not list: ${snapshot.error}',
   r'${row.sessionId} · ${row.windows} 个窗口 · 已有 ${row.attached} 个客户端附着':
       r'${row.sessionId} · ${row.windows} windows · ${row.attached} clients attached',
-  r'${row.sessionId} · ${row.windows} 个窗口': r'${row.sessionId} · ${row.windows} windows',
+  r'${row.sessionId} · ${row.windows} 个窗口':
+      r'${row.sessionId} · ${row.windows} windows',
   '只分离这个标签的 tmux 客户端：关掉 Mosh 会话后，它里面的 tmux 客户端跟着退出，tmux 会话 ':
       'Only this tab’s tmux client is detached: once the Mosh session closes, the tmux client inside it exits, and tmux session ',
   '服务器上没有 mosh-server': 'mosh-server is not installed on the server',
