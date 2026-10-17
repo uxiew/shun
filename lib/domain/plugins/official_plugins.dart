@@ -19,11 +19,12 @@ abstract final class OfficialPlugins {
   /// Mosh 插件的 pluginId，和 `PluginMoshRuntime.pluginId` 相同（有测试核对）。
   static const moshPluginId = 'shun.mosh';
 
-  /// `plugins/mosh` 现在的签名证书：`CN=xwshun fixture author, O=xwshun test only`（改名前生成的，
-  /// 证书里的名字改不了，认的是下面的指纹）。
-  /// 2026-10-07 从 mosh-release.apk 用 apksigner 读出。
+  /// `plugins/mosh` 现在的签名证书：`CN=shun fixture author, O=shun test only`。
+  /// 这把测试作者密钥 2026-10-15 在本机重新生成过（原来那把 `ffb53d5a…` 没跟着迁移过来），
+  /// 所有者 2026-10-17 决定改认新钥匙。同日从重新编的 mosh-release.apk 用 apksigner 读出。
+  /// 用旧钥匙签的 Mosh 插件包从此会被当成冒充者拒掉：手机上装着旧包的，卸掉重装新包。
   static const moshTestAuthorCertSha256 =
-      'ffb53d5ae3ef071d73b680c14c219c0662df7545a87e6042991ab11c862c52fe';
+      '7feb58259ea7ca210fc268f8df42ed4bd378ae04be2c270e31c559d6180e6e9d';
 
   static const reserved = <String, Set<String>>{
     moshPluginId: {moshTestAuthorCertSha256},
