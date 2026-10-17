@@ -752,7 +752,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
     try {
       await ref.read(sessionControllerProvider.notifier).reconnect(
             session.id,
-            verifyHostKey: hostKeyVerifier(context, ref),
+            verifyHostKey: hostKeyVerifier(context),
             keyboardInteractive: keyboardInteractivePrompt(context),
           );
     } on MoshServerMissing catch (error) {

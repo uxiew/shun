@@ -513,7 +513,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     String algorithm,
     String fingerprint,
   ) =>
-      hostKeyVerifier(context, ref)(host, algorithm, fingerprint);
+      hostKeyVerifier(context)(host, algorithm, fingerprint);
 
   Future<List<String>?> _promptKeyboardInteractive(
     String name,

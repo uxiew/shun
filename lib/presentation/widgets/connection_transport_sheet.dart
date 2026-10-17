@@ -285,10 +285,11 @@ class _TransportSheetState extends ConsumerState<TransportSheet> {
     final controller = ref.read(sessionControllerProvider.notifier);
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
-    // 菜单关掉以后还要弹安装提示：用弹出菜单的那一层，不用菜单自己的 context。
+    // 菜单关掉以后还要弹安装提示、指纹框、键盘交互框：用弹出菜单的那一层，不用菜单自己的 context。
+    // 用菜单的 context 的话，「另开一个」先收了菜单，新主机的指纹框就弹不出来、按拒绝处理。
     final hostContext = navigator.context;
-    final verifyHostKey = hostKeyVerifier(context, ref);
-    final keyboardInteractive = keyboardInteractivePrompt(context);
+    final verifyHostKey = hostKeyVerifier(hostContext);
+    final keyboardInteractive = keyboardInteractivePrompt(hostContext);
     var stopping = const <String>{};
     // 从 SSH 原地切到 Mosh 会关掉这条 SSH：挂在它上面的端口转发先列出来，用户确认了才切。
     if (option.inPlace && option.to == TabTransport.mosh) {
@@ -728,8 +729,9 @@ class MoshInstallHintSheet extends ConsumerWidget {
     final controller = ref.read(sessionControllerProvider.notifier);
     final messenger = ScaffoldMessenger.of(context);
     final navigator = Navigator.of(context);
-    final verifyHostKey = hostKeyVerifier(context, ref);
-    final keyboardInteractive = keyboardInteractivePrompt(context);
+    // 确认后先收起这个提示再开标签：指纹框、键盘交互框要弹在下面那一层（理由同 [TransportSheet] 的切换）。
+    final verifyHostKey = hostKeyVerifier(navigator.context);
+    final keyboardInteractive = keyboardInteractivePrompt(navigator.context);
     final host = ref
         .read(vaultControllerProvider)
         .data

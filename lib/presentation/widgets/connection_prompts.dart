@@ -12,48 +12,55 @@ import 'host_key_dialogs.dart';
 /// 规则在 application/host_trust.dart，这里只提供弹窗和保存。
 ///
 /// [context] 所在的页面没了（[BuildContext.mounted] 为 false）时一律按拒绝处理：指纹不放行，问答返回 null。
-HostKeyVerifier hostKeyVerifier(BuildContext context, WidgetRef ref) =>
-    (HostProfile host, String algorithm, String fingerprint) async {
-      final vault = ref.read(vaultControllerProvider).data;
-      if (vault == null) return false;
-      return verifyHostKeyWithKnownHosts(
-        knownHosts: (vault.extras['knownHosts'] as List? ?? const [])
-            .whereType<Map>()
-            .map((value) => Map<String, dynamic>.from(value))
-            .toList(),
-        hostname: host.hostname,
-        port: host.port,
-        keyType: algorithm,
-        fingerprint: fingerprint,
-        confirmNew: () async =>
-            context.mounted &&
-            await confirmNewHostKey(
-              context,
-              hostname: host.hostname,
-              port: host.port,
-              algorithm: algorithm,
-              fingerprint: fingerprint,
-            ),
-        onChanged: (oldFingerprint) async =>
-            context.mounted &&
-            await showChangedHostKey(
-              context,
-              hostname: host.hostname,
-              port: host.port,
-              algorithm: algorithm,
-              fingerprint: fingerprint,
-              oldFingerprint: oldFingerprint,
-            ),
-        save: (knownHosts) async {
-          final latest = ref.read(vaultControllerProvider).data ?? vault;
-          await ref.read(vaultControllerProvider.notifier).replace(
-                latest.copyWith(
-                  extras: {...latest.extras, 'knownHosts': knownHosts},
-                ),
-              );
-        },
-      );
-    };
+///
+/// 保险库从建回调时取到的 [ProviderContainer] 读，不用调用方的 `ref`：回调常常在弹出它的菜单关掉以后才被调用
+///（「用 Mosh 另开一个」「安装 mosh」都是先收菜单再连），那时菜单的 ref 一用就抛 StateError，
+/// dartssh2 当成核对失败断开，用户看到的是「登录完成前连接被对方关闭」（R42 在模拟器上撞到过）。
+/// 要在菜单关掉后还能弹指纹框，[context] 就传弹出菜单的那一层（如 `Navigator.of(context).context`）。
+HostKeyVerifier hostKeyVerifier(BuildContext context) {
+  final container = ProviderScope.containerOf(context, listen: false);
+  return (HostProfile host, String algorithm, String fingerprint) async {
+    final vault = container.read(vaultControllerProvider).data;
+    if (vault == null) return false;
+    return verifyHostKeyWithKnownHosts(
+      knownHosts: (vault.extras['knownHosts'] as List? ?? const [])
+          .whereType<Map>()
+          .map((value) => Map<String, dynamic>.from(value))
+          .toList(),
+      hostname: host.hostname,
+      port: host.port,
+      keyType: algorithm,
+      fingerprint: fingerprint,
+      confirmNew: () async =>
+          context.mounted &&
+          await confirmNewHostKey(
+            context,
+            hostname: host.hostname,
+            port: host.port,
+            algorithm: algorithm,
+            fingerprint: fingerprint,
+          ),
+      onChanged: (oldFingerprint) async =>
+          context.mounted &&
+          await showChangedHostKey(
+            context,
+            hostname: host.hostname,
+            port: host.port,
+            algorithm: algorithm,
+            fingerprint: fingerprint,
+            oldFingerprint: oldFingerprint,
+          ),
+      save: (knownHosts) async {
+        final latest = container.read(vaultControllerProvider).data ?? vault;
+        await container.read(vaultControllerProvider.notifier).replace(
+              latest.copyWith(
+                extras: {...latest.extras, 'knownHosts': knownHosts},
+              ),
+            );
+      },
+    );
+  };
+}
 
 KeyboardInteractiveHandler keyboardInteractivePrompt(BuildContext context) =>
     (String name, String instruction,
