@@ -90,6 +90,47 @@ class _ServiceManagerPanelState extends State<ServiceManagerPanel> {
     RemoteServiceAction action,
   ) async {
     if (_busy.contains(service.name)) return;
+    // 停止、重启会中断服务，关掉开机自启要等下次开机才发现；停的要是 sshd，可能就连不回来了。
+    // 手机上误触很常见，先问。启动、设置开机自启不中断什么，不问。
+    final confirmation = switch (action) {
+      RemoteServiceAction.stop => (
+          title: '停止服务？',
+          message: '${service.name}\n停的是 sshd 这类登录要用的服务时，可能就连不回这台服务器了。',
+          action: '停止',
+        ),
+      RemoteServiceAction.restart => (
+          title: '重启服务？',
+          message: '${service.name}\n期间服务中断；重启 sshd 或网络服务时，当前连接可能会断。',
+          action: '重启',
+        ),
+      RemoteServiceAction.disable => (
+          title: '关闭开机自启？',
+          message: '${service.name}\n下次开机不会自动启动。',
+          action: '关闭开机自启',
+        ),
+      RemoteServiceAction.start || RemoteServiceAction.enable => null,
+    };
+    if (confirmation != null) {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          icon: const Icon(Icons.warning_amber_outlined),
+          title: LText(confirmation.title),
+          content: LText(confirmation.message),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const LText('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: LText(confirmation.action),
+            ),
+          ],
+        ),
+      );
+      if (confirmed != true || !mounted) return;
+    }
     setState(() => _busy.add(service.name));
     try {
       await runWithSudo(

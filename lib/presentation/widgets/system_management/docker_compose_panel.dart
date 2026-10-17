@@ -141,6 +141,22 @@ class _DockerComposePanelState extends State<DockerComposePanel> {
           message: '将移除 ${project.name} 的容器和默认网络，但不会删除数据卷。',
           action: '停止并移除',
         ),
+      // 停、重启、暂停都会中断服务，手机上误触很常见，也先问。启动、恢复、拉镜像不中断什么，不问。
+      DockerComposeAction.stop => (
+          title: '停止 Compose 项目？',
+          message: '${project.name}\n全部服务会停止，容器保留。',
+          action: '停止',
+        ),
+      DockerComposeAction.restart => (
+          title: '重启 Compose 项目？',
+          message: '${project.name}\n全部服务会重启，期间中断。',
+          action: '重启',
+        ),
+      DockerComposeAction.pause => (
+          title: '暂停 Compose 项目？',
+          message: '${project.name}\n全部容器冻结，恢复之前不响应。',
+          action: '暂停',
+        ),
       _ => null,
     };
     if (confirmation != null) {

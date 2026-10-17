@@ -785,6 +785,16 @@ const englishTranslations = <String, String>{
   '免密 sudo 的服务器可以留空；密码只在这次系统管理面板打开期间保留':
       'Leave empty if sudo needs no password on this server. The password is kept only while this system-management panel is open',
   '用 sudo 继续': 'Continue with sudo',
+  '停止 Compose 项目？': 'Stop Compose project?',
+  '重启 Compose 项目？': 'Restart Compose project?',
+  '暂停 Compose 项目？': 'Pause Compose project?',
+  '停止容器？': 'Stop container?',
+  '重启容器？': 'Restart container?',
+  '暂停容器？': 'Pause container?',
+  '暂停进程？': 'Pause process?',
+  '停止服务？': 'Stop service?',
+  '重启服务？': 'Restart service?',
+  '关闭开机自启？': 'Turn off start at boot?',
   '进程': 'Processes',
   '服务': 'Services',
   'OpenRC 服务': 'OpenRC services',
@@ -2172,6 +2182,35 @@ const englishTranslations = <String, String>{
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // 系统管理确认框里接在名字后面的说明（名字是运行时才知道的）。放最前面，免得被后面的「停止」「重启」先拆碎。
+  ('全部服务会停止，容器保留。', 'All services will stop; the containers are kept.'),
+  ('全部服务会重启，期间中断。', 'All services will restart and are interrupted meanwhile.'),
+  (
+    '全部容器冻结，恢复之前不响应。',
+    'All containers are frozen and will not respond until resumed.'
+  ),
+  ('里面的服务会停止。', 'The services inside will stop.'),
+  (
+    '会先停止再启动，期间服务中断。',
+    'It stops and starts again; its services are interrupted meanwhile.'
+  ),
+  (
+    '里面的进程全部冻结，恢复之前不响应。',
+    'All processes inside are frozen and will not respond until resumed.'
+  ),
+  (
+    '进程会一直停着，直到点恢复（CONT）。暂停的是 sshd 或正在用的 shell 时，这个连接会卡住。',
+    'The process stays stopped until you resume it (CONT). If it is sshd or the shell you are using, this connection will hang.'
+  ),
+  (
+    '停的是 sshd 这类登录要用的服务时，可能就连不回这台服务器了。',
+    'If this is sshd or another service you log in through, you may not be able to reconnect to this server.'
+  ),
+  (
+    '期间服务中断；重启 sshd 或网络服务时，当前连接可能会断。',
+    'The service is interrupted meanwhile; restarting sshd or networking may drop the current connection.'
+  ),
+  ('下次开机不会自动启动。', 'It will not start automatically at the next boot.'),
   // R41：测试连接顺带的 tmux 结果（connection_probe_sheet.dart）。版本、会话数、原因是运行时才知道的，
   // 只能按片段换；放在最前面，免得被后面更短的片段（比如单个标点）先拆碎。
   (

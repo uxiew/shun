@@ -132,14 +132,40 @@ class _DockerManagerPanelState extends State<DockerManagerPanel>
     DockerContainerInfo container,
     DockerContainerAction action,
   ) async {
-    if (action == DockerContainerAction.kill ||
-        action == DockerContainerAction.remove) {
+    // 会中断服务的都先问：手机上误触很常见。启动、恢复不中断什么，不问。
+    final confirmation = switch (action) {
+      DockerContainerAction.kill => (
+          title: '强制停止容器？',
+          message: '${container.name} 将立即被 kill。',
+          action: '强杀',
+        ),
+      DockerContainerAction.remove => (
+          title: '删除容器？',
+          message: '${container.name} 将被强制删除，此操作无法撤销。',
+          action: '删除',
+        ),
+      DockerContainerAction.stop => (
+          title: '停止容器？',
+          message: '${container.name}\n里面的服务会停止。',
+          action: '停止',
+        ),
+      DockerContainerAction.restart => (
+          title: '重启容器？',
+          message: '${container.name}\n会先停止再启动，期间服务中断。',
+          action: '重启',
+        ),
+      DockerContainerAction.pause => (
+          title: '暂停容器？',
+          message: '${container.name}\n里面的进程全部冻结，恢复之前不响应。',
+          action: '暂停',
+        ),
+      DockerContainerAction.start || DockerContainerAction.unpause => null,
+    };
+    if (confirmation != null) {
       final confirmed = await _confirm(
-        action == DockerContainerAction.kill ? '强制停止容器？' : '删除容器？',
-        action == DockerContainerAction.kill
-            ? '${container.name} 将立即被 kill。'
-            : '${container.name} 将被强制删除，此操作无法撤销。',
-        action == DockerContainerAction.kill ? '强杀' : '删除',
+        confirmation.title,
+        confirmation.message,
+        confirmation.action,
       );
       if (!confirmed) return;
     }

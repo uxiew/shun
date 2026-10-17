@@ -113,13 +113,22 @@ class _ProcessManagerPanelState extends State<ProcessManagerPanel> {
   }
 
   Future<void> _signal(RemoteProcess process, ProcessSignal signal) async {
-    final destructive =
-        signal == ProcessSignal.kill || signal == ProcessSignal.term;
-    if (destructive) {
+    // STOP 也问：暂停的要是 sshd 或自己正在用的 shell，这条连接当场就卡住了，连恢复都点不到。
+    final confirmation = switch (signal) {
+      ProcessSignal.kill => (title: '强制结束进程？', note: null, action: '强杀'),
+      ProcessSignal.term => (title: '终止进程？', note: null, action: '终止'),
+      ProcessSignal.stop => (
+          title: '暂停进程？',
+          note: '\n进程会一直停着，直到点恢复（CONT）。暂停的是 sshd 或正在用的 shell 时，这个连接会卡住。',
+          action: '暂停',
+        ),
+      ProcessSignal.cont => null,
+    };
+    if (confirmation != null) {
       final confirmed = await _confirm(
-        signal == ProcessSignal.kill ? '强制结束进程？' : '终止进程？',
-        '${process.command}\nPID ${process.pid}',
-        signal == ProcessSignal.kill ? '强杀' : '终止',
+        confirmation.title,
+        '${process.command}\nPID ${process.pid}${confirmation.note ?? ''}',
+        confirmation.action,
       );
       if (!confirmed) return;
     }

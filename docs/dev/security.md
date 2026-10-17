@@ -269,11 +269,11 @@ AI 命令行的「按会话 ID 继续」「同项目新建」点一下就启动�
 
 **系统管理**（`lib/infrastructure/ssh/system_management_service.dart`）：命令都经 `_executeSession` 走 exec，默认 15 秒；参数用 `shellQuote` 包单引号，PID 必须大于 0，容器和镜像 ID 只收字母数字，服务名只收字母数字和 `_.:@+-`，Caddyfile 的内容先 base64 再在远端解码，改之前备份、校验、失败回滚。现状里要知道三件事：
 
-- **确认框不全**：进程 KILL/TERM、容器强杀和删除、镜像删除、Compose 的 update/recreate/rebuild/down、删 Caddy 站点要确认；服务的 start/stop/restart/enable/disable、容器的 stop/restart/pause、进程的 STOP/CONT、Compose 的 stop/restart/pause/pull **点了就执行**。新加破坏性操作至少要一个确认框。
+- **确认框**：会中断、删除或下次开机才发现的操作都先确认——进程 KILL/TERM/STOP；容器 stop/restart/pause、强杀、删除；镜像删除；Compose 的 stop/restart/pause/update/recreate/rebuild/down；服务的 stop/restart/disable；删 Caddy 站点。点了就执行的只剩不中断什么的：进程 CONT、容器 start/unpause、Compose start/unpause/pull、服务 start/enable、拉镜像、改优先级（本身有输入框）。新加的操作只要会中断服务就要确认：手机上误触很常见，停的要是 sshd，用户就连不回来了。测试：`test/system_management_confirm_test.dart`。
 - **sudo 先问用户**：命令报权限错时，服务层不自己试 sudo，抛 `SudoRequired`（`passwordOptional: true`）；界面由 `runWithSudo`（`lib/presentation/widgets/system_management/sudo_prompt.dart`）弹「用 sudo 再试？」，用户点了「用 sudo 继续」（密码可空）才调 `set*SudoPassword` 记下同意，之后先试 `sudo -n`，要密码再问。同意按 Docker（含 Compose）、系统服务、Caddy 分开记，和密码一样只存在这个面板的 `SystemManagementService` 实例里；密码经 stdin 交给 `sudo -S -p ''`。以前一碰到权限错就自动试 `sudo -n`，免密 sudo 的机器上直接以 root 执行了。新加会提权的入口也走 `runWithSudo`，别在服务层自己重试。测试：`test/system_management_sudo_test.dart`。
 - `_executeSession` 拿不到退出码时按 0（成功）算。
 
-测试：`test/integration_ssh_fixture_test.dart`（「REG02 / NET11 断线恢复不重跑 startup、不重放输入」）、`test/tmux_protocol_test.dart`、`test/tmux_fixture_test.dart`、`test/ai_cli_discovery_test.dart`（「AIC01 actual POSIX discovery, without executing any CLI」）、`test/ai_cli_launch_ssh_fixture_test.dart`、`test/mosh_install_hint_test.dart`、`test/system_management_service_test.dart`、`test/system_management_sudo_test.dart`、`test/ai_chat_sheet_test.dart`。
+测试：`test/integration_ssh_fixture_test.dart`（「REG02 / NET11 断线恢复不重跑 startup、不重放输入」）、`test/tmux_protocol_test.dart`、`test/tmux_fixture_test.dart`、`test/ai_cli_discovery_test.dart`（「AIC01 actual POSIX discovery, without executing any CLI」）、`test/ai_cli_launch_ssh_fixture_test.dart`、`test/mosh_install_hint_test.dart`、`test/system_management_service_test.dart`、`test/system_management_sudo_test.dart`、`test/system_management_confirm_test.dart`、`test/ai_chat_sheet_test.dart`。
 
 ## 9. 网络与路由
 
