@@ -2010,8 +2010,8 @@ const englishTranslations = <String, String>{
       'This tab is disconnected. Tap Reconnect first, then switch once it is connected.',
   'AI 工具的专用标签不切换连接方式。':
       'Dedicated AI tool tabs do not switch connection method.',
-  '「系统管理」里开的一次性命令标签不切换连接方式。':
-      'One-off command tabs opened from System management do not switch connection method.',
+  '一次性命令标签（「系统管理」或安装 mosh 开的）不切换连接方式。':
+      'One-off command tabs (opened from System management or for installing mosh) do not switch connection method.',
   '正在切换，等这一次结束。': 'A switch is in progress. Wait for it to finish.',
   '拿不到这条 SSH 实际连上的 IP，不知道 Mosh 的 UDP 该发往哪里。':
       'Could not get the IP this SSH connection actually reached, so there is nowhere to send Mosh UDP.',
@@ -2099,15 +2099,42 @@ const englishTranslations = <String, String>{
   '服务器上没有 mosh-server': 'mosh-server is not installed on the server',
   '看安装命令': 'Show install command',
   r'认出来的系统：${hint.distro}': r'Detected system: ${hint.distro}',
-  '在服务器上用 root 执行这一条（或自己在前面加 sudo / doas）：':
-      'Run this on the server as root (or prefix it with sudo / doas yourself):',
   '在服务器上执行这一条：': 'Run this on the server:',
   '已复制安装命令': 'Install command copied',
+  '再 sudo nixos-rebuild switch（它会顺带放行 Mosh 的 UDP 端口）。不用了就删掉这一行、再 rebuild 一次。':
+      'then run sudo nixos-rebuild switch (it also opens the Mosh UDP ports). To remove it later, delete that line and rebuild again.',
+  '在服务器上执行这一条。要管理员权限：sudo 会在终端里问你的密码。':
+      'Run this on the server. It needs administrator rights: sudo will ask for your password in the terminal.',
+  '安装…': 'Install…',
+  r'装好以后，服务器防火墙（和云服务器的安全组）要放行 $ports，再重新连接或切换。':
+      r'After installing, allow $ports in the server firewall (and the cloud security group), then reconnect or switch again.',
+  '以后不用了，卸载：': 'To uninstall later:',
+  '安装、卸载、清理服务器上剩下的东西，完整步骤见使用手册《Mosh 使用指南》。':
+      'For the full steps to install, uninstall and clean up what is left on the server, see the Mosh guide in the user manual.',
+  '在服务器上安装 mosh？': 'Install mosh on the server?',
+  r'会新开一个 SSH 标签「安装 mosh · $label」，登录这台主机后执行：':
+      r'A new SSH tab “Install mosh · $label” will open, sign in to this host and run:',
+  '要管理员权限：sudo 会在那个终端里问你的密码，你自己输。App 看不到、也不保存这个密码。':
+      'This needs administrator rights: sudo will ask for your password in that terminal and you type it yourself. The app neither sees nor stores it.',
+  '服务器上没有 sudo 的，会报「sudo: not found」：用 root 登录再装，或者自己换成 doas。':
+      'If the server has no sudo you will see “sudo: not found”: sign in as root and install again, or use doas yourself.',
+  'mosh 从这台服务器自己配的软件源下载，服务器要能上网。包管理器问「要不要继续」时，也在那个终端里回答。':
+      'mosh is downloaded from the package sources configured on this server, so the server needs network access. If the package manager asks whether to continue, answer in that terminal.',
+  '标签断线恢复时不会再执行一次。':
+      'It is not run again when the tab recovers from a disconnect.',
+  r'装完还要在服务器防火墙（和云服务器的安全组）里放行 $ports，否则 Mosh 连不上。':
+      r'After installing, allow $ports in the server firewall (and the cloud security group), otherwise Mosh cannot connect.',
+  '以后不用了怎么卸载、怎么清理，见使用手册《Mosh 使用指南》。':
+      'How to uninstall and clean up later: see the Mosh guide in the user manual.',
+  r'以后不用了：用「$uninstall」卸掉，再把放行的端口关回去；完整步骤见使用手册《Mosh 使用指南》。':
+      r'To remove it later, run “$uninstall” and close the ports you opened again; full steps are in the Mosh guide in the user manual.',
+  '打开 SSH 标签并安装': 'Open SSH tab and install',
+  r'没能打开安装用的 SSH 标签：$error':
+      r'Could not open the SSH tab for installing: $error',
+  r'安装 mosh · ${source.label}': r'Install mosh · ${source.label}',
   '填进 SSH 标签（不回车）': 'Type into SSH tab (no Enter)',
   '已填进 SSH 标签，没有回车。看过再自己按回车。':
       'Typed into the SSH tab without Enter. Check it, then press Enter yourself.',
-  '本 App 不替你安装，也不用 sudo。装好以后再点一次切换。':
-      'This app does not install it for you and never uses sudo. Switch again after installing.',
   '没认出的系统': 'Unrecognized system',
   '服务器上没有 /etc/os-release，或者认不出是哪个发行版。用它自己的包管理器装 mosh，包名一般就叫 mosh。':
       'The server has no /etc/os-release, or the distribution was not recognized. Install mosh with its own package manager; the package is usually called mosh.',
@@ -2115,8 +2142,6 @@ const englishTranslations = <String, String>{
       'There is no ready-made command for this distribution. Install mosh with its own package manager; the package is usually called mosh.',
   'NixOS 不建议用命令临时装：在 configuration.nix 里加 programs.mosh.enable = true;，':
       'On NixOS, do not install it ad hoc: add programs.mosh.enable = true; to configuration.nix, ',
-  '再 sudo nixos-rebuild switch（它会顺带放行 Mosh 的 UDP 端口）。':
-      'then run sudo nixos-rebuild switch (it also opens the Mosh UDP ports).',
   'RHEL 本体的 epel-release 不在默认源，先按 EPEL 官方说明启用 EPEL 再装。':
       'On RHEL itself epel-release is not in the default repositories; enable EPEL by its official instructions first.',
   'mosh.org 没列 Void；这是 Void 仓库里 mosh 包的装法。':

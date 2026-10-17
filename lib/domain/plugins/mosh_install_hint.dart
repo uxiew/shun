@@ -1,8 +1,9 @@
 /// 服务器上没有 mosh-server 时给的安装提示（R42）。
 ///
-/// 只读服务器的 `/etc/os-release` 认发行版，给出下面表里**写死**的一条安装命令：远端发来的内容只用来选哪一条，
-/// 一个字都不进命令。本 App 不替用户执行、不用 sudo：用户复制，或者填进自己的 SSH 标签（不回车）、
-/// 看过了自己按回车。命令照 mosh.org 「Getting Mosh」写；那里没列的发行版在 [MoshInstallHint.note] 里说明来源。
+/// 只读服务器的 `/etc/os-release` 认发行版，给出下面表里**写死**的安装、卸载命令：远端发来的内容只用来选哪一条，
+/// 一个字都不进命令。用户可以复制、填进自己的 SSH 标签（不回车），或者确认后让 App 新开一个 SSH 标签去执行
+///（所有者 2026-10-17 同意的）。就算是 App 执行，sudo 的密码也是用户在那个终端里自己输，App 不经手。
+/// 命令照 mosh.org 「Getting Mosh」写；那里没列的发行版、以及卸载命令，照各发行版自己的包管理器写，来源在 [MoshInstallHint.note]。
 library;
 
 import 'mosh_bootstrap.dart';
@@ -97,6 +98,7 @@ class MoshInstallHint {
   const MoshInstallHint({
     required this.distro,
     this.command,
+    this.uninstall,
     this.asRoot = false,
     this.note,
   });
@@ -104,52 +106,94 @@ class MoshInstallHint {
   /// 认出来的发行版，给人看；没认出时是「没认出的系统」。
   final String distro;
 
-  /// 要用户自己在服务器上执行的那一条。本 App 从不替用户执行它。
+  /// 安装 mosh 的那一条，写法和 mosh.org 一样（带不带 sudo 照原样）。真要执行时用 [runAs] 按登录用户调整。
   final String? command;
 
-  /// mosh.org 上这条写的是 `#` 提示符：要用 root 执行（或自己在前面加 sudo / doas）。
+  /// 以后不用了、卸掉 mosh 的那一条；和 [command] 一样要 [runAs] 调整。
+  final String? uninstall;
+
+  /// mosh.org 上这条写的是 `#` 提示符：要用 root 执行。
   final bool asRoot;
 
   /// 补充说明：命令从哪来、要注意什么。
   final String? note;
+
+  /// 按登录用户把 [command] 或 [uninstall] 改成能直接跑的样子：
+  /// - 用 root 登录：去掉 sudo。精简系统（容器、最小安装的 Debian/Alpine）的 root 常常没有 sudo，
+  ///   留着反而报 `sudo: not found`。
+  /// - 普通用户登录、这条要 root（[asRoot]）：每一段前面加 sudo。服务器上没有 sudo 的会报错，要用 root 登录或自己换 doas。
+  /// `&&` 连着的每一段各自处理；没有这条（null）就返回 null。
+  String? runAs(String? which, {required String user}) {
+    if (which == null) return null;
+    final root = user == 'root';
+    return [
+      for (final part in which.split(' && '))
+        if (part.startsWith('sudo ') || asRoot)
+          root
+              ? part.replaceFirst(RegExp(r'^sudo '), '')
+              : 'sudo ${part.replaceFirst(RegExp(r'^sudo '), '')}'
+        else
+          part,
+    ].join(' && ');
+  }
 }
 
 class _Family {
-  const _Family(this.ids, this.command, {this.asRoot = false, this.note});
+  const _Family(
+    this.ids,
+    this.command,
+    this.uninstall, {
+    this.asRoot = false,
+    this.note,
+  });
   final Set<String> ids;
   final String? command;
+  final String? uninstall;
   final bool asRoot;
   final String? note;
 }
 
 /// 顺序要紧：先按 `ID` 在整张表里找，再按 `ID_LIKE` 的顺序找。Rocky 的 `ID_LIKE` 是 「rhel centos fedora」，
 /// 不先看 `ID` 的话会被当成 Fedora，而它的 mosh 在 EPEL 里。
+///
+/// 卸载只卸 mosh 这一个包。装它时顺带装上、别的程序都不用的依赖，清不清由用户定（使用指南里写了各家怎么清）：
+/// 一条命令替用户删别的包，比少删几个依赖代价大。
 const _families = [
-  _Family({'debian', 'ubuntu'}, 'sudo apt-get install mosh'),
-  _Family({'fedora'}, 'sudo dnf install mosh'),
+  _Family({'debian', 'ubuntu'}, 'sudo apt-get install mosh',
+      'sudo apt-get remove mosh'),
+  _Family({'fedora'}, 'sudo dnf install mosh', 'sudo dnf remove mosh'),
   _Family(
     {'rhel', 'centos', 'rocky', 'almalinux', 'ol', 'amzn'},
     'sudo dnf install epel-release && sudo dnf install mosh',
+    'sudo dnf remove mosh',
     note: 'mosh.org 没列这一系；CentOS / Rocky / Alma 的 mosh 在 EPEL 里。'
         'RHEL 本体的 epel-release 不在默认源，先按 EPEL 官方说明启用 EPEL 再装。',
   ),
-  _Family({'arch'}, 'pacman -S mosh', asRoot: true),
-  _Family({'suse', 'opensuse', 'sles'}, 'sudo zypper in mosh'),
-  _Family({'alpine'}, 'apk add mosh', asRoot: true),
-  _Family({'gentoo'}, 'emerge net-misc/mosh', asRoot: true),
+  _Family({'arch'}, 'pacman -S mosh', 'pacman -R mosh', asRoot: true),
+  _Family({'suse', 'opensuse', 'sles'}, 'sudo zypper in mosh',
+      'sudo zypper rm mosh'),
+  _Family({'alpine'}, 'apk add mosh', 'apk del mosh', asRoot: true),
+  _Family(
+    {'gentoo'},
+    'emerge net-misc/mosh',
+    'emerge --deselect net-misc/mosh && emerge --depclean net-misc/mosh',
+    asRoot: true,
+  ),
   _Family(
     {'void'},
     'xbps-install -S mosh',
+    'xbps-remove mosh',
     asRoot: true,
     note: 'mosh.org 没列 Void；这是 Void 仓库里 mosh 包的装法。',
   ),
-  _Family({'freebsd'}, 'pkg install net/mosh', asRoot: true),
-  _Family({'guix'}, 'guix package -i mosh'),
+  _Family({'freebsd'}, 'pkg install net/mosh', 'pkg delete mosh', asRoot: true),
+  _Family({'guix'}, 'guix package -i mosh', 'guix package -r mosh'),
   _Family(
     {'nixos'},
     null,
+    null,
     note: 'NixOS 不建议用命令临时装：在 configuration.nix 里加 programs.mosh.enable = true;，'
-        '再 sudo nixos-rebuild switch（它会顺带放行 Mosh 的 UDP 端口）。',
+        '再 sudo nixos-rebuild switch（它会顺带放行 Mosh 的 UDP 端口）。不用了就删掉这一行、再 rebuild 一次。',
   ),
 ];
 
@@ -169,6 +213,7 @@ MoshInstallHint moshInstallHint(OsRelease? os) {
         return MoshInstallHint(
           distro: name,
           command: family.command,
+          uninstall: family.uninstall,
           asRoot: family.asRoot,
           note: family.note,
         );

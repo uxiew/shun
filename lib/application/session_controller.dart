@@ -542,6 +542,40 @@ class SessionController extends StateNotifier<SessionState> {
     );
   }
 
+  /// 服务器缺 mosh-server：用户在确认框里点了「安装」，就新开一个 SSH 标签执行这条命令（R42，所有者 2026-10-17 同意）。
+  ///
+  /// 按保险库里这台主机现在的配置用 SSH 连——Mosh 主机也一样，装 mosh 本来就要先 SSH 登录。命令当「连接后执行命令」跑一次：
+  /// sudo 的密码、包管理器的「要不要继续」都由用户在这个终端里自己答，App 不经手。这是一次性标签：
+  /// 断线恢复不再跑命令（不会装第二次）、App 被结束后不放回、不能切换连接方式。
+  /// [command] 只传安装提示里写死的那条（[MoshInstallHint.runAs] 调整过的），不传别的。
+  Future<bool> openMoshInstallTerminal({
+    required String hostId,
+    required String command,
+    required HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+  }) async {
+    final vault = await vaultController.ready();
+    final source = vault.hosts.where((value) => value.id == hostId).firstOrNull;
+    if (source == null) {
+      throw const TransportSwitchBlocked('这台主机已经从保险库里删掉了。');
+    }
+    final label = '安装 mosh · ${source.label}';
+    return connect(
+      HostProfile({
+        for (final entry in source.data.entries)
+          if (entry.key != 'startupCommand') entry.key: entry.value,
+        'id': 'mosh-install-${const Uuid().v4()}',
+        'label': label,
+        'protocol': HostProtocol.ssh.name,
+        'startupCommand': command,
+        '_ephemeralTerminal': true,
+        sourceHostIdKey: source.id,
+      }),
+      verifyHostKey,
+      keyboardInteractive: keyboardInteractive,
+    );
+  }
+
   /// One user action creates one new tab and one bounded SSH exec request.
   /// The request ID is consumed even on timeout/cancel so UI retries never
   /// silently issue a second launch for an uncertain first request.
@@ -689,7 +723,7 @@ class SessionController extends StateNotifier<SessionState> {
     } else if (session.aiLaunch != null || session.aiTmuxRun != null) {
       blocked = 'AI 工具的专用标签不切换连接方式。';
     } else if (isManagedTerminal(session)) {
-      blocked = '「系统管理」里开的一次性命令标签不切换连接方式。';
+      blocked = '一次性命令标签（「系统管理」或安装 mosh 开的）不切换连接方式。';
     } else if (source == null) {
       blocked = '这台主机已经从保险库里删掉了。';
     } else if (state.switching.containsKey(sessionId)) {

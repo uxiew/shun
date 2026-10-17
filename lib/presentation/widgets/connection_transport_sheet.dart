@@ -8,8 +8,12 @@ import 'package:shun/presentation/localization/localized_widgets.dart';
 import '../../application/connection_switch.dart';
 import '../../application/port_forward_controller.dart';
 import '../../application/session_controller.dart';
+import '../../application/vault_controller.dart';
 import '../../domain/host_identity.dart';
+import '../../domain/models/host.dart';
+import '../../domain/plugins/mosh_bootstrap.dart';
 import '../../domain/plugins/mosh_install_hint.dart';
+import '../../domain/plugins/mosh_route.dart';
 import '../../domain/tmux/tmux_target.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import '../../infrastructure/tmux/tmux_protocol.dart';
@@ -551,8 +555,9 @@ class _TmuxPickerSheetState extends ConsumerState<TmuxPickerSheet> {
   }
 }
 
-/// 服务器上没有 mosh-server（R42）：给这台服务器发行版对应的安装命令，让用户自己执行。
-/// 本 App 不替用户装、不用 sudo：「填进 SSH 标签」只粘贴不回车，按不按回车由用户看过再定。
+/// 服务器上没有 mosh-server（R42）：给这台服务器发行版对应的安装、卸载命令。
+/// 三种用法：复制；「填进 SSH 标签」只粘贴不回车；「安装…」先弹确认框讲清楚会发生什么，确认了才新开
+/// 一个 SSH 标签去执行（所有者 2026-10-17 同意）。sudo 的密码始终是用户在终端里自己输，App 不经手。
 Future<void> showMoshInstallHint(
   BuildContext context, {
   required MoshInstallHint hint,
@@ -564,6 +569,20 @@ Future<void> showMoshInstallHint(
       isScrollControlled: true,
       builder: (_) => MoshInstallHintSheet(hint: hint, hostId: hostId),
     );
+
+/// 装好以后服务器和防火墙要放行的 UDP 端口：这台主机填的范围，没填是 mosh 默认的 60001–60999。
+String _udpPorts(HostProfile? host) {
+  var range = MoshBootstrap.defaultPortRange;
+  if (host != null) {
+    try {
+      range = moshServerOptionsOf(host).portRange;
+    } on Object {
+      // 端口写错了：连接时会单独报，这里先按默认说。
+    }
+  }
+  final (low, high) = range;
+  return low == high ? 'UDP $low' : 'UDP $low–$high';
+}
 
 class MoshInstallHintSheet extends ConsumerWidget {
   const MoshInstallHintSheet({
@@ -579,13 +598,24 @@ class MoshInstallHintSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
     final state = ref.watch(sessionControllerProvider);
-    final command = hint.command;
+    final host = ref
+        .watch(vaultControllerProvider)
+        .data
+        ?.hosts
+        .where((value) => value.id == hostId)
+        .firstOrNull;
+    // 按登录用户调整过的命令：复制、填进、安装用的都是这一条，用户看到的就是会跑的。
+    final user = host?.username ?? '';
+    final command = hint.runAs(hint.command, user: user);
+    final uninstall = hint.runAs(hint.uninstall, user: user);
+    final ports = _udpPorts(host);
     final target = state.sessions
         .where((value) =>
             value.connected &&
             value.isSsh &&
             sourceHostIdOf(value.host) == hostId)
         .firstOrNull;
+    final small = theme.textTheme.bodySmall;
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
@@ -599,28 +629,24 @@ class MoshInstallHintSheet extends ConsumerWidget {
             const SizedBox(height: 8),
             if (command != null) ...[
               LText(
-                hint.asRoot
-                    ? '在服务器上用 root 执行这一条（或自己在前面加 sudo / doas）：'
+                command.contains('sudo ')
+                    ? '在服务器上执行这一条。要管理员权限：sudo 会在终端里问你的密码。'
                     : '在服务器上执行这一条：',
               ),
               const SizedBox(height: 4),
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.surfaceContainerHighest,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: SelectableText(
-                  command,
-                  key: const ValueKey('mosh-install-command'),
-                  style: const TextStyle(fontFamily: 'monospace'),
-                ),
-              ),
+              _CommandBox(command, key: const ValueKey('mosh-install-command')),
               const SizedBox(height: 8),
               Wrap(
                 spacing: 8,
+                runSpacing: 4,
                 children: [
+                  FilledButton.icon(
+                    key: const ValueKey('mosh-install-run'),
+                    onPressed: () =>
+                        _install(context, ref, command, uninstall, ports),
+                    icon: const Icon(Icons.download_outlined),
+                    label: const LText('安装…'),
+                  ),
                   OutlinedButton.icon(
                     key: const ValueKey('mosh-install-copy'),
                     onPressed: () async {
@@ -666,16 +692,139 @@ class MoshInstallHintSheet extends ConsumerWidget {
             ],
             if (hint.note case final note?) ...[
               const SizedBox(height: 8),
-              LText(note, style: theme.textTheme.bodySmall),
+              LText(note, style: small),
             ],
-            const SizedBox(height: 8),
+            const SizedBox(height: 12),
             LText(
-              '本 App 不替你安装，也不用 sudo。装好以后再点一次切换。',
-              style: theme.textTheme.bodySmall,
+              '装好以后，服务器防火墙（和云服务器的安全组）要放行 $ports，再重新连接或切换。',
+              style: small,
+            ),
+            if (uninstall != null) ...[
+              const SizedBox(height: 4),
+              LText('以后不用了，卸载：', style: small),
+              _CommandBox(uninstall,
+                  key: const ValueKey('mosh-uninstall-command')),
+            ],
+            const SizedBox(height: 4),
+            LText(
+              '安装、卸载、清理服务器上剩下的东西，完整步骤见使用手册《Mosh 使用指南》。',
+              style: small,
             ),
           ],
         ),
       ),
     );
   }
+
+  /// 确认框把会发生的事一次说清：在哪执行、执行什么、密码谁来输、装完还要做什么、以后怎么卸。
+  /// 确认了才新开 SSH 标签执行；取消就什么都不发。
+  Future<void> _install(
+    BuildContext context,
+    WidgetRef ref,
+    String command,
+    String? uninstall,
+    String ports,
+  ) async {
+    final controller = ref.read(sessionControllerProvider.notifier);
+    final messenger = ScaffoldMessenger.of(context);
+    final navigator = Navigator.of(context);
+    final verifyHostKey = hostKeyVerifier(context, ref);
+    final keyboardInteractive = keyboardInteractivePrompt(context);
+    final host = ref
+        .read(vaultControllerProvider)
+        .data
+        ?.hosts
+        .where((value) => value.id == hostId)
+        .firstOrNull;
+    final label = host?.label ?? '';
+    final small = Theme.of(context).textTheme.bodySmall;
+    final ok = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            key: const ValueKey('mosh-install-confirm'),
+            icon: const Icon(Icons.download_outlined),
+            title: const LText('在服务器上安装 mosh？'),
+            content: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  LText('会新开一个 SSH 标签「安装 mosh · $label」，登录这台主机后执行：'),
+                  const SizedBox(height: 4),
+                  _CommandBox(command),
+                  const SizedBox(height: 8),
+                  if (command.contains('sudo '))
+                    LText(
+                      '要管理员权限：sudo 会在那个终端里问你的密码，你自己输。App 看不到、也不保存这个密码。'
+                      '服务器上没有 sudo 的，会报「sudo: not found」：用 root 登录再装，或者自己换成 doas。',
+                      style: small,
+                    ),
+                  LText(
+                    'mosh 从这台服务器自己配的软件源下载，服务器要能上网。包管理器问「要不要继续」时，也在那个终端里回答。'
+                    '标签断线恢复时不会再执行一次。',
+                    style: small,
+                  ),
+                  const SizedBox(height: 6),
+                  LText(
+                    '装完还要在服务器防火墙（和云服务器的安全组）里放行 $ports，否则 Mosh 连不上。',
+                    style: small,
+                  ),
+                  const SizedBox(height: 6),
+                  LText(
+                    uninstall == null
+                        ? '以后不用了怎么卸载、怎么清理，见使用手册《Mosh 使用指南》。'
+                        : '以后不用了：用「$uninstall」卸掉，再把放行的端口关回去；完整步骤见使用手册《Mosh 使用指南》。',
+                    style: small,
+                  ),
+                ],
+              ),
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const LText('取消'),
+              ),
+              FilledButton(
+                key: const ValueKey('mosh-install-confirm-run'),
+                onPressed: () => Navigator.pop(context, true),
+                child: const LText('打开 SSH 标签并安装'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!ok) return;
+    if (navigator.canPop()) navigator.pop();
+    try {
+      await controller.openMoshInstallTerminal(
+        hostId: hostId,
+        command: command,
+        verifyHostKey: verifyHostKey,
+        keyboardInteractive: keyboardInteractive,
+      );
+    } catch (error) {
+      messenger
+          .showSnackBar(SnackBar(content: LText('没能打开安装用的 SSH 标签：$error')));
+    }
+  }
+}
+
+class _CommandBox extends StatelessWidget {
+  const _CommandBox(this.command, {super.key});
+
+  final String command;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(10),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surfaceContainerHighest,
+          borderRadius: BorderRadius.circular(8),
+        ),
+        child: SelectableText(
+          command,
+          style: const TextStyle(fontFamily: 'monospace'),
+        ),
+      );
 }

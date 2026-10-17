@@ -756,7 +756,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
             keyboardInteractive: keyboardInteractivePrompt(context),
           );
     } on MoshServerMissing catch (error) {
-      // 等待卡片里也写了；这里再给出这台服务器的安装命令（不代装）。
+      // 等待卡片里也写了；这里再给出这台服务器的安装命令（用户确认了才去装）。
       if (!mounted) return;
       await showMoshInstallHint(
         context,

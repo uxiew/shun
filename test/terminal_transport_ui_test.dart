@@ -18,6 +18,7 @@ import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:shun/infrastructure/tmux/tmux_protocol.dart';
 import 'package:shun/presentation/screens/terminal_screen.dart';
+import 'package:shun/presentation/widgets/connection_transport_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 // R42：标签条上的 SSH / MOSH 徽标和它的菜单。控制器是记录调用的替身：这里只验界面说了什么、点了交给谁；
@@ -236,7 +237,7 @@ void main() {
     expect(find.textContaining('原来的 tmux 会话已经不在了'), findsOneWidget);
   });
 
-  testWidgets('缺 mosh-server：给这台的安装命令、复制、填进 SSH 标签不回车；不代装', (tester) async {
+  testWidgets('缺 mosh-server：给这台的安装、卸载命令，复制、填进 SSH 标签不回车', (tester) async {
     final t = tab('t',
         ssh: true,
         tmux: const TmuxClientBinding(
@@ -264,7 +265,10 @@ void main() {
     expect(find.text('服务器上没有 mosh-server'), findsOneWidget);
     expect(find.text('认出来的系统：Debian GNU/Linux 13'), findsOneWidget);
     expect(find.text('sudo apt-get install mosh'), findsOneWidget);
-    expect(find.textContaining('本 App 不替你安装'), findsOneWidget);
+    expect(find.text('sudo apt-get remove mosh'), findsOneWidget,
+        reason: '卸载命令也写着');
+    expect(find.textContaining('放行 UDP 60001–60999'), findsOneWidget);
+    expect(find.textContaining('《Mosh 使用指南》'), findsOneWidget);
     await tester.tap(key('mosh-install-copy'));
     await tester.pump();
     expect(clipboard, 'sudo apt-get install mosh');
@@ -298,10 +302,99 @@ void main() {
     await tester.tap(key('mosh-install-hint-open'));
     await tester.pumpAndSettle();
     expect(find.text('认出来的系统：Alpine Linux v3.22'), findsOneWidget);
-    expect(find.text('apk add mosh'), findsOneWidget);
-    expect(find.textContaining('用 root 执行'), findsOneWidget);
+    // 保险库里没有这台（不知道登录用户）：按普通用户给 sudo。
+    expect(find.text('sudo apk add mosh'), findsOneWidget);
+    expect(find.textContaining('要管理员权限'), findsOneWidget);
+    expect(find.text('sudo apk del mosh'), findsOneWidget);
     expect(key('mosh-install-paste'), findsNothing,
         reason: '没有这台的 SSH 标签就不给「填进」');
+  });
+
+  testWidgets('「安装…」：确认框写清命令、密码谁输、端口、怎么卸；取消什么都不发，确认才开安装标签；root 登录不加 sudo',
+      (tester) async {
+    await open(tester, const []);
+    const secureStorage =
+        MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+    tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(secureStorage, (call) async => null);
+    addTearDown(() => tester.binding.defaultBinaryMessenger
+        .setMockMethodCallHandler(secureStorage, null));
+    // 保险库写盘是真异步：不放在 runAsync 里，假时钟下永远等不到。
+    await tester.runAsync(() async {
+      await controller.vaultController.upsertHost(HostProfile({
+        'id': 'h1',
+        'label': 'box',
+        'hostname': 'box.example.com',
+        'username': 'ops',
+        'protocol': 'mosh',
+        'shunMoshPorts': '60001:60010',
+      }));
+      await controller.vaultController.upsertHost(HostProfile({
+        'id': 'h2',
+        'label': 'rootbox',
+        'hostname': 'root.example.com',
+        'username': 'root',
+        'protocol': 'mosh',
+      }));
+    });
+    await tester.pump();
+    final debian =
+        moshInstallHint(parseOsRelease('ID=debian\nPRETTY_NAME="Debian 13"\n'));
+    final context = tester.element(find.byType(TerminalScreen));
+    unawaited(showMoshInstallHint(context, hint: debian, hostId: 'h1'));
+    await tester.pumpAndSettle();
+    await tester.tap(key('mosh-install-run'));
+    await tester.pumpAndSettle();
+    final dialog = find.byKey(const ValueKey('mosh-install-confirm'));
+    expect(
+        find.descendant(
+            of: dialog, matching: find.textContaining('安装 mosh · box')),
+        findsOneWidget);
+    expect(
+        find.descendant(
+            of: dialog, matching: find.text('sudo apt-get install mosh')),
+        findsOneWidget);
+    expect(
+        find.descendant(
+            of: dialog, matching: find.textContaining('App 看不到、也不保存这个密码')),
+        findsOneWidget);
+    expect(
+        find.descendant(
+            of: dialog, matching: find.textContaining('放行 UDP 60001–60010')),
+        findsOneWidget);
+    expect(
+        find.descendant(
+            of: dialog,
+            matching: find.textContaining('sudo apt-get remove mosh')),
+        findsOneWidget);
+    await tester.tap(find.text('取消').last);
+    await tester.pumpAndSettle();
+    expect(controller.installs, isEmpty, reason: '取消就什么都不发');
+    await tester.tap(key('mosh-install-run'));
+    await tester.pumpAndSettle();
+    await tester.tap(key('mosh-install-confirm-run'));
+    await tester.pumpAndSettle();
+    expect(controller.installs.single, ('h1', 'sudo apt-get install mosh'));
+    expect(key('mosh-install-run'), findsNothing, reason: '提示收起来，去看安装标签');
+
+    final alpine = moshInstallHint(parseOsRelease('ID=alpine\n'));
+    unawaited(showMoshInstallHint(context, hint: alpine, hostId: 'h2'));
+    await tester.pumpAndSettle();
+    expect(find.text('apk add mosh'), findsOneWidget, reason: 'root 登录不加 sudo');
+    expect(find.text('apk del mosh'), findsOneWidget);
+    await tester.tap(key('mosh-install-run'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('要管理员权限'), findsNothing);
+    await tester.tap(key('mosh-install-confirm-run'));
+    await tester.pumpAndSettle();
+    expect(controller.installs.last, ('h2', 'apk add mosh'));
+
+    // NixOS：没有一条能直接跑的命令，就没有「安装…」。
+    unawaited(showMoshInstallHint(context,
+        hint: moshInstallHint(parseOsRelease('ID=nixos\n')), hostId: 'h1'));
+    await tester.pumpAndSettle();
+    expect(key('mosh-install-run'), findsNothing);
+    expect(find.textContaining('programs.mosh.enable'), findsOneWidget);
   });
 
   testWidgets('关 Mosh-tmux 标签：说只分离客户端、会话留在远端，不说 shell 会退出', (tester) async {
@@ -330,6 +423,18 @@ class _Controller extends SessionController {
   final defaults = <String>[];
   final cancelled = <String>[];
   final pasted = <(String, String)>[];
+  final installs = <(String, String)>[];
+
+  @override
+  Future<bool> openMoshInstallTerminal({
+    required String hostId,
+    required String command,
+    required HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+  }) async {
+    installs.add((hostId, command));
+    return true;
+  }
 
   void publish(SessionState value) => state = value;
 

@@ -61,6 +61,49 @@ void main() {
     expect(hintFor('NAME="Rocky Linux"\nID=rocky\n').note, contains('EPEL'));
   });
 
+  test('每个给了安装命令的发行版都给卸载命令，只卸 mosh 这一个包', () {
+    final uninstall = {
+      'ID=debian\n': 'sudo apt-get remove mosh',
+      'ID=fedora\n': 'sudo dnf remove mosh',
+      'ID=rocky\n': 'sudo dnf remove mosh',
+      'ID=arch\n': 'pacman -R mosh',
+      'ID=opensuse-leap\nID_LIKE="suse opensuse"\n': 'sudo zypper rm mosh',
+      'ID=alpine\n': 'apk del mosh',
+      'ID=gentoo\n':
+          'emerge --deselect net-misc/mosh && emerge --depclean net-misc/mosh',
+      'ID=void\n': 'xbps-remove mosh',
+      'ID=freebsd\n': 'pkg delete mosh',
+      'ID=guix\n': 'guix package -r mosh',
+    };
+    for (final MapEntry(key: raw, value: command) in uninstall.entries) {
+      final hint = hintFor(raw);
+      expect(hint.command, isNotNull, reason: raw);
+      expect(hint.uninstall, command, reason: raw);
+    }
+    expect(hintFor('ID=nixos\n').uninstall, isNull);
+    expect(hintFor('ID=nixos\n').note, contains('删掉这一行'));
+    expect(moshInstallHint(null).uninstall, isNull);
+  });
+
+  test('按登录用户调整：root 去掉 sudo，普通用户给要 root 的每一段加 sudo，不要 root 的不动', () {
+    final rocky = hintFor('ID=rocky\n');
+    expect(rocky.runAs(rocky.command, user: 'root'),
+        'dnf install epel-release && dnf install mosh');
+    expect(rocky.runAs(rocky.command, user: 'ops'),
+        'sudo dnf install epel-release && sudo dnf install mosh');
+    final alpine = hintFor('ID=alpine\n');
+    expect(alpine.runAs(alpine.command, user: 'root'), 'apk add mosh');
+    expect(alpine.runAs(alpine.command, user: 'mosh'), 'sudo apk add mosh');
+    expect(alpine.runAs(alpine.uninstall, user: 'mosh'), 'sudo apk del mosh');
+    final gentoo = hintFor('ID=gentoo\n');
+    expect(gentoo.runAs(gentoo.uninstall, user: 'ops'),
+        'sudo emerge --deselect net-misc/mosh && sudo emerge --depclean net-misc/mosh');
+    final guix = hintFor('ID=guix\n');
+    expect(guix.runAs(guix.command, user: 'ops'), 'guix package -i mosh',
+        reason: 'guix 装在用户自己的 profile 里，不要 root');
+    expect(guix.runAs(null, user: 'ops'), isNull);
+  });
+
   test('NixOS 不给临时命令，给配置写法；认不出的不编命令', () {
     final nix = hintFor('NAME=NixOS\nID=nixos\n');
     expect(nix.command, isNull);

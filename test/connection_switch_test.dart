@@ -13,6 +13,7 @@ import 'package:shun/application/port_forward_controller.dart';
 import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/connection_route.dart';
+import 'package:shun/domain/host_identity.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/domain/plugins/mosh_bootstrap.dart';
 import 'package:shun/domain/plugins/mosh_install_hint.dart';
@@ -170,6 +171,53 @@ void main() {
               box({'id': 't1', 'protocol': 'telnet', 'port': 23}), accept),
           isTrue);
       expect(await controller.transportMenu(tab(2).id), isNull);
+    });
+  });
+
+  group('安装 mosh（所有者 2026-10-17 同意）', () {
+    test('新开一次性 SSH 标签跑那一条：Mosh 主机也走 SSH、不带主机自己的启动命令、不开插件、不能切、App 重开不放回',
+        () async {
+      await vault.upsertHost(
+          box({'protocol': 'mosh', 'startupCommand': 'echo R42-STARTUP'}));
+      expect(
+          await controller.openMoshInstallTerminal(
+              hostId: 'h1',
+              command: 'sudo apt-get install mosh',
+              verifyHostKey: accept),
+          isTrue);
+      final install = tab(0);
+      expect(install.host.protocol, HostProtocol.ssh);
+      expect(install.host.startupCommand, 'sudo apt-get install mosh');
+      expect(install.host.label, '安装 mosh · box');
+      expect(sourceHostIdOf(install.host), 'h1');
+      expect(ssh.lastPurpose, ConnectionPurpose.fresh,
+          reason: '只有新连接会跑 startupCommand；断线恢复不会装第二次');
+      expect(ssh.bootstraps, 0);
+      expect(plugin.calls, isEmpty, reason: '装 mosh 不碰 Mosh 插件');
+      final menu = await controller.transportMenu(install.id);
+      expect(menu?.switchTo.blocked, contains('一次性命令'));
+      // 保险库里的主机没变：还是 Mosh，启动命令还是自己的。
+      final saved = (await vault.ready()).hosts.single;
+      expect(saved.protocol, HostProtocol.mosh);
+      expect(saved.startupCommand, 'echo R42-STARTUP');
+
+      await settle();
+      container.dispose();
+      final shellsBefore = ssh.shells;
+      await launch();
+      await settle();
+      expect(controller.state.sessions, isEmpty, reason: '放回来也不会再装一次，干脆不记');
+      expect(ssh.shells, shellsBefore);
+    });
+
+    test('保险库里已经没有这台：不连，说清楚', () async {
+      await expectLater(
+          controller.openMoshInstallTerminal(
+              hostId: 'gone',
+              command: 'sudo apt-get install mosh',
+              verifyHostKey: accept),
+          throwsA(isA<TransportSwitchBlocked>()));
+      expect(ssh.shells, 0);
     });
   });
 
@@ -617,6 +665,7 @@ class _Ssh extends SshService {
   TmuxTarget? lastStartTmux;
   InternetAddress? lastStartPeer;
   TmuxTarget? lastTmuxAttach;
+  ConnectionPurpose? lastPurpose;
   TmuxTarget? lastTmuxBootstrap;
   _TestSession? lastSession;
   Object? startError;
@@ -645,6 +694,7 @@ class _Ssh extends SshService {
     TmuxTarget? tmuxAttach,
   }) async {
     shells++;
+    lastPurpose = purpose;
     lastTmuxAttach = tmuxAttach;
     final plan = routePlan ??
         resolveRoutePlan(host,

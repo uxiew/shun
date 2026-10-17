@@ -67,7 +67,7 @@ HostProfile transportCopy(
       transportCopyKey: true,
     });
 
-/// 「系统管理」里开的一次性命令标签：临时主机、带着那条命令、不是 tmux。
+/// 一次性命令标签（「系统管理」里开的、安装 mosh 开的）：临时主机、带着那条命令、不是 tmux。
 bool isManagedTerminal(ActiveTerminalSession session) =>
     session.host.data['_ephemeralTerminal'] == true &&
     session.host.data[transportCopyKey] != true &&
