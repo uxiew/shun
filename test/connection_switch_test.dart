@@ -13,7 +13,6 @@ import 'package:shun/application/port_forward_controller.dart';
 import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/connection_route.dart';
-import 'package:shun/domain/host_identity.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/domain/plugins/mosh_bootstrap.dart';
 import 'package:shun/domain/plugins/mosh_install_hint.dart';
