@@ -101,7 +101,7 @@ flutter test test/integration_ssh_fixture_test.dart
     `tool/ime-replay.sh emulator-5580 "" integration_test/r18_keys_test.dart`；**测完改回 `no` 再重起**，
     不然软键盘默认不弹，别的设备测试会等不到键盘。
   - 真人在真机上用自己的输入法打拼音、说话（`integration_test/r18_voice_device_test.dart`，TER02）：要所有者当次同意、本人拿着手机。
-    `tool/r18-real-device.sh xdwmbp /opt/homebrew/share/android-commandlinetools/platform-tools/adb 47131FDAP0040E`，
+    `tool/r18-real-device.sh xdwmbp /opt/homebrew/share/android-commandlinetools/platform-tools/adb <手机序列号>`，
     约 4 分钟（构建安装 1 分多钟，6 项每项半分钟）。手机上出现「点一下这里叫出键盘」后照屏幕说明做，每项按一次回车。
     脚本不碰手机的输入法设置，开始结束各记一次默认输入法；测完 App 被卸掉。
 - 粘贴、滑动、选字、链接、远端效果的设备测试（R19，`integration_test/r19_terminal_test.dart`，只在模拟器上跑过）：跑法同 R17 那条
@@ -150,7 +150,7 @@ flutter test test/integration_ssh_fixture_test.dart
   uiautomator 找不到「全部断开」——通知在「静音」区折叠着，要先点它右边的展开箭头（脚本已处理）；
   脚本悄悄退出、测试卡在等回执——别给这类脚本开 `pipefail`，`adb … | grep -m1` 会让 adb 收到 SIGPIPE。
 - 连接长测（LIFE07，同一个测试文件的 `soak` 场景，**真机**，要所有者当次同意、本人在场）：接好 `tool/remote-device/`，
-  `tool/r22-soak.sh 47131FDAP0040E default 30`（不加省电豁免），`… exempt 30`（临时加，结束减掉）。一轮约 65 分钟。
+  `tool/r22-soak.sh <手机序列号> default 30`（不加省电豁免），`… exempt 30`（临时加，结束减掉）。一轮约 65 分钟。
   前台 30 分钟（脚本临时开「插电不灭屏」）；然后所有者按 `OWNER:` 提示**先拔 USB 线、再按电源键**锁屏，30 分钟后插回线、解锁回到 App。
   三条标签：一条走 USB（adb reverse 22201，拔线就断，解锁后该自己恢复），两条走手机 Wi-Fi 到接手机那台电脑上的临时转发
   （`tool/remote-device/tcp-relay.py`，只放行手机的 IP，脚本退出就关），其中一条远端每 5 分钟打一行 `tick-N`。

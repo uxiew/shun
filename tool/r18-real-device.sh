@@ -4,7 +4,7 @@
 #
 # 先起 Docker 测试环境（tool/fixture-environment/up.sh），再：
 #   source ../.toolchain/env.sh
-#   tool/r18-real-device.sh xdwmbp /opt/homebrew/share/android-commandlinetools/platform-tools/adb 47131FDAP0040E
+#   tool/r18-real-device.sh xdwmbp /opt/homebrew/share/android-commandlinetools/platform-tools/adb <手机序列号>
 #
 # 会做的事：经 SSH 用那台电脑上的手机（tool/remote-device），手机的 22201 端口接回本机测试环境，
 # 装 App 并预授权通知（不然一连上就弹「允许通知」挡住键盘），跑完 flutter test 会自己卸掉 App。

@@ -19,7 +19,7 @@ shun 是 Android 上的 SSH 终端 App（[Netcatty Mobile](https://github.com/km
 
 ## 最快路线（约 10 分钟）
 
-工具都装好的前提下（JDK 17、Android SDK，见下面「你要准备什么」；项目这台 Mac 上 `source /Users/fodelf/xdw/shun/.toolchain/env.sh` 就全有了）：
+工具都装好的前提下（JDK 17、Android SDK，见下面「你要准备什么」；项目这台 Mac 上 `source ../.toolchain/env.sh` 就全有了）：
 
 ```bash
 # 1. 宿主装到设备上（安装包由项目所有者给你）
@@ -81,7 +81,7 @@ adb install -r ~/shun-plugins/notes/app/build/outputs/apk/release/app-release.ap
 | Dart SDK | 可选，只给第 4 步的自查用；Flutter 自带的也行 | 跳过自查 |
 | perl | `new-plugin.sh` 改名时用（macOS、Linux 一般自带） | 脚本报「要 perl」 |
 
-**在项目这台 Mac 上**：`source /Users/fodelf/xdw/shun/.toolchain/env.sh`，上面的 JDK、SDK、Dart、Gradle 缓存就都有了，不用联网。
+**在项目这台 Mac 上**：`source ../.toolchain/env.sh`，上面的 JDK、SDK、Dart、Gradle 缓存就都有了，不用联网。
 
 ## 手动做法：第 1–4 步
 

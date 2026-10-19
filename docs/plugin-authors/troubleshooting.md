@@ -26,7 +26,7 @@ adb logcat -s ShunHello ShunPlugins AndroidRuntime:E
 
 | 看到的 | 原因 | 怎么办 |
 |---|---|---|
-| `Unable to locate a Java Runtime`（实测） | 没装 JDK，或没在 PATH / `JAVA_HOME` 上 | 装 JDK 17。项目这台 Mac 上 `source /Users/fodelf/xdw/shun/.toolchain/env.sh` |
+| `Unable to locate a Java Runtime`（实测） | 没装 JDK，或没在 PATH / `JAVA_HOME` 上 | 装 JDK 17。项目这台 Mac 上 `source ../.toolchain/env.sh` |
 | `SDK location not found. Define a valid SDK location with an ANDROID_HOME environment variable…`（实测） | 没告诉 Gradle Android SDK 在哪 | `export ANDROID_HOME=<SDK 目录>`，或在工程根目录建 `local.properties` 写 `sdk.dir=<SDK 目录>` |
 | `shunHostSha256 没填或格式不对：…`（实测） | `gradle.properties` 里没写宿主证书，或不是 64 位十六进制 | README 第 3 步。冒号可有可无，大小写都行 |
 | `缺签名配置 …/signing.properties：…`（实测） | 没建签名配置 | README 第 2 步，`cp signing.properties.example signing.properties` 再填 |

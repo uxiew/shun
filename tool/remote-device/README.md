@@ -7,8 +7,8 @@
 source ../.toolchain/env.sh
 tool/remote-device/up.sh xdwmbp /opt/homebrew/share/android-commandlinetools/platform-tools/adb
 source /tmp/shun-remote-device/env      # 每个要用手机的终端都执行一次
-adb devices                               # 应该看到 47131FDAP0040E（Pixel 9 Pro）
-flutter test integration_test -d 47131FDAP0040E
+adb devices                               # 第一列就是手机序列号，下面的 <手机序列号> 换成它
+flutter test integration_test -d <手机序列号>
 tool/remote-device/down.sh xdwmbp         # 用完拆掉
 ```
 

@@ -85,7 +85,7 @@
     }
   ],
   "fork": {
-    "path": "/Users/fodelf/xdw/xwshun/netcatty-mobile",
+    "path": "~/xdw/xwshun/netcatty-mobile",
     "branch": "xwshun/v3",
     "remote_push": "disabled",
     "application_id": "top.xdwa.xwshun",

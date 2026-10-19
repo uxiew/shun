@@ -6,8 +6,8 @@
 #   (cd tool/fixture-environment && ./up.sh)
 #   tool/remote-device/up.sh xdwmbp /opt/homebrew/share/android-commandlinetools/platform-tools/adb
 #   source /tmp/shun-remote-device/env
-#   tool/r22-soak.sh 47131FDAP0040E default 30    # 不加省电豁免（出厂默认）
-#   tool/r22-soak.sh 47131FDAP0040E exempt 30     # 临时加省电豁免
+#   tool/r22-soak.sh <手机序列号> default 30    # 不加省电豁免（出厂默认）
+#   tool/r22-soak.sh <手机序列号> exempt 30     # 临时加省电豁免
 #
 # 要所有者在场，脚本打 "OWNER:" 开头的行时由所有者本人：拔 USB 线 → 按电源键锁屏 → 到点插回 → 解锁回到 App。
 # 顺序别反：插着线按电源键进的是屏保，拔了线屏保也可能不退，手机一直醒着（试跑撞到过）。
