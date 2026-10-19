@@ -34,6 +34,7 @@ dart analyze packages/flterm/lib packages/libghostty/lib
 撞墙时：
 
 - **换了依赖来源（pub ↔ fork、预编译 ↔ 源码）后报上面的 code -2**：构建钩子沿用了 `.dart_tool/hooks_runner` 里旧的原生库（spike 撞上时，旧库的 sha256 和 0.0.12 预编译版一模一样）。删掉 `.dart_tool/hooks_runner` 再构建。
+- **新 clone 的目录第一次 `flutter test` / build 卡住不动、CPU 0%、一行输出都没有**：钩子在下 Ghostty 源码包。它用 Dart 自带的 `HttpClient`，不读 `HTTPS_PROXY`，只能直连 GitHub；10-19 实测 11 分钟只下了 21 MB。本机已经有编过的工作区就停掉，把那边的 `.dart_tool/hooks_runner/shared/libghostty/build/ghostty-source-<提交号前 12 位>/` 整个拷到新目录同一位置，删掉旁边下了半截的 `.tar.gz`，再跑就不下载了。钩子见到这个目录就直接用、不再核对 hash，所以只拷自己机器上的；GitHub 的 runner 直连，不受影响。
 - **"Ghostty source SHA256 mismatch"**：下来的源码包和 `ghostty.sha256` 对不上。换了 `ghostty.version` 没换 hash 就会这样；如果没换，可能是 GitHub 改了打包方式，先 `git archive` 同一提交对比内容，确认没被篡改再更新 hash。
 - **已缓存的原生库被改了不会被发现**（R04 问题 5）：钩子只在下载、编译时核对，翻一个字节普通构建照常成功。发布用 `tool/build-release.sh`，它丢掉缓存、从核对过的源码重编，再查每个 `.so` 的 16 KiB 对齐。
 
