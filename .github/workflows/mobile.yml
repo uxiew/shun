@@ -41,6 +41,10 @@ jobs:
       - run: dart format --output=none --set-exit-if-changed lib test
       - run: flutter analyze
       - run: flutter test
+      # 插件契约的 37 条测试在子包里，根目录 flutter test 不跑它们。得用 dart test：换成 flutter test，
+      # 起子进程的那条会拿 flutter_tester 当 dart 用，超时失败（R20 证据里记过）。
+      - run: dart test
+        working-directory: packages/plugin_api
       - name: Restore persistent Android signing key
         env:
           ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
