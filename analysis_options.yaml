@@ -15,3 +15,7 @@ analyzer:
     # 并行代理的 git worktree 建在这里，是整个仓库的另一份副本；扫进去会把同样的代码报两遍，
     # 副本里的 third_party 也不在上一条里，又是上万条错误。
     - .claude/**
+    # 两个独立的小工程，各有自己的 pubspec 和 analysis_options，按各自 README 进目录 pub get 再分析。
+    # 根目录只 pub get 主工程，不排除的话 flutter analyze 会因为解析不到它们的依赖报 57 条错，CI 直接红。
+    - spikes/**
+    - tool/mosh-fixture/dart_probe/**
