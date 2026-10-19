@@ -495,7 +495,7 @@ Kotlin 在 `android/app/src/main/kotlin/top/xdwa/shun/`，9 个文件共 2120 �
 
 `.github/workflows/mobile.yml` 在推到 main 或开 PR 时跑：装 Zig 0.16.0 和 Flutter 3.47.7（和本机手册同一套），依次 `dart format` 检查 `lib`、`test`，`flutter analyze`，`flutter test`，进 `packages/plugin_api` 跑插件契约的 `dart test`，再打签名的 Android 包（只有 arm64-v8a，和 `tool/build-release.sh` 同一条命令，但不做那里的 .so 核对）和不签名的 iOS 包，包在那次运行的 Artifacts 里留 30 天。
 
-**整条流水线还没在 GitHub 上跑过**，跑通一次之前别把它当门禁；本机验到哪一步见 `plan/v3/STATUS.md` 10-19 那条。Docker、tmux 测试环境没起的用例会自己跳过，CI 上也一样，所以它绿了也不代表这些用例过了。
+**流水线还没全绿过**，全绿一次之前别把它当门禁；GitHub 上跑到哪一步、本机验到哪一步见 `plan/v3/STATUS.md` 10-19 那两条。本机过了、CI 不过，先在干净 clone 里复现（`git clone . <临时目录>`，再按 workflow 的顺序跑）：工作区里留着的 `.dart_tool` 这类不进 git 的东西会把问题遮住，第一次线上红就是这样。Docker、tmux 测试环境没起的用例会自己跳过（看 `tool/` 下各 fixture 的 `.run/` 里有没有连接信息文件，这些不进 git），CI 上也一样，所以它绿了也不代表这些用例过了。
 
 打 Android 包要仓库配好 `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_PASSWORD` 三个密钥，没配会停在 "Restore persistent Android signing key" 这一步。这是故意的：每次都用同一把密钥签，新包才能直接盖在上一个 CI 包上；换成临时密钥签，手机会拒绝覆盖安装，只能卸载重装，保险库跟着没了。
 
