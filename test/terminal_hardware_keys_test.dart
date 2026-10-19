@@ -159,7 +159,8 @@ void main() {
         final copied = <String>[];
         final messenger =
             TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
-        messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        messenger.setMockMethodCallHandler(SystemChannels.platform,
+            (call) async {
           if (call.method == 'Clipboard.setData') {
             copied.add((call.arguments as Map)['text'] as String);
           }

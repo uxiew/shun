@@ -449,8 +449,8 @@ List<String> _clientArguments(TmuxClientBinding binding) {
 /// [parentPid] 必须大于 1：pid 1 是 init，父进程是它的孤儿太多，匹配上也证明不了什么。
 String tmuxClientByParentCommand(TmuxTarget target, int parentPid) {
   if (parentPid <= 1) throw ArgumentError.value(parentPid, 'parentPid');
-  return _command(tmuxClientByParentScript,
-      [..._targetArguments(target), '$parentPid']);
+  return _command(
+      tmuxClientByParentScript, [..._targetArguments(target), '$parentPid']);
 }
 
 /// 解析 [tmuxClientByParentScript] 的输出。终端设备名或 pid 不合规矩的行丢掉。

@@ -111,11 +111,21 @@ void main() {
       expect(parseMoshPorts('  '), (60001, 60999));
       expect(parseMoshPorts('60101'), (60101, 60101));
       expect(parseMoshPorts(' 60101:60108 '), (60101, 60108));
-      for (final bad in ['0', '60108:60101', '60000:70000', 'abc', '1-2', '60001:', ':60001', '123456']) {
+      for (final bad in [
+        '0',
+        '60108:60101',
+        '60000:70000',
+        'abc',
+        '1-2',
+        '60001:',
+        ':60001',
+        '123456'
+      ]) {
         expect(() => parseMoshPorts(bad), throwsA(isA<RouteConfigException>()),
             reason: bad);
       }
-      expect(moshPortRangeOf(mosh({moshPortsKey: '60001:60010'})), (60001, 60010));
+      expect(
+          moshPortRangeOf(mosh({moshPortsKey: '60001:60010'})), (60001, 60010));
       // 拼出来的命令里只有校验过的数字。
       expect(MoshBootstrap.command(portRange: parseMoshPorts('60001:60010')),
           endsWith("' shun '60001:60010' 'auto' 'en_US.UTF-8'"));
@@ -167,8 +177,12 @@ void main() {
               utf8.encode('MOSH CONNECT 60101 v450/k6rhyS3hwDL4ejCIQ\n')),
         );
 
-    Future<(ActiveTerminalSession, MoshTerminalProvider, GhosttyTerminalAdapter)>
-        attach() async {
+    Future<
+        (
+          ActiveTerminalSession,
+          MoshTerminalProvider,
+          GhosttyTerminalAdapter
+        )> attach() async {
       final session = await plugin.open(await plugin.prepare(),
           cols: 80, rows: 24, target: target());
       final terminal = GhosttyTerminalAdapter();
@@ -189,8 +203,13 @@ void main() {
       terminal.sendText('你好');
       terminal.sendText('\x7f');
       terminal.sendText('\r');
-      expect(plugin.writes.map((c) => (c.arguments as Map)['bytes'] as List<int>),
-          [utf8.encode('你好'), [0x7f], [0x0d]]);
+      expect(
+          plugin.writes.map((c) => (c.arguments as Map)['bytes'] as List<int>),
+          [
+            utf8.encode('你好'),
+            [0x7f],
+            [0x0d]
+          ]);
       expect(link.inputEvents, 3);
       expect(link.session.writeCount, 3);
       // 输出：多字节字符被分块切开也拼得回去（分块边界是插件 FD 读的边界）。
@@ -212,7 +231,9 @@ void main() {
       expect(plugin.calls.where((c) => c.method == 'resizeSession'), isEmpty);
       await plugin.state(link.session, 1, 'active');
       final resizes = plugin.calls.where((c) => c.method == 'resizeSession');
-      expect(resizes.map((c) => ((c.arguments as Map)['cols'], (c.arguments as Map)['rows'])),
+      expect(
+          resizes.map((c) =>
+              ((c.arguments as Map)['cols'], (c.arguments as Map)['rows'])),
           [(120, 40)]);
       await tab.close();
     });
@@ -374,7 +395,8 @@ void main() {
       await pumpEventQueue();
       expect(tab.connected, isFalse);
       expect(tab.autoRestoreBlocked, isTrue);
-      expect(tab.terminal.allText().replaceAll('\n', ''), contains('远端可能还有旧会话'));
+      expect(
+          tab.terminal.allText().replaceAll('\n', ''), contains('远端可能还有旧会话'));
       await controller.reconnectDisconnected();
       controller.setBackgrounded(true);
       controller.setBackgrounded(false);

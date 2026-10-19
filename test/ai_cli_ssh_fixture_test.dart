@@ -232,7 +232,8 @@ chmod +x ~/r55/extra/claude
       expect(await run(edge(), 'wc -c < ~/r55/input'), before);
       session.terminal.sendText('still-working');
       await Future<void>.delayed(const Duration(milliseconds: 100));
-      expect(await run(edge(), 'cat ~/r55/input'), '${beforeData}still-working');
+      expect(
+          await run(edge(), 'cat ~/r55/input'), '${beforeData}still-working');
     }, skip: skip);
   });
   test('actual installed Claude/Codex: discovery only, without CLI invocation',

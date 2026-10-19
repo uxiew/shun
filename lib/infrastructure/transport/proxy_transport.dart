@@ -364,12 +364,10 @@ class _SocketCursor {
     try {
       hasMore = await _iterator.moveNext();
     } on SocketException {
-      throw const ProxyHandshakeException('代理在握手完成前断开了连接',
-          transient: true);
+      throw const ProxyHandshakeException('代理在握手完成前断开了连接', transient: true);
     }
     if (!hasMore) {
-      throw const ProxyHandshakeException('代理在握手完成前关闭了连接',
-          transient: true);
+      throw const ProxyHandshakeException('代理在握手完成前关闭了连接', transient: true);
     }
     _buffer.addAll(_iterator.current);
   }

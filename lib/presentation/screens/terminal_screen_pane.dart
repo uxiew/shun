@@ -130,7 +130,8 @@ class _ConnectionStatusPane extends StatelessWidget {
                         ),
                       ],
                       // 服务器上没有 mosh-server（R42）：给这台发行版的安装命令，用户自己执行。
-                      if (pending.error case final MoshServerMissing missing) ...[
+                      if (pending.error
+                          case final MoshServerMissing missing) ...[
                         const SizedBox(height: 12),
                         OutlinedButton.icon(
                           key: const ValueKey('mosh-install-hint-open'),

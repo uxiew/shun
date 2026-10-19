@@ -40,8 +40,7 @@ void main() {
       find.descendant(of: panel, matching: find.text(label));
 
   for (final MapEntry(key: engine, value: newTerminal) in engines.entries) {
-    final engineView =
-        flterm.TerminalView;
+    final engineView = flterm.TerminalView;
 
     group('$engine 按键面板', () {
       testWidgets('快捷键栏的按钮打开面板：系统键盘收起、快捷键栏收成一行、记住方式；键按远端键盘模式发到终端', (

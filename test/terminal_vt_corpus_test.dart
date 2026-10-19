@@ -140,9 +140,11 @@ void main() {
   test('素材和裁判对得上：每段合成素材都有这一版录的 tmux 裁判', () {
     for (final c in cases) {
       final judge = synthetic[c.name] as Map?;
-      expect(judge, isNotNull, reason: '${c.name} 没有裁判：python3 tool/vt-corpus/record.py');
+      expect(judge, isNotNull,
+          reason: '${c.name} 没有裁判：python3 tool/vt-corpus/record.py');
       expect(judge!['sha256'], sha256Hex(c.bytes),
-          reason: '${c.name} 改过，裁判是旧的：python3 tool/vt-corpus/record.py --only synthetic');
+          reason:
+              '${c.name} 改过，裁判是旧的：python3 tool/vt-corpus/record.py --only synthetic');
     }
   });
 
@@ -239,7 +241,11 @@ void main() {
     expect(parseStyledRows(['\x1b[94mx', 'y']).last.single.style,
         contains('fg=i12'));
     const plain = VtScreen(
-        rows: ['ab'], cursorRow: 0, cursorCol: 0, alt: false, cursorVisible: true);
+        rows: ['ab'],
+        cursorRow: 0,
+        cursorCol: 0,
+        alt: false,
+        cursorVisible: true);
     final red = VtScreen(
         rows: plain.rows,
         cursorRow: 0,
@@ -259,7 +265,10 @@ void main() {
 
   test('本机耗时参考（VT_BENCH=1 才跑，不是门禁）', () {
     report.bench = _bench(recorded);
-  }, skip: Platform.environment['VT_BENCH'] == null ? '要量耗时时 VT_BENCH=1' : false);
+  },
+      skip: Platform.environment['VT_BENCH'] == null
+          ? '要量耗时时 VT_BENCH=1'
+          : false);
 }
 
 var styledGlyphs = 0;
@@ -398,7 +407,8 @@ class _Report {
       ...ghostty.styleDiff(tmux),
     ];
     final x = xterm.diff(tmux, replies: false, wrapped: false);
-    final gx = ghostty.diff(xterm, replies: true, wrapped: true)
+    final gx = ghostty
+        .diff(xterm, replies: true, wrapped: true)
         .where((line) => line.startsWith('回应') || line.startsWith('折行'))
         .toList();
     if (g.isEmpty && x.isEmpty && gx.isEmpty) {
@@ -433,7 +443,12 @@ class _Report {
       '',
       '全部一样：$_same 段；Ghostty 和 tmux 不一样：$_ghosttyDiff 段；xterm2 和 tmux 不一样：$_xtermDiff 段。',
       '',
-      if (bench.isNotEmpty) ...['## 本机耗时（参考）', '', for (final line in bench) '- $line', ''],
+      if (bench.isNotEmpty) ...[
+        '## 本机耗时（参考）',
+        '',
+        for (final line in bench) '- $line',
+        ''
+      ],
       ..._sections,
     ].join('\n'));
   }

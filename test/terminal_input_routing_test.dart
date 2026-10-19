@@ -125,8 +125,7 @@ void main() {
     group('$engine 终端页', () {
       testWidgets('分屏：快捷键栏的键和修饰键只发给点过的那一格，换格时上一格的修饰键清掉', (tester) async {
         final page = await _Page.open(tester, newTerminal);
-        final engineView =
-            flterm.TerminalView;
+        final engineView = flterm.TerminalView;
         await tester.tap(find.byKey(const ValueKey('terminal-action-split')));
         await page.settle();
         expect(find.byType(engineView), findsNWidgets(2));
@@ -236,8 +235,7 @@ void main() {
 
       testWidgets('横屏收成一行，弹键盘时再收起标签条；终端始终有地方、不溢出', (tester) async {
         final page = await _Page.open(tester, newTerminal);
-        final engineView =
-            flterm.TerminalView;
+        final engineView = flterm.TerminalView;
         Finder compactBar() =>
             find.byKey(const ValueKey('terminal-special-keys-compact'));
         Finder tabs() => find.byKey(const ValueKey('terminal-tab-strip'));

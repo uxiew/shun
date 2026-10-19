@@ -44,7 +44,10 @@ void main() {
     });
 
     test('R42 的两个只读核对：先核目标身份，只列客户端，不分离、不建、不杀', () {
-      for (final script in [tmuxClientByParentScript, tmuxClientPresentScript]) {
+      for (final script in [
+        tmuxClientByParentScript,
+        tmuxClientPresentScript
+      ]) {
         expect(script, contains(r'[ "$g" = "$4" ] || exit 97'));
         expect(script, contains(r'[ "$(id -u)" = "$3" ] || exit 96'));
         expect(script, contains(r'list-clients -t "$5"'));
@@ -61,14 +64,16 @@ void main() {
       }
       expect(
         tmuxClientByParentCommand(target, 4321),
-        endsWith(r" shun 'D' '-' '1000' '$3:70:1700000000:1700000100' '$3' '4321'"),
+        endsWith(
+            r" shun 'D' '-' '1000' '$3:70:1700000000:1700000100' '$3' '4321'"),
       );
       for (final bad in [1, 0, -5]) {
-        expect(() => tmuxClientByParentCommand(target, bad), throwsArgumentError,
+        expect(
+            () => tmuxClientByParentCommand(target, bad), throwsArgumentError,
             reason: '$bad');
       }
-      const binding =
-          TmuxClientBinding(target: target, clientTty: '/dev/pts/4', clientPid: 88);
+      const binding = TmuxClientBinding(
+          target: target, clientTty: '/dev/pts/4', clientPid: 88);
       expect(
         tmuxClientPresentCommand(binding),
         endsWith(r" '$3' '/dev/pts/4' '88'"),

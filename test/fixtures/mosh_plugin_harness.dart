@@ -103,7 +103,8 @@ class MoshPluginHarness implements MoshRuntime {
       manager.open(entry, cols: cols, rows: rows, mosh: target);
 
   /// 插件回报状态，像真插件那样经平台通道进来。
-  Future<void> state(PluginTerminalSession session, int sequence, String state) =>
+  Future<void> state(
+          PluginTerminalSession session, int sequence, String state) =>
       _deliver('event', {
         'type': 'sessionEvent',
         'package': package,

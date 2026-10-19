@@ -243,8 +243,8 @@ class MoshBootstrap {
       if (line[i] != _detachedPrefix[i]) return null;
     }
     if (line.last != 0x5d) return null; // ]
-    final digits = Uint8List.sublistView(
-        line, _detachedPrefix.length, line.length - 1);
+    final digits =
+        Uint8List.sublistView(line, _detachedPrefix.length, line.length - 1);
     if (digits.isEmpty || digits.length > 10 || digits.first == 0x30) {
       return null;
     }

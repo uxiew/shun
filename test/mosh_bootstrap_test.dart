@@ -144,8 +144,8 @@ void main() {
         );
 
     test('附着 tmux（R42）：前三个参数不变，后五个是 socket、uid、核对串、会话 ID；名字不进命令', () {
-      final command = MoshBootstrap.command(
-          portRange: (60101, 60108), tmux: target());
+      final command =
+          MoshBootstrap.command(portRange: (60101, 60108), tmux: target());
       expect(command, startsWith("sh -c '"));
       expect(
           command,
@@ -171,8 +171,7 @@ void main() {
       expect(locate, lessThan(guard));
       expect(guard, lessThan(start));
       expect(body, contains(r'[ "$g" = "$7" ] || exit 97;'));
-      expect(body,
-          endsWith(r'-- "$t" -u -S "$s" attach-session -t "$8"'));
+      expect(body, endsWith(r'-- "$t" -u -S "$s" attach-session -t "$8"'));
       expect(body, isNot(contains('attach-session -d')));
       expect(body, isNot(contains('new-session')));
     });

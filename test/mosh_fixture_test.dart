@@ -86,7 +86,8 @@ void main() {
     return MoshBootstrapCoordinator(ssh, plugin).connect(
       sessionId: 'x09',
       host: host,
-      plan: resolveRoutePlan(host, hosts: [host, ...hosts], proxyProfiles: proxies),
+      plan: resolveRoutePlan(host,
+          hosts: [host, ...hosts], proxyProfiles: proxies),
       verifyHostKey: verify ?? fixture!.verify,
       terminal: GhosttyTerminalAdapter(),
       attempt: attempt,
@@ -95,18 +96,20 @@ void main() {
 
   /// 服务器上这台的 sshd 每条连接一个 sshd-session 进程；SSH 关了它就没了。
   /// 方括号是为了不数到执行这条 pgrep 的 sh 自己（它的命令行里也有这串字）。
-  Future<int> sshSessions() async => int.parse(
-      await fixture!.exec("pgrep -f '[s]shd-session: mosh' | wc -l"));
+  Future<int> sshSessions() async =>
+      int.parse(await fixture!.exec("pgrep -f '[s]shd-session: mosh' | wc -l"));
 
   group('MOS03 直连：SSH 引导，然后只把这次会话的材料交给插件', () {
-    test('引导完 SSH 立刻断开、mosh-server 留着等 UDP；插件只拿到数字 IP、范围内端口、22 字节 key', () async {
+    test('引导完 SSH 立刻断开、mosh-server 留着等 UDP；插件只拿到数字 IP、范围内端口、22 字节 key',
+        () async {
       final f = fixture!;
       final before = await f.counts();
       final stages = <ConnectionStage>[];
       final session = await connect(f.host(), stages: stages);
 
       expect(plugin.opens, hasLength(1));
-      final args = (plugin.opens.single.arguments as Map).cast<String, Object?>();
+      final args =
+          (plugin.opens.single.arguments as Map).cast<String, Object?>();
       expect(args.keys.toSet(), {
         'package', 'handle', 'generation', 'cols', 'rows', //
         'udpHost', 'udpPort', 'key',
@@ -115,7 +118,8 @@ void main() {
       expect(args['udpPort'] as int, inInclusiveRange(60101, 60108));
       final key = args['key']! as Uint8List;
       expect(key, hasLength(22));
-      expect(RegExp(r'^[A-Za-z0-9+/]{22}$').hasMatch(ascii.decode(key)), isTrue);
+      expect(
+          RegExp(r'^[A-Za-z0-9+/]{22}$').hasMatch(ascii.decode(key)), isTrue);
 
       // 两段：先 SSH（拨号、握手登录、启动 mosh-server），再交给插件走 UDP。
       expect(
@@ -148,10 +152,12 @@ void main() {
         left = await sshSessions();
       }
       expect(left, 0);
-      expect(dialer.dials, ['127.0.0.1:${f.sshPort}'], reason: '手机只拨了一次 TCP：SSH 那段');
+      expect(dialer.dials, ['127.0.0.1:${f.sshPort}'],
+          reason: '手机只拨了一次 TCP：SSH 那段');
 
       await session.close();
-      expect(plugin.calls.where((c) => c.method == 'closeSession'), hasLength(1));
+      expect(
+          plugin.calls.where((c) => c.method == 'closeSession'), hasLength(1));
     }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
 
     test('取消发生在 mosh-server 已启动、还没交给插件时：插件一次都没被调用', () async {
@@ -263,8 +269,9 @@ void main() {
     test('密码错：登录被拒，没启动 mosh-server', () async {
       final f = fixture!;
       final before = await f.counts();
-      final error = await connect(f.host(extra: {'password': 'not-the-password'}))
-          .then<Object?>((_) => null, onError: (Object e) => e);
+      final error =
+          await connect(f.host(extra: {'password': 'not-the-password'}))
+              .then<Object?>((_) => null, onError: (Object e) => e);
       expect(error, isA<RouteHopException>());
       expect((error! as RouteHopException).cause, isA<SSHAuthFailError>());
       final d = await delta(before, await f.counts());
@@ -347,7 +354,8 @@ void main() {
   group('PLG14 交给插件的只有这次会话的临时材料', () {
     test('登录密码、私钥、代理口令、Tailscale token 都不在任何平台通道参数、阶段说明里', () async {
       final f = fixture!;
-      final privateKey = File(f.json['privateKeyPath'] as String).readAsStringSync();
+      final privateKey =
+          File(f.json['privateKeyPath'] as String).readAsStringSync();
       const proxyPassword = 'X09-PROXY-SECRET-5c1e';
       const tailscaleToken = 'tskey-api-X09SECRET-77aa';
       final host = f.host(extra: {
@@ -400,7 +408,8 @@ void main() {
         for (final stage in stages) stage.describe(),
       ].join('\n');
       for (final MapEntry(key: what, value: secret) in secrets.entries) {
-        expect(everything.contains(secret), isFalse, reason: '$what 出现在交给插件的参数或阶段说明里');
+        expect(everything.contains(secret), isFalse,
+            reason: '$what 出现在交给插件的参数或阶段说明里');
       }
       await session.close();
     }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
@@ -440,7 +449,8 @@ void main() {
       await Future<void>.delayed(const Duration(milliseconds: 150));
       expect(plugin.calls.where((c) => c.method == 'resizeSession'), isEmpty);
       await plugin.state(link.session, 1, 'active');
-      final resize = plugin.calls.singleWhere((c) => c.method == 'resizeSession');
+      final resize =
+          plugin.calls.singleWhere((c) => c.method == 'resizeSession');
       expect((resize.arguments as Map)['cols'], 100);
       expect((resize.arguments as Map)['rows'], 30);
 
@@ -449,7 +459,8 @@ void main() {
       expect(plugin.writes, hasLength(2), reason: '每次输入只写一次');
       expect(link.inputEvents, link.session.writeCount);
       expect(
-        utf8.decode((plugin.writes.first.arguments as Map)['bytes'] as List<int>),
+        utf8.decode(
+            (plugin.writes.first.arguments as Map)['bytes'] as List<int>),
         'echo 你好',
         reason: '原样转交，没有再编码一遍',
       );
@@ -682,7 +693,8 @@ void main() {
     late ProviderContainer container;
     late SessionController controller;
 
-    HostProfile sshHost() => fixture!.host(extra: {'id': 'r42', 'protocol': 'ssh'});
+    HostProfile sshHost() =>
+        fixture!.host(extra: {'id': 'r42', 'protocol': 'ssh'});
     Future<String> asUser(String command) =>
         fixture!.exec(command, user: fixture.user);
 
@@ -737,8 +749,7 @@ void main() {
     Future<void> playMoshClient(int opensBefore) async {
       await eventually(
           () async => plugin.opens.length > opensBefore, '插件收到 openSession');
-      final args =
-          (plugin.opens.last.arguments as Map).cast<String, Object?>();
+      final args = (plugin.opens.last.arguments as Map).cast<String, Object?>();
       final key = ascii.decode(args['key']! as Uint8List);
       await fixture!.exec('tmux -L r42client kill-server 2>/dev/null; '
           'tmux -L r42client new-session -d -x 80 -y 24 '
@@ -759,11 +770,13 @@ void main() {
           socket: const TmuxSocketSpec.standard());
       expect(await controller.openTmuxTerminal(shell, target), isTrue);
       final tab = controller.state.sessions[1];
-      await eventually(() async => (await clients()).length == 1, 'SSH 的 tmux 客户端附着上');
+      await eventually(
+          () async => (await clients()).length == 1, 'SSH 的 tmux 客户端附着上');
       return tab;
     }
 
-    test('SSH → Mosh → SSH：同一个标签、同一个 tmux 会话（id 和创建时间不变），每次只留新的客户端；一个字节都没发进会话', () async {
+    test('SSH → Mosh → SSH：同一个标签、同一个 tmux 会话（id 和创建时间不变），每次只留新的客户端；一个字节都没发进会话',
+        () async {
       final f = fixture!;
       final identity = await sessionIdentity();
       final tab = await sshTmuxTab();
@@ -774,7 +787,8 @@ void main() {
 
       // SSH → Mosh：走这个标签自己的 SSH，不再登录。
       final before = await f.counts();
-      final switching = controller.switchTransport(tab.id, verifyHostKey: f.verify);
+      final switching =
+          controller.switchTransport(tab.id, verifyHostKey: f.verify);
       await playMoshClient(0);
       expect(await switching, isTrue);
       final mosh = controller.state.sessions[1];
@@ -783,12 +797,15 @@ void main() {
       expect(mosh.tmux!.target.sameAs(target), isTrue);
       final moved = await delta(before, await f.counts());
       expect(moved['moshServerStarts'], 1);
-      expect(moved['loginsMosh'], 0, reason: '在标签已登录的 SSH 上起 mosh-server，没有再登录');
+      expect(moved['loginsMosh'], 0,
+          reason: '在标签已登录的 SSH 上起 mosh-server，没有再登录');
       expect(moved['installAttempts'], 0);
       // 会话上只剩 Mosh 那一侧的客户端，它的父进程就是这次的 mosh-server。
-      await eventually(() async => (await clients()).length == 1, '旧的 SSH 客户端被分离');
+      await eventually(
+          () async => (await clients()).length == 1, '旧的 SSH 客户端被分离');
       final moshClientLine = (await clients()).single;
-      expect(moshClientLine, startsWith('${mosh.tmux!.clientPid} ${mosh.tmux!.clientTty} '));
+      expect(moshClientLine,
+          startsWith('${mosh.tmux!.clientPid} ${mosh.tmux!.clientTty} '));
       expect(moshClientLine, endsWith(' ${target.sessionId}'));
       final parent = await f.exec(
           "awk '/^PPid:/ {print \$2}' /proc/${mosh.tmux!.clientPid}/status");
@@ -807,7 +824,8 @@ void main() {
       expect(back.isSsh, isTrue);
       expect(back.tmux!.target.sameAs(target), isTrue);
       expect((await delta(back0, await f.counts()))['loginsMosh'], 1);
-      await eventually(() async => (await clients()).length == 1, 'Mosh 那一侧的客户端被分离');
+      await eventually(
+          () async => (await clients()).length == 1, 'Mosh 那一侧的客户端被分离');
       expect((await clients()).single, startsWith('${back.tmux!.clientPid} '));
       // 它的 tmux 客户端一退，这次的 mosh-server 也跟着退了，不留在服务器上等 UDP。
       await eventually(
@@ -817,28 +835,33 @@ void main() {
       expect(await inputBytes(), '0');
     }, skip: skip, timeout: const Timeout(Duration(seconds: 90)));
 
-    test('Mosh-tmux 标签结束后「重新连接」：新起 mosh-server、核对后附着回同一个会话，顶替原位置；不重发输入', () async {
+    test('Mosh-tmux 标签结束后「重新连接」：新起 mosh-server、核对后附着回同一个会话，顶替原位置；不重发输入',
+        () async {
       final f = fixture!;
       final identity = await sessionIdentity();
       final tab = await sshTmuxTab();
       final target = tab.tmux!.target;
-      final switching = controller.switchTransport(tab.id, verifyHostKey: f.verify);
+      final switching =
+          controller.switchTransport(tab.id, verifyHostKey: f.verify);
       await playMoshClient(0);
       expect(await switching, isTrue);
       final mosh = controller.state.sessions[1];
 
       // Mosh 这一头没了：服务器上的 mosh-server 和它里面的 tmux 客户端一起退出，会话还在。
-      await f.exec('tmux -L r42client kill-server 2>/dev/null; pkill -x mosh-server; true');
+      await f.exec(
+          'tmux -L r42client kill-server 2>/dev/null; pkill -x mosh-server; true');
       await plugin.providerDied((mosh.plugin! as MoshTerminalProvider).session);
       await Future<void>.delayed(Duration.zero);
       expect(mosh.connected, isFalse);
       expect(mosh.restoreHold!.message, contains('核对还是不是原来那个'));
-      await eventually(() async => (await clients()).isEmpty, 'Mosh 那一侧的 tmux 客户端退出');
+      await eventually(
+          () async => (await clients()).isEmpty, 'Mosh 那一侧的 tmux 客户端退出');
       expect(await sessionIdentity(), identity, reason: 'Mosh 结束不带走 tmux 会话');
       mosh.terminal.sendText('typed-after-end\r');
 
       final opens = plugin.opens.length;
-      final reconnecting = controller.reconnect(mosh.id, verifyHostKey: f.verify);
+      final reconnecting =
+          controller.reconnect(mosh.id, verifyHostKey: f.verify);
       await playMoshClient(opens);
       await reconnecting;
       final next = controller.state.sessions[1];
@@ -846,7 +869,8 @@ void main() {
       expect(next.plugin, isA<MoshTerminalProvider>());
       expect(next.tmux!.target.sameAs(target), isTrue);
       expect(controller.state.sessions, hasLength(2), reason: '顶替原来的位置，不多一个标签');
-      await eventually(() async => (await clients()).length == 1, 'Mosh 客户端附着上');
+      await eventually(
+          () async => (await clients()).length == 1, 'Mosh 客户端附着上');
       expect((await clients()).single, endsWith(' ${target.sessionId}'));
       expect(await sessionIdentity(), identity);
       expect(await inputBytes(), '0', reason: '断开后打的字没有发进会话');
@@ -870,7 +894,8 @@ void main() {
 
       Future<void> refused(TmuxTarget stale, String why) async {
         final before = await f.counts();
-        final sessionsBefore = await asUser("tmux list-sessions -F '#{session_id}'");
+        final sessionsBefore =
+            await asUser("tmux list-sessions -F '#{session_id}'");
         await expectLater(
           ssh.startMoshServer(client,
               peer: shell.directPeer!, portRange: (60101, 60108), tmux: stale),
@@ -879,19 +904,22 @@ void main() {
         );
         expect((await delta(before, await f.counts()))['moshServerStarts'], 0,
             reason: '$why：核对在 mosh-server 之前');
-        expect(await asUser("tmux list-sessions -F '#{session_id}'"), sessionsBefore,
+        expect(await asUser("tmux list-sessions -F '#{session_id}'"),
+            sessionsBefore,
             reason: '$why：没有新建会话');
         expect(await clients(), isEmpty, reason: '$why：没有附着');
       }
 
       final original = await current();
-      await asUser('tmux kill-session -t r42; tmux new-session -d -s r42; true');
+      await asUser(
+          'tmux kill-session -t r42; tmux new-session -d -s r42; true');
       final rebuilt = await current();
       expect(rebuilt.displayName, original.displayName);
       expect(rebuilt.sameAs(original), isFalse);
       await refused(original, '同名重建');
 
-      await asUser('tmux kill-server; sleep 0.2; tmux new-session -d -s r42; true');
+      await asUser(
+          'tmux kill-server; sleep 0.2; tmux new-session -d -s r42; true');
       await refused(rebuilt, 'tmux server 重启');
     }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
   });

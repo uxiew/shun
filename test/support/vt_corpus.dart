@@ -56,8 +56,8 @@ Uint8List decodeVtEscapes(String text) {
       out.add(utf8.encode(String.fromCharCode(int.parse(hex, radix: 16))));
       i = end + 1;
     } else if (next == 'x') {
-      out.addByte(
-          int.parse(String.fromCharCodes(runes.sublist(i + 2, i + 4)), radix: 16));
+      out.addByte(int.parse(String.fromCharCodes(runes.sublist(i + 2, i + 4)),
+          radix: 16));
       i += 4;
     } else {
       throw FormatException('不认识的转义 \\$next', text, i);
@@ -181,7 +181,8 @@ class VtScreen {
   }
 
   /// 和 [other] 不一样的地方，一条一句；一样时是空列表。[replies] 为 false 时不比回应。
-  List<String> diff(VtScreen other, {bool replies = true, bool wrapped = true}) {
+  List<String> diff(VtScreen other,
+      {bool replies = true, bool wrapped = true}) {
     final out = <String>[];
     for (var row = 0; row < max(rows.length, other.rows.length); row++) {
       final a = row < rows.length ? rows[row] : '<没有这一行>';
@@ -189,14 +190,16 @@ class VtScreen {
       if (a != b) out.add('第 $row 行：「${visible(a)}」≠「${visible(b)}」');
     }
     if ((cursorRow, cursorCol) != (other.cursorRow, other.cursorCol)) {
-      out.add('光标 ($cursorRow,$cursorCol) ≠ (${other.cursorRow},${other.cursorCol})');
+      out.add(
+          '光标 ($cursorRow,$cursorCol) ≠ (${other.cursorRow},${other.cursorCol})');
     }
     if (alt != other.alt) out.add('备用屏 $alt ≠ ${other.alt}');
     if (cursorVisible != other.cursorVisible) {
       out.add('光标显示 $cursorVisible ≠ ${other.cursorVisible}');
     }
     if (replies && !listEquals(this.replies, other.replies)) {
-      out.add('回应 ${describeBytes(this.replies)} ≠ ${describeBytes(other.replies)}');
+      out.add(
+          '回应 ${describeBytes(this.replies)} ≠ ${describeBytes(other.replies)}');
     }
     if (wrapped &&
         this.wrapped != null &&
@@ -248,7 +251,8 @@ abstract interface class VtEngine {
 }
 
 /// App 里实际用的 Ghostty 适配器和配置（滚动区上限、模式都和 App 一样），只改尺寸。
-GhosttyTerminalAdapter newGhosttyCorpusAdapter({int cols = 80, int rows = 24}) =>
+GhosttyTerminalAdapter newGhosttyCorpusAdapter(
+        {int cols = 80, int rows = 24}) =>
     GhosttyTerminalAdapter(
       config: ghosttyTerminalConfig.copyWith(cols: cols, rows: rows),
     );

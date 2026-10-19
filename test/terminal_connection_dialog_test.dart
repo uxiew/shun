@@ -195,9 +195,9 @@ void main() {
       // flterm 闲下来后排一个空闲任务压缩滚动区，碰上按钮水波纹这类动画时，假时钟下的 pumpAndSettle 会死循环
       // （docs/dev/README.md 第 7 节）。让空闲任务不等动画，和页面逻辑无关。
       final strategy = tester.binding.schedulingStrategy;
-      tester.binding.schedulingStrategy =
-          ({required int priority, required SchedulerBinding scheduler}) =>
-              true;
+      tester.binding.schedulingStrategy = (
+              {required int priority, required SchedulerBinding scheduler}) =>
+          true;
       addTearDown(() => tester.binding.schedulingStrategy = strategy);
       SharedPreferences.setMockInitialValues({});
       final repository = await VaultRepository.open();
@@ -306,14 +306,16 @@ void main() {
       existing.terminal.feed(utf8.encode('\x1b[?1049h\x1b[Halpha beta gamma'));
       await tester.pump();
       sent.clear();
-      await tester.drag(find.byType(GhosttyTerminalView), const Offset(0, -100));
+      await tester.drag(
+          find.byType(GhosttyTerminalView), const Offset(0, -100));
       await tester.pump();
       expect(sent, isEmpty);
 
       // With tmux mouse reporting enabled, scroll events still reach tmux.
       existing.terminal.feed(utf8.encode('\x1b[?1000h\x1b[?1006h'));
       await tester.pump();
-      await tester.drag(find.byType(GhosttyTerminalView), const Offset(0, -100));
+      await tester.drag(
+          find.byType(GhosttyTerminalView), const Offset(0, -100));
       await tester.pump();
       expect(sent, isNotEmpty);
       expect(sent.every((event) => event.startsWith('\x1b[<')), isTrue);

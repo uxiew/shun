@@ -25,7 +25,8 @@ import 'package:flterm/flterm.dart' as flterm show TerminalView;
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  testWidgets('Ghostty：页面怎么重建都不新建连接、不释放终端，flterm 视图不重复挂；关标签才释放，原生控制器最后一定释放', (tester) async {
+  testWidgets('Ghostty：页面怎么重建都不新建连接、不释放终端，flterm 视图不重复挂；关标签才释放，原生控制器最后一定释放',
+      (tester) async {
     await _ownership(
       tester,
       newTerminal: GhosttyTerminalAdapter.new,

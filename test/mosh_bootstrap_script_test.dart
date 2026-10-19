@@ -218,7 +218,8 @@ void main() {
           expect(r.exitCode, 0, reason: r.output);
           expect(
               r.output,
-              contains('PATH ARGS:new -s -c 256 -l LANG=en_US.UTF-8 -p 60001:60999 '
+              contains(
+                  'PATH ARGS:new -s -c 256 -l LANG=en_US.UTF-8 -p 60001:60999 '
                   '-- $pathBin/tmux -u -S $socketPath attach-session -t \$3'));
           expect(r.output, isNot(contains('TMUX RAN')),
               reason: '核对只调 display-message，附着由 mosh-server 的子进程做');
@@ -234,8 +235,7 @@ void main() {
         });
 
         test('socket 不在 / 会话换了（同名重建、server 重启）：退出 97，不起、不建', () async {
-          final gone = await run(
-              shell,
+          final gone = await run(shell,
               MoshBootstrap.command(tmux: target(path: '${root.path}/none')),
               withPathBin: true);
           expect(gone.exitCode, 97);
@@ -260,13 +260,15 @@ void main() {
           expect(r.exitCode, 95);
           expect(r.output, isNot(contains('ARGS:')));
         },
-            skip: ['/usr/bin/tmux', '/bin/tmux'].any((p) => File(p).existsSync())
-                ? '本机系统目录里有 tmux'
-                : false);
+            skip:
+                ['/usr/bin/tmux', '/bin/tmux'].any((p) => File(p).existsSync())
+                    ? '本机系统目录里有 tmux'
+                    : false);
       },
-          skip: MoshBootstrap.isValidServerPath('${Directory.systemTemp.path}/x')
-              ? false
-              : '临时目录路径含白名单外的字符');
+          skip:
+              MoshBootstrap.isValidServerPath('${Directory.systemTemp.path}/x')
+                  ? false
+                  : '临时目录路径含白名单外的字符');
     });
   }
 }

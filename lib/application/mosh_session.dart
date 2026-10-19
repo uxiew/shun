@@ -78,7 +78,8 @@ class PluginMoshRuntime implements MoshRuntime {
   Future<PluginEntry> _readyEntry() async {
     final bridge = _ref.read(androidPluginBridgeProvider);
     if (!bridge.supported) {
-      throw const MoshPluginUnavailable('Mosh 只在 Android 上有：它由单独安装的 Mosh 插件提供。');
+      throw const MoshPluginUnavailable(
+          'Mosh 只在 Android 上有：它由单独安装的 Mosh 插件提供。');
     }
     // App 启动时不自动发现插件（X04），所以每次连 Mosh 前向系统查一遍，顺带按当下的证书和描述符重新核对。
     final discovery = await _ref.read(pluginDiscoveryProvider.future);
@@ -90,7 +91,8 @@ class PluginMoshRuntime implements MoshRuntime {
     }
     final descriptor = entry.descriptor!;
     if (!descriptor.capabilities.contains(Capability.terminalSession) ||
-        !descriptor.permissions.contains(Permission.ownSessionEphemeralSecret)) {
+        !descriptor.permissions
+            .contains(Permission.ownSessionEphemeralSecret)) {
       throw const MoshPluginUnavailable(
           '装着的 Mosh 插件没有声明终端会话能力或临时会话密钥权限，不能用它连 Mosh。');
     }
@@ -135,15 +137,12 @@ class PluginMoshRuntime implements MoshRuntime {
         .where((e) => e.pluginId == pluginId || e.packageName == packageName)
         .firstOrNull;
     return switch (seen?.status) {
-      null =>
-        '没有装 Mosh 插件（top.xdwa.shun.mosh）。装好后到「设置 → 插件（实验）」核对证书并批准，再连。',
-      PluginStatus.needsApproval =>
-        'Mosh 插件还没批准：到「设置 → 插件（实验）」核对证书后批准，再连。',
+      null => '没有装 Mosh 插件（top.xdwa.shun.mosh）。装好后到「设置 → 插件（实验）」核对证书并批准，再连。',
+      PluginStatus.needsApproval => 'Mosh 插件还没批准：到「设置 → 插件（实验）」核对证书后批准，再连。',
       PluginStatus.disabled => 'Mosh 插件被停用了：到「设置 → 插件（实验）」启用它，再连。',
       PluginStatus.missing => 'Mosh 插件已被卸载：装回同一证书的包会直接恢复。',
       PluginStatus.rejected => 'Mosh 插件被拒绝了，原因见「设置 → 插件（实验）」里它的条目。',
-      PluginStatus.incompatible =>
-        'Mosh 插件和这个 App 不兼容，原因见「设置 → 插件（实验）」里它的条目。',
+      PluginStatus.incompatible => 'Mosh 插件和这个 App 不兼容，原因见「设置 → 插件（实验）」里它的条目。',
       PluginStatus.ready => 'Mosh 插件现在不可用。',
     };
   }

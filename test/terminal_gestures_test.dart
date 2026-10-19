@@ -41,8 +41,7 @@ void main() {
     group(engine, () {
       late TerminalSessionAdapterBase terminal;
       late StringBuffer sent;
-      final engineView =
-          flterm.TerminalView;
+      final engineView = flterm.TerminalView;
 
       Future<void> mount(
         WidgetTester tester, {

@@ -258,7 +258,8 @@ void main() {
     expect(status(tester), startsWith('未验证：测试通过后改了'));
   });
 
-  testWidgets('Mosh 主机没有测试连接，状态说明要连接时才验证；建议指到终端里的切换（R42），不说切网不断', (tester) async {
+  testWidgets('Mosh 主机没有测试连接，状态说明要连接时才验证；建议指到终端里的切换（R42），不说切网不断',
+      (tester) async {
     await open(tester, host: ssh({'protocol': 'mosh'}));
     expect(key('test-connection'), findsNothing);
     expect(status(tester), contains('Mosh 要真正连接时才验证'));
@@ -294,7 +295,8 @@ void main() {
     expect(note, isNot(contains('恢复原')));
   });
 
-  testWidgets('tmux 说明：Mosh 主机说明直连是普通 shell、想留住程序先 SSH 附着 tmux 再切，不写测试连接', (tester) async {
+  testWidgets('tmux 说明：Mosh 主机说明直连是普通 shell、想留住程序先 SSH 附着 tmux 再切，不写测试连接',
+      (tester) async {
     await open(tester, host: ssh({'protocol': 'mosh'}));
     await reveal(tester, key('advanced-tmux'));
     await tester.tap(key('advanced-tmux'));
