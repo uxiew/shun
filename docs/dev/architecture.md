@@ -493,7 +493,13 @@ Kotlin 在 `android/app/src/main/kotlin/top/xdwa/shun/`，9 个文件共 2120 �
 
 `integration_test/` 有 23 个，只在模拟器或真机上跑，多数配一个 `tool/` 下的脚本（`r22-lifecycle.sh`、`r40-route-editor.sh` 等）。文件名带任务号：R15 目录设备路线、R17 引擎、R18 键盘和输入法、R19 手势和粘贴、R20 门禁、R22 生命周期、R25 输入面板、R39 远控条目、R40 路线编辑器、R41 主机编辑页、R42 连接方式、R56 AI 工具冷恢复、X03/X12 插件、X07 RustDesk 桥、X08/X09 Mosh。`test_driver/integration_test.dart` 只给要 `flutter drive` 的两条用（R20 改包、R40 两阶段）。`spikes/terminal_spike/` 是 R04 的引擎验证工程，不进 App。
 
-`.github/workflows/mobile.yml` 还在，但它固定 Flutter 3.44.4、不装 Zig，和本机手册要求的 Flutter 3.47.7 + Zig 0.16 对不上。它现在能不能跑通没人验过，别把它当门禁。
+`.github/workflows/mobile.yml` 在推到 main 或开 PR 时跑：装 Zig 0.16.0 和 Flutter 3.47.7（和本机手册同一套），依次 `dart format` 检查 `lib`、`test`，`flutter analyze`，`flutter test`，再打签名的 Android 包（只有 arm64-v8a，和 `tool/build-release.sh` 同一条命令，但不做那里的 .so 核对）和不签名的 iOS 包，包在那次运行的 Artifacts 里留 30 天。
+
+**整条流水线还没在 GitHub 上跑过**，跑通一次之前别把它当门禁；本机验到哪一步见 `plan/v3/STATUS.md` 10-19 那条。Docker、tmux 测试环境没起的用例会自己跳过，CI 上也一样，所以它绿了也不代表这些用例过了。
+
+打 Android 包要仓库配好 `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_PASSWORD` 三个密钥，没配会停在 "Restore persistent Android signing key" 这一步。这是故意的：每次都用同一把密钥签，新包才能直接盖在上一个 CI 包上；换成临时密钥签，手机会拒绝覆盖安装，只能卸载重装，保险库跟着没了。
+
+`spikes/terminal_spike/` 和 `tool/mosh-fixture/dart_probe/` 是各自独立的小工程，根目录的 analyze 不扫它们（`analysis_options.yaml` 里排除了）。要查就进它们自己的目录，先 `flutter pub get` 再跑；在根目录硬扫会因为解析不到它们的依赖报 57 条错。
 
 ## 12. 改这些地方之前
 
