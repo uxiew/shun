@@ -32,6 +32,12 @@ jobs:
           flutter-version: 3.47.7
           cache: true
       - run: flutter pub get
+      # packages/plugin_api 是单独的 Dart 包，测试用的 package:test 只写在它自己的 pubspec 里，
+      # 根目录的 pub get 不会替它解析。不先进去 pub get，下面的 flutter analyze 会对它的两个测试文件
+      # 报 183 条「Target of URI doesn't exist: 'package:test/test.dart'」，CI 直接红。
+      # 本机不报是因为以前手动 pub get 过，留着被 gitignore 的 .dart_tool。
+      - run: dart pub get
+        working-directory: packages/plugin_api
       - run: dart format --output=none --set-exit-if-changed lib test
       - run: flutter analyze
       - run: flutter test

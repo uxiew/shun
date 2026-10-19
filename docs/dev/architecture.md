@@ -499,7 +499,7 @@ Kotlin 在 `android/app/src/main/kotlin/top/xdwa/shun/`，9 个文件共 2120 �
 
 打 Android 包要仓库配好 `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_PASSWORD` 三个密钥，没配会停在 "Restore persistent Android signing key" 这一步。这是故意的：每次都用同一把密钥签，新包才能直接盖在上一个 CI 包上；换成临时密钥签，手机会拒绝覆盖安装，只能卸载重装，保险库跟着没了。
 
-`spikes/terminal_spike/` 和 `tool/mosh-fixture/dart_probe/` 是各自独立的小工程，根目录的 analyze 不扫它们（`analysis_options.yaml` 里排除了）。要查就进它们自己的目录，先 `flutter pub get` 再跑；在根目录硬扫会因为解析不到它们的依赖报 57 条错。
+`spikes/terminal_spike/` 和 `tool/mosh-fixture/dart_probe/` 是各自独立的小工程，根目录的 analyze 不扫它们（`analysis_options.yaml` 里排除了）。要查就进它们自己的目录，先 `flutter pub get` 再跑；在根目录硬扫会因为解析不到它们的依赖报 57 条错。`packages/plugin_api` 不一样：主工程依赖它，根目录照扫，所以 CI 在 analyze 之前先进它的目录 `dart pub get`。漏了这一步，analyze 会对它的两个测试文件报 183 条「Target of URI doesn't exist: 'package:test/test.dart'」；本机不报，只是因为以前手动 pub get 过。
 
 ## 12. 改这些地方之前
 
