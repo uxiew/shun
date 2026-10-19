@@ -10,6 +10,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      # 终端原生库 libghostty 按 pubspec.yaml 的 hooks 设定从源码编，要 Zig 0.16，大小版本号都得对上
+      # （见 third_party/README.md）。不装的话 flutter test 和各个 build 在编原生库那一步就失败。
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
       - name: Read app version
         id: app_version
         shell: bash
@@ -80,6 +85,10 @@ jobs:
     runs-on: macos-15
     steps:
       - uses: actions/checkout@v4
+      # 同上：iOS 包里的终端原生库也要 Zig 0.16 从源码编。
+      - uses: mlugg/setup-zig@v2
+        with:
+          version: 0.16.0
       - name: Read app version
         id: app_version
         shell: bash
