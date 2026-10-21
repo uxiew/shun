@@ -59,6 +59,7 @@ dart analyze packages/flterm/lib packages/libghostty/lib
 | c474751 | flterm：`InputEncoder` 在传统键盘编码下把 Ctrl+I、Ctrl+M、Ctrl+[ 编成 Tab、回车、ESC（Alt 按着加 ESC 前缀）；远端开了 kitty 键盘协议时照上游。上游测试「virtual ctrl to punctuation commit」的期望跟着改 | 上游照 fixterms 编成 CSI u，bash、vim 不认；Android 硬件键盘的按键事件不带字符，连 CSI u 都不发，实测 Ctrl+I/M 什么都没有（R19）。所有者 10-07 定和 xterm2 一样 |
 | 39a7ba8 | libghostty：`Terminal.write` 写入前去掉裸 DEL（0x7F） | Ghostty 把普通状态下的 0x7F 当可打印字存进格子，屏幕上一个方格、后面的字右移一格（R04 问题 9）；VT100、xterm、tmux、xterm2 都忽略它。Ghostty 源码是下载来编的，没法在 Zig 里改，只能在 Dart 层去掉。OSC/APC 内容里夹的 DEL 也会被去掉（R20 的对比测试 `test/terminal_vt_corpus_test.dart` 的 bare-del 素材管着） |
 | 54c19ed | flterm：控制器一建好就按 `TerminalTheme.dark()` 设好前景、背景、调色板，视图挂上后照常换成视图的主题 | 上游等视图挂上才把颜色交给 Ghostty，之前远端问前景/背景/光标色（OSC 10/11/12）一律不回，后台标签里一开始就问背景色的程序只能等到超时（R20 对比测试发现） |
+| ad153a0 | flterm：`TerminalTheme.minimumContrast` 真的生效（`rendering/contrast.dart`）。只管默认背景上的字：前景往黑或白按比例混到刚好够，色相保留；程序自己配了背景、反显、选中、搜索高亮、完全没样式的字不动。默认 1.0 仍是不调 | 上游只声明了字段，渲染从没读它。R25 浅色主题里程序打的白字、亮黄字在浅底上看不见。Ghostty 自己是整个换成纯黑纯白，这里改成渐变，黄字变深仍是黄的；配了背景的不动是因为 tmux 状态栏、powerline 箭头靠前景和邻格背景同色拼形状 |
 
 0.0.5 时期的 04df082（输入法补丁）、8caeb73（改用预编译库）已被同步覆盖，补丁移进了 1dda0c8。
 
