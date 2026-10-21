@@ -14,7 +14,8 @@ import top.xdwa.shun.plugin.v1.IShunProvider;
 import top.xdwa.shun.plugin.v1.PluginContract;
 
 /**
- * 冒充宿主去调 echo 插件：Intent 里伪造「我是 top.xdwa.shun」，拿到 Binder 后逐个调用每个方法。
+ * 冒充宿主去调 echo 插件：Intent 里伪造「我是宿主」（包名构建时由 -PhostPackage 定，见 build.gradle.kts），
+ * 拿到 Binder 后逐个调用每个方法。
  * 结果打到 logcat（tag ShunRogue），每个方法一行：ACCEPTED 就是插件鉴权有洞。
  *
  * adb shell am start -n example.shun.fixture.rogue/.ProbeActivity [--es target <插件包名>] [--es service <服务类名>]
@@ -31,10 +32,11 @@ public final class ProbeActivity extends Activity {
         if (target == null) target = "example.shun.fixture.echo";
         String service = getIntent().getStringExtra("service");
         if (service == null) service = "example.shun.fixture.echo.EchoProviderService";
+        String host = getString(R.string.shun_host_package);
         Intent intent = new Intent(PluginContract.ACTION_PROVIDER)
                 .setComponent(new ComponentName(target, service))
-                .putExtra("calling_package", "top.xdwa.shun")
-                .putExtra(Intent.EXTRA_PACKAGE_NAME, "top.xdwa.shun")
+                .putExtra("calling_package", host)
+                .putExtra(Intent.EXTRA_PACKAGE_NAME, host)
                 .putExtra("signing_sha256", "trust-me");
         ServiceConnection connection = new ServiceConnection() {
             @Override
