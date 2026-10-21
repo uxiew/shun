@@ -19,3 +19,7 @@ analyzer:
     # 根目录只 pub get 主工程，不排除的话 flutter analyze 会因为解析不到它们的依赖报 57 条错，CI 直接红。
     - spikes/**
     - tool/mosh-fixture/dart_probe/**
+    # 下面三行是 flutter pub get 自己加的（3.47 起的 analysis_options 迁移），删了下次 pub get 又会加回来。
+    - build/**
+    - android/**
+    - ios/**

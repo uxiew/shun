@@ -26,6 +26,9 @@ Flutter/flutter_assets/
 Flutter/flutter_export_environment.sh
 ServiceDefinitions.json
 Runner/GeneratedPluginRegistrant.*
+# flutter pub get 每次都按模板生成（有插件还要走 CocoaPods），上游 0df22d7 也没把它放进仓库。
+# 哪天要手改 Podfile，先删掉这一行再提交，不然改动只留在本机，CI 和别人那里还是模板。
+/Podfile
 
 # Exceptions to above rules.
 !default.mode1v3
