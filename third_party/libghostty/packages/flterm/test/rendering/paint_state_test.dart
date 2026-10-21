@@ -41,6 +41,33 @@ void main() {
       });
     });
 
+    group('ensureContrast (shun)', () {
+      test('is a no-op at the default minimum of 1', () {
+        final state = PaintState(theme, metrics);
+
+        expect(state.ensureContrast(0xFFFFFFFF, 0xFFFFFFFF), 0xFFFFFFFF);
+      });
+
+      test('adjusts the color and keeps the faint alpha', () {
+        final state = PaintState(theme.copyWith(minimumContrast: 3), metrics);
+
+        final adjusted = state.ensureContrast(0x80F0C674, 0xFFFFFFFF);
+
+        expect(adjusted >>> 24, 0x80);
+        expect(adjusted & 0xFFFFFF, isNot(0xF0C674));
+      });
+
+      test('follows a theme change', () {
+        final state = PaintState(theme.copyWith(minimumContrast: 3), metrics);
+        final before = state.ensureContrast(0xFFF0C674, 0xFFFFFFFF);
+
+        state.updateTheme(theme);
+
+        expect(before, isNot(0xFFF0C674));
+        expect(state.ensureContrast(0xFFF0C674, 0xFFFFFFFF), 0xFFF0C674);
+      });
+    });
+
     group('mutable state', () {
       test('starts with default frame state', () {
         final state = PaintState(theme, metrics);

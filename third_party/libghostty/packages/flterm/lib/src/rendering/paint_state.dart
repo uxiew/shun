@@ -6,6 +6,7 @@ import 'package:libghostty/libghostty.dart'
 
 import '../foundation.dart' show CellMetrics, TerminalTheme;
 import 'atlas/atlas.dart';
+import 'contrast.dart';
 
 /// Mutable state shared by frame preparation and painters for one surface.
 ///
@@ -48,6 +49,10 @@ final class PaintState {
   /// over the active composing range.
   var preeditActive = false;
 
+  /// shun: 调过对比度的前景，键是（前景 RGB，背景 RGB）。同一屏就那几种颜色，算一次记住；
+  /// 换主题（最低对比度可能变）时清空。
+  final _contrasted = <int, int>{};
+
   PaintState(this.theme, this.metrics)
     : faintAlpha = (theme.faintOpacity * 255).ceil() {
     terminalForegroundArgb = theme.foreground.toARGB32();
@@ -58,7 +63,30 @@ final class PaintState {
   void updateTheme(TerminalTheme newTheme) {
     theme = newTheme;
     faintAlpha = (newTheme.faintOpacity * 255).ceil();
+    _contrasted.clear();
     _updateThemePalette();
+  }
+
+  /// shun: 把前景 [foregroundArgb] 调到在 [backgroundArgb] 上至少有
+  /// [TerminalTheme.minimumContrast] 的对比度，透明度（淡色字的 alpha）保留。
+  /// 最低对比度是 1 时原样返回。
+  int ensureContrast(int foregroundArgb, int backgroundArgb) {
+    final minimum = theme.minimumContrast;
+    if (minimum <= 1.0) return foregroundArgb;
+    final key =
+        ((foregroundArgb & 0xFFFFFF) << 24) | (backgroundArgb & 0xFFFFFF);
+    var rgb = _contrasted[key];
+    if (rgb == null) {
+      // 程序不停换真彩色时（渐变动画）别无限涨。
+      if (_contrasted.length >= 4096) _contrasted.clear();
+      rgb = contrastedRgb(
+        foregroundArgb & 0xFFFFFF,
+        backgroundArgb & 0xFFFFFF,
+        minimum,
+      );
+      _contrasted[key] = rgb;
+    }
+    return (foregroundArgb & 0xFF000000) | rgb;
   }
 
   /// Updates resolved terminal colors.

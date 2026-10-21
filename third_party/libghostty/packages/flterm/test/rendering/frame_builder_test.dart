@@ -294,6 +294,54 @@ void main() {
       expect(sprites.regular.sealedColors.single, 0xFF010203.toSigned(32));
     });
 
+    test('shun: minimumContrast adjusts only default-background text', () {
+      state.updateTheme(TerminalTheme.dark().copyWith(minimumContrast: 3));
+      terminal.foreground = const RgbColor(0, 0, 0);
+      terminal.background = const RgbColor(255, 255, 255);
+      terminal.palette = [
+        for (var i = 0; i < 256; i++)
+          if (i == 3)
+            const RgbColor(0xF0, 0xC6, 0x74)
+          else if (i == 7)
+            const RgbColor(255, 255, 255)
+          else
+            const RgbColor(0, 0, 0),
+      ];
+      // A：黄字在默认（白）背景上；B：黄字在程序自己配的白背景上。
+      writeUtf8(terminal, '\x1b[33mA\x1b[47mB');
+
+      builder.sync(terminal, terminalDirty: true);
+
+      final colors = sprites.regular.sealedColors;
+      expect(colors, hasLength(2));
+      expect(colors[0], isNot(0xFFF0C674.toSigned(32)));
+      expect(colors[1], 0xFFF0C674.toSigned(32));
+    });
+
+    test('shun: minimumContrast follows a later OSC 11 background', () {
+      state.updateTheme(TerminalTheme.dark().copyWith(minimumContrast: 3));
+      terminal.foreground = const RgbColor(255, 255, 255);
+      terminal.background = const RgbColor(0, 0, 0);
+      terminal.palette = [
+        for (var i = 0; i < 256; i++)
+          if (i == 3)
+            const RgbColor(0xF0, 0xC6, 0x74)
+          else
+            const RgbColor(0, 0, 0),
+      ];
+      writeUtf8(terminal, '\x1b[33mA');
+      builder.sync(terminal, terminalDirty: true);
+      expect(sprites.regular.sealedColors.single, 0xFFF0C674.toSigned(32));
+
+      writeUtf8(terminal, '\x1b]11;rgb:ff/ff/ff\x1b\\');
+      builder.sync(terminal, terminalDirty: true);
+
+      expect(
+        sprites.regular.sealedColors.single,
+        isNot(0xFFF0C674.toSigned(32)),
+      );
+    });
+
     test('sync updates terminal background after OSC 11', () {
       terminal.foreground = const RgbColor(255, 255, 255);
       terminal.background = const RgbColor(0, 0, 0);

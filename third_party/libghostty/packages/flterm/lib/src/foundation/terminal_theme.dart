@@ -401,6 +401,9 @@ final class TerminalTheme {
 
   /// Minimum contrast ratio between foreground and background colors.
   /// A value of 1.0 disables contrast enforcement.
+  ///
+  /// shun: 上游没实现，现在只作用于默认背景上的字：前景往黑或白按比例混到刚好够，
+  /// 程序自己配了背景、反显、选中、搜索高亮的不动；完全没样式的字（主题的前景色）也不动。见 `rendering/contrast.dart`。
   final double minimumContrast;
 
   /// Opacity multiplier for the default terminal background, from 0.0

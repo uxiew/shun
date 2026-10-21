@@ -111,10 +111,15 @@ final class _StyleCache {
       );
     }
 
-    final (foreground, background) = _resolveStyleColors(_state, style);
+    var (foreground, background) = _resolveStyleColors(_state, style);
     var explicitBg = style.background is! DefaultColor;
 
     if (style.inverse) explicitBg = true;
+    // shun: 最低对比度只管默认背景上的字（浅色主题里的白字、黄字）。程序自己配了背景的不动：
+    // tmux 状态栏、powerline 箭头靠前景和邻格背景同色拼出形状，调了就错位。
+    if (!explicitBg) {
+      foreground = _state.ensureContrast(foreground, background);
+    }
 
     if (id < _maxEntries) {
       _gen[id] = _generation;
