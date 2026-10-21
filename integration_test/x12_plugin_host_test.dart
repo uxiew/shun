@@ -6,7 +6,7 @@
 // 测试打出 "X12 uninstall.READY" 后，在电脑上：adb -s emulator-5580 uninstall example.shun.hello
 // 换成 new-plugin.sh 生成的插件：加 --dart-define=X12_PACKAGE=包名 --dart-define=X12_NAME=显示名 --dart-define=X12_PROMPT=提示符
 // 另开一个终端预授权通知（每次 flutter test 都重装 App，一连上就为前台保活服务申请通知，系统框会挡住界面）：
-//   until adb -s emulator-5580 shell pm grant top.xdwa.shun android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done
+//   until adb -s emulator-5580 shell pm grant top.xdwa.shun.debug android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done
 // 输出以 "X12 " 开头的行作为证据。
 //
 // 走的路：主机编辑器（选「插件」、选插件、保存）→ 主机列表点它连接 → 欢迎语、命令回显、转屏改尺寸 →

@@ -32,7 +32,7 @@ if [[ "$SCENARIO" == ai-cli ]]; then
 fi
 # 每次 flutter test 都重装 App，一连上就为保活服务申请通知权限，系统框会挡住页面；装上就授权。
 (for _ in $(seq 1 900); do
-  "${ADB[@]}" shell pm grant top.xdwa.shun android.permission.POST_NOTIFICATIONS 2>/dev/null && break
+  "${ADB[@]}" shell pm grant top.xdwa.shun.debug android.permission.POST_NOTIFICATIONS 2>/dev/null && break
   sleep 0.3
 done >/dev/null 2>&1 &)
 
@@ -51,7 +51,7 @@ ssh_sockets() {
     echo "R20HOST $1 ssh-sockets=$(lsof -nP -iTCP -sTCP:ESTABLISHED 2>/dev/null | grep -c -- '->127\.0\.0\.1:22201 ') (电脑侧)"
     return
   fi
-  pid=$("${ADB[@]}" shell pidof top.xdwa.shun | tr -d '\r')
+  pid=$("${ADB[@]}" shell pidof top.xdwa.shun.debug | tr -d '\r')
   [[ -n "$pid" ]] || { echo "R20HOST $1 ssh-sockets=? (没找到进程)"; return; }
   inodes=$("${ADB[@]}" shell "ls -l /proc/$pid/fd" 2>/dev/null | grep -o 'socket:\[[0-9]*\]' | grep -o '[0-9]*' | sort -u)
   "${ADB[@]}" shell "cat /proc/$pid/net/tcp /proc/$pid/net/tcp6" 2>/dev/null > "$SHOTS/tcp-$1.txt" || true
@@ -78,7 +78,7 @@ while kill -0 "$TEST" 2>/dev/null; do
   while (( MSEEN < MCOUNT )); do
     MSEEN=$((MSEEN + 1))
     NAME=$(grep 'R20 MEM=' "$LOG" | sed -n "${MSEEN}p" | sed 's/.*R20 MEM=//' | tr -d '\r')
-    "${ADB[@]}" shell dumpsys meminfo top.xdwa.shun > "$SHOTS/mem-$NAME.txt" || true
+    "${ADB[@]}" shell dumpsys meminfo top.xdwa.shun.debug > "$SHOTS/mem-$NAME.txt" || true
     ssh_sockets "$NAME"
   done
   sleep 0.5

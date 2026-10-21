@@ -59,7 +59,7 @@ done
 "${ADB[@]}" reverse tcp:22201 tcp:22201 >/dev/null
 # 每次 flutter test 都重装 App，一连上就弹「允许通知」挡住输入法；装上就授权。
 (for _ in $(seq 1 900); do
-  "${ADB[@]}" shell pm grant top.xdwa.shun android.permission.POST_NOTIFICATIONS 2>/dev/null && break
+  "${ADB[@]}" shell pm grant top.xdwa.shun.debug android.permission.POST_NOTIFICATIONS 2>/dev/null && break
   sleep 0.3
 done >/dev/null 2>&1 &)
 

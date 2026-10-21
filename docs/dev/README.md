@@ -93,7 +93,7 @@ flutter test test/integration_ssh_fixture_test.dart
 - 键盘和输入法的设备测试（R18，前三份只在模拟器上跑，第四份要真人在真机上，都要上面的测试环境）：
   - 横竖屏 + 真软键盘下终端不被挡、远端尺寸对（`integration_test/r18_keyboard_test.dart`）：跑法同上一条（`adb reverse` + `R17_SSH`），
     另开一个终端先预授权通知，不然一连上就弹「允许通知」挡住键盘：
-    `until adb -s emulator-5580 shell pm grant top.xdwa.shun android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done`
+    `until adb -s emulator-5580 shell pm grant top.xdwa.shun.debug android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done`
   - 输入法回放（`integration_test/r18_ime_replay_test.dart`）：先 `(cd plugins && ./build-fixtures.sh)`，再 `tool/ime-replay.sh emulator-5580`。
     脚本装回放输入法、临时设成默认、预授权通知、跑完换回原输入法并卸载，见 `plugins/README.md`「R18 回放输入法」。
   - 硬件键和快捷键栏修饰键（`integration_test/r18_keys_test.dart`）：要模拟器有硬件键盘设备。关掉模拟器，把
@@ -206,7 +206,7 @@ adb -s emulator-5580 wait-for-device
 adb -s emulator-5580 shell getprop sys.boot_completed  # 等到 1
 bash tool/r40-route-editor.sh
 # 完成后清理本轮环境（其他项目/容器保持运行）：
-adb -s emulator-5580 uninstall top.xdwa.shun
+adb -s emulator-5580 uninstall top.xdwa.shun.debug
 adb -s emulator-5580 emu kill
 bash tool/fixture-environment/down.sh
 ```

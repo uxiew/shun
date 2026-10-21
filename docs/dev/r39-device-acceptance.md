@@ -23,7 +23,7 @@ SHUN_R39_AVD=shun-r39-a30 SHUN_R39_DISPOSABLE=1 python3 tool/r39-device.py run
 
 `check` 只检查环境。`run` 构建新测试 APK，不复用可能过期的二进制；核验包名和证书后安装。开始前以下四个包必须未安装，已有任何一个就停止，不覆盖数据：
 
-- `top.xdwa.shun`
+- `top.xdwa.shun.debug`
 - `com.netease.uuremote`（本轮安装的是 fakeUU）
 - `com.carriez.flutter_hbb`（本轮安装的是 fakeRustDesk）
 - `example.shun.fixture.echo`

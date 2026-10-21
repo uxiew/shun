@@ -6,7 +6,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 source ../.toolchain/env.sh
 SERIAL=emulator-5580
-PKG=top.xdwa.shun
+PKG=top.xdwa.shun.debug
 ADB=(adb -s "$SERIAL")
 [[ "$("${ADB[@]}" emu avd name | tr -d '\r' | head -1)" == shun-a35-4k ]] || { echo 'Expected dedicated shun-a35-4k'; exit 1; }
 OUT=../.toolchain/artifacts/r56-$(git rev-parse --short HEAD)
@@ -54,7 +54,7 @@ for phase in seed cold; do
       "${ADB[@]}" shell dumpsys notification --noredact > "$OUT/locked-notifications.txt"
       "${ADB[@]}" shell input keyevent KEYCODE_WAKEUP
       "${ADB[@]}" shell input keyevent 82
-      "${ADB[@]}" shell am start -n "$PKG/.MainActivity" >/dev/null
+      "${ADB[@]}" shell am start -n "$PKG/top.xdwa.shun.MainActivity" >/dev/null
       "${ADB[@]}" shell "run-as $PKG sh -c 'mkdir -p files/r56 && touch files/r56/background-lock'"
     fi
     if [[ "$phase" == seed && "$killed" == 0 ]] && grep -q 'R56 KILL_READY=seed' "$LOG"; then

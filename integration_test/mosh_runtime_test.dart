@@ -314,7 +314,7 @@ void main() {
         report('kill.serverLeft', await serverCount());
         await screen.dispose();
       case 'hostkill':
-        // 电脑上看到 hostkill.READY 后：adb shell run-as top.xdwa.shun kill -9 <宿主 pid>，再在电脑上数 mosh-server
+        // 电脑上看到 hostkill.READY 后：adb shell run-as top.xdwa.shun.debug kill -9 <宿主 pid>，再在电脑上数 mosh-server
         final (_, screen) = await openMosh();
         await screen.waitText(r'$');
         await screen.type('echo before-host-dies\r');

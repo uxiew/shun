@@ -17,7 +17,7 @@ cd "$(dirname "$0")/.."
 SERIAL=${1:?用法：tool/r22-lifecycle.sh <设备序列号> <场景>}
 SCENARIO=${2:?用法：tool/r22-lifecycle.sh <设备序列号> <场景>}
 export ANDROID_SERIAL=$SERIAL
-PKG=top.xdwa.shun
+PKG=top.xdwa.shun.debug
 OUT=../.toolchain/artifacts/r22-$(git rev-parse --short HEAD)
 mkdir -p "$OUT"
 LOG=$OUT/$SCENARIO-$(date +%H%M%S).log

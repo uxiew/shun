@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$(dirname "$0")/.."
 source ../.toolchain/env.sh
 SERIAL=emulator-5580
-PKG=top.xdwa.shun
+PKG=top.xdwa.shun.debug
 ADB=(adb -s "$SERIAL")
 [[ "$("${ADB[@]}" emu avd name | tr -d '\r' | head -1)" == shun-a35-4k ]] || { echo 'Expected dedicated shun-a35-4k'; exit 1; }
 OUT=${R40_OUT:-../.toolchain/artifacts/r40-simulator-$(git rev-parse --short HEAD)}

@@ -57,7 +57,7 @@ flutter test integration_test/mosh_runtime_test.dart -d emulator-5580 \
 | `multi` | 两个会话互不串、关一个另一个照常 | 无 |
 | `cycles` | 连开连关 10 次：宿主 fd 不涨、远端不留进程 | 打出 `X08 cycles.READY` 后 `adb shell ps -A \| grep -c libmoshclient` 应为 0 |
 | `kill` | 强杀插件：会话记插件死亡，宿主和它的 SSH 照常 | 打出 `X08 kill.READY` 后 `adb shell run-as top.xdwa.shun.mosh kill -9 $(adb shell pidof top.xdwa.shun.mosh)` |
-| `hostkill` | 强杀宿主：插件按协议关掉它的会话，远端 mosh-server 退出 | 打出 `X08 hostkill.READY` 后 `adb shell run-as top.xdwa.shun kill -9 $(adb shell pidof top.xdwa.shun)`，再在电脑上数 mosh-server |
+| `hostkill` | 强杀宿主：插件按协议关掉它的会话，远端 mosh-server 退出 | 打出 `X08 hostkill.READY` 后 `adb shell run-as top.xdwa.shun.debug kill -9 $(adb shell pidof top.xdwa.shun.debug)`，再在电脑上数 mosh-server |
 | `echo-mosh` | 把 Mosh 材料发给不支持的 echo：宿主报错不崩；Dart 层因为没申请权限根本不发 | 先装 `plugins/out/echo-author.apk` |
 
 每次 `flutter test integration_test/...` 都会重装主 App（数据清空），批准由测试自己写入。

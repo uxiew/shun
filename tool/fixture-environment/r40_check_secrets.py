@@ -9,7 +9,7 @@ import pathlib
 import subprocess
 
 adb = ['adb', '-s', 'emulator-5580']
-pkg = 'top.xdwa.shun'
+pkg = 'top.xdwa.shun.debug'
 assert subprocess.check_output(adb + ['emu', 'avd', 'name']).decode().splitlines()[0] == 'shun-a35-4k'
 cfg = json.loads((pathlib.Path(__file__).parent / '.run/fixture.json').read_text())
 secrets = [cfg['password'].encode(), cfg['socksAuth']['password'].encode()]

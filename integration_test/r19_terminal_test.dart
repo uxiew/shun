@@ -5,7 +5,7 @@
 //   (cd tool/fixture-environment && ./up.sh)
 //   adb -s emulator-5580 reverse tcp:22201 tcp:22201
 //   另开一个终端预授权通知（不然一连上就弹「允许通知」挡住页面）：
-//   until adb -s emulator-5580 shell pm grant top.xdwa.shun android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done
+//   until adb -s emulator-5580 shell pm grant top.xdwa.shun.debug android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done
 //   flutter test integration_test/r19_terminal_test.dart -d emulator-5580 \
 //     --dart-define=R17_SSH="$(python3 tool/fixture-environment/r17_config.py)"
 // 输出以 "R19 " 开头的行作为证据。会动手机剪贴板（写入测试文字），不会打开浏览器（启动器换成了记录用的假实现）。

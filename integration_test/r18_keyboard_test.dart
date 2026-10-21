@@ -10,7 +10,7 @@
 //
 // 每次 flutter test 都重装 App，一连上 SSH 系统就弹「允许通知」（前台保活服务要），挡在 App 前面，
 // 软键盘出不来，表现为「等待软键盘弹出超时」。跑之前在另一个终端先预授权，装上就授：
-//   until adb -s emulator-5580 shell pm grant top.xdwa.shun android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done
+//   until adb -s emulator-5580 shell pm grant top.xdwa.shun.debug android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done
 import 'dart:convert';
 
 import 'package:flterm/flterm.dart' as flterm show TerminalView;
