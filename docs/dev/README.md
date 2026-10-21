@@ -11,10 +11,14 @@ App 怎么用看 [使用手册](../user/README.md)；做什么、做到哪看 `p
 # 下载前可按本机配置执行 proxy；首次执行 mise install 只安装本项目缺少的工具。
 mise install zig@0.16.0
 export SHUN_ZIG_EXECUTABLE="$(mise which zig)"
-# FLUTTER_SDK、ANDROID_HOME、JAVA_HOME 先按本机真实位置设置，见迁移说明。
+# 这台 Mac 上的位置；JAVA_HOME 已由 mise 全局设好。别的机器按实际位置设，见仓库外的 ../MIGRATION.txt。
+export FLUTTER_SDK=/opt/homebrew/share/flutter
+export ANDROID_HOME="$(cd ../.toolchain/android-sdk && pwd)"
 source ../.toolchain/env.sh
 # source 会把旧包装器放在最前；新 Flutter hooks 不传自定义变量，须用真实二进制路径。
 export PATH="$(dirname "$SHUN_ZIG_EXECUTABLE"):$PATH"
+# docker 在 OrbStack 自己的目录里，不在默认 PATH 上；只跑单测、不起测试环境可以不加。
+export PATH="$HOME/.orbstack/bin:$PATH"
 flutter --version               # 3.47.7 / Dart 3.13.5
 zig version                     # 0.16.0
 ```
@@ -27,7 +31,9 @@ env -u http_proxy -u https_proxy -u all_proxy -u HTTP_PROXY -u HTTPS_PROXY -u AL
 ```
 
 不做的后果：`flutter test` 全部在 loading 阶段报 `HttpException: Connection closed before full header was received`
-（shell 设了 `http_proxy` 没设 `no_proxy`）；`emulator -list-avds` 看不到本项目的 AVD（它们在 `../.toolchain/avd`）。
+（shell 设了 `http_proxy` 没设 `no_proxy`）；`emulator -list-avds` 看不到本项目的 AVD（它们在 `../.toolchain/avd`）；
+没加 OrbStack 那行，测试环境的 `up.sh` 报 `docker: command not found`，看着像没装 Docker，其实 OrbStack 一直开着
+（10-21 有一条状态记录就因此写成了「这台 PATH 里没有 docker」、测试环境起不来）。
 
 ## 2. 测试
 
@@ -54,7 +60,7 @@ flutter test --no-pub test/connection_route_editor_test.dart test/host_route_edi
 两页对照测试覆盖直连、代理、1–3 跳和组合路线；管理测试覆盖引用更新/删除、过期确认拒绝、凭据与未知字段保留、内联转换及窄屏键盘布局。真实 SSH 路由回归仍用下文的隔离主环境，未启动的环境测试不计通过。
 
 ```bash
-flutter test -j 4     # 全量约 1130 条（R20 时三套测试环境都开着：1130 过、2 跳过——1 条只在 Windows 跑、1 条是默认不跑的耗时基准），约 3 分钟；没起测试环境时真实 SSH 的用例自动跳过。刚关模拟器、内存紧时不加 -j 4 可能被系统杀掉
+flutter test -j 4     # 全量约 1510 条，几分钟；10-21 没起测试环境时 1311 过、199 跳过、0 失败。没起环境时真实 SSH/tmux/Mosh 的用例自动跳过，不算通过。刚关模拟器、内存紧时不加 -j 4 可能被系统杀掉
 flutter analyze       # 应为 No issues found（连 spikes/、packages/ 一起查）
 ```
 
@@ -72,7 +78,7 @@ flutter test --no-pub test/ai_cli_tmux_ssh_fixture_test.dart
 flutter test --no-pub test/ai_cli_fault_matrix_test.dart
 ```
 
-Android 用专用 `shun-a35-4k`（仅 `emulator-5580`），启动方式见下文；执行 `bash tool/r56-ai-cli.sh`。脚本会清空该模拟器上的本项目测试数据、安装测试包、转发 22314、授权通知，运行真实界面/SSH/加密存储；后台按 HOME、息屏再唤醒。第一阶段完成断言后，在 SSH 仍连接时强制结束 App，因此 seed 日志的 `did not complete` 是有意中断；只有出现 `KILL_READY`、确认进程消失且第二进程 cold 全部通过，整轮才算成功。使用 `--no-uninstall` 保留两阶段之间的数据，不要拆成默认卸载的两次测试。日志和截图在 `../.toolchain/artifacts/r56-<基线提交>/`。凭据租期仅测试时缩短到 2 秒，不等于生产 10 分钟长时验收；不改 PIN、输入法或 Wi-Fi，不使用真实 AI 账号。测完卸载本项目包、移除 22314 reverse、关闭专用模拟器，两套 fixture 各用自己的 `down.sh` 关闭。结果范围见[故障矩阵证据](../../plan/v3/evidence/R56-R57-fault-matrix.md)。
+Android 用项目专用模拟器（现在是 `shun-r39-a30`，仅 `emulator-5580`），启动方式见第 3 节；执行 `bash tool/r56-ai-cli.sh`。脚本会清空该模拟器上的本项目测试数据、安装测试包、转发 22314、授权通知，运行真实界面/SSH/加密存储；后台按 HOME、息屏再唤醒。第一阶段完成断言后，在 SSH 仍连接时强制结束 App，因此 seed 日志的 `did not complete` 是有意中断；只有出现 `KILL_READY`、确认进程消失且第二进程 cold 全部通过，整轮才算成功。使用 `--no-uninstall` 保留两阶段之间的数据，不要拆成默认卸载的两次测试。日志和截图在 `../.toolchain/artifacts/r56-<基线提交>/`。凭据租期仅测试时缩短到 2 秒，不等于生产 10 分钟长时验收；不改 PIN、输入法或 Wi-Fi，不使用真实 AI 账号。测完卸载本项目包、移除 22314 reverse、关闭专用模拟器，两套 fixture 各用自己的 `down.sh` 关闭。结果范围见[故障矩阵证据](../../plan/v3/evidence/R56-R57-fault-matrix.md)。
 
 真实 SSH/SOCKS/跳板的集成测试要先起 Docker 测试环境：
 
@@ -94,10 +100,11 @@ flutter test test/integration_ssh_fixture_test.dart
   - 横竖屏 + 真软键盘下终端不被挡、远端尺寸对（`integration_test/r18_keyboard_test.dart`）：跑法同上一条（`adb reverse` + `R17_SSH`），
     另开一个终端先预授权通知，不然一连上就弹「允许通知」挡住键盘：
     `until adb -s emulator-5580 shell pm grant top.xdwa.shun.debug android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done`
+    （Android 13 才有这个权限。`shun-r39-a30` 是 Android 11，通知本来就允许，这条会一直转下去，别跑。脚本里的同一步有次数上限，空转几分钟就自己停。）
   - 输入法回放（`integration_test/r18_ime_replay_test.dart`）：先 `(cd plugins && ./build-fixtures.sh)`，再 `tool/ime-replay.sh emulator-5580`。
     脚本装回放输入法、临时设成默认、预授权通知、跑完换回原输入法并卸载，见 `plugins/README.md`「R18 回放输入法」。
   - 硬件键和快捷键栏修饰键（`integration_test/r18_keys_test.dart`）：要模拟器有硬件键盘设备。关掉模拟器，把
-    `../.toolchain/avd/shun-a35-4k.avd/config.ini` 的 `hw.keyboard = no` 改成 `yes`，重新起，再
+    `../.toolchain/avd/shun-r39-a30.avd/config.ini` 的 `hw.keyboard = no` 改成 `yes`，重新起，再
     `tool/ime-replay.sh emulator-5580 "" integration_test/r18_keys_test.dart`；**测完改回 `no` 再重起**，
     不然软键盘默认不弹，别的设备测试会等不到键盘。
   - 真人在真机上用自己的输入法打拼音、说话（`integration_test/r18_voice_device_test.dart`，TER02）：要所有者当次同意、本人拿着手机。
@@ -201,7 +208,7 @@ source ../.toolchain/env.sh
 # 先确认没有其他本项目测试占用此环境；up.sh 会更换测试凭据。
 bash tool/fixture-environment/up.sh
 bash tool/fixture-environment/selfcheck.sh
-emulator -avd shun-a35-4k -port 5580 -no-window -no-snapshot -gpu host &
+emulator -avd shun-r39-a30 -port 5580 -no-window -no-snapshot -gpu host &
 adb -s emulator-5580 wait-for-device
 adb -s emulator-5580 shell getprop sys.boot_completed  # 等到 1
 bash tool/r40-route-editor.sh
@@ -213,17 +220,22 @@ bash tool/fixture-environment/down.sh
 
 脚本先用 `flutter build apk` 构建一次，再由 `flutter drive --keep-app-running` 运行两阶段，阶段间 force-stop 保留真实数据。仅复用本轮相同源码和 fixture 凭据构建的 APK 时，可设 `R40_APK` 跳过构建；不能复用 `flutter test` 生成的协议引导 APK。
 
-脚本只接受 `emulator-5580` 上的 `shun-a35-4k`，**会清空该模拟器的 shun 测试数据**。使用临时 define 文件传入 fixture 凭据，不把密码拼进命令或证据；截图、两阶段日志和明文凭据扫描摘要默认在 `../.toolchain/artifacts/r40-simulator-<提交>/`，可用 `R40_OUT` 指定新目录。21082 是 21080 认证 SOCKS 的第二个 adb 入口；首跳显式直连走 22201。脚本结束会撤销本轮端口转发、删除 define 文件；App 保留供检查，由以上命令卸载。真实设备/iOS 不在这条脚本范围内。
+脚本只接受 `emulator-5580` 上的项目专用模拟器（`shun-r39-a30` 或 `shun-a35-4k`），**会清空该模拟器的 shun 测试数据**。使用临时 define 文件传入 fixture 凭据，不把密码拼进命令或证据；截图、两阶段日志和明文凭据扫描摘要默认在 `../.toolchain/artifacts/r40-simulator-<提交>/`，可用 `R40_OUT` 指定新目录。21082 是 21080 认证 SOCKS 的第二个 adb 入口；首跳显式直连走 22201。脚本结束会撤销本轮端口转发、删除 define 文件；App 保留供检查，由以上命令卸载。真实设备/iOS 不在这条脚本范围内。
 
 ## 3. 模拟器
 
-现在只留一台 `shun-a35-4k`（Android 15，4 KiB 页，自带 Gboard），用的是你原有的 API 35 镜像。
+本项目的模拟器在 `../.toolchain/avd`，现在只有一台 `shun-r39-a30`（Android 11 / API 30，带 Play 商店的镜像，自带 Gboard，4 KiB 页）。
+10-13 搬到这台 Mac 后，原来的专用机 `shun-a35-4k`（Android 15）连同 API 35 镜像都不在了。这台的系统镜像只有 API 25、29、30，
+是 Homebrew `android-commandlinetools` 里所有者原有的（`../.toolchain/android-sdk/system-images` 是指过去的链接）。
+设备脚本只认这两个名字，`shun-a35-4k` 留着给以后重建。API 30 上测过不等于 API 35 或真机测过。
 
 ```bash
-flutter emulators --launch shun-a35-4k    # 带窗口启动；首次启动会重建空系统
-flutter run -d emulator-5554                # 设备 ID 以 flutter devices 为准
-adb -s emulator-5554 logcat -s flutter      # 看 Flutter 框架报的错；App 自己不打日志（安全文档第 5 节）
-adb -s emulator-5554 emu kill               # 关机
+mkdir ../.toolchain/locks/emulator && echo "<你是谁>" > ../.toolchain/locks/emulator/owner   # 先拿锁，见第 7 节
+emulator -avd shun-r39-a30 -port 5580 -no-window -no-snapshot -gpu host &   # 要看画面就去掉 -no-window
+adb -s emulator-5580 wait-for-device; adb -s emulator-5580 shell getprop sys.boot_completed   # 等到 1
+flutter run -d emulator-5580
+adb -s emulator-5580 logcat -s flutter      # 看 Flutter 框架报的错；App 自己不打日志（安全文档第 5 节）
+adb -s emulator-5580 emu kill && rm -r ../.toolchain/locks/emulator   # 关机、还锁
 ```
 
 在模拟器里连本机的测试环境：先 `adb reverse tcp:22201 tcp:22201`（SOCKS 再加 21080、21081），App 里地址填 `127.0.0.1`。
@@ -235,7 +247,7 @@ adb -s emulator-5554 emu kill               # 关机
 **别在模拟器或本机上直连 `100.x`。** 这台 Mac 自己在真实 tailnet 上（`utun4`，`100.64/10` 走它），模拟器发出的连接也是 Mac 发的，
 直连 100.x 等于往你的真实 tailnet 里拨号（R13 曾这样连过 `100.64.0.10`，那里恰好没有设备）。测试用的 tailnet 只经 SOCKS 或跳板去连，见 `tool/tailscale-ssh-fixture/README.md`。
 
-其他版本测完已删（省磁盘）。要复测某个版本，按需重建、用完再删：
+其他版本测完已删（省磁盘）。要复测某个版本，按需重建、用完再删。镜像会装进 Homebrew 那个共用目录、要联网下 1–2 GB，装之前先问所有者：
 
 ```bash
 V="system-images;android-24;google_apis;arm64-v8a"      # 换成要测的版本，见下表
@@ -304,7 +316,7 @@ tool/build-release.sh && adb install -r build/app/outputs/flutter-apk/app-releas
 ## 5. 改任务状态
 
 ```bash
-P=../.toolchain/pyenv/bin/python
+P=python3    # 系统自带的就行，脚本只用标准库（迁移前用的 ../.toolchain/pyenv 已经不在了）
 $P plan/v3/scripts/set_status.py case <用例ID> <PASS|FAIL|...> --evidence evidence/<任务ID>.md
 $P plan/v3/scripts/sync_docs.py       # 同步到 docs/08、09；别手改那两张表
 $P plan/v3/scripts/validate_plan.py   # 只查计划本身，不测 App
@@ -312,7 +324,7 @@ $P plan/v3/scripts/validate_plan.py   # 只查计划本身，不测 App
 
 ## 6. 磁盘与清理
 
-这台 Mac 常年只剩 5–15 GB。能删的（都在 `../.toolchain/`，删了可重建）：
+这台 Mac 的磁盘用了九成多（10-21 剩 31 GiB）。下面是 `../.toolchain/` 里的东西，删了能重建的写了代价；**签名密钥那一行别删**：
 
 | 目标 | 大小 | 删了会怎样 |
 |---|---|---|
@@ -321,11 +333,12 @@ $P plan/v3/scripts/validate_plan.py   # 只查计划本身，不测 App
 | `avd/<名字>.avd/*.img`、`*.qcow2` | 1–3 GB/台 | 关机后删；下次启动是空系统，装过的 App、Gboard 拼音设置都没了 |
 | `avd/<名字>.avd/snapshots/` | 约 2.5 GB/台 | 快速启动的快照。我们都用 `-no-snapshot` 冷启动，删了没影响，装过的 App 和设置都在 |
 | `baseline-495f5d31/` | 0.1 GB | 原版代码的 worktree，2026-09-29 已删。要重新构建原版时：`git worktree add ../.toolchain/baseline-495f5d31 495f5d3`，再 `chmod +x android/gradlew`（上游仓库里它没有可执行位，不加会报 Permission denied）。删用 `git worktree remove --force`，直接 rm 会留下失效记录 |
-| `artifacts/` | 0.25 GB | 原版 debug APK（sha256 `339f4932…`，测原版共存、插件页「看不到这个包」诊断要用）；Tailscale 官方 OpenAPI 原件 `tailscale-openapi-b416d98e.yaml`（244 KB，删了就没法离线核对官方规范变没变，见 `plan/v3/docs/05`）；UU 远程的官方接入文档和官方 4.42.0 APK（`uuremote-*`，27 MB，App 里固定的官方证书就是从这个 APK 读的，删了没法复核，见 `plan/v3/docs/17`）；RustDesk 1.4.9 的清单、链接处理源码和 GitHub 发行版 APK（`rustdesk-*`，27 MB，固定的发行证书从这个 APK 读，同上） |
+| `artifacts/` | 0.5 GB | 设备测试的日志和截图（`r39-*`、`r41-*`）和 CI 包核对材料（`android-signing-20261020/`），evidence 里引用了这些路径，删了就没法复核。**10-13 搬机时没带过来**：原版 debug APK、Tailscale 官方 OpenAPI 原件、UU 4.42.0 和 RustDesk 1.4.9 的官方 APK——App 里固定的 UU、RustDesk 证书就是从后两个包读的，要复核得按 `plan/v3/docs/17` 重新下 |
 | `zig-cache/` | 0.1 GB 起 | Zig 编 Ghostty 的缓存，每多编一个平台涨一些。删了下次编要重新下 Zig 依赖 |
-| `plugin-keys/` | 12 KB | 测试插件的两把签名密钥（`fixture-author`、`fixture-impostor`）和 X12 样例的作者密钥（`example-author`）。删了下次 `plugins/build-fixtures.sh` 会生成新的，设备上已批准的测试插件随之变「已拒绝（换签）」，在插件页撤销旧批准重新核对即可。**Mosh 插件也用 `fixture-author` 签，宿主把 `shun.mosh` 绑在这张证书上**（`lib/domain/plugins/official_plugins.dart`）：删了它、Mosh 插件换了证书，宿主就当它是冒充者直接拒，得同步改那个文件 |
+| `plugin-keys/` | 8 KB | 测试插件的两把签名密钥（`fixture-author`、`fixture-impostor`）。X12 样例的作者密钥 `example-author` 和它的 `example-signing.properties` 搬机时没带过来，要编样例先照 `docs/plugin-authors/README.md` 第 2 步生成一把。删了下次 `plugins/build-fixtures.sh` 会生成新的，设备上已批准的测试插件随之变「已拒绝（换签）」，在插件页撤销旧批准重新核对即可。**Mosh 插件也用 `fixture-author` 签，宿主把 `shun.mosh` 绑在这张证书上**（`lib/domain/plugins/official_plugins.dart`）：删了它、Mosh 插件换了证书，宿主就当它是冒充者直接拒，得同步改那个文件 |
 | `mosh-build/` | 0.25–0.65 GB | X08 Mosh 运行时的源码包（60 MB，带 SHA256 核对）、交叉编译目录、装好的静态库（`prefix-arm64-v8a/`）和本机 protoc/tic（`host/`）。`build/` 下的编译目录随时可删（约 0.4 GB），只要 `prefix-*`、`host/` 在，`plugins/mosh/native/build-mosh-client.sh` 只重编 mosh 本身；整个删了要联网重下源码、从零编约 2 分钟 |
-| 整个 `.toolchain/` | — | 回到安装前，只剩下面 SDK 里的东西 |
+| `android-signing/`、`signing-backups/` | 各 24 KB | **别删。** 正式签名密钥（CI 包用的那把，证书见第 4 节）、它的密码和一份本机副本，说明在 `android-signing/README.txt`。丢了就再也签不出能覆盖已装 CI 包的包，只能换密钥、让所有设备卸载重装。副本和原件在同一块盘上，不算灾备 |
+| 整个 `.toolchain/` | — | 回到安装前，**连正式签名密钥一起没了**：先把上一行的两个目录挪走 |
 
 仓库里能删的（都在 `.gitignore` 里）：`build/`（约 1 GB）、`.dart_tool/flutter_build`（2–3 GB），下次构建重新生成；
 `.dart_tool/hooks_runner`（约 0.5 GB）是终端原生库的构建缓存，删了下次构建要用 Zig 重编，多一两分钟。
@@ -336,15 +349,10 @@ $P plan/v3/scripts/validate_plan.py   # 只查计划本身，不测 App
 - 空闲空间掉得比文件长得快时，看一眼 `sysctl vm.swapusage`：系统 swap 和数据盘共用同一块空间（10-06 用到 5.5 GB），
   模拟器、Gradle、Flutter 同时开着内存一紧，磁盘就跟着掉。
 
-共享 Android SDK 里为本项目装的：
-
-```bash
-S=$ANDROID_HOME/cmdline-tools/latest/bin     # sdkmanager 不在 env.sh 的 PATH 里，直接敲会 command not found
-$S/sdkmanager --uninstall "ndk;28.2.13676358" "platforms;android-36" "build-tools;36.0.0" \
-  "platforms;android-34" "cmake;3.22.1"      # 后两个是首次构建时 Gradle 自动装的
-```
-
-API 35 镜像是你原有的，`lizhi` 模拟器在用，**不要卸**。
+Android SDK 在 `../.toolchain/android-sdk`（3.3 GB）：`build-tools`、`cmake`、`ndk`、`platforms` 是 10-15 为本项目装的，不用了直接删这几个目录；
+`cmdline-tools`、`emulator`、`platform-tools`、`system-images` 是指向 Homebrew `android-commandlinetools` 的符号链接，
+那边是所有者原有的（`~/.android/avd` 里所有者自己的模拟器也用这些镜像），**只能删链接，别动链接指向的东西**，
+也别对它 `sdkmanager --uninstall`。
 
 迁移前机器在 2026-10-04 用 brew 安装过 `zig@0.16`、`llvm@21`、`lld@21`，这不是当前机器的安装清单。当前（2026-10-14）项目 Zig 0.16.0 由 mise 管理；Homebrew 的 Zig 0.17.0 / LLVM 22 / LLD 22 保留作全局工具。不要照旧清单卸载软件；删除 mise 中的版本前先核对其他项目是否也依赖它，移除项目 `mise.toml` 不会自动卸载全局工具。
 
@@ -358,11 +366,10 @@ API 35 镜像是你原有的，`lizhi` 模拟器在用，**不要卸**。
 - **`flutter emulators --launch` 报 `Running multiple emulators with the same AVD`**：这台已在后台无窗口运行，先 `adb -s <ID> emu kill`。
 - **`adb devices` 显示 `offline`**：还没启动完，等 `adb shell getprop sys.boot_completed` 输出 `1`（实测 18 秒到 2 分钟）。
 - **adb 断开（`waiting for device`）又连上后，`emulator-5554` 可能已经不是本项目的模拟器了**：
-  X06 时本项目的模拟器在 Mac 内存只剩几十 MB 时被关掉，同一个端口随即出现的是你自己无窗口启动的 `lizhi`，
+  X06 时（迁移前那台 Mac）本项目的模拟器在内存只剩几十 MB 时被关掉，同一个端口随即出现的是所有者自己无窗口启动的模拟器，
   后面几条命令就打到了它上面（一次界面导出、一次点在桌面空白处，已删掉导出文件、确认桌面原样）。
-  每次重连后先 `adb -s emulator-5554 emu avd name`，是 `shun-a35-4k` 才继续；两台同时开时内存也更紧。
-  `lizhi` 开着的时候，本项目的模拟器用固定的另一个端口起，之后每条 adb 都带 `-s emulator-5580`，就不会串：
-  `emulator -avd shun-a35-4k -port 5580 -no-window -no-snapshot -gpu host &`（X06 后半段这样跑的，构建时空闲内存 36%–47%，没再被关）。
+  所以本项目的模拟器一律用固定端口 `-port 5580` 起、每条 adb 都带 `-s emulator-5580`（这台 Mac 的 `~/.android/avd` 里也有所有者自己的模拟器）；
+  重连后先 `adb -s emulator-5580 emu avd name`，是 `shun-r39-a30` 才继续。两台同时开时内存也更紧。
 - **跑过 `flutter test integration_test/...` 之后再 `adb install build/app/outputs/flutter-apk/app-debug.apk`，App 一打开就「isn't responding」**：
   集成测试会用测试入口重新构建并覆盖同一个 `app-debug.apk`，装的其实是测试包；而且测试跑完会把 App 卸掉（数据清空）。先重新 `flutter build apk --debug --target-platform android-arm64` 再装。
 - **用 adb 注入按键（`input keyevent` / `input text`）之后，微信输入法的软键盘不出来了，只剩底部「收起」和「切换输入法」**：
