@@ -696,7 +696,8 @@ const englishTranslations = <String, String>{
   '发送后立即执行': 'Execute immediately after sending',
   '请先建立终端会话': 'Connect a terminal session first',
   'SFTP文件管理': 'SFTP file manager',
-  '文件超过预览上限，没有打开': 'The file is larger than the preview limit and was not opened',
+  '文件超过预览上限，没有打开':
+      'The file is larger than the preview limit and was not opened',
   '切换为单栏模式': 'Switch to single-pane mode',
   '切换为双栏模式': 'Switch to dual-pane mode',
   '连接 SSH 后可选择服务器': 'Connect SSH to select a server',
@@ -2309,6 +2310,81 @@ const englishTranslations = <String, String>{
   'mosh-server 的回应不可信': 'Untrusted mosh-server reply',
   '插件不可用': 'Plugin unavailable',
   '其他错误': 'Other error',
+  // R25：连接记录页和导出（connection_event_text.dart）。带 {n} 的是模板：整句翻译后再填数。
+  '用时是各阶段从开始到下一阶段开始的时间，按手机上不受对时影响的时钟算，不是网络延迟（ping）。经代理时，代理之后那一段 App 看不到，算在「连代理，由代理连过去」里；等你确认指纹、输入验证码的时间单独标出。':
+      'Times are how long each stage took until the next one began, measured with a phone clock that clock adjustments do not affect. They are not network latency (ping). Through a proxy, the part after the proxy is invisible to the app and is counted in “Connect to the proxy, which connects onward”; time spent waiting for you to confirm a fingerprint or enter a code is shown separately.',
+  '只记在这台手机上：每次连接走到哪一步、每步多久、失败在哪、断线后自动恢复试了几次。不记地址、用户名、密码、私钥、报错原话，也不记你输入的和屏幕上的内容；不上传。每台最多 200 条、一共最多 1000 条，7 天后自动删掉。':
+      'Kept only on this phone: how far each connection got, how long each step took, where it failed, and how many automatic recovery attempts followed a drop. No addresses, user names, passwords, private keys or error text, and nothing you typed or saw on screen; nothing is uploaded. At most 200 per host and 1000 in total, deleted after 7 days.',
+  '新开连接': 'New connection',
+  '自动恢复': 'Automatic recovery',
+  '自动恢复（第 {n} 次）': 'Automatic recovery (attempt {n})',
+  '切换连接方式': 'Switch connection method',
+  '连接断开': 'Connection dropped',
+  '自动恢复停了': 'Automatic recovery stopped',
+  '连接被关了（对方关闭或网络断开，App 分不出是哪种）':
+      'The connection was closed (by the other side or by the network; the app cannot tell which)',
+  '远端 shell 退出了': 'The remote shell exited',
+  'App 探了一下，期限内没回应': 'The app checked and got no reply in time',
+  '插件会话结束了': 'The plugin session ended',
+  '原因未知': 'Reason unknown',
+  '断线后 2 分钟内没恢复上': 'Not recovered within 2 minutes of the drop',
+  '手机锁着，后台不重新登录': 'The phone was locked; no new login in the background',
+  '撞上了要你处理的错，不再自动重试':
+      'Hit an error only you can fix; no more automatic retries',
+  '连上了': 'Connected',
+  '已取消': 'Cancelled',
+  '失败：{reason}': 'Failed: {reason}',
+  '结果未知': 'Outcome unknown',
+  'Mosh 和插件会话断了不自动重连：要继续就在标签上点「重新连接」，会开一个新会话。':
+      'Mosh and plugin sessions do not reconnect on their own: to continue, tap “Reconnect” on the tab, which opens a new session.',
+  '断开后 App 自己试着恢复（最多 2 分钟），结果在后面几条。':
+      'After the drop the app tries to recover on its own (for up to 2 minutes); the results are in the following entries.',
+  '看前一条失败的「下一步」；处理好以后在标签上点「重新连接」。':
+      'See “Next step” on the failed entry before this one; once it is fixed, tap “Reconnect” on the tab.',
+  '回到 App 会再试一轮，也可以在标签上点「重新连接」。':
+      'Returning to the app tries one more round; you can also tap “Reconnect” on the tab.',
+  '插件主机': 'Plugin host',
+  '未知协议': 'Unknown protocol',
+  '目标': 'Target',
+  '跳板 {n}': 'Jump {n}',
+  'TCP 连接（含域名解析）': 'TCP connection (including name lookup)',
+  '连代理，由代理连过去': 'Connect to the proxy, which connects onward',
+  'SSH 握手、核对指纹、登录': 'SSH handshake, fingerprint check, login',
+  '等你完成 Tailscale check': 'Waiting for you to finish the Tailscale check',
+  '经这一跳转发到下一跳': 'Forward through this hop to the next',
+  '打开终端': 'Open the terminal',
+  '检查远端终端': 'Check the remote terminal',
+  '核对本机 Mosh 插件': 'Check the Mosh plugin on this phone',
+  '经 SSH 启动 mosh-server': 'Start mosh-server over SSH',
+  'Mosh 插件经 UDP 连过去': 'Mosh plugin connects over UDP',
+  'Mosh 附着 tmux 并核对': 'Mosh attaches tmux and checks it',
+  '核对本机插件': 'Check the plugin on this phone',
+  '插件打开会话（它自己联网）': 'Plugin opens its session (it does its own networking)',
+  '{n} 秒': '{n} s',
+  '{m} 分 {s} 秒': '{m} min {s} s',
+  '插件自己联网，不经过本 App 的代理和跳板':
+      'The plugin does its own networking, not through this app’s proxies or jump hosts',
+  '路线没算出来就停了': 'Stopped before the route was worked out',
+  '手机': 'Phone',
+  'SOCKS5 代理': 'SOCKS5 proxy',
+  'HTTP 代理': 'HTTP proxy',
+  '拨号前的准备（建终端、读保险库、解私钥）':
+      'Preparing before dialing (terminal, vault, private keys)',
+  '其中等你 {d}': 'of which waiting for you: {d}',
+  '停在这一步': 'stopped here',
+  '在这一步取消': 'cancelled here',
+  '；': '; ',
+  '（{note}）': ' ({note})',
+  'shun 连接记录，导出于 {time}，共 {n} 条。':
+      'shun connection log, exported {time}, {n} entries.',
+  '主机名、地址、用户名已去掉，主机按出现顺序编号；不含密码、私钥、报错原话、输入和屏幕内容。':
+      'Host names, addresses and user names are removed and hosts are numbered in order of appearance; no passwords, private keys, error text, input or screen content.',
+  '主机 {n}': 'Host {n}',
+  '总用时 {d}': 'total {d}',
+  '断开前连了 {d}': 'connected for {d} before the drop',
+  '这一轮试了 {n} 次': '{n} attempts this round',
+  '失败在：{hop}': 'failed at: {hop}',
+  '下一步：{text}': 'Next step: {text}',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
