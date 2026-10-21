@@ -667,13 +667,8 @@ class SftpService extends FileTransferService {
             onProgress: onProgress,
           );
         } else {
-          await file
-              .write(
-                stream,
-                offset: startOffset,
-                onProgress: onProgress,
-              )
-              .done;
+          await _writeSftpStream(file, stream,
+              offset: startOffset, onProgress: onProgress);
         }
       } finally {
         if (lease.alive) await file.close();
@@ -1218,6 +1213,31 @@ Stream<Uint8List> trackTransferProgress(
     transferred += chunk.length;
     onProgress(transferred);
   }
+}
+
+/// dartssh2 2.22.5 的 [SftpFileWriter] 订阅数据流时没挂 onError：数据流报错（用户点取消、
+/// 本机文件读失败）会变成没人接的全局错误，`done` 也永远不完成，远端句柄关不掉（R24 实测）。
+/// 这里先把错误截下：停掉 writer，等它结束，再把原来的错误抛给调用方。
+Future<void> _writeSftpStream(
+  SftpFile file,
+  Stream<Uint8List> stream, {
+  required int offset,
+  TransferProgressCallback? onProgress,
+}) async {
+  Object? failure;
+  StackTrace? failureStack;
+  late final SftpFileWriter writer;
+  final guarded = stream.handleError((Object error, StackTrace stack) {
+    if (failure != null) return;
+    failure = error;
+    failureStack = stack;
+    // abort 会把 done 标成完成；万一它刚好已经完成了，再标一次会报错，吃掉就行。
+    unawaited(writer.abort().catchError((Object _) {}));
+  });
+  writer = file.write(guarded, offset: offset, onProgress: onProgress);
+  await writer.done;
+  final error = failure;
+  if (error != null) Error.throwWithStackTrace(error, failureStack!);
 }
 
 Future<void> _writeSftpStreamWithLimitedConcurrency(
