@@ -45,6 +45,9 @@ val keystore = signingValue("storeFile")
 if (keystore != null && !keystore.isFile) problems += "密钥库不存在：$keystore"
 
 val minHostMinor = ((findProperty("minHostMinor") as String?) ?: "0").toInt()
+// 信任的宿主包名。装的是正式版 shun 就用默认值；配的是自己 flutter run 起来的宿主，它是 top.xdwa.shun.debug，
+// 在 gradle.properties 里写 shunHostPackage=top.xdwa.shun.debug，不然宿主来连时插件会拒绝（「不是 top.xdwa.shun」）。
+val hostPackage = (findProperty("shunHostPackage") as String?)?.trim()?.takeIf { it.isNotEmpty() } ?: "top.xdwa.shun"
 
 android {
     namespace = "example.shun.hello"
@@ -59,7 +62,8 @@ android {
         versionCode = 1
         // 和描述符里的 version 保持一致：宿主详情页两个都显示，对不上用户看得出来。
         versionName = "0.1.0"
-        resValue("string", "shun_host_package", "top.xdwa.shun")
+        resValue("string", "shun_host_package", hostPackage)
+        manifestPlaceholders["hostPackage"] = hostPackage
         resValue("string", "shun_host_sha256", hostSha256.joinToString(","))
         resValue("integer", "shun_min_host_minor", "$minHostMinor")
     }

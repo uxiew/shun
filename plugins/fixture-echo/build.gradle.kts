@@ -3,6 +3,7 @@
 //
 // 变体参数：
 //   -PhostSha256=<宿主签名证书 SHA-256>   必填，插件只接受这张证书签的宿主来调它
+//   -PhostPackage=<宿主包名>             默认正式包 top.xdwa.shun；调试宿主是 top.xdwa.shun.debug（build-fixtures.sh 传的就是它）
 //   -PsignWith=author|impostor|androidDebug  见 ../signing.gradle.kts
 //   -PechoAppId=<包名>                     默认 example.shun.fixture.echo
 //   -PpluginId=<pluginId>                  默认 example.fixture_echo
@@ -18,6 +19,7 @@ apply(from = "../signing.gradle.kts")
 
 val hostSha256 = (findProperty("hostSha256") as String?)?.lowercase()?.replace(":", "")
     ?: throw GradleException("缺 -PhostSha256：插件必须知道信任哪张宿主证书")
+val hostPackage = (findProperty("hostPackage") as String?) ?: "top.xdwa.shun"
 val appId = (findProperty("echoAppId") as String?) ?: "example.shun.fixture.echo"
 val pluginId = (findProperty("pluginId") as String?) ?: "example.fixture_echo"
 val leakTo = (findProperty("leakTo") as String?) ?: ""
@@ -70,7 +72,8 @@ android {
         targetSdk = 36
         versionCode = fixtureVersionCode
         versionName = descriptorVersion
-        resValue("string", "shun_trusted_host_package", "top.xdwa.shun")
+        resValue("string", "shun_trusted_host_package", hostPackage)
+        manifestPlaceholders["hostPackage"] = hostPackage
         resValue("string", "shun_trusted_host_sha256", hostSha256)
         resValue("string", "shun_fixture_leak_host_binder_to", leakTo)
         resValue("string", "shun_fixture_behavior", behavior)

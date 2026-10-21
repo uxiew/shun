@@ -5,7 +5,7 @@
 
     <!-- 看得到宿主（核对宿主证书）。不申请 QUERY_ALL_PACKAGES。 -->
     <queries>
-        <package android:name="top.xdwa.shun" />
+        <package android:name="${hostPackage}" />
     </queries>
 
     <!-- extractNativeLibs：运行时是要 exec 的文件，必须由系统解出到 nativeLibraryDir。不设 sharedUserId。 -->

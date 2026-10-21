@@ -6,6 +6,7 @@
 //
 // 参数：
 //   -PhostSha256=<宿主签名证书 SHA-256>   必填，插件只接受这张证书签的宿主
+//   -PhostPackage=<宿主包名>             默认正式包 top.xdwa.shun；调试宿主（flutter run / flutter test 装的）是 top.xdwa.shun.debug
 //   -PsignWith=author|impostor|androidDebug  见 ../signing.gradle.kts（正式签名待所有者决定）
 plugins {
     id("com.android.application")
@@ -14,6 +15,7 @@ apply(from = "../signing.gradle.kts")
 
 val hostSha256 = (findProperty("hostSha256") as String?)?.lowercase()?.replace(":", "")
     ?: throw GradleException("缺 -PhostSha256：插件必须知道信任哪张宿主证书")
+val hostPackage = (findProperty("hostPackage") as String?) ?: "top.xdwa.shun"
 @Suppress("UNCHECKED_CAST")
 val signing = extra["shunSigning"] as List<String>
 val appId = "top.xdwa.shun.mosh"
@@ -59,7 +61,8 @@ android {
         targetSdk = 36
         versionCode = 1
         versionName = pluginVersion
-        resValue("string", "shun_trusted_host_package", "top.xdwa.shun")
+        resValue("string", "shun_trusted_host_package", hostPackage)
+        manifestPlaceholders["hostPackage"] = hostPackage
         resValue("string", "shun_trusted_host_sha256", hostSha256)
         ndk { abiFilters += "arm64-v8a" }
     }

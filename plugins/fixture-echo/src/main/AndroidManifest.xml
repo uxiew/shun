@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <!-- 看得到宿主（核对宿主证书），以及测「转交宿主 Binder」时的接收方。 -->
     <queries>
-        <package android:name="top.xdwa.shun" />
+        <package android:name="${hostPackage}" />
         <package android:name="example.shun.fixture.rogue" />
     </queries>
 

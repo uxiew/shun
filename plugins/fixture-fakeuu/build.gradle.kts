@@ -6,6 +6,7 @@
 //   -PfakeUuVersion=4.42.0 -PfakeUuVersionCode=44200
 //   -PsignWith=author|impostor     见 ../signing.gradle.kts；换一把密钥就是「同包名换签」
 //   -PfakeUuHijack=true            另外声明宿主的回调地址 shun-uuremote://callback（扮演抢回调的 App，见 HijackActivity）
+//   -PhostPackage=<宿主包名>        抢到的回调转给谁，默认正式包 top.xdwa.shun；调试宿主是 top.xdwa.shun.debug
 plugins {
     id("com.android.application")
 }
@@ -15,6 +16,7 @@ val appId = (findProperty("fakeUuAppId") as String?) ?: "com.netease.uuremote"
 val fakeVersion = (findProperty("fakeUuVersion") as String?) ?: "4.42.0"
 val fakeVersionCode = ((findProperty("fakeUuVersionCode") as String?) ?: "44200").toInt()
 val hijack = (findProperty("fakeUuHijack") as String?) == "true"
+val hostPackage = (findProperty("hostPackage") as String?) ?: "top.xdwa.shun"
 
 @Suppress("UNCHECKED_CAST")
 val signing = extra["shunSigning"] as List<String>
@@ -30,6 +32,12 @@ android {
         versionCode = fakeVersionCode
         versionName = fakeVersion
         manifestPlaceholders["hijackEnabled"] = hijack.toString()
+        resValue("string", "shun_host_package", hostPackage)
+    }
+
+    buildFeatures {
+        // AGP 9 默认关闭；不开会报 "defaultConfig contains custom resource values, but the feature is disabled"。
+        resValues = true
     }
 
     signingConfigs {
