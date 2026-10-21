@@ -155,7 +155,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
       controller.addListener(_refresh);
     }
     _expanded = _filledGroups();
-    _initialSnapshot = jsonEncode(_draft().data);
+    _initialSnapshot = _comparable(_draft());
   }
 
   List<TextEditingController> get _controllers => [
@@ -827,7 +827,12 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   String _signature(HostProfile host) =>
       jsonEncode({for (final key in _verifiedKeys) key: host.data[key]});
 
-  bool get _dirty => jsonEncode(_draft().data) != _initialSnapshot;
+  bool get _dirty => _comparable(_draft()) != _initialSnapshot;
+
+  /// 拿来比「有没有改」的样子。新建主机的 createdAt 是每次拼草稿时的当前时间，不去掉的话
+  /// 一个字没填、按返回也会问「放弃没保存的改动？」（R25 大字号扫页时撞到的）。
+  String _comparable(HostProfile draft) =>
+      jsonEncode(Map<String, dynamic>.from(draft.data)..remove('createdAt'));
 
   /// 取消、关闭、系统返回都走这里：有没保存的改动先问。
   Future<void> _leave() async {

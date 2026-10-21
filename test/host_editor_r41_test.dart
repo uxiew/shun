@@ -156,6 +156,27 @@ void main() {
     expect(result, isNull, reason: '放弃的改动不保存');
   });
 
+  testWidgets('新建主机一个字没填：关、系统返回都不问（R25）', (tester) async {
+    await open(tester);
+    // 以前新建主机的创建时间每次拼草稿都取当前时间，过了 1 毫秒就算「改过」。
+    await tester
+        .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 5)));
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('放弃没保存的改动？'), findsNothing);
+    expect(find.byType(HostEditor), findsNothing);
+    expect(closed, isTrue);
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    await tester
+        .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 5)));
+    await tester.tap(find.byIcon(Icons.close));
+    await tester.pumpAndSettle();
+    expect(find.text('放弃没保存的改动？'), findsNothing);
+    expect(find.byType(HostEditor), findsNothing);
+  });
+
   testWidgets('高级：填过的组展开，没填的写「自动」，和默认值一样的不预填', (tester) async {
     await open(tester,
         host: ssh({
