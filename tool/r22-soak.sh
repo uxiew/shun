@@ -9,6 +9,9 @@
 #   tool/r22-soak.sh <手机序列号> default 30    # 不加省电豁免（出厂默认）
 #   tool/r22-soak.sh <手机序列号> exempt 30     # 临时加省电豁免
 #
+# 项目就在 xdwmbp（接手机的那台）上跑时，跳过 up.sh 那两行，把那边的 adb 放进 PATH 再跑：
+#   PATH=/opt/homebrew/share/android-commandlinetools/platform-tools:$PATH tool/r22-soak.sh <手机序列号> default 30
+# 脚本看到 SHUN_REMOTE_HOST（默认 xdwmbp）就是本机名，转发直接在本机起，不走 SSH。
 # 手机上已经装着 top.xdwa.shun 就不跑：脚本结束时会卸掉 App。
 #
 # 要所有者在场，脚本打 "OWNER:" 开头的行时由所有者本人：拔 USB 线 → 按电源键锁屏 → 到点插回 → 解锁回到 App。
@@ -36,6 +39,10 @@ MODE=${2:?用法：tool/r22-soak.sh <设备序列号> default|exempt [分钟，�
 MINUTES=${3:-30}
 [[ $MODE == default || $MODE == exempt ]] || { echo "模式只能是 default 或 exempt"; exit 2; }
 REMOTE=${SHUN_REMOTE_HOST:-xdwmbp}
+# 接手机的就是本机时，转发在本机起：对自己 SSH 会报 Host key verification failed / Permission denied（10-21 撞到过）。
+LOCAL=0
+[[ $REMOTE == "$(scutil --get LocalHostName 2>/dev/null)" || $REMOTE == localhost ]] && LOCAL=1
+on_relay_host() { if (( LOCAL )); then bash -c "$1"; else ssh "$REMOTE" "$1"; fi; }
 RELAY_PORT=22211
 export ANDROID_SERIAL=$SERIAL
 PKG=top.xdwa.shun
@@ -48,7 +55,11 @@ DEVICE_LOG=$OUT/$STAMP-device.log
 host() { echo "R22HOST $(date +%T) $*" | tee -a "$LOG"; }
 owner() { echo "OWNER: $*" | tee -a "$LOG"; }
 
-adb get-state >/dev/null || { echo "看不到 $SERIAL：先 tool/remote-device/up.sh，再 source /tmp/shun-remote-device/env"; exit 1; }
+if (( LOCAL )); then
+  adb get-state >/dev/null || { echo "看不到 $SERIAL：手机没插、没开 USB 调试，或者 adb 不在 PATH 里（用法见开头）"; exit 1; }
+else
+  adb get-state >/dev/null || { echo "看不到 $SERIAL：先 tool/remote-device/up.sh，再 source /tmp/shun-remote-device/env"; exit 1; }
+fi
 # 必须在 trap cleanup 之前：cleanup 会卸掉 App，放在后面的话这里一停，留着用的 App 反而被卸了。
 # 上一轮中途退出留下的测试包也得卸：私有目录里旧的 log.txt 带着 DONE，会让这一轮一开始就收工。
 if adb shell pm list packages $PKG | tr -d '\r' | grep -qx "package:$PKG"; then
@@ -56,13 +67,13 @@ if adb shell pm list packages $PKG | tr -d '\r' | grep -qx "package:$PKG"; then
   exit 1
 fi
 # 插回线后重建 reverse 要绕开包装脚本：它会再开一次 ssh -R，而那条还在，报端口被占。
-REAL_ADB=$(cat /tmp/shun-remote-device/real-adb 2>/dev/null || command -v adb)
+if (( LOCAL )); then REAL_ADB=$(command -v adb); else REAL_ADB=$(cat /tmp/shun-remote-device/real-adb 2>/dev/null || command -v adb); fi
 EDGE=$(docker ps --format '{{.Names}}' | grep -m1 shun-fixture-ssh-edge) || { echo "测试环境没起：(cd tool/fixture-environment && ./up.sh)"; exit 1; }
 accepted() { docker logs "$EDGE" 2>&1 | grep -c 'Accepted' || true; }
 
 PHONE_IP=$(adb shell ip -4 addr show wlan0 | grep -oE 'inet [0-9.]+' | cut -d' ' -f2)
 [[ -n $PHONE_IP ]] || { echo "手机没连 Wi-Fi"; exit 1; }
-RELAY_IP=$(ssh "$REMOTE" 'for i in en0 en1 en2; do ipconfig getifaddr $i; done' 2>/dev/null | grep -m1 "^${PHONE_IP%.*}\.") ||
+RELAY_IP=$(on_relay_host 'for i in en0 en1 en2; do ipconfig getifaddr $i; done' 2>/dev/null | grep -m1 "^${PHONE_IP%.*}\.") ||
   { echo "$REMOTE 和手机（$PHONE_IP）不在同一个网段，Wi-Fi 这条路走不通"; exit 1; }
 
 CONFIG=$(MINUTES=$MINUTES RELAY_IP=$RELAY_IP RELAY_PORT=$RELAY_PORT python3 - <<'EOF'
@@ -100,10 +111,10 @@ cleanup() {
   fi
   exec 7>&- 2>/dev/null   # 关掉转发的标准输入，xdwmbp 上的转发随之退出
   sleep 1
-  ssh "$REMOTE" rm -f /tmp/shun-tcp-relay.py 2>/dev/null
+  on_relay_host 'rm -f /tmp/shun-tcp-relay.py' 2>/dev/null
   host "restored: stay_on_while_plugged_in=$(adb shell settings get global stay_on_while_plugged_in 2>/dev/null | tr -d '\r')" \
     "app-installed=$(adb shell pm path $PKG 2>/dev/null | grep -c package || true)" \
-    "relay-left=$(ssh "$REMOTE" "pgrep -f shun-tcp-relay | wc -l" 2>/dev/null | tr -d ' ')"
+    "relay-left=$(on_relay_host 'pgrep -f shun-tcp-relay | wc -l' 2>/dev/null | tr -d ' ')"
   { echo "== 电脑这头"; grep -E '^R22HOST|^OWNER|relay' "$LOG"
     echo "== 手机里的测试日志"; grep -v -E 'R22 (ACTION|ACK)=' "$DEVICE_LOG"
   } > "$OUT/$STAMP-summary.txt"
@@ -113,9 +124,13 @@ cleanup() {
 trap cleanup EXIT
 
 adb reverse tcp:22201 tcp:22201 >/dev/null
-scp -q tool/remote-device/tcp-relay.py "$REMOTE:/tmp/shun-tcp-relay.py"
-exec 7> >(ssh "$REMOTE" python3 -u /tmp/shun-tcp-relay.py "$RELAY_IP" $RELAY_PORT "$PHONE_IP" 22201 \
-  $((MINUTES * 120 + 5400)) >> "$LOG" 2>&1)
+if (( LOCAL )); then
+  cp tool/remote-device/tcp-relay.py /tmp/shun-tcp-relay.py
+else
+  scp -q tool/remote-device/tcp-relay.py "$REMOTE:/tmp/shun-tcp-relay.py"
+fi
+exec 7> >(on_relay_host "python3 -u /tmp/shun-tcp-relay.py $RELAY_IP $RELAY_PORT $PHONE_IP 22201 $((MINUTES * 120 + 5400))" \
+  >> "$LOG" 2>&1)
 sleep 3
 host "wifi path: phone $PHONE_IP -> $REMOTE $RELAY_IP:$RELAY_PORT -> this mac 22201;" \
   "check: $(adb shell "echo | nc -w 3 $RELAY_IP $RELAY_PORT" 2>/dev/null | head -c 20 | tr -d '\r\n')"

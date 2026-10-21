@@ -5,7 +5,7 @@
 
 **先看自己是不是就在 xdwmbp 上**：`scutil --get LocalHostName` 输出 `xdwmbp`，手机插这台就是本机设备，直接 `adb devices`、
 `flutter run -d <手机序列号>`，用不着这一套。10-21 确认项目现在就在 xdwmbp 上跑。
-`tool/r18-real-device.sh`、`tool/r22-soak.sh` 还只会走这套（先 SSH 到接手机的电脑），在 xdwmbp 本机上跑会撞下面第一条，要改成本机模式，还没改。
+`tool/r18-real-device.sh` 第一个参数是本机名时自己走本机；`tool/r22-soak.sh` 看 `SHUN_REMOTE_HOST`（默认 xdwmbp）是不是本机名，用法见它开头。
 
 ```bash
 source ../.toolchain/env.sh

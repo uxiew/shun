@@ -6,6 +6,7 @@
 #   source ../.toolchain/env.sh
 #   tool/r18-real-device.sh xdwmbp /opt/homebrew/share/android-commandlinetools/platform-tools/adb <手机序列号>
 #
+# 项目就在接手机的那台电脑上跑时（现在 xdwmbp 就是）命令不变：第一个参数就是本机名，脚本不走 SSH，直接用第二个参数那个 adb。
 # 手机上已经装着 top.xdwa.shun 就不跑（为什么见下面那段检查）。
 #
 # 会做的事：经 SSH 用那台电脑上的手机（tool/remote-device），手机的 22201 端口接回本机测试环境，
@@ -19,10 +20,16 @@ REMOTE_ADB=${2:?缺那台电脑上 adb 的完整路径}
 SERIAL=${3:?缺手机序列号}
 LOG=$(mktemp -t r18-real-device)
 
-tool/remote-device/up.sh "$HOST" "$REMOTE_ADB" >/dev/null
-# shellcheck disable=SC1091
-source /tmp/shun-remote-device/env
-trap 'tool/remote-device/down.sh "$HOST" >/dev/null; echo "日志 $LOG"' EXIT
+# 在 xdwmbp 自己身上走 SSH 等于连自己，会报 Host key verification failed / Permission denied（10-21 撞到过）。
+if [[ $HOST == "$(scutil --get LocalHostName 2>/dev/null)" || $HOST == localhost ]]; then
+  PATH="$(dirname "$REMOTE_ADB"):$PATH"
+  trap 'echo "日志 $LOG"' EXIT
+else
+  tool/remote-device/up.sh "$HOST" "$REMOTE_ADB" >/dev/null
+  # shellcheck disable=SC1091
+  source /tmp/shun-remote-device/env
+  trap 'tool/remote-device/down.sh "$HOST" >/dev/null; echo "日志 $LOG"' EXIT
+fi
 
 [[ "$(adb -s "$SERIAL" get-state 2>/dev/null)" == device ]] ||
   { echo "$HOST 上看不到 $SERIAL：手机没插、没开 USB 调试，或者没点「允许调试」" >&2; exit 1; }
