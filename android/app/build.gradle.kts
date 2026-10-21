@@ -36,6 +36,7 @@ android {
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
+        manifestPlaceholders["appLabel"] = "shun"
     }
 
     signingConfigs {
@@ -50,6 +51,14 @@ android {
     }
 
     buildTypes {
+        // 调试包（flutter run、flutter test integration_test、flutter drive 装的都是它）装成 top.xdwa.shun.debug，
+        // 和留在手机上用的正式包 top.xdwa.shun 并存。不加后缀的话，调试包签名对不上，flutter 会自己
+        // 「Uninstalling old version...」把正式包连数据卸掉再装（flutter_tools installApp，3.47.7）。
+        // 插件只信任构建时指定的宿主包名，给调试宿主用的插件要带 -PhostPackage=top.xdwa.shun.debug 编（plugins/build-fixtures.sh 默认就是，见 plugins/README.md）。
+        debug {
+            applicationIdSuffix = ".debug"
+            manifestPlaceholders["appLabel"] = "shun 调试"
+        }
         release {
             // Local release builds remain installable with the debug key. CI injects
             // one persistent keystore so every downloaded artifact can update the
