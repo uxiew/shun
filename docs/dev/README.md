@@ -49,6 +49,8 @@ R41 主机编辑页（分区、高级折叠、底部操作栏）的定向入口�
 
 R43 主机列表：菜单里列哪些项在 `lib/application/host_actions.dart`（纯判断，不碰网络），Tailscale 分节的数据在 `lib/application/catalog_overview.dart`（只读本机缓存，只有 `refresh` 发请求）。定向入口 `test/vault_host_menu_test.dart`、`test/vault_catalog_section_test.dart`、`test/connection_switch_test.dart` 的「主机菜单（R43）」组。模拟器上先起 `tool/fixture-environment/up.sh`，再 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r43-device.py`：脚本自己起假 Tailscale API、转 18480 / 22201、截图，跑完清掉 App 数据；模拟器上要是先手动存过主机也没关系，开跑前会 `pm clear`。结果只看 `plan/v3/evidence/R43.md`。
 
+R24 借用标签连接的功能（文件、转发、监控、系统管理）：怎么借、三种结果、绕开的 dartssh2 坑见 [architecture.md 「借用标签连接的功能」](architecture.md#借用标签连接的功能r24)。先跑不连网的 `flutter test --no-pub test/r24_borrowers_test.dart`（约 3 秒），再起 `tool/fixture-environment/up.sh` 跑 `flutter test --no-pub test/integration_ssh_fixture_test.dart --plain-name R24`（约 10 秒，会杀容器里的 sshd 会话）。结果只看 `plan/v3/evidence/R24.md`。
+
 R40 的 `lib/presentation/widgets/connection_route_editor.dart` 是共用链式编辑器，接收页面已有 `RoutePlan`，通过 `describeRoute` 显示已验证的节点；无有效计划时只显示草稿和错误。`connection_route_draft.dart` 管理选择及兼容字段，保留未修正的失效引用和旧内联配置；不读仓库、不执行网络请求。两页负责预览和提交，只有 `resolveRoutePlan` 决定路线规则。`domain/jump_route_choices.dart` 是 RoutePlan 库的一部分，集中做有界展开、首跳代理候选及确认复核；`jump_route_choice_dialog.dart` 只展示方案并返回明确选择。确认前、来源变化后和后续跳板自带代理时均拒绝执行。
 
 R40 确认信息保存在原 `hostChain` 的 `shunRouteConfirmation` 扩展中：只有版本、顺序、来源的非秘密路线信息和入口选择，没有密码或私钥。`hostIds`、`proxyProfileId` / `proxyConfig` 仍是完整平面路线，不迁移或修改其他主机；缺失/损坏/失效确认一律拒绝。旧客户端的确认语义未实测，不以 JSON 字段兼容冒充跨端执行兼容。

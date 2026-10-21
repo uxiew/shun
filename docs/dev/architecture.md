@@ -208,7 +208,22 @@ Tailscale SSH 是**一跳的登录方式**：主机 data 里写着 `shunSshLogin
 
 `isSsh` 只看 `sshClient`（`sshClients.last`）在不在，所以 SFTP、端口转发、系统管理、监控这些借 SSH 的功能在 Mosh、Telnet、插件标签上都不出现。
 
-释放顺序在 `abort()`：先放掉输入绑定 → 关 PTY 通道 → 逆序关各跳 client（每个 client 关掉自己脚下的 socket）→ 关 Telnet socket → 通知插件关会话。这时**不断**输出订阅：dartssh2 的 `done` 先于 stdout 结束，立刻断会吞掉断线前最后一屏；换上新连接或关标签时才 `detachOutput()`。
+释放顺序在 `abort()`：停监控采样 → 放掉输入绑定 → 按登记顺序调借用者的释放钩子（下一节）→ 关 PTY 通道（传输层已断就跳过）→ 逆序关各跳 client（每个 client 关掉自己脚下的 socket）→ 关 Telnet socket → 通知插件关会话。一个钩子抛错不挡后面的；`abort()` 本身不抛。这时**不断**输出订阅：dartssh2 的 `done` 先于 stdout 结束，立刻断会吞掉断线前最后一屏；换上新连接或关标签时才 `detachOutput()`。
+
+两个 dartssh2 2.22.5 的坑在这里绕开，改了会重新掉进去：传输层已断时 `SSHSession.close()` 在一个它自己丢掉的 Future 里抛错（没人接）；`client.close()` 对每个还没发过 EOF 的通道同步抛一次 `SSHStateError`，所以 `_closeClient` 重试到不抛为止。不重试的话，终端 + 文件页开着时断线，`abort()` 抛出去，跳板不关、标签不进自动恢复（「REG01 经跳板」那条会报「等待超时：标签自动恢复成新连接」）。
+
+### 借用标签连接的功能（R24）
+
+文件页、端口转发、性能监控、系统管理都不自己拨号，借标签上已经登录的那条 SSH：`SshLease.of(session)`（`infrastructure/ssh/ssh_lease.dart`）。一个 `ActiveTerminalSession` 对象就是一代连接，重连换的是对象（标签 id 不变），所以借用者跟着对象走，断了就是断了，不会接到新连接上。
+
+- 借不到（已断开、不是 SSH）就报 `ConnectionGone`。借到以后每个操作都和「连接断了」赛跑：`client.done`，加上 `session.onRelease` 登记的释放钩子（`abort()` 里在关 client 之前调）。要赛跑是因为 dartssh2 的 SFTP 在连接断掉后不再回复还在等的请求，不赛跑的话上传、列目录会一直等（实测断线后 15 秒仍不返回）。
+- `lease.read`：只读，断了报 `ConnectionGone`（没做什么）。`lease.write(动作, …)`：会改服务器的，发出去以后断了报 `OutcomeUnknown(动作)`，不重发。系统管理里会改服务器的命令包在 `_changing` 里，`_executeSession` 从 Zone 读这个标记选 read / write，新加一个会改服务器的操作忘了包，断线时就会误报成「没有执行」。
+- 传文件先写临时文件再改名（`writeStreamAtomically`、`transferEntry`）：写临时文件时断了是 `TransferInterrupted`（目标没动），只有改名那一步是「结果未知」。改名前再查一次目标在不在，因为 dartssh2 的 `rename` 优先走 posix-rename，会悝悝替换已有文件；查完到改名之间仍有一次来回的空当。
+- dartssh2 的 `SftpFileWriter` 订阅数据流不挂 onError：数据流报错（用户取消、本机文件读失败）会变成没人接的全局错误，`done` 永远不完成。`_writeSftpStream` 先把错误截下、停掉 writer 再抛。直接调 `file.write(stream)` 就会把这个问题带回来。
+- 长期开着的（监控采样、系统管理）用 `SshLease.reuse(Expando, session)`，每个会话只借一次。每次操作都 `SshLease.of` 的话，每 3 秒一次的采样会在标签上越攒越多释放钩子。
+- 端口转发在 `lease.lost` 时关本机端口和已接进来的 socket，条目留在列表里、带 `endedReason`；`forwardsOn` 只算还在跑的（R42 切 Mosh 前用它列会停掉哪几条）。
+
+测试：不连网的在 `test/r24_borrowers_test.dart`（假 socket `_QuietSocket` 不回任何字节，`drop()` 模拟断线）；真实 OpenSSH 上的在 `test/integration_ssh_fixture_test.dart` 的「R24 借用者跟着连接走」组，Direct / SOCKS / Jump 三条路线各跑同一套。
 
 ### Telnet
 
