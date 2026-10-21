@@ -127,7 +127,8 @@
       "evidence": [
         "evidence/R03.md",
         "evidence/X09.md",
-        "evidence/R23.md"
+        "evidence/R23.md",
+        "evidence/R24.md"
       ]
     },
     {
@@ -281,7 +282,8 @@
       "inherited_from": "2026-09-28",
       "evidence": [
         "evidence/R11.md",
-        "evidence/R14.md"
+        "evidence/R14.md",
+        "evidence/R24.md"
       ]
     },
     {
@@ -788,7 +790,8 @@
       "level": "硬门禁",
       "result": "PASS",
       "evidence": [
-        "evidence/R09.md"
+        "evidence/R09.md",
+        "evidence/R24.md"
       ],
       "inherited_from": null
     },
@@ -1084,8 +1087,10 @@
       "action": "终端正常时打开既有SFTP/转发/监控，然后关闭目标client。",
       "expected": "借用者同代次失效，不重建Direct；释放顺序正确。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
-      "evidence": [],
+      "result": "PASS",
+      "evidence": [
+        "evidence/R24.md"
+      ],
       "inherited_from": null
     },
     {
@@ -1728,9 +1733,11 @@
       "action": "从主机文件入口在 Direct/SOCKS/Jump 下浏览、预览超限文件、上传/下载；中途取消、改变连接代次、断线及覆盖结果未知。",
       "expected": "只借用同目标/代次的已验证 client；预览资源有界，取消与中断明确；不另起 Direct，不自动覆盖/重传，不自动上传剪贴板内容。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R24.md"
+      ]
     },
     {
       "id": "AIC01",
