@@ -851,6 +851,12 @@ const englishTranslations = <String, String>{
   '这个标签的 SSH 连接已断开，不能在这里开新转发。重新连接后，从新连接打开端口转发。':
       'This tab’s SSH connection is gone, so no new forward can start here. Reconnect, then open port forwarding from the new connection.',
   '已停止': 'Stopped',
+  '这个标签的 SSH 连接已断开，读不到性能数据。重新连接后，从新连接打开性能监控。':
+      'This tab’s SSH connection is gone, so no performance data can be read. Reconnect, then open monitoring from the new connection.',
+  '这个标签的 SSH 连接已断开：下面是断开前最后一次读到的数据，不再刷新。重新连接后，从新连接打开性能监控。':
+      'This tab’s SSH connection is gone: below is the last data read before it dropped, and it no longer refreshes. Reconnect, then open monitoring from the new connection.',
+  '这个标签的 SSH 连接已断开：这里的操作都不会执行。重新连接后，从新连接打开系统管理。':
+      'This tab’s SSH connection is gone: nothing here will run. Reconnect, then open system management from the new connection.',
   '从列表里去掉': 'Remove from the list',
   '标签已关闭，转发已停止': 'The tab was closed, so the forward stopped',
   'SSH 连接断开了，转发已停止；不会自动重开':
@@ -2284,6 +2290,16 @@ const englishReplacements = <(String, String)>[
     ': the request was sent, then the connection dropped, so whether the server did it is unknown. Nothing is retried automatically; reconnect and check before deciding.'
   ),
   ('」→「', '” → “'),
+  // 系统管理里会改动服务器的命令（system_management_service.dart 的 _changing）。放在「删除「」前面。
+  ('进程信号「', 'Signal process “'),
+  ('调整优先级「', 'Change priority of “'),
+  ('服务操作「', 'Service action “'),
+  ('保存 Caddy 站点「', 'Save Caddy site “'),
+  ('删除 Caddy 站点「', 'Delete Caddy site “'),
+  ('Compose 操作「', 'Compose action “'),
+  ('容器操作「', 'Container action “'),
+  ('删除镜像「', 'Remove image “'),
+  ('拉取镜像「', 'Pull image “'),
   ('传输中断：连接断了，「', 'Transfer interrupted: the connection dropped. “'),
   ('」没有动过。已传的部分留在「', '” was not changed. What was already sent is kept in “'),
   (

@@ -51,6 +51,16 @@ class SshLease {
     return SshLease._(session, client);
   }
 
+  /// 同一个借用者对同一个会话只借一次，存在 [cache] 里。每次借都会在标签上登记一个释放钩子，
+  /// 按命令借的话，每 3 秒采样一次的监控会把钩子越攒越多。会话对象就是一代连接，它断了也不会再连上，
+  /// 所以借用失效以后重新借只会得到 [ConnectionGone]。
+  static SshLease reuse(
+      Expando<SshLease> cache, ActiveTerminalSession session) {
+    final cached = cache[session];
+    if (cached != null && cached.alive) return cached;
+    return cache[session] = SshLease.of(session);
+  }
+
   final ActiveTerminalSession session;
   final SSHClient client;
   final _lost = Completer<void>();

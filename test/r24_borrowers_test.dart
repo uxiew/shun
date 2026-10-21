@@ -1,13 +1,22 @@
 import 'dart:async';
-import 'dart:io';
+import 'dart:io' hide ProcessSignal;
 import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shun/application/port_forward_controller.dart';
+import 'package:shun/application/session_controller.dart';
+import 'package:shun/application/vault_controller.dart';
+import 'package:shun/infrastructure/ssh/server_monitor_service.dart';
+import 'package:shun/infrastructure/ssh/system_management_service.dart';
+import 'package:shun/presentation/screens/terminal_screen.dart';
+import 'package:shun/presentation/widgets/server_monitor_sheet.dart';
+import 'package:shun/presentation/widgets/system_management/system_management_sheet.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/presentation/widgets/port_forward_sheet.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
@@ -180,6 +189,7 @@ void main() {
   transferDialogs();
   previewAndSave();
   portForwards(session);
+  monitorAndSystem(session);
 }
 
 void portForwards(
@@ -313,6 +323,181 @@ void portForwards(
       expect(find.textContaining('box'), findsWidgets);
     });
   });
+}
+
+void monitorAndSystem(
+    ActiveTerminalSession Function({List<SSHClient> clients}) session) {
+  group('监控、系统管理只借这一代连接（REG01 / NET11）', () {
+    late _QuietSocket socket;
+    late ActiveTerminalSession tab;
+
+    setUp(() {
+      socket = _QuietSocket();
+      tab = session(clients: [SSHClient(socket, username: 'alice')]);
+    });
+
+    tearDown(() => tab.abort());
+
+    test('SshLease.reuse：连着时一直是同一个借用；断了以后报 ConnectionGone，不换新连接', () async {
+      final cache = Expando<SshLease>();
+      final first = SshLease.reuse(cache, tab);
+      expect(identical(SshLease.reuse(cache, tab), first), isTrue,
+          reason: '每 3 秒采样一次也不在标签上越攒越多释放钩子');
+      socket.drop();
+      await first.lost.timeout(const Duration(seconds: 2));
+      expect(() => SshLease.reuse(cache, tab), throwsA(isA<ConnectionGone>()));
+    });
+
+    test('监控：采样等回复时连接断了，采样器马上停下并通知面板，不再每 3 秒重试', () async {
+      final monitor = SessionMonitor(tab);
+      var notified = 0;
+      monitor.addListener(() => notified++);
+      monitor.start();
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(monitor.polling, isTrue, reason: '假连接不回复，采样一直在等');
+      socket.drop();
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(monitor.stopped, isTrue);
+      expect(monitor.polling, isFalse);
+      expect(notified, greaterThan(0));
+      monitor.dispose();
+    });
+
+    test('监控：断开的标签不采样，直接停', () {
+      tab.connected = false;
+      final monitor = SessionMonitor(tab)..start();
+      expect(monitor.stopped, isTrue);
+      expect(monitor.polling, isFalse);
+      // 停了就不该再留每 3 秒一次的定时器（以前先采样后建定时器，停了又开）。
+      monitor.start();
+      expect(monitor.stopped, isTrue);
+      monitor.dispose();
+    });
+
+    test('系统管理：会改动服务器的命令发出后断了，报「结果未知」并写明是哪一步', () async {
+      final service = SystemManagementService();
+      final signal = service.signalProcess(tab, 4242, ProcessSignal.term);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      socket.drop();
+      await expectLater(
+          signal.timeout(const Duration(seconds: 2)),
+          throwsA(isA<OutcomeUnknown>()
+              .having((e) => e.action, 'action', '进程信号「4242 TERM」')));
+    });
+
+    test('系统管理：只读的列表断了报「已断开」；断了以后再点改动的操作，根本不发', () async {
+      final service = SystemManagementService();
+      final listing = service.listProcesses(tab);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      socket.drop();
+      await expectLater(listing.timeout(const Duration(seconds: 2)),
+          throwsA(isA<ConnectionGone>()));
+      await expectLater(service.signalProcess(tab, 4242, ProcessSignal.kill),
+          throwsA(isA<ConnectionGone>()),
+          reason: 'ConnectionGone = 没执行；OutcomeUnknown 只给发出去以后断的');
+    });
+  });
+
+  group('断开以后的面板和入口（停止条件：不留点了没用的按钮）', () {
+    testWidgets('监控面板：断开的标签写明原因，刷新点不了', (tester) async {
+      final tab = session()..connected = false;
+      await tester.pumpWidget(
+          MaterialApp(home: Scaffold(body: ServerMonitorSheet(session: tab))));
+      await tester.pump();
+      expect(
+          find.byKey(const ValueKey('monitor-disconnected')), findsOneWidget);
+      final refresh = tester
+          .widget<IconButton>(find.widgetWithIcon(IconButton, Icons.refresh));
+      expect(refresh.onPressed, isNull);
+    });
+
+    testWidgets('系统管理面板：断开的标签写明原因，整页点不动', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final repository = await VaultRepository.open();
+      final tab = session()..connected = false;
+      await tester.pumpWidget(ProviderScope(
+        overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
+        child: MaterialApp(
+          home: Scaffold(
+            body: SystemManagementSheet(
+              session: tab,
+              snippets: const [],
+              onOpenTerminal: (_, __) async {},
+              onOpenSftp: (_) {},
+            ),
+          ),
+        ),
+      ));
+      await tester.pump();
+      expect(find.byKey(const ValueKey('system-management-disconnected')),
+          findsOneWidget);
+      final absorb = tester.widget<AbsorbPointer>(find
+          .ancestor(
+              of: find.byType(TabBarView), matching: find.byType(AbsorbPointer))
+          .first);
+      expect(absorb.absorbing, isTrue);
+      await tester.pumpWidget(const SizedBox());
+    });
+
+    testWidgets('终端快捷栏：SSH 标签断开后「端口转发」「系统管理」变灰，连着时能点', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final repository = await VaultRepository.open();
+      final messenger = tester.binding.defaultBinaryMessenger;
+      const pip = MethodChannel('top.xdwa.shun/picture_in_picture');
+      messenger.setMockMethodCallHandler(pip, (call) async => null);
+      addTearDown(() => messenger.setMockMethodCallHandler(pip, null));
+      tester.view.physicalSize = const Size(1080, 2400);
+      tester.view.devicePixelRatio = 2.625;
+      addTearDown(tester.view.reset);
+      // 同 terminal_connection_banner_test：让 flterm 的空闲任务不等动画。
+      final strategy = tester.binding.schedulingStrategy;
+      tester.binding.schedulingStrategy = (
+              {required int priority, required SchedulerBinding scheduler}) =>
+          true;
+      addTearDown(() => tester.binding.schedulingStrategy = strategy);
+
+      final tab =
+          session(clients: [SSHClient(_QuietSocket(), username: 'alice')]);
+      late _FixedSessions controller;
+      final container = ProviderContainer(overrides: [
+        vaultRepositoryProvider.overrideWithValue(repository),
+        sessionControllerProvider.overrideWith((ref) => controller =
+            _FixedSessions(ref.read(vaultControllerProvider.notifier), ref,
+                SessionState(sessions: [tab]))),
+      ]);
+      addTearDown(container.dispose);
+      await tester.pumpWidget(UncontrolledProviderScope(
+        container: container,
+        child: const MaterialApp(home: Scaffold(body: TerminalScreen())),
+      ));
+      await tester.pump(const Duration(milliseconds: 500));
+      IconButton action(String name) => tester
+          .widget<IconButton>(find.byKey(ValueKey('terminal-action-$name')));
+      expect(action('port-forward').onPressed, isNotNull);
+      expect(action('system-management').onPressed, isNotNull);
+
+      tab.connected = false;
+      controller.publish(SessionState(sessions: [tab]));
+      await tester.pump(const Duration(milliseconds: 500));
+      expect(action('port-forward').onPressed, isNull);
+      expect(action('system-management').onPressed, isNull);
+
+      tab.abort();
+      await tester.pumpWidget(const SizedBox());
+    });
+  });
+}
+
+class _FixedSessions extends SessionController {
+  _FixedSessions(
+    VaultController vaultController,
+    Ref ref,
+    SessionState initialState,
+  ) : super(SshService(), vaultController, ref) {
+    state = initialState;
+  }
+
+  void publish(SessionState value) => state = value;
 }
 
 class _SeededForwards extends PortForwardController {

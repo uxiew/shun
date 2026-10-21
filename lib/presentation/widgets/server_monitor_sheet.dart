@@ -42,6 +42,20 @@ class _ServerMonitorSheetState extends State<ServerMonitorSheet> {
   }
 
   Future<void> _poll() => monitor.refresh();
+
+  /// 连接断了时顶上那一句。有旧数据就写明是几点读的，免得被当成现在的。
+  String _offlineText(ServerStats? value) {
+    if (value == null) {
+      return localized('这个标签的 SSH 连接已断开，读不到性能数据。重新连接后，从新连接打开性能监控。');
+    }
+    final note =
+        localized('这个标签的 SSH 连接已断开：下面是断开前最后一次读到的数据，不再刷新。重新连接后，从新连接打开性能监控。');
+    final at = value.sampledAt;
+    return at == null
+        ? note
+        : '$note (${at.toLocal().toString().substring(11, 19)})';
+  }
+
   void _toggle(String key) => setState(() {
         if (!expanded.remove(key)) expanded.add(key);
       });
@@ -50,6 +64,8 @@ class _ServerMonitorSheetState extends State<ServerMonitorSheet> {
   Widget build(BuildContext context) {
     final value = stats;
     final system = value?.system ?? widget.session.systemInfo;
+    // 连接断了（采样器随之停下）：不再刷新，写明下面是断开前的数。恢复出来的新连接要从新连接重新打开。
+    final live = widget.session.connected && !monitor.stopped;
     return DraggableScrollableSheet(
       expand: false,
       initialChildSize: 0.82,
@@ -92,7 +108,7 @@ class _ServerMonitorSheetState extends State<ServerMonitorSheet> {
                   ),
                   IconButton(
                     tooltip: localized('刷新'),
-                    onPressed: polling ? null : _poll,
+                    onPressed: polling || !live ? null : _poll,
                     icon: const Icon(Icons.refresh),
                   ),
                   IconButton(
@@ -104,11 +120,24 @@ class _ServerMonitorSheetState extends State<ServerMonitorSheet> {
               ),
             ),
           ),
-          if (value == null && error == null)
+          if (!live)
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+                child: Text(
+                  key: const ValueKey('monitor-disconnected'),
+                  _offlineText(value),
+                  style: TextStyle(color: Theme.of(context).colorScheme.error),
+                ),
+              ),
+            ),
+          if (value == null && error == null && live)
             const SliverFillRemaining(
               hasScrollBody: false,
               child: Center(child: CircularProgressIndicator()),
             )
+          else if (value == null && !live)
+            const SliverToBoxAdapter(child: SizedBox.shrink())
           else if (value == null)
             SliverFillRemaining(
               hasScrollBody: false,
@@ -122,7 +151,9 @@ class _ServerMonitorSheetState extends State<ServerMonitorSheet> {
                       const SizedBox(height: 12),
                       LText('无法读取性能数据\n$error', textAlign: TextAlign.center),
                       const SizedBox(height: 12),
-                      FilledButton(onPressed: _poll, child: const LText('重试')),
+                      FilledButton(
+                          onPressed: live ? _poll : null,
+                          child: const LText('重试')),
                     ],
                   ),
                 ),

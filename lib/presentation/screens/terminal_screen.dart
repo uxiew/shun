@@ -537,7 +537,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                   onAi: ref.watch(forkFeaturesProvider).ai
                       ? () => _openAi(visibleSession)
                       : null,
-                  onPortForward: visibleSession.isSsh
+                  // 断开的标签不给这两个入口（按钮变灰）：它们只借这一代连接，点开也做不了事（R24）。
+                  onPortForward: visibleSession.isSsh &&
+                          visibleSession.connected
                       ? () => showModalBottomSheet<void>(
                             context: context,
                             isScrollControlled: true,
@@ -545,7 +547,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                 PortForwardSheet(session: visibleSession),
                           )
                       : null,
-                  onSystemManagement: visibleSession.isSsh
+                  onSystemManagement: visibleSession.isSsh &&
+                          visibleSession.connected
                       ? () => showModalBottomSheet<void>(
                             context: context,
                             useSafeArea: true,

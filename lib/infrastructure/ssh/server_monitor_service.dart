@@ -5,9 +5,13 @@ import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/foundation.dart';
 
 import '../../domain/models/server_stats.dart';
+import 'ssh_lease.dart';
 import 'ssh_service.dart';
 
 /// One sampler per SSH session; opening a sheet only subscribes to cached data.
+///
+/// 会话对象就是一代连接：断线后这个采样器停掉（[stop]），恢复出来的新连接有自己的采样器，
+/// 不接着这里的历史画（R24）。
 class SessionMonitor extends ChangeNotifier {
   SessionMonitor(this.session, {ServerMonitorService? service})
       : service = service ?? ServerMonitorService();
@@ -17,13 +21,18 @@ class SessionMonitor extends ChangeNotifier {
   Object? error;
   bool polling = false;
   bool _stopped = false;
+  bool _disposed = false;
   Timer? _timer;
   final List<ServerStats> history = [];
 
+  /// 停了（连接断了、标签关了）：面板上的数字是停下前最后一次读到的。
+  bool get stopped => _stopped;
+
   void start() {
     if (_timer != null || _stopped) return;
-    unawaited(refresh());
+    // 先建定时器再采样：断开的标签上 refresh 会当场 stop()，定时器要是建在后面就停不掉了。
     _timer = Timer.periodic(const Duration(seconds: 3), (_) => refresh());
+    unawaited(refresh());
   }
 
   Future<void> refresh() async {
@@ -41,6 +50,9 @@ class SessionMonitor extends ChangeNotifier {
       error = null;
       history.add(value);
       if (history.length > 60) history.removeAt(0);
+    } on ConnectionGone {
+      // 采样路上连接断了：这一代不会再连上，继续每 3 秒试一次只是白跑。
+      stop();
     } catch (e) {
       if (!_stopped) error = e;
     } finally {
@@ -50,9 +62,12 @@ class SessionMonitor extends ChangeNotifier {
   }
 
   void stop() {
+    final wasRunning = !_stopped;
     _stopped = true;
     _timer?.cancel();
     _timer = null;
+    // 开着的监控面板要马上改成「已断开」，不能还像在刷新一样摆着旧数字。
+    if (wasRunning && !_disposed) notifyListeners();
   }
 
   /// App 退到后台：先不轮询（R22）。基座在后台也每 3 秒开一个 exec 通道读 /proc，
@@ -66,6 +81,7 @@ class SessionMonitor extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
     stop();
     super.dispose();
   }
@@ -79,18 +95,21 @@ class ServerMonitorService {
   DateTime? _previousNetworkAt;
   final _previousCores = <String, List<int>>{};
 
+  /// 只读：只跑读 /proc 这类命令。借的连接断了报 [ConnectionGone]，不重连。
+  final _leases = Expando<SshLease>();
+
   Future<ServerSystemInfo> detect(ActiveTerminalSession session) async {
-    final client = session.sshClient;
-    if (client == null) throw UnsupportedError('性能监控仅支持 SSH 连接');
-    final raw = await _execute(client, _systemCommand);
+    if (!session.isSsh) throw UnsupportedError('性能监控仅支持 SSH 连接');
+    final raw = await SshLease.reuse(_leases, session)
+        .read((client) => _execute(client, _systemCommand));
     final values = _keyValues(raw);
     return _system(values);
   }
 
   Future<ServerStats> poll(ActiveTerminalSession session) async {
-    final client = session.sshClient;
-    if (client == null) throw UnsupportedError('性能监控仅支持 SSH 连接');
-    final raw = await _execute(client, _statsCommand);
+    if (!session.isSsh) throw UnsupportedError('性能监控仅支持 SSH 连接');
+    final raw = await SshLease.reuse(_leases, session)
+        .read((client) => _execute(client, _statsCommand));
     return parse(raw);
   }
 

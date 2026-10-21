@@ -2,7 +2,10 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:dartssh2/dartssh2.dart';
+
 import '../../domain/models/system_management.dart';
+import 'ssh_lease.dart';
 import 'ssh_service.dart';
 
 class RemoteCommandException implements Exception {
@@ -138,7 +141,8 @@ class SystemManagementService {
       ProcessSignal.term => 'TERM',
       ProcessSignal.kill => 'KILL',
     };
-    await _executeSession(session, 'kill -s $value $pid');
+    await _changing('进程信号「$pid $value」',
+        () => _executeSession(session, 'kill -s $value $pid'));
   }
 
   Future<void> reniceProcess(
@@ -150,7 +154,8 @@ class SystemManagementService {
     if (priority < -20 || priority > 19) {
       throw const FormatException('调度优先级必须在 -20 到 19 之间');
     }
-    await _executeSession(session, 'renice $priority -p $pid');
+    await _changing('调整优先级「$pid → $priority」',
+        () => _executeSession(session, 'renice $priority -p $pid'));
   }
 
   Future<ServiceManager> detectServiceManager(
@@ -305,9 +310,12 @@ class SystemManagementService {
     RemoteService service,
     RemoteServiceAction action,
   ) async {
-    await _executeServiceCommand(
-      session,
-      serviceActionCommand(service, action),
+    await _changing(
+      '服务操作「${service.name} ${action.name}」',
+      () => _executeServiceCommand(
+        session,
+        serviceActionCommand(service, action),
+      ),
     );
   }
 
@@ -480,7 +488,10 @@ class SystemManagementService {
     CaddyStatus status,
     CaddySite site,
   ) async {
-    await _executeCaddyCommand(session, saveCaddySiteCommand(status, site));
+    await _changing(
+      '保存 Caddy 站点「${site.address}」',
+      () => _executeCaddyCommand(session, saveCaddySiteCommand(status, site)),
+    );
   }
 
   Future<void> deleteCaddySite(
@@ -488,7 +499,10 @@ class SystemManagementService {
     CaddyStatus status,
     CaddySite site,
   ) async {
-    await _executeCaddyCommand(session, deleteCaddySiteCommand(status, site));
+    await _changing(
+      '删除 Caddy 站点「${site.address}」',
+      () => _executeCaddyCommand(session, deleteCaddySiteCommand(status, site)),
+    );
   }
 
   /// 见 [setServiceSudoPassword]。
@@ -729,6 +743,16 @@ class SystemManagementService {
   ) async {
     _validateComposeProject(project);
     final backend = await _dockerComposeBackend(session);
+    await _changing('Compose 操作「${project.name} ${action.name}」',
+        () => _composeAction(session, project, action, backend));
+  }
+
+  Future<void> _composeAction(
+    ActiveTerminalSession session,
+    DockerComposeProject project,
+    DockerComposeAction action,
+    _DockerComposeBackend backend,
+  ) async {
     final base = _composeProjectArgs(project);
     final timeout = switch (action) {
       DockerComposeAction.pull ||
@@ -811,7 +835,7 @@ class SystemManagementService {
       DockerContainerAction.kill => ['kill', id],
       DockerContainerAction.remove => ['rm', '-f', id],
     };
-    await _docker(session, args);
+    await _changing('容器操作「$id ${action.name}」', () => _docker(session, args));
   }
 
   Future<void> removeDockerImage(
@@ -819,7 +843,7 @@ class SystemManagementService {
     String id,
   ) async {
     _validateDockerId(id.replaceFirst('sha256:', ''));
-    await _docker(session, ['rmi', id]);
+    await _changing('删除镜像「$id」', () => _docker(session, ['rmi', id]));
   }
 
   Future<void> pullDockerImage(
@@ -830,8 +854,10 @@ class SystemManagementService {
     if (value.isEmpty || value.length > 255 || value.contains('\n')) {
       throw const FormatException('请输入有效的镜像名称');
     }
-    await _docker(session, ['pull', value],
-        timeout: const Duration(minutes: 5));
+    await _changing(
+        '拉取镜像「$value」',
+        () => _docker(session, ['pull', value],
+            timeout: const Duration(minutes: 5)));
   }
 
   /// 见 [setServiceSudoPassword]。Compose 也算 Docker。
@@ -1229,34 +1255,49 @@ class SystemManagementService {
         acceptedExitCodes,
       );
     }
-    final client = session.sshClient;
-    if (client == null) {
+    if (!session.isSsh) {
       throw UnsupportedError('系统管理仅支持 SSH 连接');
     }
-    final process = await client.execute(command);
-    if (stdinText != null) {
-      process.stdin.add(Uint8List.fromList(utf8.encode(stdinText)));
-      await process.stdin.close();
+    Future<_RemoteResult> run(SSHClient client) async {
+      final process = await client.execute(command);
+      if (stdinText != null) {
+        process.stdin.add(Uint8List.fromList(utf8.encode(stdinText)));
+        await process.stdin.close();
+      }
+      try {
+        final values = await Future.wait<String>([
+          utf8.decoder.bind(process.stdout).join(),
+          utf8.decoder.bind(process.stderr).join(),
+        ]).timeout(timeout);
+        await process.done.timeout(const Duration(seconds: 2));
+        return _checkExit(
+          _RemoteResult(
+            stdout: values[0],
+            stderr: values[1],
+            exitCode: process.exitCode ?? 0,
+          ),
+          acceptedExitCodes,
+        );
+      } on TimeoutException {
+        process.close();
+        throw TimeoutException('远程系统管理命令执行超时');
+      }
     }
-    try {
-      final values = await Future.wait<String>([
-        utf8.decoder.bind(process.stdout).join(),
-        utf8.decoder.bind(process.stderr).join(),
-      ]).timeout(timeout);
-      await process.done.timeout(const Duration(seconds: 2));
-      return _checkExit(
-        _RemoteResult(
-          stdout: values[0],
-          stderr: values[1],
-          exitCode: process.exitCode ?? 0,
-        ),
-        acceptedExitCodes,
-      );
-    } on TimeoutException {
-      process.close();
-      throw TimeoutException('远程系统管理命令执行超时');
-    }
+
+    // 只用借来的这一代连接（R24）：断了不重连；会改动服务器的命令发出后断了报「结果未知」，不重发。
+    final lease = SshLease.reuse(_leases, session);
+    final action = Zone.current[_changingKey] as String?;
+    return action == null ? lease.read(run) : lease.write(action, run);
   }
+
+  final _leases = Expando<SshLease>();
+  static const _changingKey = #shunChangingAction;
+
+  /// 会改动服务器的命令（发信号、停止、重启、删除、拉镜像……）在 [action] 里跑：连接在命令发出以后断了，
+  /// 报「结果未知」（[OutcomeUnknown]）而不是「没执行」，也不重试。[_executeSession] 从 Zone 里读这个标记，
+  /// 免得给每一层 sudo / Docker 辅助函数都加一个参数；列表、探测这类只读命令不在里面跑。
+  Future<T> _changing<T>(String action, Future<T> Function() work) =>
+      runZoned(work, zoneValues: {_changingKey: action});
 
   static _RemoteResult _checkExit(
     _RemoteResult result,
