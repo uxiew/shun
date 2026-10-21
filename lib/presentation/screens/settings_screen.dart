@@ -118,10 +118,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
 
   @override
   void dispose() {
-    if (customBackgroundPath.isNotEmpty &&
-        customBackgroundPath != _persistedBackgroundPath) {
-      unawaited(_backgroundImageService.remove(customBackgroundPath));
-    }
     _updateCheckService?.close();
     endpoint.dispose();
     username.dispose();
@@ -154,20 +150,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     s3AllowInsecure = sync?.allowInsecure ?? false;
     masterPassword.text = await repository.readMasterPassword() ?? '';
     autoSyncEnabled = settings.autoSyncEnabled;
-    themeMode = settings.themeMode;
-    uiThemeId = settings.uiThemeId;
-    terminalFontSize = settings.terminalFontSize;
-    sftpSyntaxHighlight = settings.sftpSyntaxHighlight;
     terminalSecureKeyboard = settings.terminalSecureKeyboard;
     terminalFullscreenSwipe = settings.terminalFullscreenSwipe;
     allowSensitiveScreenshots = settings.allowSensitiveScreenshots;
-    customBackgroundEnabled = settings.customBackgroundEnabled;
-    customBackgroundPath = settings.customBackgroundPath;
-    customBackgroundOpacity = settings.customBackgroundOpacity;
-    customBackgroundAlignment = settings.customBackgroundAlignment;
-    customBackgroundScope = settings.customBackgroundScope;
-    _persistedBackgroundPath = settings.customBackgroundPath;
-    language = settings.language;
+    _showSaved(settings);
     _githubUser =
         sync?.type == SyncProviderType.githubGist ? sync?.username : null;
     if (mounted) {
@@ -200,7 +186,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           body: ListView(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
             children: [
-              _header('外观与终端', '移动端偏好不会覆盖桌面端专属布局字段'),
+              _header('外观', '改了马上生效'),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(14),
@@ -225,8 +211,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ),
                         ],
                         selected: {themeMode},
-                        onSelectionChanged: (value) =>
-                            setState(() => themeMode = value.first),
+                        onSelectionChanged: (value) {
+                          setState(() => themeMode = value.first);
+                          _saveSetting(
+                            (s) => s.copyWith(themeMode: value.first),
+                          );
+                        },
                       ),
                       const SizedBox(height: 12),
                       Builder(
@@ -271,9 +261,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             await _pickBackgroundImage();
                             return;
                           }
-                          if (mounted) {
-                            setState(() => customBackgroundEnabled = value);
-                          }
+                          if (!mounted) return;
+                          setState(() => customBackgroundEnabled = value);
+                          await _saveSetting(
+                            (s) => s.copyWith(customBackgroundEnabled: value),
+                          );
                         },
                       ),
                       if (customBackgroundEnabled) ...[
@@ -293,9 +285,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             ),
                           ],
                           selected: {customBackgroundScope},
-                          onSelectionChanged: (value) => setState(
-                            () => customBackgroundScope = value.first,
-                          ),
+                          onSelectionChanged: (value) {
+                            setState(() => customBackgroundScope = value.first);
+                            _saveSetting(
+                              (s) => s.copyWith(
+                                customBackgroundScope: value.first,
+                              ),
+                            );
+                          },
                         ),
                         const SizedBox(height: 6),
                         Align(
@@ -356,6 +353,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                                 onChanged: (value) => setState(
                                   () => customBackgroundOpacity = value,
                                 ),
+                                // 拖动中只改预览，松手才存：拖一下会触发几十次 onChanged。
+                                onChangeEnd: (value) => _saveSetting(
+                                  (s) => s.copyWith(
+                                    customBackgroundOpacity: value,
+                                  ),
+                                ),
                               ),
                             ),
                             SizedBox(
@@ -384,20 +387,63 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               ),
                           ],
                           onChanged: (value) {
-                            if (value != null) {
-                              setState(
-                                () => customBackgroundAlignment = value,
-                              );
-                            }
+                            if (value == null) return;
+                            setState(() => customBackgroundAlignment = value);
+                            _saveSetting(
+                              (s) => s.copyWith(
+                                customBackgroundAlignment: value,
+                              ),
+                            );
                           },
                         ),
                         const SizedBox(height: 8),
                       ],
+                      const SizedBox(height: 8),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: LText(
+                          '界面语言',
+                          style: Theme.of(context).textTheme.bodySmall,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      SegmentedButton<String>(
+                        key: const ValueKey('settings-language'),
+                        segments: const [
+                          ButtonSegment(
+                            value: 'zh-CN',
+                            label: LText('中文'),
+                          ),
+                          ButtonSegment(
+                            value: 'en',
+                            label: LText('英文'),
+                          ),
+                        ],
+                        selected: {language},
+                        onSelectionChanged: (value) {
+                          setState(() => language = value.first);
+                          _saveSetting(
+                            (s) => s.copyWith(language: value.first),
+                          );
+                        },
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              _header('终端', null),
+              Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(14),
+                  child: Column(
+                    children: [
                       Row(
                         children: [
                           const LText('终端字号'),
                           Expanded(
                             child: Slider(
+                              key:
+                                  const ValueKey('settings-terminal-font-size'),
                               value: terminalFontSize,
                               min: minTerminalFontSize,
                               max: maxTerminalFontSize,
@@ -405,10 +451,42 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               label: terminalFontSize.toStringAsFixed(0),
                               onChanged: (value) =>
                                   setState(() => terminalFontSize = value),
+                              // 松手才存：每存一次开着的终端都要按新字号重排、给服务器发一次尺寸变化。
+                              onChangeEnd: (value) => _saveSetting(
+                                (s) => s.copyWith(terminalFontSize: value),
+                              ),
                             ),
                           ),
                           LText(terminalFontSize.toStringAsFixed(0)),
                         ],
+                      ),
+                      // 用终端的等宽字体和字号示意一行，拖动时跟着变，不用切到终端页看。
+                      Container(
+                        key: const ValueKey('settings-terminal-font-preview'),
+                        width: double.infinity,
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 10,
+                          vertical: 6,
+                        ),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          border: Border.all(
+                            color: Theme.of(context).colorScheme.outline,
+                          ),
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          'user@server:~\$ ls -la',
+                          maxLines: 1,
+                          overflow: TextOverflow.clip,
+                          softWrap: false,
+                          // 终端里的字不跟系统字体大小变（使用手册第 8 节），示意也不变，不然看着比实际大。
+                          textScaler: TextScaler.noScaling,
+                          style: TextStyle(
+                            fontFamily: 'monospace',
+                            fontSize: terminalFontSize,
+                          ),
+                        ),
                       ),
                       SwitchListTile(
                         contentPadding: EdgeInsets.zero,
@@ -436,39 +514,132 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ),
                       const SizedBox(height: 8),
                       const TerminalEngineStatusTile(),
-                      SwitchListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: const LText('SFTP 代码高亮'),
-                        subtitle: const LText('编辑文件时显示语法颜色'),
-                        value: sftpSyntaxHighlight,
-                        onChanged: (value) =>
-                            setState(() => sftpSyntaxHighlight = value),
-                      ),
-                      const SizedBox(height: 8),
-                      SegmentedButton<String>(
-                        segments: const [
-                          ButtonSegment(
-                            value: 'zh-CN',
-                            label: LText('中文'),
-                          ),
-                          ButtonSegment(
-                            value: 'en',
-                            label: LText('英文'),
-                          ),
-                        ],
-                        selected: {language},
-                        onSelectionChanged: (value) =>
-                            setState(() => language = value.first),
-                      ),
-                      SizedBox(
-                        width: double.infinity,
-                        child: OutlinedButton(
-                          onPressed: _saveAppearance,
-                          child: const LText('保存外观设置'),
-                        ),
-                      ),
                     ],
                   ),
+                ),
+              ),
+              _header('文件', null),
+              Card(
+                child: SwitchListTile(
+                  key: const ValueKey('settings-sftp-highlight'),
+                  title: const LText('SFTP 代码高亮'),
+                  subtitle: const LText('编辑文件时显示语法颜色'),
+                  value: sftpSyntaxHighlight,
+                  onChanged: (value) {
+                    setState(() => sftpSyntaxHighlight = value);
+                    _saveSetting(
+                      (s) => s.copyWith(sftpSyntaxHighlight: value),
+                    );
+                  },
+                ),
+              ),
+              _header('连接', '代理、密钥、设备目录和每次连接的记录'),
+              Card(
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.public),
+                      title: const LText('代理管理'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                              builder: (_) => const ProxyProfilesPage())),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.key_outlined),
+                      title: const LText('SSH 密钥库'),
+                      subtitle: const LText('导入私钥与口令'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => showModalBottomSheet<void>(
+                        context: context,
+                        isScrollControlled: true,
+                        useSafeArea: true,
+                        builder: (_) => const KeychainSheet(),
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      key: const ValueKey('settings-tailscale-catalog'),
+                      leading: const Icon(Icons.lan_outlined),
+                      title: const LText('Tailscale 设备目录'),
+                      subtitle: const LText('只读设备列表；导入不会连接，也不会启动 VPN'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const TailscaleCatalogScreen(),
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      key: const ValueKey('settings-connection-log'),
+                      leading: const Icon(Icons.history),
+                      title: const LText('连接记录'),
+                      subtitle: const LText(
+                        '各主机最近 7 天的连接阶段、用时和失败位置；只存在这台手机上，不含地址和凭据。在这里导出、清除',
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const ConnectionLogScreen(),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              _header('安全', null),
+              Card(
+                child: Column(
+                  children: [
+                    const ListTile(
+                      leading: Icon(Icons.security),
+                      title: LText('系统安全存储'),
+                      subtitle: LText('Android Keystore / iOS Keychain'),
+                    ),
+                    const Divider(height: 1),
+                    const ListTile(
+                      leading: Icon(Icons.fingerprint),
+                      title: LText('服务器身份验证'),
+                      subtitle: LText('每次首次连接显示 SHA-256 主机指纹'),
+                    ),
+                    const Divider(height: 1),
+                    SwitchListTile(
+                      key: const ValueKey(
+                          'settings-allow-sensitive-screenshots'),
+                      secondary: const Icon(Icons.screenshot_outlined),
+                      title: const LText('敏感页面允许截屏'),
+                      subtitle: const LText(
+                        '默认关：编辑连接、编辑代理这类带密码的页面，和输入密码、口令、token 的对话框，截屏和录屏都是黑的，最近任务里也看不到内容。终端页不受影响。只对 Android 有效',
+                      ),
+                      value: allowSensitiveScreenshots,
+                      onChanged: _savingAllowSensitiveScreenshots
+                          ? null
+                          : _setAllowSensitiveScreenshots,
+                    ),
+                  ],
+                ),
+              ),
+              _header('数据', '导入导出会保留桌面端未知字段和插件数据'),
+              Card(
+                child: Column(
+                  children: [
+                    ListTile(
+                      leading: const Icon(Icons.file_upload_outlined),
+                      title: const LText('导入 Netcatty JSON'),
+                      subtitle: const LText('支持桌面端解密后的保险库数据'),
+                      onTap: _import,
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      leading: const Icon(Icons.file_download_outlined),
+                      title: const LText('导出保险库 JSON'),
+                      subtitle: const LText('不含密码、私钥和代理口令；换手机导入后要重新填写'),
+                      onTap: _export,
+                    ),
+                  ],
                 ),
               ),
               if (features.cloudSync)
@@ -733,108 +904,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   trailing: const Icon(Icons.chevron_right),
                   onTap: _openAiProviders,
                 ),
-              _header('数据管理', '导入导出会保留桌面端未知字段和插件数据'),
-              Card(
-                child: Column(
-                  children: [
-                    ListTile(
-                      leading: const Icon(Icons.public),
-                      title: const LText('代理管理'),
-                      onTap: () => Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                              builder: (_) => const ProxyProfilesPage())),
-                    ),
-                    ListTile(
-                      leading: const Icon(Icons.key_outlined),
-                      title: const LText('SSH 密钥库'),
-                      subtitle: const LText('导入私钥与口令'),
-                      onTap: () => showModalBottomSheet<void>(
-                        context: context,
-                        isScrollControlled: true,
-                        useSafeArea: true,
-                        builder: (_) => const KeychainSheet(),
-                      ),
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.file_upload_outlined),
-                      title: const LText('导入 Netcatty JSON'),
-                      subtitle: const LText('支持桌面端解密后的保险库数据'),
-                      onTap: _import,
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      leading: const Icon(Icons.file_download_outlined),
-                      title: const LText('导出保险库 JSON'),
-                      subtitle: const LText('不含密码、私钥和代理口令；换手机导入后要重新填写'),
-                      onTap: _export,
-                    ),
-                  ],
-                ),
-              ),
-              _header('安全', null),
-              Card(
-                child: Column(
-                  children: [
-                    const ListTile(
-                      leading: Icon(Icons.security),
-                      title: LText('系统安全存储'),
-                      subtitle: LText('Android Keystore / iOS Keychain'),
-                    ),
-                    const Divider(height: 1),
-                    const ListTile(
-                      leading: Icon(Icons.fingerprint),
-                      title: LText('服务器身份验证'),
-                      subtitle: LText('每次首次连接显示 SHA-256 主机指纹'),
-                    ),
-                    const Divider(height: 1),
-                    SwitchListTile(
-                      key: const ValueKey(
-                          'settings-allow-sensitive-screenshots'),
-                      secondary: const Icon(Icons.screenshot_outlined),
-                      title: const LText('敏感页面允许截屏'),
-                      subtitle: const LText(
-                        '默认关：编辑连接、编辑代理这类带密码的页面，和输入密码、口令、token 的对话框，截屏和录屏都是黑的，最近任务里也看不到内容。终端页不受影响。只对 Android 有效',
-                      ),
-                      value: allowSensitiveScreenshots,
-                      onChanged: _savingAllowSensitiveScreenshots
-                          ? null
-                          : _setAllowSensitiveScreenshots,
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
-                      key: const ValueKey('settings-connection-log'),
-                      leading: const Icon(Icons.history),
-                      title: const LText('连接记录'),
-                      subtitle: const LText(
-                        '各主机最近 7 天的连接阶段、用时和失败位置；只存在这台手机上，不含地址和凭据。在这里导出、清除',
-                      ),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const ConnectionLogScreen(),
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              _header('设备目录', '从 Tailscale 读取设备列表，批量导入为主机'),
-              Card(
-                child: ListTile(
-                  key: const ValueKey('settings-tailscale-catalog'),
-                  leading: const Icon(Icons.lan_outlined),
-                  title: const LText('Tailscale 设备目录'),
-                  subtitle: const LText('只读设备列表；导入不会连接，也不会启动 VPN'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: () => Navigator.of(context).push(
-                    MaterialPageRoute<void>(
-                      builder: (_) => const TailscaleCatalogScreen(),
-                    ),
-                  ),
-                ),
-              ),
               if (Platform.isAndroid) ...[
                 _header('远程桌面', '交给手机上装的 UU 远程或 RustDesk 去控制电脑'),
                 Card(
@@ -1394,6 +1463,38 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     );
   }
 
+  /// 外观、终端字号、SFTP 高亮这几项照存盘的 [settings] 显示。
+  void _showSaved(AppSettings settings) {
+    themeMode = settings.themeMode;
+    uiThemeId = settings.uiThemeId;
+    terminalFontSize = settings.terminalFontSize;
+    sftpSyntaxHighlight = settings.sftpSyntaxHighlight;
+    customBackgroundEnabled = settings.customBackgroundEnabled;
+    customBackgroundPath = settings.customBackgroundPath;
+    customBackgroundOpacity = settings.customBackgroundOpacity;
+    customBackgroundAlignment = settings.customBackgroundAlignment;
+    customBackgroundScope = settings.customBackgroundScope;
+    _persistedBackgroundPath = settings.customBackgroundPath;
+    language = settings.language;
+  }
+
+  /// 设置一改就存（R25 起没有「保存外观设置」按钮：以前主题、字号要点它才生效，同一张卡里的
+  /// 安全键盘、滑动翻页却是一拨就存，改完主题不点按钮就白改）。没存上时界面退回存盘的样子、
+  /// 说一声，返回 false。
+  Future<bool> _saveSetting(AppSettings Function(AppSettings) change) async {
+    try {
+      await ref.read(settingsControllerProvider.notifier).edit(change);
+      return true;
+    } catch (error) {
+      if (!mounted) return false;
+      final saved = await ref.read(vaultRepositoryProvider).loadSettings();
+      if (!mounted) return false;
+      setState(() => _showSaved(saved));
+      _message('设置没存上：$error');
+      return false;
+    }
+  }
+
   Future<void> _pickBackgroundImage() async {
     try {
       final result = await FilePicker.platform.pickFiles(
@@ -1410,33 +1511,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         stream: selected.readStream,
         extension: selected.extension,
       );
-      if (customBackgroundPath.isNotEmpty &&
-          customBackgroundPath != _persistedBackgroundPath) {
-        await _backgroundImageService.remove(customBackgroundPath);
-      }
       if (!mounted) {
         await _backgroundImageService.remove(stored);
         return;
       }
+      final previous = _persistedBackgroundPath;
       setState(() {
         customBackgroundPath = stored;
         customBackgroundEnabled = true;
       });
+      final saved = await _saveSetting((s) => s.copyWith(
+            customBackgroundPath: stored,
+            customBackgroundEnabled: true,
+          ));
+      if (!saved) {
+        await _backgroundImageService.remove(stored);
+        return;
+      }
+      _persistedBackgroundPath = stored;
+      // 新图存上了再删旧图：先删的话存失败时设置里还指着一个没了的文件。
+      if (previous.isNotEmpty && previous != stored) {
+        await _backgroundImageService.remove(previous);
+      }
     } catch (error) {
       _message('选择背景图片失败：$error');
     }
   }
 
   Future<void> _removeBackgroundImage() async {
-    final staged = customBackgroundPath;
-    if (staged.isNotEmpty && staged != _persistedBackgroundPath) {
-      await _backgroundImageService.remove(staged);
-    }
-    if (!mounted) return;
+    final previous = _persistedBackgroundPath;
     setState(() {
       customBackgroundPath = '';
       customBackgroundEnabled = false;
     });
+    final saved = await _saveSetting((s) => s.copyWith(
+          customBackgroundPath: '',
+          customBackgroundEnabled: false,
+        ));
+    if (!saved) return;
+    _persistedBackgroundPath = '';
+    if (previous.isNotEmpty) await _backgroundImageService.remove(previous);
   }
 
   String _backgroundAlignmentLabel(String value) => switch (value) {
@@ -1450,32 +1564,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         'bottomRight' => '右下',
         _ => '居中',
       };
-
-  Future<void> _saveAppearance() async {
-    final current = ref.read(settingsControllerProvider);
-    await ref.read(settingsControllerProvider.notifier).update(
-          current.copyWith(
-            themeMode: themeMode,
-            uiThemeId: uiThemeId,
-            terminalFontSize: terminalFontSize,
-            sftpSyntaxHighlight: sftpSyntaxHighlight,
-            terminalSecureKeyboard: terminalSecureKeyboard,
-            customBackgroundEnabled: customBackgroundEnabled,
-            customBackgroundPath: customBackgroundPath,
-            customBackgroundOpacity: customBackgroundOpacity,
-            customBackgroundAlignment: customBackgroundAlignment,
-            customBackgroundScope: customBackgroundScope,
-            language: language,
-          ),
-        );
-    final previousBackgroundPath = _persistedBackgroundPath;
-    _persistedBackgroundPath = customBackgroundPath;
-    if (previousBackgroundPath.isNotEmpty &&
-        previousBackgroundPath != customBackgroundPath) {
-      await _backgroundImageService.remove(previousBackgroundPath);
-    }
-    _message('外观设置已保存');
-  }
 
   Future<void> _setTerminalSecureKeyboard(bool value) async {
     final previous = terminalSecureKeyboard;
@@ -1550,7 +1638,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         selectedId: uiThemeId,
       ),
     );
-    if (selected != null && mounted) setState(() => uiThemeId = selected);
+    if (selected == null || !mounted) return;
+    setState(() => uiThemeId = selected);
+    await _saveSetting((s) => s.copyWith(uiThemeId: selected));
   }
 
   Future<void> _import() async {

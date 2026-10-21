@@ -420,9 +420,13 @@ const englishTranslations = <String, String>{
   '终端': 'Terminal',
   '文件': 'Files',
   '片段': 'Snippets',
-  '外观与终端': 'Appearance & terminal',
-  '移动端偏好不会覆盖桌面端专属布局字段':
-      'Mobile preferences do not overwrite desktop-only layout fields',
+  // R25 设置页分组：外观 / 终端 / 文件 / 连接 / 安全 / 数据，改了就存。
+  '外观': 'Appearance',
+  '改了马上生效': 'Changes apply right away',
+  '界面语言': 'Interface language',
+  '代理、密钥、设备目录和每次连接的记录':
+      'Proxies, keys, device directory and a log of each connection',
+  r'设置没存上：$error': r'Setting not saved: $error',
   '深色': 'Dark',
   '浅色': 'Light',
   '系统': 'System',
@@ -454,7 +458,6 @@ const englishTranslations = <String, String>{
   "bottomRight' => '右下": 'bottom right',
   '居中': 'Center',
   '终端字号': 'Terminal font size',
-  '保存外观设置': 'Save appearance',
   '云同步': 'Cloud sync',
   '兼容桌面端 netcatty-vault.json 加密格式':
       'Compatible with the desktop netcatty-vault.json encryption format',
@@ -4181,7 +4184,7 @@ const englishReplacements = <(String, String)>[
   ('安全键盘设置保存失败：', 'Failed to save secure keyboard setting: '),
   ('滑动翻页设置保存失败：', 'Could not save the swipe setting: '),
   ('防截屏设置保存失败：', 'Could not save the screenshot setting: '),
-  ('外观设置已保存', 'Appearance settings saved'),
+  ('设置没存上：', 'Setting not saved: '),
   ('AI 设置已保存', 'AI settings saved'),
   ('确认更新', 'Confirm update'),
   ('选择', 'Choose '),

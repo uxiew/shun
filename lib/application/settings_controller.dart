@@ -29,28 +29,36 @@ class SettingsController extends StateNotifier<AppSettings> {
     }
   }
 
-  Future<void> updateTerminalSecureKeyboard(bool enabled) async {
-    final persisted = await repository.loadSettings();
-    await update(persisted.copyWith(terminalSecureKeyboard: enabled));
+  /// 一次改一项就存（R25 起设置页没有「保存」按钮）。以存盘的为底再改，不拿内存里可能还没
+  /// 加载完的 [state] 去盖。按先后顺序一条一条存：两个开关点得快时，并发的话后存的那条
+  /// 读到的是前一条存之前的文件，会把前一条改的盖回去。存失败时 [state] 退回原样并抛出。
+  Future<void> edit(AppSettings Function(AppSettings persisted) change) {
+    final next = _edits.then((_) async {
+      final persisted = await repository.loadSettings();
+      await update(change(persisted));
+    });
+    // 前一条失败不拦着后一条；失败只交给调用的人。
+    _edits = next.catchError((_) {});
+    return next;
   }
 
-  /// 立刻保存，不跟着「保存外观」走：开着的终端马上照新设置处理滑动。
-  Future<void> updateTerminalFullscreenSwipe(bool enabled) async {
-    final persisted = await repository.loadSettings();
-    await update(persisted.copyWith(terminalFullscreenSwipe: enabled));
-  }
+  var _edits = Future<void>.value();
 
-  /// 立刻保存：开着的敏感页面马上按新设置加上或去掉防截屏（R44）。
-  Future<void> updateAllowSensitiveScreenshots(bool allowed) async {
-    final persisted = await repository.loadSettings();
-    await update(persisted.copyWith(allowSensitiveScreenshots: allowed));
-  }
+  Future<void> updateTerminalSecureKeyboard(bool enabled) =>
+      edit((s) => s.copyWith(terminalSecureKeyboard: enabled));
+
+  /// 开着的终端马上照新设置处理滑动。
+  Future<void> updateTerminalFullscreenSwipe(bool enabled) =>
+      edit((s) => s.copyWith(terminalFullscreenSwipe: enabled));
+
+  /// 开着的敏感页面马上按新设置加上或去掉防截屏（R44）。
+  Future<void> updateAllowSensitiveScreenshots(bool allowed) =>
+      edit((s) => s.copyWith(allowSensitiveScreenshots: allowed));
 
   /// 终端下面的输入方式（系统键盘 / 按键面板 / 大输入框）。切了就存，下次打开终端照旧。
   Future<void> updateTerminalInputMode(String mode) async {
     if (!supportedTerminalInputModes.contains(mode)) return;
     if (state.terminalInputMode == mode) return;
-    final persisted = await repository.loadSettings();
-    await update(persisted.copyWith(terminalInputMode: mode));
+    await edit((s) => s.copyWith(terminalInputMode: mode));
   }
 }

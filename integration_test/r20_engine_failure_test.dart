@@ -50,7 +50,7 @@ void main() {
     await settle(tester);
     r20('fail.appStarted', true);
 
-    // 设置 → 外观与终端 → 终端引擎：还没开过终端；点「检查」才真去建一个。
+    // 设置 → 终端 → 终端引擎：还没开过终端；点「检查」才真去建一个。
     container.read(homeTabProvider.notifier).state = 4;
     await settle(tester);
     final tile = find.byKey(const ValueKey('terminal-engine-status'));
