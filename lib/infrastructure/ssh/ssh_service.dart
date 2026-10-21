@@ -352,6 +352,22 @@ class ActiveTerminalSession {
   ServerSystemInfo? systemInfo;
   SessionMonitor? monitor;
 
+  /// 借这条连接的东西（SFTP 通道、端口转发的监听口……）要在关 PTY 和 SSH client 之前放掉，见 [onRelease]。
+  final _releaseHooks = <void Function()>[];
+
+  /// 这条连接释放（[abort]）时先调 [hook]，再关 PTY、目标 client、逆序关跳板（docs/03 的顺序：
+  /// PTY/借用通道 → 目标 client → 跳板）。已经释放过的，马上调。
+  ///
+  /// 返回撤销登记的函数：借用者自己先结束时调它，这条连接不会一直攥着已经没用的借用者。
+  void Function() onRelease(void Function() hook) {
+    if (_released) {
+      hook();
+      return () {};
+    }
+    _releaseHooks.add(hook);
+    return () => _releaseHooks.remove(hook);
+  }
+
   SSHClient? get sshClient => sshClients.isEmpty ? null : sshClients.last;
   bool get isSsh => sshClient != null;
   Future<void> get done =>
@@ -373,7 +389,7 @@ class ActiveTerminalSession {
 
   /// 释放这条连接的全部网络资源，可以重复调用（LIFE06）。
   ///
-  /// 顺序按 docs/03：先关 PTY 通道，再关目标 client，最后逆序关跳板；
+  /// 顺序按 docs/03：先放借用者（[onRelease]），再关 PTY 通道，再关目标 client，最后逆序关跳板；
   /// 每个 client 关闭时会关掉自己脚下的 socket（第一跳的就是到代理或第一跳的 TCP）。
   /// 外部 SOCKS 服务不归 App 管，这里只关 App 自己开的那条到代理的连接。
   ///
@@ -388,13 +404,37 @@ class ActiveTerminalSession {
     // 用户在断开的标签里敲的字，再往这里写都会抛 SSHStateError（R22 回前台时撞上，抛进了布局）。
     // 输出订阅留着，见上。
     _binding?.release();
-    sshSession?.close();
+    final hooks = List.of(_releaseHooks);
+    _releaseHooks.clear();
+    for (final hook in hooks) {
+      try {
+        hook();
+      } catch (_) {
+        // 一个借用者放不掉，不能挡住后面关连接。
+      }
+    }
+    // 传输层已经断了时，PTY 通道什么也发不出去；dartssh2 的 SSHSession.close() 会在一个它自己丢掉的
+    // Future 里抛 SSHStateError（没人接得住）。这时直接交给下面关 client，通道由它一并销毁。
+    if (sshClient?.isClosed != true) sshSession?.close();
     for (final client in sshClients.reversed) {
-      client.close();
+      _closeClient(client);
     }
     telnetSocket?.destroy();
     // Mosh：插件给 mosh-client 发 SIGHUP，它按协议通知服务器关闭；会话已经结束时什么都不做。
     if (plugin != null) unawaited(plugin!.close());
+  }
+
+  /// dartssh2 2.22.5 在传输层已经断了的时候关 client：逐个销毁通道，每个还没发过 EOF 的通道
+  /// 发 EOF 都同步抛 SSHStateError，后面的通道和 transport 都轮不到。R24 实测：标签上开着终端和文件页
+  /// （两个通道）时断线，abort 直接抛出，会话控制器的断线处理半途而止、不进入自动恢复；跳板也没关。
+  /// 每抛一次就有一个通道记成已发过 EOF，下一次能往后走一个，所以重试到不抛为止（通道数远小于上限）。
+  static void _closeClient(SSHClient client) {
+    for (var attempt = 0; attempt < 256; attempt++) {
+      try {
+        client.close();
+        return;
+      } catch (_) {}
+    }
   }
 
   /// 不再把这条连接的远端输出送进 [terminal]，也不再把终端输入交给它。可以重复调用。
