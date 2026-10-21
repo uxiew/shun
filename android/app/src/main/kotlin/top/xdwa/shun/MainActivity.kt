@@ -58,6 +58,7 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         ProcessEngine.currentActivity = this
+        ProcessEngine.applyWindowSecurity(this)
         documentTreeChannel = DocumentTreeChannel(
             this,
             flutterEngine.dartExecutor.binaryMessenger,

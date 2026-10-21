@@ -14,7 +14,8 @@ import java.lang.ref.WeakReference
  * 有会话（保活服务开着或正在开）时 Activity 走了引擎也留着，下次打开界面接回同一个引擎；
  * 没有会话时照旧随 Activity 销毁，下次是干净的冷启动。
  *
- * 跟引擎同寿命的：连接通道（保活服务、网络变化、锁屏查询）和插件桥（插件会话的 Binder 连接）。
+ * 跟引擎同寿命的：连接通道（保活服务、网络变化、锁屏查询）、插件桥（插件会话的 Binder 连接）
+ * 和防截屏的状态（R44，Activity 换了要重新套上，见 [WindowSecurityChannel]）。
  * 它们以前在 Activity.onDestroy 里释放，引擎留着而它们被释放的话，Dart 以为 Mosh 会话还在，
  * 底下的 Binder 已经断了。要用 Activity 的（选目录、UU、RustDesk、画中画）仍归 MainActivity。
  */
@@ -22,6 +23,7 @@ object ProcessEngine {
     private var engine: FlutterEngine? = null
     private var connection: ConnectionChannel? = null
     private var plugins: PluginBridge? = null
+    private var windowSecurity: WindowSecurityChannel? = null
     private var activity: WeakReference<Activity>? = null
 
     fun obtain(context: Context): FlutterEngine {
@@ -33,6 +35,7 @@ object ProcessEngine {
         val messenger = created.dartExecutor.binaryMessenger
         connection = ConnectionChannel(app, messenger)
         plugins = PluginBridge(app, messenger)
+        windowSecurity = WindowSecurityChannel(messenger)
         created.addEngineLifecycleListener(object : FlutterEngine.EngineLifecycleListener {
             override fun onPreEngineRestart() = Unit
 
@@ -46,7 +49,12 @@ object ProcessEngine {
     val keepWithoutActivity: Boolean
         get() = SshKeepAliveService.requested
 
-    /** 现在挂着引擎的界面；没有时为 null。只用来弹通知权限申请这类必须有 Activity 的事。 */
+    /** 新接上引擎的界面按 Dart 上次说的加上或去掉 FLAG_SECURE。 */
+    fun applyWindowSecurity(activity: Activity) {
+        windowSecurity?.applyTo(activity)
+    }
+
+    /** 现在挂着引擎的界面；没有时为 null。只用来弹通知权限申请、套防截屏这类必须有 Activity 的事。 */
     var currentActivity: Activity?
         get() = activity?.get()
         set(value) {
@@ -60,6 +68,8 @@ object ProcessEngine {
         connection = null
         plugins?.dispose()
         plugins = null
+        windowSecurity?.dispose()
+        windowSecurity = null
         engine = null
     }
 }
