@@ -1,12 +1,13 @@
 import 'dart:convert';
 
-import 'package:flterm/flterm.dart' as flterm show TerminalView;
+import 'package:flterm/flterm.dart' as flterm show TerminalTheme, TerminalView;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:shun/presentation/terminal/ghostty_terminal_view.dart';
 import 'package:shun/presentation/terminal/terminal_view.dart';
+import 'package:shun/presentation/theme.dart';
 
 // R17 / GST02：Ghostty 视图的交接。flterm 一个控制器同一时刻只能挂一个 flterm 视图，
 // 第二个来挂直接抛 StateError；R16 的显示权换手时旧视图又不会立刻重建。这里直接造出
@@ -77,6 +78,34 @@ void main() {
     await tester.pump();
     expect(tester.takeException(), isNull);
     expect(_engineHolders(tester), [c]);
+  });
+
+  testWidgets('浅色主题用浅色 16 色、深色用 Tomorrow Night，都设最低对比度（R25）', (tester) async {
+    final terminal = GhosttyTerminalAdapter();
+    addTearDown(terminal.dispose);
+    Future<flterm.TerminalTheme> themeUnder(Brightness brightness) async {
+      await tester.pumpWidget(MaterialApp(
+        theme: ShunTheme.build(brightness, ''),
+        home: Scaffold(
+          body: GhosttyTerminalView(adapter: terminal, options: _options),
+        ),
+      ));
+      // MaterialApp 换主题有渐变动画，过一半才算新的亮暗。光标会闪，不能 pumpAndSettle。
+      await tester.pump(const Duration(milliseconds: 400));
+      return tester
+          .widget<flterm.TerminalView>(find.byType(flterm.TerminalView))
+          .theme!;
+    }
+
+    final light = await themeUnder(Brightness.light);
+    expect(light.palette[3], terminalAnsiColorsLight[3]);
+    expect(light.palette[15], terminalAnsiColorsLight[15]);
+    expect(light.minimumContrast, terminalMinimumContrast);
+
+    final dark = await themeUnder(Brightness.dark);
+    expect(dark.palette[3], terminalAnsiColors[3]);
+    expect(dark.minimumContrast, terminalMinimumContrast);
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('自己重建（改字号）不卸下自己的 flterm 视图', (tester) async {

@@ -197,7 +197,9 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
     final interactive = options.interactive;
     final theme = TerminalTheme(
       palette: ColorPalette(
-        ansiColors: terminalAnsiColors,
+        ansiColors: scheme.brightness == Brightness.light
+            ? terminalAnsiColorsLight
+            : terminalAnsiColors,
         background: scheme.surface,
         foreground: scheme.onSurface,
       ),
@@ -207,6 +209,7 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
       ),
       fontSize: options.fontSize,
       fontFamily: 'monospace',
+      minimumContrast: terminalMinimumContrast,
       backgroundOpacity: options.transparentBackground ? 0 : 1,
     );
     return Stack(

@@ -122,7 +122,7 @@ Widget terminalViewFor(
         ),
     };
 
-/// 终端的 16 色（Tomorrow Night），和原版 Netcatty（xterm2）一样，ls、git 的颜色不变。
+/// 深色主题下终端的 16 色（Tomorrow Night），和原版 Netcatty（xterm2）一样，ls、git 的颜色不变。
 const terminalAnsiColors = <Color>[
   Color(0xff1d1f21),
   Color(0xffcc6666),
@@ -141,6 +141,33 @@ const terminalAnsiColors = <Color>[
   Color(0xff70c0b1),
   Color(0xffeaeaea),
 ];
+
+/// 浅色主题下的 16 色（One Light，和 flterm 自带的浅色调色板同一套）。以前不分深浅都用 Tomorrow Night，
+/// 62 套浅色主题 × 普通 6 色（红绿黄蓝紫青）= 372 种组合，有 310 种在主题底色上对比度不到 3（黄字、
+/// 白字几乎看不见）；换成这套是 17 种，剩下的交给 [terminalMinimumContrast]。
+const terminalAnsiColorsLight = <Color>[
+  Color(0xff383a42),
+  Color(0xffe45649),
+  Color(0xff50a14f),
+  Color(0xffc18401),
+  Color(0xff0184bc),
+  Color(0xffa626a4),
+  Color(0xff0997b3),
+  Color(0xffa0a1a7),
+  Color(0xff4f525e),
+  Color(0xffe06c75),
+  Color(0xff98c379),
+  Color(0xffe5c07b),
+  Color(0xff61afef),
+  Color(0xffc678dd),
+  Color(0xff56b6c2),
+  Color(0xffffffff),
+];
+
+/// 默认背景上的字至少要有的对比度（WCAG 的大字号门槛）。不够的往黑或白挤到刚好够，程序自己配了
+/// 背景的不动（见 flterm 的 `rendering/contrast.dart`）。不用 4.5：那样 zsh 补全建议这类故意暗一点的
+/// 灰字会被提得和正文差不多亮，分不出哪些是建议。
+const terminalMinimumContrast = 3.0;
 
 /// 全屏程序（vim、tmux、less）里没法直接选字：弹出整屏文字的快照，在里面选了复制。
 Future<void> showTerminalCopySheet(BuildContext context, String text) =>
