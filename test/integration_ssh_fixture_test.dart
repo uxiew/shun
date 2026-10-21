@@ -6,6 +6,8 @@ import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shun/application/connection_diagnosis.dart';
+import 'package:shun/application/connection_events.dart';
 import 'package:shun/application/host_trust.dart';
 import 'package:shun/application/port_forward_controller.dart';
 import 'package:shun/application/session_controller.dart';
@@ -20,6 +22,7 @@ import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/ssh/system_management_service.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/transport/proxy_transport.dart';
+import 'package:shun/presentation/widgets/connection_event_text.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fixtures/docker_fixture.dart';
@@ -2328,5 +2331,244 @@ void main() {
             }),
         entry: () => '${fixture!.edgeHost}:${fixture.edgePort}',
         lastHop: 'target');
+  });
+
+  group('R25 连接记录（真实 OpenSSH）', () {
+    late ProviderContainer container;
+    late SessionController controller;
+    late RecordingDialer dialer;
+    late MemoryConnectionEventStore store;
+
+    setUp(() async {
+      if (fixture == null) return;
+      useMemorySecureStorage();
+      SharedPreferences.setMockInitialValues({});
+      final repository = await VaultRepository.open();
+      dialer = RecordingDialer();
+      store = MemoryConnectionEventStore();
+      container = ProviderContainer(overrides: [
+        vaultRepositoryProvider.overrideWithValue(repository),
+        sshServiceProvider.overrideWithValue(SshService(dialer: dialer.call)),
+        connectionEventStoreProvider.overrideWithValue(store),
+      ]);
+      controller = container.read(sessionControllerProvider.notifier);
+    });
+
+    tearDown(() async {
+      if (fixture == null) return;
+      container.dispose();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+
+    List<ConnectionEvent> events() =>
+        container.read(connectionEventLogProvider);
+
+    Future<void> eventually(bool Function() condition, String what,
+        {Duration timeout = const Duration(seconds: 20)}) async {
+      final deadline = DateTime.now().add(timeout);
+      while (!condition()) {
+        if (DateTime.now().isAfter(deadline)) fail('等待超时：$what');
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+    }
+
+    /// 存下来的 JSON 和导出的文字里，不该有的一样都没有：密码、代理账号口令、地址、名字。
+    Future<void> expectNothingSecret() async {
+      final f = fixture!;
+      await container.read(connectionEventLogProvider.notifier).ready;
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      final stored = store.saved!;
+      final exported = exportConnectionEvents(events(), now: DateTime.now());
+      for (final secret in [
+        f.password,
+        f.socksUser,
+        f.socksPassword,
+        f.targetName,
+        f.edgeHost,
+        f.socksAuthHost,
+        'R25-LABEL',
+      ]) {
+        expect(stored, isNot(contains(secret)), reason: '存盘的里有 $secret');
+        expect(exported, isNot(contains(secret)), reason: '导出的里有 $secret');
+      }
+      expect(exported, isNot(contains('r25-')), reason: '导出不带主机 ID');
+    }
+
+    void expectTimesAddUp(ConnectionEvent event) {
+      var sum = event.preparation!;
+      for (var i = 0; i < event.stages.length; i++) {
+        final d = event.stageDuration(i);
+        expect(d, isNotNull, reason: '第 $i 个阶段有用时');
+        expect(d!.isNegative, isFalse);
+        sum += d;
+      }
+      expect(sum, event.total, reason: '准备 + 各阶段 = 总用时（同一个单调时钟）');
+    }
+
+    test('UX10 Direct / SOCKS / Jump 各连一次：阶段和路线对得上，用时加得上，记录不另拨号、不带秘密',
+        () async {
+      final f = fixture!;
+      final vault = container.read(vaultControllerProvider.notifier);
+      final direct =
+          edgeHost({'id': 'r25-direct', 'label': 'R25-LABEL-direct'});
+      final socks = HostProfile({
+        ...targetViaProxy({
+          'type': 'socks5',
+          'host': f.socksAuthHost,
+          'port': f.socksAuthPort,
+          'username': f.socksUser,
+          'password': f.socksPassword,
+        }).data,
+        'id': 'r25-socks',
+        'label': 'R25-LABEL-socks',
+      });
+      final edge = edgeHost({'id': 'r25-edge', 'label': 'R25-LABEL-edge'});
+      final jump = HostProfile({
+        ...targetViaProxy(const {}).data,
+        'id': 'r25-jump',
+        'label': 'R25-LABEL-jump',
+        'proxyConfig': null,
+        'hostChain': {
+          'hostIds': ['r25-edge'],
+        },
+      });
+      for (final host in [direct, socks, edge, jump]) {
+        await vault.upsertHost(host);
+      }
+      for (final host in [direct, socks, jump]) {
+        expect(await controller.connect(host, verifyByLogicalName), isTrue);
+      }
+      expect(dialer.dials, hasLength(3), reason: '三次连接各拨一次入口，记录本身不拨号');
+
+      final byHost = {for (final e in events()) e.hostId: e};
+      expect(byHost.keys, ['r25-direct', 'r25-socks', 'r25-jump']);
+      for (final e in byHost.values) {
+        expect(e.kind, ConnectionEventKind.open);
+        expect(e.outcome, ConnectionOutcome.connected);
+        expect(e.protocol, HostProtocol.ssh);
+        expectTimesAddUp(e);
+      }
+      List<(ConnectionStep, int)> steps(ConnectionEvent e) =>
+          [for (final s in e.stages) (s.step, s.hop)];
+      expect(byHost['r25-direct']!.entry, ConnectionEntryKind.direct);
+      expect(byHost['r25-direct']!.hopIds, ['r25-direct']);
+      expect(steps(byHost['r25-direct']!), [
+        (ConnectionStep.dial, 0),
+        (ConnectionStep.handshake, 0),
+        (ConnectionStep.shell, 0),
+      ]);
+      expect(byHost['r25-socks']!.entry, ConnectionEntryKind.socks5);
+      expect(steps(byHost['r25-socks']!), [
+        (ConnectionStep.proxy, 0),
+        (ConnectionStep.handshake, 0),
+        (ConnectionStep.shell, 0),
+      ]);
+      expect(byHost['r25-jump']!.hopIds, ['r25-edge', 'r25-jump']);
+      expect(steps(byHost['r25-jump']!), [
+        (ConnectionStep.dial, 0),
+        (ConnectionStep.handshake, 0),
+        (ConnectionStep.forward, 0),
+        (ConnectionStep.handshake, 1),
+        (ConnectionStep.shell, 0),
+      ]);
+
+      final exported = exportConnectionEvents(events(), now: DateTime.now());
+      expect(exported, contains('手机 → SOCKS5 代理 → 目标'));
+      expect(exported, contains('手机 → 跳板 1 → 目标'));
+      expect(exported, contains('主机 3'));
+      // 握手用时不称 ping、不称延迟：「ping」只在说明里以「不是 ping」出现。
+      for (final e in events()) {
+        for (final line in connectionStageLines(e, (hop) => 'x')) {
+          expect(line.label.toLowerCase(), isNot(contains('ping')));
+          expect(line.label, isNot(contains('延迟')));
+        }
+      }
+      await expectNothingSecret();
+      for (var i = 0; i < 3; i++) {
+        await controller.close(0);
+      }
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 90)));
+
+    test('UX10 跳板后面的目标密码错：记「失败在目标、服务器拒绝登录」；取消记成取消，不算失败', () async {
+      final vault = container.read(vaultControllerProvider.notifier);
+      final edge = edgeHost({'id': 'r25-fail-edge', 'label': 'R25-LABEL-edge'});
+      final jump = HostProfile({
+        ...targetViaProxy(const {}).data,
+        'id': 'r25-fail',
+        'label': 'R25-LABEL-fail',
+        'password': 'R25-LABEL-wrong-password',
+        'proxyConfig': null,
+        'hostChain': {
+          'hostIds': ['r25-fail-edge'],
+        },
+      });
+      await vault.upsertHost(edge);
+      await vault.upsertHost(jump);
+      await expectLater(controller.connect(jump, verifyByLogicalName),
+          throwsA(isA<RouteHopException>()));
+      final failed = events().last;
+      expect(failed.outcome, ConnectionOutcome.failed);
+      expect(failed.failure, ConnectionFailureKind.authFailed);
+      expect(failed.failureHop, 1, reason: '第 2 跳（目标）');
+      expect(failed.stages.last.step, ConnectionStep.handshake);
+      expect(failed.stages.last.hop, 1);
+      expectTimesAddUp(failed);
+
+      // 指纹框挂着时点「终止连接」
+      final asked = Completer<void>();
+      final never = Completer<bool>();
+      final pending = controller.connect(edge, (host, algorithm, fp) {
+        if (!asked.isCompleted) asked.complete();
+        return never.future;
+      });
+      await asked.future.timeout(const Duration(seconds: 10));
+      controller.cancelPendingConnection(controller.state.pendingConnections
+          .firstWhere((p) => p.phase == PendingConnectionPhase.connecting)
+          .id);
+      expect(await pending, isFalse);
+      final cancelled = events().last;
+      expect(cancelled.hostId, 'r25-fail-edge');
+      expect(cancelled.outcome, ConnectionOutcome.cancelled);
+      expect(cancelled.failure, isNull);
+      expect(cancelled.stages.map((s) => s.step),
+          [ConnectionStep.dial, ConnectionStep.handshake]);
+      await expectNothingSecret();
+      await controller.close(0);
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
+    test('UX10 断线与自动恢复：一条「断开」（连了多久）、一条「自动恢复第 1 次、连上了」；清除立即生效', () async {
+      final host = edgeHost({'id': 'r25-drop', 'label': 'R25-LABEL-drop'});
+      await container.read(vaultControllerProvider.notifier).upsertHost(host);
+      expect(await controller.connect(host, verifyByLogicalName), isTrue);
+      final old = controller.state.sessions.single;
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      await killEdgeSessions();
+      await eventually(() {
+        final now = controller.state.sessions.single;
+        return !identical(now, old) && now.connected;
+      }, '标签自动恢复成新连接');
+      final kinds = [for (final e in events()) e.kind];
+      expect(kinds, [
+        ConnectionEventKind.open,
+        ConnectionEventKind.drop,
+        ConnectionEventKind.restore,
+      ]);
+      final drop = events()[1];
+      expect(drop.dropReason, ConnectionDropReason.closed);
+      expect(drop.connectedFor,
+          greaterThanOrEqualTo(const Duration(milliseconds: 300)));
+      final restore = events()[2];
+      expect(restore.attempt, 1);
+      expect(restore.outcome, ConnectionOutcome.connected);
+      expectTimesAddUp(restore);
+      expect(dialer.dials, hasLength(2), reason: '新开一次、恢复一次，没有别的拨号');
+      await expectNothingSecret();
+
+      final log = container.read(connectionEventLogProvider.notifier);
+      await log.clearHost('r25-drop');
+      expect(events(), isEmpty);
+      expect(jsonDecode(store.saved!), isEmpty, reason: '清除已经写进文件');
+      await controller.close(0);
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 90)));
   });
 }

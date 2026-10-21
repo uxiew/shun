@@ -22,6 +22,7 @@ import '../infrastructure/ssh/server_monitor_service.dart';
 import '../infrastructure/terminal/terminal_session_adapter.dart';
 import '../infrastructure/tmux/tmux_protocol.dart';
 import '../infrastructure/tmux/tmux_service.dart';
+import 'connection_events.dart';
 import 'connection_lifecycle.dart';
 import 'connection_switch.dart';
 import 'credential_availability.dart';
@@ -173,7 +174,12 @@ final sessionControllerProvider =
 
 /// 一个标签这一轮自动恢复的账（R22）。
 class _Recovery {
-  _Recovery(this.startedAt, {this.verifyHostKey, this.keyboardInteractive});
+  _Recovery(
+    this.startedAt, {
+    this.verifyHostKey,
+    this.keyboardInteractive,
+    this.manual = false,
+  });
 
   /// 窗口从这时算起（[recoveryWindow]）。没网络的那段不算：网络回来时重新起算。
   DateTime startedAt;
@@ -186,6 +192,9 @@ class _Recovery {
   /// 用户点「重新连接」时界面给的指纹核对和键盘交互；放回来的标签没有当时的，只能用这个。
   final HostKeyVerifier? verifyHostKey;
   final KeyboardInteractiveHandler? keyboardInteractive;
+
+  /// 这一轮是用户点「重新连接」开的。连接记录（R25）把第一次记成「重新连接」，之后按退避再试的仍是自动恢复。
+  final bool manual;
 }
 
 class SessionController extends StateNotifier<SessionState> {
@@ -260,6 +269,10 @@ class SessionController extends StateNotifier<SessionState> {
   final _aiLaunchRequestIds = <String>{};
   var _generation = 0;
 
+  /// 每条连接从交进标签起连了多久（R25 连接记录里「断开前连了多久」，单调时钟）。
+  /// 按连接对象记：同一个标签恢复、原地切换后是新的一代，重新算。
+  final _connectedClocks = Expando<Stopwatch>();
+
   static const _backgroundPingInterval = Duration(seconds: 8);
 
   ConnectionAttempt _beginAttempt(String tabId) {
@@ -280,6 +293,50 @@ class SessionController extends StateNotifier<SessionState> {
   bool _owns(ActiveTerminalSession session) =>
       state.sessions.any((value) => identical(value, session));
 
+  /// 记一条连接记录（R25）。只记元数据，见 connection_events.dart。
+  void _logAttempt(
+    ConnectionEventKind kind,
+    HostProfile host,
+    ConnectionAttempt attempt, {
+    RoutePlan? plan,
+    Object? error,
+    bool cancelled = false,
+    int? recoveryAttempt,
+  }) =>
+      _logEvent(attemptEvent(
+        hostId: sourceHostIdOf(host),
+        now: _now(),
+        kind: kind,
+        protocol: host.protocol,
+        attempt: attempt,
+        plan: plan,
+        error: error,
+        cancelled: cancelled || error is ConnectionCancelledException,
+        recoveryAttempt: recoveryAttempt,
+      ));
+
+  void _logStop(
+    ActiveTerminalSession session,
+    RecoveryStopReason reason,
+    int attempts,
+  ) =>
+      _logEvent(ConnectionEvent(
+        hostId: sourceHostIdOf(session.host),
+        at: _now(),
+        kind: ConnectionEventKind.recoveryStopped,
+        protocol: session.host.protocol,
+        attempt: attempts,
+        stopReason: reason,
+      ));
+
+  void _logEvent(ConnectionEvent event) {
+    if (!mounted) return;
+    ref.read(connectionEventLogProvider.notifier).record(event);
+  }
+
+  void _startConnectedClock(ActiveTerminalSession session) =>
+      _connectedClocks[session] = Stopwatch()..start();
+
   /// 新开一个终端连接。返回 true 表示连接已进标签；被取消、或结果迟到被关掉时返回 false。
   /// 调用方只有拿到 true 才能说「已连接」——以前取消后也正常返回，界面照样弹「已连接」。
   ///
@@ -294,6 +351,7 @@ class SessionController extends StateNotifier<SessionState> {
     AiCliLaunchSpec? aiLaunch,
     AiCliTmuxRun? aiTmuxRun,
     void Function(ActiveTerminalSession)? onOpened,
+    ConnectionEventKind eventKind = ConnectionEventKind.open,
   }) async {
     if ((aiLaunch != null || aiTmuxRun != null) &&
         (host.protocol != HostProtocol.ssh ||
@@ -329,6 +387,9 @@ class SessionController extends StateNotifier<SessionState> {
     TerminalSessionAdapter? terminal;
     var handedOver = false;
     var aiExecAttempted = false;
+    // 连接记录用：实际连的是哪一份主机配置、走的哪条路线（算出来之前就失败的没有路线）。
+    var target = host;
+    RoutePlan? route;
     try {
       // 终端先建：引擎（Ghostty 的原生库）建不起来时连接照常失败，失败页写清是哪个引擎，
       // 不先拨号再发现没地方显示，也不换成别的引擎凑合。
@@ -342,6 +403,7 @@ class SessionController extends StateNotifier<SessionState> {
               (value) => value.id == host.id,
               orElse: () => host,
             );
+      target = connectionHost;
       final ActiveTerminalSession session;
       if (connectionHost.protocol == HostProtocol.plugin) {
         // 插件主机（X12）：插件自己联网，本 App 不算路线、不查凭据（这台主机上本来就不该有凭据交给它）。
@@ -372,6 +434,7 @@ class SessionController extends StateNotifier<SessionState> {
                   proxyProfiles: vault.proxyProfiles,
                   keys: vault.keys,
                 );
+        route = plan;
         if (mounted) {
           state = state.copyWith(
             pendingConnections: [
@@ -451,12 +514,15 @@ class SessionController extends StateNotifier<SessionState> {
       if (!_isCurrent(sessionId, attempt)) {
         // 迟到的成功：尝试已被取消或 controller 已销毁。连接此刻归这里，立刻关掉，不进标签。
         _endAttempt(sessionId, attempt);
+        _logAttempt(eventKind, target, attempt, plan: route, cancelled: true);
         await session.close();
         if (aiExecAttempted) throw const AiCliLaunchUnknownException();
         return false;
       }
       _endAttempt(sessionId, attempt);
       handedOver = true;
+      _logAttempt(eventKind, target, attempt, plan: route);
+      _startConnectedClock(session);
       final sessions = [...state.sessions, session];
       final wasSelected = state.activePendingId == sessionId;
       state = state.copyWith(
@@ -485,6 +551,14 @@ class SessionController extends StateNotifier<SessionState> {
       final stale = !_isCurrent(sessionId, attempt);
       _endAttempt(sessionId, attempt);
       if (!mounted) return false;
+      _logAttempt(
+        eventKind,
+        target,
+        attempt,
+        plan: route,
+        error: error,
+        cancelled: stale,
+      );
       if (stale || error is ConnectionCancelledException) {
         state = state.copyWith(
           pendingConnections: state.pendingConnections
@@ -1028,6 +1102,10 @@ class SessionController extends StateNotifier<SessionState> {
       _endAttempt(old.id, attempt);
       committed = true;
       _swapInPlace(old, replacement);
+      _logAttempt(
+          ConnectionEventKind.switchTransport, replacement.host, attempt,
+          plan: plan);
+      _startConnectedClock(replacement);
       // 旧的一边：先停用户确认过的端口转发，再只分离这个标签自己的 SSH tmux 客户端（终端 + pid 都对上才分离），
       // 最后关这条 SSH。分离不成（它已经不在了）不要紧：SSH 一关，那个客户端也就退了，会话本身不受影响。
       for (final item in onThis) {
@@ -1048,6 +1126,16 @@ class SessionController extends StateNotifier<SessionState> {
       }
       final stale = !committed && !_isCurrent(old.id, attempt);
       _endAttempt(old.id, attempt);
+      if (!committed) {
+        _logAttempt(
+          ConnectionEventKind.switchTransport,
+          transportCopy(source, TabTransport.mosh, label: old.host.label),
+          attempt,
+          plan: plan,
+          error: error,
+          cancelled: stale,
+        );
+      }
       if (committed || stale || error is ConnectionCancelledException) {
         return committed;
       }
@@ -1126,6 +1214,10 @@ class SessionController extends StateNotifier<SessionState> {
       _endAttempt(old.id, attempt);
       committed = true;
       _swapInPlace(old, replacement);
+      _logAttempt(
+          ConnectionEventKind.switchTransport, replacement.host, attempt,
+          plan: plan);
+      _startConnectedClock(replacement);
       try {
         await tmux.detach(sshClient, moshSide);
       } on Object {
@@ -1141,6 +1233,10 @@ class SessionController extends StateNotifier<SessionState> {
       }
       final stale = !committed && !_isCurrent(old.id, attempt);
       _endAttempt(old.id, attempt);
+      if (!committed) {
+        _logAttempt(ConnectionEventKind.switchTransport, host, attempt,
+            plan: plan, error: error, cancelled: stale);
+      }
       if (committed || stale || error is ConnectionCancelledException) {
         return committed;
       }
@@ -1230,6 +1326,7 @@ class SessionController extends StateNotifier<SessionState> {
           keyboardInteractive: keyboardInteractive,
           tmuxAttach: mosh ? tmux : null,
           onOpened: (value) => opened = value,
+          eventKind: ConnectionEventKind.reconnect,
         );
         if (ok && opened != null) _replaceTab(session, opened!);
       } finally {
@@ -1242,6 +1339,7 @@ class SessionController extends StateNotifier<SessionState> {
       _now(),
       verifyHostKey: verifyHostKey,
       keyboardInteractive: keyboardInteractive,
+      manual: true,
     );
     _publishRecoveries();
     _ensureRecoveryTimer();
@@ -1279,6 +1377,13 @@ class SessionController extends StateNotifier<SessionState> {
             _recoveries.putIfAbsent(old.id, () => _Recovery(_now()));
         final now = _now();
         if (!force && now.difference(recovery.startedAt) > recoveryWindow) {
+          _logStop(
+            old,
+            recovery.sawLock
+                ? RecoveryStopReason.locked
+                : RecoveryStopReason.window,
+            recovery.attempts,
+          );
           _hold(
             old,
             RestoreHold.untilForeground(
@@ -1300,6 +1405,7 @@ class SessionController extends StateNotifier<SessionState> {
           if (!mounted) break;
           if (locked) {
             recovery.sawLock = true;
+            _logStop(old, RecoveryStopReason.locked, recovery.attempts);
             _hold(
               old,
               const RestoreHold.untilForeground(
@@ -1324,16 +1430,19 @@ class SessionController extends StateNotifier<SessionState> {
   ) async {
     final attempt = _beginAttempt(old.id);
     recovery.attempts++;
+    final kind = recovery.manual && recovery.attempts == 1
+        ? ConnectionEventKind.reconnect
+        : ConnectionEventKind.restore;
+    // 沿用这个标签建连时冻结的路线：自动恢复只走同一条路线、同一套身份，
+    // 期间改过的主机、跳板、代理配置只对新开的连接生效（NET10，docs/07）。
+    // 凭据副本已经清掉的（后台待久了，SEC07），按保险库补回，补之前核对路线没变。
+    var plan = old.routePlan;
+    var host = old.host;
     try {
-      // 沿用这个标签建连时冻结的路线：自动恢复只走同一条路线、同一套身份，
-      // 期间改过的主机、跳板、代理配置只对新开的连接生效（NET10，docs/07）。
-      // 凭据副本已经清掉的（后台待久了，SEC07），按保险库补回，补之前核对路线没变。
-      var plan = old.routePlan;
       final vault = plan == null || plan.secretsForgotten
           ? await vaultController.ready()
           : null;
       attempt.throwIfCancelled();
-      var host = old.host;
       var tmux = old.tmux?.target ?? old.resumeTmux;
       if (plan != null && plan.secretsForgotten) {
         plan = rehydrateRoutePlan(
@@ -1412,11 +1521,16 @@ class SessionController extends StateNotifier<SessionState> {
         // 恢复期间标签被关、这次恢复被取消或 controller 已销毁：
         // 新连接不能顶替进去，立刻关掉。
         _endAttempt(old.id, attempt);
+        _logAttempt(kind, host, attempt,
+            plan: plan, cancelled: true, recoveryAttempt: recovery.attempts);
         await replacement.close();
         return;
       }
       _endAttempt(old.id, attempt);
       _recoveries.remove(old.id);
+      _logAttempt(kind, host, attempt,
+          plan: plan, recoveryAttempt: recovery.attempts);
+      _startConnectedClock(replacement);
       final current =
           state.sessions.indexWhere((value) => identical(value, old));
       // 旧连接这一代到此为止；输出已在开始恢复前隔离。
@@ -1449,6 +1563,11 @@ class SessionController extends StateNotifier<SessionState> {
     } catch (error) {
       final stale = !_isCurrent(old.id, attempt) || !_owns(old);
       _endAttempt(old.id, attempt);
+      _logAttempt(kind, host, attempt,
+          plan: plan,
+          error: error,
+          cancelled: stale,
+          recoveryAttempt: recovery.attempts);
       if (stale || error is ConnectionCancelledException) return;
       final hold = switch (error) {
         // 后台每隔几秒重试一次的话，每次都会让 Tailscale 再生成一条 check 请求。停在这里等用户。
@@ -1465,6 +1584,7 @@ class SessionController extends StateNotifier<SessionState> {
         _ => null,
       };
       if (hold != null) {
+        _logStop(old, RecoveryStopReason.needsUser, recovery.attempts);
         _hold(old, hold);
       } else {
         final delay = recoveryBackoff[
@@ -1591,7 +1711,7 @@ class SessionController extends StateNotifier<SessionState> {
               ? session.ping()
               : session.ping(timeout: timeout));
         } on Object {
-          _markDisconnected(session);
+          _markDisconnected(session, reason: ConnectionDropReason.noResponse);
         }
       }
     } finally {
@@ -1605,7 +1725,10 @@ class SessionController extends StateNotifier<SessionState> {
       session.restoreHold == null &&
       session.plugin == null;
 
-  void _markDisconnected(ActiveTerminalSession session) {
+  void _markDisconnected(
+    ActiveTerminalSession session, {
+    ConnectionDropReason reason = ConnectionDropReason.closed,
+  }) {
     session.monitor?.stop();
     if (session.closedByUser || !session.connected) return;
     session.aiTerminalOriginal = false;
@@ -1614,6 +1737,20 @@ class SessionController extends StateNotifier<SessionState> {
       session.abort();
       return;
     }
+    final shell = session.sshSession;
+    _logEvent(ConnectionEvent(
+      hostId: sourceHostIdOf(session.host),
+      at: _now(),
+      kind: ConnectionEventKind.drop,
+      protocol: session.host.protocol,
+      connectedFor: _connectedClocks[session]?.elapsed,
+      dropReason: session.plugin != null
+          ? ConnectionDropReason.ended
+          : shell != null &&
+                  (shell.exitCode != null || shell.exitSignal != null)
+              ? ConnectionDropReason.exited
+              : reason,
+    ));
     if (session.plugin case final plugin?) {
       // Mosh 会话结束了就是结束了，不自动重连：重连等于在服务器上再起一个 mosh-server、开一个新 shell，
       // 冒充不了原来那个会话（docs/16 第 6 步）；断开前的输入也不重发。要不要再连由用户决定。
