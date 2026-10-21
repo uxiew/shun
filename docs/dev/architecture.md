@@ -501,9 +501,11 @@ CI 绿了不等于下面这些验过：
 
 - Docker、tmux 等测试环境没起的用例会自己跳过（看 `tool/` 下各 fixture 的 `.run/` 里有没有连接信息文件，这些不进 git），CI 上一样跳，约 200 条。
 - `mosh_bootstrap_script_test` 按机器上有的登录 shell 各注册一组。GitHub 的 Ubuntu 机器只有 sh、bash、dash，csh、ksh、tcsh、zsh 那几组只在 Mac 上跑，CI 的用例数因此比本机少几十条，不是漏跑。「服务器没有 tmux」那条在 CI 上也跳：那边 `/usr/bin` 里装着 tmux，造不出「没有」。
-- APK 不做 `tool/build-release.sh` 里的 .so 核对；IPA 不签名。两个包都要下下来装机才算验过。
+- APK 不做 `tool/build-release.sh` 里的 .so 核对（每个 `.so` 的 LOAD 段 16 KiB 对齐），只在 10-21 下下来手动核过一次；IPA 不签名。两个包都要装机才算验过。
 
 日志里有条用例名的 `Bearer GET` 显示成 `***`，那是 runner 自己把 `Bearer ` 后面的词打码，不是密钥漏进了测试。
+
+CI 和本机编出来的 `libghostty.so` 不是同一个字节：CI 上的构建钩子链接时用的是 runner 预装的 NDK r27d，本机是 Flutter 3.47.7 要的 r28c。10-21 逐字节比过，大小一样，58 个字节不同，全在记 NDK 版本的 `.note.android.ident` 和记编译器版本的 `.comment` 里，代码和数据一样。以后对比两边的包对不上，先看是不是差在这两段，别当成源码被换了。
 
 打 Android 包要仓库配好 `ANDROID_KEYSTORE_BASE64`、`ANDROID_KEYSTORE_PASSWORD`、`ANDROID_KEY_PASSWORD` 三个密钥，没配会停在 "Restore persistent Android signing key" 这一步。这是故意的：每次都用同一把密钥签，新包才能直接盖在上一个 CI 包上；换成临时密钥签，手机会拒绝覆盖安装，只能卸载重装，保险库跟着没了。
 
