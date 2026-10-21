@@ -82,7 +82,7 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 - 设置「安全 → 敏感页面允许截屏」（`AppSettings.allowSensitiveScreenshots`，只存本机、默认关）打开后一律不加，`ShunApp` 把它同步进守卫。设置还没读出来的那一会儿按默认值算，也就是防。
 - 守卫是进程级单例（`SensitiveScreenGuard.instance`），`SecretContent` 不经 Riverpod：密码对话框从哪里弹都行。以前试过走 Provider，结果「守卫 → 设置 → 保险库」一条链，没替换保险库的地方一弹 sudo 框就报 `No ProviderScope found` 或保险库未初始化。
 - Activity 重建（开着会话时从最近任务划掉再打开、系统回收界面、「不保留活动」）时新窗口不带标志，Dart 那边停在哪页没变、不会再说一次，所以标志的状态放在跟引擎同寿命的 `WindowSecurityChannel` 里，`MainActivity.configureFlutterEngine` 调 `ProcessEngine.applyWindowSecurity` 重新套上。转屏不换 Activity。
-- 边界：只有 Android，iOS 不让 App 拦截屏（`PlatformWindowSecurity` 在别的平台什么都不做）。Dart 到平台通道是异步的，标志比页面晚到一点：实测从「选择连接类型」点进新建连接页，录屏录到 2 帧（约 20 ms）滑入中的页面，之后全黑。这时框是空的、密码默认打码，录到的只有名称、地址这类不算秘密的东西。退出时没有这个问题：`SecretContent` 要等退场动画放完、被销毁时才撤标志。
+- 边界：只有 Android，iOS 不让 App 拦截屏（`PlatformWindowSecurity` 在别的平台什么都不做）。Dart 到平台通道是异步的，标志比页面晚到一点：实测从「选择连接类型」点进新建连接页，录屏录到 2 帧（前后约 30 ms）滑入中的页面，之后全黑。这时框是空的、密码默认打码，录到的只有名称、地址这类不算秘密的东西。退出时没有这个问题：`SecretContent` 要等退场动画放完、被销毁时才撤标志。
 
 **输入法学习**。带 `obscureText:` 的框都写 `enableIMEPersonalizedLearning: false`、`enableSuggestions: false`、`autocorrect: false`（Tailscale 目录的通用对话框按字段的 `secret` 取反）。第一项在 Android 上变成 `IME_FLAG_NO_PERSONALIZED_LEARNING`（Android 8.0 起才有），输入法自己决定守不守。模拟器上只核对了标志确实发出去了（`adb shell dumpsys input_method` 的 `mInputEditorInfo`：密码框 `imeOptions=0x3000006`，带 0x1000000；同页的名称框是 `0x2000006`，不带）；Gboard、微信输入法到底记没记没验，Gboard 对密码类型的框本来就不学，从外面看不出这个标志的作用。打码的框 Android 本来就按密码类型交给输入法，点小眼睛切成明文就不是了，所以这三项要写死，不跟着 `obscureText` 变。
 
