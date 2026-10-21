@@ -3,8 +3,13 @@ import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shun/domain/models/host.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/presentation/screens/sftp_screen.dart';
+import 'package:shun/presentation/widgets/sftp_editor.dart';
 import 'package:shun/infrastructure/ssh/sftp_service.dart';
 import 'package:shun/infrastructure/ssh/ssh_lease.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
@@ -170,6 +175,89 @@ void main() {
 
   transferOutcomes();
   transferDialogs();
+  previewAndSave();
+}
+
+void previewAndSave() {
+  Future<void> openFilePage(WidgetTester tester, _MemoryPhone phone) async {
+    SharedPreferences.setMockInitialValues({});
+    final repository = await VaultRepository.open();
+    await tester.pumpWidget(ProviderScope(
+      overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
+      child: MaterialApp(
+        home: Scaffold(body: SftpScreen(localService: Future.value(phone))),
+      ),
+    ));
+    await tester.pumpAndSettle();
+  }
+
+  group('预览有上限、保存先核对（UX12）', () {
+    test('readBounded 读到上限多 1 字节就停，不把 10 MiB 整个读完', () async {
+      final files = _MemoryFiles({})..put('/big', Uint8List(10 * 1024 * 1024));
+      await expectLater(
+          files.readBounded('/big'), throwsA(isA<PreviewTooLarge>()));
+      expect(files.bytesRead, lessThanOrEqualTo(previewLimit + 64 * 1024));
+      files.bytesRead = 0;
+      files.put('/small', Uint8List(previewLimit));
+      expect((await files.readBounded('/small')).length, previewLimit,
+          reason: '刚好 1 MiB 的还能打开');
+    });
+
+    testWidgets('超过 1 MB 的文件：不打开、不自动下载，问要不要下载', (tester) async {
+      final phone = _MemoryPhone({})
+        ..put('/big.log', Uint8List(previewLimit + 1));
+      await openFilePage(tester, phone);
+      await tester.tap(find.text('big.log').first);
+      await tester.pumpAndSettle();
+      expect(find.text('文件太大，不在这里打开'), findsOneWidget);
+      expect(phone.bytesRead, 0, reason: '一个字节都没读');
+      await tester.tap(find.text('取消'));
+      await tester.pumpAndSettle();
+      expect(phone.bytesRead, 0, reason: '点了取消就不下载');
+    });
+
+    testWidgets('列表里的大小过时（文件又变大了）：读到上限就停，同样问要不要下载', (tester) async {
+      final phone = _MemoryPhone({})
+        ..put('/grow.log', Uint8List(4 * 1024 * 1024))
+        ..listedSizes['/grow.log'] = 10;
+      await openFilePage(tester, phone);
+      await tester.tap(find.text('grow.log').first);
+      await tester.pumpAndSettle();
+      expect(find.text('文件太大，不在这里打开'), findsOneWidget);
+      expect(phone.bytesRead, lessThanOrEqualTo(previewLimit + 64 * 1024));
+      expect(find.byType(SftpEditor), findsNothing);
+    });
+
+    testWidgets('编辑器保存前核对：服务器上的文件在打开后变了，要用户确认才覆盖', (tester) async {
+      final phone = _MemoryPhone({'/a.txt': 'v1'});
+      await openFilePage(tester, phone);
+      await tester.tap(find.text('a.txt').first);
+      await tester.pumpAndSettle();
+      expect(find.byType(SftpEditor), findsOneWidget);
+      phone.put('/a.txt', Uint8List.fromList('changed by someone'.codeUnits));
+      await tester.enterText(find.byType(TextField).first, 'mine');
+      await tester.tap(find.text('保存'));
+      await tester.pumpAndSettle();
+      expect(find.text('服务器上的文件变了'), findsOneWidget);
+      await tester.tap(find.text('取消'));
+      await tester.pumpAndSettle();
+      expect(phone.text('/a.txt'), 'changed by someone', reason: '没同意就没写');
+      expect(find.textContaining('没有保存'), findsOneWidget);
+
+      await tester.tap(find.text('保存'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('仍然保存'));
+      await tester.pumpAndSettle();
+      expect(phone.text('/a.txt'), 'mine');
+
+      // 刚保存过的版本就是新的基准：再保存不再问。
+      await tester.enterText(find.byType(TextField).first, 'mine again');
+      await tester.tap(find.text('保存'));
+      await tester.pumpAndSettle();
+      expect(find.text('服务器上的文件变了'), findsNothing);
+      expect(phone.text('/a.txt'), 'mine again');
+    });
+  });
 }
 
 void transferDialogs() {
@@ -370,23 +458,42 @@ class _MemoryFiles extends FileTransferService {
   @override
   String displayPath(String path) => path;
   @override
-  String joinPath(String path, String name) => '$path/$name';
+  String joinPath(String path, String name) =>
+      path == '/' ? '/$name' : '$path/$name';
   @override
-  String parentPath(String path) => path.substring(0, path.lastIndexOf('/'));
+  String parentPath(String path) {
+    final at = path.lastIndexOf('/');
+    return at <= 0 ? '/' : path.substring(0, at);
+  }
+
+  /// 列目录时报的大小：可以让它过时（文件在列表之后又变大了）。
+  final listedSizes = <String, int>{};
+
+  /// 每次 [readStream] 交出去的字节数：按 64 KiB 一块交，预览读够了就该停。
+  var bytesRead = 0;
+
   @override
   Future<List<RemoteEntry>> list(String path) async => [
         for (final e in _files.entries)
-          if (parentPath(e.key) == path)
+          if (parentPath(e.key) == path && !e.key.endsWith('.shun-part'))
             RemoteEntry(
                 name: e.key.split('/').last,
                 path: e.key,
                 isDirectory: false,
-                size: e.value.length),
+                size: listedSizes[e.key] ?? e.value.length),
       ];
   @override
   Stream<Uint8List> readStream(String path,
-          {int startOffset = 0, TransferProgressCallback? onProgress}) =>
-      Stream.value(Uint8List.sublistView(_files[path]!, startOffset));
+      {int startOffset = 0, TransferProgressCallback? onProgress}) async* {
+    final data = _files[path]!;
+    for (var at = startOffset; at < data.length; at += 64 * 1024) {
+      final chunk = Uint8List.sublistView(
+          data, at, (at + 64 * 1024).clamp(0, data.length));
+      bytesRead += chunk.length;
+      yield chunk;
+    }
+  }
+
   @override
   Future<void> writeStream(String path, Stream<Uint8List> stream,
       {int startOffset = 0,
@@ -420,6 +527,27 @@ class _MemoryFiles extends FileTransferService {
 
   @override
   Future<void> delete(RemoteEntry entry) async => _files.remove(entry.path);
+
+  void put(String path, Uint8List data) => _files[path] = data;
+}
+
+/// 挂在文件页里的「手机目录」：预览、编辑、下载弹框的代码和服务器那一栏是同一份。
+class _MemoryPhone extends _MemoryFiles
+    implements MountableFileTransferService {
+  _MemoryPhone(super.files);
+
+  @override
+  String get id => 'local';
+  @override
+  bool get isLocal => true;
+  @override
+  bool get isMounted => true;
+  @override
+  String? get mountedDirectoryName => 'phone';
+  @override
+  bool get usesAppDocuments => true;
+  @override
+  Future<bool> mount() async => true;
 }
 
 /// 一直不说话的 socket：给借用一个真的 SSHClient 对象。[drop] 模拟对端断线（传输层随之关闭）。

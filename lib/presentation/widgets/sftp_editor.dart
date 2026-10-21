@@ -654,7 +654,7 @@ class _SftpEditorState extends ConsumerState<SftpEditor> {
             if (error != null)
               Padding(
                   padding: const EdgeInsets.all(8),
-                  child: Text(error!,
+                  child: LText(error!,
                       style: TextStyle(
                           color: Theme.of(context).colorScheme.error))),
             if (code.highlight && code.text.length > 200000)

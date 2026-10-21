@@ -752,6 +752,18 @@ const englishTranslations = <String, String>{
       'A transfer with this file name did not finish last time, and the part already sent is still there. Resuming appends to it, so choose it only if you are sure it is the same file; otherwise start over.',
   '续传': 'Resume',
   '从头传': 'Start over',
+  '下载': 'Download',
+  '文件太大，不在这里打开': 'Too large to open here',
+  '超过在 App 里预览的上限（1 MB），没有打开。可以下载到手机，用别的 App 看。':
+      'It is larger than the in-app preview limit (1 MB), so it was not opened. You can download it to the phone and view it in another app.',
+  '服务器上的文件变了': 'The file changed on the server',
+  '你打开之后，这个文件在服务器上被改过（或被删了）。保存会用编辑器里的内容整个替换它，那些修改就没了。':
+      'After you opened it, this file was changed (or deleted) on the server. Saving replaces it entirely with what is in the editor, and those changes are lost.',
+  '仍然保存': 'Save anyway',
+  '没有保存：服务器上的文件在你打开之后变了。编辑器里的内容还在。':
+      'Not saved: the file changed on the server after you opened it. What is in the editor is kept.',
+  '保存时连接断了：不知道服务器上的文件写完整了没有，可能只写了一半。编辑器里的内容还在：先复制出来，重新连接后核对再保存。不会自动重试。':
+      'The connection dropped while saving, so it is unknown whether the file on the server was written completely; it may be half written. What is in the editor is kept: copy it out, reconnect, check the file, then save again. Nothing is retried automatically.',
   '下载已取消': 'Download cancelled',
   '终端画中画': 'Terminal Picture in Picture',
   '画中画': 'Picture in Picture',

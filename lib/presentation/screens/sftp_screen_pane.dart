@@ -545,10 +545,12 @@ class _SftpPaneState extends State<_SftpPane> {
 
   void _up() => _open(service.parentPath(path));
 
+  /// 打开文件看 / 改。超过 [previewLimit] 不打开，问要不要下载到手机——不自动下：大文件走的是用户的流量。
   Future<void> _edit(RemoteEntry entry) async {
-    if (entry.size > 1024 * 1024) return _share(entry);
+    final source = service;
+    if (entry.size > previewLimit) return _offerDownload(entry);
     try {
-      final source = service;
+      var opened = await source.stamp(entry.path);
       final content = await source.readTextBounded(entry.path);
       if (!mounted) return;
       await showDialog<void>(
@@ -557,12 +559,78 @@ class _SftpPaneState extends State<_SftpPane> {
           child: SftpEditor(
               name: entry.name,
               content: content,
-              onSave: (value) => source.writeText(entry.path, value)),
+              onSave: (value) async {
+                await _saveEdited(source, entry.path, value, opened);
+                opened = await source.stamp(entry.path);
+              }),
         ),
       );
-      await refresh();
+      if (mounted && identical(source, service)) await refresh();
+    } on PreviewTooLarge {
+      // 列表里的大小过时了：文件在变大。只多读了 1 字节就停了。
+      if (mounted) await _offerDownload(entry);
     } catch (error) {
       _message('$error');
+    }
+  }
+
+  Future<void> _offerDownload(RemoteEntry entry) async {
+    final size = entry.size > previewLimit ? formatBytes(entry.size) : null;
+    final note = localized('超过在 App 里预览的上限（1 MB），没有打开。可以下载到手机，用别的 App 看。');
+    final download = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const LText('文件太大，不在这里打开'),
+        content: Text('${entry.name}${size == null ? '' : '\n$size'}\n\n$note'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const LText('取消'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(context, true),
+            child: const LText('下载'),
+          ),
+        ],
+      ),
+    );
+    if (download == true && mounted) await _share(entry);
+  }
+
+  /// 编辑器的保存。写之前先看服务器上的文件在打开之后变没变：变了要用户确认才覆盖，
+  /// 不然会把别人刚做的修改整个冲掉。
+  ///
+  /// 原地写（不先写临时文件再换名）：换名会把文件的权限、属主换成新建文件的默认值，
+  /// 改个 0600 的配置文件会变成谁都能读。代价是写到一半断线时文件可能只写了一半，所以那种情况说清楚。
+  Future<void> _saveEdited(FileTransferService source, String filePath,
+      String text, FileStamp? opened) async {
+    final now = await source.stamp(filePath);
+    if (now != opened) {
+      if (!mounted) throw const _NotSaved();
+      final overwrite = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: const LText('服务器上的文件变了'),
+          content:
+              const LText('你打开之后，这个文件在服务器上被改过（或被删了）。保存会用编辑器里的内容整个替换它，那些修改就没了。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(context, false),
+              child: const LText('取消'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const LText('仍然保存'),
+            ),
+          ],
+        ),
+      );
+      if (overwrite != true) throw const _NotSaved();
+    }
+    try {
+      await source.writeText(filePath, text);
+    } on OutcomeUnknown {
+      throw const _SaveOutcomeUnknown();
     }
   }
 
@@ -903,6 +971,23 @@ class _SftpPaneState extends State<_SftpPane> {
     _transferCancellation = null;
     if (mounted) setState(() => _transfer = null);
   }
+}
+
+/// 用户在「服务器上的文件变了」里点了取消：编辑器显示这一句，内容留着。
+class _NotSaved implements Exception {
+  const _NotSaved();
+
+  @override
+  String toString() => '没有保存：服务器上的文件在你打开之后变了。编辑器里的内容还在。';
+}
+
+/// 原地写到一半连接断了：文件可能只写了一半。
+class _SaveOutcomeUnknown implements Exception {
+  const _SaveOutcomeUnknown();
+
+  @override
+  String toString() =>
+      '保存时连接断了：不知道服务器上的文件写完整了没有，可能只写了一半。编辑器里的内容还在：先复制出来，重新连接后核对再保存。不会自动重试。';
 }
 
 class _TransferProgressSnapshot {
