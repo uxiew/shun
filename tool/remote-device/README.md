@@ -21,6 +21,14 @@ tool/remote-device/down.sh xdwmbp         # 用完拆掉
 
 ## 撞墙时
 
+- **`up.sh` 一上来就报 `Host key verification failed`**：本机 `~/.ssh/known_hosts` 里没有 `xdwmbp` 这个名字。常见于它换了解析方式，
+  比如以前按局域网地址连，现在经 Tailscale 解析到 `100.x` 地址。先别顺手接受新密钥，跑
+  `ssh -v -o BatchMode=yes xdwmbp true 2>&1 | grep 'found matching key'`：有输出，说明这把主机密钥以别的名字记过，是同一台机器
+  （10-21 就是这样，和以前记的局域网地址那条一样）。这时在 `~/.ssh/config` 的 `Host xdwmbp` 下加 `HostKeyAlias <记过的那个名字>`；
+  没输出就是没见过的密钥，到那台电脑上用 `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` 对过指纹，再手动 `ssh xdwmbp` 接受。
+- **主机密钥对上了，报 `Permission denied (publickey,password,keyboard-interactive)`**：本机的公钥不在那台电脑的 `~/.ssh/authorized_keys` 里，
+  或者本机账号名和那边不一样。项目换到另一台电脑上跑就会撞上。在那台电脑上加公钥，或者在 `Host xdwmbp` 下配上那边认的
+  `User` 和 `IdentityFile`。脚本要免密登录，只能输密码的话 `up.sh` 跑不起来。
 - **`flutter test` 报 `WebSocketChannelException ... Connection refused ... port = 5xxxx`，或者 `flutter drive` 一直卡着不动**：
   flutter 用 `adb forward` 把手机上的 VM service 转到"本机"端口，但 adb 服务在那台电脑上，监听口也开在那边，本机连不到。
   `up.sh` 做了一个假 SDK（全部软链接回真 SDK，只把 `platform-tools/adb` 换成 `adb-wrapper.sh`），
