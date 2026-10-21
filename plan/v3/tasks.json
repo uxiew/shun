@@ -2558,7 +2558,7 @@
       "id": "R44",
       "phase": "P4",
       "title": "带秘密的页面防截屏，密码框不让输入法学习",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [
         "R09",
         "R18"
@@ -2583,7 +2583,9 @@
       ],
       "stop_condition": "不给终端页加 FLAG_SECURE（用户要截终端）；真机输入法测试按所有者每次的授权来，装着中文输入法时不注入按键。",
       "owner_role": "安全代理",
-      "evidence": [],
+      "evidence": [
+        "evidence/R44.md"
+      ],
       "commit": null
     },
     {
