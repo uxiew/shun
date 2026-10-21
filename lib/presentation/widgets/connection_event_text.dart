@@ -107,6 +107,10 @@ String connectionStepLabel(ConnectionStep step) => switch (step) {
       ConnectionStep.pluginSession => _t('插件打开会话（它自己联网）'),
     };
 
+/// 「其中等你」最少多长才写。已认识的服务器不弹指纹框，可仍走同一个核对回调（查本机记录，几毫秒）；
+/// 不设这个门槛，每次握手后面都会挂一句「其中等你 0 ms」（模拟器上实际就是这样）。300 ms 内没人点得完确认框。
+const _shownUserWait = Duration(milliseconds: 300);
+
 bool _perHop(ConnectionStep step) => switch (step) {
       ConnectionStep.dial ||
       ConnectionStep.proxy ||
@@ -230,7 +234,7 @@ List<ConnectionStageLine> connectionStageLines(
         : step;
     final last = index == event.stages.length - 1;
     final notes = [
-      if (stage.userWait > Duration.zero)
+      if (stage.userWait >= _shownUserWait)
         _t('其中等你 {d}', {'d': formatConnectionElapsed(stage.userWait)}),
       if (last && event.outcome == ConnectionOutcome.failed) _t('停在这一步'),
       if (last && event.outcome == ConnectionOutcome.cancelled) _t('在这一步取消'),

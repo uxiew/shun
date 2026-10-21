@@ -55,8 +55,13 @@ void main() {
     hopIds: const ['host-edge', 'host-alpha'],
     stages: const [
       ConnectionEventStage(ConnectionStep.proxy, 0, Duration(milliseconds: 1)),
+      // 已认识的指纹：核对回调走了 2 ms，没人点过什么，不该写「其中等你」。
       ConnectionEventStage(
-          ConnectionStep.handshake, 0, Duration(milliseconds: 40)),
+        ConnectionStep.handshake,
+        0,
+        Duration(milliseconds: 40),
+        userWait: Duration(milliseconds: 2),
+      ),
       ConnectionEventStage(
           ConnectionStep.forward, 0, Duration(milliseconds: 90)),
       ConnectionEventStage(
@@ -141,6 +146,8 @@ void main() {
     expect(find.textContaining('目标“LABEL-ALPHA” · SSH 握手、核对指纹、登录（停在这一步）'),
         findsOneWidget);
     expect(find.text('85 ms'), findsOneWidget, reason: '最后一步 95→180 ms');
+    expect(find.textContaining('其中等你 2 ms'), findsNothing,
+        reason: '查本机指纹记录的几毫秒不算「等你」');
     expect(find.textContaining('服务器拒绝了登录'), findsOneWidget, reason: '下一步');
 
     await tester.ensureVisible(find.textContaining('新开连接'));
