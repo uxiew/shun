@@ -132,6 +132,51 @@ String formatConnectionElapsed(Duration? value) {
   });
 }
 
+/// 记录页里一跳的叫法：有名字时「跳板机“x”」「目标“x”」；这台主机已经删了（[label] 为 null）就只写角色。
+String connectionHopName(int hop, int hopCount, String? label) {
+  if (label == null) return connectionHopRole(hop, hopCount);
+  return hopCount <= 1 || hop >= hopCount - 1
+      ? _t('目标“{name}”', {'name': label})
+      : _t('跳板机“{name}”', {'name': label});
+}
+
+/// 一条记录的几个数：协议、总用时、断开前连了多久、这一轮试了几次。没有的值写「未知」。
+List<String> connectionEventFacts(ConnectionEvent event) => [
+      if (event.protocol != null) connectionProtocolLabel(event.protocol),
+      if (event.isAttempt)
+        _t('总用时 {d}', {'d': formatConnectionElapsed(event.total)}),
+      if (event.kind == ConnectionEventKind.drop)
+        _t('断开前连了 {d}', {'d': formatConnectionElapsed(event.connectedFor)}),
+      if (event.kind == ConnectionEventKind.recoveryStopped &&
+          event.attempt != null)
+        _t('这一轮试了 {n} 次', {'n': event.attempt!}),
+    ];
+
+String connectionFailedAt(String hop) => _t('失败在：{hop}', {'hop': hop});
+
+String connectionNextStepLine(String text) => _t('下一步：{text}', {'text': text});
+
+/// 「最近 7 天：连接 n 次（连上、失败、取消），断开 n 次，自动恢复试了 n 次、恢复上 n 次。」
+String connectionLogSummary(List<ConnectionEvent> events) {
+  int count(bool Function(ConnectionEvent e) test) => events.where(test).length;
+  bool attempt(ConnectionEvent e, ConnectionOutcome outcome) =>
+      e.isAttempt && e.outcome == outcome;
+  return _t(
+    '最近 7 天：连接 {a} 次（连上 {ok}、失败 {failed}、取消 {cancelled}），断开 {drops} 次，自动恢复试了 {restores} 次、恢复上 {restored} 次。',
+    {
+      'a': count((e) => e.isAttempt),
+      'ok': count((e) => attempt(e, ConnectionOutcome.connected)),
+      'failed': count((e) => attempt(e, ConnectionOutcome.failed)),
+      'cancelled': count((e) => attempt(e, ConnectionOutcome.cancelled)),
+      'drops': count((e) => e.kind == ConnectionEventKind.drop),
+      'restores': count((e) => e.kind == ConnectionEventKind.restore),
+      'restored': count((e) =>
+          e.kind == ConnectionEventKind.restore &&
+          e.outcome == ConnectionOutcome.connected),
+    },
+  );
+}
+
 /// 「手机 → SOCKS5 代理 → 跳板机 → 目标」。[hopName] 给每一跳的叫法：记录页用保险库里的名字，导出只用角色。
 String connectionRouteLine(
   ConnectionEvent event,
@@ -155,6 +200,10 @@ class ConnectionStageLine {
   final String label;
   final String elapsed;
   final String? note;
+
+  /// 阶段名加备注（等你了多久、停在这一步），不含用时。
+  String get text =>
+      note == null ? label : '$label${_t('（{note}）', {'note': note!})}';
 }
 
 /// 一条记录里逐阶段的用时。拨号前有准备时间的先列一行；停在哪一步的那行注明。
@@ -231,31 +280,19 @@ String exportConnectionEvents(
       _t('主机 {n}', {'n': numbers[event.hostId]!}),
       connectionEventTitle(event),
       connectionEventOutcome(event),
-      if (event.protocol != null) connectionProtocolLabel(event.protocol),
+      ...connectionEventFacts(event),
       if (event.isAttempt) connectionRouteLine(event, role),
-      if (event.isAttempt)
-        _t('总用时 {d}', {'d': formatConnectionElapsed(event.total)}),
-      if (event.kind == ConnectionEventKind.drop)
-        _t('断开前连了 {d}', {'d': formatConnectionElapsed(event.connectedFor)}),
-      if (event.kind == ConnectionEventKind.recoveryStopped &&
-          event.attempt != null)
-        _t('这一轮试了 {n} 次', {'n': event.attempt!}),
-      if (event.failureHop != null && event.hopCount > 0)
-        _t('失败在：{hop}', {'hop': role(event.failureHop!)}),
+      if (event.failureHop case final hop? when hop < event.hopCount)
+        connectionFailedAt(role(hop)),
     ];
     buffer
       ..writeln()
       ..writeln(head.join(' · '));
     for (final line in connectionStageLines(event, role)) {
-      final note = line.note;
-      buffer.writeln(
-        '    ${line.label}  ${line.elapsed}'
-        '${note == null ? '' : _t('（{note}）', {'note': note})}',
-      );
+      buffer.writeln('    ${line.text}  ${line.elapsed}');
     }
     if (connectionEventNextStep(event) case final next?) {
-      final line = _t('下一步：{text}', {'text': next});
-      buffer.writeln('    $line');
+      buffer.writeln('    ${connectionNextStepLine(next)}');
     }
   }
   return buffer.toString();
