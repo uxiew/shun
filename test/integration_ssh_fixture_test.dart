@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:io';
+import 'dart:io' hide ProcessSignal;
 
 import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/services.dart';
@@ -1396,8 +1396,8 @@ void main() {
       final item = container.read(portForwardControllerProvider).single;
       expect(item.running, isFalse, reason: '条目留在列表里，标成已停止');
       expect(item.endedReason, contains('不会自动重开'));
-      await expectLater(Socket.connect('127.0.0.1', port),
-          throwsA(isA<SocketException>()),
+      await expectLater(
+          Socket.connect('127.0.0.1', port), throwsA(isA<SocketException>()),
           reason: '本机端口已经关掉，不是「连上又被挂断」');
       await forwards.stop(item.id);
       expect(container.read(portForwardControllerProvider), isEmpty);
@@ -2052,8 +2052,7 @@ void main() {
       }
     }
 
-    test('REG01 经跳板：终端 + 文件页开着时目标断线，标签照常自动恢复；旧一代的跳板连接被关掉',
-        () async {
+    test('REG01 经跳板：终端 + 文件页开着时目标断线，标签照常自动恢复；旧一代的跳板连接被关掉', () async {
       final vault = container.read(vaultControllerProvider.notifier);
       final edge = edgeHost({'id': 'reg01-edge', 'label': 'edge'});
       final host = HostProfile({
@@ -2079,16 +2078,15 @@ void main() {
         final now = controller.state.sessions.single;
         return !identical(now, old) && now.connected;
       }, '标签自动恢复成新连接');
-      await eventually(() async => await sshdConnections('ssh-edge') == 1,
-          '跳板上只剩新一代的连接');
+      await eventually(
+          () async => await sshdConnections('ssh-edge') == 1, '跳板上只剩新一代的连接');
       expect(await sshdConnections('target'), 1);
       expect(old.sshClients.every((c) => c.isClosed), isTrue,
           reason: '旧一代的目标和跳板 client 都关了');
       await controller.close(0);
     }, skip: skip, timeout: const Timeout(Duration(seconds: 90)));
 
-    test('上传到一半断线：几秒内报「结果未知」，不再永远等；同一个文件页再列目录报「已断开」',
-        () async {
+    test('上传到一半断线：几秒内报「结果未知」，不再永远等；同一个文件页再列目录报「已断开」', () async {
       final f = fixture!;
       final host = edgeHost({'id': 'r24-upload'});
       await container.read(vaultControllerProvider.notifier).upsertHost(host);
@@ -2118,5 +2116,217 @@ void main() {
       await bytes.close();
       await controller.close(0);
     }, skip: skip, timeout: const Timeout(Duration(seconds: 90)));
+
+    /// 本机端口上读一行 SSH 版本标识；端口已关、连上就被挂断都返回空串。
+    Future<String> banner(int port) async {
+      final Socket socket;
+      try {
+        socket = await Socket.connect('127.0.0.1', port);
+      } on SocketException {
+        return '';
+      }
+      try {
+        final first = await socket.first.timeout(const Duration(seconds: 3));
+        return String.fromCharCodes(first);
+      } on StateError {
+        return '';
+      } finally {
+        socket.destroy();
+      }
+    }
+
+    // 同一套检查在三条路线上各跑一遍。[entry] 是本机唯一该拨的地址（RTE04），
+    // [lastHop] 是断线时杀会话的容器（标签最终登录的那台）。
+    void matrix(
+      String route, {
+      required HostProfile Function() host,
+      List<HostProfile> Function()? also,
+      required String Function() entry,
+      required String lastHop,
+    }) {
+      test('$route：浏览、预览上限、上传下载、取消、转发 / 监控 / 系统管理；断线后各自明确失败，换代后不接到新连接上',
+          () async {
+        final vault = container.read(vaultControllerProvider.notifier);
+        for (final extra in also?.call() ?? const <HostProfile>[]) {
+          await vault.upsertHost(extra);
+        }
+        final profile = host();
+        await vault.upsertHost(profile);
+        expect(await controller.connect(profile, verifyByLogicalName), isTrue);
+        final old = controller.state.sessions.single;
+        final sftp = SftpService(old);
+        final monitor = ServerMonitorService();
+        final system = SystemManagementService();
+        final forwards = container.read(portForwardControllerProvider.notifier);
+        final dir = '/tmp/r24-${route.toLowerCase()}';
+        final keep = '$dir/keep.txt';
+        Stream<Uint8List> text(String value) =>
+            Stream.value(Uint8List.fromList(utf8.encode(value)));
+
+        // 浏览、上传、下载
+        await runInSession(old, 'rm -rf $dir');
+        await sftp.ensureDirectory(dir);
+        await writeStreamAtomically(sftp, keep, text('original'),
+            totalBytes: 8);
+        expect((await sftp.list(dir)).map((e) => e.name), contains('keep.txt'));
+        expect(utf8.decode(await sftp.readBounded(keep)), 'original');
+        await expectLater(
+            writeStreamAtomically(sftp, keep, text('other'), totalBytes: 5),
+            throwsA(isA<TargetExists>()),
+            reason: '没同意替换就不动已有的文件');
+
+        // 预览上限：比上限多 1 字节的文件不读进来
+        await runInSession(
+            old, 'head -c ${previewLimit + 1} /dev/zero > $dir/big.bin');
+        await expectLater(
+            sftp.readBounded('$dir/big.bin'), throwsA(isA<PreviewTooLarge>()));
+
+        // 取消：报「已取消」，目标不出现
+        final token = TransferCancellationToken();
+        final cancelSource = StreamController<Uint8List>();
+        final cancelled = expectLater(
+            writeStreamAtomically(
+                sftp, '$dir/cancelled.bin', cancelSource.stream,
+                totalBytes: 1 << 20, cancellationToken: token),
+            throwsA(isA<TransferCancelledException>()));
+        cancelSource.add(Uint8List(32 * 1024));
+        await Future<void>.delayed(const Duration(milliseconds: 300));
+        token.cancel();
+        await cancelled;
+        await cancelSource.close();
+        expect(await sftp.fileSize('$dir/cancelled.bin'), isNull);
+
+        // 转发、监控、系统管理都能用（转发到这台自己的 sshd）
+        await forwards.startLocal(
+            session: old,
+            localPort: 0,
+            remoteHost: '127.0.0.1',
+            remotePort: 22);
+        final forward = container.read(portForwardControllerProvider).single;
+        expect(await banner(forward.localPort), startsWith('SSH-2.0-'));
+        expect((await monitor.poll(old)).memoryTotalBytes, greaterThan(0));
+        expect(await system.listProcesses(old), isNotEmpty);
+
+        // 断线：一个覆盖 keep.txt 的上传、一个原地写（编辑器保存那种）都在半路
+        final atomicSource = StreamController<Uint8List>();
+        final atomic = expectLater(
+            writeStreamAtomically(sftp, keep, atomicSource.stream,
+                    totalBytes: 1 << 20, replace: true)
+                .timeout(const Duration(seconds: 8)),
+            throwsA(isA<TransferInterrupted>()));
+        final inPlaceSource = StreamController<Uint8List>();
+        final inPlace = expectLater(
+            sftp
+                .writeStream('$dir/in-place.bin', inPlaceSource.stream)
+                .timeout(const Duration(seconds: 8)),
+            throwsA(isA<OutcomeUnknown>()));
+        atomicSource.add(Uint8List(64 * 1024));
+        inPlaceSource.add(Uint8List(64 * 1024));
+        await Future<void>.delayed(const Duration(milliseconds: 500));
+        final watch = Stopwatch()..start();
+        await killSessions(lastHop);
+        atomicSource.add(Uint8List(64 * 1024));
+        inPlaceSource.add(Uint8List(64 * 1024));
+        await atomic;
+        await inPlace;
+        expect(watch.elapsed, lessThan(const Duration(seconds: 5)));
+
+        await expectLater(sftp.list(dir), throwsA(isA<ConnectionGone>()));
+        await expectLater(monitor.poll(old), throwsA(isA<ConnectionGone>()));
+        await expectLater(system.signalProcess(old, 1, ProcessSignal.cont),
+            throwsA(isA<ConnectionGone>()),
+            reason: '断了以后的改动根本不发');
+        await eventually(
+            () => !container.read(portForwardControllerProvider).single.running,
+            '转发标成已停止');
+        expect(await banner(forward.localPort), isEmpty, reason: '本机端口已关');
+
+        // 换代：标签自己恢复成新连接；旧一代的借用者不接到新连接上
+        await eventually(() {
+          final now = controller.state.sessions.single;
+          return !identical(now, old) && now.connected;
+        }, '标签自动恢复成新连接', timeout: const Duration(seconds: 30));
+        final fresh = controller.state.sessions.single;
+        await expectLater(sftp.list(dir), throwsA(isA<ConnectionGone>()),
+            reason: '旧的文件页还是旧一代');
+        await expectLater(monitor.poll(old), throwsA(isA<ConnectionGone>()));
+        expect(forwards.forwardsOn(fresh), isEmpty, reason: '转发不在新连接上自动重开');
+        expect(await banner(forward.localPort), isEmpty);
+        final again = SftpService(fresh);
+        expect(utf8.decode(await again.readBounded(keep)), 'original',
+            reason: '断线不重发写入：要覆盖的目标没动过');
+        expect((await monitor.poll(fresh)).memoryTotalBytes, greaterThan(0),
+            reason: '从新连接重新打开就能用');
+        await runInSession(fresh, 'rm -rf $dir');
+        expect(dialer.dials.toSet(), {entry()},
+            reason: 'RTE04：本机只拨入口（含自动恢复）；借用者没有另拨');
+        await forwards.stop(forward.id);
+        await controller.close(0);
+      }, skip: skip, timeout: const Timeout(Duration(seconds: 120)));
+    }
+
+    test('REG01 关标签：文件页、转发、监控开着时关掉，各自报「已断开」，连接真关了，不再拨号', () async {
+      final f = fixture!;
+      final host = edgeHost({'id': 'r24-close'});
+      await container.read(vaultControllerProvider.notifier).upsertHost(host);
+      expect(await controller.connect(host, verifyByLogicalName), isTrue);
+      final old = controller.state.sessions.single;
+      final sftp = SftpService(old);
+      final monitor = ServerMonitorService();
+      final forwards = container.read(portForwardControllerProvider.notifier);
+      await sftp.list('/tmp');
+      await monitor.poll(old);
+      await forwards.startLocal(
+          session: old, localPort: 0, remoteHost: '127.0.0.1', remotePort: 22);
+      final forward = container.read(portForwardControllerProvider).single;
+      expect(await banner(forward.localPort), startsWith('SSH-2.0-'));
+      final dials = dialer.dials.length;
+
+      await controller.close(0);
+      await expectLater(sftp.list('/tmp'), throwsA(isA<ConnectionGone>()));
+      await expectLater(monitor.poll(old), throwsA(isA<ConnectionGone>()));
+      final stopped = container.read(portForwardControllerProvider).single;
+      expect(stopped.running, isFalse);
+      expect(stopped.endedReason, contains('标签已关闭'));
+      expect(await banner(forward.localPort), isEmpty);
+      await eventually(() async => await sshdConnections('ssh-edge') == 0,
+          '边缘上这条 SSH 连接关掉了');
+      await Future<void>.delayed(const Duration(seconds: 1));
+      expect(dialer.dials, hasLength(dials), reason: '关了就是关了，没有借用者去重拨');
+      expect(dialer.dials.toSet(), {'${f.edgeHost}:${f.edgePort}'});
+      await forwards.stop(stopped.id);
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
+    matrix('Direct',
+        host: () => edgeHost({'id': 'r24-direct', 'label': 'direct'}),
+        entry: () => '${fixture!.edgeHost}:${fixture.edgePort}',
+        lastHop: 'ssh-edge');
+    matrix('SOCKS',
+        host: () => HostProfile({
+              ...targetViaProxy({
+                'type': 'socks5',
+                'host': fixture!.socksAuthHost,
+                'port': fixture.socksAuthPort,
+                'username': fixture.socksUser,
+                'password': fixture.socksPassword,
+              }).data,
+              'id': 'r24-socks',
+            }),
+        entry: () => '${fixture!.socksAuthHost}:${fixture.socksAuthPort}',
+        lastHop: 'target');
+    matrix('Jump',
+        also: () => [
+              edgeHost({'id': 'r24-jump-edge', 'label': 'edge'})
+            ],
+        host: () => HostProfile({
+              ...targetViaProxy(const {}).data,
+              'id': 'r24-jump',
+              'proxyConfig': null,
+              'hostChain': {
+                'hostIds': ['r24-jump-edge'],
+              },
+            }),
+        entry: () => '${fixture!.edgeHost}:${fixture.edgePort}',
+        lastHop: 'target');
   });
 }
