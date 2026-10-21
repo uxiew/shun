@@ -427,6 +427,8 @@ const englishTranslations = <String, String>{
   '代理、密钥、设备目录和每次连接的记录':
       'Proxies, keys, device directory and a log of each connection',
   r'设置没存上：$error': r'Setting not saved: $error',
+  // R25：整屏快照从终端右上角挪到标签条和「更多」。
+  '复制屏幕文字': 'Copy screen text',
   '深色': 'Dark',
   '浅色': 'Light',
   '系统': 'System',

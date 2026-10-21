@@ -381,6 +381,15 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                         TransportBadge(session: visibleSession),
                       if (visibleSession != null)
                         IconButton(
+                          key: const ValueKey('terminal-copy-screen'),
+                          tooltip: localized('复制屏幕文字'),
+                          onPressed: () => _copyScreen(
+                            inputSession ?? visibleSession,
+                          ),
+                          icon: const Icon(Icons.copy_all_outlined),
+                        ),
+                      if (visibleSession != null)
+                        IconButton(
                           key: const ValueKey(
                             'terminal-performance-monitor',
                           ),
@@ -531,6 +540,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                   onPaste: () => pasteClipboardInto(context, ref, inputSession),
                   onCompose: () =>
                       showTerminalPasteSheet(context, target: inputSession),
+                  onCopyScreen: () => _copyScreen(inputSession),
                   compact: layout.compact,
                   inputPanel: panelVisible,
                   onInputPanel: () => _toggleInputPanel(inputSession),
@@ -668,6 +678,11 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
       ],
     );
   }
+
+  /// 弹出整屏文字的快照、在里面选了复制。快照打开后不再变：tmux 状态栏的钟、vim 重画不会把选到一半的
+  /// 字弄丢。分屏时复制正在打字的那一格，和粘贴进的是同一个。
+  Future<void> _copyScreen(ActiveTerminalSession session) =>
+      showTerminalCopySheet(context, session.terminal.allText());
 
   Future<void> _togglePictureInPicture(
     ActiveTerminalSession session,

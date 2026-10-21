@@ -323,9 +323,13 @@ void main() {
           find.byKey(const ValueKey('terminal-copy-snapshot')), findsNothing);
       sent.clear();
 
-      // 全屏程序里没法直接选字：右上角「复制」弹整屏文字的快照，在快照里选了复制。
+      // 全屏程序一重画就可能把选到一半的字弄丢：标签条上「复制屏幕文字」弹整屏文字的快照，在快照里选了复制。
+      // 终端右上角不再一直浮着「复制」：盖住 tmux 状态栏、vim 行尾的字（R25）。
       existing.terminal.feed(utf8.encode('\x1b[Halpha beta updated'));
       await tester.pump();
+      expect(
+          find.byKey(const ValueKey('copy-terminal-selection')), findsNothing,
+          reason: '没选字时终端上不盖按钮');
       String? copiedText;
       tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(
         SystemChannels.platform,
@@ -338,7 +342,7 @@ void main() {
       );
       addTearDown(() => tester.binding.defaultBinaryMessenger
           .setMockMethodCallHandler(SystemChannels.platform, null));
-      await tester.tap(find.byKey(const ValueKey('copy-terminal-selection')));
+      await tester.tap(find.byKey(const ValueKey('terminal-copy-screen')));
       await tester.pumpAndSettle();
       expect(sent, isEmpty);
       final snapshot = tester.widget<TextField>(
@@ -357,7 +361,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(copiedText, 'alpha');
       // Opening it again shows the current screen, and supports copy all.
-      await tester.tap(find.byKey(const ValueKey('copy-terminal-selection')));
+      await tester.tap(find.byKey(const ValueKey('terminal-copy-screen')));
       await tester.pumpAndSettle();
       final updated = tester
           .widget<TextField>(

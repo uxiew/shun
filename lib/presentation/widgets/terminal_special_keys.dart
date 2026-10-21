@@ -25,6 +25,7 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
     required this.onPortForward,
     required this.onSystemManagement,
     this.onAiCli,
+    this.onCopyScreen,
     required this.pictureInPicture,
     required this.onPictureInPicture,
     required this.fullscreen,
@@ -57,6 +58,10 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
   final VoidCallback? onPortForward;
   final VoidCallback? onSystemManagement;
   final VoidCallback? onAiCli;
+
+  /// 「复制屏幕文字」：弹出整屏文字的快照、在里面选了复制。只在「更多」菜单里（收成一行时、
+  /// 按钮放不下时），平时在终端页标签条上；不占操作按钮那一行的位置。为 null 时不显示。
+  final VoidCallback? onCopyScreen;
   final bool pictureInPicture;
   final VoidCallback? onPictureInPicture;
   final bool fullscreen;
@@ -301,6 +306,13 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
         ('ai-cli', aiCliLabel, Icons.terminal, widget.onAiCli),
       if (widget.onAi != null)
         ('ai', localized('shu Agent'), Icons.auto_awesome, widget.onAi),
+      if (widget.onCopyScreen != null)
+        (
+          'copy-screen',
+          localized('复制屏幕文字'),
+          Icons.copy_all_outlined,
+          widget.onCopyScreen,
+        ),
       (
         'port-forward',
         localized('端口转发'),

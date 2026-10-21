@@ -36,7 +36,6 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
   late TerminalViewLease _lease;
   var _showingEngine = false;
   var _rebuildScheduled = false;
-  late bool _alternateScreen;
   late bool _hasSelection;
 
   /// 这次长按落在的链接（flterm 报的，OSC 8 链接的地址可能和屏幕上的字不一样）。
@@ -61,7 +60,6 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
 
   void _attach() {
     _lease = _adapter.attachView();
-    _alternateScreen = _adapter.isAlternateScreen;
     _hasSelection = false;
     _adapter.setFullscreenSwipe(widget.options.fullscreenSwipe);
     _adapter.addListener(_onTerminalChanged);
@@ -115,12 +113,10 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
     // 终端被释放、显示权被别的视图拿走：重建，把 flterm 视图卸下。
     if (_showingEngine && !_lease.isActive) return _rebuildSoon();
     if (!_lease.isActive) return;
-    final alternate = _adapter.isAlternateScreen;
     final selection = _adapter.controller.hasSelection;
-    if (alternate != _alternateScreen || selection != _hasSelection) {
+    if (selection != _hasSelection) {
       // 只在选区「有变没」时忘掉链接：长按开始时报链接，选区要等松手或拖动才出现。
       if (_hasSelection && !selection) _longPressLink = null;
-      _alternateScreen = alternate;
       _hasSelection = selection;
       _refreshSelectionUrlSoon();
       _rebuildSoon();
@@ -231,7 +227,9 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
             ),
           ),
         ),
-        if (interactive && (_hasSelection || _alternateScreen))
+        // 只在有选区时浮出来。以前全屏程序（vim、tmux、less）里一直挂着「复制」（点了弹整屏快照），
+        // 盖住右上角几个字（tmux 状态栏、vim 的行尾）；R25 把快照挪到标签条和「更多」里的「复制屏幕文字」。
+        if (interactive && _hasSelection)
           Positioned(
             top: 10,
             right: 10,
@@ -327,7 +325,7 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
         ],
         FilledButton.tonalIcon(
           key: const ValueKey('copy-terminal-selection'),
-          onPressed: _hasSelection ? _copySelection : _showCopySnapshot,
+          onPressed: _copySelection,
           icon: const Icon(Icons.copy_outlined, size: 18),
           label: const LText('复制'),
         ),
@@ -350,9 +348,6 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
       ),
     );
   }
-
-  Future<void> _showCopySnapshot() =>
-      showTerminalCopySheet(context, _adapter.allText());
 }
 
 final _webLinkRules = [
