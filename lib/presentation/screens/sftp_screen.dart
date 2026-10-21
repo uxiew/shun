@@ -20,6 +20,7 @@ import '../../infrastructure/ssh/ssh_service.dart';
 import '../widgets/custom_background.dart';
 import '../widgets/sftp_editor.dart';
 import '../widgets/sftp_permissions_dialog.dart';
+import '../widgets/sftp_transfer_dialogs.dart';
 
 part 'sftp_screen_pane.dart';
 
@@ -71,6 +72,10 @@ class _SftpScreenState extends ConsumerState<SftpScreen> {
   TransferCancellationToken? _transferCancellation;
   var _dualPane = true;
   final _clipboard = ValueNotifier<FileSelection?>(null);
+
+  /// 上一帧两栏各用的来源：服务器断线、换代时这一栏会自己换来源或回到根目录，得告诉用户为什么。
+  FileTransferService? _shownLeft;
+  FileTransferService? _shownRight;
 
   @override
   void dispose() {
@@ -126,6 +131,10 @@ class _SftpScreenState extends ConsumerState<SftpScreen> {
         final left = sources.firstWhere((source) => source.id == _leftSourceId);
         final right =
             sources.firstWhere((source) => source.id == _rightSourceId);
+        _noticeLostSource(_shownLeft, left, sourceIds);
+        if (_dualPane) _noticeLostSource(_shownRight, right, sourceIds);
+        _shownLeft = left;
+        _shownRight = right;
         return SafeArea(
           child: Column(
             children: [
@@ -294,6 +303,26 @@ class _SftpScreenState extends ConsumerState<SftpScreen> {
     });
   }
 
+  /// 这一栏原来的服务器不是用户自己换掉的：连接断了（来源没了），或者标签恢复成了新连接（同一个来源、
+  /// 另一个服务对象）。两种都说一句，不然用户只看到目录快闪了一下。用户自己关的标签不提。
+  void _noticeLostSource(
+    FileTransferService? before,
+    FileTransferService now,
+    Set<String> sourceIds,
+  ) {
+    if (before is! SftpService || identical(before, now)) return;
+    if (before.session.closedByUser) return;
+    final String message;
+    if (now.id == before.id) {
+      message = '${before.displayName} 换成了新连接，这一栏从根目录重新打开。旧连接上没做完的操作不会搬到新连接上。';
+    } else if (!sourceIds.contains(before.id)) {
+      message = '${before.displayName} 的 SSH 连接断开了，这一栏换成了别的来源。重新连接后可以再选回来。';
+    } else {
+      return; // 用户自己换的来源
+    }
+    WidgetsBinding.instance.addPostFrameCallback((_) => _message(message));
+  }
+
   void _changeSource(bool left, String id) {
     setState(() {
       if (left) {
@@ -406,6 +435,31 @@ class _SftpScreenState extends ConsumerState<SftpScreen> {
       if (choice == null || !mounted) return;
       allowServerDirect = choice == TransferRoute.serverDirect;
     }
+    // 「传到另一栏」单个文件经手机中转时才可能续传；续不续由用户定（临时文件只按名字认）。
+    var resume = false;
+    final single =
+        selection.entries.length == 1 ? selection.entries.single : null;
+    if (resumePhoneCopy &&
+        !selection.move &&
+        !allowServerDirect &&
+        single != null &&
+        !single.isDirectory &&
+        !sameTransferStorage(selection.source, target)) {
+      try {
+        final choice = await askResumeDialog(
+            context,
+            target,
+            copyPartialPath(target, path, single.name),
+            single.name,
+            single.size);
+        if (choice == null || !mounted) return;
+        resume = choice;
+      } catch (error) {
+        _message('$error');
+        return;
+      }
+    }
+    if (_transfer != null) return;
     final token = TransferCancellationToken();
     _transferCancellation = token;
     final tracker = _TransferProgressTracker(
@@ -464,7 +518,7 @@ class _SftpScreenState extends ConsumerState<SftpScreen> {
       }
       await transferSelection(selection, target, path,
           route: plan.route,
-          resumePhoneCopy: resumePhoneCopy,
+          resumePhoneCopy: resume,
           cancellationToken: token,
           onStatus: tracker.setStatus,
           onProgress: tracker.update, onCompleted: (entry) {
@@ -481,7 +535,7 @@ class _SftpScreenState extends ConsumerState<SftpScreen> {
       tracker.finish();
       _message('批量操作完成');
     } on TransferCancelledException {
-      _message('传输已取消');
+      _message('已取消：正在传的那一项没有放到目标位置，已经传完的保留。');
     } catch (e) {
       _message('批量操作未完成：$e');
     } finally {

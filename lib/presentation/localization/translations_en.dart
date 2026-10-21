@@ -740,8 +740,18 @@ const englishTranslations = <String, String>{
   '新名称': 'New name',
   '取消传输': 'Cancel transfer',
   '正在计算文件大小…': 'Calculating file size…',
-  '传输已取消，可再次传输以继续': 'Transfer cancelled. Start it again to resume.',
-  '传输已取消，可再次上传以继续': 'Transfer cancelled. Upload again to resume.',
+  '已取消：目标位置的同名文件没有动过。已传的部分留着，下次传同一个文件时可以选续传。':
+      'Cancelled. The file at the destination was not changed. What was already sent is kept; next time you send the same file you can choose to resume.',
+  '已取消：正在传的那一项没有放到目标位置，已经传完的保留。':
+      'Cancelled. The item in progress was not put at the destination; items already finished are kept.',
+  '替换同名文件？': 'Replace the existing file?',
+  '这里已经有同名文件。替换后原来的内容就没了，无法撤销。':
+      'A file with this name is already here. Replacing it removes the old content and cannot be undone.',
+  '上次没传完': 'Unfinished last time',
+  '这个文件名上次没传完，已传的部分还在。续传会接着它往后写，只有确定是同一个文件时才选；不确定就从头传。':
+      'A transfer with this file name did not finish last time, and the part already sent is still there. Resuming appends to it, so choose it only if you are sure it is the same file; otherwise start over.',
+  '续传': 'Resume',
+  '从头传': 'Start over',
   '下载已取消': 'Download cancelled',
   '终端画中画': 'Terminal Picture in Picture',
   '画中画': 'Picture in Picture',
@@ -2254,6 +2264,27 @@ const englishReplacements = <(String, String)>[
     ': the request was sent, then the connection dropped, so whether the server did it is unknown. Nothing is retried automatically; reconnect and check before deciding.'
   ),
   ('」→「', '” → “'),
+  ('传输中断：连接断了，「', 'Transfer interrupted: the connection dropped. “'),
+  ('」没有动过。已传的部分留在「', '” was not changed. What was already sent is kept in “'),
+  (
+    '」；不会自动重传，下次传同一个文件时可以选择续传。',
+    '”. Nothing is resent automatically; next time you send the same file you can choose to resume.'
+  ),
+  (
+    '不会自动重传，下次传同一个文件时可以选择续传。',
+    'Nothing is resent automatically; next time you send the same file you can choose to resume.'
+  ),
+  ('」没有动过。不会自动重传。', '” was not changed. Nothing is resent automatically.'),
+  (
+    ' 换成了新连接，这一栏从根目录重新打开。旧连接上没做完的操作不会搬到新连接上。',
+    ' switched to a new connection, so this pane reopened at the root folder. Unfinished work on the old connection is not moved over.'
+  ),
+  (
+    ' 的 SSH 连接断开了，这一栏换成了别的来源。重新连接后可以再选回来。',
+    ': the SSH connection dropped, so this pane switched to another source. Pick it again after reconnecting.'
+  ),
+  ('目标已有同名文件「', 'A file with this name already exists: “'),
+  ('」，没有替换。', '”. It was not replaced.'),
   ('服务器上复制到「', 'Copy on the server to “'),
   ('服务器直传到「', 'Server-to-server transfer to “'),
   ('移动「', 'Move “'),

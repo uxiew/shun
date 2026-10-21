@@ -194,7 +194,8 @@ void main() {
             FileSelection(source, await source.list('/'), move: true),
             target,
             '/'),
-        throwsStateError);
+        // 这个目标对任何路径都报大小 0：要么换名前就认出「已有同名」，要么校验大小失败。哪种都不能删源文件。
+        throwsA(anyOf(isStateError, isA<TargetExists>())));
     expect(source.files['/a.txt'], [1, 2, 3]);
   });
   test('batch move does not reuse an unrelated partial file', () async {

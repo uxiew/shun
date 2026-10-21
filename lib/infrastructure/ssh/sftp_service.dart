@@ -64,14 +64,73 @@ class TransferCancelledException implements Exception {
 }
 
 class TransferCancellationToken {
-  bool _cancelled = false;
+  final _cancelled = Completer<void>();
 
-  bool get isCancelled => _cancelled;
-  void cancel() => _cancelled = true;
+  bool get isCancelled => _cancelled.isCompleted;
+
+  /// 用户点了取消时完成。传输卡在等服务器回复时也要马上停（[raceCancellation]），不等下一块数据。
+  Future<void> get whenCancelled => _cancelled.future;
+
+  void cancel() {
+    if (!_cancelled.isCompleted) _cancelled.complete();
+  }
 
   void throwIfCancelled() {
-    if (_cancelled) throw const TransferCancelledException();
+    if (isCancelled) throw const TransferCancelledException();
   }
+}
+
+/// [work] 和用户取消赛跑：点了取消就马上报 [TransferCancelledException]。[work] 在后台自己结束，
+/// 调用方不再用它的结果——写的是临时文件，不会被换成目标文件。
+Future<T> raceCancellation<T>(
+  Future<T> work,
+  TransferCancellationToken? token,
+) {
+  if (token == null) return work;
+  final result = Completer<T>();
+  work.then(
+    (value) {
+      if (!result.isCompleted) result.complete(value);
+    },
+    onError: (Object error, StackTrace stack) {
+      if (!result.isCompleted) result.completeError(error, stack);
+    },
+  );
+  token.whenCancelled.then((_) {
+    if (!result.isCompleted) {
+      result.completeError(const TransferCancelledException());
+    }
+  });
+  return result.future;
+}
+
+/// 传到一半连接断了（读源断的、写目标断的都算）。写的是临时文件，所以目标文件一定没动过；
+/// 已传的部分留在 [partialPath]。不会自动重传。
+class TransferInterrupted implements Exception {
+  const TransferInterrupted(this.target, this.partialPath,
+      {this.hasPartial = true});
+
+  final String target;
+  final String partialPath;
+
+  /// 临时文件里可能已经有内容。一个字节都还没传时为 false。
+  final bool hasPartial;
+
+  @override
+  String toString() => hasPartial
+      ? '传输中断：连接断了，「$target」没有动过。已传的部分留在「$partialPath」；'
+          '不会自动重传，下次传同一个文件时可以选择续传。'
+      : '传输中断：连接断了，「$target」没有动过。不会自动重传。';
+}
+
+/// 目标位置已经有同名文件，用户没同意替换：没有动它。传好的内容留在临时文件里。
+class TargetExists implements Exception {
+  const TargetExists(this.path);
+
+  final String path;
+
+  @override
+  String toString() => '目标已有同名文件「$path」，没有替换。';
 }
 
 /// 文件的大小和修改时间（秒，SFTP 给的就是秒）。拿不到修改时间的来源只比大小。
@@ -912,6 +971,12 @@ bool sameTransferStorage(FileTransferService a, FileTransferService b) {
           jsonEncode(right.data['proxyConfig']);
 }
 
+/// 把 [entry]（文件或整个目录）从 [source] 复制到 [target] 的 [targetDirectory] 里，经手机中转。
+///
+/// 每个文件先写到同目录的 `.名字.shun-part`，写完再换名：取消、断线时目标文件没动过
+/// （[TransferCancelledException] / [TransferInterrupted]）；只有断在换名那一步才是结果未知（[OutcomeUnknown]）。
+/// [resume] 接着已有的临时文件往后写，只有用户确认那是同一个文件传了一半时才传 true：
+/// 临时文件只按名字认，认不出是不是另一个同名文件留下的。目标已有同名文件时不替换（[TargetExists]）。
 Future<int> transferEntry(
   FileTransferService source,
   RemoteEntry entry,
@@ -919,7 +984,7 @@ Future<int> transferEntry(
   String targetDirectory, {
   TransferProgressCallback? onProgress,
   TransferCancellationToken? cancellationToken,
-  bool resume = true,
+  bool resume = false,
 }) async {
   cancellationToken?.throwIfCancelled();
   final targetPath = target.joinPath(targetDirectory, entry.name);
@@ -944,10 +1009,7 @@ Future<int> transferEntry(
       return;
     }
 
-    final partialPath = target.joinPath(
-      directory,
-      '.${current.name}.shun-part',
-    );
+    final partialPath = copyPartialPath(target, directory, current.name);
     var resumeOffset = resume ? await target.fileSize(partialPath) ?? 0 : 0;
     if (resumeOffset < 0 || resumeOffset > current.size) {
       resumeOffset = 0;
@@ -955,21 +1017,29 @@ Future<int> transferEntry(
     final baseline = transferred + resumeOffset;
     if (resumeOffset > 0) onProgress?.call(baseline);
     var fileProgress = 0;
-    await target.writeStream(
+    await _writePartial(
+      currentTargetPath,
       partialPath,
-      cancelOnDemand(
-        source.readStream(current.path, startOffset: resumeOffset),
+      hasPartial: () => resumeOffset + fileProgress > 0,
+      () => raceCancellation(
+        target.writeStream(
+          partialPath,
+          cancelOnDemand(
+            source.readStream(current.path, startOffset: resumeOffset),
+            cancellationToken,
+          ),
+          startOffset: resumeOffset,
+          truncate: resumeOffset == 0,
+          onProgress: (value) {
+            fileProgress = value;
+            onProgress?.call(baseline + value);
+          },
+        ),
         cancellationToken,
       ),
-      startOffset: resumeOffset,
-      truncate: resumeOffset == 0,
-      onProgress: (value) {
-        fileProgress = value;
-        onProgress?.call(baseline + value);
-      },
     );
     cancellationToken?.throwIfCancelled();
-    await target.rename(partialPath, currentTargetPath);
+    await _publish(target, partialPath, currentTargetPath, replace: false);
     transferred = baseline + fileProgress;
   }
 
@@ -977,17 +1047,63 @@ Future<int> transferEntry(
   return transferred;
 }
 
+/// 把 [source] 交出去，用户一点取消就报 [TransferCancelledException] 并结束——不等下一块数据到
+/// （服务器卡住时下一块可能永远不来）。
 Stream<Uint8List> cancelOnDemand(
   Stream<Uint8List> source,
   TransferCancellationToken? token,
-) async* {
-  await for (final chunk in source) {
-    token?.throwIfCancelled();
-    yield chunk;
+) {
+  if (token == null) return source;
+  late final StreamController<Uint8List> controller;
+  StreamSubscription<Uint8List>? subscription;
+  void cancelled() {
+    if (controller.isClosed) return;
+    controller.addError(const TransferCancelledException());
+    unawaited(controller.close());
+    unawaited(subscription?.cancel());
   }
-  token?.throwIfCancelled();
+
+  controller = StreamController<Uint8List>(
+    onListen: () {
+      if (token.isCancelled) return cancelled();
+      subscription = source.listen(
+        (chunk) {
+          if (token.isCancelled) return cancelled();
+          if (!controller.isClosed) controller.add(chunk);
+        },
+        onError: (Object error, StackTrace stack) {
+          if (!controller.isClosed) controller.addError(error, stack);
+        },
+        onDone: () {
+          if (token.isCancelled) return cancelled();
+          if (!controller.isClosed) unawaited(controller.close());
+        },
+      );
+      token.whenCancelled.then((_) => cancelled());
+    },
+    onPause: () => subscription?.pause(),
+    onResume: () => subscription?.resume(),
+    onCancel: () {
+      unawaited(subscription?.cancel());
+    },
+  );
+  return controller.stream;
 }
 
+/// 「传到另一栏」用的临时文件：目标目录里的 `.名字.shun-part`。
+String copyPartialPath(
+        FileTransferService target, String directory, String name) =>
+    target.joinPath(directory, '.$name.shun-part');
+
+/// 上传用的临时文件：`目标.shun-part`。
+String uploadPartialPath(String finalPath) => '$finalPath.shun-part';
+
+/// 先写到 [uploadPartialPath]，写完再换成 [finalPath]：中途取消、断线，[finalPath] 都没动过。
+///
+/// [resume]：接着已有的临时文件往后写。只有用户确认那是同一个文件传了一半时才传 true（见 [transferEntry]）。
+/// [replace]：[finalPath] 已经存在时替换它。为 false 时换名前再查一次，有了就报 [TargetExists]。
+/// 查完到换名之间别人放进来的同名文件仍会被替换：dartssh2 的改名在 OpenSSH 上走 posix-rename，
+/// 没有「不替换」的写法（窗口是一次请求来回）。
 Future<int> writeStreamAtomically(
   FileTransferService target,
   String finalPath,
@@ -995,28 +1111,80 @@ Future<int> writeStreamAtomically(
   required int totalBytes,
   TransferProgressCallback? onProgress,
   TransferCancellationToken? cancellationToken,
+  bool resume = false,
+  bool replace = false,
 }) async {
-  final partialPath = '$finalPath.shun-part';
-  var resumeOffset = await target.fileSize(partialPath) ?? 0;
+  final partialPath = uploadPartialPath(finalPath);
+  var resumeOffset = resume ? await target.fileSize(partialPath) ?? 0 : 0;
   if (resumeOffset < 0 || resumeOffset > totalBytes) resumeOffset = 0;
   if (resumeOffset > 0) onProgress?.call(resumeOffset);
   var written = 0;
-  await target.writeStream(
+  await _writePartial(
+    finalPath,
     partialPath,
-    cancelOnDemand(
-      _skipBytes(source, resumeOffset),
+    hasPartial: () => resumeOffset + written > 0,
+    () => raceCancellation(
+      target.writeStream(
+        partialPath,
+        cancelOnDemand(
+          _skipBytes(source, resumeOffset),
+          cancellationToken,
+        ),
+        startOffset: resumeOffset,
+        truncate: resumeOffset == 0,
+        onProgress: (value) {
+          written = value;
+          onProgress?.call(resumeOffset + value);
+        },
+      ),
       cancellationToken,
     ),
-    startOffset: resumeOffset,
-    truncate: resumeOffset == 0,
-    onProgress: (value) {
-      written = value;
-      onProgress?.call(resumeOffset + value);
-    },
   );
   cancellationToken?.throwIfCancelled();
-  await target.rename(partialPath, finalPath);
+  await _publish(target, partialPath, finalPath, replace: replace);
   return resumeOffset + written;
+}
+
+/// 写临时文件这一段。连接断了（读源断的、写目标断的都算），目标文件都没动过 → [TransferInterrupted]。
+/// 一个字节都没写、连接在发出前就没了的，原样报 [ConnectionGone]（什么都没做）。
+Future<void> _writePartial(
+  String finalPath,
+  String partialPath,
+  Future<void> Function() write, {
+  required bool Function() hasPartial,
+}) async {
+  try {
+    await write();
+  } on OutcomeUnknown {
+    throw TransferInterrupted(finalPath, partialPath, hasPartial: hasPartial());
+  } on ConnectionGone {
+    if (!hasPartial()) rethrow;
+    throw TransferInterrupted(finalPath, partialPath);
+  }
+}
+
+/// 把写好的临时文件换成目标。只有这一步会动目标：断在这里是「结果未知」（[OutcomeUnknown]）。
+Future<void> _publish(
+  FileTransferService target,
+  String partialPath,
+  String finalPath, {
+  required bool replace,
+}) async {
+  if (!replace) {
+    final int? existing;
+    try {
+      existing = await target.fileSize(finalPath);
+    } on ConnectionGone {
+      throw TransferInterrupted(finalPath, partialPath);
+    }
+    if (existing != null) throw TargetExists(finalPath);
+  }
+  try {
+    await target.rename(partialPath, finalPath);
+  } on ConnectionGone {
+    // 还没发出去：目标没动，写完的内容都在临时文件里。
+    throw TransferInterrupted(finalPath, partialPath);
+  }
 }
 
 Stream<Uint8List> _skipBytes(Stream<Uint8List> source, int count) async* {

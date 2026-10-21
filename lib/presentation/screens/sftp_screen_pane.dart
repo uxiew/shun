@@ -373,7 +373,7 @@ class _SftpPaneState extends State<_SftpPane> {
         ),
         subtitle: compact
             ? null
-            : LText(entry.isDirectory ? '目录' : _formatBytes(entry.size)),
+            : LText(entry.isDirectory ? '目录' : formatBytes(entry.size)),
         onLongPress: () => _toggleEntry(entry),
         onTap: () => _selecting
             ? _toggleEntry(entry)
@@ -580,24 +580,49 @@ class _SftpPaneState extends State<_SftpPane> {
       stream = Stream.value(file.bytes!);
     }
     if (stream == null) return;
+    final target = service;
+    final finalPath = target.joinPath(path, file.name);
+    // 替不替换、续不续传都由用户定，不替用户猜（R24）。
+    final bool replace;
+    final bool resume;
+    try {
+      final existing = await target.stamp(finalPath);
+      if (!mounted) return;
+      if (existing != null &&
+          !await confirmReplaceDialog(context, file.name, existing)) {
+        return;
+      }
+      replace = existing != null;
+      if (!mounted) return;
+      final choice = await askResumeDialog(
+          context, target, uploadPartialPath(finalPath), file.name, file.size);
+      if (choice == null) return;
+      resume = choice;
+    } catch (error) {
+      _message('$error');
+      return;
+    }
+    if (!mounted || _transfer != null) return;
     final tracker = _beginTransfer(
       '${service.isLocal ? '导入' : '上传'} ${file.name}',
       file.size,
     );
     try {
       await writeStreamAtomically(
-        service,
-        service.joinPath(path, file.name),
+        target,
+        finalPath,
         stream,
         totalBytes: file.size,
         onProgress: tracker.update,
         cancellationToken: _transferCancellation,
+        resume: resume,
+        replace: replace,
       );
       tracker.finish();
-      await refresh();
-      _message(service.isLocal ? '已导入到挂载目录' : '上传完成');
+      if (identical(target, service)) await refresh();
+      _message(target.isLocal ? '已导入到挂载目录' : '上传完成');
     } on TransferCancelledException {
-      _message('传输已取消，可再次上传以继续');
+      _message('已取消：目标位置的同名文件没有动过。已传的部分留着，下次传同一个文件时可以选续传。');
     } catch (error) {
       _message('$error');
     } finally {
@@ -607,13 +632,15 @@ class _SftpPaneState extends State<_SftpPane> {
 
   Future<void> _share(RemoteEntry entry) async {
     if (_transfer != null) return;
+    // 下到一半的临时文件：没下完就删掉，不留在手机缓存里冒充完整文件。
+    File? incomplete;
     try {
       late final File file;
       if (service is LocalFileTransferService) {
         file = File(entry.path);
       } else {
         final directory = await getTemporaryDirectory();
-        file = File(
+        file = incomplete = File(
           '${directory.path}/${DateTime.now().millisecondsSinceEpoch}-${entry.name}',
         );
         final sink = file.openWrite(mode: FileMode.writeOnly);
@@ -630,6 +657,7 @@ class _SftpPaneState extends State<_SftpPane> {
           await sink.close();
           _endTransfer();
         }
+        incomplete = null;
       }
       await SharePlus.instance.share(
         ShareParams(files: [XFile(file.path)], title: entry.name),
@@ -638,6 +666,14 @@ class _SftpPaneState extends State<_SftpPane> {
       _message('下载已取消');
     } catch (error) {
       _message('$error');
+    } finally {
+      if (incomplete case final file?) {
+        try {
+          await file.delete();
+        } catch (_) {
+          // 缓存目录系统会自己清；删不掉不影响提示。
+        }
+      }
     }
   }
 
@@ -996,7 +1032,7 @@ class _TransferProgressView extends StatelessWidget {
         : '${(progress.value! * 100).toStringAsFixed(0)}%';
     final speed = progress.bytesPerSecond <= 0
         ? null
-        : '${_formatBytes(progress.bytesPerSecond.round())}/s';
+        : '${formatBytes(progress.bytesPerSecond.round())}/s';
     final details = progress.preparing
         ? '正在计算文件大小…'
         : [
@@ -1004,8 +1040,8 @@ class _TransferProgressView extends StatelessWidget {
             if (percent != null) percent,
             if (progress.transferredBytes > 0 || total != null)
               total == null || total <= 0
-                  ? _formatBytes(progress.transferredBytes)
-                  : '${_formatBytes(progress.transferredBytes)} / ${_formatBytes(total)}',
+                  ? formatBytes(progress.transferredBytes)
+                  : '${formatBytes(progress.transferredBytes)} / ${formatBytes(total)}',
             if (speed != null) speed,
           ].join(' · ');
     return Semantics(
@@ -1075,11 +1111,3 @@ IconData _fileIcon(String name) =>
           ).hasMatch(name)
             ? Icons.code
             : Icons.description_outlined;
-
-String _formatBytes(int value) => value < 1024
-    ? '$value B'
-    : value < 1024 * 1024
-        ? '${(value / 1024).toStringAsFixed(1)} KB'
-        : value < 1024 * 1024 * 1024
-            ? '${(value / 1024 / 1024).toStringAsFixed(1)} MB'
-            : '${(value / 1024 / 1024 / 1024).toStringAsFixed(1)} GB';
