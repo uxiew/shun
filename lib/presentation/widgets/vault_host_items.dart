@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../domain/models/host.dart';
 import '../localization/localized_widgets.dart';
 import 'host_address_line.dart';
-import 'host_system_icon.dart';
+import 'host_type_icon.dart';
 
 class VaultHostTree extends StatelessWidget {
   const VaultHostTree({
@@ -59,7 +59,7 @@ class VaultHostTree extends StatelessWidget {
                 ListTile(
                   contentPadding: const EdgeInsets.only(left: 28, right: 8),
                   onTap: () => onConnect(host),
-                  leading: HostSystemIcon(host: host, size: 38),
+                  leading: HostLeadingIcon(host: host, size: 38),
                   title: LText(host.label),
                   subtitle: HostAddressLine(host),
                   trailing: IconButton(
@@ -100,7 +100,7 @@ class VaultHostCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    HostSystemIcon(host: host, size: 40),
+                    HostLeadingIcon(host: host, size: 40),
                     const Spacer(),
                     if (host.pinned) const Icon(Icons.push_pin, size: 16),
                     IconButton(
@@ -154,7 +154,7 @@ class VaultHostTile extends StatelessWidget {
   Widget build(BuildContext context) => Card(
         child: ListTile(
           onTap: onConnect,
-          leading: HostSystemIcon(host: host, size: 42),
+          leading: HostLeadingIcon(host: host, size: 42),
           title: LText(host.label),
           subtitle: HostAddressLine(host),
           trailing: IconButton(

@@ -11,6 +11,7 @@ import '../../domain/models/host.dart';
 import '../../infrastructure/plugins/rustdesk_external.dart';
 import '../../infrastructure/plugins/uuremote_adapter.dart';
 import '../localization/localized_widgets.dart';
+import '../widgets/host_type_icon.dart';
 
 enum RemoteConnectionType { rustdesk, uu }
 
@@ -120,19 +121,19 @@ class _ConnectionTypeScreenState extends ConsumerState<ConnectionTypeScreen> {
           const LText('终端'),
           choice(
             'SSH',
-            Icons.lock_outline,
+            hostProtocolIcon(HostProtocol.ssh)!,
             '可用 · SSH 终端',
             const ConnectionTypeChoice.terminal(HostProtocol.ssh),
           ),
           choice(
             'Mosh',
-            Icons.wifi_tethering,
+            hostProtocolIcon(HostProtocol.mosh)!,
             moshStatus,
             const ConnectionTypeChoice.terminal(HostProtocol.mosh),
           ),
           choice(
             'Telnet',
-            Icons.cable,
+            hostProtocolIcon(HostProtocol.telnet)!,
             '可用 · 明文，仅直连',
             const ConnectionTypeChoice.terminal(HostProtocol.telnet),
           ),
@@ -191,7 +192,7 @@ class _ConnectionTypeScreenState extends ConsumerState<ConnectionTypeScreen> {
           ))
             choice(
               entry.descriptor!.displayName,
-              Icons.extension_outlined,
+              hostProtocolIcon(HostProtocol.plugin)!,
               discovery.isLoading
                   ? '正在检查插件'
                   : discovery.hasError

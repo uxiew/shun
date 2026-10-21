@@ -2184,6 +2184,11 @@ const englishTranslations = <String, String>{
       r'The Mosh session ended before it attached tmux session “${target.displayName}” (${target.sessionId}): ${describeMoshEnd(session)}',
   r'第 2 段 UDP：Mosh 插件正在直连 $detail；SSH 先留着，核对 tmux 会话“$label”附着上了再断开':
       r'Leg 2, UDP: the Mosh plugin is connecting directly to $detail; SSH stays open until tmux session “$label” is verified as attached',
+  // R43 主机列表
+  'SSH 连接': 'SSH connection',
+  'Mosh 连接': 'Mosh connection',
+  'Telnet 连接': 'Telnet connection',
+  '插件连接': 'Plugin connection',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
