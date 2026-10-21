@@ -19,7 +19,7 @@
 | 一个 App 里**只有一个**这样的服务 | 「不兼容：一个安装包声明了 2 个插件服务，只允许一个」 |
 | 服务上 `<meta-data android:name="top.xdwa.shun.plugin.DESCRIPTOR" android:resource="@raw/…" />` 指向描述符 | 「不兼容：插件服务没有声明 top.xdwa.shun.plugin.DESCRIPTOR」 |
 | 服务**不设** `android:permission` | 宿主绑不上。独立签名的插件没法用 signature 权限认宿主，认人放在每个调用里（第 4 节） |
-| `<queries><package android:name="top.xdwa.shun" /></queries>` | API 35 模拟器上去掉也能握手（宿主绑定插件时系统自动让插件看见宿主），样例照写，原因见清单注释 |
+| `<queries><package android:name="宿主包名" /></queries>` | API 35 模拟器上去掉也能握手（宿主绑定插件时系统自动让插件看见宿主），样例照写，原因见清单注释。样例里是 `${hostPackage}`，构建时从 `shunHostPackage` 填（正式版 `top.xdwa.shun`，调试版 `top.xdwa.shun.debug`） |
 | 可选：一个导出的 Activity，带 `top.xdwa.shun.plugin.action.SETTINGS_V1` 和 `DEFAULT` category | 声明了多个时宿主不给入口，不替你挑 |
 
 设置页：宿主详情页的「打开插件的设置页」用显式组件打开它，**不带任何 extras**。只有「可用」的插件才有这个入口。
@@ -84,7 +84,7 @@
 ## 4. 认人：每个方法第一行
 
 ```java
-int uid = verifier.requireTrustedCaller();   // CallerVerifier(context, "top.xdwa.shun", {宿主证书 SHA-256})
+int uid = verifier.requireTrustedCaller();   // CallerVerifier(context, 宿主包名, {宿主证书 SHA-256})，包名样例从 shunHostPackage 来
 ```
 
 - 它用 `Binder.getCallingUid()` 查出调用方的包名，再从系统读这个包**当前**的签名证书，必须是你在 `shunHostSha256` 里写的那张。

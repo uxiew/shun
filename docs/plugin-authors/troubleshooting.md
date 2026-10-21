@@ -80,6 +80,7 @@ adb logcat -s ShunHello ShunPlugins AndroidRuntime:E
 |---|---|---|
 | 没有「连接测试」按钮 | 插件不是「可用」 | 先批准；停用了就点「启用」 |
 | 连接失败：插件拒绝了宿主：top.xdwa.shun 的签名证书不是信任的那张（实测） | 你在 `shunHostSha256` 里写的不是手上这个宿主的证书。最常见：宿主是另一台电脑编的 debug 包，或者换成了正式版宿主 | 从宿主插件页底部「给插件作者」抄证书，重新构建插件 |
+| 连接失败：插件拒绝了宿主：调用方 UID … 不是 top.xdwa.shun | 插件认的宿主包名和手上的宿主对不上。最常见：宿主是自己 `flutter run` 编的调试版（`top.xdwa.shun.debug`），插件按默认认正式版 | `gradle.properties` 写 `shunHostPackage=top.xdwa.shun.debug`，重新构建插件（README 第 3 步） |
 | 连接失败：插件不接受宿主的 API 版本：本插件要求宿主 API 1.1 及以上，宿主是 1.0（实测，样例加 `-PminHostMinor=1` 构建） | 你的 `handshake` 不接受这个宿主版本（抛了 `IllegalStateException`） | 宿主升级，或者降低你的要求。后面那半句是你自己抛的原话 |
 | 连接失败：插件握手出错：UnsupportedOperationException …（实测，测试插件 echo-badhandshake） | 握手里抛了 `IllegalStateException` 以外的异常 | 握手里只抛 `IllegalStateException`。2026-10-07 之前编的宿主遇到这种会整个闪退（实测：`FATAL EXCEPTION: pool-6-thread-1`），新宿主只报错 |
 | 插件握手时自称 X，与批准的 Y 不符 | `handshake` 返回的描述符和清单里那份不是一个 `pluginId` | 返回同一份（样例从 `R.raw.shun_plugin` 读） |

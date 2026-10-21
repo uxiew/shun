@@ -12,6 +12,8 @@
 # 选项：
 #   --host-apk <apk>        宿主安装包，用 apksigner 读它的签名证书（推荐，不会抄错）
 #   --host-sha256 <hex>     或者直接给宿主证书 SHA-256（宿主「设置 → 插件（实验）」最底下抄的）；两个都给就都信任
+#   --host-package <包名>  信任的宿主包名。不给就从 --host-apk 读；都没有就是正式版 top.xdwa.shun。
+#                           自己 flutter run 起来的宿主是 top.xdwa.shun.debug，写错了宿主来连时插件会拒绝
 #   --dir <目录>            新工程放哪，默认 ~/shun-plugins/<包名最后一段>，必须还不存在
 #   --keystore <文件>       新密钥库放哪，默认 ~/shun-plugin-keys/<包名最后一段>.jks，必须还不存在
 #   --license <SPDX>        描述符里的 license，默认 Apache-2.0（样例的许可）；你的插件用别的许可就改
@@ -32,11 +34,12 @@ api="$(cd "$example/../../packages/plugin_api" 2>/dev/null && pwd)" || die "找�
 [[ $# -ge 3 ]] || { sed -n '5,20p' "$0" | sed 's/^# \{0,1\}//'; exit 2; }
 pkg=$1 plugin_id=$2 name=$3
 shift 3
-host_apk="" host_sha="" dest="" keystore="" license="Apache-2.0" build=0
+host_apk="" host_sha="" host_package="" dest="" keystore="" license="Apache-2.0" build=0
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --host-apk) host_apk=$2; shift 2 ;;
     --host-sha256) host_sha=$2; shift 2 ;;
+    --host-package) host_package=$2; shift 2 ;;
     --dir) dest=$2; shift 2 ;;
     --keystore) keystore=$2; shift 2 ;;
     --license) license=$2; shift 2 ;;
@@ -72,14 +75,16 @@ keytool=$(command -v keytool || true)
 [[ -n $keytool ]] || die "找不到 keytool：装 JDK 17，把它的 bin 放进 PATH 或设 JAVA_HOME"
 command -v perl >/dev/null || die "要 perl（macOS、Linux 一般都自带）"
 
-apksigner() {
-  local tools="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}/build-tools"
+build_tool() {
+  local tool=$1 tools="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}/build-tools"
+  shift
   [[ -d $tools ]] || die "找不到 Android SDK 的 build-tools：设 ANDROID_HOME"
   local found
-  found=$(ls -d "$tools"/*/apksigner 2>/dev/null | sort -V | tail -1)
-  [[ -n $found ]] || die "build-tools 里没有 apksigner"
+  found=$(ls -d "$tools"/*/"$tool" 2>/dev/null | sort -V | tail -1)
+  [[ -n $found ]] || die "build-tools 里没有 $tool"
   "$found" "$@"
 }
+apksigner() { build_tool apksigner "$@"; }
 
 # ---- 宿主证书 ----
 hosts=()
@@ -89,6 +94,10 @@ if [[ -n $host_apk ]]; then
   [[ $(printf '%s\n' "$read_sha" | wc -l) -eq 1 && -n $read_sha ]] || die "从 $host_apk 读出的证书不是正好一张：$read_sha"
   hosts+=("$read_sha")
   say "宿主证书（从 $host_apk 读出）：$read_sha"
+  if [[ -z $host_package ]]; then
+    host_package=$(build_tool aapt2 dump badging "$host_apk" | sed -n "s/^package: name='\([^']*\)'.*/\1/p")
+    say "宿主包名（从 $host_apk 读出）：$host_package"
+  fi
 fi
 if [[ -n $host_sha ]]; then
   host_sha=$(printf '%s' "$host_sha" | tr 'A-F' 'a-f' | tr -d ':')
@@ -96,6 +105,9 @@ if [[ -n $host_sha ]]; then
   hosts+=("$host_sha")
 fi
 host_list=$(printf '%s\n' "${hosts[@]}" | sort -u | paste -sd, -)
+# 插件只认一个宿主包名（CallerVerifier）。不写就是正式版；对着自己 flutter run 的宿主测时要是 top.xdwa.shun.debug。
+host_package=${host_package:-top.xdwa.shun}
+[[ $host_package =~ $ident ]] || die "宿主包名「${host_package}」不对：正式版是 top.xdwa.shun，自己 flutter run 的是 top.xdwa.shun.debug"
 
 # ---- 复制样例和契约库 ----
 say "复制样例到 $dest"
@@ -169,6 +181,7 @@ EOF
 umask 022
 {
   echo "shunHostSha256=$host_list"
+  echo "shunHostPackage=$host_package"
   echo "shunSdkDir=provider-sdk"
 } >> "$dest/gradle.properties"
 
@@ -195,7 +208,7 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 \`\`\`
 
 - 签名：\`signing.properties\`（密码在里面，别提交）指向 \`$keystore\`。你的证书 SHA-256：\`$author_sha\`，用户批准时拿它核对。
-- 信任的宿主证书：\`gradle.properties\` 的 \`shunHostSha256\`。
+- 信任的宿主：\`gradle.properties\` 的 \`shunHostSha256\`（证书）和 \`shunHostPackage\`（包名，现在是 \`$host_package\`）。
 - 会话逻辑在 \`TerminalShell.java\`（纯 Java），接线在 \`TerminalSession.java\`、\`ProviderService.java\`。
 - 怎么装、批准、验证、出错怎么查：shun 仓库的 \`docs/plugin-authors/\`。
 EOF
@@ -203,6 +216,7 @@ EOF
 say "改好的工程：$dest"
 echo "   包名 $pkg / pluginId $plugin_id / 显示名 $name / license $license"
 echo "   信任的宿主证书：$host_list"
+echo "   信任的宿主包名：$host_package"
 echo "   你的证书 SHA-256：${author_sha}（密钥库 ${keystore}，口令在 $dest/signing.properties）"
 
 # ---- 自查描述符 ----

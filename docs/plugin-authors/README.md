@@ -144,6 +144,16 @@ shunHostSha256=499ff3abf2d0aeb386ce3b30da1c3a0fa3566d5d89b042bf279c0773f79d500f
 写错了会怎样：构建照样成功，装上也能批准，但「连接测试」报 **「连接失败：插件拒绝了宿主：top.xdwa.shun 的签名证书不是信任的那张」**。
 debug 宿主是用编它那台电脑的调试证书签的，换一台电脑编的宿主证书就不同；要同时支持几个宿主，用逗号隔开写几张。
 
+包名也要对上。插件只认一个宿主包名：`gradle.properties` 的 `shunHostPackage`，不写就是正式版的 `top.xdwa.shun`。
+手上的宿主是自己 `flutter run`（或 `flutter build apk --debug`）编的调试版时，它的包名是 `top.xdwa.shun.debug`，要加一行：
+
+```properties
+shunHostPackage=top.xdwa.shun.debug
+```
+
+`new-plugin.sh --host-apk` 会从宿主安装包里读出包名替你写上。写错了：同样能批准，「连接测试」报
+**「连接失败：插件拒绝了宿主：调用方 UID … 不是 top.xdwa.shun」**。要对着正式版和调试版都测，就分别编两次。
+
 ## 第 4 步：构建
 
 ```bash
@@ -241,7 +251,7 @@ hello>
 
 **握手、认人、字节流这一层要装宿主测**，用宿主的「会话测试」。SDK 里不提供「假宿主」，原因：
 
-- 插件只接受宿主那张证书签的、包名是 `top.xdwa.shun` 的调用方（`CallerVerifier`）。假宿主要么用同一个包名（和真宿主装不到一台设备上），
+- 插件只接受宿主那张证书签的、包名是 `shunHostPackage`（默认 `top.xdwa.shun`）的调用方（`CallerVerifier`）。假宿主要么用同一个包名（和真宿主装不到一台设备上），
   要么让插件额外信任一个假宿主——这得在插件里放开一个口子，只在 debug 包里放开也容易被带进发布包，削弱的正是这层认人。
 - 假宿主要把宿主的插件桥（绑定、握手、socketpair、背压、关闭确认）重写一遍，几百行，写出来也不等于真宿主的行为。
 
