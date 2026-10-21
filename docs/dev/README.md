@@ -51,6 +51,8 @@ R43 主机列表：菜单里列哪些项在 `lib/application/host_actions.dart`�
 
 R24 借用标签连接的功能（文件、转发、监控、系统管理）：怎么借、三种结果、绕开的 dartssh2 坑见 [architecture.md 「借用标签连接的功能」](architecture.md#借用标签连接的功能r24)。先跑不连网的 `flutter test --no-pub test/r24_borrowers_test.dart`（约 3 秒），再起 `tool/fixture-environment/up.sh` 跑 `flutter test --no-pub test/integration_ssh_fixture_test.dart --plain-name R24`（约 10 秒，会杀容器里的 sshd 会话）。设备上从主机 ⋮ 菜单进文件页那一段：模拟器开好、拿了锁（第 3 节）以后 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r24-device.py`，约 2 分钟，docker 要在 PATH 里（脚本按测试的 `R24 KILL` 标记去杀容器里的会话），跑完清掉 App 数据。结果只看 `plan/v3/evidence/R24.md`。
 
+R25 连接记录：值从哪来、存在哪、哪些名字不能改见 [architecture.md 2.10](architecture.md#210-连接记录r25)。不连网的 `flutter test --no-pub test/r25_connection_events_test.dart test/r25_connection_log_screen_test.dart test/r25_probe_record_test.dart`（约 10 秒）；起了 `tool/fixture-environment/up.sh` 再跑 `flutter test --no-pub test/integration_ssh_fixture_test.dart --plain-name 'R25 连接记录'`（约 5 秒，会杀 ssh-edge 里的 sshd 会话）。设备上：模拟器开好、拿了锁以后 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r25-device.py`，约 1.5 分钟，docker 要在 PATH 里；脚本在清除前把 App 的记录文件拷到证据目录、在本机再查一遍有没有登录信息和地址，跑完清掉 App 数据。结果只看 `plan/v3/evidence/R25.md`。
+
 R40 的 `lib/presentation/widgets/connection_route_editor.dart` 是共用链式编辑器，接收页面已有 `RoutePlan`，通过 `describeRoute` 显示已验证的节点；无有效计划时只显示草稿和错误。`connection_route_draft.dart` 管理选择及兼容字段，保留未修正的失效引用和旧内联配置；不读仓库、不执行网络请求。两页负责预览和提交，只有 `resolveRoutePlan` 决定路线规则。`domain/jump_route_choices.dart` 是 RoutePlan 库的一部分，集中做有界展开、首跳代理候选及确认复核；`jump_route_choice_dialog.dart` 只展示方案并返回明确选择。确认前、来源变化后和后续跳板自带代理时均拒绝执行。
 
 R40 确认信息保存在原 `hostChain` 的 `shunRouteConfirmation` 扩展中：只有版本、顺序、来源的非秘密路线信息和入口选择，没有密码或私钥。`hostIds`、`proxyProfileId` / `proxyConfig` 仍是完整平面路线，不迁移或修改其他主机；缺失/损坏/失效确认一律拒绝。旧客户端的确认语义未实测，不以 JSON 字段兼容冒充跨端执行兼容。

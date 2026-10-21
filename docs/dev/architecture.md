@@ -195,6 +195,20 @@ Tailscale SSH 是**一跳的登录方式**：主机 data 里写着 `shunSshLogin
 - `vaultController.markConnected` 记连接时间，按「远端来的改动」保存，打开终端不触发云同步上传。
 - `_detectSystem` 用 `ServerMonitorService.detect` 认远端系统，只 `patchHost` 写 `os`、`distro`、`systemInfo` 三个字段，写到保险库**此刻**那份主机上。以前写回连接开始时的整份快照，连接期间用户改的地址、账号会被改回去，删掉的主机会被加回来。
 
+### 2.10 连接记录（R25）
+
+用户看到的是什么见[使用手册第 6 节](../user/README.md#连接记录每次连到哪一步用了多久)。这里只讲值从哪来、存在哪、改的时候别踩什么。
+
+- **值从哪来**：只从已有的事件取，不另拨号、不定时。`ConnectionAttempt`（`ssh_service.dart`）带一个从创建起走的 `Stopwatch`，`report()` 顺手把阶段和开始时刻记进 `timeline`；确认指纹、键盘交互这两个回调包在 `waitingForUser` 里，用时记在当前阶段的 `userWait`。`SessionController` 在新开（`connect`）、恢复（`_recoverOne`，带第几次；用户点「重新连接」开的那一轮第一次记成 `reconnect`）、原地切换、`_markDisconnected`、自动恢复停下这几处的结果处调 `_logAttempt` / `_logStop` / `_logEvent`；「断开前连了多久」用按连接对象记的 `_connectedClocks`。测试连接在 `connection_probe_sheet.dart` 里自己记，只记保险库里已有的主机。
+- **用时只用单调时钟**：墙上时钟只用来显示「几点」和算 7 天。拿 `DateTime.now()` 相减算用时，手机对时时会算出负数。
+- **存什么**（`application/connection_events.dart` 的 `ConnectionEvent`）：主机和各跳的保险库 ID、协议、入口类型（直连 / socks5 / http）、阶段名和时刻、结果、失败分类和失败跳。**不存**报错原话、`ConnectionStage.label/detail`、地址、用户名、banner、check 链接——这些里不是有地址就是有服务器发来的文字。要加字段，先想它会不会带上这些；`test/r25_connection_events_test.dart` 和测试环境里的「R25 连接记录」组会拿诱饵查存盘的 JSON。
+- **失败分类**在 `connection_diagnosis.dart`：`classifyConnectionFailure` 按异常类型分，失败页的 `connectionHint` 和记录页的 `failureNextStep` 都从它出，一句建议只写一处。`ConnectionFailureKind` 和 `ConnectionStep` 的**名字会写进文件**：改名等于旧记录读不出来（不认识的分类按「其他」，不认识的阶段整条丢掉），只加不改。
+- **存在哪**：`ApplicationSupportDirectory/diagnostics/connection_events.json`，先写 `.tmp` 再改名。不放 SharedPreferences：满 1000 条时几百 KB，会拖慢启动时整份读进来的那个 XML。不加密：里面没有凭据。上限 200 / 1000 / 7 天在 `pruneConnectionEvents`，新旧按记录先后（列表顺序）算，不按 `at`。保险库里主机没了，provider 里的 `ref.listen` 删它的记录，只比较「两次都已载入」的状态：保险库还在读、读失败时主机列表是空的。
+- **读写顺序**：`ConnectionEventLog` 写盘排队、总写最新状态，文件读完之前不写（否则刚记的几条会盖掉旧文件）。`app.dart` 启动时就建它，主机 ⋮ 菜单直接看已读到的状态判断「有没有记录」，**不要在界面里 await `ready`**：`flutter test` 里 path_provider 永远不回话，`ready` 一直不完成（菜单弹不出来、测试报「菜单是空的」）。widget 测试要看记录，把 `connectionEventStoreProvider` 换成 `MemoryConnectionEventStore`。
+- **字只在一处**：`presentation/widgets/connection_event_text.dart`，记录页和导出共用。带数字的句子写成 `{n}` 模板、整句翻译再填数。导出 `exportConnectionEvents` 不查保险库，主机编号、各跳只写角色。
+
+测试：不连网的 `test/r25_connection_events_test.dart`（修剪、JSON、诱饵、写盘顺序）、`r25_connection_log_screen_test.dart`（页面、导出、清除、UX02 规则）、`r25_probe_record_test.dart`；真实 OpenSSH 上的在 `test/integration_ssh_fixture_test.dart` 的「R25 连接记录」组；设备上的是 `integration_test/r25_connection_log_test.dart`，用 `tool/r25-device.py` 跑。
+
 ## 3. 传输：SSH、Telnet、Mosh、插件
 
 `ActiveTerminalSession`（`infrastructure/ssh/ssh_service.dart`）是一个标签当前这一代的连接。按传输不同，有的字段是空的：
@@ -381,6 +395,7 @@ flowchart TD
 | 系统管理 | 快捷键栏 → `SystemManagementSheet`：进程、Docker（含 Compose）、服务、Caddy、tmux | `infrastructure/ssh/system_management_service.dart`、`widgets/system_management/` | 每条命令 `sshClient.execute`（exec 通道），默认 15 秒。服务对象每次打开面板新建，关面板就丢。「在终端里执行」开的是一次性标签（`openManagedTerminal`）。参数怎么过滤、哪些操作有确认框、sudo 怎么试，见[安全文档第 8 节](security.md#8-会在服务器上执行命令的功能) |
 | 性能监控 | 快捷键栏 → `ServerMonitorSheet` | `infrastructure/ssh/server_monitor_service.dart` 的 `SessionMonitor` | 连上就开始采样，不是打开面板才开始；每 3 秒开一次 exec 读 `/proc`，留 60 个点；App 进后台 `pause()`，回前台 `resume()` |
 | AI 命令行工具 | 快捷键栏，或保险库主机菜单 → `AiCliToolsSheet` | `domain/ai_cli*.dart`、`infrastructure/ssh/ai_cli_*.dart`、`infrastructure/tmux/ai_cli_tmux_service.dart` | 检测：exec `/bin/sh -s`、不带 PTY，只看文件和相邻的 `package.json`，不运行发现的程序（连 `--version` 都不跑），10 秒、64 KiB；从主机菜单进来时先借路线形状相同的活标签，没有才按同一 `RoutePlan` 临时拨一条，用完释放。启动：每次新开专用标签，`requestId` 只能用一次（超时也算用过，防止界面重试悄悄发第二次）；带 PTY exec，等就绪标记最多 15 秒，标记前不放行键盘输入；确认前退出码 125/126 才算「明确被拒」，其余一律「结果未知」。最近工作存安全存储，键由 `domain/ai_cli_identity.dart` 的 `aiCliHostScope` 算——改这个序列化，已保存的记录全看不见。不受 `ForkFeatures` 控制。用户可见行为见[使用手册第 19 节](../user/README.md#19-发现启动与继续-ai-命令行工具) |
+| 连接记录 | 主机 ⋮ 菜单（有记录才列）、连接失败页、设置 → 安全 → `ConnectionLogScreen` | `application/connection_events.dart`、`screens/connection_log_screen.dart` | 见 2.10。只读本机文件，打开页面不联网；导出只到剪贴板 |
 | AI 聊天 | 快捷键栏 AI 按钮，`ForkFeatures.ai` 为真才出现（默认关） | `infrastructure/ai/` | OpenAI 兼容的 `chat/completions`；服务商配置和密钥只存本机安全存储，不进保险库 |
 | Tailscale 设备目录 | 设置 → `TailscaleCatalogScreen` | `application/tailscale_catalog_*.dart`、`infrastructure/tailscale/` | 只请求写死的 `https://api.tailscale.com`，只要 `devices:core:read`。粘贴的 token 用一次就丢；OAuth client 只有用户要求持续刷新、且服务器确认只读时才存进独立的安全存储。目录缓存在 `ApplicationSupportDirectory/tailscale_catalog/`，不进保险库（保险库会导出、会同步）。导入只写主机，不连接、不写指纹信任 |
 | RustDesk、UU 远程 | 保险库页的远控条目（`widgets/remote_connections.dart`） | `application/rustdesk.dart`、`uuremote.dart`，`infrastructure/plugins/rustdesk_external.dart`、`uuremote_adapter.dart` | 不是插件 APK，是拉起官方 App 的内置适配器（`builtin.rustdesk`、`builtin.uuremote`）。外部 App 走它自己的网络，不继承 SSH 路线；条目关联的 SSH 主机经代理或跳板时，发起前要用户确认。条目存在 `infrastructure/storage/remote_entry_store.dart` 的加密快照里（写后读回比对）；迁移规则见[本机手册第 2 节](README.md#2-测试) R39 段 |
