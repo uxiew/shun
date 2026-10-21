@@ -14,6 +14,8 @@
 - 不 push、不发布，除非所有者开口。remote 只有 `origin` = `uxiew/shun`（原项目的 upstream 已清掉，基座 SHA 见 `docs/decisions/base-decision.md`）。
 - applicationId 是 `top.xdwa.shun`（所有者 2026-10-11 从 `top.xdwa.xwshun` 改来）。不得改成上游的 `app.netcatty.mobile`，否则会覆盖手机上的原版 Netcatty 及其数据；
   也别再随手改：换了值手机就当成另一个 App，旧 App 的保险库、密钥不会跟过来。
+  这是正式包；调试包（`flutter run`/`test`/`drive` 装的）是 `top.xdwa.shun.debug`（所有者 2026-10-21 同意），
+  对调试包敲 adb、给调试宿主编插件都用这个名字，见 `docs/dev/README.md` 第 4 节。
 - 没真机/没授权的用例写 NOT_RUN 或 BLOCKED，不许拿 mock、参考 App 或计划校验冒充通过。
 
 Zig 由仓库 `mise.toml` 固定为 0.16.0，不跟随全局版本；其余工具链按 `docs/dev/README.md` 配置。
