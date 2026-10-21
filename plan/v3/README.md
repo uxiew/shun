@@ -27,7 +27,7 @@
 **实施进度、已做的改动和下一批只看 [STATUS.md](STATUS.md)**，本页不重复。规划检查结果不当App测试。
 
 ```bash
-../../../.toolchain/pyenv/bin/python3 scripts/validate_plan.py   # 在 plan/v3 下跑
+python3 scripts/validate_plan.py   # 在 plan/v3 下跑；只用标准库，系统自带的 python3 就行
 ```
 
 要用工具链里的 Python：系统自带的没有 jsonschema，结果会是 `"passed": false`、错误只有一条 `jsonschema missing`，看着像计划坏了，其实是 schema 检查没跑。

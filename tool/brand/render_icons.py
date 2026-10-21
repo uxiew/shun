@@ -5,7 +5,8 @@
     ../.toolchain/pyenv/bin/python tool/brand/render_icons.py                    # 覆盖写入各平台图标
     ../.toolchain/pyenv/bin/python tool/brand/render_icons.py --preview out.png  # 只出预览图，不碰仓库
 
-缺 Pillow 会报 "No module named 'PIL'"：
+缺 Pillow 会报 "No module named 'PIL'"；没有 ../.toolchain/pyenv（10-13 搬机时没带过来）会报 No such file，先建一个：
+    python3 -m venv ../.toolchain/pyenv
     ../.toolchain/pyenv/bin/python -m pip install pillow==12.3.0 numpy==2.5.4
 
 默认源图 raven-master.png 是无填充的透明粗线条母版；深浅主题共用其几何和 alpha。
