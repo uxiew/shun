@@ -8,9 +8,11 @@ final sftpNavigationRequestProvider =
 class SftpNavigationRequest {
   const SftpNavigationRequest({
     required this.sessionId,
-    required this.filePath,
+    this.filePath,
   });
 
   final String sessionId;
-  final String filePath;
+
+  /// 要定位到的远端文件；null 只把左栏切到这条 SSH（主机菜单里的「文件」，R43）。
+  final String? filePath;
 }

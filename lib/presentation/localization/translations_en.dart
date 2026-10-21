@@ -2189,6 +2189,29 @@ const englishTranslations = <String, String>{
   'Mosh 连接': 'Mosh connection',
   'Telnet 连接': 'Telnet connection',
   '插件连接': 'Plugin connection',
+  r'这台主机现在不能用 ${to.label} 连接。':
+      r'This host cannot connect with ${to.label} right now.',
+  '打不开这台主机的文件：对应的 SSH 会话已断开':
+      'Cannot open this host’s files: its SSH session has disconnected',
+  '不显示已隐藏的主机': 'Don’t show hidden hosts',
+  '显示已隐藏的主机：': 'Show hidden hosts: ',
+  '这台主机的 SSH 标签刚刚断开了，先重新连接。':
+      'This host’s SSH tab just disconnected. Reconnect first.',
+  '已隐藏：': 'Hidden: ',
+  '。照常能连，列表底部能找回来。':
+      '. It still connects; find it again at the bottom of the list.',
+  '用 Mosh 连接': 'Connect with Mosh',
+  '用 SSH 连接': 'Connect with SSH',
+  '在列表里隐藏': 'Hide from list',
+  '取消隐藏': 'Unhide',
+  '另开一个标签；这台主机保存的默认方式不变':
+      'Opens a new tab; this host’s saved default stays the same',
+  '用这台主机已经连着的 SSH 标签': 'Uses this host’s SSH tab that is already connected',
+  '只走一遍路线、指纹和登录，不开 shell':
+      'Only walks the route, fingerprint and login; opens no shell',
+  '照常能连；列表底部「显示已隐藏的主机」能找回来':
+      'Still connects; find it again with “Show hidden hosts” at the bottom of the list',
+  '更多操作': 'More actions',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are

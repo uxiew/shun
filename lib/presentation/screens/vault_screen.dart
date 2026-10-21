@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../application/connection_switch.dart';
+import '../../application/host_actions.dart';
 import '../../application/session_controller.dart';
 import '../../application/settings_controller.dart';
 import '../../application/vault_controller.dart';
@@ -17,8 +19,13 @@ import '../widgets/empty_state.dart';
 import '../widgets/host_editor.dart';
 import '../widgets/ai_cli_tools_sheet.dart';
 import '../../infrastructure/storage/ai_cli_recent_work.dart';
+import '../widgets/catalog_text.dart';
+import '../widgets/connection_probe_sheet.dart';
 import '../widgets/connection_prompts.dart';
+import '../widgets/host_actions_sheet.dart';
 import '../widgets/host_system_icon.dart';
+import '../widgets/port_forward_sheet.dart';
+import '../widgets/server_monitor_sheet.dart';
 import '../widgets/vault_host_items.dart';
 import 'rustdesk_screen.dart';
 import 'connection_type_screen.dart';
@@ -44,6 +51,9 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
   HostProfile? _recentAiHost;
   String? _recentSignature;
   bool _recentLoading = false;
+
+  /// 用户点了「显示已隐藏的主机」。只在这一页记着，重新打开 App 又藏起来。
+  bool _showHidden = false;
 
   Future<void> _loadRecentAi(List<HostProfile> hosts,
       {bool force = false}) async {
@@ -94,7 +104,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
         }
       });
     }
-    final hosts = (vault?.hosts ?? const <HostProfile>[]).where((host) {
+    final matching = (vault?.hosts ?? const <HostProfile>[]).where((host) {
       final query = _search.text.toLowerCase();
       final matchesQuery = query.isEmpty ||
           host.label.toLowerCase().contains(query) ||
@@ -102,7 +112,11 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
           host.tags.any((tag) => tag.toLowerCase().contains(query));
       return matchesQuery &&
           (selectedGroup == null || host.group == selectedGroup);
-    }).toList()
+    }).toList();
+    final hiddenCount = matching.where((host) => host.hidden).length;
+    final hosts = matching
+        .where((host) => _showHidden || !host.hidden)
+        .toList()
       ..sort((a, b) {
         if (a.pinned != b.pinned) return a.pinned ? -1 : 1;
         return a.label.toLowerCase().compareTo(b.label.toLowerCase());
@@ -276,7 +290,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                     const SliverToBoxAdapter(
                       child: Center(child: CircularProgressIndicator()),
                     )
-                  else if (hosts.isEmpty)
+                  else if (hosts.isEmpty && hiddenCount == 0)
                     SliverToBoxAdapter(
                       child: EmptyState(
                         icon: Icons.dns_outlined,
@@ -304,7 +318,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                           (_, index) => VaultHostCard(
                             host: hosts[index],
                             onConnect: () => _showHostDetails(hosts[index]),
-                            onEdit: () => _editHost(hosts[index]),
+                            onMenu: () => _showHostMenu(hosts[index]),
                           ),
                           childCount: hosts.length,
                         ),
@@ -315,7 +329,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                       child: VaultHostTree(
                         hosts: hosts,
                         onConnect: _showHostDetails,
-                        onEdit: _editHost,
+                        onMenu: _showHostMenu,
                       ),
                     )
                   else
@@ -326,9 +340,25 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                           (_, index) => VaultHostTile(
                             host: hosts[index],
                             onConnect: () => _showHostDetails(hosts[index]),
-                            onEdit: () => _editHost(hosts[index]),
+                            onMenu: () => _showHostMenu(hosts[index]),
                           ),
                           childCount: hosts.length,
+                        ),
+                      ),
+                    ),
+                  if (hiddenCount > 0)
+                    SliverToBoxAdapter(
+                      child: Center(
+                        child: TextButton.icon(
+                          key: const ValueKey('vault-show-hidden'),
+                          onPressed: () =>
+                              setState(() => _showHidden = !_showHidden),
+                          icon: Icon(_showHidden
+                              ? Icons.visibility_off_outlined
+                              : Icons.visibility_outlined),
+                          label: _showHidden
+                              ? const LText('不显示已隐藏的主机')
+                              : catalogLine('显示已隐藏的主机：', '$hiddenCount'),
                         ),
                       ),
                     ),
@@ -490,6 +520,118 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     } else if (action == _HostAction.aiCli) {
       await _showAiCli(host);
     }
+  }
+
+  /// ⋮ 菜单（R43）。菜单里列什么在打开的这一刻算：保险库现在的配置、开着的标签、Mosh 插件能不能用。
+  Future<void> _showHostMenu(HostProfile host) async {
+    final vault = await ref.read(vaultControllerProvider.notifier).ready();
+    host = vault.hosts.firstWhere((h) => h.id == host.id, orElse: () => host);
+    final other = await ref
+        .read(sessionControllerProvider.notifier)
+        .otherTransportFor(host);
+    if (!mounted) return;
+    final sessions = ref.read(sessionControllerProvider);
+    final menu = HostMenu(
+      host: host,
+      otherTransport: other,
+      sshSession: connectedSshSessionOf(host, sessions.sessions,
+          active: sessions.active),
+      probePlan: probePlanOf(host, vault),
+    );
+    final action = await showModalBottomSheet<HostMenuAction>(
+      context: context,
+      useSafeArea: true,
+      isScrollControlled: true,
+      builder: (_) => HostActionsSheet(menu: menu),
+    );
+    if (action == null || !mounted) return;
+    final session = menu.sshSession;
+    // 菜单开着的时候标签可能断了：断了就说清楚，不拿断掉的连接去开转发。
+    if (session != null &&
+        !session.connected &&
+        const {
+          HostMenuAction.portForward,
+          HostMenuAction.files,
+          HostMenuAction.monitor,
+        }.contains(action)) {
+      _message('这台主机的 SSH 标签刚刚断开了，先重新连接。');
+      return;
+    }
+    switch (action) {
+      case HostMenuAction.connectOther:
+        await _connectWith(host, menu.otherTransport!);
+      case HostMenuAction.portForward:
+        await showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          builder: (_) => PortForwardSheet(session: session!),
+        );
+      case HostMenuAction.files:
+        ref.read(sftpNavigationRequestProvider.notifier).state =
+            SftpNavigationRequest(sessionId: session!.id);
+        ref.read(homeTabProvider.notifier).state = 2;
+      case HostMenuAction.monitor:
+        await showModalBottomSheet<void>(
+          context: context,
+          useSafeArea: true,
+          isScrollControlled: true,
+          builder: (_) => ServerMonitorSheet(session: session!),
+        );
+      case HostMenuAction.testConnection:
+        await showModalBottomSheet<void>(
+          context: context,
+          isScrollControlled: true,
+          useSafeArea: true,
+          builder: (_) => ConnectionProbeSheet(
+            host: host,
+            plan: menu.probePlan!,
+            verifyHostKey: _verifyHostKey,
+            keyboardInteractive: _promptKeyboardInteractive,
+          ),
+        );
+      case HostMenuAction.edit:
+        await _editHost(host);
+      case HostMenuAction.hide:
+        await _setHidden(host, true);
+      case HostMenuAction.unhide:
+        await _setHidden(host, false);
+    }
+  }
+
+  Future<void> _connectWith(HostProfile host, TabTransport to) async {
+    ref.read(homeTabProvider.notifier).state = 1;
+    try {
+      await ref.read(sessionControllerProvider.notifier).connectWithTransport(
+            host,
+            to,
+            _verifyHostKey,
+            keyboardInteractive: _promptKeyboardInteractive,
+          );
+    } catch (error) {
+      _message('连接失败：$error');
+    }
+  }
+
+  /// 只改「隐藏」这一个字段。藏起来时给一个撤销，免得点错了找不到在哪里恢复。
+  Future<void> _setHidden(HostProfile host, bool hidden) async {
+    final vault = ref.read(vaultControllerProvider.notifier);
+    await vault.updateHost(host.id, (current) => withHidden(current, hidden));
+    if (!mounted || !hidden) return;
+    final head = localized('已隐藏：');
+    final tail = localized('。照常能连，列表底部能找回来。');
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+      content: Text('$head${host.label}$tail'),
+      action: SnackBarAction(
+        label: localized('撤销'),
+        onPressed: () => unawaited(vault.updateHost(
+            host.id, (current) => withHidden(current, false))),
+      ),
+    ));
+  }
+
+  void _message(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: LText(text)));
   }
 
   Future<void> _showAiCli(HostProfile host) async {

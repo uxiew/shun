@@ -87,6 +87,9 @@ class ProxyProfile {
 
 /// A lossless view over Netcatty's desktop Host JSON model.
 ///
+/// [HostProfile.hidden] 存在哪个字段。带 shun 前缀：和桌面端以后可能加的同名字段分开。
+const hiddenHostKey = 'shunHidden';
+
 /// Unknown desktop/plugin fields remain in [data] and survive every save/sync.
 class HostProfile {
   HostProfile(Map<String, dynamic> value)
@@ -164,6 +167,10 @@ class HostProfile {
   }
 
   bool get pinned => data['pinned'] == true;
+
+  /// 在主机列表里藏起来（R43）。只管列表显示：照常能连、能当跳板机，跟着保险库同步；
+  /// 桌面端不认识这个字段，照常显示。
+  bool get hidden => data[hiddenHostKey] == true;
   int get lastConnectedAt => (data['lastConnectedAt'] as num?)?.toInt() ?? 0;
   List<String> get tags => (data['tags'] as List? ?? const [])
       .map((value) => value.toString())

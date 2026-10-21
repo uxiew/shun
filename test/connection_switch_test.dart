@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/application/connection_lifecycle.dart';
 import 'package:shun/application/connection_switch.dart';
+import 'package:shun/application/host_actions.dart';
 import 'package:shun/application/mosh_session.dart';
 import 'package:shun/application/port_forward_controller.dart';
 import 'package:shun/application/session_controller.dart';
@@ -595,6 +596,83 @@ void main() {
             keys: const []),
         throwsA(isA<RouteChangedException>()),
       );
+    });
+  });
+
+  // R43：主机列表 ⋮ 菜单里的「用 Mosh / SSH 连接」和挂在连着的 SSH 上的那几项。
+  group('主机菜单（R43）', () {
+    test('能换才列：直连 + 插件能用才有 Mosh；Mosh 主机总能用 SSH；Telnet 没有', () async {
+      expect(await controller.otherTransportFor(box()), TabTransport.mosh);
+      await vault.upsertHost(box({
+        'proxyConfig': {'type': 'socks5', 'host': '127.0.0.1', 'port': 1055},
+      }));
+      expect(await controller.otherTransportFor(box()), isNull,
+          reason: '经代理：Mosh 的 UDP 走不了');
+      await vault.upsertHost(box());
+      plugin.unavailable = const MoshPluginUnavailable('Mosh 插件还没批准');
+      expect(await controller.otherTransportFor(box()), isNull);
+      final moshHost = box({'id': 'm1', 'protocol': 'mosh'});
+      await vault.upsertHost(moshHost);
+      expect(await controller.otherTransportFor(moshHost), TabTransport.ssh,
+          reason: 'Mosh 本来就先走 SSH，插件不在也能用 SSH 连');
+      final telnet = box({'id': 't1', 'protocol': 'telnet', 'port': 23});
+      await vault.upsertHost(telnet);
+      expect(await controller.otherTransportFor(telnet), isNull);
+      expect(ssh.starts + ssh.bootstraps + ssh.shells, 0, reason: '菜单不碰服务器');
+      expect(plugin.prepareCount, 0);
+    });
+
+    test('用 Mosh 连接：另开一个 Mosh 标签，保险库里还是 SSH、启动命令不跑；换不了就不连', () async {
+      await vault.upsertHost(box({'startupCommand': 'echo R43-STARTUP'}));
+      expect(
+          await controller.connectWithTransport(
+              box(), TabTransport.mosh, accept),
+          isTrue);
+      expect(controller.state.sessions, hasLength(1));
+      expect(transportOf(tab()), TabTransport.mosh);
+      final saved = (await vault.ready()).hosts.single;
+      expect(saved.protocol, HostProtocol.ssh, reason: '默认方式不变');
+      expect(saved.startupCommand, 'echo R43-STARTUP');
+      expect(ssh.writes, isEmpty);
+      expect(plugin.writes, isEmpty);
+
+      plugin.unavailable = const MoshPluginUnavailable('Mosh 插件已停用');
+      await expectLater(
+        controller.connectWithTransport(box(), TabTransport.mosh, accept),
+        throwsA(isA<TransportSwitchBlocked>()),
+      );
+      expect(controller.state.sessions, hasLength(1), reason: '点的那一刻再查，换不了就不开');
+    });
+
+    test('端口转发 / 文件 / 监控只认这台主机连着的 SSH 标签；Mosh 标签、断开的不算', () async {
+      final other = box({'id': 'h2', 'label': 'other'});
+      await vault.upsertHost(other);
+      expect(connectedSshSessionOf(box(), controller.state.sessions), isNull);
+      expect(await controller.connect(other, accept), isTrue);
+      expect(connectedSshSessionOf(box(), controller.state.sessions), isNull,
+          reason: '别的主机的标签不算');
+      expect(
+          await controller.connectWithTransport(
+              box(), TabTransport.mosh, accept),
+          isTrue);
+      expect(connectedSshSessionOf(box(), controller.state.sessions), isNull,
+          reason: 'Mosh 标签上没有 SSH 可以挂转发');
+      expect(await controller.connect(box(), accept), isTrue);
+      final sshTab = tab(2);
+      expect(connectedSshSessionOf(box(), controller.state.sessions),
+          same(sshTab));
+      var menu = HostMenu(host: box(), sshSession: sshTab);
+      expect(
+          menu.actions,
+          containsAll([
+            HostMenuAction.portForward,
+            HostMenuAction.files,
+            HostMenuAction.monitor,
+          ]));
+      await controller.close(2);
+      expect(connectedSshSessionOf(box(), controller.state.sessions), isNull);
+      menu = HostMenu(host: box());
+      expect(menu.actions, [HostMenuAction.edit, HostMenuAction.hide]);
     });
   });
 }

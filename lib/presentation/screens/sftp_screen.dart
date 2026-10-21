@@ -265,7 +265,9 @@ class _SftpScreenState extends ConsumerState<SftpScreen> {
         if (!mounted) return;
         ref.read(sftpNavigationRequestProvider.notifier).state = null;
         _scheduledNavigation = null;
-        _message('无法打开 Compose 配置：对应的 SSH 会话已断开');
+        _message(request.filePath == null
+            ? '打不开这台主机的文件：对应的 SSH 会话已断开'
+            : '无法打开 Compose 配置：对应的 SSH 会话已断开');
       });
       return;
     }
@@ -283,7 +285,9 @@ class _SftpScreenState extends ConsumerState<SftpScreen> {
         setState(() {});
         return;
       }
-      await pane.openRemoteFileLocation(request.filePath);
+      if (request.filePath case final filePath?) {
+        await pane.openRemoteFileLocation(filePath);
+      }
       if (!mounted) return;
       ref.read(sftpNavigationRequestProvider.notifier).state = null;
       _scheduledNavigation = null;

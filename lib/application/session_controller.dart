@@ -865,6 +865,47 @@ class SessionController extends StateNotifier<SessionState> {
     );
   }
 
+  /// 主机列表 ⋮ 菜单里「用 Mosh / SSH 连接」那一项（R43）：这台主机现在能换成哪种方式连，换不了返回 null。
+  ///
+  /// 和终端菜单「另开一个」是同一套判断：Mosh 要直连、选项合法、插件批准过且现在能用；
+  /// Mosh 主机换 SSH 不用查（Mosh 本来就先走 SSH）。只查本机，不碰服务器。
+  Future<TabTransport?> otherTransportFor(HostProfile host) async {
+    final current = TabTransport.ofProtocol(host.protocol);
+    if (current == null) return null;
+    final other = current.other;
+    if (other == TabTransport.ssh) return other;
+    final vault = await vaultController.ready();
+    final source = vault.hosts.where((h) => h.id == host.id).firstOrNull;
+    if (source == null || _moshHostBlocked(source, vault) != null) return null;
+    if (await ref.read(moshRuntimeProvider).unavailableReason() != null) {
+      return null;
+    }
+    return other;
+  }
+
+  /// 按 [to] 另开一个标签连保险库里的这台主机（R43）。保存的默认方式不变，开着的标签都不动，
+  /// 和终端里「切到另一种方式」开新标签一样不跑启动命令。点的那一刻再查一遍，换不了就不连。
+  Future<bool> connectWithTransport(
+    HostProfile host,
+    TabTransport to,
+    HostKeyVerifier verifyHostKey, {
+    KeyboardInteractiveHandler? keyboardInteractive,
+  }) async {
+    if (await otherTransportFor(host) != to) {
+      throw TransportSwitchBlocked('这台主机现在不能用 ${to.label} 连接。');
+    }
+    final vault = await vaultController.ready();
+    final source = vault.hosts.where((h) => h.id == host.id).firstOrNull;
+    if (source == null) {
+      throw const TransportSwitchBlocked('这台主机已经从保险库里删掉了。');
+    }
+    return connect(
+      transportCopy(source, to),
+      verifyHostKey,
+      keyboardInteractive: keyboardInteractive,
+    );
+  }
+
   void _setSwitching(String id, TransportSwitchProgress progress) {
     if (!mounted) return;
     state = state.copyWith(switching: {...state.switching, id: progress});
