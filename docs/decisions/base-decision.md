@@ -7,14 +7,14 @@
 | 项 | 决定 |
 |---|---|
 | 基座 | kmh1145/Netcatty-mobile，锁定 `495f5d3174d6b3825fc9edefa7ebe345f3399734`（tag `v1.4.7`，提交时间 2026-09-19） |
-| 仓库位置 | 本机 `~/xdw/shun/shun`，分支 `shun/v3`；remote 只有 `origin` = `git@github.com:uxiew/shun.git`（2026-10-04 所有者定，当时是 `xwshun/netcatty-mobile`、`xwshun/v3`、`uxiew/xwshun`；2026-10-11 跟着 App 改名 shun）。**所有者说推之前不 push** |
+| 仓库位置 | 本机 `~/xdw/shun/shun`，分支 `shun/v3`；remote 只有 `origin` = `git@github.com-uxiew:uxiew/shun.git`（主机名是 `~/.ssh/config` 里 uxiew 钥匙的别名，见「撞墙时」；2026-10-04 所有者定，当时是 `xwshun/netcatty-mobile`、`xwshun/v3`、`uxiew/xwshun`；2026-10-11 跟着 App 改名 shun）。**所有者说推之前不 push** |
 | 许可 | GPL-3.0-or-later，**个人隔离实验**。对外分发（给任何其他人装）之前必须另做许可审核，见下文 |
 | applicationId | `top.xdwa.shun`（所有者 2026-10-11 改名；R01 落地时是所有者指定的 `top.xdwa.xwshun`）。上游是 `app.netcatty.mobile`，不得复用。调试包加后缀成 `top.xdwa.shun.debug`（2026-10-21 所有者同意：不让 `flutter run` 卸掉手机上留着用的正式包） |
 | 替代方案 | Conduit（Apache-2.0）不启用，不同时维护两条产品分支 |
 
 ## 锁定的输入
 
-- 克隆时工作区干净（`git status` 无输出），上游 remote 名为 `upstream`，push 地址已改成无效值防手滑。2026-10-04 按所有者要求删掉了 `upstream`（连同它的远程分支引用），基座 `495f5d31` 仍在本分支历史里，本地 `main` 也还停在它上面。
+- 克隆时工作区干净（`git status` 无输出），上游 remote 名为 `upstream`，push 地址已改成无效值防手滑。2026-10-04 按所有者要求删掉了 `upstream`（连同它的远程分支引用），基座 `495f5d31` 仍在本分支历史里。本地 `main` 原来停在基座上，2026-10-21 删了：`origin/main` 早已是 fork 的内容（`shun/v3` 跟踪的就是它），留个同名却是上游代码的本地分支，切过去就回到了没改过的原版。要看基座直接 `git checkout 495f5d3`。
 - `pubspec.yaml` sha256 `528a0c909227faaf79d27bbc2bc9fef7d082b0996b29ffe05336da0c1ae3377a`
 - `pubspec.lock` sha256 `ad69d656445fa16606c1ee962c1b7cad25b1f4724885ef5263776490af5a1140`，lock 要求 Dart ≥3.12.0、Flutter ≥3.44.0
 - Flutter SDK：3.44.4 stable，取自上游 CI（`.github/workflows/mobile.yml`），装在仓库外 `../.toolchain/flutter`
@@ -41,5 +41,5 @@
 
 ## 撞墙时
 
-- `git push` 报 `Permission denied (publickey)`：remote 写的是 `git@github.com:uxiew/shun.git`，ssh 会拿默认钥匙去连，本机没有对 `github.com` 生效的钥匙。uxiew 的钥匙配在 `~/.ssh/config` 的 `github.com-uxiew` 别名下，推的时候用 `git@github.com-uxiew:uxiew/shun.git`（`ssh -T git@github.com-uxiew` 回 `Hi uxiew!` 就对了）。gh 登录的 xwfe 对这个仓库只有读权限，换成 HTTPS 经 gh 推会被拒。推送等所有者自己来。
+- `git push` 报 `Permission denied (publickey)`：remote 写成了 `git@github.com:uxiew/shun.git`，ssh 会拿默认钥匙去连，本机没有对 `github.com` 生效的钥匙。uxiew 的钥匙配在 `~/.ssh/config` 的 `github.com-uxiew` 别名下，remote 要写 `git@github.com-uxiew:uxiew/shun.git`（现在就是这个；`ssh -T git@github.com-uxiew` 回 `Hi uxiew!` 就对了）。gh 登录的 xwfe 对这个仓库只有读权限，换成 HTTPS 经 gh 推会被拒。推送等所有者自己来。
 - 如果以后决定不接受 GPL 分发条件：不能在本 fork 上改许可证。要另起 Conduit 基座并写替代 ADR（`plan/v3/docs/11-conduit-alternative.md`），本 fork 的代码不能搬过去。
