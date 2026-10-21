@@ -382,6 +382,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
             suffixIcon: IconButton(
               onPressed: () =>
                   setState(() => obscurePassword = !obscurePassword),
+              tooltip: localized('显示或隐藏密码'),
               icon: Icon(
                 obscurePassword ? Icons.visibility : Icons.visibility_off,
               ),
