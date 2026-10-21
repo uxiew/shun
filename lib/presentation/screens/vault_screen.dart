@@ -4,10 +4,12 @@ import 'package:flutter/material.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../application/catalog_overview.dart';
 import '../../application/connection_switch.dart';
 import '../../application/host_actions.dart';
 import '../../application/session_controller.dart';
 import '../../application/settings_controller.dart';
+import '../../application/tailscale_catalog_refresh.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/ai_cli_identity.dart';
 import '../../domain/models/host.dart';
@@ -19,6 +21,9 @@ import '../widgets/empty_state.dart';
 import '../widgets/host_editor.dart';
 import '../widgets/ai_cli_tools_sheet.dart';
 import '../../infrastructure/storage/ai_cli_recent_work.dart';
+import '../../infrastructure/tailscale/catalog_cache.dart';
+import '../widgets/catalog_host_sections.dart';
+import '../widgets/catalog_import_sheet.dart';
 import '../widgets/catalog_text.dart';
 import '../widgets/connection_probe_sheet.dart';
 import '../widgets/connection_prompts.dart';
@@ -29,6 +34,7 @@ import '../widgets/server_monitor_sheet.dart';
 import '../widgets/vault_host_items.dart';
 import 'rustdesk_screen.dart';
 import 'connection_type_screen.dart';
+import 'tailscale_catalog_screen.dart';
 import '../../application/rustdesk.dart';
 import '../../application/uuremote.dart';
 import '../widgets/remote_entry_widgets.dart';
@@ -93,6 +99,8 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       if (tab == 0) {
         final hosts = ref.read(vaultControllerProvider).data?.hosts;
         if (hosts != null) unawaited(_loadRecentAi(hosts, force: true));
+        // 在设置里的目录页增删过来源、读过列表：回到首页重读本机缓存（不发请求）。
+        unawaited(ref.read(catalogOverviewProvider.notifier).reload());
       }
     });
     final groups = vault?.customGroups ?? const <String>[];
@@ -114,13 +122,23 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
           (selectedGroup == null || host.group == selectedGroup);
     }).toList();
     final hiddenCount = matching.where((host) => host.hidden).length;
-    final hosts = matching
+    final visible = matching
         .where((host) => _showHidden || !host.hidden)
         .toList()
       ..sort((a, b) {
         if (a.pinned != b.pinned) return a.pinned ? -1 : 1;
         return a.label.toLowerCase().compareTo(b.label.toLowerCase());
       });
+    // 绑定到本机目录来源的主机放进 Tailscale 那一节，不在普通列表里重复。来源不在本机的（被移除过、
+    // 从别的手机同步来的）没有组可放，留在普通列表。选了自定义分组时不分节：那一组的主机都在普通列表。
+    final catalogSources = ref.watch(catalogOverviewProvider);
+    final sectionIds = selectedGroup == null
+        ? {for (final source in catalogSources) source.catalogId}
+        : const <String>{};
+    bool inSection(HostProfile host) =>
+        sectionIds.contains(CatalogBinding.of(host)?.catalogId);
+    final hosts = visible.where((host) => !inSection(host)).toList();
+    final sectionHosts = visible.where(inSection).toList();
 
     return SafeArea(
       child: Column(
@@ -275,6 +293,8 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
             child: RefreshIndicator(
               onRefresh: () async {
                 await ref.read(vaultControllerProvider.notifier).load();
+                // 只重读目录的本机缓存；向 Tailscale 要新列表要点那一组的刷新。
+                await ref.read(catalogOverviewProvider.notifier).reload();
                 await ref.read(rustDeskProvider.notifier).retryLoad();
                 await ref.read(uuRemoteProvider.notifier).retryLoad();
               },
@@ -290,7 +310,9 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                     const SliverToBoxAdapter(
                       child: Center(child: CircularProgressIndicator()),
                     )
-                  else if (hosts.isEmpty && hiddenCount == 0)
+                  else if (hosts.isEmpty &&
+                      hiddenCount == 0 &&
+                      sectionIds.isEmpty)
                     SliverToBoxAdapter(
                       child: EmptyState(
                         icon: Icons.dns_outlined,
@@ -344,6 +366,20 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                           ),
                           childCount: hosts.length,
                         ),
+                      ),
+                    ),
+                  if (sectionIds.isNotEmpty)
+                    SliverToBoxAdapter(
+                      child: CatalogHostSections(
+                        sources: catalogSources,
+                        allHosts: vault?.hosts ?? const [],
+                        hosts: sectionHosts,
+                        query: _search.text,
+                        onConnect: _showHostDetails,
+                        onMenu: _showHostMenu,
+                        onImport: _importDevice,
+                        onRefresh: _refreshSource,
+                        onSettings: _openSource,
                       ),
                     ),
                   if (hiddenCount > 0)
@@ -598,6 +634,43 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     }
   }
 
+  /// 没导入的目录设备：只走导入页（先成为一台主机），不连接。
+  Future<void> _importDevice(CatalogCache cache, String deviceId) async {
+    final added = await showCatalogImportSheet(
+      context,
+      cache: cache,
+      deviceIds: [deviceId],
+    );
+    if (added == null || !mounted) return;
+    final head = localized('已导入主机：');
+    final tail = localized('。还没有连接过：第一次连接时照常核对服务器指纹。');
+    _plainMessage('$head$added$tail');
+  }
+
+  /// 组头的刷新。本机没存凭据就读不了，打开来源页让用户粘 token 或填 OAuth client。
+  Future<void> _refreshSource(CatalogSourceView source) async {
+    if (!source.hasSavedCredentials) {
+      await _openSource(source.catalogId);
+      return;
+    }
+    try {
+      final outcome = await ref
+          .read(catalogOverviewProvider.notifier)
+          .refresh(source.catalogId);
+      if (outcome != null) _plainMessage(catalogRefreshReport(outcome));
+    } on Object catch (error) {
+      _message('$error');
+    }
+  }
+
+  Future<void> _openSource(String catalogId) async {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => CatalogSourceScreen(catalogId: catalogId),
+    ));
+    // 来源页里可能读过列表、删了凭据、移除了来源。
+    if (mounted) await ref.read(catalogOverviewProvider.notifier).reload();
+  }
+
   Future<void> _connectWith(HostProfile host, TabTransport to) async {
     ref.read(homeTabProvider.notifier).state = 1;
     try {
@@ -632,6 +705,12 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
   void _message(String text) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: LText(text)));
+  }
+
+  /// 已经翻译好、拼上了数据的提示，不再过一遍翻译。
+  void _plainMessage(String text) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
   }
 
   Future<void> _showAiCli(HostProfile host) async {

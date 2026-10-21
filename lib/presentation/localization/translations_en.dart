@@ -2211,6 +2211,23 @@ const englishTranslations = <String, String>{
       'Only walks the route, fingerprint and login; opens no shell',
   '照常能连；列表底部「显示已隐藏的主机」能找回来':
       'Still connects; find it again with “Show hidden hosts” at the bottom of the list',
+  'Tailscale 设备': 'Tailscale devices',
+  '状态来自目录缓存：只说设备连没连 Tailscale 控制面，不代表手机能连上它，也不代表 SSH 开着。':
+      'Status comes from the catalog cache: it only says whether a device is connected to the Tailscale control plane, not that this phone can reach it or that SSH is running.',
+  '还没成功读过设备列表': 'No device list read successfully yet',
+  '状态截至：': 'Status as of: ',
+  '本机没保存凭据：点刷新会打开来源页，在那里读一次':
+      'No credentials saved on this phone: Refresh opens the source page to read once there',
+  '去来源页读取': 'Read on the source page',
+  '来源设置': 'Source settings',
+  '目录：缓存里没有这台设备': 'Catalog: this device is not in the cache',
+  '目录：最近完整列表里没有它': 'Catalog: not in the latest complete list',
+  '还没导入：点一下导入为主机，不会连接':
+      'Not imported: tap to import it as a host; it will not connect',
+  '刚刚': 'just now',
+  '分钟前': 'min ago',
+  '小时前': 'h ago',
+  '天前': 'd ago',
   '更多操作': 'More actions',
 };
 

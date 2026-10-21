@@ -5,7 +5,7 @@ import 'host_address_line.dart';
 import 'host_type_icon.dart';
 
 /// 隐藏的主机只在用户点了「显示已隐藏的主机」后才出现，淡一点，和平时的分开（R43）。
-Widget _dimIfHidden(HostProfile host, Widget child) => host.hidden
+Widget dimIfHidden(HostProfile host, Widget child) => host.hidden
     ? Opacity(
         key: ValueKey('vault-hidden-host-${host.id}'),
         opacity: 0.55,
@@ -14,7 +14,7 @@ Widget _dimIfHidden(HostProfile host, Widget child) => host.hidden
     : child;
 
 /// 三种视图共用的 ⋮ 按钮：弹出这台主机的操作菜单。
-Widget _menuButton(HostProfile host, VoidCallback onMenu, IconData icon,
+Widget vaultHostMenuButton(HostProfile host, VoidCallback onMenu, IconData icon,
         {VisualDensity? density}) =>
     IconButton(
       key: ValueKey('vault-host-menu-${host.id}'),
@@ -76,7 +76,7 @@ class VaultHostTree extends StatelessWidget {
             subtitle: LText('${children.length} 台服务器'),
             children: [
               for (final host in children)
-                _dimIfHidden(
+                dimIfHidden(
                   host,
                   ListTile(
                     contentPadding: const EdgeInsets.only(left: 28, right: 8),
@@ -85,7 +85,7 @@ class VaultHostTree extends StatelessWidget {
                     leading: HostLeadingIcon(host: host, size: 38),
                     title: LText(host.label),
                     subtitle: HostAddressLine(host),
-                    trailing: _menuButton(
+                    trailing: vaultHostMenuButton(
                         host, () => onMenu(host), Icons.more_vert),
                   ),
                 ),
@@ -109,7 +109,7 @@ class VaultHostCard extends StatelessWidget {
   final VoidCallback onMenu;
 
   @override
-  Widget build(BuildContext context) => _dimIfHidden(host, _card(context));
+  Widget build(BuildContext context) => dimIfHidden(host, _card(context));
 
   Widget _card(BuildContext context) => Card(
         clipBehavior: Clip.antiAlias,
@@ -126,7 +126,7 @@ class VaultHostCard extends StatelessWidget {
                     HostLeadingIcon(host: host, size: 40),
                     const Spacer(),
                     if (host.pinned) const Icon(Icons.push_pin, size: 16),
-                    _menuButton(host, onMenu, Icons.more_horiz,
+                    vaultHostMenuButton(host, onMenu, Icons.more_horiz,
                         density: VisualDensity.compact),
                   ],
                 ),
@@ -171,7 +171,7 @@ class VaultHostTile extends StatelessWidget {
   final VoidCallback onConnect;
   final VoidCallback onMenu;
   @override
-  Widget build(BuildContext context) => _dimIfHidden(
+  Widget build(BuildContext context) => dimIfHidden(
         host,
         Card(
           child: ListTile(
@@ -180,7 +180,7 @@ class VaultHostTile extends StatelessWidget {
             leading: HostLeadingIcon(host: host, size: 42),
             title: LText(host.label),
             subtitle: HostAddressLine(host),
-            trailing: _menuButton(host, onMenu, Icons.more_vert),
+            trailing: vaultHostMenuButton(host, onMenu, Icons.more_vert),
           ),
         ),
       );

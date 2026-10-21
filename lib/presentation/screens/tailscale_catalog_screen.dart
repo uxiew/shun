@@ -4,7 +4,6 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../application/tailscale_catalog_access.dart';
 import '../../application/tailscale_catalog_import.dart';
 import '../../application/tailscale_catalog_provider.dart';
 import '../../application/tailscale_catalog_refresh.dart';
@@ -297,31 +296,8 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
     }
   }
 
-  void _report(CatalogRefreshOutcome outcome) {
-    final error = outcome.error;
-    if (error != null) {
-      final head = localized('读取失败，缓存里的设备和主机都没动：');
-      _message('$head${error.message}');
-      return;
-    }
-    final read = localized('读取成功，设备数：');
-    final moved = localized('跟着目录改了地址的主机：');
-    final lines = <String>[
-      '$read${outcome.cache.lastSuccess?.deviceCount ?? 0}',
-      if (outcome.hostsReaddressed > 0) '$moved${outcome.hostsReaddressed}',
-      if (outcome.scope == TokenScopeStatus.unverified)
-        localized('服务器没有回报 token 的权限范围，无法确认它只能读设备。'),
-      if (outcome.persistRefusal case final refusal?)
-        localized(switch (refusal) {
-          PersistRefusal.notRequested => '没有保存 OAuth client。',
-          PersistRefusal.scopeUnverified =>
-            '没有保存 OAuth client：服务器没有回报权限范围，无法确认它只能读设备。',
-          PersistRefusal.scopeBroaderThanDevices =>
-            '没有保存 OAuth client：它能读的不止设备。请在 Tailscale 后台新建一个只有 devices:core:read 的 client。',
-        }),
-    ];
-    _message(lines.join('\n'));
-  }
+  void _report(CatalogRefreshOutcome outcome) =>
+      _message(catalogRefreshReport(outcome));
 
   Future<void> _readWithToken() async {
     final token = await _askSecret(
