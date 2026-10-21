@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
@@ -329,23 +330,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                   else if (viewMode == 'grid')
                     SliverPadding(
                       padding: const EdgeInsets.all(12),
-                      sliver: SliverGrid(
-                        gridDelegate:
-                            const SliverGridDelegateWithMaxCrossAxisExtent(
-                          maxCrossAxisExtent: 230,
-                          mainAxisExtent: 148,
-                          crossAxisSpacing: 10,
-                          mainAxisSpacing: 10,
-                        ),
-                        delegate: SliverChildBuilderDelegate(
-                          (_, index) => VaultHostCard(
-                            host: hosts[index],
-                            onConnect: () => _showHostDetails(hosts[index]),
-                            onMenu: () => _showHostMenu(hosts[index]),
-                          ),
-                          childCount: hosts.length,
-                        ),
-                      ),
+                      sliver: _hostCardRows(hosts),
                     )
                   else if (viewMode == 'tree')
                     SliverToBoxAdapter(
@@ -431,6 +416,52 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       }
     }
   }
+
+  /// 网格视图：一行几张卡片和以前的 SliverGrid 算法一样（每张最宽 230，间距 10），但行高跟着这一行里最高的
+  /// 卡片走，最少 148。以前写死 148：系统字体 2 倍时地址那行超出 13 px（R25 模拟器）。卡片内容的高度和
+  /// 字体倍数不成正比（1、1.3、2 倍时是 99、115、184），按公式算一换字体就对不上，所以按内容量。
+  Widget _hostCardRows(List<HostProfile> hosts) => SliverLayoutBuilder(
+        builder: (context, constraints) {
+          const maxWidth = 230.0;
+          const spacing = 10.0;
+          final columns = math.max(
+            1,
+            (constraints.crossAxisExtent / (maxWidth + spacing)).ceil(),
+          );
+          final rows = (hosts.length / columns).ceil();
+          return SliverList.builder(
+            itemCount: rows,
+            itemBuilder: (_, row) => Padding(
+              padding: EdgeInsets.only(bottom: row == rows - 1 ? 0 : spacing),
+              child: IntrinsicHeight(
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    for (var column = 0; column < columns; column++) ...[
+                      if (column > 0) const SizedBox(width: spacing),
+                      Expanded(
+                        child: row * columns + column < hosts.length
+                            ? ConstrainedBox(
+                                constraints:
+                                    const BoxConstraints(minHeight: 148),
+                                child: VaultHostCard(
+                                  host: hosts[row * columns + column],
+                                  onConnect: () => _showHostDetails(
+                                      hosts[row * columns + column]),
+                                  onMenu: () => _showHostMenu(
+                                      hosts[row * columns + column]),
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+            ),
+          );
+        },
+      );
 
   Future<void> _showHostDetails(HostProfile host) async {
     final vault = await ref.read(vaultControllerProvider.notifier).ready();

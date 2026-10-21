@@ -7,10 +7,12 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shun/app.dart';
+import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/models/vault.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 
 // R25 「字体可用」：系统字体调大（Android 「字体大小」最大是 1.3 倍，无障碍里的放大可到 2 倍）、竖屏横屏，
-// 把保险库、选类型、编辑主机、终端空页、设置、连接记录走一遍，布局溢出（黄黑条）一处都不许有。
+// 把保险库（网格里一台带分组的主机）、选类型、编辑主机、终端空页、设置、连接记录走一遍，布局溢出（黄黑条）一处都不许有。
 // 终端里的字本来就不跟系统字体变（使用手册第 8 节），不在这里。
 
 const _sizes = {
@@ -68,6 +70,18 @@ void main() {
         };
         try {
           final repository = await VaultRepository.open();
+          // 保险库里要有主机：网格卡片的高度是写死的，空保险库撞不到（模拟器上 2 倍字体时超出 13 px）。
+          await repository.saveVault(VaultData.fromJson({
+            'hosts': [
+              HostProfile.create(
+                id: 'big-text',
+                label: 'production-database-primary',
+                hostname: 'db-primary.internal.example.com',
+                username: 'deploy',
+              ).toJson()
+                ..['group'] = 'production',
+            ],
+          }));
           await tester.pumpWidget(ProviderScope(
             overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
             child: const ShunApp(),
