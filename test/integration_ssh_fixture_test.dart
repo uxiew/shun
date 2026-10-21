@@ -15,6 +15,7 @@ import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/domain/connection_route.dart';
 import 'package:shun/domain/proxy_profiles.dart';
+import 'package:shun/domain/restore_hold.dart';
 import 'package:shun/infrastructure/ssh/server_monitor_service.dart';
 import 'package:shun/infrastructure/ssh/sftp_service.dart';
 import 'package:shun/infrastructure/ssh/ssh_lease.dart';
@@ -2570,5 +2571,35 @@ void main() {
       expect(jsonDecode(store.saved!), isEmpty, reason: '清除已经写进文件');
       await controller.close(0);
     }, skip: skip, timeout: const Timeout(Duration(seconds: 90)));
+
+    test('UX10 「全部断开」后用户点「重新连接」：记成重新连接，不记成自动恢复', () async {
+      final host = edgeHost({'id': 'r25-manual', 'label': 'R25-LABEL-manual'});
+      await container.read(vaultControllerProvider.notifier).upsertHost(host);
+      expect(await controller.connect(host, verifyByLogicalName), isTrue);
+      final old = controller.state.sessions.single;
+      controller.stopAll(const RestoreHold.untilUser('R25 测试'),
+          notice: 'R25 测试');
+      await eventually(
+          () => !controller.state.sessions.single.connected, '全部断开后标签断了');
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+      expect(dialer.dials, hasLength(1), reason: '全部断开以后不自动重连');
+
+      await controller.reconnect(old.id, verifyHostKey: verifyByLogicalName);
+      await eventually(() {
+        final now = controller.state.sessions.single;
+        return !identical(now, old) && now.connected;
+      }, '点重新连接后连上');
+      final attempts = [
+        for (final e in events())
+          if (e.isAttempt) e,
+      ];
+      expect([for (final e in attempts) e.kind],
+          [ConnectionEventKind.open, ConnectionEventKind.reconnect]);
+      expect(attempts.last.outcome, ConnectionOutcome.connected);
+      expectTimesAddUp(attempts.last);
+      expect(dialer.dials, hasLength(2), reason: '新开一次、点重新连接一次');
+      await expectNothingSecret();
+      await controller.close(0);
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
   });
 }
