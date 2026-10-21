@@ -7,6 +7,7 @@ import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
 import '../../domain/proxy_profiles.dart';
 import '../localization/localized_widgets.dart';
+import 'secret_content.dart';
 
 /// Edits one saved profile. Inline conversion creates a new profile and returns
 /// its ID; only the calling, unsaved host draft switches to that reference.
@@ -98,8 +99,11 @@ class _ProxyProfileEditorState extends ConsumerState<ProxyProfileEditor> {
     }
   }
 
+  // 整页防截屏（R44）：有代理口令。
   @override
-  Widget build(BuildContext context) => PopScope(
+  Widget build(BuildContext context) => SecretContent(child: _page(context));
+
+  Widget _page(BuildContext context) => PopScope(
       canPop: !_saving,
       child: Scaffold(
         appBar: AppBar(
@@ -155,6 +159,7 @@ class _ProxyProfileEditorState extends ConsumerState<ProxyProfileEditor> {
                   enabled: !_saving,
                   autocorrect: false,
                   enableSuggestions: false,
+                  enableIMEPersonalizedLearning: false,
                   obscureText: _obscure,
                   decoration: LInputDecoration(
                       labelText: '代理密码（可选）',

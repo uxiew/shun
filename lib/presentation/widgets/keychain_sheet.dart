@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../application/vault_controller.dart';
 import '../../domain/models/host.dart';
+import 'secret_content.dart';
 
 class KeychainSheet extends ConsumerWidget {
   const KeychainSheet({super.key});
@@ -94,9 +95,11 @@ class KeychainSheet extends ConsumerWidget {
     final label = TextEditingController(text: file.name);
     final passphrase = TextEditingController();
     if (!context.mounted) return;
+    // 列表只有名字和类型，不防截屏；填口令的这个对话框防（R44）。私钥只从文件读，不在界面上显示。
     final key = await showDialog<SshKeyProfile>(
       context: context,
-      builder: (context) => AlertDialog(
+      builder: (context) => SecretContent(
+          child: AlertDialog(
         title: const LText('导入 SSH 私钥'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
@@ -109,6 +112,9 @@ class KeychainSheet extends ConsumerWidget {
             TextField(
               controller: passphrase,
               obscureText: true,
+              enableIMEPersonalizedLearning: false,
+              enableSuggestions: false,
+              autocorrect: false,
               decoration: LInputDecoration(labelText: '口令（可选）'),
             ),
           ],
@@ -132,7 +138,7 @@ class KeychainSheet extends ConsumerWidget {
             child: const LText('导入'),
           ),
         ],
-      ),
+      )),
     );
     if (key != null) {
       final controller = ref.read(vaultControllerProvider.notifier);

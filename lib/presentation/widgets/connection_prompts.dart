@@ -7,6 +7,7 @@ import '../../domain/models/host.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import '../localization/localized_widgets.dart';
 import 'host_key_dialogs.dart';
+import 'secret_content.dart';
 
 /// 连接时要问用户的两件事：指纹核对、键盘交互登录。主机列表开连接、终端页「重新连接」（R22）都用这一套，
 /// 规则在 application/host_trust.dart，这里只提供弹窗和保存。
@@ -70,7 +71,9 @@ KeyboardInteractiveHandler keyboardInteractivePrompt(BuildContext context) =>
       return showDialog<List<String>>(
         context: context,
         barrierDismissible: false,
-        builder: (context) => AlertDialog(
+        // 问的是密码、验证码这类答案：对话框开着时防截屏（R44）。
+        builder: (context) => SecretContent(
+            child: AlertDialog(
           title: LText(name.isEmpty ? '交互式认证' : name),
           content: SingleChildScrollView(
             child: Column(
@@ -85,6 +88,10 @@ KeyboardInteractiveHandler keyboardInteractivePrompt(BuildContext context) =>
                   TextField(
                     controller: controllers[index],
                     obscureText: !prompts[index].echo,
+                    // 服务器说可以回显的（验证码之类）也是登录答案，一样不让输入法学。
+                    enableIMEPersonalizedLearning: false,
+                    enableSuggestions: false,
+                    autocorrect: false,
                     autofocus: index == 0,
                     decoration:
                         LInputDecoration(labelText: prompts[index].text),
@@ -107,6 +114,6 @@ KeyboardInteractiveHandler keyboardInteractivePrompt(BuildContext context) =>
               child: const LText('继续'),
             ),
           ],
-        ),
+        )),
       );
     };

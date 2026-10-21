@@ -25,6 +25,7 @@ import 'route_legs_view.dart';
 import 'connection_route_draft.dart';
 import 'connection_route_editor.dart';
 import 'proxy_profiles_page.dart';
+import 'secret_content.dart';
 import 'unsupported_connection_page.dart';
 import 'connection_endpoint_fields.dart';
 
@@ -191,7 +192,10 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  // 整页防截屏（R44），不管协议有没有密码框：协议能在页内换，跟着开关会闪。
+  Widget build(BuildContext context) => SecretContent(child: _page(context));
+
+  Widget _page(BuildContext context) {
     if (_unsupported) {
       return UnsupportedConnectionPage(label: widget.host!.label);
     }
@@ -369,6 +373,10 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         TextFormField(
           controller: password,
           obscureText: obscurePassword,
+          // 点小眼睛改成明文时也不让输入法学、不联想（R44）。
+          enableIMEPersonalizedLearning: false,
+          enableSuggestions: false,
+          autocorrect: false,
           decoration: LInputDecoration(
             labelText: '密码（可选）',
             suffixIcon: IconButton(

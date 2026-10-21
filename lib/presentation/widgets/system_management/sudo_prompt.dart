@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
 
 import '../../../infrastructure/ssh/system_management_service.dart';
+import '../secret_content.dart';
 
 /// 用户在 sudo 确认框里点了取消。没有对服务器做任何事，打印出来是当时的权限提示。
 class SudoDeclined implements Exception {
@@ -64,8 +65,11 @@ class _SudoDialogState extends State<_SudoDialog> {
     }
   }
 
+  // 对话框开着时防截屏（R44），关了底下的系统管理面板照常能截。
   @override
-  Widget build(BuildContext context) => AlertDialog(
+  Widget build(BuildContext context) => SecretContent(child: _dialog(context));
+
+  Widget _dialog(BuildContext context) => AlertDialog(
         icon: const Icon(Icons.lock_outline),
         title: LText(_optional ? '用 sudo 再试？' : '需要 sudo 密码'),
         content: SingleChildScrollView(
@@ -79,6 +83,9 @@ class _SudoDialogState extends State<_SudoDialog> {
                 controller: _password,
                 autofocus: true,
                 obscureText: _obscure,
+                enableIMEPersonalizedLearning: false,
+                enableSuggestions: false,
+                autocorrect: false,
                 onSubmitted: (_) => _submit(),
                 decoration: LInputDecoration(
                   labelText: 'sudo 密码',

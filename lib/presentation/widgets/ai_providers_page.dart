@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../localization/localized_widgets.dart';
+import 'secret_content.dart';
 
 import '../../infrastructure/ai/ai_service.dart';
 import '../../infrastructure/ai/ai_workspace.dart';
@@ -184,8 +185,11 @@ class _ProviderEditorState extends State<_ProviderEditor> {
             reasoning: _reasoning));
   }
 
+  // 有 API Key：整页防截屏（R44）。
   @override
-  Widget build(BuildContext context) => Scaffold(
+  Widget build(BuildContext context) => SecretContent(child: _page(context));
+
+  Widget _page(BuildContext context) => Scaffold(
       appBar: AppBar(title: const LText('服务商配置'), actions: [
         TextButton(onPressed: _busy ? null : _save, child: const LText('保存'))
       ]),
@@ -204,6 +208,9 @@ class _ProviderEditorState extends State<_ProviderEditor> {
             key: const ValueKey('provider-key'),
             controller: _key,
             obscureText: true,
+            enableIMEPersonalizedLearning: false,
+            enableSuggestions: false,
+            autocorrect: false,
             decoration: LInputDecoration(labelText: 'API Key（无鉴权接口可留空）')),
         const SizedBox(height: 20),
         OutlinedButton(

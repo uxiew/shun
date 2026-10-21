@@ -16,6 +16,7 @@ import '../../infrastructure/tailscale/tailscale_api.dart';
 import '../localization/localized_widgets.dart';
 import '../widgets/catalog_import_sheet.dart';
 import '../widgets/catalog_text.dart';
+import '../widgets/secret_content.dart';
 
 const _catalogLimits = '目录只知道设备在不在 Tailscale 的列表里、有没有连上 Tailscale 控制面。'
     '它不知道手机能不能连到设备，也不知道设备开没开 SSH——这些要实际连接才知道。';
@@ -764,8 +765,11 @@ class _OAuthClientDialogState extends State<_OAuthClientDialog> {
     super.dispose();
   }
 
+  // 有 client secret：对话框开着时防截屏（R44）。
   @override
-  Widget build(BuildContext context) => AlertDialog(
+  Widget build(BuildContext context) => SecretContent(child: _dialog(context));
+
+  Widget _dialog(BuildContext context) => AlertDialog(
         title: const LText('用 OAuth client 读取'),
         content: SingleChildScrollView(
           child: Column(
@@ -791,6 +795,7 @@ class _OAuthClientDialogState extends State<_OAuthClientDialog> {
                 obscureText: true,
                 autocorrect: false,
                 enableSuggestions: false,
+                enableIMEPersonalizedLearning: false,
                 decoration: const InputDecoration(labelText: 'Client secret'),
               ),
               CheckboxListTile(
@@ -840,6 +845,7 @@ class _Field {
   final String? helper;
 
   /// 遮挡、关联想和自动更正：token、secret 用。遮挡的输入框不给复制和剪切（TSC09）。
+  /// 有这种字段的对话框整个防截屏、这个框不让输入法学（R44）。
   final bool secret;
   final Key? key;
 }
@@ -883,43 +889,50 @@ class _FieldsDialogState extends State<_FieldsDialog> {
   }
 
   @override
-  Widget build(BuildContext context) => AlertDialog(
-        title: LText(widget.title),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // 说明和输入框之间要留空：输入框的浮动标签在框的上沿，贴着会压住说明的最后一行。
-            if (widget.explain != null) ...[
-              LText(widget.explain!),
-              const SizedBox(height: 12),
-            ],
-            for (final (index, field) in widget.fields.indexed)
-              TextField(
-                key: field.key,
-                controller: _controllers[index],
-                obscureText: field.secret,
-                autocorrect: false,
-                enableSuggestions: !field.secret,
-                decoration: InputDecoration(
-                  labelText: field.label,
-                  helperText: field.helper,
-                  helperMaxLines: 2,
-                ),
-              ),
+  Widget build(BuildContext context) {
+    final dialog = AlertDialog(
+      title: LText(widget.title),
+      content: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          // 说明和输入框之间要留空：输入框的浮动标签在框的上沿，贴着会压住说明的最后一行。
+          if (widget.explain != null) ...[
+            LText(widget.explain!),
+            const SizedBox(height: 12),
           ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const LText('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, [
-              for (final controller in _controllers) controller.text.trim(),
-            ]),
-            child: LText(widget.confirm),
-          ),
+          for (final (index, field) in widget.fields.indexed)
+            TextField(
+              key: field.key,
+              controller: _controllers[index],
+              obscureText: field.secret,
+              autocorrect: false,
+              enableSuggestions: !field.secret,
+              enableIMEPersonalizedLearning: !field.secret,
+              decoration: InputDecoration(
+                labelText: field.label,
+                helperText: field.helper,
+                helperMaxLines: 2,
+              ),
+            ),
         ],
-      );
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const LText('取消'),
+        ),
+        FilledButton(
+          onPressed: () => Navigator.pop(context, [
+            for (final controller in _controllers) controller.text.trim(),
+          ]),
+          child: LText(widget.confirm),
+        ),
+      ],
+    );
+    // 只填名称、tailnet 的那个不用防截屏。
+    return widget.fields.any((field) => field.secret)
+        ? SecretContent(child: dialog)
+        : dialog;
+  }
 }

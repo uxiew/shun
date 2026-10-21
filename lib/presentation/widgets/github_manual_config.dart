@@ -25,6 +25,10 @@ class GitHubManualConfig extends StatelessWidget {
           TextField(
               controller: secret,
               obscureText: true,
+              // 防截屏由外面的云同步卡片管（R44），这里只关输入法学习。
+              enableIMEPersonalizedLearning: false,
+              enableSuggestions: false,
+              autocorrect: false,
               onChanged: onSecretChanged,
               decoration: LInputDecoration(labelText: 'GitHub Token（备用）')),
         ],
