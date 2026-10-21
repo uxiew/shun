@@ -73,6 +73,7 @@ class AppSettings {
     this.terminalSecureKeyboard = false,
     this.terminalFullscreenSwipe = false,
     this.terminalInputMode = terminalInputSystem,
+    this.allowSensitiveScreenshots = false,
     this.sftpSyntaxHighlight = true,
     this.customBackgroundEnabled = false,
     this.customBackgroundPath = '',
@@ -135,6 +136,7 @@ class AppSettings {
           supportedTerminalInputModes.contains(json['terminalInputMode'])
               ? json['terminalInputMode'] as String
               : terminalInputSystem,
+      allowSensitiveScreenshots: json['allowSensitiveScreenshots'] == true,
       sftpSyntaxHighlight: json['sftpSyntaxHighlight'] != false,
       customBackgroundEnabled: json['customBackgroundEnabled'] == true,
       customBackgroundPath: json['customBackgroundPath']?.toString() ?? '',
@@ -175,6 +177,10 @@ class AppSettings {
 
   /// 上次用的输入方式（[supportedTerminalInputModes]）。
   final String terminalInputMode;
+
+  /// 带密码、私钥口令、代理口令的页面允不允许截屏（R44）。默认不允许：那些页面的窗口带 FLAG_SECURE，
+  /// 截屏、录屏、最近任务里都是黑的。只管 Android；终端页不管开不开都能截。
+  final bool allowSensitiveScreenshots;
   final bool sftpSyntaxHighlight;
   final bool customBackgroundEnabled;
   final String customBackgroundPath;
@@ -199,6 +205,7 @@ class AppSettings {
     bool? terminalSecureKeyboard,
     bool? terminalFullscreenSwipe,
     String? terminalInputMode,
+    bool? allowSensitiveScreenshots,
     bool? sftpSyntaxHighlight,
     bool? customBackgroundEnabled,
     String? customBackgroundPath,
@@ -225,6 +232,8 @@ class AppSettings {
         terminalFullscreenSwipe:
             terminalFullscreenSwipe ?? this.terminalFullscreenSwipe,
         terminalInputMode: terminalInputMode ?? this.terminalInputMode,
+        allowSensitiveScreenshots:
+            allowSensitiveScreenshots ?? this.allowSensitiveScreenshots,
         sftpSyntaxHighlight: sftpSyntaxHighlight ?? this.sftpSyntaxHighlight,
         customBackgroundEnabled:
             customBackgroundEnabled ?? this.customBackgroundEnabled,
@@ -255,6 +264,7 @@ class AppSettings {
         'terminalSecureKeyboard': terminalSecureKeyboard,
         'terminalFullscreenSwipe': terminalFullscreenSwipe,
         'terminalInputMode': terminalInputMode,
+        'allowSensitiveScreenshots': allowSensitiveScreenshots,
         'sftpSyntaxHighlight': sftpSyntaxHighlight,
         'customBackgroundEnabled': customBackgroundEnabled,
         'customBackgroundPath': customBackgroundPath,

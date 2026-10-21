@@ -40,6 +40,12 @@ class SettingsController extends StateNotifier<AppSettings> {
     await update(persisted.copyWith(terminalFullscreenSwipe: enabled));
   }
 
+  /// 立刻保存：开着的敏感页面马上按新设置加上或去掉防截屏（R44）。
+  Future<void> updateAllowSensitiveScreenshots(bool allowed) async {
+    final persisted = await repository.loadSettings();
+    await update(persisted.copyWith(allowSensitiveScreenshots: allowed));
+  }
+
   /// 终端下面的输入方式（系统键盘 / 按键面板 / 大输入框）。切了就存，下次打开终端照旧。
   Future<void> updateTerminalInputMode(String mode) async {
     if (!supportedTerminalInputModes.contains(mode)) return;

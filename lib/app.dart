@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'application/auto_sync_controller.dart';
 import 'application/fork_features.dart';
+import 'application/sensitive_screen.dart';
 import 'application/settings_controller.dart';
 import 'application/session_controller.dart';
 import 'infrastructure/ssh/connection_platform_service.dart';
@@ -22,6 +23,7 @@ class ShunApp extends ConsumerStatefulWidget {
 
 class _ShunAppState extends ConsumerState<ShunApp> with WidgetsBindingObserver {
   late final ProviderSubscription<bool> _autoSyncSubscription;
+  late final ProviderSubscription<bool> _screenshotSubscription;
 
   @override
   void initState() {
@@ -37,10 +39,18 @@ class _ShunAppState extends ConsumerState<ShunApp> with WidgetsBindingObserver {
           .setEnabled(enabled && ref.read(forkFeaturesProvider).cloudSync),
       fireImmediately: true,
     );
+    // 「敏感页面允许截屏」拨了马上生效，开着的密码页也跟着变（R44）。
+    _screenshotSubscription = ref.listenManual<bool>(
+      settingsControllerProvider
+          .select((settings) => settings.allowSensitiveScreenshots),
+      (_, allowed) => SensitiveScreenGuard.instance.allowScreenshots = allowed,
+      fireImmediately: true,
+    );
   }
 
   @override
   void dispose() {
+    _screenshotSubscription.close();
     _autoSyncSubscription.close();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
