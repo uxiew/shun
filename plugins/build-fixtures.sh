@@ -17,13 +17,16 @@ done
 # 插件只信这张宿主证书。宿主 debug 包和本机 release 包（没配正式签名时）都用本机调试密钥签。
 HOST_SHA256=${HOST_SHA256:-$(keytool -list -v -keystore ~/.android/debug.keystore -storepass android \
   -alias androiddebugkey | awk '/SHA256:/{print $2}' | tr -d ':' | tr 'A-F' 'a-f')}
+# 也只信这个包名的宿主。设备测试装的是调试宿主 top.xdwa.shun.debug；对着本机打的 release 宿主测就
+# HOST_PACKAGE=top.xdwa.shun plugins/build-fixtures.sh。对不上时宿主连插件会被拒，报「调用方 UID … 不是 top.xdwa.shun…」。
+HOST_PACKAGE=${HOST_PACKAGE:-top.xdwa.shun.debug}
 
 G=../android/gradlew
 build() {
   local out=$1 module=$2
   shift 2
   # 每次都带上 hostSha256：Gradle 会配置所有模块，构建 rogue 时 echo 的脚本也要跑。
-  "$G" -p . -q ":$module:assembleRelease" -PhostSha256="$HOST_SHA256" "$@"
+  "$G" -p . -q ":$module:assembleRelease" -PhostSha256="$HOST_SHA256" -PhostPackage="$HOST_PACKAGE" "$@"
   cp "$module/build/outputs/apk/release/$module-release.apk" "out/$out.apk"
   echo "out/$out.apk"
 }

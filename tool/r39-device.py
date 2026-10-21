@@ -22,7 +22,10 @@ SDK = CHAIN / 'android-sdk'
 AVD_APIS = {'shun-a35-4k': '35', 'shun-r39-a30': '30'}
 AVD = os.environ.get('SHUN_R39_AVD', 'shun-a35-4k')
 SERIAL = 'emulator-5580'
-PKG = 'top.xdwa.shun'
+# 调试包（下面 flutter build apk --debug）的包名。类还在 top.xdwa.shun 下：am start -n 要写完整类名，
+# 写成 PKG + '/.MainActivity' 会去找 top.xdwa.shun.debug.MainActivity，报 Activity class does not exist。
+PKG = 'top.xdwa.shun.debug'
+ACTIVITY_NS = 'top.xdwa.shun'
 PACKAGES = {
     'host': PKG,
     'fixture-fakeuu': 'com.netease.uuremote',
@@ -192,7 +195,7 @@ def build(out, env):
     modules = [m for m in PACKAGES if m != 'host']
     logged([ROOT / 'android/gradlew', '-p', ROOT / 'plugins', '--no-daemon',
             *[f':{m}:assembleRelease' for m in modules],
-            f'-PhostSha256={host_signer}', '-PsignWith=author'],
+            f'-PhostSha256={host_signer}', f'-PhostPackage={PKG}', '-PsignWith=author'],
            out / 'build-fixtures.log', env)
     apks = {'host': host}
     for module in modules:
@@ -272,7 +275,7 @@ def execute_phase(phase, cfg, defines, apk, out, env):
             # Actual callback boots the Android process BEFORE drive attaches.
             # am start output contains the URI; discard it, never put it in logs.
             shell('am', 'start', '-W', '-a', 'android.intent.action.VIEW',
-                  '-d', callback(cfg), '-n', PKG + '/.UuCallbackActivity')
+                  '-d', callback(cfg), '-n', f'{PKG}/{ACTIVITY_NS}.UuCallbackActivity')
             deadline = time.monotonic() + 45
             uri = None
             while time.monotonic() < deadline and uri is None:
@@ -326,7 +329,7 @@ def execute_phase(phase, cfg, defines, apk, out, env):
                             require(bool(requests) and marker in requests[-1],
                                     'Fixture did not receive the migrated identity')
                             (out / (gate + '.log')).write_text(trace)
-                        shell('am', 'start', '-n', PKG + '/.MainActivity')
+                        shell('am', 'start', '-n', f'{PKG}/{ACTIVITY_NS}.MainActivity')
                     if gate == 'shot-entries':
                         with (out / 'entries.png').open('wb') as shot:
                             subprocess.run([str(SDK / 'platform-tools/adb'), '-s', SERIAL,

@@ -55,6 +55,8 @@ X04 的三个更新变体 versionCode 是 2、3、4，其余都是 1：从高版
 
 插件只接受一张宿主证书：默认是本机 `~/.android/debug.keystore`（宿主 debug 包和没配正式签名的 release 包都用它）。
 换台电脑构建的宿主证书不同，插件会拒绝它，报「签名证书不是信任的那张」。要指定别的宿主证书：`HOST_SHA256=<64位十六进制> ./build-fixtures.sh`。
+包名也只认一个：默认是调试宿主 `top.xdwa.shun.debug`（`flutter test`、`flutter run` 装的那个）。对着本机 release 包测时用
+`HOST_PACKAGE=top.xdwa.shun ./build-fixtures.sh`，不然连接报「调用方 UID … 不是 top.xdwa.shun.debug」。单独编一个插件时是 `-PhostPackage=<包名>`，不带就是 `top.xdwa.shun`。
 
 ## 负向探测
 
@@ -81,7 +83,7 @@ cd .. && flutter test integration_test/plugin_session_test.dart -d emulator-5554
 | `stubborn` | echo-stubborn + echo-debugkey | 撤销后插件持续发的事件全被丢弃，记「停止未确认」，另一个插件不受影响 |
 | `version` | echo-major2 | 握手被拒，打不开会话 |
 | `kill` | echo-author + echo-debugkey，另起 `tool/fixture-environment/up.sh` 并 `adb reverse tcp:22201 tcp:22201` | 测试打出 `X03 kill.READY` 后执行 `adb shell run-as example.shun.fixture.echo kill -9 $(adb shell pidof example.shun.fixture.echo)`：它的会话记插件死亡，另一个插件、SSH、SFTP 照常 |
-| `hostkill` | echo-author | 打出 `X03 hostkill.READY` 后 `adb shell run-as top.xdwa.shun kill -9 $(adb shell pidof top.xdwa.shun)`；看 echo 日志「宿主已退出，关闭 1 个会话」和它的 fd 数。测试会报「未完成」，那是被杀掉了，正常 |
+| `hostkill` | echo-author | 打出 `X03 hostkill.READY` 后 `adb shell run-as top.xdwa.shun.debug kill -9 $(adb shell pidof top.xdwa.shun.debug)`；看 echo 日志「宿主已退出，关闭 1 个会话」和它的 fd 数。测试会报「未完成」，那是被杀掉了，正常 |
 
 `kill` 场景的 SSH 参数用 `--dart-define` 传：`SSH_PORT=22201`、`SSH_USER`、`SSH_PASS`、`SSH_FP`，取自 `tool/fixture-environment/.run/fixture.json`（`sshEdge.fingerprintSha256`）。
 
@@ -119,7 +121,7 @@ adb logcat -d -s ShunFakeUu     # 每个请求、每次回调一行：参数名�
 | `bind_wrong_nonce` / `bind_dup` / `bind_long` | 绑定 | nonce 不对 / nonce 出现两次 / 5000 字符的 ID：本 App 都应拒收 |
 | `bind_twice` | 绑定 | 同一条回调 1.5 秒后再发一次：第二次应被当成重放忽略 |
 | `bind_none` | 绑定 | 不回调：本 App 一直等，可以「结束等待」 |
-| `bind_late:<秒>` | 绑定 | 延迟回调：趁这段时间 `adb shell am force-stop top.xdwa.shun`，看回调冷启动 App 后还能不能对上 |
+| `bind_late:<秒>` | 绑定 | 延迟回调：趁这段时间 `adb shell am force-stop top.xdwa.shun.debug`，看回调冷启动 App 后还能不能对上 |
 | `pip_success` / `pip_failure:<reason>` | 小窗远控 | 比如 `pip_failure:pip_unsupported`、`pip_failure:device_not_found` |
 | `pip_twice` / `pip_late:<秒>` / `pip_none` | 小窗远控 | 重放 / 延迟回报（先在 App 里结束等待，看迟到的是否被忽略）/ 不回 |
 
