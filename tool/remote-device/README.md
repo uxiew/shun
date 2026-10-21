@@ -3,6 +3,10 @@
 真机只接在 xdwmbp（另一台 Mac）上时，用这个在本机直接跑 `adb`、`flutter run`、`flutter test integration_test`，
 不用在那台电脑上装 Flutter、拷代码。
 
+**先看自己是不是就在 xdwmbp 上**：`scutil --get LocalHostName` 输出 `xdwmbp`，手机插这台就是本机设备，直接 `adb devices`、
+`flutter run -d <手机序列号>`，用不着这一套。10-21 确认项目现在就在 xdwmbp 上跑。
+`tool/r18-real-device.sh`、`tool/r22-soak.sh` 还只会走这套（先 SSH 到接手机的电脑），在 xdwmbp 本机上跑会撞下面第一条，要改成本机模式，还没改。
+
 ```bash
 source ../.toolchain/env.sh
 tool/remote-device/up.sh xdwmbp /opt/homebrew/share/android-commandlinetools/platform-tools/adb
@@ -21,14 +25,12 @@ tool/remote-device/down.sh xdwmbp         # 用完拆掉
 
 ## 撞墙时
 
-- **`up.sh` 一上来就报 `Host key verification failed`**：本机 `~/.ssh/known_hosts` 里没有 `xdwmbp` 这个名字。常见于它换了解析方式，
-  比如以前按局域网地址连，现在经 Tailscale 解析到 `100.x` 地址。先别顺手接受新密钥，跑
-  `ssh -v -o BatchMode=yes xdwmbp true 2>&1 | grep 'found matching key'`：有输出，说明这把主机密钥以别的名字记过，是同一台机器
-  （10-21 就是这样，和以前记的局域网地址那条一样）。这时在 `~/.ssh/config` 的 `Host xdwmbp` 下加 `HostKeyAlias <记过的那个名字>`；
-  没输出就是没见过的密钥，到那台电脑上用 `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` 对过指纹，再手动 `ssh xdwmbp` 接受。
-- **主机密钥对上了，报 `Permission denied (publickey,password,keyboard-interactive)`**：本机的公钥不在那台电脑的 `~/.ssh/authorized_keys` 里，
-  或者本机账号名和那边不一样。项目换到另一台电脑上跑就会撞上。在那台电脑上加公钥，或者在 `Host xdwmbp` 下配上那边认的
-  `User` 和 `IdentityFile`。脚本要免密登录，只能输密码的话 `up.sh` 跑不起来。
+- **`up.sh` 一上来就报 `Host key verification failed`，或者主机密钥对上了又报 `Permission denied (publickey,password,keyboard-interactive)`**：
+  先 `scutil --get LocalHostName`。输出是 `xdwmbp`，就是在 xdwmbp 自己身上跑了 `up.sh xdwmbp`，等于 SSH 连自己：
+  `known_hosts` 里没有自己经 Tailscale 的这个名字，自己的公钥也不在自己的 `authorized_keys` 里。10-21 撞到过，看着像那台电脑的登录坏了，
+  其实是用错了路子：别去改 SSH 配置，直接用本机 adb。真是另一台电脑，主机密钥先核对再接受
+  （`ssh -v -o BatchMode=yes xdwmbp true 2>&1 | grep 'found matching key'` 有输出，说明这把密钥以别的名字记过），
+  再给 `Host xdwmbp` 配好免密登录（`User`、`IdentityFile`）：脚本不会输密码。
 - **`flutter test` 报 `WebSocketChannelException ... Connection refused ... port = 5xxxx`，或者 `flutter drive` 一直卡着不动**：
   flutter 用 `adb forward` 把手机上的 VM service 转到"本机"端口，但 adb 服务在那台电脑上，监听口也开在那边，本机连不到。
   `up.sh` 做了一个假 SDK（全部软链接回真 SDK，只把 `platform-tools/adb` 换成 `adb-wrapper.sh`），

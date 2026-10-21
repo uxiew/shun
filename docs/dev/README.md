@@ -101,7 +101,8 @@ flutter test test/integration_ssh_fixture_test.dart
     `tool/ime-replay.sh emulator-5580 "" integration_test/r18_keys_test.dart`；**测完改回 `no` 再重起**，
     不然软键盘默认不弹，别的设备测试会等不到键盘。
   - 真人在真机上用自己的输入法打拼音、说话（`integration_test/r18_voice_device_test.dart`，TER02）：要所有者当次同意、本人拿着手机。
-    `tool/r18-real-device.sh xdwmbp /opt/homebrew/share/android-commandlinetools/platform-tools/adb <手机序列号>`，
+    `tool/r18-real-device.sh xdwmbp /opt/homebrew/share/android-commandlinetools/platform-tools/adb <手机序列号>`
+    （在 xdwmbp 本机上跑不起来，见 `tool/remote-device/README.md` 开头），
     约 4 分钟（构建安装 1 分多钟，6 项每项半分钟）。手机上出现「点一下这里叫出键盘」后照屏幕说明做，每项按一次回车。
     脚本不碰手机的输入法设置，开始结束各记一次默认输入法；测完 App 被卸掉。
 - 粘贴、滑动、选字、链接、远端效果的设备测试（R19，`integration_test/r19_terminal_test.dart`，只在模拟器上跑过）：跑法同 R17 那条
@@ -283,7 +284,8 @@ tool/build-release.sh && adb install -r build/app/outputs/flutter-apk/app-releas
   CI 包里只有 `/home/runner/...`。
 - AI、云同步、检查更新默认关闭且不显示，开关在 `lib/application/fork_features.dart`。
 
-手机接在另一台电脑上（现在的真机 Pixel 9 Pro 只接在 xdwmbp 上）：用 `tool/remote-device/`，见那里的 README。
+真机 Pixel 9 Pro 接在 xdwmbp 上，项目现在也在 xdwmbp 上跑（10-21 确认，`scutil --get LocalHostName` 输出 `xdwmbp`），插上就是本机设备，按上面的命令直接用。
+在别的电脑上开发、手机还接在 xdwmbp 时，用 `tool/remote-device/`，见那里的 README。
 
 装好之后怎么用，看 [使用手册](../user/README.md)。测试插件怎么构建、插件会话怎么在设备上验证，看 `plugins/README.md`。
 
