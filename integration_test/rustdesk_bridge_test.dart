@@ -9,6 +9,7 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shun/infrastructure/plugins/rustdesk_external.dart';
 
 const custom = 'example.shun.fixture.fakerustdesk';
@@ -20,6 +21,9 @@ void main() {
 
   testWidgets('平台桥：探测、拒发不合规的链接和对不上的包，合规的只发给指定的包', (tester) async {
     final platform = AndroidRustDeskPlatform();
+    // 调试包是 top.xdwa.shun.debug、正式包是 top.xdwa.shun：写死的话，在调试包里「不算自己」永远成立，
+    // 「拒绝发给自己」反而会失败。
+    final self = (await PackageInfo.fromPlatform()).packageName;
 
     final probe = await platform.probe();
     final byPackage = {for (final c in probe.handlers) c.package: c};
@@ -35,7 +39,7 @@ void main() {
     expect(official.signers, hasLength(1));
     expect(other.signers, hasLength(1));
     // 本 App 自己不算 rustdesk:// 的处理者。
-    expect(byPackage.keys, isNot(contains('top.xdwa.shun')));
+    expect(byPackage.keys, isNot(contains(self)));
 
     Future<String?> refused(String uri,
         {String? package, String? signer}) async {
@@ -92,9 +96,9 @@ void main() {
     final noPackage = await refused(good, package: '');
     report('noPackage', noPackage);
     expect(noPackage, contains('没有指定'));
-    final self = await refused(good, package: 'top.xdwa.shun');
-    report('selfPackage', self);
-    expect(self, contains('没有指定'));
+    final selfRefused = await refused(good, package: self);
+    report('selfPackage', selfRefused);
+    expect(selfRefused, contains('没有指定'));
 
     // 3. 合规的请求：只发给指定的那个包。两个包都声明了 rustdesk://，指定的是「别的包名」那个，
     //    官方包名的那个不应收到。放在最后：发出后本 App 到了后台，系统不再允许它启动别的界面。
