@@ -15,6 +15,7 @@ import 'package:shun/domain/connection_route.dart';
 import 'package:shun/domain/proxy_profiles.dart';
 import 'package:shun/infrastructure/ssh/server_monitor_service.dart';
 import 'package:shun/infrastructure/ssh/sftp_service.dart';
+import 'package:shun/infrastructure/ssh/ssh_lease.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/ssh/system_management_service.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
@@ -2006,5 +2007,107 @@ void main() {
             (e) => e.problem, 'problem', TerminalTargetProblem.replaced)),
       );
     }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+  });
+
+  // R24：文件、监控、系统管理、端口转发借标签上那条 SSH。不用网络的部分在 r24_borrowers_test.dart。
+  group('R24 借用者跟着连接走（真实 OpenSSH）', () {
+    late ProviderContainer container;
+    late SessionController controller;
+    late RecordingDialer dialer;
+
+    setUp(() async {
+      if (fixture == null) return;
+      useMemorySecureStorage();
+      SharedPreferences.setMockInitialValues({});
+      final repository = await VaultRepository.open();
+      dialer = RecordingDialer();
+      container = ProviderContainer(overrides: [
+        vaultRepositoryProvider.overrideWithValue(repository),
+        sshServiceProvider.overrideWithValue(SshService(dialer: dialer.call)),
+      ]);
+      controller = container.read(sessionControllerProvider.notifier);
+    });
+
+    tearDown(() async {
+      if (fixture == null) return;
+      container.dispose();
+      await Future<void>.delayed(const Duration(milliseconds: 300));
+    });
+
+    Future<void> eventually(FutureOr<bool> Function() condition, String what,
+        {Duration timeout = const Duration(seconds: 15)}) async {
+      final deadline = DateTime.now().add(timeout);
+      while (!await condition()) {
+        if (DateTime.now().isAfter(deadline)) fail('等待超时：$what');
+        await Future<void>.delayed(const Duration(milliseconds: 100));
+      }
+    }
+
+    test('REG01 经跳板：终端 + 文件页开着时目标断线，标签照常自动恢复；旧一代的跳板连接被关掉',
+        () async {
+      final vault = container.read(vaultControllerProvider.notifier);
+      final edge = edgeHost({'id': 'reg01-edge', 'label': 'edge'});
+      final host = HostProfile({
+        ...targetViaProxy(const {}).data,
+        'id': 'reg01-target',
+        'proxyConfig': null,
+        'hostChain': {
+          'hostIds': ['reg01-edge'],
+        },
+      });
+      await vault.upsertHost(edge);
+      await vault.upsertHost(host);
+      expect(await controller.connect(host, verifyByLogicalName), isTrue);
+      final old = controller.state.sessions.single;
+      await SftpService(old).list('/etc');
+      expect(await sshdConnections('ssh-edge'), 1);
+      expect(await sshdConnections('target'), 1);
+
+      // 只杀目标上的会话：目标 client 断了，跳板 client 还活着。修之前 abort 在关目标 client 时抛错，
+      // 跳板永远不关、标签不进自动恢复。
+      await killSessions('target');
+      await eventually(() {
+        final now = controller.state.sessions.single;
+        return !identical(now, old) && now.connected;
+      }, '标签自动恢复成新连接');
+      await eventually(() async => await sshdConnections('ssh-edge') == 1,
+          '跳板上只剩新一代的连接');
+      expect(await sshdConnections('target'), 1);
+      expect(old.sshClients.every((c) => c.isClosed), isTrue,
+          reason: '旧一代的目标和跳板 client 都关了');
+      await controller.close(0);
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 90)));
+
+    test('上传到一半断线：几秒内报「结果未知」，不再永远等；同一个文件页再列目录报「已断开」',
+        () async {
+      final f = fixture!;
+      final host = edgeHost({'id': 'r24-upload'});
+      await container.read(vaultControllerProvider.notifier).upsertHost(host);
+      expect(await controller.connect(host, verifyByLogicalName), isTrue);
+      final old = controller.state.sessions.single;
+      final sftp = SftpService(old);
+      await sftp.list('/tmp');
+      final bytes = StreamController<Uint8List>();
+      final watch = Stopwatch();
+      // 修之前：断线后这里 15 秒都不返回（dartssh2 的 SFTP 不再回复挂着的请求）。
+      final upload = expectLater(
+          sftp
+              .writeStream('/tmp/r24-upload.bin', bytes.stream)
+              .timeout(const Duration(seconds: 8)),
+          throwsA(isA<OutcomeUnknown>()));
+      bytes.add(Uint8List(64 * 1024));
+      await Future<void>.delayed(const Duration(milliseconds: 500));
+      watch.start();
+      await killSessions('ssh-edge');
+      bytes.add(Uint8List(64 * 1024));
+      await upload;
+      expect(watch.elapsed, lessThan(const Duration(seconds: 5)));
+      await expectLater(sftp.list('/tmp').timeout(const Duration(seconds: 5)),
+          throwsA(isA<ConnectionGone>()));
+      expect(dialer.dials.toSet(), {'${f.edgeHost}:${f.edgePort}'},
+          reason: '借用者自己没有另拨任何地方');
+      await bytes.close();
+      await controller.close(0);
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 90)));
   });
 }

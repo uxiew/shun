@@ -549,7 +549,7 @@ class _SftpPaneState extends State<_SftpPane> {
     if (entry.size > 1024 * 1024) return _share(entry);
     try {
       final source = service;
-      final content = await source.readText(entry.path);
+      final content = await source.readTextBounded(entry.path);
       if (!mounted) return;
       await showDialog<void>(
         context: context,

@@ -696,6 +696,7 @@ const englishTranslations = <String, String>{
   '发送后立即执行': 'Execute immediately after sending',
   '请先建立终端会话': 'Connect a terminal session first',
   'SFTP文件管理': 'SFTP file manager',
+  '文件超过预览上限，没有打开': 'The file is larger than the preview limit and was not opened',
   '切换为单栏模式': 'Switch to single-pane mode',
   '切换为双栏模式': 'Switch to dual-pane mode',
   '连接 SSH 后可选择服务器': 'Connect SSH to select a server',
@@ -2234,6 +2235,35 @@ const englishTranslations = <String, String>{
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // R24：借用的 SSH 连接断了（ssh_lease.dart）。主机名、路径是运行时才知道的，整句放最前面，
+  // 免得被后面的「连接」「删除」「目录」这些单词先拆碎。动作里的路径一律放在「」里。
+  (
+    ' 的 SSH 连接已断开，这一步没有执行。这里不会自己重连，也不会改走别的路线：',
+    ': the SSH connection is gone, so this step was not run. Nothing here reconnects or switches routes on its own: '
+  ),
+  (
+    '回到终端标签重新连接后，再从新连接打开。',
+    'reconnect in the terminal tab, then open this again from the new connection.'
+  ),
+  (
+    '」：请求发出后连接断了，不知道服务器上有没有做成。不会自动重试；重新连接后先看一眼再决定。',
+    '”: the request was sent, then the connection dropped, so whether the server did it is unknown. Nothing is retried automatically; reconnect and check before deciding.'
+  ),
+  (
+    '：请求发出后连接断了，不知道服务器上有没有做成。不会自动重试；重新连接后先看一眼再决定。',
+    ': the request was sent, then the connection dropped, so whether the server did it is unknown. Nothing is retried automatically; reconnect and check before deciding.'
+  ),
+  ('」→「', '” → “'),
+  ('服务器上复制到「', 'Copy on the server to “'),
+  ('服务器直传到「', 'Server-to-server transfer to “'),
+  ('移动「', 'Move “'),
+  ('解压到「', 'Extract to “'),
+  ('压缩到「', 'Compress to “'),
+  ('写入「', 'Write “'),
+  ('新建目录「', 'Create folder “'),
+  ('改名「', 'Rename “'),
+  ('改权限「', 'Change permissions of “'),
+  ('删除「', 'Delete “'),
   // 同步解密的报错前面带着「FormatException: 」，只能按片段换。
   (
     '云端文件的密钥派生次数超出范围，没有解密：可能被改过，也可能是更新版本的桌面端写的',

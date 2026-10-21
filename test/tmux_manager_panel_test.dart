@@ -240,6 +240,9 @@ void main() {
 class _FakeSsh extends Fake implements SSHClient {
   @override
   void close() {}
+  // 关标签时 abort 先看传输层还在不在，再决定要不要关 PTY。
+  @override
+  bool get isClosed => false;
 }
 
 class _FakeTmux extends TmuxService {

@@ -7,6 +7,7 @@ import 'package:dartssh2/dartssh2.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:path_provider/path_provider.dart';
 
+import 'ssh_lease.dart';
 import 'ssh_service.dart';
 import 'remote_archive.dart';
 import 'server_transfer_commands.dart';
@@ -73,6 +74,37 @@ class TransferCancellationToken {
   }
 }
 
+/// 文件的大小和修改时间（秒，SFTP 给的就是秒）。拿不到修改时间的来源只比大小。
+class FileStamp {
+  const FileStamp(this.size, this.modifiedSeconds);
+
+  final int? size;
+  final int? modifiedSeconds;
+
+  @override
+  bool operator ==(Object other) =>
+      other is FileStamp &&
+      other.size == size &&
+      other.modifiedSeconds == modifiedSeconds;
+
+  @override
+  int get hashCode => Object.hash(size, modifiedSeconds);
+}
+
+/// 预览 / 在 App 里编辑的上限：1 MiB。更大的文件不打开，让用户选择下载到手机再看。
+/// 编辑器把整个文件放在一个文本控件里，再大手机上就卡了。
+const previewLimit = 1024 * 1024;
+
+/// 文件比预览上限大：没有打开。
+class PreviewTooLarge implements Exception {
+  const PreviewTooLarge(this.limit);
+
+  final int limit;
+
+  @override
+  String toString() => '文件超过预览上限，没有打开';
+}
+
 abstract class FileTransferService {
   // A mounted phone source is mutable. Do not rebind it while operations run.
   int activeOperations = 0;
@@ -115,6 +147,27 @@ abstract class FileTransferService {
     TransferProgressCallback? onProgress,
   });
   Future<int?> fileSize(String path);
+
+  /// 文件的大小和修改时间；不存在时为 null。编辑器保存前用它看文件在打开之后有没有被别人改过。
+  Future<FileStamp?> stamp(String path) async {
+    final size = await fileSize(path);
+    return size == null ? null : FileStamp(size, null);
+  }
+
+  /// 只读文件的前 [maxBytes] 字节。默认按 [readStream] 读到够了就停。
+  Stream<Uint8List> readPrefix(String path, int maxBytes) async* {
+    var remaining = maxBytes;
+    if (remaining <= 0) return;
+    await for (final chunk in readStream(path)) {
+      if (chunk.length >= remaining) {
+        yield Uint8List.sublistView(chunk, 0, remaining);
+        return;
+      }
+      remaining -= chunk.length;
+      yield chunk;
+    }
+  }
+
   Future<void> mkdir(String path);
   Future<void> ensureDirectory(String path);
   Future<void> rename(String from, String to);
@@ -122,16 +175,20 @@ abstract class FileTransferService {
   Future<void> setPermissions(String path, int mode) =>
       Future<void>.error(UnsupportedError('当前文件来源不支持修改权限'));
 
-  Future<Uint8List> readBytes(String path) async {
+  /// 读整个文件给预览 / 编辑器用，最多 [limit] 字节。比这大就报 [PreviewTooLarge]：只多读 1 字节来判断，
+  /// 不会把大文件整个读进内存（列表里的大小可能已经过时：文件还在变大）。
+  Future<Uint8List> readBounded(String path, {int limit = previewLimit}) async {
     final builder = BytesBuilder(copy: false);
-    await for (final chunk in readStream(path)) {
+    await for (final chunk in readPrefix(path, limit + 1)) {
       builder.add(chunk);
+      if (builder.length > limit) throw PreviewTooLarge(limit);
     }
     return builder.takeBytes();
   }
 
-  Future<String> readText(String path) async =>
-      utf8.decode(await readBytes(path), allowMalformed: true);
+  Future<String> readTextBounded(String path,
+          {int limit = previewLimit}) async =>
+      utf8.decode(await readBounded(path, limit: limit), allowMalformed: true);
 
   Future<void> writeBytes(String path, Uint8List data) =>
       writeStream(path, Stream.value(data));
@@ -147,16 +204,42 @@ abstract class MountableFileTransferService extends FileTransferService {
   Future<bool> mount();
 }
 
+/// 文件页里一台服务器的文件。借的是 [session] 这一代的 SSH 连接（[SshLease]），只用它：
+/// 它断了，这里的每一步都报 [ConnectionGone] / [OutcomeUnknown]，不重连、不另开一条；
+/// 标签恢复成新连接后，文件页为新连接另建一个（[SftpServiceCache]）。
 class SftpService extends FileTransferService {
   SftpService(this.session);
 
   final ActiveTerminalSession session;
+  SshLease? _lease;
+
+  /// 第一次用到时借。连接已经没了就报 [ConnectionGone]（不缓存，反正这个会话对象不会再连上）。
+  SshLease get lease => _lease ??= _borrow();
+
+  SshLease _borrow() {
+    final lease = SshLease.of(session);
+    // 连接一断就关掉 SFTP 客户端：它还在等的请求由 dartssh2 统一报错，不再挂着。
+    lease.lost.then((_) {
+      final opening = _opening;
+      _opening = null;
+      if (opening == null) return;
+      unawaited(opening.then<void>((client) async {
+        try {
+          await client.close();
+        } catch (_) {
+          // 连接已经没了，关不干净也无妨；要的是它把挂着的请求都报错结束。
+        }
+      }, onError: (Object _) {}));
+    });
+    return lease;
+  }
+
   @override
   bool get supportsServerTransfer => true;
 
   @override
-  Future<String> canonicalPath(String path) async =>
-      (await _sftp).absolute(path);
+  Future<String> canonicalPath(String path) =>
+      _read((sftp) => sftp.absolute(path));
 
   @override
   Future<void> probeServerTransfer(FileTransferService target,
@@ -165,6 +248,7 @@ class SftpService extends FileTransferService {
     if (sameTransferStorage(this, target)) {
       await _runFileCommand(
           'command -v cp >/dev/null && command -v mv >/dev/null',
+          action: null,
           cancellationToken: cancellationToken,
           timeout: const Duration(seconds: 15));
     } else {
@@ -180,10 +264,12 @@ class SftpService extends FileTransferService {
       final command =
           ServerTransferCommands.sftp(host.hostname, host.port, host.username);
       await _runFileCommand('exec $command',
+          action: null,
           input: 'pwd\nbye\n',
           cancellationToken: cancellationToken,
           timeout: const Duration(seconds: 15));
       await target._runFileCommand('command -v mv >/dev/null',
+          action: null,
           cancellationToken: cancellationToken,
           timeout: const Duration(seconds: 15));
     }
@@ -195,6 +281,7 @@ class SftpService extends FileTransferService {
     if (sameTransferStorage(this, target)) {
       await _runFileCommand(
           ServerTransferCommands.copy(entry.path, destination),
+          action: '服务器上复制到「$destination」',
           cancellationToken: cancellationToken);
     } else {
       if (target is! SftpService) throw UnsupportedError('Not an SSH target');
@@ -202,6 +289,7 @@ class SftpService extends FileTransferService {
       final command =
           ServerTransferCommands.sftp(host.hostname, host.port, host.username);
       await _runFileCommand('exec $command',
+          action: '服务器直传到「$destination」',
           input: ServerTransferCommands.upload(
               entry.path, destination, entry.isDirectory),
           cancellationToken: cancellationToken);
@@ -212,15 +300,26 @@ class SftpService extends FileTransferService {
   Future<void> moveOnServer(String source, String destination,
           TransferCancellationToken? cancellationToken) =>
       _runFileCommand(ServerTransferCommands.move(source, destination),
+          action: '移动「$source」→「$destination」',
           cancellationToken: cancellationToken);
 
+  /// 在服务器上跑一条文件命令。[action] 为 null 的是只读的探测；不为 null 的会改动服务器，
+  /// 连接在它执行中途断了就报 [OutcomeUnknown]。
   Future<void> _runFileCommand(String command,
-      {String input = '',
+      {required String? action,
+      String input = '',
+      TransferCancellationToken? cancellationToken,
+      Duration? timeout}) {
+    cancellationToken?.throwIfCancelled();
+    Future<void> run(SSHClient ssh) => _runFileCommandOn(ssh, command,
+        input: input, cancellationToken: cancellationToken, timeout: timeout);
+    return action == null ? lease.read(run) : lease.write(action, run);
+  }
+
+  Future<void> _runFileCommandOn(SSHClient ssh, String command,
+      {required String input,
       TransferCancellationToken? cancellationToken,
       Duration? timeout}) async {
-    cancellationToken?.throwIfCancelled();
-    final ssh = session.sshClient;
-    if (ssh == null) throw StateError('SSH session is disconnected');
     final interrupted = Completer<void>();
     SSHSession? process;
     var finished = false;
@@ -297,17 +396,20 @@ class SftpService extends FileTransferService {
   @override
   Future<void> extractArchive(String archive, String destination) async {
     final command = RemoteArchive.command(archive, destination);
-    await _archiveCommand(command);
+    await lease.write(
+        '解压到「$destination」', (ssh) => _archiveCommand(ssh, command));
   }
 
   @override
   Future<void> compressEntries(List<RemoteEntry> entries, String destination) =>
-      _archiveCommand(RemoteArchive.compressCommand(
-          entries.map((e) => e.path).toList(), destination));
+      lease.write(
+          '压缩到「$destination」',
+          (ssh) => _archiveCommand(
+              ssh,
+              RemoteArchive.compressCommand(
+                  entries.map((e) => e.path).toList(), destination)));
 
-  Future<void> _archiveCommand(String command) async {
-    final ssh = session.sshClient;
-    if (ssh == null) throw StateError('当前会话不支持 SFTP');
+  Future<void> _archiveCommand(SSHClient ssh, String command) async {
     final process = await ssh.execute(command);
     final output = StringBuffer();
     Future<void> drain(Stream<Uint8List> stream) async {
@@ -337,7 +439,7 @@ class SftpService extends FileTransferService {
     }
   }
 
-  SftpClient? _client;
+  Future<SftpClient>? _opening;
 
   @override
   String get id => 'ssh:${session.id}';
@@ -350,11 +452,23 @@ class SftpService extends FileTransferService {
   @override
   bool get supportsUnixPermissions => true;
 
-  Future<SftpClient> get _sftp async {
-    final ssh = session.sshClient;
-    if (ssh == null) throw StateError('当前会话不支持 SFTP');
-    return _client ??= await _openSftp(ssh);
+  /// 这条连接上的 SFTP 客户端，只开一个（同时来的几步共用同一次打开）。打开失败不缓存，下次重开。
+  Future<SftpClient> _sftpOn(SSHClient ssh) {
+    final opening = _opening ??= _openSftp(ssh);
+    opening.then((_) {}, onError: (_) {
+      if (identical(_opening, opening)) _opening = null;
+    });
+    return opening;
   }
+
+  /// 只读的一步：断了报 [ConnectionGone]。
+  Future<T> _read<T>(Future<T> Function(SftpClient sftp) work) =>
+      lease.read((ssh) async => work(await _sftpOn(ssh)));
+
+  /// 会改动服务器的一步：发出前断了报 [ConnectionGone]，发出后断了报 [OutcomeUnknown]。
+  Future<T> _write<T>(
+          String action, Future<T> Function(SftpClient sftp) work) =>
+      lease.write(action, (ssh) async => work(await _sftpOn(ssh)));
 
   static const _sftpHandshakeTimeout = Duration(seconds: 10);
 
@@ -390,7 +504,7 @@ class SftpService extends FileTransferService {
 
   @override
   Future<List<RemoteEntry>> list(String path) async {
-    final entries = await (await _sftp).listdir(path);
+    final entries = await _read((sftp) => sftp.listdir(path));
     return entries
         .where((item) =>
             item.filename != '.' &&
@@ -418,18 +532,55 @@ class SftpService extends FileTransferService {
     String path, {
     int startOffset = 0,
     TransferProgressCallback? onProgress,
+  }) =>
+      _guardedRead(path, startOffset: startOffset, onProgress: onProgress);
+
+  /// 只读前 [maxBytes] 字节：只向服务器要这么多，不先把后面的预取进内存。
+  @override
+  Stream<Uint8List> readPrefix(String path, int maxBytes) =>
+      _guardedRead(path, length: maxBytes);
+
+  Stream<Uint8List> _guardedRead(
+    String path, {
+    int startOffset = 0,
+    int? length,
+    TransferProgressCallback? onProgress,
+  }) {
+    final SshLease borrowed;
+    try {
+      borrowed = lease;
+    } on ConnectionGone catch (error) {
+      return Stream.error(error);
+    }
+    return borrowed.readStream(_openRead(
+      path,
+      startOffset: startOffset,
+      length: length,
+      onProgress: onProgress,
+    ));
+  }
+
+  Stream<Uint8List> _openRead(
+    String path, {
+    required int startOffset,
+    required int? length,
+    TransferProgressCallback? onProgress,
   }) async* {
-    final file = await (await _sftp).open(path, mode: SftpFileOpenMode.read);
+    final sftp = await _sftpOn(lease.check());
+    final file = await sftp.open(path, mode: SftpFileOpenMode.read);
     try {
       yield* Platform.isIOS
           ? file.read(
               offset: startOffset,
+              length: length,
               onProgress: onProgress,
               maxPendingRequests: 8,
             )
-          : file.read(offset: startOffset, onProgress: onProgress);
+          : file.read(
+              offset: startOffset, length: length, onProgress: onProgress);
     } finally {
-      await file.close();
+      // 连接已经断了时关句柄等不到回复，不等（没人拿得到它的结果）。
+      if (lease.alive) await file.close();
     }
   }
 
@@ -446,63 +597,82 @@ class SftpService extends FileTransferService {
             SftpFileOpenMode.write |
             SftpFileOpenMode.truncate
         : SftpFileOpenMode.create | SftpFileOpenMode.write;
-    final file = await (await _sftp).open(path, mode: mode);
-    try {
-      if (Platform.isIOS) {
-        await _writeSftpStreamWithLimitedConcurrency(
-          file,
-          stream,
-          startOffset: startOffset,
-          onProgress: onProgress,
-        );
-      } else {
-        await file
-            .write(
-              stream,
-              offset: startOffset,
-              onProgress: onProgress,
-            )
-            .done;
+    await _write('写入「$path」', (sftp) async {
+      final file = await sftp.open(path, mode: mode);
+      try {
+        if (Platform.isIOS) {
+          await _writeSftpStreamWithLimitedConcurrency(
+            file,
+            stream,
+            startOffset: startOffset,
+            onProgress: onProgress,
+          );
+        } else {
+          await file
+              .write(
+                stream,
+                offset: startOffset,
+                onProgress: onProgress,
+              )
+              .done;
+        }
+      } finally {
+        if (lease.alive) await file.close();
       }
-    } finally {
-      await file.close();
-    }
+    });
   }
 
   @override
-  Future<int?> fileSize(String path) async {
-    try {
-      return (await (await _sftp).stat(path)).size;
-    } on SftpStatusError {
-      return null;
-    }
-  }
+  Future<int?> fileSize(String path) => _read((sftp) async {
+        try {
+          return (await sftp.stat(path)).size;
+        } on SftpStatusError {
+          return null;
+        }
+      });
 
   @override
-  Future<void> mkdir(String path) async => (await _sftp).mkdir(path);
+  Future<FileStamp?> stamp(String path) => _read((sftp) async {
+        try {
+          final attrs = await sftp.stat(path);
+          return FileStamp(attrs.size, attrs.modifyTime);
+        } on SftpStatusError {
+          return null;
+        }
+      });
 
   @override
-  Future<void> ensureDirectory(String path) async {
-    try {
-      await mkdir(path);
-    } on SftpStatusError {
-      final existing = await (await _sftp).stat(path);
-      if (existing.mode?.type != SftpFileType.directory) rethrow;
-    }
-  }
+  Future<void> mkdir(String path) =>
+      _write('新建目录「$path」', (sftp) => sftp.mkdir(path));
 
   @override
-  Future<void> rename(String from, String to) async =>
-      (await _sftp).rename(from, to);
+  Future<void> ensureDirectory(String path) =>
+      _write('新建目录「$path」', (sftp) async {
+        try {
+          await sftp.mkdir(path);
+        } on SftpStatusError {
+          final existing = await sftp.stat(path);
+          if (existing.mode?.type != SftpFileType.directory) rethrow;
+        }
+      });
+
+  /// dartssh2 的 rename 优先用 OpenSSH 的 posix-rename：目标已存在就直接替换，不报错。
+  /// 要不要替换由调用方先问用户（[writeStreamAtomically] 的 replace）。
+  @override
+  Future<void> rename(String from, String to) =>
+      _write('改名「$from」→「$to」', (sftp) => sftp.rename(from, to));
 
   @override
   Future<void> setPermissions(String path, int mode) async {
     if (mode < 0 || mode > 0xfff) {
       throw StateError('Unix 权限必须在 0000 到 7777 之间');
     }
-    await (await _sftp).setStat(
-      path,
-      SftpFileAttrs(mode: SftpFileMode.value(mode)),
+    await _write(
+      '改权限「$path」',
+      (sftp) => sftp.setStat(
+        path,
+        SftpFileAttrs(mode: SftpFileMode.value(mode)),
+      ),
     );
   }
 
@@ -510,16 +680,17 @@ class SftpService extends FileTransferService {
   Future<int> copyEntry(RemoteEntry entry, String targetDirectory) =>
       transferEntry(this, entry, this, targetDirectory);
 
+  /// 删目录是一串请求：中途断了，可能已经删掉了一部分，整体算「结果未知」。
   @override
-  Future<void> delete(RemoteEntry entry) async => entry.isDirectory
-      ? _deleteDirectory(entry.path)
-      : (await _sftp).remove(entry.path);
+  Future<void> delete(RemoteEntry entry) =>
+      _write('删除「${entry.path}」', (sftp) => _delete(sftp, entry));
 
-  Future<void> _deleteDirectory(String path) async {
-    for (final child in await list(path)) {
-      await delete(child);
+  Future<void> _delete(SftpClient sftp, RemoteEntry entry) async {
+    if (!entry.isDirectory) return sftp.remove(entry.path);
+    for (final child in await list(entry.path)) {
+      await _delete(sftp, child);
     }
-    await (await _sftp).rmdir(path);
+    await sftp.rmdir(entry.path);
   }
 }
 
@@ -673,6 +844,13 @@ class LocalFileTransferService extends MountableFileTransferService {
   Future<int?> fileSize(String path) async {
     final file = File(path);
     return await file.exists() ? file.length() : null;
+  }
+
+  @override
+  Future<FileStamp?> stamp(String path) async {
+    final stat = await FileStat.stat(path);
+    if (stat.type == FileSystemEntityType.notFound) return null;
+    return FileStamp(stat.size, stat.modified.millisecondsSinceEpoch ~/ 1000);
   }
 
   @override

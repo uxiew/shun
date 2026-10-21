@@ -420,7 +420,13 @@ class _CountingProbe extends SftpService {
 
 class _CommandClient extends Fake implements SSHClient {
   final command = _CommandSession();
+  final _done = Completer<void>();
   bool closed = false;
+  // 文件页借连接时（SshLease）要看它还在不在。
+  @override
+  Future<void> get done => _done.future;
+  @override
+  bool get isClosed => closed;
   @override
   Future<SSHSession> execute(String command,
           {Map<String, String>? environment,
