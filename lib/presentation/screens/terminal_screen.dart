@@ -46,6 +46,7 @@ import '../widgets/terminal_special_keys.dart';
 import '../widgets/system_management/system_management_sheet.dart';
 import '../widgets/tailscale_check_card.dart';
 import '../terminal/terminal_view.dart';
+import 'connection_log_screen.dart';
 
 part 'terminal_screen_input.dart';
 part 'terminal_screen_pane.dart';
@@ -538,15 +539,15 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                       ? () => _openAi(visibleSession)
                       : null,
                   // 断开的标签不给这两个入口（按钮变灰）：它们只借这一代连接，点开也做不了事（R24）。
-                  onPortForward: visibleSession.isSsh &&
-                          visibleSession.connected
-                      ? () => showModalBottomSheet<void>(
-                            context: context,
-                            isScrollControlled: true,
-                            builder: (_) =>
-                                PortForwardSheet(session: visibleSession),
-                          )
-                      : null,
+                  onPortForward:
+                      visibleSession.isSsh && visibleSession.connected
+                          ? () => showModalBottomSheet<void>(
+                                context: context,
+                                isScrollControlled: true,
+                                builder: (_) =>
+                                    PortForwardSheet(session: visibleSession),
+                              )
+                          : null,
                   onSystemManagement: visibleSession.isSsh &&
                           visibleSession.connected
                       ? () => showModalBottomSheet<void>(

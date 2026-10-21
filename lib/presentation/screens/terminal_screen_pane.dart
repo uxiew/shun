@@ -156,6 +156,23 @@ class _ConnectionStatusPane extends StatelessWidget {
                         const SizedBox(height: 4),
                         RouteLegsView(plan: pending.routePlan!, dense: true),
                       ],
+                      // 这一次和之前几次各卡在哪一步、用了多久（R25）。只是打开本机记录，不重试、不探测。
+                      const SizedBox(height: 6),
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton.icon(
+                          key: const ValueKey('connection-failure-log'),
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => ConnectionLogScreen(
+                                hostId: sourceHostIdOf(pending.host),
+                              ),
+                            ),
+                          ),
+                          icon: const Icon(Icons.history),
+                          label: const LText('看这台主机的连接记录'),
+                        ),
+                      ),
                     ],
                     if (!failed && pending.routePlan != null) ...[
                       const SizedBox(height: 6),

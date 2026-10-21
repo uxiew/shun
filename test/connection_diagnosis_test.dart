@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/application/connection_diagnosis.dart';
+import 'package:shun/application/connection_events.dart';
 import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/connection_route.dart';
@@ -15,6 +16,7 @@ import 'package:shun/infrastructure/ssh/ssh_identity.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/transport/proxy_transport.dart';
+import 'package:shun/presentation/screens/connection_log_screen.dart';
 import 'package:shun/presentation/screens/terminal_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -195,6 +197,8 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [
         vaultRepositoryProvider.overrideWithValue(repository),
+        connectionEventStoreProvider
+            .overrideWithValue(MemoryConnectionEventStore()),
         sessionControllerProvider.overrideWith((ref) => _Seeded(
               ref.read(vaultControllerProvider.notifier),
               ref,
@@ -211,6 +215,14 @@ void main() {
     expect(find.text('这次实际走的路线'), findsOneWidget);
     expect(find.text('2. SOCKS5 代理'), findsOneWidget);
     expect(find.text('SSH deploy@web.example.com:2222'), findsOneWidget);
+
+    // R25：失败页上能打开这台主机的连接记录（只是看本机记录，不重试）。
+    final log = find.byKey(const ValueKey('connection-failure-log'));
+    expect(log, findsOneWidget);
+    await tester.ensureVisible(log);
+    await tester.tap(log);
+    await tester.pumpAndSettle();
+    expect(find.byType(ConnectionLogScreen), findsOneWidget);
   });
 }
 

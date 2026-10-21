@@ -5,9 +5,11 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shun/application/connection_events.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/presentation/screens/connection_log_screen.dart';
 import 'package:shun/presentation/screens/vault_screen.dart';
 
 // R43：主机列表的 ⋮ 菜单只列这台能用的动作；隐藏只管列表显示、找得回来。
@@ -18,7 +20,7 @@ void main() {
   late ProviderContainer container;
 
   Future<void> open(WidgetTester tester, List<Map<String, Object?>> hosts,
-      {String view = 'list'}) async {
+      {String view = 'list', List<ConnectionEvent> events = const []}) async {
     const channel =
         MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -36,9 +38,13 @@ void main() {
       'shun_settings_v1': jsonEncode({'serverViewMode': view}),
     });
     final repository = await VaultRepository.open();
-    container = ProviderContainer(
-        overrides: [vaultRepositoryProvider.overrideWithValue(repository)]);
+    container = ProviderContainer(overrides: [
+      vaultRepositoryProvider.overrideWithValue(repository),
+      connectionEventStoreProvider
+          .overrideWithValue(MemoryConnectionEventStore(events)),
+    ]);
     addTearDown(container.dispose);
+    await container.read(connectionEventLogProvider.notifier).ready;
     await tester.pumpWidget(UncontrolledProviderScope(
       container: container,
       child: const MaterialApp(home: Scaffold(body: VaultScreen())),
@@ -86,8 +92,7 @@ void main() {
     expect(find.byKey(const ValueKey('host-type-telnet')), findsOneWidget);
   });
 
-  testWidgets('菜单只列这台用得上的：Telnet 只有编辑和隐藏；没连着的 SSH 没有转发、文件、监控',
-      (tester) async {
+  testWidgets('菜单只列这台用得上的：Telnet 只有编辑和隐藏；没连着的 SSH 没有转发、文件、监控', (tester) async {
     await open(tester, [
       host('web', 'ssh'),
       host('old', 'telnet'),
@@ -108,6 +113,32 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(await menuOf(tester, 'broken'), ['edit', 'hide']);
+  });
+
+  testWidgets('R25：有连接记录的主机菜单里才有「连接记录」，点进去是这一台的', (tester) async {
+    await open(tester, [
+      host('web', 'ssh'),
+      host('db', 'ssh'),
+    ], events: [
+      ConnectionEvent(
+        hostId: 'web',
+        at: DateTime.now(),
+        kind: ConnectionEventKind.open,
+        protocol: HostProtocol.ssh,
+        outcome: ConnectionOutcome.connected,
+        total: const Duration(milliseconds: 12),
+      ),
+    ]);
+    expect(await menuOf(tester, 'web'),
+        ['testConnection', 'connectionLog', 'edit', 'hide']);
+    await tester.tap(find.byKey(const ValueKey('host-menu-connectionLog')));
+    await tester.pumpAndSettle();
+    expect(find.byType(ConnectionLogScreen), findsOneWidget);
+    expect(find.textContaining('新开连接 · 连上了'), findsOneWidget);
+    await tester.tap(find.byType(BackButton));
+    await tester.pumpAndSettle();
+    expect(await menuOf(tester, 'db'), ['testConnection', 'edit', 'hide'],
+        reason: '没有记录的主机不列：点进去只会是空的');
   });
 
   for (final view in ['list', 'grid', 'tree']) {
@@ -132,7 +163,8 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('vault-show-hidden')));
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('vault-hidden-host-web')), findsOneWidget,
+      expect(
+          find.byKey(const ValueKey('vault-hidden-host-web')), findsOneWidget,
           reason: '显示出来也淡一点，和没藏的分开');
       expect(await menuOf(tester, 'web'), contains('unhide'));
       await tester.tap(find.byKey(const ValueKey('host-menu-unhide')));

@@ -2385,6 +2385,35 @@ const englishTranslations = <String, String>{
   '这一轮试了 {n} 次': '{n} attempts this round',
   '失败在：{hop}': 'failed at: {hop}',
   '下一步：{text}': 'Next step: {text}',
+  '目标“{name}”': 'Target “{name}”',
+  '跳板机“{name}”': 'Jump host “{name}”',
+  '最近 7 天：连接 {a} 次（连上 {ok}、失败 {failed}、取消 {cancelled}），断开 {drops} 次，自动恢复试了 {restores} 次、恢复上 {restored} 次。':
+      'Last 7 days: {a} connection attempts ({ok} connected, {failed} failed, {cancelled} cancelled), {drops} drops, {restores} automatic recovery attempts, {restored} recovered.',
+  '导出前预览': 'Preview before export',
+  '下面就是要复制的全部内容：主机换成了编号，路线上只写「跳板 1」「目标」。只复制到剪贴板，不会上传。':
+      'This is everything that will be copied: hosts are replaced by numbers and routes only say “Jump 1”, “Target”. It only goes to the clipboard; nothing is uploaded.',
+  '复制到剪贴板': 'Copy to clipboard',
+  '已复制 {n} 条记录': 'Copied {n} entries',
+  '清除全部连接记录？': 'Clear the whole connection log?',
+  '清除这台主机的连接记录？': 'Clear this host’s connection log?',
+  '会删掉 {n} 条，删了找不回来。主机、连着的标签和保险库都不动。':
+      'This deletes {n} entries and they cannot be recovered. Hosts, connected tabs and the vault are not touched.',
+  '清除': 'Clear',
+  '已清除': 'Cleared',
+  '连接记录': 'Connection log',
+  '已删除的主机': 'Deleted host',
+  '导出（先预览）': 'Export (preview first)',
+  '清除记录': 'Clear log',
+  '还没有记录。连一次主机，或者断线、恢复以后，这里就会有。':
+      'Nothing recorded yet. Entries appear after you connect to a host, or after a drop and recovery.',
+  '这台主机最近 7 天没有记录。连一次，或者断线、恢复以后，这里就会有。':
+      'Nothing recorded for this host in the last 7 days. Entries appear after you connect, or after a drop and recovery.',
+  '一个阶段都没开始就停了：还没拨号。': 'Stopped before any stage began: nothing was dialed.',
+  '看这台主机的连接记录': 'View this host’s connection log',
+  '各主机最近 7 天的连接阶段、用时和失败位置；只存在这台手机上，不含地址和凭据。在这里导出、清除':
+      'Connection stages, times and failure points for each host over the last 7 days; kept only on this phone, without addresses or credentials. Export or clear it here',
+  '最近 7 天每次连接走到哪一步、用了多久、失败在哪':
+      'How far each connection got in the last 7 days, how long it took, where it failed',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are

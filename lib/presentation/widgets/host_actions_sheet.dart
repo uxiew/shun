@@ -48,27 +48,27 @@ class HostActionsSheet extends StatelessWidget {
   }
 
   IconData _icon(HostMenuAction action) => switch (action) {
-        HostMenuAction.connectOther =>
-          menu.otherTransport == TabTransport.mosh
-              ? Icons.wifi_tethering
-              : Icons.lock_outline,
+        HostMenuAction.connectOther => menu.otherTransport == TabTransport.mosh
+            ? Icons.wifi_tethering
+            : Icons.lock_outline,
         HostMenuAction.portForward => Icons.swap_horiz,
         HostMenuAction.files => Icons.folder_outlined,
         HostMenuAction.monitor => Icons.monitor_heart_outlined,
         HostMenuAction.testConnection => Icons.network_check,
+        HostMenuAction.connectionLog => Icons.history,
         HostMenuAction.edit => Icons.edit_outlined,
         HostMenuAction.hide => Icons.visibility_off_outlined,
         HostMenuAction.unhide => Icons.visibility_outlined,
       };
 
   String _title(HostMenuAction action) => switch (action) {
-        HostMenuAction.connectOther => menu.otherTransport == TabTransport.mosh
-            ? '用 Mosh 连接'
-            : '用 SSH 连接',
+        HostMenuAction.connectOther =>
+          menu.otherTransport == TabTransport.mosh ? '用 Mosh 连接' : '用 SSH 连接',
         HostMenuAction.portForward => '端口转发',
         HostMenuAction.files => '文件',
         HostMenuAction.monitor => '性能监控',
         HostMenuAction.testConnection => '测试连接',
+        HostMenuAction.connectionLog => '连接记录',
         HostMenuAction.edit => '编辑',
         HostMenuAction.hide => '在列表里隐藏',
         HostMenuAction.unhide => '取消隐藏',
@@ -81,6 +81,7 @@ class HostActionsSheet extends StatelessWidget {
         HostMenuAction.monitor =>
           '用这台主机已经连着的 SSH 标签',
         HostMenuAction.testConnection => '只走一遍路线、指纹和登录，不开 shell',
+        HostMenuAction.connectionLog => '最近 7 天每次连接走到哪一步、用了多久、失败在哪',
         HostMenuAction.hide => '照常能连；列表底部「显示已隐藏的主机」能找回来',
         _ => null,
       };

@@ -5,6 +5,7 @@ import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/catalog_overview.dart';
+import '../../application/connection_events.dart';
 import '../../application/connection_switch.dart';
 import '../../application/host_actions.dart';
 import '../../application/session_controller.dart';
@@ -33,6 +34,7 @@ import '../widgets/port_forward_sheet.dart';
 import '../widgets/server_monitor_sheet.dart';
 import '../widgets/vault_host_items.dart';
 import 'rustdesk_screen.dart';
+import 'connection_log_screen.dart';
 import 'connection_type_screen.dart';
 import 'tailscale_catalog_screen.dart';
 import '../../application/rustdesk.dart';
@@ -122,13 +124,12 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
           (selectedGroup == null || host.group == selectedGroup);
     }).toList();
     final hiddenCount = matching.where((host) => host.hidden).length;
-    final visible = matching
-        .where((host) => _showHidden || !host.hidden)
-        .toList()
-      ..sort((a, b) {
-        if (a.pinned != b.pinned) return a.pinned ? -1 : 1;
-        return a.label.toLowerCase().compareTo(b.label.toLowerCase());
-      });
+    final visible =
+        matching.where((host) => _showHidden || !host.hidden).toList()
+          ..sort((a, b) {
+            if (a.pinned != b.pinned) return a.pinned ? -1 : 1;
+            return a.label.toLowerCase().compareTo(b.label.toLowerCase());
+          });
     // 绑定到本机目录来源的主机放进 Tailscale 那一节，不在普通列表里重复。来源不在本机的（被移除过、
     // 从别的手机同步来的）没有组可放，留在普通列表。选了自定义分组时不分节：那一组的主机都在普通列表。
     final catalogSources = ref.watch(catalogOverviewProvider);
@@ -573,6 +574,9 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       sshSession: connectedSshSessionOf(host, sessions.sessions,
           active: sessions.active),
       probePlan: probePlanOf(host, vault),
+      hasConnectionLog: ref
+          .read(connectionEventLogProvider)
+          .any((event) => event.hostId == host.id),
     );
     final action = await showModalBottomSheet<HostMenuAction>(
       context: context,
@@ -625,6 +629,10 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
             keyboardInteractive: _promptKeyboardInteractive,
           ),
         );
+      case HostMenuAction.connectionLog:
+        await Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => ConnectionLogScreen(hostId: host.id),
+        ));
       case HostMenuAction.edit:
         await _editHost(host);
       case HostMenuAction.hide:
@@ -696,8 +704,8 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       content: Text('$head${host.label}$tail'),
       action: SnackBarAction(
         label: localized('撤销'),
-        onPressed: () => unawaited(vault.updateHost(
-            host.id, (current) => withHidden(current, false))),
+        onPressed: () => unawaited(
+            vault.updateHost(host.id, (current) => withHidden(current, false))),
       ),
     ));
   }

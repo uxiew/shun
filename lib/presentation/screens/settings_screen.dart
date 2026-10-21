@@ -34,6 +34,7 @@ import '../widgets/ai_providers_page.dart';
 import '../widgets/github_manual_config.dart';
 import '../widgets/secret_content.dart';
 import '../widgets/vault_import_dialog.dart';
+import 'connection_log_screen.dart';
 import 'plugins_screen.dart';
 import 'rustdesk_screen.dart';
 import 'tailscale_catalog_screen.dart';
@@ -800,6 +801,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       onChanged: _savingAllowSensitiveScreenshots
                           ? null
                           : _setAllowSensitiveScreenshots,
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      key: const ValueKey('settings-connection-log'),
+                      leading: const Icon(Icons.history),
+                      title: const LText('连接记录'),
+                      subtitle: const LText(
+                        '各主机最近 7 天的连接阶段、用时和失败位置；只存在这台手机上，不含地址和凭据。在这里导出、清除',
+                      ),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const ConnectionLogScreen(),
+                        ),
+                      ),
                     ),
                   ],
                 ),

@@ -4,7 +4,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/connection_diagnosis.dart';
+import '../../application/connection_events.dart';
 import '../../application/session_controller.dart';
+import '../../application/vault_controller.dart';
 import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
 import '../../infrastructure/ssh/ssh_login_watch.dart';
@@ -50,9 +52,20 @@ class _ConnectionProbeSheetState extends ConsumerState<ConnectionProbeSheet> {
   Object? _error;
   TailscaleCheckPrompt? _check;
 
+  /// 连接记录（R25）。先拿好：关掉弹层时这次算取消，那时 ref 已经不能用了。
+  /// 还没保存过的新主机不记：没有哪一页能看到它。
+  ConnectionEventLog? _log;
+
   @override
   void initState() {
     super.initState();
+    final saved = ref
+            .read(vaultControllerProvider)
+            .data
+            ?.hosts
+            .any((host) => host.id == widget.host.id) ??
+        false;
+    if (saved) _log = ref.read(connectionEventLogProvider.notifier);
     _attempt = ConnectionAttempt(
       onStage: (stage) {
         if (mounted) setState(() => _stages.add(stage));
@@ -73,15 +86,18 @@ class _ConnectionProbeSheetState extends ConsumerState<ConnectionProbeSheet> {
             keyboardInteractive: widget.keyboardInteractive,
             attempt: _attempt,
           );
+      _record();
       if (!mounted) return;
       setState(() {
         _outcome = outcome;
         _state = _ProbeState.succeeded;
       });
       widget.onSucceeded?.call();
-    } on ConnectionCancelledException {
+    } on ConnectionCancelledException catch (error) {
+      _record(error);
       if (mounted) setState(() => _state = _ProbeState.cancelled);
     } catch (error) {
+      _record(error);
       if (!mounted) return;
       setState(() {
         _error = error;
@@ -89,6 +105,17 @@ class _ConnectionProbeSheetState extends ConsumerState<ConnectionProbeSheet> {
       });
     }
   }
+
+  void _record([Object? error]) => _log?.record(attemptEvent(
+        hostId: widget.host.id,
+        now: DateTime.now(),
+        kind: ConnectionEventKind.probe,
+        protocol: widget.host.protocol,
+        attempt: _attempt,
+        plan: widget.plan,
+        error: error,
+        cancelled: error is ConnectionCancelledException,
+      ));
 
   @override
   void dispose() {

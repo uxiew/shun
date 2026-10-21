@@ -5,6 +5,7 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'application/auto_sync_controller.dart';
+import 'application/connection_events.dart';
 import 'application/fork_features.dart';
 import 'application/sensitive_screen.dart';
 import 'application/settings_controller.dart';
@@ -32,6 +33,8 @@ class _ShunAppState extends ConsumerState<ShunApp> with WidgetsBindingObserver {
     // 会话控制器一启动就建：它要放回上次被系统结束前的标签、听通知上的「全部断开」和网络变化，
     // 保活服务也由它按会话状态开关（R22）。
     ref.read(sessionControllerProvider.notifier);
+    // 连接记录（R25）一启动就读盘：主机菜单按已经读到的判断「有没有记录」，不在点开菜单时等读盘。
+    ref.read(connectionEventLogProvider.notifier);
     _autoSyncSubscription = ref.listenManual<bool>(
       settingsControllerProvider.select((settings) => settings.autoSyncEnabled),
       (_, enabled) => ref

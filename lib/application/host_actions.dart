@@ -6,6 +6,7 @@
 /// - 端口转发、文件、监控：都挂在一条已经连着的 SSH 上，这台主机没有连着的 SSH 标签就不出现。
 ///   菜单不替用户先去连一下——点「端口转发」不该悄悄开出一条 SSH。
 /// - 测试连接：和编辑器一样只有普通 SSH 有，路线算不出来也不出现（编辑器里会写原因）。
+/// - 连接记录（R25）：这台有记录才出现。没连过的主机点进去只会是一页空的。
 /// - 编辑、隐藏 / 取消隐藏：每台都有。
 library;
 
@@ -22,6 +23,7 @@ enum HostMenuAction {
   files,
   monitor,
   testConnection,
+  connectionLog,
   edit,
   hide,
   unhide,
@@ -33,6 +35,7 @@ class HostMenu {
     this.otherTransport,
     this.sshSession,
     this.probePlan,
+    this.hasConnectionLog = false,
   });
 
   final HostProfile host;
@@ -46,6 +49,9 @@ class HostMenu {
   /// 测试连接要走的路线；null 表示这台测不了。
   final RoutePlan? probePlan;
 
+  /// 本机有没有这台的连接记录。
+  final bool hasConnectionLog;
+
   List<HostMenuAction> get actions => [
         if (otherTransport != null) HostMenuAction.connectOther,
         if (sshSession != null) ...[
@@ -54,6 +60,7 @@ class HostMenu {
           HostMenuAction.monitor,
         ],
         if (probePlan != null) HostMenuAction.testConnection,
+        if (hasConnectionLog) HostMenuAction.connectionLog,
         HostMenuAction.edit,
         host.hidden ? HostMenuAction.unhide : HostMenuAction.hide,
       ];
