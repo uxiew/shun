@@ -1356,7 +1356,7 @@ void main() {
       expect(proxyB.attempts.last.requestedHost, f.targetName);
     }, skip: skip, timeout: const Timeout(Duration(seconds: 90)));
 
-    test('断线后借这条连接开的端口转发失效：新连接马上被关，不改走别的路线；条目留在列表里', () async {
+    test('断线后借这条连接开的端口转发失效：本机端口关掉，不改走别的路线；条目标成已停止（R24）', () async {
       final f = fixture!;
       await controller.connect(
           edgeHost({'id': 'forward-owner'}), verifyByLogicalName);
@@ -1371,7 +1371,12 @@ void main() {
       final port =
           container.read(portForwardControllerProvider).single.localPort;
       Future<String> banner() async {
-        final socket = await Socket.connect('127.0.0.1', port);
+        final Socket socket;
+        try {
+          socket = await Socket.connect('127.0.0.1', port);
+        } on SocketException {
+          return ''; // 本机端口已经关了，连不上
+        }
         try {
           final first = await socket.first.timeout(const Duration(seconds: 3));
           return String.fromCharCodes(first);
@@ -1388,10 +1393,14 @@ void main() {
       final watch = Stopwatch()..start();
       expect(await banner(), isEmpty, reason: '断线后转发不能再通');
       expect(watch.elapsed, lessThan(const Duration(seconds: 2)));
-      expect(container.read(portForwardControllerProvider), hasLength(1),
-          reason: '条目还在列表里（R24 再处理），手册写了要手动停');
-      await forwards
-          .stop(container.read(portForwardControllerProvider).single.id);
+      final item = container.read(portForwardControllerProvider).single;
+      expect(item.running, isFalse, reason: '条目留在列表里，标成已停止');
+      expect(item.endedReason, contains('不会自动重开'));
+      await expectLater(Socket.connect('127.0.0.1', port),
+          throwsA(isA<SocketException>()),
+          reason: '本机端口已经关掉，不是「连上又被挂断」');
+      await forwards.stop(item.id);
+      expect(container.read(portForwardControllerProvider), isEmpty);
     }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
 
     test('无全局跳板池：两条经同一跳板的连接各有自己的跳板连接；关一条不影响另一条', () async {

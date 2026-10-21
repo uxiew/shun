@@ -70,6 +70,10 @@ class SshLease {
     _forget();
   }
 
+  /// 借用者自己不用了（比如开转发时本机端口被占了）：撤销在标签上的登记，之后按已失效处理。
+  /// 不关连接——连接归标签。
+  void release() => _markLost();
+
   /// 还能用就返回 client，不然报 [ConnectionGone]（什么都还没发）。
   SSHClient check() {
     if (!alive) throw ConnectionGone(hostLabel);

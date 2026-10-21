@@ -847,6 +847,14 @@ const englishTranslations = <String, String>{
   '启动': 'Start',
   '停止': 'Stop',
   '重启': 'Restart',
+  // R24：端口转发跟着借来的 SSH 连接走。
+  '这个标签的 SSH 连接已断开，不能在这里开新转发。重新连接后，从新连接打开端口转发。':
+      'This tab’s SSH connection is gone, so no new forward can start here. Reconnect, then open port forwarding from the new connection.',
+  '已停止': 'Stopped',
+  '从列表里去掉': 'Remove from the list',
+  '标签已关闭，转发已停止': 'The tab was closed, so the forward stopped',
+  'SSH 连接断开了，转发已停止；不会自动重开':
+      'The SSH connection dropped, so the forward stopped; it does not restart by itself',
   '重新构建': 'Rebuild',
   '更新镜像并应用': 'Pull images & apply',
   'Compose 配置': 'Compose configuration',

@@ -3,6 +3,7 @@ import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/port_forward_controller.dart';
+import '../../application/session_controller.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 
 class PortForwardSheet extends ConsumerStatefulWidget {
@@ -23,6 +24,12 @@ class _PortForwardSheetState extends ConsumerState<PortForwardSheet> {
   @override
   Widget build(BuildContext context) {
     final forwards = ref.watch(portForwardControllerProvider);
+    // 标签断线、恢复成新连接时会话列表会变：跟着重画，面板开着时断了也能马上变成不可用。
+    ref.watch(sessionControllerProvider);
+    final client = widget.session.sshClient;
+    final live = widget.session.connected && client != null && !client.isClosed;
+    final running = forwards.where((item) => item.running).toList();
+    final stopped = forwards.where((item) => !item.running).toList();
     return Padding(
       padding: EdgeInsets.fromLTRB(
         16,
@@ -36,6 +43,17 @@ class _PortForwardSheetState extends ConsumerState<PortForwardSheet> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             LText('端口转发', style: Theme.of(context).textTheme.titleLarge),
+            const SizedBox(height: 4),
+            LText(widget.session.host.label,
+                style: Theme.of(context).textTheme.bodySmall),
+            if (!live) ...[
+              const SizedBox(height: 10),
+              LText(
+                key: const ValueKey('port-forward-disconnected'),
+                '这个标签的 SSH 连接已断开，不能在这里开新转发。重新连接后，从新连接打开端口转发。',
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ],
             const SizedBox(height: 12),
             SegmentedButton<ForwardKind>(
               segments: const [
@@ -80,26 +98,53 @@ class _PortForwardSheetState extends ConsumerState<PortForwardSheet> {
             SizedBox(
               width: double.infinity,
               child: FilledButton.icon(
-                onPressed: busy ? null : _start,
+                onPressed: busy || !live ? null : _start,
                 icon: const Icon(Icons.play_arrow),
                 label: const LText('启动'),
               ),
             ),
-            if (forwards.isNotEmpty) ...[
+            if (running.isNotEmpty) ...[
               const Padding(
                 padding: EdgeInsets.only(top: 18, bottom: 6),
                 child: LText('运行中'),
               ),
-              for (final item in forwards)
+              for (final item in running)
                 ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.swap_horiz),
                   title: LText(item.describe()),
+                  subtitle:
+                      item.hostLabel == null ? null : LText(item.hostLabel!),
                   trailing: IconButton(
+                    tooltip: localized('停止'),
                     onPressed: () => ref
                         .read(portForwardControllerProvider.notifier)
                         .stop(item.id),
                     icon: const Icon(Icons.stop_circle_outlined),
+                  ),
+                ),
+            ],
+            if (stopped.isNotEmpty) ...[
+              const Padding(
+                padding: EdgeInsets.only(top: 18, bottom: 6),
+                child: LText('已停止'),
+              ),
+              for (final item in stopped)
+                ListTile(
+                  key: ValueKey('port-forward-stopped-${item.id}'),
+                  contentPadding: EdgeInsets.zero,
+                  leading: const Icon(Icons.link_off),
+                  title: LText(item.describe()),
+                  subtitle: LText([
+                    if (item.hostLabel != null) item.hostLabel!,
+                    localized(item.endedReason!),
+                  ].join(' · ')),
+                  trailing: IconButton(
+                    tooltip: localized('从列表里去掉'),
+                    onPressed: () => ref
+                        .read(portForwardControllerProvider.notifier)
+                        .stop(item.id),
+                    icon: const Icon(Icons.clear),
                   ),
                 ),
             ],

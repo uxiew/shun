@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
@@ -6,7 +7,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shun/application/port_forward_controller.dart';
 import 'package:shun/domain/models/host.dart';
+import 'package:shun/presentation/widgets/port_forward_sheet.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/screens/sftp_screen.dart';
 import 'package:shun/presentation/widgets/sftp_editor.dart';
@@ -176,6 +179,146 @@ void main() {
   transferOutcomes();
   transferDialogs();
   previewAndSave();
+  portForwards(session);
+}
+
+void portForwards(
+    ActiveTerminalSession Function({List<SSHClient> clients}) session) {
+  group('端口转发跟着借来的连接走（REG01）', () {
+    late _QuietSocket socket;
+    late ActiveTerminalSession tab;
+    late PortForwardController forwards;
+
+    setUp(() {
+      socket = _QuietSocket();
+      tab = session(clients: [SSHClient(socket, username: 'alice')]);
+      forwards = PortForwardController();
+    });
+
+    tearDown(() {
+      tab.abort();
+      forwards.dispose();
+    });
+
+    Future<bool> accepts(int port) async {
+      try {
+        (await Socket.connect('127.0.0.1', port)).destroy();
+        return true;
+      } on SocketException {
+        return false;
+      }
+    }
+
+    test('断开的标签上不开转发：报 ConnectionGone，本机端口一个也没开', () async {
+      tab.connected = false;
+      await expectLater(
+          forwards.startLocal(
+              session: tab, localPort: 0, remoteHost: 'x', remotePort: 1),
+          throwsA(isA<ConnectionGone>()));
+      expect(forwards.state, isEmpty);
+    });
+
+    test('连接断了：本机端口关掉、接进来的连接断掉，条目标成已停止，不重开', () async {
+      await forwards.startLocal(
+          session: tab, localPort: 0, remoteHost: 'db', remotePort: 5432);
+      final port = forwards.state.single.localPort;
+      expect(await accepts(port), isTrue);
+      final waiting = await Socket.connect('127.0.0.1', port);
+      final closed =
+          waiting.drain<void>().then((_) => true, onError: (_) => true);
+      expect(forwards.forwardsOn(tab), hasLength(1));
+
+      socket.drop();
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      final item = forwards.state.single;
+      expect(item.running, isFalse);
+      expect(item.endedReason, contains('不会自动重开'));
+      expect(item.hostLabel, 'box');
+      expect(await accepts(port), isFalse, reason: '本机端口已关');
+      expect(await closed.timeout(const Duration(seconds: 2)), isTrue,
+          reason: '已经接进来的连接也断了');
+      expect(forwards.forwardsOn(tab), isEmpty, reason: '已停止的不算「在这条连接上」');
+
+      await forwards.stop(item.id);
+      expect(forwards.state, isEmpty, reason: '已停止的可以从列表里去掉');
+    });
+
+    test('用户关标签：原因写「标签已关闭」；释放时先停转发再关 SSH', () async {
+      await forwards.startLocal(
+          session: tab, localPort: 0, remoteHost: 'db', remotePort: 5432);
+      final port = forwards.state.single.localPort;
+      await tab.close();
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+      expect(forwards.state.single.endedReason, contains('标签已关闭'));
+      expect(await accepts(port), isFalse);
+    });
+
+    test('本机端口被占：报错，不留半个条目', () async {
+      final busy = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      await expectLater(
+          forwards.startLocal(
+              session: tab,
+              localPort: busy.port,
+              remoteHost: 'db',
+              remotePort: 5432),
+          throwsA(isA<SocketException>()));
+      expect(forwards.state, isEmpty);
+      await busy.close();
+    });
+  });
+
+  group('端口转发面板', () {
+    Future<void> show(WidgetTester tester, ActiveTerminalSession tab,
+        List<ActivePortForward> items) async {
+      SharedPreferences.setMockInitialValues({});
+      final repository = await VaultRepository.open();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          vaultRepositoryProvider.overrideWithValue(repository),
+          portForwardControllerProvider
+              .overrideWith((ref) => _SeededForwards(items)),
+        ],
+        child:
+            MaterialApp(home: Scaffold(body: PortForwardSheet(session: tab))),
+      ));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('标签已断开：写明原因，「启动」点不了', (tester) async {
+      final tab = session()..connected = false;
+      await show(tester, tab, const []);
+      expect(find.byKey(const ValueKey('port-forward-disconnected')),
+          findsOneWidget);
+      final start = tester.widget<FilledButton>(find.ancestor(
+          of: find.text('启动'), matching: find.byType(FilledButton)));
+      expect(start.onPressed, isNull);
+    });
+
+    testWidgets('已停止的单独一节：写主机和停止原因', (tester) async {
+      final tab = session()..connected = false;
+      await show(tester, tab, [
+        ActivePortForward(
+          id: 'f1',
+          kind: ForwardKind.local,
+          localPort: 8080,
+          remoteHost: 'db',
+          remotePort: 5432,
+          hostLabel: 'box',
+          endedReason: 'SSH 连接断开了，转发已停止；不会自动重开',
+        ),
+      ]);
+      expect(find.text('已停止'), findsOneWidget);
+      expect(find.text('运行中'), findsNothing);
+      expect(find.textContaining('不会自动重开'), findsOneWidget);
+      expect(find.textContaining('box'), findsWidgets);
+    });
+  });
+}
+
+class _SeededForwards extends PortForwardController {
+  _SeededForwards(List<ActivePortForward> items) {
+    state = items;
+  }
 }
 
 void previewAndSave() {
