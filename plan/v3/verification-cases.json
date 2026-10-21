@@ -1686,9 +1686,11 @@
       "action": "在两目录来源放入同名/同 IP 设备，覆盖控制面已连接、未连接、未知、缓存过期和未导入；切来源、刷新、移除来源，打开主机菜单。",
       "expected": "来源隔离、状态带时间，与真实 SSH 状态分开；切来源不换活动会话的路线/身份，刷新不覆盖用户字段；未导入走导入，菜单只列可用动作。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R43.md"
+      ]
     },
     {
       "id": "SEC13",

@@ -2524,7 +2524,7 @@
       "id": "R43",
       "phase": "P4",
       "title": "主机列表：类型图标、Tailscale 分节和每台主机的操作菜单",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R39",
         "R13",
@@ -2551,8 +2551,10 @@
       ],
       "stop_condition": "不为了显示在线状态在后台频繁刷新目录，按 R11、R12 的缓存和限流来。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R43.md"
+      ],
+      "commit": "e8164aa"
     },
     {
       "id": "R44",
