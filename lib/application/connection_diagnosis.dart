@@ -10,61 +10,200 @@ import '../infrastructure/ssh/ssh_identity.dart';
 import '../infrastructure/ssh/ssh_login_watch.dart';
 import '../infrastructure/ssh/ssh_service.dart';
 import '../infrastructure/terminal/terminal_session_adapter.dart';
+import '../infrastructure/tmux/tmux_protocol.dart';
 import '../infrastructure/transport/proxy_transport.dart';
+import 'connection_lifecycle.dart';
+import 'credential_availability.dart';
 import 'mosh_session.dart';
+import 'plugin_host_session.dart';
+
+/// 连接失败按什么分类（R25 连接记录只存这个名字，不存报错原话）。
+///
+/// 原话里有地址、主机名、服务器发来的文字（Tailscale 的 banner），存下来就违反了「只存受限元数据」（SEC12）。
+/// 分类是按异常类型定的，不看文字。**名字会写进本机记录文件**：改名字等于旧记录读不出这一条（读到不认识的名字
+/// 按 [other] 显示），所以只加不改。
+enum ConnectionFailureKind {
+  routeConfig,
+  routeChanged,
+  credentialUnavailable,
+  identity,
+  engineUnavailable,
+  unreachable,
+  proxy,
+  hostKey,
+  authFailed,
+  authAborted,
+  authAbortedRelayed,
+  channelOpen,
+  tailscaleDenied,
+  tailscaleCheckNeedsUser,
+  loginMode,
+  loginTimeout,
+  handshake,
+  tmuxTarget,
+  moshRoute,
+  moshPlugin,
+  moshServerMissing,
+  moshServerPath,
+  moshLocale,
+  moshBootstrap,
+  pluginUnavailable,
+  other,
+}
+
+/// 把一次连接失败归到 [ConnectionFailureKind]。取消不算失败，调用方自己先分出去。
+ConnectionFailureKind classifyConnectionFailure(Object error) {
+  final cause = error is RouteHopException ? error.cause : error;
+  return switch (cause) {
+    MoshRouteUnsupported() => ConnectionFailureKind.moshRoute,
+    MoshPluginUnavailable() => ConnectionFailureKind.moshPlugin,
+    MoshBootstrapException(failure: MoshBootstrapFailure.serverMissing) =>
+      ConnectionFailureKind.moshServerMissing,
+    MoshBootstrapException(failure: MoshBootstrapFailure.serverPathMissing) =>
+      ConnectionFailureKind.moshServerPath,
+    MoshBootstrapException(failure: MoshBootstrapFailure.localeUnsupported) =>
+      ConnectionFailureKind.moshLocale,
+    MoshBootstrapException() => ConnectionFailureKind.moshBootstrap,
+    RouteConfigException() => ConnectionFailureKind.routeConfig,
+    RouteChangedException() => ConnectionFailureKind.routeChanged,
+    CredentialUnavailableException() =>
+      ConnectionFailureKind.credentialUnavailable,
+    TerminalEngineUnavailableException() =>
+      ConnectionFailureKind.engineUnavailable,
+    // 放在 dartssh2 的错误前面：Tailscale 拒绝时 dartssh2 报的是「认证前连接被关闭」，
+    // 按那条提示会让人去查端口填错没有。
+    TailscaleLoginDenied() => ConnectionFailureKind.tailscaleDenied,
+    TailscaleCheckNeedsUser() => ConnectionFailureKind.tailscaleCheckNeedsUser,
+    StandardLoginFellBackToNone() ||
+    StandardLoginGotCheckLink() =>
+      ConnectionFailureKind.loginMode,
+    SshLoginTimeout() => ConnectionFailureKind.loginTimeout,
+    SshIdentityException() => ConnectionFailureKind.identity,
+    ProxyHandshakeException() => ConnectionFailureKind.proxy,
+    ConnectStageException() ||
+    SocketException() ||
+    TimeoutException() =>
+      ConnectionFailureKind.unreachable,
+    SSHHostkeyError() ||
+    SSHAuthAbortError(reason: SSHHostkeyError()) =>
+      ConnectionFailureKind.hostKey,
+    SSHAuthFailError() => ConnectionFailureKind.authFailed,
+    SSHAuthAbortError() when error is RouteHopException && error.relayed =>
+      ConnectionFailureKind.authAbortedRelayed,
+    SSHAuthAbortError() => ConnectionFailureKind.authAborted,
+    SSHChannelOpenError() => ConnectionFailureKind.channelOpen,
+    SSHHandshakeError() || SSHSocketError() => ConnectionFailureKind.handshake,
+    TmuxTargetGoneException() ||
+    TmuxCommandException(exitCode: TmuxExit.missing) ||
+    MoshTmuxAttachException() =>
+      ConnectionFailureKind.tmuxTarget,
+    PluginHostUnavailable() => ConnectionFailureKind.pluginUnavailable,
+    _ => ConnectionFailureKind.other,
+  };
+}
 
 /// 连接失败后给一句「下一步怎么办」（UX04）。
 ///
 /// 只按真实的失败类型说：代理之后的链路 App 看不到，就不替它下结论；
 /// 报错本身已经说清怎么改的（比如凭据解不开），返回 null，不重复。
-String? connectionHint(Object error) {
-  final cause = error is RouteHopException ? error.cause : error;
-  return switch (cause) {
-    // Mosh（X09）：都还没做任何远端动作，或者只做到了 SSH 那一段。
-    MoshRouteUnsupported() =>
-      '要经代理或跳板机，把这台主机的协议改回 SSH（想断线后接着用，可以配合 tmux）；要用 Mosh，把连接路径改成「直连」。',
-    MoshPluginUnavailable() => 'Mosh 插件在「设置 → 插件（实验）」里管理。这一步只查了本机，还没连服务器。',
-    MoshBootstrapException(failure: MoshBootstrapFailure.serverMissing) =>
-      '请服务器管理员安装 mosh（Debian/Ubuntu：apt install mosh；Alpine：apk add mosh-server）。'
-          '本 App 不会替你安装，也不会用 sudo。SSH 这一段是通的。',
-    MoshBootstrapException(failure: MoshBootstrapFailure.serverPathMissing) =>
-      '在服务器上用 command -v mosh-server 查实际位置，把完整路径填到主机编辑页「高级 → Mosh 启动参数」里；清空就改回自动查找。SSH 这一段是通的。',
-    MoshBootstrapException(failure: MoshBootstrapFailure.localeUnsupported) =>
-      '服务器上没有要用的 UTF-8 locale（没填时用 en_US.UTF-8）。先在服务器上用 locale -a 看有哪些 UTF-8 locale（很多系统自带 C.UTF-8），填到主机编辑页「高级 → Mosh 启动参数」的 locale 里；或者让管理员生成一个（比如 locale-gen en_US.UTF-8）。',
-    MoshBootstrapException() =>
-      '服务器上的 mosh-server 给出的连接信息不可信，没有用它；SSH 这一段是通的。检查服务器登录脚本有没有往输出里打东西。',
-    RouteConfigException() => '路线配置有问题：到主机编辑器的「连接路径」里改，保存前会检查。',
-    // 还没拨号就停了，和服务器、网络无关。
-    TerminalEngineUnavailableException() =>
-      '是这台手机上的终端引擎没能启动，还没开始连服务器。这个版本只带 Ghostty，没有别的引擎可换；「设置 → 外观」的「终端引擎」里能看到原话，「检查」可以再试一次。',
-    // 放在 dartssh2 的错误前面：Tailscale 拒绝时 dartssh2 报的是「认证前连接被关闭」，
-    // 按那条提示会让人去查端口填错没有。
-    TailscaleLoginDenied() =>
-      '到 Tailscale 后台检查访问策略里的 ssh 规则：来源要包含这次连接的来源节点（经代理时是代理出口那台，不是手机），'
-          '登录用户名要在允许的列表里。',
-    SshIdentityException() => '到主机编辑器重新选择私钥，或在私钥管理里补上正确的口令。',
-    ProxyHandshakeException() =>
-      '检查代理的地址、端口、用户名和密码。代理之后怎么走由代理决定，App 只看得到代理返回的结果。',
-    ConnectStageException() ||
-    SocketException() ||
-    TimeoutException() =>
-      '手机连不到这个地址：确认地址和端口没填错（SSH 端口和代理端口是两个不同的端口），'
-          '以及当前网络——包括你开着的 VPN——能到达它。',
-    SSHHostkeyError() ||
-    SSHAuthAbortError(reason: SSHHostkeyError()) =>
-      '服务器指纹没通过核对，已在发送任何登录信息前断开。先向管理员确认，不要为了连上而接受不认识的指纹。',
-    SSHAuthFailError() =>
-      '服务器拒绝了登录：确认用户名；用密码的检查密码，用私钥的确认服务器上 authorized_keys 里有这把公钥。',
-    // 代理或跳板机已经回报连上，随后在登录前被关：只说「端口不是 SSH」会把人引去查端口，
-    // 而实际也可能是代理、跳板机之后那一段断了（R15 在 tailnet 测试环境里撞上过，App 看不到那一段）。
-    SSHAuthAbortError() when error is RouteHopException && error.relayed =>
-      '代理或跳板机已经回报连上了目标，随后在登录前断开：可能这个端口上不是 SSH 服务，'
-          '也可能代理或跳板机之后的那一段断了，App 看不到那一段。先确认 SSH 端口，再看代理或跳板机那边能不能连到目标。',
-    SSHAuthAbortError() =>
-      '对方在登录完成前断开了：确认这个端口上是 SSH 服务——常见原因是把代理端口或别的服务端口填成了 SSH 端口。',
-    SSHChannelOpenError() =>
-      '跳板机拒绝转发：确认跳板机允许 TCP 转发（sshd 的 AllowTcpForwarding），且下一跳地址从跳板机那边能到达。',
-    UnsupportedError() => null,
-    _ => null,
-  };
-}
+String? connectionHint(Object error) => _hint(classifyConnectionFailure(error));
+
+/// 连接记录里的「下一步」（R25）。记录里没有报错原话，所以失败页上「原话已经说清」的那几类也要有一句。
+///
+/// 都只是建议：没有一条会替用户改路线、改成直连或自动重试（R25 验收「失败不给自动直连入口」）。
+String failureNextStep(ConnectionFailureKind kind) =>
+    _hint(kind) ??
+    switch (kind) {
+      ConnectionFailureKind.routeChanged =>
+        '断线期间这台主机的地址、代理、跳板机或登录身份改过，自动恢复只走原来那条路线，所以停了。点「重新连接」按现在的配置连。',
+      ConnectionFailureKind.credentialUnavailable =>
+        '这条路线要用的密码或私钥在本机安全存储里解不开，没有拨号。到主机编辑器重新填一次密码或重新选私钥。',
+      ConnectionFailureKind.tailscaleCheckNeedsUser =>
+        'Tailscale 要求重新做 check，自动恢复不替你打开链接。关掉这个标签，从主机列表重新连接。',
+      ConnectionFailureKind.loginMode =>
+        '服务器没要密码就放行，或者要你去浏览器认证：普通 SSH 不接受这两种登录。这台机器开着 Tailscale SSH 的话，在编辑器里把登录方式改成「Tailscale SSH」。',
+      ConnectionFailureKind.loginTimeout =>
+        '在期限内没等到登录结果。服务器很慢或者在等你做 Tailscale check 时会这样；可以在主机编辑页「高级 → 超时与保活」里把「认证超时」调大。',
+      ConnectionFailureKind.handshake =>
+        'SSH 握手中途断了：网络不稳、服务器正在重启时会这样。断线后的自动恢复会自己再试；一直这样的话先确认这个端口上是 SSH 服务。',
+      ConnectionFailureKind.tmuxTarget =>
+        '原来的 tmux 会话不在了（或者核对没通过），没有新建也没有附着别的。到 tmux 面板里自己选一个会话。',
+      ConnectionFailureKind.pluginUnavailable =>
+        '本机的插件不可用：到「设置 → 插件（实验）」看它装着没有、批准了没有。这一步还没连服务器。',
+      _ => '这类失败没有现成的建议。当时的失败页上有完整原话，这里只记了分类。',
+    };
+
+/// 一句话说是哪类失败，给连接记录的列表用。
+String failureLabel(ConnectionFailureKind kind) => switch (kind) {
+      ConnectionFailureKind.routeConfig => '路线配置有问题',
+      ConnectionFailureKind.routeChanged => '断线期间路线改了',
+      ConnectionFailureKind.credentialUnavailable => '凭据解不开',
+      ConnectionFailureKind.identity => '私钥读不出来',
+      ConnectionFailureKind.engineUnavailable => '终端引擎没启动',
+      ConnectionFailureKind.unreachable => '连不到地址',
+      ConnectionFailureKind.proxy => '代理握手失败',
+      ConnectionFailureKind.hostKey => '指纹没通过核对',
+      ConnectionFailureKind.authFailed => '服务器拒绝登录',
+      ConnectionFailureKind.authAborted ||
+      ConnectionFailureKind.authAbortedRelayed =>
+        '登录前被断开',
+      ConnectionFailureKind.channelOpen => '跳板机拒绝转发',
+      ConnectionFailureKind.tailscaleDenied => 'Tailscale 拒绝登录',
+      ConnectionFailureKind.tailscaleCheckNeedsUser => '要重新做 Tailscale check',
+      ConnectionFailureKind.loginMode => '登录方式不对',
+      ConnectionFailureKind.loginTimeout => '等登录结果超时',
+      ConnectionFailureKind.handshake => 'SSH 握手中断',
+      ConnectionFailureKind.tmuxTarget => 'tmux 会话不在了',
+      ConnectionFailureKind.moshRoute => 'Mosh 只能直连',
+      ConnectionFailureKind.moshPlugin => 'Mosh 插件不可用',
+      ConnectionFailureKind.moshServerMissing => '服务器上没有 mosh-server',
+      ConnectionFailureKind.moshServerPath => 'mosh-server 路径不对',
+      ConnectionFailureKind.moshLocale => '服务器缺 UTF-8 locale',
+      ConnectionFailureKind.moshBootstrap => 'mosh-server 的回应不可信',
+      ConnectionFailureKind.pluginUnavailable => '插件不可用',
+      ConnectionFailureKind.other => '其他错误',
+    };
+
+String? _hint(ConnectionFailureKind kind) => switch (kind) {
+      // Mosh（X09）：都还没做任何远端动作，或者只做到了 SSH 那一段。
+      ConnectionFailureKind.moshRoute =>
+        '要经代理或跳板机，把这台主机的协议改回 SSH（想断线后接着用，可以配合 tmux）；要用 Mosh，把连接路径改成「直连」。',
+      ConnectionFailureKind.moshPlugin =>
+        'Mosh 插件在「设置 → 插件（实验）」里管理。这一步只查了本机，还没连服务器。',
+      ConnectionFailureKind.moshServerMissing =>
+        '请服务器管理员安装 mosh（Debian/Ubuntu：apt install mosh；Alpine：apk add mosh-server）。'
+            '本 App 不会替你安装，也不会用 sudo。SSH 这一段是通的。',
+      ConnectionFailureKind.moshServerPath =>
+        '在服务器上用 command -v mosh-server 查实际位置，把完整路径填到主机编辑页「高级 → Mosh 启动参数」里；清空就改回自动查找。SSH 这一段是通的。',
+      ConnectionFailureKind.moshLocale =>
+        '服务器上没有要用的 UTF-8 locale（没填时用 en_US.UTF-8）。先在服务器上用 locale -a 看有哪些 UTF-8 locale（很多系统自带 C.UTF-8），填到主机编辑页「高级 → Mosh 启动参数」的 locale 里；或者让管理员生成一个（比如 locale-gen en_US.UTF-8）。',
+      ConnectionFailureKind.moshBootstrap =>
+        '服务器上的 mosh-server 给出的连接信息不可信，没有用它；SSH 这一段是通的。检查服务器登录脚本有没有往输出里打东西。',
+      ConnectionFailureKind.routeConfig => '路线配置有问题：到主机编辑器的「连接路径」里改，保存前会检查。',
+      // 还没拨号就停了，和服务器、网络无关。
+      ConnectionFailureKind.engineUnavailable =>
+        '是这台手机上的终端引擎没能启动，还没开始连服务器。这个版本只带 Ghostty，没有别的引擎可换；「设置 → 外观」的「终端引擎」里能看到原话，「检查」可以再试一次。',
+      ConnectionFailureKind.tailscaleDenied =>
+        '到 Tailscale 后台检查访问策略里的 ssh 规则：来源要包含这次连接的来源节点（经代理时是代理出口那台，不是手机），'
+            '登录用户名要在允许的列表里。',
+      ConnectionFailureKind.identity => '到主机编辑器重新选择私钥，或在私钥管理里补上正确的口令。',
+      ConnectionFailureKind.proxy =>
+        '检查代理的地址、端口、用户名和密码。代理之后怎么走由代理决定，App 只看得到代理返回的结果。',
+      ConnectionFailureKind.unreachable =>
+        '手机连不到这个地址：确认地址和端口没填错（SSH 端口和代理端口是两个不同的端口），'
+            '以及当前网络——包括你开着的 VPN——能到达它。',
+      ConnectionFailureKind.hostKey =>
+        '服务器指纹没通过核对，已在发送任何登录信息前断开。先向管理员确认，不要为了连上而接受不认识的指纹。',
+      ConnectionFailureKind.authFailed =>
+        '服务器拒绝了登录：确认用户名；用密码的检查密码，用私钥的确认服务器上 authorized_keys 里有这把公钥。',
+      // 代理或跳板机已经回报连上，随后在登录前被关：只说「端口不是 SSH」会把人引去查端口，
+      // 而实际也可能是代理、跳板机之后那一段断了（R15 在 tailnet 测试环境里撞上过，App 看不到那一段）。
+      ConnectionFailureKind.authAbortedRelayed =>
+        '代理或跳板机已经回报连上了目标，随后在登录前断开：可能这个端口上不是 SSH 服务，'
+            '也可能代理或跳板机之后的那一段断了，App 看不到那一段。先确认 SSH 端口，再看代理或跳板机那边能不能连到目标。',
+      ConnectionFailureKind.authAborted =>
+        '对方在登录完成前断开了：确认这个端口上是 SSH 服务——常见原因是把代理端口或别的服务端口填成了 SSH 端口。',
+      ConnectionFailureKind.channelOpen =>
+        '跳板机拒绝转发：确认跳板机允许 TCP 转发（sshd 的 AllowTcpForwarding），且下一跳地址从跳板机那边能到达。',
+      _ => null,
+    };

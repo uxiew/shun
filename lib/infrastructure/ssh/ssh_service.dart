@@ -1232,6 +1232,7 @@ class SshService {
         verifyHostKey,
         keyboardInteractive,
         watch,
+        pending,
       );
       clients.add(client);
       pending.clients.add(client);
@@ -1572,12 +1573,14 @@ class SshService {
     HostKeyVerifier verifyHostKey,
     KeyboardInteractiveHandler? keyboardInteractive,
     SshLoginWatch watch,
+    ConnectionAttempt pending,
   ) {
     // 登录身份只取这一跳自己的（用户名、密码、私钥），和代理账号无关。
     final host = hop.host;
     Future<bool> verify(String type, Uint8List fingerprint) async {
-      final accepted =
-          await verifyHostKey(host, type, utf8.decode(fingerprint));
+      // 第一次连接时这里会弹框等人看指纹：那几秒记成「等你」，不算进握手用时（R25）。
+      final accepted = await pending.waitingForUser(
+          () => verifyHostKey(host, type, utf8.decode(fingerprint)));
       if (accepted) watch.hostKeyAccepted();
       return accepted;
     }
@@ -1608,12 +1611,14 @@ class SshService {
               : () => host.password,
       onUserInfoRequest: (request) async {
         if (keyboardInteractive != null) {
-          return keyboardInteractive(
-            request.name,
-            request.instruction,
-            request.prompts
-                .map((prompt) => (text: prompt.promptText, echo: prompt.echo))
-                .toList(),
+          return pending.waitingForUser(
+            () => keyboardInteractive(
+              request.name,
+              request.instruction,
+              request.prompts
+                  .map((prompt) => (text: prompt.promptText, echo: prompt.echo))
+                  .toList(),
+            ),
           );
         }
         // 没有界面可问（测试、以后的后台探测）：只在明确问密码时填一次保存的密码，
@@ -1843,14 +1848,40 @@ class ConnectionAttempt {
   ConnectionStage? _stage;
   TailscaleCheckPrompt? _checkPrompt;
 
+  /// 从这次尝试创建起走的单调时钟（R25 连接记录）。阶段用时都按它算，不按墙上时钟：
+  /// 中途手机对时、用户改系统时间，算出来的用时也不会变成负数或几个小时。
+  final _clock = Stopwatch()..start();
+  final _timeline = <StageTiming>[];
+
   bool get isCancelled => cancelled.isCompleted;
   ConnectionStage? get stage => _stage;
   TailscaleCheckPrompt? get checkPrompt => _checkPrompt;
 
+  /// 从创建到现在。调用方在结果出来的那一刻读，就是这次尝试的总用时。
+  Duration get elapsed => _clock.elapsed;
+
+  /// 按发生顺序记下的阶段和开始时刻（R25）。和 [onStage] 同一个口子：取消后、移交后不再记。
+  List<StageTiming> get timeline => List.unmodifiable(_timeline);
+
   void report(ConnectionStage stage) {
     if (isCancelled || _handedOver) return;
     _stage = stage;
+    _timeline.add(StageTiming(stage, _clock.elapsed));
     onStage?.call(stage);
+  }
+
+  /// 等人的那段（确认指纹、回答键盘交互）单独记在当前阶段上：不然第一次连接时
+  /// 「握手 8 秒」其实是人看指纹看了 8 秒，拿去判断网络慢不慢就错了。
+  Future<T> waitingForUser<T>(Future<T> Function() ask) async {
+    final started = _clock.elapsed;
+    try {
+      return await ask();
+    } finally {
+      if (_timeline.isNotEmpty && !isCancelled && !_handedOver) {
+        final last = _timeline.removeLast();
+        _timeline.add(last.waited(_clock.elapsed - started));
+      }
+    }
   }
 
   void reportCheck(TailscaleCheckPrompt? prompt) {
@@ -1912,6 +1943,20 @@ class ConnectionAttempt {
     }
     return (winner as _PendingConnectionResult<T>).value;
   }
+}
+
+/// 一次尝试里的一个阶段从什么时候开始（从尝试创建算起，单调时钟），以及其中等人的时间。
+class StageTiming {
+  const StageTiming(this.stage, this.start, {this.userWait = Duration.zero});
+
+  final ConnectionStage stage;
+  final Duration start;
+
+  /// 这个阶段里等用户确认指纹、输入验证码之类的时间。
+  final Duration userWait;
+
+  StageTiming waited(Duration more) =>
+      StageTiming(stage, start, userWait: userWait + more);
 }
 
 /// 附着脚本在报出客户端信息之前就结束了（核对没通过）。只在 [SshService] 内部用来换成具体的说法。

@@ -2266,6 +2266,49 @@ const englishTranslations = <String, String>{
   '小时前': 'h ago',
   '天前': 'd ago',
   '更多操作': 'More actions',
+  // R25：连接记录里的失败分类和下一步（connection_diagnosis.dart）。
+  '断线期间这台主机的地址、代理、跳板机或登录身份改过，自动恢复只走原来那条路线，所以停了。点「重新连接」按现在的配置连。':
+      'This host’s address, proxy, jump host or login identity changed while it was disconnected. Automatic recovery only uses the original route, so it stopped. Tap “Reconnect” to connect with the current settings.',
+  '这条路线要用的密码或私钥在本机安全存储里解不开，没有拨号。到主机编辑器重新填一次密码或重新选私钥。':
+      'A password or private key this route needs cannot be decrypted from secure storage on this phone, so nothing was dialed. Enter the password again or pick the private key again in the host editor.',
+  'Tailscale 要求重新做 check，自动恢复不替你打开链接。关掉这个标签，从主机列表重新连接。':
+      'Tailscale asked for a new check; automatic recovery does not open the link for you. Close this tab and connect again from the host list.',
+  '服务器没要密码就放行，或者要你去浏览器认证：普通 SSH 不接受这两种登录。这台机器开着 Tailscale SSH 的话，在编辑器里把登录方式改成「Tailscale SSH」。':
+      'The server let you in without a password, or asked for browser authentication; standard SSH accepts neither. If this machine runs Tailscale SSH, change the login mode to “Tailscale SSH” in the editor.',
+  '在期限内没等到登录结果。服务器很慢或者在等你做 Tailscale check 时会这样；可以在主机编辑页「高级 → 超时与保活」里把「认证超时」调大。':
+      'No login result arrived in time. This happens with a very slow server or while waiting for a Tailscale check; you can raise “Authentication timeout” under “Advanced → Timeouts and keepalive” in the host editor.',
+  'SSH 握手中途断了：网络不稳、服务器正在重启时会这样。断线后的自动恢复会自己再试；一直这样的话先确认这个端口上是 SSH 服务。':
+      'The SSH handshake broke off midway: this happens on an unstable network or while the server restarts. Automatic recovery after a drop retries on its own; if it keeps happening, first make sure this port runs an SSH service.',
+  '原来的 tmux 会话不在了（或者核对没通过），没有新建也没有附着别的。到 tmux 面板里自己选一个会话。':
+      'The original tmux session is gone (or failed the check); nothing was created and nothing else was attached. Pick a session yourself in the tmux panel.',
+  '本机的插件不可用：到「设置 → 插件（实验）」看它装着没有、批准了没有。这一步还没连服务器。':
+      'The plugin on this phone is unavailable: check in “Settings → Plugins (experimental)” whether it is installed and approved. No server was contacted at this step.',
+  '这类失败没有现成的建议。当时的失败页上有完整原话，这里只记了分类。':
+      'There is no ready-made advice for this kind of failure. The failure page at the time showed the full message; only the category is recorded here.',
+  '路线配置有问题': 'Route configuration problem',
+  '断线期间路线改了': 'Route changed while disconnected',
+  '凭据解不开': 'Credentials cannot be decrypted',
+  '私钥读不出来': 'Private key cannot be read',
+  '终端引擎没启动': 'Terminal engine did not start',
+  '连不到地址': 'Address unreachable',
+  '代理握手失败': 'Proxy handshake failed',
+  '指纹没通过核对': 'Fingerprint check failed',
+  '服务器拒绝登录': 'Server refused the login',
+  '登录前被断开': 'Disconnected before login',
+  '跳板机拒绝转发': 'Jump host refused forwarding',
+  'Tailscale 拒绝登录': 'Tailscale refused the login',
+  '要重新做 Tailscale check': 'Tailscale check needed again',
+  '登录方式不对': 'Wrong login mode',
+  '等登录结果超时': 'Login timed out',
+  'SSH 握手中断': 'SSH handshake broke off',
+  'tmux 会话不在了': 'tmux session is gone',
+  'Mosh 只能直连': 'Mosh only connects directly',
+  'Mosh 插件不可用': 'Mosh plugin unavailable',
+  'mosh-server 路径不对': 'Wrong mosh-server path',
+  '服务器缺 UTF-8 locale': 'Server lacks a UTF-8 locale',
+  'mosh-server 的回应不可信': 'Untrusted mosh-server reply',
+  '插件不可用': 'Plugin unavailable',
+  '其他错误': 'Other error',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
