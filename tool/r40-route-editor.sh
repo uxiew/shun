@@ -6,7 +6,11 @@ source ../.toolchain/env.sh
 SERIAL=emulator-5580
 PKG=top.xdwa.shun.debug
 ADB=(adb -s "$SERIAL")
-[[ "$("${ADB[@]}" emu avd name | tr -d '\r' | head -1)" == shun-a35-4k ]] || { echo 'Expected dedicated shun-a35-4k'; exit 1; }
+# Either project AVD; since the 10-13 machine move only shun-r39-a30 exists (docs/dev/README.md section 3).
+case "$("${ADB[@]}" emu avd name | tr -d '\r' | head -1)" in
+  shun-r39-a30|shun-a35-4k) ;;
+  *) echo 'Expected a dedicated shun emulator (shun-r39-a30 or shun-a35-4k)'; exit 1 ;;
+esac
 OUT=${R40_OUT:-../.toolchain/artifacts/r40-simulator-$(git rev-parse --short HEAD)}
 mkdir -p "$OUT"
 python3 - <<'PY'

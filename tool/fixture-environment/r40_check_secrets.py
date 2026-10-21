@@ -10,7 +10,7 @@ import subprocess
 
 adb = ['adb', '-s', 'emulator-5580']
 pkg = 'top.xdwa.shun.debug'
-assert subprocess.check_output(adb + ['emu', 'avd', 'name']).decode().splitlines()[0] == 'shun-a35-4k'
+assert subprocess.check_output(adb + ['emu', 'avd', 'name']).decode().splitlines()[0] in ('shun-r39-a30', 'shun-a35-4k')
 cfg = json.loads((pathlib.Path(__file__).parent / '.run/fixture.json').read_text())
 secrets = [cfg['password'].encode(), cfg['socksAuth']['password'].encode()]
 paths = subprocess.check_output(adb + ['shell', 'run-as', pkg, 'find', 'shared_prefs', 'files', '-type', 'f']).decode().splitlines()
