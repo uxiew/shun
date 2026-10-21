@@ -30,6 +30,7 @@ import 'package:shun/infrastructure/tailscale/tailscale_api.dart';
 import 'package:shun/presentation/screens/tailscale_catalog_screen.dart';
 import 'package:shun/presentation/widgets/catalog_import_sheet.dart';
 import 'package:shun/presentation/widgets/port_forward_sheet.dart';
+import 'package:shun/presentation/widgets/server_monitor_sheet.dart';
 
 const _raw = String.fromEnvironment('R43_SSH');
 final Map<String, dynamic> config =
@@ -243,6 +244,58 @@ void main() {
         what: '端口转发');
     await shot('06-port-forward');
     await closeSheet();
+
+    // 文件：切到文件页，左栏就是这台主机连着的那条 SSH（不另开连接、不切终端标签）。
+    await openMenu(homeHost.id);
+    await tester.tap(key('host-menu-files'));
+    await waitFor(tester, () => container.read(homeTabProvider) == 2, what: '切到文件页');
+    await waitFor(tester, () => container.read(sftpNavigationRequestProvider) == null,
+        what: '文件页接住请求');
+    await settle(tester, 2000);
+    final pane = texts(key('sftp-left-pane'));
+    report('files.leftPane', pane.split(' | ').take(8).join(' | '));
+    expect(pane, contains('家里 edge'));
+    expect(controller.state.sessions, hasLength(1), reason: '用的是已有的 SSH，没有另开');
+    await shot('06b-files');
+    container.read(homeTabProvider.notifier).state = 0;
+    await settle(tester, 1000);
+
+    // 性能监控：同一条 SSH。
+    await openMenu(homeHost.id);
+    await tester.tap(key('host-menu-monitor'));
+    await waitFor(tester, () => find.byType(ServerMonitorSheet).evaluate().isNotEmpty,
+        what: '性能监控');
+    await settle(tester, 3000);
+    await shot('06c-monitor');
+    await closeSheet();
+
+    // 测试连接：和编辑器里的一样弹指纹确认（上面 connect 用的是测试自己的核对，没记住）。
+    // 框里的指纹先和测试环境的对上再点接受。
+    await openMenu(homeHost.id);
+    await tester.tap(key('host-menu-testConnection'));
+    final accept = find.text('接受并记住');
+    await waitFor(tester,
+        () => accept.evaluate().isNotEmpty || key('probe-succeeded').evaluate().isNotEmpty,
+        timeout: const Duration(seconds: 40), what: '指纹确认或测试结果');
+    if (accept.evaluate().isNotEmpty) {
+      final shown = tester
+          .widget<SelectableText>(find.descendant(
+              of: find.byType(AlertDialog), matching: find.byType(SelectableText)))
+          .data!;
+      expect(shown, contains('${config['fingerprint']}'));
+      report('probe.fingerprintMatches', true);
+      await tester.tap(accept);
+    }
+    await waitFor(tester,
+        () => key('probe-succeeded').evaluate().isNotEmpty ||
+            key('probe-failed').evaluate().isNotEmpty,
+        timeout: const Duration(seconds: 40), what: '测试连接结果');
+    report('probe.succeeded', key('probe-succeeded').evaluate().isNotEmpty);
+    expect(key('probe-succeeded'), findsOneWidget);
+    expect(controller.state.sessions, hasLength(1), reason: '测试连接不开标签');
+    await shot('06d-probe');
+    await closeSheet();
+
     final other = await openMenu(workHost.id);
     report('menu.work', other.join(','));
     expect(other, isNot(contains('portForward')),
