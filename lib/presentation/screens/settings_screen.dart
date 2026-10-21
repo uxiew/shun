@@ -32,6 +32,7 @@ import '../widgets/terminal_engine_status.dart';
 import '../widgets/custom_background.dart';
 import '../widgets/ai_providers_page.dart';
 import '../widgets/github_manual_config.dart';
+import '../widgets/secret_content.dart';
 import '../widgets/vault_import_dialog.dart';
 import 'plugins_screen.dart';
 import 'rustdesk_screen.dart';
@@ -79,6 +80,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   var _savingTerminalSecureKeyboard = false;
   var terminalFullscreenSwipe = false;
   var _savingTerminalFullscreenSwipe = false;
+  var allowSensitiveScreenshots = false;
+  var _savingAllowSensitiveScreenshots = false;
   var autoSyncEnabled = false;
   var _savingAutoSync = false;
   var language = 'zh-CN';
@@ -156,6 +159,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     sftpSyntaxHighlight = settings.sftpSyntaxHighlight;
     terminalSecureKeyboard = settings.terminalSecureKeyboard;
     terminalFullscreenSwipe = settings.terminalFullscreenSwipe;
+    allowSensitiveScreenshots = settings.allowSensitiveScreenshots;
     customBackgroundEnabled = settings.customBackgroundEnabled;
     customBackgroundPath = settings.customBackgroundPath;
     customBackgroundOpacity = settings.customBackgroundOpacity;
@@ -468,8 +472,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               if (features.cloudSync)
                 _header('云同步', '兼容桌面端 netcatty-vault.json 加密格式'),
+              // 整张卡片防截屏（R44）：里面有 WebDAV/S3/GitHub 的口令和同步主密码。
+              // 设置页一直挂在首页的 IndexedStack 里，切到别的标签页时不算在屏幕上，见 SecretContent。
               if (features.cloudSync)
-                Card(
+                SecretContent(
+                    child: Card(
                   child: Padding(
                     padding: const EdgeInsets.all(14),
                     child: Column(
@@ -519,6 +526,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           TextField(
                             controller: providerSecret,
                             obscureText: true,
+                            enableIMEPersonalizedLearning: false,
+                            enableSuggestions: false,
+                            autocorrect: false,
                             decoration:
                                 LInputDecoration(labelText: '密码 / 应用密码'),
                           ),
@@ -565,6 +575,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           TextField(
                             controller: providerSecret,
                             obscureText: true,
+                            enableIMEPersonalizedLearning: false,
+                            enableSuggestions: false,
+                            autocorrect: false,
                             onChanged: (_) => setState(() {}),
                             decoration: LInputDecoration(
                               labelText: 'Secret Access Key',
@@ -574,6 +587,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           TextField(
                             controller: s3SessionToken,
                             obscureText: true,
+                            enableIMEPersonalizedLearning: false,
+                            enableSuggestions: false,
+                            autocorrect: false,
                             decoration: LInputDecoration(
                               labelText: 'Session Token（可选）',
                             ),
@@ -662,6 +678,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         TextField(
                           controller: masterPassword,
                           obscureText: true,
+                          enableIMEPersonalizedLearning: false,
+                          enableSuggestions: false,
+                          autocorrect: false,
                           decoration: LInputDecoration(
                             labelText: '同步主密码',
                           ),
@@ -702,7 +721,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       ],
                     ),
                   ),
-                ),
+                )),
               if (features.ai)
                 _header('shu Agent', '使用 OpenAI 兼容接口连续对话，命令执行前始终确认'),
               if (features.ai)
@@ -754,19 +773,33 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               _header('安全', null),
-              const Card(
+              Card(
                 child: Column(
                   children: [
-                    ListTile(
+                    const ListTile(
                       leading: Icon(Icons.security),
                       title: LText('系统安全存储'),
                       subtitle: LText('Android Keystore / iOS Keychain'),
                     ),
-                    Divider(height: 1),
-                    ListTile(
+                    const Divider(height: 1),
+                    const ListTile(
                       leading: Icon(Icons.fingerprint),
                       title: LText('服务器身份验证'),
                       subtitle: LText('每次首次连接显示 SHA-256 主机指纹'),
+                    ),
+                    const Divider(height: 1),
+                    SwitchListTile(
+                      key: const ValueKey(
+                          'settings-allow-sensitive-screenshots'),
+                      secondary: const Icon(Icons.screenshot_outlined),
+                      title: const LText('敏感页面允许截屏'),
+                      subtitle: const LText(
+                        '默认关：编辑连接、编辑代理这类带密码的页面，和输入密码、口令、token 的对话框，截屏和录屏都是黑的，最近任务里也看不到内容。终端页不受影响。只对 Android 有效',
+                      ),
+                      value: allowSensitiveScreenshots,
+                      onChanged: _savingAllowSensitiveScreenshots
+                          ? null
+                          : _setAllowSensitiveScreenshots,
                     ),
                   ],
                 ),
@@ -1445,6 +1478,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     } finally {
       if (mounted) {
         setState(() => _savingTerminalSecureKeyboard = false);
+      }
+    }
+  }
+
+  Future<void> _setAllowSensitiveScreenshots(bool value) async {
+    final previous = allowSensitiveScreenshots;
+    setState(() {
+      allowSensitiveScreenshots = value;
+      _savingAllowSensitiveScreenshots = true;
+    });
+    try {
+      await ref
+          .read(settingsControllerProvider.notifier)
+          .updateAllowSensitiveScreenshots(value);
+    } catch (error) {
+      if (!mounted) return;
+      setState(() => allowSensitiveScreenshots = previous);
+      _message('防截屏设置保存失败：$error');
+    } finally {
+      if (mounted) {
+        setState(() => _savingAllowSensitiveScreenshots = false);
       }
     }
   }

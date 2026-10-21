@@ -1692,6 +1692,11 @@ const englishTranslations = <String, String>{
   '在 less、man、vim 这类全屏程序里，手指上下滑会发方向键，每滑过一行发一个。注意：没开 mouse 的 tmux 也算全屏程序，这时滑动的方向键会到 shell，翻出上一条历史命令，再按回车就执行了。开着鼠标的程序（tmux 开了 mouse、htop）不受影响，照样发滚轮':
       'In full-screen programs such as less, man and vim, swiping up or down sends arrow keys, one per line swiped. Note: tmux without mouse also counts as a full-screen program; there the arrow keys reach the shell and bring back the previous command from history, which runs if you then press Enter. Programs with mouse reporting on (tmux with mouse, htop) are not affected and still get wheel events',
   '滑动翻页设置保存失败：': 'Could not save the swipe setting: ',
+  // R44：敏感页面防截屏的开关。
+  '敏感页面允许截屏': 'Allow screenshots of sensitive pages',
+  '默认关：编辑连接、编辑代理这类带密码的页面，和输入密码、口令、token 的对话框，截屏和录屏都是黑的，最近任务里也看不到内容。终端页不受影响。只对 Android 有效':
+      'Off by default: pages with passwords, such as editing a connection or a proxy, and dialogs that ask for a password, passphrase or token come out black in screenshots and screen recordings, and their content is hidden in Recents. The terminal is not affected. Android only',
+  '防截屏设置保存失败：': 'Could not save the screenshot setting: ',
   // R25：快捷键栏和按键面板上的键给读屏软件念的名字（terminal_keys.dart）。
   '上箭头': 'Up arrow',
   '下箭头': 'Down arrow',
@@ -3885,6 +3890,7 @@ const englishReplacements = <(String, String)>[
   ('种可选', ' available'),
   ('安全键盘设置保存失败：', 'Failed to save secure keyboard setting: '),
   ('滑动翻页设置保存失败：', 'Could not save the swipe setting: '),
+  ('防截屏设置保存失败：', 'Could not save the screenshot setting: '),
   ('外观设置已保存', 'Appearance settings saved'),
   ('AI 设置已保存', 'AI settings saved'),
   ('确认更新', 'Confirm update'),
