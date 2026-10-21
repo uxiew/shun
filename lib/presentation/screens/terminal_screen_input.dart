@@ -28,7 +28,9 @@ mixin _TerminalInputHost on ConsumerState<TerminalScreen> {
   Orientation? _keyboardShowOrientation;
 
   /// 刚从面板换回系统键盘：键盘升上来之前先把面板的位置空着，免得终端先变高、再被键盘压回去。
-  DateTime? _awaitKeyboardUntil;
+  /// 只靠 [_awaitKeyboardTimer] 到点清掉，不再拿 DateTime.now() 比：测试里 Timer 走假时间、DateTime 走真时间，
+  /// 机器一忙（全量 -j 4）真时间先过 700ms，位置提前没了，远端收到三次尺寸（R25 全量撞过）。真机上两者只差一帧。
+  var _awaitingKeyboard = false;
   Timer? _awaitKeyboardTimer;
 
   var _keyboardSerial = 0;
@@ -113,10 +115,10 @@ mixin _TerminalInputHost on ConsumerState<TerminalScreen> {
   void _useSystemKeyboard(ActiveTerminalSession input) {
     _composeFocus.unfocus();
     _awaitKeyboardTimer?.cancel();
-    _awaitKeyboardUntil = DateTime.now().add(_awaitKeyboardFor);
+    _awaitingKeyboard = true;
     _awaitKeyboardTimer = Timer(_awaitKeyboardFor, () {
       if (!mounted) return;
-      setState(() => _awaitKeyboardUntil = null);
+      setState(() => _awaitingKeyboard = false);
     });
     setState(() {
       _keyboardRequest = (sessionId: input.id, serial: ++_keyboardSerial);
@@ -222,8 +224,7 @@ mixin _TerminalInputHost on ConsumerState<TerminalScreen> {
       } else {
         panelHeight = math.max(0.0, panel - overlap);
       }
-    } else if (_awaitKeyboardUntil case final until?
-        when DateTime.now().isBefore(until) && keyboard != null) {
+    } else if (_awaitingKeyboard && keyboard != null) {
       // 空出来的是键盘要占的位置（上次键盘的高度），不是面板的高度：面板比键盘高时（面板有最低高度），
       // 照面板空，终端会先被压矮、键盘升上来以后再变高，远端收到两次尺寸（模拟器上撞过：17 行再 27 行）。
       reserve = math.max(0.0, keyboard - overlap);
