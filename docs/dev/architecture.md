@@ -292,6 +292,8 @@ App 只经一个接口用终端：`infrastructure/terminal/terminal_session_adap
 
 `GhosttyTerminalAdapter`（`infrastructure/terminal/ghostty_terminal_adapter.dart`）的 `ghosttyTerminalConfig`：滚动区最多 5000 行、8 MiB；Kitty 图像和 APC 缓冲上限 0（不显示图像，也不占内存）；`alternateScroll` 关掉（开着的话，没开 mouse 的 tmux 里手指一滑就把 ↑ 发给 shell，翻出上一条历史命令，再按回车就执行了）。
 
+配色在 `presentation/terminal/terminal_view.dart`：深色主题 `terminalAnsiColors`（Tomorrow Night），浅色 `terminalAnsiColorsLight`（One Light），`ghostty_terminal_view.dart` 按 `ColorScheme.brightness` 选，并且永远带 `minimumContrast: terminalMinimumContrast`（3.0）。这个对比度只调默认背景上的字，实现是 flterm 补丁 ad153a0（为什么这么窄见 `third_party/README.md`）。改成 4.5 会把 zsh 自动建议这类故意暗显的字也提亮；换浅色调色板要先量：Tomorrow Night 放在 62 套浅色背景上，6 个普通色的 372 个组合里 310 个不到 3:1，One Light 是 17 个。
+
 引擎状态 `TerminalEngineStatusController` 只记在内存：这次运行建成过几个终端、最近一次失败的原因、原生库版本。设置页「终端引擎 → 检查」调 `check()`，建一个马上释放，不连服务器。用户可见说明见[使用手册第 8 节](../user/README.md#8-终端引擎)。
 
 ### 输入
