@@ -280,6 +280,10 @@ tool/build-release.sh && adb install -r build/app/outputs/flutter-apk/app-releas
   RustDesk、UU 的本机关联也恢复不了。换过去以后，CI 包之间可以直接覆盖。
 - CI 包的 versionCode 是 GitHub 运行编号（10-20 那次是 2），本机包取 pubspec 的 `+26`。哪天本机也配上那把固定密钥签，
   装过本机包的手机再装编号更小的 CI 包，会报 `INSTALL_FAILED_VERSION_DOWNGRADE`。
+- **手机上留着用的 `top.xdwa.shun`（比如装的 CI 包）在的时候，别对这台手机 `flutter run`、`flutter test integration_test`**：
+  调试包签名对不上，flutter 只打一行 `Uninstalling old version...`，就把它连数据卸掉再装，不先问
+  （Flutter 3.47.7 `android_device.dart` 的 `installApp`）。`tool/release-smoke.sh`、`tool/r18-real-device.sh`、`tool/r22-soak.sh`
+  见到装着就停；直接敲 flutter 命令没人拦。
 - 要发给别人的包用 CI 的：本机打的 release 包会把构建目录的绝对路径编进 `libapp.so`（10-21 实测含 `/Users/<用户名>/...`），
   CI 包里只有 `/home/runner/...`。
 - AI、云同步、检查更新默认关闭且不显示，开关在 `lib/application/fork_features.dart`。

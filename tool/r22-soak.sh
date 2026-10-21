@@ -9,6 +9,8 @@
 #   tool/r22-soak.sh <手机序列号> default 30    # 不加省电豁免（出厂默认）
 #   tool/r22-soak.sh <手机序列号> exempt 30     # 临时加省电豁免
 #
+# 手机上已经装着 top.xdwa.shun 就不跑：脚本结束时会卸掉 App。
+#
 # 要所有者在场，脚本打 "OWNER:" 开头的行时由所有者本人：拔 USB 线 → 按电源键锁屏 → 到点插回 → 解锁回到 App。
 # 顺序别反：插着线按电源键进的是屏保，拔了线屏保也可能不退，手机一直醒着（试跑撞到过）。
 # 脚本不注入按键（会搅乱微信输入法），不碰锁屏密码、输入法、VPN。
@@ -47,6 +49,12 @@ host() { echo "R22HOST $(date +%T) $*" | tee -a "$LOG"; }
 owner() { echo "OWNER: $*" | tee -a "$LOG"; }
 
 adb get-state >/dev/null || { echo "看不到 $SERIAL：先 tool/remote-device/up.sh，再 source /tmp/shun-remote-device/env"; exit 1; }
+# 必须在 trap cleanup 之前：cleanup 会卸掉 App，放在后面的话这里一停，留着用的 App 反而被卸了。
+# 上一轮中途退出留下的测试包也得卸：私有目录里旧的 log.txt 带着 DONE，会让这一轮一开始就收工。
+if adb shell pm list packages $PKG | tr -d '\r' | grep -qx "package:$PKG"; then
+  echo "手机上已经装着 $PKG：跑完会把它连数据卸掉。是上一轮留下的测试包就先 adb uninstall $PKG，是留着用的就让所有者自己处理"
+  exit 1
+fi
 # 插回线后重建 reverse 要绕开包装脚本：它会再开一次 ssh -R，而那条还在，报端口被占。
 REAL_ADB=$(cat /tmp/shun-remote-device/real-adb 2>/dev/null || command -v adb)
 EDGE=$(docker ps --format '{{.Names}}' | grep -m1 shun-fixture-ssh-edge) || { echo "测试环境没起：(cd tool/fixture-environment && ./up.sh)"; exit 1; }
@@ -104,8 +112,6 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# 上一轮中途退出时 App 可能还装着，私有目录里旧的 log.txt 带着 DONE，会让这一轮一开始就收工。
-adb uninstall $PKG >/dev/null 2>&1 || true
 adb reverse tcp:22201 tcp:22201 >/dev/null
 scp -q tool/remote-device/tcp-relay.py "$REMOTE:/tmp/shun-tcp-relay.py"
 exec 7> >(ssh "$REMOTE" python3 -u /tmp/shun-tcp-relay.py "$RELAY_IP" $RELAY_PORT "$PHONE_IP" 22201 \

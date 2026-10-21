@@ -6,6 +6,8 @@
 #   source ../.toolchain/env.sh
 #   tool/r18-real-device.sh xdwmbp /opt/homebrew/share/android-commandlinetools/platform-tools/adb <手机序列号>
 #
+# 手机上已经装着 top.xdwa.shun 就不跑（为什么见下面那段检查）。
+#
 # 会做的事：经 SSH 用那台电脑上的手机（tool/remote-device），手机的 22201 端口接回本机测试环境，
 # 装 App 并预授权通知（不然一连上就弹「允许通知」挡住键盘），跑完 flutter test 会自己卸掉 App。
 # 不碰手机的输入法设置：用手机当前的默认输入法，开始和结束各记一次，对得上才说明没动过。
@@ -24,6 +26,12 @@ trap 'tool/remote-device/down.sh "$HOST" >/dev/null; echo "日志 $LOG"' EXIT
 
 [[ "$(adb -s "$SERIAL" get-state 2>/dev/null)" == device ]] ||
   { echo "$HOST 上看不到 $SERIAL：手机没插、没开 USB 调试，或者没点「允许调试」" >&2; exit 1; }
+# 手机上已经装着本 App（比如留着用的 CI 包）就停：flutter test 装调试包时签名对不上，会自己
+# 「Uninstalling old version...」把它连数据卸掉再装，测完还会再卸一次。跟 tool/release-smoke.sh 一个规矩。
+if adb -s "$SERIAL" shell pm list packages top.xdwa.shun | tr -d '\r' | grep -qx package:top.xdwa.shun; then
+  echo "手机上已经装着 top.xdwa.shun：跑下去会把它连数据卸掉。是上一轮留下的测试包就先 adb uninstall top.xdwa.shun，是留着用的就让所有者自己处理" >&2
+  exit 1
+fi
 IME_BEFORE=$(adb -s "$SERIAL" shell settings get secure default_input_method | tr -d '\r')
 echo "手机默认输入法：$IME_BEFORE"
 
