@@ -273,6 +273,14 @@ tool/build-release.sh && adb install -r build/app/outputs/flutter-apk/app-releas
 - 包名 `top.xdwa.shun`，和原版 Netcatty（`app.netcatty.mobile`）并存、数据互不影响。**别把 applicationId 改成上游的值**，会覆盖原版。
   2026-10-11 前包名是 `top.xdwa.xwshun`：手机上还装着它的，新包会装成另一个 App，数据怎么搬见 [使用手册第 1 节](../user/README.md#1-安装与搬数据)。
 - 包用 `~/.android/debug.keystore` 签名；换台电脑构建的包签名不同，`adb install` 报 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`，要先卸载（会清掉 App 数据）才能装。
+- CI 打的包（Actions 里的 `shun-v<版本>-android-apks-<编号>`）用仓库里那把固定密钥签，证书 SHA-256 是
+  `9eac1da143c76115e6bfe257a738f2631ab898673fed8db1bb02da89dc367bb0`（`apksigner verify --print-certs <包>` 看）。它和本机包互相盖不上，同样报上面那个错。
+  手机从本机包换到 CI 包只能先卸载：导出的保险库文件**不带密码和私钥**（[使用手册第 12 节](../user/README.md#12-导出导入与凭据)），卸载后要重新填，
+  RustDesk、UU 的本机关联也恢复不了。换过去以后，CI 包之间可以直接覆盖。
+- CI 包的 versionCode 是 GitHub 运行编号（10-20 那次是 2），本机包取 pubspec 的 `+26`。哪天本机也配上那把固定密钥签，
+  装过本机包的手机再装编号更小的 CI 包，会报 `INSTALL_FAILED_VERSION_DOWNGRADE`。
+- 要发给别人的包用 CI 的：本机打的 release 包会把构建目录的绝对路径编进 `libapp.so`（10-21 实测含 `/Users/<用户名>/...`），
+  CI 包里只有 `/home/runner/...`。
 - AI、云同步、检查更新默认关闭且不显示，开关在 `lib/application/fork_features.dart`。
 
 手机接在另一台电脑上（现在的真机 Pixel 9 Pro 只接在 xdwmbp 上）：用 `tool/remote-device/`，见那里的 README。
