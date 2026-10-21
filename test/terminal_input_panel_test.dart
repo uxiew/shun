@@ -667,6 +667,65 @@ void main() {
         await expectGuidelines('横屏按键面板');
         semantics.dispose();
       });
+
+      for (final scale in [1.3, 2.0]) {
+        testWidgets('R25：系统字体 $scale 倍，竖屏横屏的标签条、快捷键栏、按键面板、大输入框都不溢出', (
+          tester,
+        ) async {
+          tester.platformDispatcher.textScaleFactorTestValue = scale;
+          addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+          final overflows = <String>[];
+          var where = '竖屏系统键盘';
+          final previous = FlutterError.onError;
+          FlutterError.onError = (details) {
+            final message = details.exceptionAsString();
+            if (!message.contains('overflowed')) return previous?.call(details);
+            final source = RegExp(r'package:shun/[^\s:]+\.dart:\d+')
+                    .firstMatch(details.toString())
+                    ?.group(0) ??
+                '';
+            overflows.add('$where: ${message.split('\n').first} $source');
+          };
+          try {
+            final page = await _Page.open(tester, newTerminal);
+            await page.settle();
+            where = '竖屏按键面板';
+            await tester.tap(toggle);
+            await page.settle();
+            for (final keyPage in ['symbols', 'control', 'function']) {
+              // 字大了页签一行放不下，后面的要横着滑出来（不算溢出）。
+              final chip = find.byKey(ValueKey('terminal-key-page-$keyPage'));
+              await tester.scrollUntilVisible(
+                chip,
+                80,
+                scrollable: find.descendant(
+                  of: find.byKey(const ValueKey('terminal-key-pages')),
+                  matching: find.byType(Scrollable),
+                ),
+              );
+              await tester.tap(chip);
+              await page.settle();
+            }
+            where = '竖屏大输入框';
+            await tester
+                .tap(find.byKey(const ValueKey('terminal-input-tab-compose')));
+            await page.settle();
+            where = '横屏大输入框';
+            tester.view.physicalSize = const Size(2400, 1080);
+            await page.settle();
+            where = '横屏按键面板';
+            await tester
+                .tap(find.byKey(const ValueKey('terminal-input-tab-keys')));
+            await page.settle();
+            where = '横屏系统键盘';
+            await tester.tap(toggle);
+            await page.settle();
+          } finally {
+            FlutterError.onError = previous;
+          }
+          expect(overflows, isEmpty, reason: overflows.toSet().join('\n'));
+        });
+      }
     });
   }
 }
