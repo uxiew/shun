@@ -29,6 +29,41 @@ import 'tailscale_check_card.dart';
 typedef AiCliScan = Future<AiCliScanResult> Function(
     AiCliScanRequest request, AiCliProbeCancellation cancellation);
 
+/// 最近工作的原终端还连着、身份对得上（[matchesAiWorkTerminal]）：直接切过去。不拨号、不启动任何东西。
+/// 首页卡片和工具列表里的「返回原终端」共用。最近打开时间在后台记，记不上不影响切过去（旧指针不动）：
+/// 切标签前没有异步空档，就不会切到一个等待期间换了连接的标签上。
+/// 返回 false 表示没有能直接回去的标签，调用方改走工具列表（那里会核对 tmux、给原生继续）。
+bool returnToLiveAiTerminal(
+  WidgetRef ref, {
+  required AiCliRecentWorkStore store,
+  required HostProfile host,
+  required AiCliWorkItem item,
+}) {
+  final index = ref
+      .read(sessionControllerProvider)
+      .sessions
+      .indexWhere((session) => matchesAiWorkTerminal(session, item, host));
+  if (index < 0) return false;
+  ref.read(sessionControllerProvider.notifier).activate(index);
+  ref.read(homeTabProvider.notifier).state = 1;
+  unawaited(store
+      .record(
+        aiCliHostScope(host),
+        AiCliWorkItem(
+          id: item.id,
+          tool: item.tool,
+          name: item.name,
+          executable: item.executable,
+          projectDirectory: item.projectDirectory,
+          openedAt: DateTime.now(),
+          claudeSessionId: item.claudeSessionId,
+          tmuxRun: item.tmuxRun,
+        ),
+      )
+      .catchError((Object _) {}));
+  return true;
+}
+
 class AiCliToolsSheet extends ConsumerStatefulWidget {
   const AiCliToolsSheet(
       {super.key,
@@ -494,25 +529,11 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
     }
   }
 
-  Future<void> _returnLive(AiCliWorkItem item) async {
-    if (_launching) return;
-    setState(() => _launching = true);
-    try {
-      if (!_recentIdentityMatches()) return;
-      final index = ref.read(sessionControllerProvider).sessions.indexWhere(
-          (session) => matchesAiWorkTerminal(session, item, widget.host));
-      if (index < 0) return;
-      ref.read(sessionControllerProvider.notifier).activate(index);
-      await _rememberReturn(item);
-      if (!mounted) return;
-      final stillLive = ref.read(sessionControllerProvider).sessions.indexWhere(
-          (session) => matchesAiWorkTerminal(session, item, widget.host));
-      if (stillLive < 0) return;
-      ref.read(sessionControllerProvider.notifier).activate(stillLive);
-      ref.read(homeTabProvider.notifier).state = 1;
+  void _returnLive(AiCliWorkItem item) {
+    if (_launching || !_recentIdentityMatches()) return;
+    if (returnToLiveAiTerminal(ref,
+        store: widget.recentWork, host: widget.host, item: item)) {
       Navigator.pop(context);
-    } finally {
-      if (mounted) setState(() => _launching = false);
     }
   }
 

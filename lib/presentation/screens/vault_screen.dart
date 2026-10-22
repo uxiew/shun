@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../application/ai_cli_return.dart';
 import '../../application/catalog_overview.dart';
 import '../../application/fork_features.dart';
 import '../../application/connection_events.dart';
@@ -98,6 +99,16 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     final settings = ref.watch(settingsControllerProvider);
     final viewMode = settings.serverViewMode;
     final vault = state.data;
+    final recent = _recentAi;
+    final recentHost = _recentAiHost;
+    // 原普通终端还连着时卡片直接说、点了直接回去。判断不碰网络，和工具列表里的是同一个
+    // matchesAiWorkTerminal；tmux 的要先在服务器上核对窗格，不在这里说它还在。
+    final recentLive = ref.watch(sessionControllerProvider.select((s) =>
+        recent != null &&
+        recentHost != null &&
+        recent.tmuxRun == null &&
+        s.sessions.any(
+            (session) => matchesAiWorkTerminal(session, recent, recentHost))));
     if (vault != null) {
       unawaited(_loadRecentAi(vault.hosts));
     }
@@ -210,7 +221,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
               ],
             ),
           ),
-          if (_recentAi != null && _recentAiHost != null)
+          if (recent != null && recentHost != null)
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
               child: Card(
@@ -222,12 +233,17 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       LText(
-                          '${_recentAiHost!.label} · ${_recentAi!.name} · ${_recentAi!.projectDirectory}'),
-                      const LText('会话状态待核对'),
+                          '${recentHost.label} · ${recent.name} · ${recent.projectDirectory}'),
+                      LText(
+                        recentLive
+                            ? '原终端仍连接；工具状态请在终端确认'
+                            : '会话状态待核对。点开会先查这台主机上的工具，没连着时会连一次',
+                        key: const ValueKey('vault-recent-ai-state'),
+                      ),
                     ],
                   ),
                   trailing: const Icon(Icons.chevron_right),
-                  onTap: () => _showAiCli(_recentAiHost!),
+                  onTap: () => _openRecentAi(recent, recentHost),
                 ),
               ),
             ),
@@ -748,6 +764,27 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
   void _plainMessage(String text) {
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(text)));
+  }
+
+  /// 首页「最近 AI 工作」：原终端还连着就直接回去（不拨号、不开工具列表），不然打开这台的工具列表，
+  /// 那里核对 tmux、给原生继续。卡片是之前读的，先按保险库现在的样子重核主机：改了地址、用户就不直接回去，
+  /// 交给工具列表如实报「身份已改变」。
+  Future<void> _openRecentAi(AiCliWorkItem item, HostProfile host) async {
+    final current = ref
+        .read(vaultControllerProvider)
+        .data
+        ?.hosts
+        .where((value) => value.id == host.id)
+        .firstOrNull;
+    // tmux 的不在这里直接回：卡片没说它还在，点了就该去工具列表里核对。
+    if (item.tmuxRun == null &&
+        current != null &&
+        aiCliHostScope(current) == aiCliHostScope(host) &&
+        returnToLiveAiTerminal(ref,
+            store: widget.recentWork, host: current, item: item)) {
+      return;
+    }
+    await _showAiCli(current ?? host);
   }
 
   Future<void> _showAiCli(HostProfile host) async {
