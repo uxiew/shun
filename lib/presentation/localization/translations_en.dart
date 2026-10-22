@@ -2431,6 +2431,8 @@ const englishTranslations = <String, String>{
       'Automatic (no saved key or password; you are asked when logging in)',
   // R25 第四部分：私钥列表删除前先问。
   '删除私钥': 'Delete private key',
+  '没发现第三方终端插件（插件是单独安装的 App，装上后这里会列出来）。':
+      'No third-party terminal plugins found (plugins are separate apps; once installed they are listed here).',
   // R25 / UX04：拨不通时的人话（ssh_service.dart 的 describeDialFailure）。整句在片段表。
   '连不上代理': 'Cannot reach proxy',
   '连不上地址': 'Cannot reach',

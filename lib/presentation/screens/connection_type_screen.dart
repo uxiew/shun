@@ -85,6 +85,21 @@ class _ConnectionTypeScreenState extends ConsumerState<ConnectionTypeScreen> {
           TransportKind.udp,
           RequestedRoute.systemDefault,
         ) is! RouteUnsupported;
+    final terminalPlugins = entries
+        .where(
+          (e) =>
+              !e.isBuiltin &&
+              e.pluginId != 'shun.mosh' &&
+              e.descriptor?.capabilities.contains(
+                    Capability.terminalSession,
+                  ) ==
+                  true &&
+              e.descriptor?.permissions.contains(
+                    Permission.ownSessionEphemeralSecret,
+                  ) ==
+                  false,
+        )
+        .toList();
     final moshStatus = !android
         ? '仅支持 Android'
         : discovery.isLoading
@@ -177,19 +192,13 @@ class _ConnectionTypeScreenState extends ConsumerState<ConnectionTypeScreen> {
           ),
           const SizedBox(height: 16),
           const LText('终端插件'),
-          for (final entry in entries.where(
-            (e) =>
-                !e.isBuiltin &&
-                e.pluginId != 'shun.mosh' &&
-                e.descriptor?.capabilities.contains(
-                      Capability.terminalSession,
-                    ) ==
-                    true &&
-                e.descriptor?.permissions.contains(
-                      Permission.ownSessionEphemeralSecret,
-                    ) ==
-                    false,
-          ))
+          // 以前没装时只剩一个空标题，看着像没加载出来（R25 / UX04 在模拟器上看到的）。
+          if (terminalPlugins.isEmpty && !discovery.isLoading)
+            const LText(
+              '没发现第三方终端插件（插件是单独安装的 App，装上后这里会列出来）。',
+              key: ValueKey('connection-type-no-plugins'),
+            ),
+          for (final entry in terminalPlugins)
             choice(
               entry.descriptor!.displayName,
               hostProtocolIcon(HostProtocol.plugin)!,

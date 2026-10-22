@@ -198,6 +198,9 @@ void main() {
     expect(uuBackend.values.containsKey('uuremote.approvedSigner.v1'), isFalse);
     expect(rd.launched, isEmpty);
     expect(uu.launched, isEmpty);
+    // R25 / UX04：没装第三方插件时「终端插件」下面不是一片空白。
+    expect(find.byKey(const ValueKey('connection-type-no-plugins')),
+        findsOneWidget);
   });
 
   testWidgets(
@@ -219,6 +222,8 @@ void main() {
     final tile = find.byKey(const ValueKey('connection-type-Terminal'));
     await tester.ensureVisible(tile);
     expect(tester.widget<ListTile>(tile).enabled, isTrue);
+    expect(
+        find.byKey(const ValueKey('connection-type-no-plugins')), findsNothing);
     container.read(pluginRegistryProvider.notifier).revoke('example.terminal');
     await tester.pumpAndSettle();
     expect(tester.widget<ListTile>(tile).enabled, isFalse);
