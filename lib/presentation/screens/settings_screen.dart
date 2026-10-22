@@ -603,7 +603,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     const ListTile(
                       leading: Icon(Icons.fingerprint),
                       title: LText('服务器身份验证'),
-                      subtitle: LText('每次首次连接显示 SHA-256 主机指纹'),
+                      // 以前写「每次首次连接显示」：没说指纹变了会怎样（硬拦、不给更新，见使用手册）。
+                      subtitle:
+                          LText('第一次连时让你核对 SHA-256 指纹；以后指纹变了直接拦下，发登录信息之前就断开'),
                     ),
                     const Divider(height: 1),
                     SwitchListTile(

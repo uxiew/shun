@@ -599,7 +599,10 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         _AdvancedGroup(
           id: 'timeouts',
           title: '超时与保活',
-          hint: '一般不用改。网络很慢、经多跳代理时连接总超时，再把超时调大。',
+          // Mosh 只在启动 mosh-server 那段用 SSH，之后的 UDP 会话自己保活：这三项管不到它。
+          hint: protocol == HostProtocol.mosh
+              ? '只管启动 mosh-server 前那段 SSH 登录；之后的 Mosh 会话自己保活，不用这里的值。'
+              : '一般不用改。网络很慢、经多跳代理时连接总超时，再把超时调大。',
           filled: _timeoutsFilled,
           expanded: _expanded.contains('timeouts'),
           onToggle: () => _toggle('timeouts'),

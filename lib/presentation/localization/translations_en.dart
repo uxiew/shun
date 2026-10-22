@@ -620,8 +620,8 @@ const englishTranslations = <String, String>{
   '安全': 'Security',
   '系统安全存储': 'System secure storage',
   '服务器身份验证': 'Server identity verification',
-  '每次首次连接显示 SHA-256 主机指纹':
-      'Show the SHA-256 host fingerprint on every first connection',
+  '第一次连时让你核对 SHA-256 指纹；以后指纹变了直接拦下，发登录信息之前就断开':
+      'The first connection asks you to check the SHA-256 fingerprint; if it changes later the connection is stopped before any login data is sent',
   '关于与更新': 'About & updates',
   '自动检查 GitHub 上的最新正式版本': 'Automatically check the latest GitHub release',
   '语言': 'Language',
@@ -2431,6 +2431,8 @@ const englishTranslations = <String, String>{
       'Automatic (no saved key or password; you are asked when logging in)',
   // R25 第四部分：私钥列表删除前先问。
   '删除私钥': 'Delete private key',
+  '只管启动 mosh-server 前那段 SSH 登录；之后的 Mosh 会话自己保活，不用这里的值。':
+      'These only apply to the SSH login that starts mosh-server; the Mosh session afterwards keeps itself alive and ignores them.',
   '没有主机在用它。删了不能撤销。': 'No host uses it. This cannot be undone.',
 };
 
