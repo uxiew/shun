@@ -67,6 +67,18 @@ final class LinkInteraction extends ChangeNotifier {
   LinkInteraction({LinkResolver? resolver})
     : _resolver = resolver ?? LinkResolver();
 
+  var _disposed = false;
+
+  /// shun: 视图被搬家（GlobalKey 移动，比如 Android 预测性返回时底下的页面）时，渲染对象重新 attach 的那一下
+  /// 还拿着上一个视图连接里已经销毁的这个对象，靠它跳过，见 `TerminalRenderBox.attach`。
+  bool get isDisposed => _disposed;
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
+
   CellRange? get highlighted {
     _refreshHoverIfNeeded();
     return _highlighted;

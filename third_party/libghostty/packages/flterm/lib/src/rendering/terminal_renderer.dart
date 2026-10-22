@@ -455,7 +455,12 @@ final class TerminalRenderBox extends RenderBox
     super.attach(owner);
     _viewport.offset.addListener(_onScroll);
     _frameChanges.addListener(_onFrameChanged);
-    _links?.addListener(_onLinksChanged);
+    // shun: 视图被搬家时 State.activate 先换了新的视图连接、销毁了旧的 links，这里却在重建把新 links 交进来
+    // 之前就被调。给已销毁的加监听，调试包断言失败，搬家半路中断，整页从路由上脱落、黑屏。
+    // 跳过它就行：同一帧的重建会走 `links` 的 setter，把监听挂到新的上。
+    if (_links case final links? when !links.isDisposed) {
+      links.addListener(_onLinksChanged);
+    }
     markNeedsLayout();
   }
 
