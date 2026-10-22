@@ -84,8 +84,9 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 - 守卫是进程级单例（`SensitiveScreenGuard.instance`），`SecretContent` 不经 Riverpod：密码对话框从哪里弹都行。以前试过走 Provider，结果「守卫 → 设置 → 保险库」一条链，没替换保险库的地方一弹 sudo 框就报 `No ProviderScope found` 或保险库未初始化。
 - Activity 重建（开着会话时从最近任务划掉再打开、系统回收界面、「不保留活动」）时新窗口不带标志，Dart 那边停在哪页没变、不会再说一次，所以标志的状态放在跟引擎同寿命的 `WindowSecurityChannel` 里，`MainActivity.configureFlutterEngine` 调 `ProcessEngine.applyWindowSecurity` 重新套上。转屏不换 Activity。
 - 边界：只有 Android，iOS 不让 App 拦截屏（`PlatformWindowSecurity` 在别的平台什么都不做）。Dart 到平台通道是异步的，标志比页面晚到一点：实测从「选择连接类型」点进新建连接页，录屏录到 2 帧（前后约 30 ms）滑入中的页面，之后全黑。这时框是空的、密码默认打码，录到的只有名称、地址这类不算秘密的东西。退出时没有这个问题：`SecretContent` 要等退场动画放完、被销毁时才撤标志。
+- 各系统「挡住」的样子不同，测的时候别只看报没报错：Android 11 上 `adb shell screencap` 退出码 1、0 字节，系统截屏不出文件；Android 17（Pixel 9 Pro，10-22）上 `screencap` 退出码 0、系统截屏照常存图也不提示，只是 App 区域（连同弹着的输入法）全黑。判断用 App 区域的非黑像素比例。最近任务在 Android 17 上刚上滑时显示实时窗口，系统存的缩略图是黑的。
 
-**输入法学习**。带 `obscureText:` 的框都写 `enableIMEPersonalizedLearning: false`、`enableSuggestions: false`、`autocorrect: false`（Tailscale 目录的通用对话框按字段的 `secret` 取反）。第一项在 Android 上变成 `IME_FLAG_NO_PERSONALIZED_LEARNING`（Android 8.0 起才有），输入法自己决定守不守。模拟器上只核对了标志确实发出去了（`adb shell dumpsys input_method` 的 `mInputEditorInfo`：密码框 `imeOptions=0x3000006`，带 0x1000000；同页的名称框是 `0x2000006`，不带）；Gboard、微信输入法到底记没记没验，Gboard 对密码类型的框本来就不学，从外面看不出这个标志的作用。打码的框 Android 本来就按密码类型交给输入法，点小眼睛切成明文就不是了，所以这三项要写死，不跟着 `obscureText` 变。
+**输入法学习**。带 `obscureText:` 的框都写 `enableIMEPersonalizedLearning: false`、`enableSuggestions: false`、`autocorrect: false`（Tailscale 目录的通用对话框按字段的 `secret` 取反）。第一项在 Android 上变成 `IME_FLAG_NO_PERSONALIZED_LEARNING`（Android 8.0 起才有），输入法自己决定守不守。模拟器和真机上都核对了标志确实发出去了（`adb shell dumpsys input_method` 的 `mInputEditorInfo`，Android 17 上叫 `curEditorInfo`：密码框 `imeOptions=0x3000006`，带 0x1000000；点小眼睛后 `inputType=0x80091` 仍带；同页的名称框是 `0x2000006`，不带）。输入法到底记没记验不出来：Gboard 对密码类型的框本来就不学；微信输入法在 Pixel 上连普通框里的新词（英文连打三遍、中文逐字选的自造词）也不联想，对照组是阴性，密码框里的词没被联想出来也就说明不了标志有用（evidence/R44.md）。打码的框 Android 本来就按密码类型交给输入法，点小眼睛切成明文就不是了，所以这三项要写死，不跟着 `obscureText` 变。
 
 新加的密码框漏写这三项，或者有密码框的文件没用 `SecretContent`：`test/secret_content_test.dart` 的「源码里的约定」两条会红。只在别处被包着的组件（现在只有 `github_manual_config.dart`）写进那里的 `coveredElsewhere`，写清楚是谁包的。
 
@@ -206,7 +207,7 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 
 **Android 侧**：主 App 自己写的 Kotlin 里只有 `PluginBridge.kt` 打日志（TAG `ShunPlugins`），只记两类：被丢掉的会话事件、身份核对没过的插件回调。`UuRemoteBridge.kt` 注释写明不打日志：回调地址里有 UU 的加密设备标识。Mosh 插件（TAG `ShunMosh`）只记 pid、退出码和拒绝原因，不记 key。
 
-**防截屏**：没有 `FLAG_SECURE`。填密码、私钥的页面能被截屏，也会出现在最近任务的缩略图里。这是计划里的 R44，还没做。
+**防截屏**：见上面 1.5 节（R44）。
 
 **测试**：`test/vault_secrets_test.dart`（「HostProfile.toString 只有 id、名称、协议」「连不上时的报错不带密码和代理口令」）、`test/socks5_hardening_test.dart`（「口令错误：说清是认证失败，报错里没有口令」「ProxyEntry 打印出来不含口令」）、`test/mosh_bootstrap_test.dart`（「错误信息从不带原始输出和 key」）、`test/tailscale_catalog_test.dart`、`test/ai_phase_one_test.dart`（「redaction masks identity, credentials and private key blocks」）。
 
