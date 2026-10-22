@@ -206,6 +206,11 @@ flutter test test/integration_ssh_fixture_test.dart
   - 插件已有会话时进出连接测试、会话测试不断开它（X12，`integration_test/x12_plugin_reuse_test.dart`）：同上关 Wi-Fi、装 Mosh 插件，
     另装 `plugins/out/echo-author.apk`，`--dart-define=X09_MOSH=…` 照上面取，约 25 秒（不算构建）。测试不 pkill、只看前后差值，
     别人开着的 mosh-server 不受影响。报告行以 `X12 ` 开头。
+  - 换网、断网、后台、Doze、各种崩溃和停止（X10，`integration_test/x10_mosh_lifecycle_test.dart`）：只经 `tool/x10-mosh.sh` 跑，
+    它自己开关 Wi-Fi 和蜂窝数据、加 adb reverse、按测试的请求点通知和弄崩进程，收尾时把网络开回来（不用先手动关 Wi-Fi）。
+    场景和用法见脚本开头。大致时长（不算构建）：`roam` 5 分钟、`life` 6 分钟、`hostkill` 2 分钟（第一次要先编正式 debug 包）、
+    `doze` 2 分钟、`socks` 2 分钟（要另起 `tool/fixture-environment`）、`cycles` 100 轮 2.5 分钟。只在模拟器上跑，序列号不是 `emulator-*` 就拒绝。
+    摘要和每步的 dumpsys 在 `../.toolchain/artifacts/x10-<提交>/`。
 
 ### R40 路线编辑设备回归
 
@@ -431,6 +436,16 @@ Android SDK 在 `../.toolchain/android-sdk`（3.3 GB）：`build-tools`、`cmake
   它的 WINCH trap 不记数（R25 第一次跑全是 0）。在前台跑一个只数 SIGWINCH 的 bash 往文件里记（`r25_input_panel_test.dart` 第 4 段）。
 - **页面测试结束时报 `A Timer is still pending`，挂在 `_sendSize` 的 100ms 定时器上**：面板换回系统键盘后要给键盘空 700ms 的位置，
   到点终端变高、再发一次尺寸、再起一个 100ms 的合并定时器。测试里每步之后至少等 1.2 秒（`terminal_input_panel_test.dart` 的 `settle`）。
+- **`shun-r39-a30` 上 `svc wifi enable` 之后 Wi-Fi 一直是「not connected」**（X10 撞上的，等 40 秒也一样）：这台 API 30 镜像不会自己连回 AndroidWifi，
+  看着像切到了 Wi-Fi，其实默认网络还在蜂窝上。再 `adb shell cmd wifi connect-network AndroidWifi open` 就连上；
+  用 `dumpsys connectivity | grep 'Active default network'` 核对。R22 当时的 API 35 镜像会自己连。
+- **`adb shell run-as <包> kill -9 <进程>` 返回 1、进程还在**（X10，`shun-r39-a30`）：logcat 里 `avc: denied { sigkill } … runas_app → untrusted_app`，
+  这台镜像的 SELinux 不让 run-as 给应用进程发 SIGKILL（X09 在 API 35 上能杀）。普通信号放行：要「原生崩溃」发 `kill -SEGV`，
+  要「App 崩溃」用 `adb shell am crash <包>`（进程报一次 `RemoteServiceException: shell-induced crash` 退出）。
+- **用 App 自己的 uid 停它的服务（`run-as <包> am stopservice …`）报 `asks to run as user -2 … requires INTERACT_ACROSS_USERS`**：
+  加 `--user 0`。不加的话命令看着跑了，服务其实没停（没有 root 时想模拟「系统停掉服务」就用这个）。
+- **设备测试中途把 App 杀了（测进程被杀后放回标签那类），之后 App 数据没了**：`flutter test` 发现 App 死了会顺手卸掉它。
+  用 `flutter drive --driver test_driver/integration_test.dart --target … --keep-app-running`（`tool/r22-lifecycle.sh` 的 restore、`tool/x10-mosh.sh` 的 hostkill）。
 - **Android 8.1 及更早的模拟器上 `adb logcat -c` 清不掉日志**（8.0 直接报 `failed to clear the 'main' log`）：
   按日志核对结果时别依赖清空，按"操作前已有几行"截取（`spikes/terminal_spike/tool/adb_key_check.sh` 就是这么做的）。
 
