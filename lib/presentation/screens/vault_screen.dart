@@ -14,10 +14,11 @@ import '../../application/settings_controller.dart';
 import '../../application/tailscale_catalog_refresh.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/ai_cli_identity.dart';
+import '../../domain/connection_route.dart';
+import '../../domain/host_summary.dart';
 import '../../domain/models/host.dart';
 import '../../domain/ai_cli_work.dart';
 import '../../domain/plugins/plugin_host.dart';
-import '../../domain/tailscale_ssh.dart';
 import '../../application/home_navigation.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/host_editor.dart';
@@ -32,6 +33,7 @@ import '../widgets/connection_prompts.dart';
 import '../widgets/host_actions_sheet.dart';
 import '../widgets/host_system_icon.dart';
 import '../widgets/port_forward_sheet.dart';
+import '../widgets/route_legs_view.dart';
 import '../widgets/server_monitor_sheet.dart';
 import '../widgets/vault_host_items.dart';
 import 'rustdesk_screen.dart';
@@ -478,18 +480,13 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
           (value) => value?.id == host.identityFileId,
           orElse: () => null,
         );
-    final jumps = host.hostChainIds
-        .map((id) => vault.hosts.cast<HostProfile?>().firstWhere(
-              (value) => value?.id == id,
-              orElse: () => null,
-            ))
-        .whereType<HostProfile>()
-        .toList();
-    final profile = vault.proxyProfiles.cast<ProxyProfile?>().firstWhere(
-          (value) => value?.id == host.proxyProfileId,
-          orElse: () => null,
-        );
-    final proxy = profile?.config ?? host.proxyConfig;
+    final login = describeLogin(host, key);
+    final route = host.protocol == HostProtocol.plugin
+        ? null
+        : hostRouteStatus(host,
+            hosts: vault.hosts,
+            proxyProfiles: vault.proxyProfiles,
+            keys: vault.keys);
     final action = await showDialog<_HostAction>(
       context: context,
       builder: (context) => AlertDialog(
@@ -503,9 +500,14 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
               _DetailRow(
                 icon: Icons.link,
                 label: '连接地址',
-                value: host.protocol == HostProtocol.plugin
-                    ? pluginHostEndpoint(host)
-                    : '${host.protocol.name.toUpperCase()}  ${host.username}@${host.hostname}:${host.port}',
+                value: switch (host.protocol) {
+                  HostProtocol.plugin => pluginHostEndpoint(host),
+                  // Telnet 不填用户名，拼上去就成了「@host」。
+                  HostProtocol.telnet =>
+                    'TELNET  ${host.hostname}:${host.port}',
+                  _ =>
+                    '${host.protocol.name.toUpperCase()}  ${host.username}@${host.hostname}:${host.port}',
+                },
               ),
               if (host.systemInfo != null)
                 _DetailRow(
@@ -519,30 +521,25 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                       '${host.systemInfo!.cores} 核',
                   ].join(' · '),
                 ),
-              if (host.protocol != HostProtocol.plugin)
+              if (login != null)
                 _DetailRow(
+                  key: const ValueKey('host-detail-login'),
                   icon: Icons.key_outlined,
                   label: '认证',
-                  value: sshLoginModeOf(host) == SshLoginMode.tailscale
-                      ? 'Tailscale SSH（不发密码和私钥）'
-                      : key == null
-                          ? (host.password?.isNotEmpty == true
-                              ? '密码'
-                              : '自动 / 交互式')
-                          : '私钥 · ${key.label}',
+                  value: login,
                 ),
-              if (jumps.isNotEmpty)
+              // 和编辑器预览、测试连接、失败页是同一份路线；算不出来就显示连接时会报的那句，
+              // 不写「直连」：引用的代理、跳板被删了，连接不会退回直连。
+              if (route != null)
                 _DetailRow(
+                  key: const ValueKey('host-detail-route'),
                   icon: Icons.alt_route,
-                  label: '跳板机',
-                  value: jumps.map((value) => value.label).join(' → '),
-                ),
-              if (proxy != null)
-                _DetailRow(
-                  icon: Icons.public,
-                  label: '代理',
-                  value:
-                      '${_proxyTypeLabel(proxy)} · ${proxy.host}:${proxy.port}',
+                  label: '路线',
+                  value: route.error ?? (_isDirect(route.plan!) ? '直连' : ''),
+                  error: route.error != null,
+                  child: route.error == null && !_isDirect(route.plan!)
+                      ? RouteLegsView(plan: route.plan!, dense: true)
+                      : null,
                 ),
               if (host.group?.isNotEmpty == true)
                 _DetailRow(
@@ -912,16 +909,29 @@ class _VaultGroupChip extends StatelessWidget {
 
 enum _HostAction { connect, edit, aiCli }
 
+/// 没经代理、没有跳板：路线就是「手机 → 目标」，和上面的连接地址重复，只写「直连」。
+bool _isDirect(RoutePlan plan) =>
+    plan.entry is DirectEntry && plan.jumps.isEmpty;
+
 class _DetailRow extends StatelessWidget {
   const _DetailRow({
+    super.key,
     required this.icon,
     required this.label,
     required this.value,
+    this.error = false,
+    this.child,
   });
 
   final IconData icon;
   final String label;
   final String value;
+
+  /// [value] 是连接时会报的错，用错误色。
+  final bool error;
+
+  /// 有就显示它，不显示 [value]。
+  final Widget? child;
 
   @override
   Widget build(BuildContext context) => Padding(
@@ -938,12 +948,16 @@ class _DetailRow extends StatelessWidget {
                 style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
-            Expanded(child: LSelectableText(value)),
+            Expanded(
+              child: child ??
+                  LSelectableText(
+                    value,
+                    style: error
+                        ? TextStyle(color: Theme.of(context).colorScheme.error)
+                        : null,
+                  ),
+            ),
           ],
         ),
       );
 }
-
-/// 未识别的代理类型也要如实显示，而不是显示成 HTTP。
-String _proxyTypeLabel(ProxyConfig proxy) =>
-    (proxy.type?.name ?? proxy.rawType ?? '未知').toUpperCase();

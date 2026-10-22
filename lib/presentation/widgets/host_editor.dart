@@ -12,6 +12,7 @@ import '../../application/plugin_registry.dart';
 import '../../application/tailscale_catalog_refresh.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/connection_route.dart';
+import '../../domain/host_summary.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/vault.dart';
 import '../../domain/plugins/mosh_route.dart';
@@ -1149,40 +1150,29 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         warnings: const [],
       );
     }
-    final draft = _draft();
-    try {
-      final plan = resolveRoutePlan(
-        draft,
-        hosts: vault.hosts,
-        proxyProfiles: vault.proxyProfiles,
-        keys: vault.keys,
-      );
-      // Mosh 只能直连：存下来也连不上，保存前就拦住（docs/02：不支持的路线不让保存）。
-      // 从桌面端同步来的、已经配了代理的 Mosh 主机，连接时同样在任何网络动作之前拒绝。
-      if (plan.protocol == HostProtocol.mosh) {
-        final unsupported = moshRouteProblem(plan);
-        if (unsupported != null) {
-          return (
-            plan: plan,
-            error: unsupported.toString(),
-            warnings: const []
-          );
-        }
-      }
-      final warnings = <String>[];
-      final entry = plan.entry;
-      if (entry is ProxyEntry) {
-        final first = plan.hops.first.endpoint;
-        if (entry.endpoint.sameAs(first)) {
-          warnings.add('代理的地址和端口与要连的 SSH 服务完全一样，可能把两者填混了。');
-        } else if (entry.endpoint.port == 22) {
-          warnings.add('代理端口填的是 22（SSH 的默认端口），确认没有把 SSH 端口填到代理这里。');
-        }
-      }
-      return (plan: plan, error: null, warnings: warnings);
-    } on RouteConfigException catch (error) {
-      return (plan: null, error: error.message, warnings: const []);
+    // 和主机详情、真正连接用同一套路线计算。Mosh 配了代理、跳板在这里就报错：存下来也连不上，
+    // 保存前就拦住（docs/02：不支持的路线不让保存）。
+    final status = hostRouteStatus(
+      _draft(),
+      hosts: vault.hosts,
+      proxyProfiles: vault.proxyProfiles,
+      keys: vault.keys,
+    );
+    final plan = status.plan;
+    if (status.error != null || plan == null) {
+      return (plan: plan, error: status.error, warnings: const []);
     }
+    final warnings = <String>[];
+    final entry = plan.entry;
+    if (entry is ProxyEntry) {
+      final first = plan.hops.first.endpoint;
+      if (entry.endpoint.sameAs(first)) {
+        warnings.add('代理的地址和端口与要连的 SSH 服务完全一样，可能把两者填混了。');
+      } else if (entry.endpoint.port == 22) {
+        warnings.add('代理端口填的是 22（SSH 的默认端口），确认没有把 SSH 端口填到代理这里。');
+      }
+    }
+    return (plan: plan, error: null, warnings: warnings);
   }
 
   Widget _routePreview(

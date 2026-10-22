@@ -2419,11 +2419,26 @@ const englishTranslations = <String, String>{
       'Connection stages, times and failure points for each host over the last 7 days; kept only on this phone, without addresses or credentials. Export or clear it here',
   '最近 7 天每次连接走到哪一步、用了多久、失败在哪':
       'How far each connection got in the last 7 days, how long it took, where it failed',
+  // R25 第四部分：主机详情的认证一行（host_summary.dart 的 describeLogin）。带私钥名字的几句在片段表。
+  '密码（没保存，登录时问你）': 'Password (not saved; you are asked when logging in)',
+  '保存的密码': 'the saved password',
+  '私钥（引用的私钥已不存在，连接会被拒绝）':
+      'Private key (the referenced key no longer exists, so connecting is refused)',
+  '自动（没保存私钥和密码，登录时问你）':
+      'Automatic (no saved key or password; you are asked when logging in)',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
+  // R25 第四部分：主机详情的认证一行，「自动：先试私钥“k”，再试保存的密码，都不行再问你」。
+  // 放最前面、带上前后文：单独的「保存的密码」会把「已保存的密码、私钥留着不用」那句先拆碎。
+  ('自动：先试私钥“', 'Automatic: try private key “'),
+  ('自动：先试保存的密码', 'Automatic: try the saved password'),
+  ('，再试保存的密码', ', then the saved password'),
+  ('自动：先试', 'Automatic: try '),
+  ('，都不行再问你', ', and if none works you are asked'),
+  ('私钥“', 'Private key “'),
   // R24：借用的 SSH 连接断了（ssh_lease.dart）。主机名、路径是运行时才知道的，整句放最前面，
   // 免得被后面的「连接」「删除」「目录」这些单词先拆碎。动作里的路径一律放在「」里。
   (
