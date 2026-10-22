@@ -71,6 +71,16 @@ const _compactTerminalHeight = 480.0;
 /// 标签条 52dp 加两行快捷键会把终端挤成 0 行，远端还停在旧尺寸（R17 发现的问题 1）。
 const _tightTerminalHeight = 260.0;
 
+/// 标签名最宽多少，超出的显示省略号（读屏照样读全名）。竖屏时标签条只剩 240dp 左右，
+/// 以前「测试环境（本机 Docker）#1」这样的名字一个标签就撑满，× 有一半在外面，
+/// 真机上只剩 23dp 能点，得先滑标签条（UX02）。
+const _tabLabelMaxWidth = 140.0;
+
+Widget _tabLabel(String text) => ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: _tabLabelMaxWidth),
+      child: LText(text, maxLines: 1, overflow: TextOverflow.ellipsis),
+    );
+
 class _TerminalScreenState extends ConsumerState<TerminalScreen>
     with _TerminalInputHost {
   var _split = false;
@@ -317,7 +327,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                                   strokeWidth: 2,
                                                 ),
                                               ),
-                                        label: LText(
+                                        label: _tabLabel(
                                           duplicateCount > 1
                                               ? '${host.label} #$occurrence'
                                               : host.label,
@@ -376,7 +386,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                         // 默认引擎不标；用设置里选的实验引擎开的标签标出来，
                                         // 改了设置以后哪个标签用的是哪个引擎一眼能看出来。
                                         // 插件主机的标签标出插件名（X12）：一眼看出这个标签由哪个插件承载。
-                                        label: LText(
+                                        label: _tabLabel(
                                           '${duplicateCount > 1 ? '${session.host.label} #$occurrence' : session.host.label}'
                                           '${session.host.protocol == HostProtocol.plugin && session.plugin != null ? ' · ${session.plugin!.protocol}' : ''}'
                                           '${session.terminal.engine == terminalEngineName ? '' : ' · ${session.terminal.engine}'}',

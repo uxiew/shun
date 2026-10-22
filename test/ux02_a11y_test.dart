@@ -20,13 +20,13 @@ import 'support/test_terminal.dart';
 /// UX02 在真机（Pixel 9 Pro、TalkBack）上查出来的几处：断线、重连不播报；标签的 × 读成「删除」、
 /// 只有 43dp；主机卡片的「更多操作」40dp；断线横幅半透明，和下面终端里的字叠在一起。
 void main() {
-  ActiveTerminalSession tab(String id, {String label = 'box'}) {
+  ActiveTerminalSession tab(String id, {String label = 'box', String? hostId}) {
     final terminal = newTestTerminal();
     addTearDown(terminal.dispose);
     return ActiveTerminalSession(
       id: id,
       host: HostProfile({
-        'id': 'h-$id',
+        'id': hostId ?? 'h-$id',
         'label': label,
         'hostname': 'box.example.com',
         'port': 22,
@@ -129,6 +129,26 @@ void main() {
       expect(find.byTooltip('删除'), findsNothing);
       final node = tester.getSemantics(close);
       expect(node.tooltip, '关闭标签“box”');
+      handle.dispose();
+    });
+
+    testWidgets('名字很长也不把 × 挤出标签条：标签名超宽显示省略号，读屏读全名', (tester) async {
+      final handle = tester.ensureSemantics();
+      // 真机上就是这个名字：两个同主机的标签，第一个叫「……#1」，× 只露出 23dp。
+      const name = '测试环境（本机 Docker）';
+      await open(tester, [
+        tab('a', label: name, hostId: 'same'),
+        tab('b', label: name, hostId: 'same'),
+      ]);
+      final strip = tester.getRect(find
+          .descendant(
+              of: find.byKey(const ValueKey('terminal-tab-strip')),
+              matching: find.byType(Scrollable))
+          .first);
+      final close = tester.getRect(find.byTooltip('关闭标签“$name”').first);
+      expect(close.right, lessThanOrEqualTo(strip.right),
+          reason: '× $close，标签条 $strip');
+      expect(find.bySemanticsLabel(RegExp('$name #1')), findsOneWidget);
       handle.dispose();
     });
 
