@@ -370,52 +370,74 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         }),
       );
 
+  /// 只显示选的认证方式登录时真会发的：选「密码」不发私钥、选「私钥」不发密码（`ssh_identity.dart`、
+  /// `ssh_service.dart` 的 `onPasswordRequest`）。以前两个框一直都在，选了「密码」还能挑私钥、存下来却从不用。
+  /// 藏起来的那个值不清：改回「自动」照常用，和切 Tailscale SSH 时一样。
   List<Widget> _credentialFields(List<SshKeyProfile> keys) => [
-        TextFormField(
-          controller: password,
-          obscureText: obscurePassword,
-          // 点小眼睛改成明文时也不让输入法学、不联想（R44）。
-          enableIMEPersonalizedLearning: false,
-          enableSuggestions: false,
-          autocorrect: false,
-          decoration: LInputDecoration(
-            labelText: '密码（可选）',
-            suffixIcon: IconButton(
-              onPressed: () =>
-                  setState(() => obscurePassword = !obscurePassword),
-              tooltip: localized('显示或隐藏密码'),
-              icon: Icon(
-                obscurePassword ? Icons.visibility : Icons.visibility_off,
-              ),
-            ),
-          ),
-        ),
-        const SizedBox(height: 12),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            Expanded(
-              child: DropdownButtonFormField<String>(
-                initialValue: identityFileId,
-                decoration: LInputDecoration(labelText: 'SSH 私钥'),
-                items: [
-                  const DropdownMenuItem(value: '', child: LText('不指定')),
-                  for (final key in keys)
-                    DropdownMenuItem(value: key.id, child: LText(key.label)),
-                ],
-                onChanged: (value) => setState(
-                  () => identityFileId = value?.isEmpty == true ? null : value,
+        if (authMethod == HostAuthMethod.key)
+          if (password.text.isNotEmpty)
+            const LText(
+              '选了「私钥」：登录时不发密码。已保存的密码留着，改回「自动」或「密码」时照常使用。',
+              key: ValueKey('auth-password-unused'),
+            )
+          else
+            const SizedBox.shrink()
+        else
+          TextFormField(
+            controller: password,
+            obscureText: obscurePassword,
+            // 点小眼睛改成明文时也不让输入法学、不联想（R44）。
+            enableIMEPersonalizedLearning: false,
+            enableSuggestions: false,
+            autocorrect: false,
+            decoration: LInputDecoration(
+              labelText: '密码（可选）',
+              suffixIcon: IconButton(
+                onPressed: () =>
+                    setState(() => obscurePassword = !obscurePassword),
+                tooltip: localized('显示或隐藏密码'),
+                icon: Icon(
+                  obscurePassword ? Icons.visibility : Icons.visibility_off,
                 ),
               ),
             ),
-            const SizedBox(width: 8),
-            IconButton.filledTonal(
-              tooltip: localized('管理私钥'),
-              onPressed: _openKeychain,
-              icon: const Icon(Icons.key_outlined),
-            ),
-          ],
-        ),
+          ),
+        const SizedBox(height: 12),
+        if (authMethod == HostAuthMethod.password)
+          if (identityFileId != null)
+            const LText(
+              '选了「密码」：登录时不发私钥。已选的私钥留着，改回「自动」或「私钥」时照常使用。',
+              key: ValueKey('auth-key-unused'),
+            )
+          else
+            const SizedBox.shrink()
+        else
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: DropdownButtonFormField<String>(
+                  initialValue: identityFileId,
+                  decoration: LInputDecoration(labelText: 'SSH 私钥'),
+                  items: [
+                    const DropdownMenuItem(value: '', child: LText('不指定')),
+                    for (final key in keys)
+                      DropdownMenuItem(value: key.id, child: LText(key.label)),
+                  ],
+                  onChanged: (value) => setState(
+                    () =>
+                        identityFileId = value?.isEmpty == true ? null : value,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 8),
+              IconButton.filledTonal(
+                tooltip: localized('管理私钥'),
+                onPressed: _openKeychain,
+                icon: const Icon(Icons.key_outlined),
+              ),
+            ],
+          ),
         if (authMethod == HostAuthMethod.key && identityFileId == null)
           const Padding(
             padding: EdgeInsets.only(top: 6),

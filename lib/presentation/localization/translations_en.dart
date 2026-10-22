@@ -2422,6 +2422,10 @@ const englishTranslations = <String, String>{
   // R25 第四部分：主机详情的认证一行（host_summary.dart 的 describeLogin）。带私钥名字的几句在片段表。
   '密码（没保存，登录时问你）': 'Password (not saved; you are asked when logging in)',
   '保存的密码': 'the saved password',
+  '选了「私钥」：登录时不发密码。已保存的密码留着，改回「自动」或「密码」时照常使用。':
+      'With “Private key”, no password is sent when logging in. The saved password is kept and used again if you switch back to “Automatic” or “Password”.',
+  '选了「密码」：登录时不发私钥。已选的私钥留着，改回「自动」或「私钥」时照常使用。':
+      'With “Password”, no private key is sent when logging in. The chosen key is kept and used again if you switch back to “Automatic” or “Private key”.',
   '私钥（引用的私钥已不存在，连接会被拒绝）':
       'Private key (the referenced key no longer exists, so connecting is refused)',
   '自动（没保存私钥和密码，登录时问你）':
