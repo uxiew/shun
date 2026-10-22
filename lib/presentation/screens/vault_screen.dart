@@ -6,6 +6,7 @@ import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/catalog_overview.dart';
+import '../../application/fork_features.dart';
 import '../../application/connection_events.dart';
 import '../../application/connection_switch.dart';
 import '../../application/host_actions.dart';
@@ -849,7 +850,10 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
           builder: (context) => AlertDialog(
             icon: const Icon(Icons.delete_outline),
             title: const LText('删除服务器？'),
-            content: LText('将从保险库中删除“${host.label}”，此操作可通过云同步传播到其他设备。'),
+            // 云同步默认关着（ForkFeatures）：关着时不说「会传到其他设备」，那句是上游留下的。
+            content: LText(ref.read(forkFeaturesProvider).cloudSync
+                ? '将从保险库中删除“${host.label}”，此操作可通过云同步传播到其他设备。'
+                : '将从保险库中删除“${host.label}”，删了不能撤销。'),
             actions: [
               TextButton(
                 onPressed: () => Navigator.pop(context, false),

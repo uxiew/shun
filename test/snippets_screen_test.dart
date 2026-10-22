@@ -43,8 +43,9 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('删除命令片段？'), findsOneWidget);
+    // 云同步默认关着：不说「会传到其他设备」（R25）。
     expect(
-      find.text('将删除“Disk usage”，此操作可通过云同步传播到其他设备。'),
+      find.text('将删除“Disk usage”，删了不能撤销。'),
       findsOneWidget,
     );
     await tester.tap(find.byKey(const ValueKey('confirm-delete-snippet')));

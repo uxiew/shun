@@ -3,6 +3,7 @@ import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../application/fork_features.dart';
 import '../../application/session_controller.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/models/host.dart';
@@ -221,8 +222,11 @@ class SnippetsScreen extends ConsumerWidget {
               color: Theme.of(context).colorScheme.error,
             ),
             title: const LText('删除命令片段？'),
+            // 云同步默认关着（ForkFeatures）：关着时不说「会传到其他设备」。
             content: LText(
-              '将删除“${snippet.label}”，此操作可通过云同步传播到其他设备。',
+              ref.read(forkFeaturesProvider).cloudSync
+                  ? '将删除“${snippet.label}”，此操作可通过云同步传播到其他设备。'
+                  : '将删除“${snippet.label}”，删了不能撤销。',
             ),
             actions: [
               TextButton(

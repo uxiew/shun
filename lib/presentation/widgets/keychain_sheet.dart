@@ -9,6 +9,7 @@ import 'package:uuid/uuid.dart';
 
 import '../../application/vault_controller.dart';
 import '../../domain/models/host.dart';
+import '../../domain/ssh_key_type.dart';
 import 'secret_content.dart';
 
 class KeychainSheet extends ConsumerWidget {
@@ -28,6 +29,7 @@ class KeychainSheet extends ConsumerWidget {
           title: const LText('SSH 密钥'),
           actions: [
             IconButton(
+              tooltip: localized('导入私钥'),
               onPressed: () => _import(context, ref),
               icon: const Icon(Icons.add),
             ),
@@ -54,23 +56,58 @@ class KeychainSheet extends ConsumerWidget {
                       key.data['type']?.toString() ?? 'OpenSSH / PEM',
                     ),
                     trailing: IconButton(
-                      onPressed: () async {
-                        final controller =
-                            ref.read(vaultControllerProvider.notifier);
-                        final current = await controller.ready();
-                        await controller.replace(
-                          current.copyWith(
-                            keys: current.keys
-                                .where((value) => value.id != key.id)
-                                .toList(),
-                          ),
-                        );
-                      },
+                      key: ValueKey('keychain-delete-${key.id}'),
+                      tooltip: localized('删除私钥'),
+                      onPressed: () => _delete(context, ref, key),
                       icon: const Icon(Icons.delete_outline),
                     ),
                   );
                 },
               ),
+      ),
+    );
+  }
+
+  /// 先问再删，并写出哪些主机在用它。以前点一下就删：选了「私钥」的主机从此连不上，
+  /// 下次打开编辑器时旧引用又被悄悄清掉，用户不知道发生了什么。
+  Future<void> _delete(
+    BuildContext context,
+    WidgetRef ref,
+    SshKeyProfile key,
+  ) async {
+    final controller = ref.read(vaultControllerProvider.notifier);
+    final vault = await controller.ready();
+    final users = vault.hosts
+        .where((host) => host.identityFileId == key.id)
+        .map((host) => host.label)
+        .toList();
+    if (!context.mounted) return;
+    final confirmed = await showDialog<bool>(
+          context: context,
+          builder: (context) => AlertDialog(
+            title: LText('删除私钥“${key.label}”？'),
+            content: LText(users.isEmpty
+                ? '没有主机在用它。删了不能撤销。'
+                : '这些主机在用它：${users.join('、')}。删了以后，其中认证方式选「私钥」的会连不上，要到编辑器里重新选一把；删了不能撤销。'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const LText('取消'),
+              ),
+              FilledButton(
+                key: const ValueKey('keychain-confirm-delete'),
+                onPressed: () => Navigator.pop(context, true),
+                child: const LText('删除'),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+    if (!confirmed) return;
+    final current = await controller.ready();
+    await controller.replace(
+      current.copyWith(
+        keys: current.keys.where((value) => value.id != key.id).toList(),
       ),
     );
   }
@@ -92,6 +129,7 @@ class KeychainSheet extends ConsumerWidget {
       }
       return;
     }
+    final type = sshKeyTypeOf(privateKey);
     final label = TextEditingController(text: file.name);
     final passphrase = TextEditingController();
     if (!context.mounted) return;
@@ -126,7 +164,8 @@ class KeychainSheet extends ConsumerWidget {
               SshKeyProfile({
                 'id': const Uuid().v4(),
                 'label': label.text.trim(),
-                'type': 'ED25519',
+                // 认不出就不写，列表里显示「OpenSSH / PEM」；以前一律写 ED25519。
+                if (type != null) 'type': type,
                 'privateKey': privateKey,
                 'passphrase': passphrase.text,
                 'savePassphrase': true,

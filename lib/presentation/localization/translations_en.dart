@@ -2429,6 +2429,9 @@ const englishTranslations = <String, String>{
       'Private key (the referenced key no longer exists, so connecting is refused)',
   '自动（没保存私钥和密码，登录时问你）':
       'Automatic (no saved key or password; you are asked when logging in)',
+  // R25 第四部分：私钥列表删除前先问。
+  '删除私钥': 'Delete private key',
+  '没有主机在用它。删了不能撤销。': 'No host uses it. This cannot be undone.',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
@@ -2441,6 +2444,14 @@ const englishReplacements = <(String, String)>[
   ('，再试保存的密码', ', then the saved password'),
   ('自动：先试', 'Automatic: try '),
   ('，都不行再问你', ', and if none works you are asked'),
+  // 私钥列表删除前问的那句，要在下面单独的「私钥“」之前。
+  ('删除私钥“', 'Delete private key “'),
+  ('”？', '”?'),
+  ('这些主机在用它：', 'These hosts use it: '),
+  (
+    '。删了以后，其中认证方式选「私钥」的会连不上，要到编辑器里重新选一把；删了不能撤销。',
+    '. After deleting, those set to “Private key” cannot connect until you pick another key in the editor. This cannot be undone.'
+  ),
   ('私钥“', 'Private key “'),
   // R24：借用的 SSH 连接断了（ssh_lease.dart）。主机名、路径是运行时才知道的，整句放最前面，
   // 免得被后面的「连接」「删除」「目录」这些单词先拆碎。动作里的路径一律放在「」里。
@@ -3915,6 +3926,7 @@ const englishReplacements = <(String, String)>[
   ('将从保险库中删除', 'Delete from the vault: '),
   ('将删除“', 'Delete “'),
   ('”，此操作可通过云同步传播到其他设备。', '”. This change can sync to other devices.'),
+  ('”，删了不能撤销。', '”. This cannot be undone.'),
   ('重新创建有变化的服务', 'recreate changed services'),
   ('使用当前镜像重新创建', 'recreate using the current image'),
   ('强制创建全部容器', 'force-recreate all containers'),
