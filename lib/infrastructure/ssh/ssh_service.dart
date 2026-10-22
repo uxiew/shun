@@ -1555,6 +1555,29 @@ class SshService {
     }
   }
 
+  /// 拨不通的原因，写清连的是哪个地址。认不出的原因照抄系统的话，但不带 SocketException 里的 port。
+  static String describeDialFailure(Endpoint endpoint, SocketException error,
+      {bool proxy = false}) {
+    final os = error.osError?.message ?? '';
+    final text = '${error.message} $os'.toLowerCase();
+    final why = text.contains('refused')
+        ? '对方拒绝连接：这个端口上没有程序在听，或者被防火墙拒了'
+        : text.contains('timed out')
+            ? '连接超时'
+            : text.contains('host lookup') ||
+                    text.contains('nodename') ||
+                    text.contains('name or service')
+                ? '域名解析失败'
+                : text.contains('no route')
+                    ? '没有到这个地址的路由'
+                    : text.contains('unreachable')
+                        ? '网络不通'
+                        : (os.isNotEmpty ? os : error.message);
+    // 单独一行：本地化覆盖测试按行找引号里的中文，引号套引号会把它绕糊涂。
+    final what = proxy ? '连不上代理' : '连不上地址';
+    return '$what ${endpoint.authority}：$why';
+  }
+
   static String _describeSshError(Object error) => switch (error) {
         SSHHostkeyError() ||
         SSHAuthAbortError(reason: SSHHostkeyError()) =>
@@ -1696,7 +1719,7 @@ class SshService {
       label: firstHop.host.label,
       detail: proxy.endpoint.authority,
     ));
-    final socket = await _dialWithin(proxy.endpoint, timeout);
+    final socket = await _dialWithin(proxy.endpoint, timeout, proxy: true);
     if (pending.isCancelled) {
       socket.destroy();
       throw const ConnectionCancelledException();
@@ -1723,7 +1746,12 @@ class SshService {
 
   /// TCP 拨号加一层硬期限：拨号器自己的 timeout 之外再兜底，注入的拨号器不守时也不会无限等（NET07）。
   /// 期限到了之后才连上的 socket 会被立刻关掉，不会漏成一条没人管的连接。
-  Future<Socket> _dialWithin(Endpoint endpoint, Duration timeout) {
+  ///
+  /// 拨不通时换成一句人话（R25 / UX04）：以前失败页上是 `SocketException` 原文，里面的 `port = 41432`
+  /// 是手机自己这头的随机端口，不是用户填的代理、SSH 端口，看了反而会去查错地方。
+  /// 异常类型跟着换成 [ConnectStageException]：失败归类、断线重试里它和 SocketException 本来就是一类。
+  Future<Socket> _dialWithin(Endpoint endpoint, Duration timeout,
+      {bool proxy = false}) {
     final attempt = _dial(endpoint.host, endpoint.port, timeout: timeout);
     return attempt.timeout(
       timeout,
@@ -1735,6 +1763,9 @@ class SshService {
           'TCP 连接超时（${endpoint.authority}，${timeout.inSeconds} 秒）',
         );
       },
+    ).onError<SocketException>(
+      (error, _) => throw ConnectStageException(
+          describeDialFailure(endpoint, error, proxy: proxy)),
     );
   }
 

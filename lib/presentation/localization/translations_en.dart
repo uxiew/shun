@@ -2431,6 +2431,14 @@ const englishTranslations = <String, String>{
       'Automatic (no saved key or password; you are asked when logging in)',
   // R25 第四部分：私钥列表删除前先问。
   '删除私钥': 'Delete private key',
+  // R25 / UX04：拨不通时的人话（ssh_service.dart 的 describeDialFailure）。整句在片段表。
+  '连不上代理': 'Cannot reach proxy',
+  '连不上地址': 'Cannot reach',
+  '对方拒绝连接：这个端口上没有程序在听，或者被防火墙拒了':
+      'connection refused; nothing is listening on that port, or a firewall rejected it',
+  '域名解析失败': 'name lookup failed',
+  '没有到这个地址的路由': 'no route to that address',
+  '网络不通': 'network unreachable',
   '只管启动 mosh-server 前那段 SSH 登录；之后的 Mosh 会话自己保活，不用这里的值。':
       'These only apply to the SSH login that starts mosh-server; the Mosh session afterwards keeps itself alive and ignores them.',
   '没有主机在用它。删了不能撤销。': 'No host uses it. This cannot be undone.',
@@ -2455,6 +2463,17 @@ const englishReplacements = <(String, String)>[
     '. After deleting, those set to “Private key” cannot connect until you pick another key in the editor. This cannot be undone.'
   ),
   ('私钥“', 'Private key “'),
+  // R25 / UX04：拨不通时的人话（ssh_service.dart 的 describeDialFailure）。地址是运行时才知道的。
+  ('连不上代理 ', 'cannot reach proxy '),
+  ('连不上地址 ', 'cannot reach '),
+  (
+    '：对方拒绝连接：这个端口上没有程序在听，或者被防火墙拒了',
+    ': connection refused; nothing is listening on that port, or a firewall rejected it'
+  ),
+  ('：域名解析失败', ': name lookup failed'),
+  ('：连接超时', ': connection timed out'),
+  ('：没有到这个地址的路由', ': no route to that address'),
+  ('：网络不通', ': network unreachable'),
   // R24：借用的 SSH 连接断了（ssh_lease.dart）。主机名、路径是运行时才知道的，整句放最前面，
   // 免得被后面的「连接」「删除」「目录」这些单词先拆碎。动作里的路径一律放在「」里。
   (

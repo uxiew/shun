@@ -151,6 +151,59 @@ void main() {
     });
   });
 
+  group('拨不通：写用户填的地址和人话原因，不甘 SocketException 原文（R25 / UX04）', () {
+    // 先占一个端口再关掉：那个端口上没人听，拨过去就是「拒绝连接」。
+    late int closed;
+    setUp(() async {
+      final socket = await ServerSocket.bind(InternetAddress.loopbackIPv4, 0);
+      closed = socket.port;
+      await socket.close();
+    });
+
+    Future<RouteHopException> failure(Map<String, Object?> extra) async {
+      final target = HostProfile({
+        'id': 'web',
+        'label': 'web',
+        'hostname': '127.0.0.1',
+        'port': closed,
+        'username': 'deploy',
+        'protocol': 'ssh',
+        ...extra,
+      });
+      try {
+        await SshService().connect(
+          terminal: GhosttyTerminalAdapter(),
+          sessionId: 'ux04-dial',
+          host: target,
+          hosts: [target],
+          verifyHostKey: (_, __, ___) async => true,
+        );
+      } on RouteHopException catch (error) {
+        return error;
+      }
+      fail('应当失败');
+    }
+
+    test('直连', () async {
+      final error = await failure(const {});
+      expect(error.cause, isA<ConnectStageException>());
+      expect(error.message, contains('连不上地址 127.0.0.1:$closed：对方拒绝连接'));
+      expect(error.message, isNot(contains('SocketException')));
+      expect(connectionHint(error), contains('VPN'));
+    });
+
+    test('经代理：说的是代理那个地址，不是手机这头的随机端口', () async {
+      final error = await failure({
+        'hostname': 'web.internal',
+        'port': 22,
+        'proxyConfig': {'type': 'socks5', 'host': '127.0.0.1', 'port': closed},
+      });
+      expect(error.cause, isA<ConnectStageException>());
+      expect(error.message, contains('连不上代理 127.0.0.1:$closed：对方拒绝连接'));
+      expect(error.message, isNot(contains('port =')));
+    });
+  });
+
   group('路线描述', () {
     test('经代理的一段注明代理之后 App 看不到；SSH 端口和代理端口分开写', () {
       final plan = resolveRoutePlan(
