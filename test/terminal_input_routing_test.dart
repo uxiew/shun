@@ -15,6 +15,8 @@ import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
 import 'package:shun/presentation/screens/terminal_screen.dart';
+import 'package:shun/presentation/widgets/port_forward_sheet.dart';
+import 'package:dartssh2/dartssh2.dart' show SSHClient;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:flterm/flterm.dart' as flterm show TerminalView;
 
@@ -270,6 +272,43 @@ void main() {
         tester.view.resetViewInsets();
         await page.settle();
       });
+
+      // 系统管理、性能监控和它用的是同一个 inputSession；那两个面板一打开就在 SSH 上跑命令，假 client 接不住，只测这一个。
+      testWidgets('分屏（R25）：快捷栏的端口转发对的是正在打字的那一格', (tester) async {
+        final page = await _Page.open(tester, newTerminal, ssh: true);
+        final engineView = flterm.TerminalView;
+        // SSH 标签多了「AI 命令行工具」，分屏挤进了「更多」。
+        await tester.tap(find.byKey(const ValueKey('terminal-action-more')));
+        await page.settle();
+        await tester.tap(find.byKey(const ValueKey('terminal-action-split')));
+        await page.settle();
+        expect(find.byType(engineView), findsNWidgets(2));
+        await tester.tap(find.byType(engineView).last);
+        await page.settle();
+
+        await tester
+            .tap(find.byKey(const ValueKey('terminal-action-port-forward')));
+        await tester.pumpAndSettle();
+        expect(
+          tester
+              .widget<PortForwardSheet>(find.byType(PortForwardSheet))
+              .session,
+          same(page.second),
+          reason: '以前对的是上面那格（当前标签），和刚打字的不是一台',
+        );
+      });
+
+      testWidgets('断开的 SSH 标签：性能监控和端口转发一样变灰（R25）', (tester) async {
+        final page = await _Page.open(tester, newTerminal, ssh: true);
+        IconButton button(String key) =>
+            tester.widget<IconButton>(find.byKey(ValueKey(key)));
+        expect(button('terminal-performance-monitor').onPressed, isNotNull);
+        page.first.connected = false;
+        page.controller.activate(0);
+        await page.settle();
+        expect(button('terminal-performance-monitor').onPressed, isNull);
+        expect(button('terminal-action-port-forward').onPressed, isNull);
+      });
     });
   }
 }
@@ -284,10 +323,12 @@ class _Page {
   final ActiveTerminalSession second;
   final Map<String, List<String>> sent;
 
+  /// [ssh]：两个标签带一个假的 SSH client（不联网），快捷栏的端口转发、标签条的性能监控才点得了。
   static Future<_Page> open(
     WidgetTester tester,
-    TerminalSessionAdapterBase Function() newTerminal,
-  ) async {
+    TerminalSessionAdapterBase Function() newTerminal, {
+    bool ssh = false,
+  }) async {
     SharedPreferences.setMockInitialValues({});
     final repository = await VaultRepository.open();
     final messenger = tester.binding.defaultBinaryMessenger;
@@ -322,6 +363,7 @@ class _Page {
         terminal: terminal,
         verifyHostKey: (_, __, ___) async => true,
         keyboardInteractive: null,
+        sshClients: ssh ? [_FakeSsh()] : const [],
       );
     }
 
@@ -365,6 +407,13 @@ class _Page {
     await tester.pump(const Duration(milliseconds: 400));
     expect(tester.takeException(), isNull);
   }
+}
+
+class _FakeSsh extends Fake implements SSHClient {
+  @override
+  void close() {}
+  @override
+  bool get isClosed => false;
 }
 
 class _SeededSessionController extends SessionController {

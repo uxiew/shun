@@ -388,15 +388,19 @@ void main() {
         find.byKey(const ValueKey('terminal-tab-strip')),
         findsNothing,
       );
-      expect(
-        find.byKey(const ValueKey('terminal-floating-performance')),
-        findsOneWidget,
-      );
+      // 全屏时终端上不浮任何东西（以前右上角浮着「性能监控」，盖住 tmux 状态栏，R25）；
+      // 标签条上的几项从快捷栏「更多」进。
       expect(
         find.byKey(const ValueKey('terminal-performance-monitor')),
-        findsOneWidget,
+        findsNothing,
       );
       expect(find.byTooltip('退出全屏'), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('terminal-action-more')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('terminal-action-copy-screen')),
+          findsOneWidget);
+      await tester.tapAt(const Offset(5, 5));
+      await tester.pumpAndSettle();
     },
   );
 

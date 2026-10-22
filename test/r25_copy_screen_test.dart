@@ -13,6 +13,8 @@ Widget _keys({
   required bool compact,
   required VoidCallback onCopyScreen,
   required GhosttyTerminalAdapter terminal,
+  bool fullscreen = false,
+  VoidCallback? onPerformanceMonitor,
 }) =>
     ProviderScope(
       child: MaterialApp(
@@ -27,11 +29,12 @@ Widget _keys({
               inputController: terminal.input,
               onAi: null,
               onCopyScreen: onCopyScreen,
+              onPerformanceMonitor: onPerformanceMonitor,
               onPortForward: () {},
               onSystemManagement: () {},
               pictureInPicture: false,
               onPictureInPicture: () {},
-              fullscreen: false,
+              fullscreen: fullscreen,
               onFullscreen: () {},
               split: false,
               onSplit: () {},
@@ -75,5 +78,55 @@ void main() {
     expect(find.byKey(const ValueKey('terminal-action-split')), findsOneWidget);
     expect(find.byKey(const ValueKey('terminal-action-fullscreen')),
         findsOneWidget);
+    expect(find.byKey(const ValueKey('terminal-action-more')), findsNothing,
+        reason: '不全屏时这两项在标签条上');
+  });
+
+  // 全屏时标签条藏起来：以前性能监控浮在终端右上角盖字，不是 SSH 的标签（没有 AI 工具按钮）连「更多」都没有。
+  testWidgets('全屏：「更多」一定在，里面有复制屏幕和性能监控；按钮不挤到 48dp 以下', (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final terminal = newTestTerminal();
+    addTearDown(terminal.dispose);
+    var monitors = 0;
+    await tester.pumpWidget(_keys(
+      compact: false,
+      fullscreen: true,
+      onCopyScreen: () {},
+      onPerformanceMonitor: () => monitors++,
+      terminal: terminal,
+    ));
+    await tester.pumpAndSettle();
+
+    final more = find.byKey(const ValueKey('terminal-action-more'));
+    expect(more, findsOneWidget);
+    for (final element in find
+        .descendant(
+            of: find.byKey(const ValueKey('terminal-special-keys-surface')),
+            matching: find.byType(IconButton))
+        .evaluate()) {
+      expect(tester.getSize(find.byWidget(element.widget)).width,
+          greaterThanOrEqualTo(48));
+    }
+    await tester.tap(more);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('terminal-action-copy-screen')),
+        findsOneWidget);
+    await tester
+        .tap(find.byKey(const ValueKey('terminal-action-performance-monitor')));
+    await tester.pumpAndSettle();
+    expect(monitors, 1);
+  });
+
+  testWidgets('不是连着的 SSH（没给性能监控）：「更多」里没有这一项', (tester) async {
+    final terminal = newTestTerminal();
+    addTearDown(terminal.dispose);
+    await tester.pumpWidget(
+        _keys(compact: true, onCopyScreen: () {}, terminal: terminal));
+    await tester.tap(find.byKey(const ValueKey('terminal-action-more')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('terminal-action-performance-monitor')),
+        findsNothing);
   });
 }

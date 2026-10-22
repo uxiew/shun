@@ -388,15 +388,13 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                           ),
                           icon: const Icon(Icons.copy_all_outlined),
                         ),
-                      if (visibleSession != null)
+                      if (inputSession != null)
                         IconButton(
                           key: const ValueKey(
                             'terminal-performance-monitor',
                           ),
                           tooltip: localized('性能监控'),
-                          onPressed: visibleSession.isSsh
-                              ? () => _openPerformanceMonitor(visibleSession)
-                              : null,
+                          onPressed: _performanceMonitorFor(inputSession),
                           icon: const Icon(Icons.monitor_heart_outlined),
                         ),
                     ],
@@ -541,6 +539,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                   onCompose: () =>
                       showTerminalPasteSheet(context, target: inputSession),
                   onCopyScreen: () => _copyScreen(inputSession),
+                  onPerformanceMonitor: _performanceMonitorFor(inputSession),
                   compact: layout.compact,
                   inputPanel: panelVisible,
                   onInputPanel: () => _toggleInputPanel(inputSession),
@@ -549,28 +548,29 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                       ? () => _openAi(visibleSession)
                       : null,
                   // 断开的标签不给这两个入口（按钮变灰）：它们只借这一代连接，点开也做不了事（R24）。
-                  onPortForward:
-                      visibleSession.isSsh && visibleSession.connected
-                          ? () => showModalBottomSheet<void>(
-                                context: context,
-                                isScrollControlled: true,
-                                builder: (_) =>
-                                    PortForwardSheet(session: visibleSession),
-                              )
-                          : null,
-                  onSystemManagement: visibleSession.isSsh &&
-                          visibleSession.connected
+                  // 对的是正在打字的那一格，和快捷键、粘贴、AI 工具一样：分屏时以前对的是上面那格，
+                  // 在下面那格打完字点「系统管理」会打开另一台主机（里面能停服务）。
+                  onPortForward: inputSession.isSsh && inputSession.connected
+                      ? () => showModalBottomSheet<void>(
+                            context: context,
+                            isScrollControlled: true,
+                            builder: (_) =>
+                                PortForwardSheet(session: inputSession),
+                          )
+                      : null,
+                  onSystemManagement: inputSession.isSsh &&
+                          inputSession.connected
                       ? () => showModalBottomSheet<void>(
                             context: context,
                             useSafeArea: true,
                             isScrollControlled: true,
                             backgroundColor: Colors.transparent,
                             builder: (_) => SystemManagementSheet(
-                              session: visibleSession,
+                              session: inputSession,
                               snippets: snippets,
                               onOpenTerminal: (label, command) =>
                                   _openManagedTerminal(
-                                visibleSession,
+                                inputSession,
                                 label,
                                 command,
                               ),
@@ -579,7 +579,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                     .read(
                                         sftpNavigationRequestProvider.notifier)
                                     .state = SftpNavigationRequest(
-                                  sessionId: visibleSession.id,
+                                  sessionId: inputSession.id,
                                   filePath: filePath,
                                 );
                                 ref.read(homeTabProvider.notifier).state = 2;
@@ -653,28 +653,6 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
             ],
           ),
         ),
-        if (fullscreen && !pictureInPicture && visibleSession != null)
-          Positioned(
-            top: 4,
-            right: 4,
-            child: Material(
-              key: const ValueKey('terminal-floating-performance'),
-              color: Theme.of(context)
-                  .colorScheme
-                  .surfaceContainerHighest
-                  .withValues(alpha: .82),
-              elevation: 2,
-              shape: const CircleBorder(),
-              child: IconButton(
-                key: const ValueKey('terminal-performance-monitor'),
-                tooltip: localized('性能监控'),
-                onPressed: visibleSession.isSsh
-                    ? () => _openPerformanceMonitor(visibleSession)
-                    : null,
-                icon: const Icon(Icons.monitor_heart_outlined),
-              ),
-            ),
-          ),
       ],
     );
   }
@@ -789,6 +767,13 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
       );
     }
   }
+
+  /// 只给连着的 SSH 标签：监控只借这一代连接（R24），断了点开也只有一句「已断开」。
+  /// 和主机 ⋮ 菜单、快捷栏的端口转发、系统管理一个规矩；以前标签条上只看是不是 SSH。
+  VoidCallback? _performanceMonitorFor(ActiveTerminalSession session) =>
+      session.isSsh && session.connected
+          ? () => _openPerformanceMonitor(session)
+          : null;
 
   void _openPerformanceMonitor(ActiveTerminalSession session) {
     showModalBottomSheet<void>(

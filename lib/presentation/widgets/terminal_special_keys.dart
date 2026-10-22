@@ -26,6 +26,7 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
     required this.onSystemManagement,
     this.onAiCli,
     this.onCopyScreen,
+    this.onPerformanceMonitor,
     required this.pictureInPicture,
     required this.onPictureInPicture,
     required this.fullscreen,
@@ -62,6 +63,10 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
   /// 「复制屏幕文字」：弹出整屏文字的快照、在里面选了复制。只在「更多」菜单里（收成一行时、
   /// 按钮放不下时），平时在终端页标签条上；不占操作按钮那一行的位置。为 null 时不显示。
   final VoidCallback? onCopyScreen;
+
+  /// 「性能监控」：和「复制屏幕文字」一样平时在标签条上，这里只在「更多」里。为 null 时不显示
+  /// （不是 SSH、或者断开了）。
+  final VoidCallback? onPerformanceMonitor;
   final bool pictureInPicture;
   final VoidCallback? onPictureInPicture;
   final bool fullscreen;
@@ -202,6 +207,12 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                 ];
                 final maxCount =
                     (constraints.maxWidth / 48).floor().clamp(1, 20);
+                // 全屏时标签条藏起来了，它上面的「复制屏幕文字」「性能监控」只能从「更多」进：
+                // 这时「更多」一定在。以前性能监控是浮在终端右上角的圆钮，盖住 tmux 状态栏、vim 行尾，
+                // 和 R25 去掉的浮动「复制」是同一个问题；不是 SSH 的标签以前连「更多」都没有，点不到复制。
+                final menuOnly = widget.fullscreen;
+                final overflow = (widget.onAiCli != null || menuOnly) &&
+                    actions.length + (menuOnly ? 1 : 0) > maxCount;
                 // Preserve the two keyboard controls when overflowing, rather
                 // than shrinking every action below its 48dp touch target.
                 final keyboard = actions.where((button) =>
@@ -210,8 +221,7 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                     button.key ==
                         const ValueKey('terminal-action-hide-keyboard'));
                 final keptKeyboard = keyboard.take(maxCount - 1).toList();
-                final visible = widget.onAiCli != null &&
-                        actions.length > maxCount
+                final visible = overflow
                     ? <Widget>[
                         ...actions
                             .where((button) => !keptKeyboard.contains(button))
@@ -219,7 +229,10 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                         ...keptKeyboard,
                         _moreActions(context, normalized)
                       ]
-                    : actions;
+                    : [
+                        ...actions,
+                        if (menuOnly) _moreActions(context, normalized),
+                      ];
                 return Row(
                   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                   children: visible
@@ -312,6 +325,13 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
           localized('复制屏幕文字'),
           Icons.copy_all_outlined,
           widget.onCopyScreen,
+        ),
+      if (widget.onPerformanceMonitor != null)
+        (
+          'performance-monitor',
+          localized('性能监控'),
+          Icons.monitor_heart_outlined,
+          widget.onPerformanceMonitor,
         ),
       (
         'port-forward',
