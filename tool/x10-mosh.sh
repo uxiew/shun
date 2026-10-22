@@ -223,8 +223,22 @@ do_action() {
         host "HOME 后宿主还在前台，再按一次"
       done ;;
     foreground) foreground; sleep 3 ;;
-    facts-*) facts "${name#facts-}" ;;
+    facts-*)
+      facts "${name#facts-}"
+      [[ $name == facts-doze ]] && host "doze: deep=$(adb shell dumpsys deviceidle get deep | tr -d '\r')" \
+        "screen=$(adb shell dumpsys power | grep -m1 -oE 'mWakefulness=[A-Za-z]+')" \
+        "plugin-uid-rules=$(adb shell dumpsys netpolicy | grep -m3 "UID=$(adb shell cmd package list packages -U $PLUGIN | grep -o 'uid:[0-9]*' | cut -d: -f2 | tr -d '\r') " | tr -s ' ' | tr '\n' ';')"
+      true ;;
     mem-*) mem "${name#mem-}" ;;
+    doze-on)
+      # 息屏、装作拔了电源、强制进深度 Doze（不等系统自己计时）。
+      adb shell input keyevent KEYCODE_SLEEP; sleep 1
+      adb shell dumpsys battery unplug
+      host "$(adb shell dumpsys deviceidle force-idle | tr -d '\r') deep=$(adb shell dumpsys deviceidle get deep | tr -d '\r')" ;;
+    doze-off)
+      adb shell dumpsys deviceidle unforce >/dev/null; adb shell dumpsys battery reset
+      adb shell input keyevent KEYCODE_WAKEUP; sleep 1; adb shell wm dismiss-keyguard; sleep 1
+      host "doze off: deep=$(adb shell dumpsys deviceidle get deep | tr -d '\r')" ;;
     pids-*) pids "${name#pids-}" ;;
     kill-client)
       c=$(client_pids)
@@ -284,9 +298,16 @@ fi
 # 旁边那个普通 SSH 标签走 adb 通道（不经模拟器网络），换网时它还断就只能是被 Mosh 牵连的。
 adb reverse tcp:22301 tcp:22301 >/dev/null
 run_test() {
-  flutter test integration_test/x10_mosh_lifecycle_test.dart -d "$SERIAL" \
-    --dart-define=X09_MOSH="$CONFIG" --dart-define=X10_SOCKS="$SOCKS" \
-    --dart-define=X10_SCENARIO="$SCENARIO" >> "$LOG" 2>&1 &
+  local args=(-d "$SERIAL" --dart-define=X09_MOSH="$CONFIG" --dart-define=X10_SOCKS="$SOCKS"
+    --dart-define=X10_SCENARIO="$SCENARIO")
+  if [[ $SCENARIO == hostkill ]]; then
+    # 宿主被杀以后 flutter test 会把测试 App 连数据卸掉（第一次跑就这样，放回标签无从测起），
+    # flutter drive --keep-app-running 不卸，同 R22 的 restore。
+    flutter drive --driver test_driver/integration_test.dart \
+      --target integration_test/x10_mosh_lifecycle_test.dart --keep-app-running "${args[@]}" >> "$LOG" 2>&1 &
+  else
+    flutter test integration_test/x10_mosh_lifecycle_test.dart "${args[@]}" >> "$LOG" 2>&1 &
+  fi
   TEST=$!
 }
 serve_actions() {
@@ -345,7 +366,7 @@ hostkill() {
   host "reopened: banner=$(has_text '上次 App 被结束了') reconnect=$(has_text '重新连接') startsDelta=$(( $(starts) - before )) mosh-client=[$(client_pids)]"
   adb shell uiautomator dump /sdcard/x10-ui.xml >/dev/null 2>&1; adb pull /sdcard/x10-ui.xml "$OUT/$TAG-reopened.xml" >/dev/null 2>&1
   tap "x10 mosh" || true; sleep 2
-  tap "重新连接"; sleep 10
+  tap "重新连接" || true; sleep 10
   adb shell uiautomator dump /sdcard/x10-ui.xml >/dev/null 2>&1; adb pull /sdcard/x10-ui.xml "$OUT/$TAG-reconnected.xml" >/dev/null 2>&1
   pids "reconnected"
   host "reconnected: startsDelta=$(( $(starts) - before ))"
@@ -353,6 +374,21 @@ hostkill() {
   pids "final-force-stop"
   adb uninstall $PKG >/dev/null 2>&1 || true
 }
+
+# 收尾放在 EXIT 里：中途哪条命令失败、set -e 退出了，网络也要复原（模拟器默认 Wi-Fi 和数据都开着）、
+# 加的端口转发要去掉、摘要要写出来（hostkill 第一次跑就在点按钮那步退出、什么都没收）。
+cleanup() {
+  local rc=$?
+  host "end rc=$rc counts=$(counts)"
+  adb shell svc data enable || true
+  adb shell svc wifi enable || true
+  adb reverse --remove tcp:21080 >/dev/null 2>&1 || true
+  adb reverse --remove tcp:22301 >/dev/null 2>&1 || true
+  grep -E '^X10HOST|X10 |^  [0-9]' "$LOG" | grep -v 'X10 ACTION\|X10 ACK' | sed 's/^I\/flutter ([0-9 ]*): //' > "$OUT/$TAG-summary.txt" || true
+  echo "日志：$LOG"
+  echo "摘要：$OUT/$TAG-summary.txt"
+}
+trap cleanup EXIT
 
 # 整条命令包起来交给手机的 sh：不包的话格式里的空格把它拆成两个参数，只拿到「10-22」。
 SINCE=$(adb shell "date '+%m-%d %H:%M:%S.000'" | tr -d '\r')
@@ -365,12 +401,3 @@ else
   wait "$TEST" && host "test exit=0" || host "test exit=$?"
   host "plugin log:"; mosh_log | tee -a "$LOG"
 fi
-host "end counts=$(counts)"
-# 收尾：网络复原（模拟器默认 Wi-Fi 和数据都开着）、去掉加的端口转发。
-adb shell svc data enable
-adb shell svc wifi enable
-[[ $SCENARIO == socks ]] && adb reverse --remove tcp:21080 >/dev/null 2>&1 || true
-adb reverse --remove tcp:22301 >/dev/null 2>&1 || true
-grep -E '^X10HOST|X10 |^  [0-9]' "$LOG" | grep -v 'X10 ACTION\|X10 ACK' | sed 's/^I\/flutter ([0-9 ]*): //' > "$OUT/$TAG-summary.txt" || true
-echo "日志：$LOG"
-echo "摘要：$OUT/$TAG-summary.txt"

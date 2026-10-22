@@ -5,7 +5,7 @@
 // 这不是 CI 测试。只经 tool/x10-mosh.sh 跑（它起测试、按测试的请求开关网络、杀进程、数远端）：
 //   (cd tool/mosh-fixture && ./up.sh)
 //   adb -s emulator-5580 install -r plugins/mosh/build/outputs/apk/release/mosh-release.apk
-//   tool/x10-mosh.sh emulator-5580 roam|life|hostkill|cycles
+//   tool/x10-mosh.sh emulator-5580 roam|life|hostkill|cycles|doze
 //   (cd tool/fixture-environment && ./up.sh) && tool/x10-mosh.sh emulator-5580 socks
 // 测试和脚本的对话同 R22：测试打 "X10 ACTION=<名字>"，脚本做完用 run-as 在 App 私有目录放 x10/<名字>，测试看到再往下走。
 // App 在后台时 Flutter 不出帧，tester.pump 会卡住：等待一律用真实时钟（Future.delayed）。
@@ -188,6 +188,8 @@ void main() {
       case 'cycles':
         await _cycles(container.read(vaultControllerProvider.notifier),
             controller);
+      case 'doze':
+        await _doze(controller);
       default:
         fail('未知场景 $scenario');
     }
@@ -602,6 +604,31 @@ Future<void> _cycles(
   report('cycles',
       '101 rounds in ${sw.elapsed.inSeconds} s, echoTimeouts=$slow running=${await _running()} tabs=${controller.state.sessions.length}');
   expect(slow, 0);
+}
+
+/// 息屏 + 深度 Doze（模拟器上强制进）：Doze 按 uid 断网，前台服务进程豁免。插件进程是被宿主的前台服务绑着的，
+/// 按理跟着豁免，这里实测 mosh-client 在 Doze 里还能不能收发。模拟器的 CPU 不会真睡，真机上另说。
+Future<void> _doze(SessionController controller) async {
+  final starts0 = await _starts();
+  final tab = await open(controller, moshHost('x10-doze'));
+  final drops = DropWatch(tab);
+  await echo(controller, tab, 'awake');
+  await action('home');
+  await action('doze-on');
+  await sleep(30);
+  await echo(controller, tab, 'doze-30s');
+  await sleep(60);
+  await echo(controller, tab, 'doze-90s');
+  await action('facts-doze');
+  await action('doze-off');
+  await action('foreground');
+  await echo(controller, tab, 'awake-again');
+  drops.stop();
+  final starts = await _starts() - starts0;
+  report('end', 'moshServerStartsDelta=$starts drops=${drops.drops} connected=${tab.connected}');
+  await controller.close(controller.state.sessions.indexOf(tab));
+  expect(starts, 1);
+  expect(drops.drops, 0);
 }
 
 Future<int> _starts() async {
