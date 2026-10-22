@@ -14,12 +14,12 @@ Widget dimIfHidden(HostProfile host, Widget child) => host.hidden
     : child;
 
 /// 三种视图共用的 ⋮ 按钮：弹出这台主机的操作菜单。
-Widget vaultHostMenuButton(HostProfile host, VoidCallback onMenu, IconData icon,
-        {VisualDensity? density}) =>
+/// 一律 48dp：网格卡片以前用紧凑密度，真机上只有 40dp（UX02）。
+Widget vaultHostMenuButton(
+        HostProfile host, VoidCallback onMenu, IconData icon) =>
     IconButton(
       key: ValueKey('vault-host-menu-${host.id}'),
       tooltip: localized('更多操作'),
-      visualDensity: density,
       onPressed: onMenu,
       icon: Icon(icon),
     );
@@ -126,8 +126,7 @@ class VaultHostCard extends StatelessWidget {
                     HostLeadingIcon(host: host, size: 40),
                     const Spacer(),
                     if (host.pinned) const Icon(Icons.push_pin, size: 16),
-                    vaultHostMenuButton(host, onMenu, Icons.more_horiz,
-                        density: VisualDensity.compact),
+                    vaultHostMenuButton(host, onMenu, Icons.more_horiz),
                   ],
                 ),
                 const Spacer(),
