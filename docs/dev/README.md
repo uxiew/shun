@@ -53,6 +53,8 @@ R24 借用标签连接的功能（文件、转发、监控、系统管理）：�
 
 R25 连接记录：值从哪来、存在哪、哪些名字不能改见 [architecture.md 2.10](architecture.md#210-连接记录r25)。不连网的 `flutter test --no-pub test/r25_connection_events_test.dart test/r25_connection_log_screen_test.dart test/r25_probe_record_test.dart`（约 10 秒）；起了 `tool/fixture-environment/up.sh` 再跑 `flutter test --no-pub test/integration_ssh_fixture_test.dart --plain-name 'R25 连接记录'`（约 5 秒，会杀 ssh-edge 里的 sshd 会话）。设备上：模拟器开好、拿了锁以后 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r25-device.py`，约 1.5 分钟，docker 要在 PATH 里；脚本在清除前把 App 的记录文件拷到证据目录、在本机再查一遍有没有登录信息和地址，跑完清掉 App 数据。结果只看 `plan/v3/evidence/R25.md`。
 
+R25 / UX04（从常见错误进诊断、看实际引擎和路线）：同样先起测试环境、开好模拟器、拿锁，再 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r25-ux04-device.py`，约 2 分钟（不用 docker 命令）。它跑 `integration_test/r25_ux04_test.dart`：直连密码错、经 SOCKS 密码错、代理连不上（模拟器的 1 号端口）、代理配置被删，各看失败页提示、实际路线和连接记录，再看主机详情、「选择连接类型」和设置里的终端引擎。页面上的字以 `UX04 <键>=<值>` 打在输出里，截图和日志在 `../.toolchain/artifacts/r25-ux04-<时间>/`。类型页的状态跟模拟器上装了什么走，`device.txt` 里记了装没装 Mosh 插件、RustDesk、UU。
+
 R40 的 `lib/presentation/widgets/connection_route_editor.dart` 是共用链式编辑器，接收页面已有 `RoutePlan`，通过 `describeRoute` 显示已验证的节点；无有效计划时只显示草稿和错误。`connection_route_draft.dart` 管理选择及兼容字段，保留未修正的失效引用和旧内联配置；不读仓库、不执行网络请求。两页负责预览和提交，只有 `resolveRoutePlan` 决定路线规则。`domain/jump_route_choices.dart` 是 RoutePlan 库的一部分，集中做有界展开、首跳代理候选及确认复核；`jump_route_choice_dialog.dart` 只展示方案并返回明确选择。确认前、来源变化后和后续跳板自带代理时均拒绝执行。
 
 R40 确认信息保存在原 `hostChain` 的 `shunRouteConfirmation` 扩展中：只有版本、顺序、来源的非秘密路线信息和入口选择，没有密码或私钥。`hostIds`、`proxyProfileId` / `proxyConfig` 仍是完整平面路线，不迁移或修改其他主机；缺失/损坏/失效确认一律拒绝。旧客户端的确认语义未实测，不以 JSON 字段兼容冒充跨端执行兼容。
