@@ -2431,6 +2431,8 @@ const englishTranslations = <String, String>{
       'Automatic (no saved key or password; you are asked when logging in)',
   // R25 第四部分：私钥列表删除前先问。
   '删除私钥': 'Delete private key',
+  // UX02 真机：终端标签上断开的那个橙色图标给读屏的名字。
+  '已断开': 'disconnected',
   // R25 接 R57：首页「最近 AI 工作」和 ⋮ 菜单的「AI 工具」。
   '会话状态待核对。点开会先查这台主机上的工具，没连着时会连一次':
       'Session state unchecked. Opening it first looks up the tools on this host, connecting once if it is not connected',
@@ -2454,10 +2456,14 @@ const englishTranslations = <String, String>{
 /// Ordered fragments cover dynamic values and infrastructure errors that are
 /// ultimately rendered by a localized text widget.
 const englishReplacements = <(String, String)>[
-  // R25 第四部分：主机详情的认证一行，「自动：先试私钥“k”，再试保存的密码，都不行再问你」。
-  // 放最前面、带上前后文：单独的「保存的密码」会把「已保存的密码、私钥留着不用」那句先拆碎。
   // UX02 真机：终端标签的 × 和断线、重连的读屏播报（application/connection_announcements.dart）。
   ('关闭标签“', 'Close tab “'),
+  ('”断开了，正在自动恢复', '” disconnected, reconnecting automatically'),
+  ('”没能自动恢复，可以点「重新连接」', '” could not reconnect automatically; tap “Reconnect”'),
+  ('”重新连上了', '” is connected again'),
+  ('”断开了', '” disconnected'),
+  // R25 第四部分：主机详情的认证一行，「自动：先试私钥“k”，再试保存的密码，都不行再问你」。
+  // 放最前面、带上前后文：单独的「保存的密码」会把「已保存的密码、私钥留着不用」那句先拆碎。
   ('自动：先试私钥“', 'Automatic: try private key “'),
   ('自动：先试保存的密码', 'Automatic: try the saved password'),
   ('，再试保存的密码', ', then the saved password'),

@@ -3,10 +3,12 @@ import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../application/connection_announcements.dart';
 import '../../application/connection_diagnosis.dart';
 import '../../application/fork_features.dart';
 import '../../application/session_controller.dart';
@@ -78,9 +80,13 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
   String? _inputSessionId;
   StreamSubscription<bool>? _pictureInPictureSubscription;
 
+  /// 上次念完时各标签的连接状态，用来看出「刚断了」「刚连上」（见 [tabLinkStates]）。
+  late Map<String, TabLinkState> _linkStates;
+
   @override
   void initState() {
     super.initState();
+    _linkStates = tabLinkStates(ref.read(sessionControllerProvider));
     initInputHost();
     _pictureInPictureSubscription =
         TerminalPictureInPictureService.stateChanges.listen((active) {
@@ -166,6 +172,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
     // 关掉的标签留下的大输入框草稿挪到一边，不跟着标签丢（R25）。
     ref.listen(sessionControllerProvider, (_, next) {
       _drafts.forgetClosedTabs(next.sessions.map((session) => session.id));
+      _announceConnectionChanges(next);
     });
     _visibleTerminals = [
       for (final session in state.sessions)
@@ -258,6 +265,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                             ? const LText('终端')
                             : ReorderableListView.builder(
                                 scrollDirection: Axis.horizontal,
+                                // 标签 × 的 48dp 点击区比标签本体往右多伸出几 dp。最后一个标签贴着右边时，
+                                // 那几 dp 被这里的可视区域裁掉，真机上只剩 43dp（UX02）。末尾留出来。
+                                padding: const EdgeInsets.only(right: 8),
                                 buildDefaultDragHandles: false,
                                 itemCount: state.tabCount,
                                 onReorderItem: ref
@@ -265,9 +275,6 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                       sessionControllerProvider.notifier,
                                     )
                                     .reorderSessionTab,
-                                // 标签 × 的 48dp 点击区比标签本体往右多伸出几 dp。最后一个标签贴着右边时，
-                                // 那几 dp 被这里的可视区域裁掉，真机上只剩 43dp（UX02）。末尾留出来。
-                                padding: const EdgeInsets.only(right: 8),
                                 itemBuilder: (_, index) {
                                   final host = tabHosts[index];
                                   final occurrence = tabHosts
@@ -321,6 +328,10 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                                   .notifier,
                                             )
                                             .activate(index),
+                                        // 默认读「删除」，读屏用户会以为要删主机（UX02 真机上查出来的）。
+                                        deleteButtonTooltipMessage: localized(
+                                          '关闭标签“${host.label}”',
+                                        ),
                                         onDeleted: failed
                                             ? () => ref
                                                 .read(
@@ -328,10 +339,6 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                                       .notifier,
                                                 )
                                                 .dismissPending(pending.id)
-                                        // 默认读「删除」，读屏用户会以为要删主机（UX02 真机上查出来的）。
-                                        deleteButtonTooltipMessage: localized(
-                                          '关闭标签“${host.label}”',
-                                        ),
                                             : null,
                                       ),
                                     );
@@ -353,6 +360,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                             MaterialTapTargetSize.padded,
                                         selected: state.activeIndex == index,
                                         showCheckmark: false,
+                                        // 读屏也要知道断没断：绿点、橙色叹号只靠眼睛看（UX02）。
                                         avatar: Icon(
                                           session.connected
                                               ? Icons.circle
@@ -361,6 +369,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                           color: session.connected
                                               ? Colors.greenAccent
                                               : Colors.orangeAccent,
+                                          semanticLabel: session.connected
+                                              ? null
+                                              : localized('已断开'),
                                         ),
                                         // 默认引擎不标；用设置里选的实验引擎开的标签标出来，
                                         // 改了设置以后哪个标签用的是哪个引擎一眼能看出来。
@@ -376,6 +387,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                                   .notifier,
                                             )
                                             .activate(index),
+                                        deleteButtonTooltipMessage: localized(
+                                          '关闭标签“${session.host.label}”',
+                                        ),
                                         onDeleted: () =>
                                             _confirmClose(index, session),
                                       ),
@@ -387,9 +401,6 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                       if (visibleSession != null)
                         TransportBadge(session: visibleSession),
                       if (visibleSession != null)
-                                        deleteButtonTooltipMessage: localized(
-                                          '关闭标签“${session.host.label}”',
-                                        ),
                         IconButton(
                           key: const ValueKey('terminal-copy-screen'),
                           tooltip: localized('复制屏幕文字'),
@@ -703,6 +714,22 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
     ref.read(terminalPictureInPictureProvider.notifier).state = false;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: LText('画中画初始化失败，请稍后重试')),
+    );
+  }
+
+  /// 断线、重新连上、自动恢复没成功时让读屏念出来（UX02，真机 TalkBack 上拔线一声不吐）。
+  /// 终端页在首页的 IndexedStack 里一直挂着，用户停在保险库页也能听到。
+  /// 几条放在一次里念：连着发的播报，TalkBack 只念最后一条。
+  void _announceConnectionChanges(SessionState next) {
+    final before = _linkStates;
+    _linkStates = tabLinkStates(next);
+    if (!(MediaQuery.maybeOf(context)?.accessibleNavigation ?? false)) return;
+    final messages = connectionAnnouncements(before, next);
+    if (messages.isEmpty) return;
+    SemanticsService.sendAnnouncement(
+      View.of(context),
+      messages.map(localized).join(' '),
+      Directionality.of(context),
     );
   }
 
