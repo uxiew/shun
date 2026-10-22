@@ -501,8 +501,9 @@ class _ConnectionBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Material(
-      color: (warning ? scheme.tertiaryContainer : scheme.secondaryContainer)
-          .withValues(alpha: .94),
+      // 不透明：以前 94%，压在终端最上面几行上，而那几行刚好是「连接已断开，正在自动恢复…」
+      // 这类字，透出来和横幅的字叠在一起，真机上读不清（UX02）。
+      color: warning ? scheme.tertiaryContainer : scheme.secondaryContainer,
       elevation: 2,
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
