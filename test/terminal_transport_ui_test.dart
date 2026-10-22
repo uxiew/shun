@@ -404,7 +404,7 @@ void main() {
         tmux: const TmuxClientBinding(
             target: target, clientTty: '/dev/pts/9', clientPid: 999));
     await open(tester, [m]);
-    await tester.tap(find.byTooltip('Delete').first);
+    await tester.tap(find.byTooltip('关闭标签“box”').first);
     await tester.pumpAndSettle();
     expect(find.textContaining(r'tmux 会话 work（$3）和里面的程序留在远端'), findsOneWidget);
     expect(find.textContaining('里面的 shell 会一起退出'), findsNothing);

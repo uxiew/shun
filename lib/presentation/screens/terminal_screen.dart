@@ -265,6 +265,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                       sessionControllerProvider.notifier,
                                     )
                                     .reorderSessionTab,
+                                // 标签 × 的 48dp 点击区比标签本体往右多伸出几 dp。最后一个标签贴着右边时，
+                                // 那几 dp 被这里的可视区域裁掉，真机上只剩 43dp（UX02）。末尾留出来。
+                                padding: const EdgeInsets.only(right: 8),
                                 itemBuilder: (_, index) {
                                   final host = tabHosts[index];
                                   final occurrence = tabHosts
@@ -325,6 +328,10 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                                       .notifier,
                                                 )
                                                 .dismissPending(pending.id)
+                                        // 默认读「删除」，读屏用户会以为要删主机（UX02 真机上查出来的）。
+                                        deleteButtonTooltipMessage: localized(
+                                          '关闭标签“${host.label}”',
+                                        ),
                                             : null,
                                       ),
                                     );
@@ -380,6 +387,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                       if (visibleSession != null)
                         TransportBadge(session: visibleSession),
                       if (visibleSession != null)
+                                        deleteButtonTooltipMessage: localized(
+                                          '关闭标签“${session.host.label}”',
+                                        ),
                         IconButton(
                           key: const ValueKey('terminal-copy-screen'),
                           tooltip: localized('复制屏幕文字'),

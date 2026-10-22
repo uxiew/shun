@@ -2456,6 +2456,8 @@ const englishTranslations = <String, String>{
 const englishReplacements = <(String, String)>[
   // R25 第四部分：主机详情的认证一行，「自动：先试私钥“k”，再试保存的密码，都不行再问你」。
   // 放最前面、带上前后文：单独的「保存的密码」会把「已保存的密码、私钥留着不用」那句先拆碎。
+  // UX02 真机：终端标签的 × 和断线、重连的读屏播报（application/connection_announcements.dart）。
+  ('关闭标签“', 'Close tab “'),
   ('自动：先试私钥“', 'Automatic: try private key “'),
   ('自动：先试保存的密码', 'Automatic: try the saved password'),
   ('，再试保存的密码', ', then the saved password'),
