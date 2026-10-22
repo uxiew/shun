@@ -1704,7 +1704,7 @@
       "action": "在密码、私钥、代理口令页面截屏、录屏、看最近任务；在这些框里用输入法打字；回到终端页截屏。",
       "expected": "敏感页面截不到，终端页能截；密码框不进输入法个人词库；终端输入行为不变。",
       "level": "硬门禁",
-      "result": "BLOCKED",
+      "result": "PASS",
       "inherited_from": null,
       "evidence": [
         "evidence/R44.md"

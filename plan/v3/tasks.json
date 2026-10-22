@@ -2562,7 +2562,7 @@
       "id": "R44",
       "phase": "P4",
       "title": "带秘密的页面防截屏，密码框不让输入法学习",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "depends_on": [
         "R09",
         "R18"
@@ -2590,7 +2590,7 @@
       "evidence": [
         "evidence/R44.md"
       ],
-      "commit": null
+      "commit": "e2d0e8e"
     },
     {
       "id": "R45",
