@@ -968,8 +968,8 @@ const englishTranslations = <String, String>{
   '系统安全键盘': 'System secure keyboard',
   '安全键盘设置保存失败：': 'Failed to save secure keyboard setting: ',
   '终端引擎': 'Terminal engine',
-  '是这台手机上的终端引擎没能启动，还没开始连服务器。这个版本只带 Ghostty，没有别的引擎可换；「设置 → 外观」的「终端引擎」里能看到原话，「检查」可以再试一次。':
-      'The terminal engine on this phone failed to start; no connection to the server was attempted. This version ships only Ghostty, so there is no other engine to switch to. Settings → Appearance → Terminal engine shows the exact error, and Check tries again.',
+  '是这台手机上的终端引擎没能启动，还没开始连服务器。这个版本只带 Ghostty，没有别的引擎可换；「设置 → 终端」的「终端引擎」里能看到原话，「检查」可以再试一次。':
+      'The terminal engine on this phone failed to start; no connection to the server was attempted. This version ships only Ghostty, so there is no other engine to switch to. Settings → Terminal → Terminal engine shows the exact error, and Check tries again.',
   '无法启动：': 'Failed to start: ',
   '这个版本只带 Ghostty，没有别的引擎可换：连接会直接失败，不会悄悄换成别的引擎。':
       'This version ships only Ghostty and has no other engine: connections fail outright instead of silently switching to another engine.',
@@ -1948,24 +1948,23 @@ const englishTranslations = <String, String>{
       'To go through a proxy or jump host, switch this host back to SSH (pair it with tmux to keep working after disconnects); to use Mosh, set the route to “Direct”.',
   'Mosh 插件在「设置 → 插件（实验）」里管理。这一步只查了本机，还没连服务器。':
       'Manage the Mosh plugin in “Settings → Plugins (experimental)”. This step only checked the phone; the server was not contacted.',
-  '请服务器管理员安装 mosh（Debian/Ubuntu：apt install mosh；Alpine：apk add mosh-server）。':
-      'Ask the server administrator to install mosh (Debian/Ubuntu: apt install mosh; Alpine: apk add mosh-server). ',
-  '本 App 不会替你安装，也不会用 sudo。SSH 这一段是通的。':
-      'This app does not install it for you and never uses sudo. The SSH leg works.',
-  '请服务器管理员安装 mosh（Debian/Ubuntu：apt install mosh；Alpine：apk add mosh-server）。本 App 不会替你安装，也不会用 sudo。SSH 这一段是通的。':
-      'Ask the server administrator to install mosh (Debian/Ubuntu: apt install mosh; Alpine: apk add mosh-server). This app does not install it for you and never uses sudo. The SSH leg works.',
+  '点下面的「看安装命令」：认出了服务器的系统就给出对应命令，可以复制了自己装，也可以点「安装…」、确认后在新开的 SSH 标签里装一次（sudo 密码在那个终端里自己输）。':
+      'Tap “Show install command” below: if the server’s system was recognised it gives the matching command, which you can copy and run yourself, or tap “Install…” to confirm and run it once in a new SSH tab (you type the sudo password in that terminal). ',
+  'SSH 这一段是通的。': 'The SSH leg works.',
+  '点下面的「看安装命令」：认出了服务器的系统就给出对应命令，可以复制了自己装，也可以点「安装…」、确认后在新开的 SSH 标签里装一次（sudo 密码在那个终端里自己输）。SSH 这一段是通的。':
+      'Tap “Show install command” below: if the server’s system was recognised it gives the matching command, which you can copy and run yourself, or tap “Install…” to confirm and run it once in a new SSH tab (you type the sudo password in that terminal). The SSH leg works.',
   '在服务器上生成一个 UTF-8 语言环境（比如 locale-gen en_US.UTF-8），再连。':
       'Generate a UTF-8 locale on the server (for example locale-gen en_US.UTF-8), then connect again.',
   '服务器上的 mosh-server 给出的连接信息不可信，没有用它；SSH 这一段是通的。检查服务器登录脚本有没有往输出里打东西。':
       'The connection details from mosh-server could not be trusted and were not used; the SSH leg works. Check whether the server\'s login scripts print anything.',
   'Mosh 先用 SSH 登录这台主机、在上面启动 mosh-server，然后断开 SSH，改由 Mosh 插件经 UDP 直连。':
       'Mosh first logs in to this host over SSH and starts mosh-server there, then closes SSH and lets the Mosh plugin connect directly over UDP. ',
-  '要先装好 Mosh 插件并在「设置 → 插件（实验）」批准；服务器上要装好 mosh，本 App 不会替你装。':
-      'Install the Mosh plugin and approve it in “Settings → Plugins (experimental)” first; mosh must be installed on the server, and this app does not install it for you. ',
+  '要先装好 Mosh 插件并在「设置 → 插件（实验）」批准；服务器上要有 mosh-server，没有时连接会停下、给出安装命令。':
+      'Install the Mosh plugin and approve it in “Settings → Plugins (experimental)” first; the server needs mosh-server, and if it is missing the connection stops and shows install commands. ',
   '只能直连：UDP 走不了代理和跳板机。':
       'Direct connections only: UDP cannot go through proxies or jump hosts.',
-  'Mosh 先用 SSH 登录这台主机、在上面启动 mosh-server，然后断开 SSH，改由 Mosh 插件经 UDP 直连。要先装好 Mosh 插件并在「设置 → 插件（实验）」批准；服务器上要装好 mosh，本 App 不会替你装。只能直连：UDP 走不了代理和跳板机。':
-      'Mosh first logs in to this host over SSH and starts mosh-server there, then closes SSH and lets the Mosh plugin connect directly over UDP. Install the Mosh plugin and approve it in “Settings → Plugins (experimental)” first; mosh must be installed on the server, and this app does not install it for you. Direct connections only: UDP cannot go through proxies or jump hosts.',
+  'Mosh 先用 SSH 登录这台主机、在上面启动 mosh-server，然后断开 SSH，改由 Mosh 插件经 UDP 直连。要先装好 Mosh 插件并在「设置 → 插件（实验）」批准；服务器上要有 mosh-server，没有时连接会停下、给出安装命令。只能直连：UDP 走不了代理和跳板机。':
+      'Mosh first logs in to this host over SSH and starts mosh-server there, then closes SSH and lets the Mosh plugin connect directly over UDP. Install the Mosh plugin and approve it in “Settings → Plugins (experimental)” first; the server needs mosh-server, and if it is missing the connection stops and shows install commands. Direct connections only: UDP cannot go through proxies or jump hosts.',
   'Mosh UDP 端口范围（可选）': 'Mosh UDP port range (optional)',
   'mosh-server 只在这个范围里挑 UDP 端口。服务器或防火墙只放行了某几个端口时填它，比如 60001 或 60001:60010。':
       'mosh-server picks its UDP port only from this range. Fill it in when the server or a firewall only allows certain ports, for example 60001 or 60001:60010.',

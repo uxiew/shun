@@ -11,9 +11,11 @@ import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/connection_route.dart';
 import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/plugins/mosh_install_hint.dart';
 import 'package:shun/domain/route_description.dart';
 import 'package:shun/infrastructure/ssh/ssh_identity.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/transport/proxy_transport.dart';
 import 'package:shun/presentation/screens/connection_log_screen.dart';
@@ -64,6 +66,17 @@ void main() {
           contains('AllowTcpForwarding'));
       expect(connectionHint(hopError(const SocketException('x'))),
           contains('VPN'));
+    });
+
+    test('R25：指路和现在的界面对得上——引擎在「设置 → 终端」，缺 mosh-server 指到「看安装命令」', () {
+      final engine = connectionHint(
+          TerminalEngineUnavailableException('ghostty', StateError('x')))!;
+      expect(engine, contains('「设置 → 终端」的「终端引擎」'));
+      expect(engine, isNot(contains('外观')));
+      final mosh = connectionHint(
+          const MoshServerMissing(MoshInstallHint(distro: 'Debian')))!;
+      expect(mosh, contains('「看安装命令」'));
+      expect(mosh, isNot(contains('不会替你安装')), reason: 'R42 起能在 App 里确认后装');
     });
 
     test('报错自己已经说清的、认不出的：不画蛇添足', () {

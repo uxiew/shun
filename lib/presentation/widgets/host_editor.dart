@@ -505,7 +505,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
           padding: const EdgeInsets.only(top: 8),
           child: LText(
             'Mosh 先用 SSH 登录这台主机、在上面启动 mosh-server，然后断开 SSH，改由 Mosh 插件经 UDP 直连。'
-            '要先装好 Mosh 插件并在「设置 → 插件（实验）」批准；服务器上要装好 mosh，本 App 不会替你装。'
+            '要先装好 Mosh 插件并在「设置 → 插件（实验）」批准；服务器上要有 mosh-server，没有时连接会停下、给出安装命令。'
             '只能直连：UDP 走不了代理和跳板机。',
             key: const ValueKey('mosh-note'),
             style: small,

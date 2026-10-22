@@ -170,9 +170,10 @@ String? _hint(ConnectionFailureKind kind) => switch (kind) {
         '要经代理或跳板机，把这台主机的协议改回 SSH（想断线后接着用，可以配合 tmux）；要用 Mosh，把连接路径改成「直连」。',
       ConnectionFailureKind.moshPlugin =>
         'Mosh 插件在「设置 → 插件（实验）」里管理。这一步只查了本机，还没连服务器。',
+      // R42 起能在 App 里确认后装（所有者 10-17 同意）；以前这里还写着「不会替你安装」。
       ConnectionFailureKind.moshServerMissing =>
-        '请服务器管理员安装 mosh（Debian/Ubuntu：apt install mosh；Alpine：apk add mosh-server）。'
-            '本 App 不会替你安装，也不会用 sudo。SSH 这一段是通的。',
+        '点下面的「看安装命令」：认出了服务器的系统就给出对应命令，可以复制了自己装，也可以点「安装…」、确认后在新开的 SSH 标签里装一次（sudo 密码在那个终端里自己输）。'
+            'SSH 这一段是通的。',
       ConnectionFailureKind.moshServerPath =>
         '在服务器上用 command -v mosh-server 查实际位置，把完整路径填到主机编辑页「高级 → Mosh 启动参数」里；清空就改回自动查找。SSH 这一段是通的。',
       ConnectionFailureKind.moshLocale =>
@@ -182,7 +183,7 @@ String? _hint(ConnectionFailureKind kind) => switch (kind) {
       ConnectionFailureKind.routeConfig => '路线配置有问题：到主机编辑器的「连接路径」里改，保存前会检查。',
       // 还没拨号就停了，和服务器、网络无关。
       ConnectionFailureKind.engineUnavailable =>
-        '是这台手机上的终端引擎没能启动，还没开始连服务器。这个版本只带 Ghostty，没有别的引擎可换；「设置 → 外观」的「终端引擎」里能看到原话，「检查」可以再试一次。',
+        '是这台手机上的终端引擎没能启动，还没开始连服务器。这个版本只带 Ghostty，没有别的引擎可换；「设置 → 终端」的「终端引擎」里能看到原话，「检查」可以再试一次。',
       ConnectionFailureKind.tailscaleDenied =>
         '到 Tailscale 后台检查访问策略里的 ssh 规则：来源要包含这次连接的来源节点（经代理时是代理出口那台，不是手机），'
             '登录用户名要在允许的列表里。',
