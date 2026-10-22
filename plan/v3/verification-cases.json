@@ -647,11 +647,12 @@
       "action": "从常见错误进入诊断与帮助，再查看实际引擎/代理路线。",
       "expected": "信息对应真实阶段；支持清单无未实现功能；不能声称观察到了不可见外部链路。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
         "evidence/R10.md",
-        "evidence/R13.md"
+        "evidence/R13.md",
+        "evidence/R25.md"
       ]
     },
     {
