@@ -6,6 +6,7 @@
 /// - 端口转发、文件、监控：都挂在一条已经连着的 SSH 上，这台主机没有连着的 SSH 标签就不出现。
 ///   菜单不替用户先去连一下——点「端口转发」不该悄悄开出一条 SSH。
 /// - 测试连接：和编辑器一样只有普通 SSH 有，路线算不出来也不出现（编辑器里会写原因）。
+/// - AI 工具（R25 接 R57）：和测试连接同一个条件——只有普通 SSH、路线算得出来。以前只在点主机弹出的详情里有。
 /// - 连接记录（R25）：这台有记录才出现。没连过的主机点进去只会是一页空的。
 /// - 编辑、隐藏 / 取消隐藏：每台都有。
 library;
@@ -22,6 +23,7 @@ enum HostMenuAction {
   portForward,
   files,
   monitor,
+  aiCli,
   testConnection,
   connectionLog,
   edit,
@@ -59,7 +61,10 @@ class HostMenu {
           HostMenuAction.files,
           HostMenuAction.monitor,
         ],
-        if (probePlan != null) HostMenuAction.testConnection,
+        if (probePlan != null) ...[
+          HostMenuAction.aiCli,
+          HostMenuAction.testConnection,
+        ],
         if (hasConnectionLog) HostMenuAction.connectionLog,
         HostMenuAction.edit,
         host.hidden ? HostMenuAction.unhide : HostMenuAction.hide,

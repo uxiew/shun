@@ -574,7 +574,8 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
           ),
         ),
         actions: [
-          if (host.protocol == HostProtocol.ssh)
+          // 和 ⋮ 菜单同一个条件：路线算不出来时工具列表只会报同一句错。
+          if (host.protocol == HostProtocol.ssh && route?.error == null)
             TextButton.icon(
               key: const ValueKey('host-ai-cli'),
               onPressed: () => Navigator.pop(context, _HostAction.aiCli),
@@ -674,6 +675,8 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
             keyboardInteractive: _promptKeyboardInteractive,
           ),
         );
+      case HostMenuAction.aiCli:
+        await _showAiCli(host);
       case HostMenuAction.connectionLog:
         await Navigator.of(context).push(MaterialPageRoute<void>(
           builder: (_) => ConnectionLogScreen(hostId: host.id),

@@ -54,6 +54,7 @@ class HostActionsSheet extends StatelessWidget {
         HostMenuAction.portForward => Icons.swap_horiz,
         HostMenuAction.files => Icons.folder_outlined,
         HostMenuAction.monitor => Icons.monitor_heart_outlined,
+        HostMenuAction.aiCli => Icons.terminal,
         HostMenuAction.testConnection => Icons.network_check,
         HostMenuAction.connectionLog => Icons.history,
         HostMenuAction.edit => Icons.edit_outlined,
@@ -67,6 +68,7 @@ class HostActionsSheet extends StatelessWidget {
         HostMenuAction.portForward => '端口转发',
         HostMenuAction.files => '文件',
         HostMenuAction.monitor => '性能监控',
+        HostMenuAction.aiCli => 'AI 工具',
         HostMenuAction.testConnection => '测试连接',
         HostMenuAction.connectionLog => '连接记录',
         HostMenuAction.edit => '编辑',
@@ -80,6 +82,7 @@ class HostActionsSheet extends StatelessWidget {
         HostMenuAction.files ||
         HostMenuAction.monitor =>
           '用这台主机已经连着的 SSH 标签',
+        HostMenuAction.aiCli => '查这台上装的 AI 命令行工具、接着最近的工作；没连着时会先连一次去查',
         HostMenuAction.testConnection => '只走一遍路线、指纹和登录，不开 shell',
         HostMenuAction.connectionLog => '最近 7 天每次连接走到哪一步、用了多久、失败在哪',
         HostMenuAction.hide => '照常能连；列表底部「显示已隐藏的主机」能找回来',

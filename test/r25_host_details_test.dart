@@ -174,6 +174,8 @@ void main() {
           findsOneWidget);
       expect(
           find.descendant(of: route, matching: find.text('直连')), findsNothing);
+      // 路线算不出来时工具列表只会报同一句错：不给这个入口（和 ⋮ 菜单一致）。
+      expect(find.byKey(const ValueKey('host-ai-cli')), findsNothing);
     });
 
     testWidgets('经代理：逐段列出，代理那段注明 App 看不到后面', (tester) async {
@@ -188,6 +190,7 @@ void main() {
       expect(
           find.descendant(of: route, matching: find.textContaining('App 看不到')),
           findsOneWidget);
+      expect(find.byKey(const ValueKey('host-ai-cli')), findsOneWidget);
       expect(
           find.descendant(
               of: find.byKey(const ValueKey('host-detail-login')),

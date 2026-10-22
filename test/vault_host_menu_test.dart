@@ -108,7 +108,9 @@ void main() {
     await tester.pumpAndSettle();
 
     // 测试环境不是 Android，Mosh 插件用不了，所以也没有「用 Mosh 连接」。
-    expect(await menuOf(tester, 'web'), ['testConnection', 'edit', 'hide']);
+    // AI 工具和测试连接同一个条件（R25 接 R57）：普通 SSH、路线算得出来。
+    expect(await menuOf(tester, 'web'),
+        ['aiCli', 'testConnection', 'edit', 'hide']);
     await tester.tapAt(const Offset(10, 10));
     await tester.pumpAndSettle();
 
@@ -130,14 +132,15 @@ void main() {
       ),
     ]);
     expect(await menuOf(tester, 'web'),
-        ['testConnection', 'connectionLog', 'edit', 'hide']);
+        ['aiCli', 'testConnection', 'connectionLog', 'edit', 'hide']);
     await tester.tap(find.byKey(const ValueKey('host-menu-connectionLog')));
     await tester.pumpAndSettle();
     expect(find.byType(ConnectionLogScreen), findsOneWidget);
     expect(find.textContaining('新开连接 · 连上了'), findsOneWidget);
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();
-    expect(await menuOf(tester, 'db'), ['testConnection', 'edit', 'hide'],
+    expect(
+        await menuOf(tester, 'db'), ['aiCli', 'testConnection', 'edit', 'hide'],
         reason: '没有记录的主机不列：点进去只会是空的');
   });
 
