@@ -32,6 +32,9 @@ import 'mosh_session_test.dart'
 
 const scenario = String.fromEnvironment('X10_SCENARIO');
 
+/// cycles 的轮数。100 轮时 Native Heap 来回波动 ±1 MB，盖得住每轮 10 KiB 级的增长；要看斜率跑 400 轮（同 R22）。
+const rounds = int.fromEnvironment('X10_ROUNDS', defaultValue: 100);
+
 /// socks 场景用的 tool/fixture-environment（SOCKS5 + 只在容器网络里的 target），由脚本从它的 fixture.json 生成。
 final socksConfig =
     jsonDecode(const String.fromEnvironment('X10_SOCKS', defaultValue: '{}'))
@@ -592,17 +595,19 @@ Future<void> _cycles(
     await controller.close(controller.state.sessions.indexOf(tab));
   }
 
+  // 等待都用真实时钟、不 pump：终端页没有真画出来。量的是 Mosh 连接这条链路（SSH 引导 + 插件会话），
+  // 不是 LIFE06 里「终端页显示一次」那份。
   final sw = Stopwatch()..start();
   await cycle(0);
-  for (var i = 0; i <= 100; i++) {
-    if (i % 25 == 0) {
+  for (var i = 0; i <= rounds; i++) {
+    if (i % (rounds ~/ 4) == 0) {
       await sleep(5);
       await action('mem-$i');
     }
-    if (i < 100) await cycle(i + 1);
+    if (i < rounds) await cycle(i + 1);
   }
   report('cycles',
-      '101 rounds in ${sw.elapsed.inSeconds} s, echoTimeouts=$slow running=${await _running()} tabs=${controller.state.sessions.length}');
+      '${rounds + 1} rounds in ${sw.elapsed.inSeconds} s, echoTimeouts=$slow running=${await _running()} tabs=${controller.state.sessions.length}');
   expect(slow, 0);
 }
 

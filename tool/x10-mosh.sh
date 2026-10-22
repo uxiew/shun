@@ -9,6 +9,8 @@
 #   tool/x10-mosh.sh emulator-5580 roam              # MOS06：换网、断网、后台换网
 #   tool/x10-mosh.sh emulator-5580 life              # MOS07 / PLG16：后台、各种崩溃和停止，旁边开着 SSH
 #   tool/x10-mosh.sh emulator-5580 hostkill crash|force-stop   # 杀宿主，再装正式 debug 包放回标签、点「重新连接」
+#   tool/x10-mosh.sh emulator-5580 doze              # 息屏 + 强制深度 Doze 里 Mosh 还能不能收发
+#   X10_ROUNDS=400 tool/x10-mosh.sh emulator-5580 cycles   # Mosh 标签开关 N 轮（默认 100），量宿主和插件的资源
 #   (cd tool/fixture-environment && ./up.sh)
 #   tool/x10-mosh.sh emulator-5580 socks             # 验收 3：经本机 SOCKS5（TailSocks 的形态）的 SSH + tmux，旁边 Mosh 出事不受牵连
 #
@@ -299,7 +301,7 @@ fi
 adb reverse tcp:22301 tcp:22301 >/dev/null
 run_test() {
   local args=(-d "$SERIAL" --dart-define=X09_MOSH="$CONFIG" --dart-define=X10_SOCKS="$SOCKS"
-    --dart-define=X10_SCENARIO="$SCENARIO")
+    --dart-define=X10_SCENARIO="$SCENARIO" --dart-define=X10_ROUNDS="${X10_ROUNDS:-100}")
   if [[ $SCENARIO == hostkill ]]; then
     # 宿主被杀以后 flutter test 会把测试 App 连数据卸掉（第一次跑就这样，放回标签无从测起），
     # flutter drive --keep-app-running 不卸，同 R22 的 restore。
