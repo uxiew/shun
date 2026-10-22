@@ -592,7 +592,8 @@
       "evidence": [
         "evidence/R08.md",
         "evidence/R17.md",
-        "evidence/R22.md"
+        "evidence/R22.md",
+        "evidence/X10.md"
       ]
     },
     {
@@ -1253,7 +1254,8 @@
       "result": "PASS",
       "inherited_from": null,
       "evidence": [
-        "evidence/X03.md"
+        "evidence/X03.md",
+        "evidence/X10.md"
       ]
     },
     {
@@ -1333,9 +1335,11 @@
       "action": "前后台切换、关闭通知、系统停止、强制停止宿主和插件。",
       "expected": "服务所有权与用户停止有效；无假媒体保活、无限自启或不断线承诺。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X10.md"
+      ]
     },
     {
       "id": "MOS01",
@@ -1398,18 +1402,22 @@
       "action": "活动UDP会话Wi-Fi/蜂窝切换、临时离线后回来。",
       "expected": "存活runtime按协议恢复；宿主不重新bootstrap、不重放输入，失败状态真实。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X10.md"
+      ]
     },
     {
       "id": "MOS07",
       "action": "运行时初始化失败/退出/崩溃/用户关闭，再尝试恢复（Dart与native各按选定方案）。",
       "expected": "无自动重启远端server/同名tmux或重发命令，资源清理且有重新连接入口。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/X10.md"
+      ]
     },
     {
       "id": "MOS08",

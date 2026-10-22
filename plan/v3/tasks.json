@@ -2143,7 +2143,7 @@
       "id": "X10",
       "phase": "E2",
       "title": "Mosh移动恢复与运行时生命周期验收",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [
         "X09",
         "R22"
@@ -2180,7 +2180,9 @@
       ],
       "stop_condition": "没有可达UDP的授权目标或真机则BLOCKED，不改用生产主机试验。",
       "owner_role": "实施代理",
-      "evidence": [],
+      "evidence": [
+        "evidence/X10.md"
+      ],
       "commit": null
     },
     {
