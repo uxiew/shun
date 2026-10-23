@@ -774,9 +774,11 @@ Future<void> _phone(VaultController vault, SessionController controller) async {
     await controller.reconnectDisconnected();
     await sleep(5);
     final delta = await _starts() - before;
+    // 这个会话的 mosh-server 还在不在：远端「还在跑」和这一步开始时一样多就是留下了（孤儿），少一个就是退了。
+    final serverLeft = await _running() - runningBefore + 1;
     report(
         '$step.quiet',
-        'startsDelta=$delta remoteLeft=${await _running() - runningBefore} '
+        'startsDelta=$delta serverLeft=$serverLeft '
             'writesAfterEnd=${current.session.writeCount - writes} tabs=${describe(controller)}');
     check('$step：结束后没自己重起 mosh-server', delta == 0);
     check('$step：结束后的输入没写出去', current.session.writeCount == writes);
