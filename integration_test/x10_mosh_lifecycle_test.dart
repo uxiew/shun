@@ -7,6 +7,7 @@
 //   adb -s emulator-5580 install -r plugins/mosh/build/outputs/apk/release/mosh-release.apk
 //   tool/x10-mosh.sh emulator-5580 roam|life|hostkill|cycles|doze
 //   (cd tool/fixture-environment && ./up.sh) && tool/x10-mosh.sh emulator-5580 socks
+// 真机只跑 phone 场景，经 tool/x10-phone.sh（每次要所有者同意、在场，用法见脚本头）。
 // 测试和脚本的对话同 R22：测试打 "X10 ACTION=<名字>"，脚本做完用 run-as 在 App 私有目录放 x10/<名字>，测试看到再往下走。
 // App 在后台时 Flutter 不出帧，tester.pump 会卡住：等待一律用真实时钟（Future.delayed）。
 // 模拟器上 TCP 经 10.0.2.2 只在蜂窝上通（docs/dev/README.md 第 3 节），所以开会话、开 Monitor 都在 Wi-Fi 关着时做；
@@ -16,6 +17,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:path_provider/path_provider.dart';
@@ -78,12 +80,12 @@ Future<void> sleep(int seconds) =>
     Future<void>.delayed(Duration(seconds: seconds));
 
 /// 同一台测试环境上的普通 SSH 标签：用来看 Mosh 出事时它受不受牵连。
-/// 走 adb reverse 的 127.0.0.1（脚本加的），不经模拟器网络：经 10.0.2.2 的话 Wi-Fi 一接管它就会被断、自动恢复成新对象，
-/// 分不清是换网断的还是被 Mosh 牵连的（第一次跑 life 就撑上了）。
-HostProfile sshHost(String id) => HostProfile({
+/// 模拟器上走 adb reverse 的 127.0.0.1（脚本加的），不经模拟器网络：经 10.0.2.2 的话 Wi-Fi 一接管它就会被断、自动恢复成新对象，
+/// 分不清是换网断的还是被 Mosh 牵连的（第一次跑 life 就撞上了）。真机上传局域网地址：拔了线 adb reverse 就没了。
+HostProfile sshHost(String id, {String hostname = '127.0.0.1'}) => HostProfile({
       'id': id,
       'label': id,
-      'hostname': '127.0.0.1',
+      'hostname': hostname,
       'port': config['sshPort'],
       'username': config['user'],
       'password': config['password'],
@@ -115,14 +117,13 @@ String describe(SessionController controller) => [
 var _probe = 0;
 
 /// 在标签里跑一条 echo，等结果回到屏幕上；返回用时（毫秒），超时返回 null。
-Future<int?> echo(SessionController controller, ActiveTerminalSession tab,
-    String tag,
+Future<int?> echo(
+    SessionController controller, ActiveTerminalSession tab, String tag,
     {Duration timeout = const Duration(seconds: 30)}) async {
   final marker = '$tag-${_probe++}';
   final sw = Stopwatch()..start();
   controller.typeInto(tab.id, 'echo $marker-\$((6*7))\r');
-  final ok = await until(
-      () => tab.terminal.allText().contains('$marker-42'),
+  final ok = await until(() => tab.terminal.allText().contains('$marker-42'),
       timeout: timeout);
   report('echo.$tag',
       ok ? '${sw.elapsedMilliseconds} ms' : 'TIMEOUT ${timeout.inSeconds}s');
@@ -171,32 +172,49 @@ void main() {
     if (await dir.exists()) await dir.delete(recursive: true);
     await dir.create(recursive: true);
     _logFile = File('${dir.path}/log.txt');
-    await action('cellular-only');
+    // 真机的网络由所有者自己开关，脚本不碰。
+    if (scenario != 'phone') await action('cellular-only');
     final (container, controller) = await startApp(tester);
     final monitor = await Monitor.open();
     await monitor.run('pkill -x mosh-server; rm -f /tmp/x10-*.log; true');
     monitor.close();
-    switch (scenario) {
-      case 'roam':
-        await _roam(controller);
-      case 'life':
-        await _life(container.read(vaultControllerProvider.notifier),
-            controller);
-      case 'hostkill':
-        await _hostkill(container.read(vaultControllerProvider.notifier),
-            controller);
-      case 'socks':
-        await _socks(container.read(vaultControllerProvider.notifier),
-            controller);
-      case 'cycles':
-        await _cycles(container.read(vaultControllerProvider.notifier),
-            controller);
-      case 'doze':
-        await _doze(controller);
-      default:
-        fail('未知场景 $scenario');
+    try {
+      await _run(container, controller);
+      report('DONE', scenario);
+    } catch (error) {
+      // 真机那轮拔线前 flutter 就被脚本杀了，结果只能从手机里的 x10/log.txt 看，所以失败也写一行。
+      report('FAILED', '$error'.replaceAll('\n', ' '));
+      rethrow;
     }
-  }, skip: skip, timeout: const Timeout(Duration(minutes: 40)));
+  },
+      skip: skip,
+      timeout: Timeout(Duration(minutes: scenario == 'phone' ? 180 : 40)));
+}
+
+Future<void> _run(
+    ProviderContainer container, SessionController controller) async {
+  switch (scenario) {
+    case 'roam':
+      await _roam(controller);
+    case 'life':
+      await _life(container.read(vaultControllerProvider.notifier), controller);
+    case 'hostkill':
+      await _hostkill(
+          container.read(vaultControllerProvider.notifier), controller);
+    case 'socks':
+      await _socks(
+          container.read(vaultControllerProvider.notifier), controller);
+    case 'cycles':
+      await _cycles(
+          container.read(vaultControllerProvider.notifier), controller);
+    case 'doze':
+      await _doze(controller);
+    case 'phone':
+      await _phone(
+          container.read(vaultControllerProvider.notifier), controller);
+    default:
+      fail('未知场景 $scenario');
+  }
 }
 
 /// MOS06：一个 Mosh 会话连着，Wi-Fi 开（默认网络换到 Wi-Fi）、关（换回蜂窝）、整机断网 30 秒和 150 秒、
@@ -234,15 +252,17 @@ Future<void> _roam(SessionController controller) async {
     report('$name.mid',
         'connected=${tab.connected} phase=${link.session.phase.name} bar="${moshBar(tab)}"');
     await sleep(seconds - seconds ~/ 2);
-    report('$name.end',
+    report(
+        '$name.end',
         'connected=${tab.connected} phase=${link.session.phase.name} bar="${moshBar(tab)}" '
-        'inputs=${link.inputEvents - inputs} writes=${link.session.writeCount - writes}');
+            'inputs=${link.inputEvents - inputs} writes=${link.session.writeCount - writes}');
     final sw = Stopwatch()..start();
     await action('online');
     final back = await until(
         () => tab.terminal.allText().contains('$name-done-42'),
         timeout: const Duration(seconds: 60));
-    report('$name.back', back ? '${sw.elapsedMilliseconds} ms after online' : 'TIMEOUT');
+    report('$name.back',
+        back ? '${sw.elapsedMilliseconds} ms after online' : 'TIMEOUT');
     await sleep(3);
     report('$name.barAfter', '"${moshBar(tab)}"');
   }
@@ -264,9 +284,10 @@ Future<void> _roam(SessionController controller) async {
   final starts = await monitor.starts() - starts0;
   final lines = await monitor.run('cat /tmp/x10-roam.log');
   final running = await monitor.running();
-  report('end',
+  report(
+      'end',
       'moshServerStartsDelta=$starts running=$running drops=${drops.drops} connected=${tab.connected} '
-      'terminalInputs=${link.inputEvents} hostWrites=${link.session.writeCount} dropped=${link.droppedInputBytes}');
+          'terminalInputs=${link.inputEvents} hostWrites=${link.session.writeCount} dropped=${link.droppedInputBytes}');
   report('end.remoteFile', lines.replaceAll('\n', ','));
   await controller.close(controller.state.sessions.indexOf(tab));
   var left = await monitor.running();
@@ -274,22 +295,21 @@ Future<void> _roam(SessionController controller) async {
     await sleep(1);
     left = await monitor.running();
   }
-  report('closed', 'serverLeft=$left stopConfirmed=${link.session.stopConfirmed}');
+  report(
+      'closed', 'serverLeft=$left stopConfirmed=${link.session.stopConfirmed}');
   monitor.close();
 
   expect(starts, 1, reason: '整轮只该起过一次 mosh-server');
   expect(drops.drops, 0, reason: '换网、离线时宿主不该自己把 Mosh 标签判断开');
   expect(link.inputEvents, link.session.writeCount, reason: '每次输入只写一次');
-  expect(lines.split('\n'), ['off30', 'off150'],
-      reason: '断网期间敲的命令到远端正好各执行一次');
+  expect(lines.split('\n'), ['off30', 'off150'], reason: '断网期间敲的命令到远端正好各执行一次');
   expect(left, 0);
 }
 
 /// MOS07 / PLG16 / 验收 2：旁边开着一个普通 SSH 标签，Mosh 这边依次遇到后台、运行时崩溃、插件崩溃、插件被强停、
 /// 用户关标签、通知「全部断开」。每次：Mosh 标签如实结束、不自动重启 mosh-server、SSH 标签还是那个对象并能跑命令；
 /// 「重新连接」入口能用、只新起一个 mosh-server。
-Future<void> _life(
-    VaultController vault, SessionController controller) async {
+Future<void> _life(VaultController vault, SessionController controller) async {
   // 「重新连接」按保险库里的主机连，不在保险库里就停在「已从保险库删掉」。
   await vault.upsertHost(moshHost('x10-life'));
   final moshStored =
@@ -304,7 +324,8 @@ Future<void> _life(
         controller.state.sessions.where((s) => s.id == ssh.id).firstOrNull,
         ssh);
     final ms = await echo(controller, ssh, 'ssh-$step');
-    report('$step.ssh', 'sameTab=$same connected=${ssh.connected} echo=${ms ?? 'TIMEOUT'}');
+    report('$step.ssh',
+        'sameTab=$same connected=${ssh.connected} echo=${ms ?? 'TIMEOUT'}');
     expect(same && ssh.connected && ms != null, isTrue,
         reason: '$step：SSH 标签受了牵连');
   }
@@ -314,9 +335,10 @@ Future<void> _life(
     final link = mosh.plugin! as MoshTerminalProvider;
     final ended = await until(() => !mosh.connected,
         timeout: const Duration(seconds: 40));
-    report('$step.ended',
+    report(
+        '$step.ended',
         '$ended phase=${link.session.phase.name} failure=${link.session.failure} '
-        'hold=${mosh.restoreHold?.kind.name} autoRestoreBlocked=${mosh.autoRestoreBlocked}');
+            'hold=${mosh.restoreHold?.kind.name} autoRestoreBlocked=${mosh.autoRestoreBlocked}');
     report('$step.notice', mosh.restoreHold?.message.replaceAll('\n', ' '));
     report('$step.screen', moshNotice(mosh));
     expect(ended, isTrue, reason: '$step：Mosh 标签没结束');
@@ -330,9 +352,10 @@ Future<void> _life(
     await sleep(15);
     await controller.reconnectDisconnected();
     final delta = await _starts() - startsBefore;
-    report('$step.quiet',
+    report(
+        '$step.quiet',
         'startsDelta=$delta tabs=${describe(controller)} inputsAfterEnd=${link.inputEvents - inputs} '
-        'writesAfterEnd=${link.session.writeCount - writes} dropped=${link.droppedInputBytes}');
+            'writesAfterEnd=${link.session.writeCount - writes} dropped=${link.droppedInputBytes}');
     expect(delta, 0, reason: '$step：结束后自己又起了 mosh-server');
     expect(link.session.writeCount - writes, 0, reason: '$step：结束后的输入不该写出去');
     await action('pids-$step');
@@ -352,8 +375,10 @@ Future<void> _life(
     }
     final ms = ok ? await echo(controller, mosh, 'reconnected-$step') : null;
     final delta = await _starts() - before;
-    report('$step.reconnect', 'ok=$ok samePosition=${controller.state.sessions.indexOf(mosh) == index} '
-        'startsDelta=$delta echo=${ms ?? 'TIMEOUT'}');
+    report(
+        '$step.reconnect',
+        'ok=$ok samePosition=${controller.state.sessions.indexOf(mosh) == index} '
+            'startsDelta=$delta echo=${ms ?? 'TIMEOUT'}');
     expect(ok && ms != null, isTrue, reason: '$step：重新连接没连上');
     expect(delta, 1, reason: '$step：重新连接应当正好新起一个 mosh-server');
   }
@@ -391,8 +416,10 @@ Future<void> _life(
   final closing = mosh.plugin! as MoshTerminalProvider;
   await controller.close(controller.state.sessions.indexOf(mosh));
   await sleep(3);
-  report('userClose', 'stopConfirmed=${closing.session.stopConfirmed} phase=${closing.session.phase.name} '
-      'running=${await _running()} startsDelta=${await _starts() - before}');
+  report(
+      'userClose',
+      'stopConfirmed=${closing.session.stopConfirmed} phase=${closing.session.phase.name} '
+          'running=${await _running()} startsDelta=${await _starts() - before}');
   await action('pids-userClose');
   await sshAlive('userClose');
 
@@ -406,13 +433,15 @@ Future<void> _life(
   final allDown = await until(
       () => controller.state.sessions.every((s) => !s.connected),
       timeout: const Duration(seconds: 20));
-  report('notifyStop', '$allDown ${describe(controller)} running=${await _running()}');
+  report('notifyStop',
+      '$allDown ${describe(controller)} running=${await _running()}');
   report('notifyStop.notice', mosh.restoreHold?.message.replaceAll('\n', ' '));
   await action('wifi-toggle');
   await sleep(20);
   await action('foreground');
   await sleep(5);
-  report('notifyStop.quiet', 'startsDelta=${await _starts() - before} running=${await _running()} tabs=${describe(controller)}');
+  report('notifyStop.quiet',
+      'startsDelta=${await _starts() - before} running=${await _running()} tabs=${describe(controller)}');
   await action('pids-notifyStop');
   expect(allDown, isTrue);
   expect(await _starts(), before);
@@ -435,7 +464,8 @@ Future<void> _life(
   await sleep(20);
   await action('foreground');
   await sleep(5);
-  report('svcStop.quiet', 'startsDelta=${await _starts() - before} running=${await _running()} tabs=${describe(controller)}');
+  report('svcStop.quiet',
+      'startsDelta=${await _starts() - before} running=${await _running()} tabs=${describe(controller)}');
   await action('pids-svcStop');
   report('end', 'moshServerStartsDelta=${await _starts() - starts0}');
   expect(stopped, isTrue);
@@ -473,16 +503,15 @@ Future<void> _hostkill(
   await action('host-killed', timeout: const Duration(minutes: 30));
 }
 
-Future<String> exec(ActiveTerminalSession session, String command) async =>
-    utf8.decode(await session.sshClient!.run(command), allowMalformed: true)
-        .trim();
+Future<String> exec(ActiveTerminalSession session, String command) async => utf8
+    .decode(await session.sshClient!.run(command), allowMalformed: true)
+    .trim();
 
 /// 验收 3（用户现在的 TailSocks 路径继续 SSH + tmux）的模拟器形态：TailSocks 在手机上就是本机的一个 SOCKS5 端口，
 /// 这里是 adb reverse 过来的测试环境 SOCKS5（要用户名密码），后面是只在容器网络里的 target；在上面附着 tmux 会话 x10。
 /// 旁边的 Mosh 标签换网、插件崩溃、插件被强停、重新连接、关标签：tmux 标签一直是同一个对象、连着、能跑命令，
 /// 远端 tmux 还是那个会话（编号、创建时间不变）、只有一个客户端。
-Future<void> _socks(
-    VaultController vault, SessionController controller) async {
+Future<void> _socks(VaultController vault, SessionController controller) async {
   final socks = socksConfig['socks'] as Map<String, dynamic>;
   final target = socksConfig['target'] as Map<String, dynamic>;
   final viaSocks = HostProfile({
@@ -555,7 +584,8 @@ Future<void> _socks(
     await controller.reconnect(mosh.id, verifyHostKey: verifyFixture);
     mosh = controller.state.sessions[index];
     await until(() => mosh.terminal.allText().contains(r'$'));
-    report('$step.mosh', '${mosh.connected} echo=${await echo(controller, mosh, 'mosh-$step') ?? 'TIMEOUT'}');
+    report('$step.mosh',
+        '${mosh.connected} echo=${await echo(controller, mosh, 'mosh-$step') ?? 'TIMEOUT'}');
   }
 
   await action('wifi-on');
@@ -583,8 +613,9 @@ Future<void> _socks(
 Future<void> _cycles(
     VaultController vault, SessionController controller) async {
   await vault.upsertHost(moshHost('x10-cycle'));
-  final host =
-      (await vault.ready()).hosts.firstWhere((value) => value.id == 'x10-cycle');
+  final host = (await vault.ready())
+      .hosts
+      .firstWhere((value) => value.id == 'x10-cycle');
   var slow = 0;
   Future<void> cycle(int i) async {
     final tab = await open(controller, host);
@@ -630,10 +661,167 @@ Future<void> _doze(SessionController controller) async {
   await echo(controller, tab, 'awake-again');
   drops.stop();
   final starts = await _starts() - starts0;
-  report('end', 'moshServerStartsDelta=$starts drops=${drops.drops} connected=${tab.connected}');
+  report('end',
+      'moshServerStartsDelta=$starts drops=${drops.drops} connected=${tab.connected}');
   await controller.close(controller.state.sessions.indexOf(tab));
   expect(starts, 1);
   expect(drops.drops, 0);
+}
+
+/// 真机（tool/x10-phone.sh）：手机用自己的 Wi-Fi 连这台 Mac 上的测试环境（转发只放行手机的 IP），没有 adb reverse，
+/// 拔了线照样通。三段：① 所有者关 Wi-Fi 再开（手机落到蜂窝、到不了局域网，等于断网再回来）；
+/// ② 所有者拔线锁屏 N 分钟（出厂省电设置）；③ 插回后 mosh-client 段错误、插件崩溃、插件被强停，旁边开着 SSH。
+/// ① ② 要看的是 Android 17 会不会杀掉或冻住插件的子进程 mosh-client（API 30 模拟器上没有这套机制）。
+/// 拔线前脚本 kill -9 掉 flutter，之后只靠 x10/log.txt 对话：中途不 expect（一挂后面几段就白等所有者了），
+/// 每项记一行 CHECK，最后一起判。mosh-client 是不是同一个进程由脚本按 pid 核对。
+Future<void> _phone(VaultController vault, SessionController controller) async {
+  final problems = <String>[];
+  void check(String what, bool ok) {
+    report('CHECK', '${ok ? 'ok' : 'FAIL'} $what');
+    if (!ok) problems.add(what);
+  }
+
+  // 「重新连接」按保险库里的主机连，不在保险库里就停在「已从保险库删掉」。
+  await vault.upsertHost(moshHost('x10-phone'));
+  final stored = (await vault.ready())
+      .hosts
+      .firstWhere((value) => value.id == 'x10-phone');
+  final starts0 = await _starts();
+  var mosh = await open(controller, stored);
+  final link = mosh.plugin! as MoshTerminalProvider;
+  report('opened', '${link.detail} ${describe(controller)}');
+  final drops = DropWatch(mosh);
+  await echo(controller, mosh, 'wifi');
+  await action('pids-open');
+  await action('facts-open');
+
+  // ---- ① 所有者关 Wi-Fi，半分钟左右再开。断着时敲的命令宿主当场写一次，Wi-Fi 回来后由 mosh 送到 ----
+  await action('owner-wifi-off', timeout: const Duration(minutes: 30));
+  controller.typeInto(mosh.id,
+      'echo offwifi >> /tmp/x10-phone.log; echo offwifi-done-\$((6*7))\r');
+  await sleep(10);
+  report('offwifi.mid',
+      'connected=${mosh.connected} phase=${link.session.phase.name} bar="${moshBar(mosh)}"');
+  await action('owner-wifi-on', timeout: const Duration(minutes: 30));
+  report('offwifi.end',
+      'connected=${mosh.connected} phase=${link.session.phase.name} bar="${moshBar(mosh)}"');
+  final sw = Stopwatch()..start();
+  final back = await until(
+      () => mosh.terminal.allText().contains('offwifi-done-42'),
+      timeout: const Duration(seconds: 90));
+  report('offwifi.back',
+      back ? '${sw.elapsedMilliseconds} ms after Wi-Fi back' : 'TIMEOUT');
+  check('断 Wi-Fi 时敲的命令在 Wi-Fi 回来后执行了', back);
+  await sleep(3);
+  report('offwifi.barAfter', '"${moshBar(mosh)}"');
+  await echo(controller, mosh, 'wifi-again');
+  await action('pids-wifi');
+
+  // ---- ② 所有者拔线、锁屏，插回、解锁。Dart 的 Stopwatch 不算 CPU 休眠的时间，墙上时钟减它就是手机睡了多久（同 R22）----
+  final wall = DateTime.now();
+  final awake = Stopwatch()..start();
+  await action('owner-soak', timeout: const Duration(hours: 2));
+  report(
+      'soak',
+      'wall=${DateTime.now().difference(wall).inSeconds}s awake=${awake.elapsed.inSeconds}s '
+          'connected=${mosh.connected} phase=${link.session.phase.name} failure=${link.session.failure} '
+          'drops=${drops.drops} bar="${moshBar(mosh)}"');
+  final soakEcho = await echo(controller, mosh, 'after-soak',
+      timeout: const Duration(seconds: 60));
+  check('锁屏回来同一个 Mosh 会话当场能跑命令',
+      soakEcho != null && identical(controller.state.sessions.last, mosh));
+  await action('pids-soak');
+  drops.stop();
+  var monitor = await Monitor.open();
+  final starts = await monitor.starts() - starts0;
+  final lines = await monitor.run('cat /tmp/x10-phone.log');
+  monitor.close();
+  report(
+      'network',
+      'moshServerStartsDelta=$starts drops=${drops.drops} terminalInputs=${link.inputEvents} '
+          'hostWrites=${link.session.writeCount} dropped=${link.droppedInputBytes} '
+          'remoteFile=${lines.replaceAll('\n', ',')}');
+  check('换网、锁屏都没重新 bootstrap（远端只起过开会话那 1 次）', starts == 1);
+  check('宿主没自己把 Mosh 标签判断开', drops.drops == 0);
+  check('每次输入只写一次', link.inputEvents == link.session.writeCount);
+  check('断 Wi-Fi 时敲的命令远端正好执行一次', lines == 'offwifi');
+
+  // ---- ③ 插着线、不用人：mosh-client 段错误、插件崩溃、插件被强停，旁边开着 SSH（验收 2 的真机版）----
+  // 远端「还在跑」的数里会有前一步留下的孤儿，所以每步和自己开始时比；留没留是要记的事实，不算对错。
+  final ssh = await open(
+      controller, sshHost('x10-ssh', hostname: config['sshHost'] as String));
+  for (final (step, kill) in [
+    ('clientCrash', 'kill-client'),
+    ('pluginCrash', 'kill-plugin'),
+    ('pluginForceStop', 'force-stop-plugin'),
+  ]) {
+    final before = await _starts();
+    final runningBefore = await _running();
+    final current = mosh.plugin! as MoshTerminalProvider;
+    await action(kill);
+    final ended = await until(() => !mosh.connected,
+        timeout: const Duration(seconds: 40));
+    report(
+        '$step.ended',
+        '$ended phase=${current.session.phase.name} failure=${current.session.failure} '
+            'hold=${mosh.restoreHold?.kind.name}');
+    report('$step.notice', mosh.restoreHold?.message.replaceAll('\n', ' '));
+    report('$step.screen', moshNotice(mosh));
+    check('$step：Mosh 标签如实结束', ended);
+    final writes = current.session.writeCount;
+    controller.typeInto(mosh.id, 'echo after-$step\r');
+    await sleep(15);
+    await controller.reconnectDisconnected();
+    await sleep(5);
+    final delta = await _starts() - before;
+    report(
+        '$step.quiet',
+        'startsDelta=$delta remoteLeft=${await _running() - runningBefore} '
+            'writesAfterEnd=${current.session.writeCount - writes} tabs=${describe(controller)}');
+    check('$step：结束后没自己重起 mosh-server', delta == 0);
+    check('$step：结束后的输入没写出去', current.session.writeCount == writes);
+    await action('pids-$step');
+
+    final same = identical(
+        controller.state.sessions.where((s) => s.id == ssh.id).firstOrNull,
+        ssh);
+    final sshMs = await echo(controller, ssh, 'ssh-$step');
+    report('$step.ssh',
+        'sameTab=$same connected=${ssh.connected} echo=${sshMs ?? 'TIMEOUT'}');
+    check('$step：旁边的 SSH 标签没受牵连', same && ssh.connected && sshMs != null);
+
+    // 点「重新连接」（和状态条上那个按钮同一个调用）：只新起一个 mosh-server。
+    final reBefore = await _starts();
+    final index = controller.state.sessions.indexWhere((s) => s.id == mosh.id);
+    await controller.reconnect(mosh.id, verifyHostKey: verifyFixture);
+    final replaced = controller.state.sessions[index];
+    final ok = !identical(replaced, mosh) && replaced.connected;
+    mosh = replaced;
+    if (ok) await until(() => mosh.terminal.allText().contains(r'$'));
+    final ms = ok ? await echo(controller, mosh, 'reconnected-$step') : null;
+    final reDelta = await _starts() - reBefore;
+    report('$step.reconnect',
+        'ok=$ok startsDelta=$reDelta echo=${ms ?? 'TIMEOUT'}');
+    check('$step：重新连接正好新起 1 个、能用', ok && ms != null && reDelta == 1);
+  }
+
+  final runningBefore = await _running();
+  final closing = mosh.plugin! as MoshTerminalProvider;
+  await controller.close(controller.state.sessions.indexOf(mosh));
+  var left = await _running();
+  for (var i = 0; i < 20 && left >= runningBefore; i++) {
+    await sleep(1);
+    left = await _running();
+  }
+  report('closed',
+      'running $runningBefore -> $left stopConfirmed=${closing.session.stopConfirmed}');
+  check('关标签后这个会话的 mosh-server 退出了', left == runningBefore - 1);
+  await controller.close(controller.state.sessions.indexOf(ssh));
+  monitor = await Monitor.open();
+  report('end',
+      'moshServerStartsDelta=${await monitor.starts() - starts0} running=${await monitor.running()}');
+  monitor.close();
+  expect(problems, isEmpty, reason: problems.join('；'));
 }
 
 Future<int> _starts() async {
