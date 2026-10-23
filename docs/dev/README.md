@@ -211,6 +211,12 @@ flutter test test/integration_ssh_fixture_test.dart
     场景和用法见脚本开头。大致时长（不算构建）：`roam` 5 分钟、`life` 6 分钟、`hostkill` 2 分钟（第一次要先编正式 debug 包）、
     `doze` 2 分钟、`socks` 2 分钟（要另起 `tool/fixture-environment`）、`cycles` 100 轮 2.5 分钟。只在模拟器上跑，序列号不是 `emulator-*` 就拒绝。
     摘要和每步的 dumpsys 在 `../.toolchain/artifacts/x10-<提交>/`。
+  - 同一个测试的真机版（关开 Wi-Fi、拔线锁屏、弄崩插件）：`tool/x10-phone.sh <手机序列号> [锁屏分钟，默认 30]`，
+    要在接手机的那台 Mac 上跑、先起 `tool/mosh-fixture`，**每次都要所有者当次同意、在场**（脚本打 `OWNER:` 的行是要人做的）。
+    全程约 50 分钟：构建 1 分钟、等人关开 Wi-Fi、锁屏 30 分钟、弄崩 2 分钟。不用 adb reverse：Mosh 的 UDP 发往 SSH 连上的地址，
+    SSH 走 127.0.0.1 的话 UDP 也发到手机自己身上，所以脚本在 Mac 局域网地址上开只放行手机 IP 的 TCP + UDP 转发。
+    拔线前脚本会 kill -9 掉 flutter，结果看摘要里手机日志最后的 `X10 DONE=` / `X10 FAILED=` 和 `CHECK` 行，不看 flutter 的退出码。
+    解锁后测试包是黑屏：测试不出帧，不是坏了。跑完两个包都卸，中途 Ctrl-C 也卸。
 
 ### R40 路线编辑设备回归
 
