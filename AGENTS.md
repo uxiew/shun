@@ -5,6 +5,7 @@
 `docs/` 只放 shun 自己写的文档：Netcatty 的旧文档和截图 2026-10-17 已删（所有者要求），别从上游搬回来；
 代码来源和许可写在 `NOTICE.md`，那份要留。
 用户看得到的行为改了，同步改使用手册 `docs/user/README.md`（Mosh 相关的改 `docs/user/mosh.md`）。
+界面上的字要少：页面只放名字和状态，解释收进 ⓘ，细节写手册，规矩见 `docs/dev/ui-text.md`（所有者 2026-10-24 定）。
 
 开始干活前先读 `plan/v3/AGENTS.md`（实施契约），再读 `plan/v3/STATUS.md`（当前进度）。
 任务定义在 `plan/v3/tasks.json`，每批证据写在 `plan/v3/evidence/`。
