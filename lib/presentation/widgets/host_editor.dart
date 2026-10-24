@@ -550,7 +550,15 @@ class _HostEditorState extends ConsumerState<HostEditor> {
           _AdvancedGroup(
             id: 'mosh',
             title: 'Mosh 启动参数',
-            hint: '建议留空让 App 自动处理；连接时报错、提示要改这里再填。',
+            hint: _hint([
+              localized('建议留空让 App 自动处理；连接时报错、提示要改这里再填。'),
+              _fieldHint('mosh-server 路径',
+                  '留空就先按 PATH 找，再查 /usr/bin、/usr/local/bin、/opt/homebrew/bin、~/.local/bin、nix profile。装在别处、连接时报「没有找到 mosh-server」才填，如 /opt/mosh/bin/mosh-server。'),
+              _fieldHint('Mosh UDP 端口范围',
+                  'mosh-server 只在这个范围里挑 UDP 端口。服务器或防火墙只放行了某几个端口时填它，比如 60001 或 60001:60010。'),
+              _fieldHint('Mosh locale',
+                  '留空用 en_US.UTF-8。连接时报「没有可用的 UTF-8 语言环境」才填服务器上有的，比如 C.UTF-8。'),
+            ]),
             filled: _moshFilled,
             expanded: _expanded.contains('mosh'),
             onToggle: () => _toggle('mosh'),
@@ -563,9 +571,6 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                   hintText: '自动',
                   // 没聚焦也让「自动」露出来：有 label 时 hint 默认只在聚焦后显示。
                   floatingLabelBehavior: FloatingLabelBehavior.always,
-                  helperText:
-                      '留空就先按 PATH 找，再查 /usr/bin、/usr/local/bin、/opt/homebrew/bin、~/.local/bin、nix profile。装在别处、连接时报「没有找到 mosh-server」才填，如 /opt/mosh/bin/mosh-server。',
-                  helperMaxLines: 3,
                 ),
                 validator: _validMoshServerPath,
               ),
@@ -577,9 +582,6 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                   labelText: 'Mosh UDP 端口范围',
                   hintText: '自动（60001:60999）',
                   floatingLabelBehavior: FloatingLabelBehavior.always,
-                  helperText:
-                      'mosh-server 只在这个范围里挑 UDP 端口。服务器或防火墙只放行了某几个端口时填它，比如 60001 或 60001:60010。',
-                  helperMaxLines: 3,
                 ),
                 validator: _validMoshPorts,
               ),
@@ -591,9 +593,6 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                   labelText: 'Mosh locale',
                   hintText: '自动（en_US.UTF-8）',
                   floatingLabelBehavior: FloatingLabelBehavior.always,
-                  helperText:
-                      '留空用 en_US.UTF-8。连接时报「没有可用的 UTF-8 语言环境」才填服务器上有的，比如 C.UTF-8。',
-                  helperMaxLines: 3,
                 ),
                 validator: _validMoshLocale,
               ),
@@ -602,20 +601,29 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         _AdvancedGroup(
           id: 'tmux',
           title: 'tmux 与断开之后',
-          hint: '上面选的 SSH / Mosh 只管网络这一段怎么走；断开以后远端程序还在不在，要看它跑在哪。',
+          // 这组只有说明、没有要填的：不展开，说明全在 ⓘ 里。
+          hint: _hint([
+            localized('上面选的 SSH / Mosh 只管网络这一段怎么走；断开以后远端程序还在不在，要看它跑在哪。'),
+            ..._persistenceLines().map(localized),
+          ]),
           filled: false,
           state: '普通 shell',
-          expanded: _expanded.contains('tmux'),
-          onToggle: () => _toggle('tmux'),
-          children: [_persistenceNote()],
+          expanded: false,
+          onToggle: () {},
+          children: const [],
         ),
         _AdvancedGroup(
           id: 'timeouts',
           title: '超时与保活',
           // Mosh 只在启动 mosh-server 那段用 SSH，之后的 UDP 会话自己保活：这三项管不到它。
-          hint: protocol == HostProtocol.mosh
-              ? '只管启动 mosh-server 前那段 SSH 登录；之后的 Mosh 会话自己保活，不用这里的值。'
-              : '一般不用改。网络很慢、经多跳代理时连接总超时，再把超时调大。',
+          hint: _hint([
+            localized(protocol == HostProtocol.mosh
+                ? '只管启动 mosh-server 前那段 SSH 登录；之后的 Mosh 会话自己保活，不用这里的值。'
+                : '一般不用改。网络很慢、经多跳代理时连接总超时，再把超时调大。'),
+            _fieldHint('Keepalive 间隔', '每隔多少秒发送一次保活消息'),
+            _fieldHint('连接超时', '建立 TCP 连接的最长等待时间'),
+            _fieldHint('认证超时', 'SSH 身份认证的最长等待时间'),
+          ]),
           filled: _timeoutsFilled,
           expanded: _expanded.contains('timeouts'),
           onToggle: () => _toggle('timeouts'),
@@ -626,19 +634,16 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                   _AdvancedNumberField(
                     controller: keepalive,
                     label: 'Keepalive 间隔',
-                    helper: '每隔多少秒发送一次保活消息',
                     fallback: _defaultKeepalive,
                   ),
                   _AdvancedNumberField(
                     controller: connectTimeout,
                     label: '连接超时',
-                    helper: '建立 TCP 连接的最长等待时间',
                     fallback: _defaultConnectTimeout,
                   ),
                   _AdvancedNumberField(
                     controller: authTimeout,
                     label: '认证超时',
-                    helper: 'SSH 身份认证的最长等待时间',
                     fallback: _defaultAuthTimeout,
                   ),
                 ];
@@ -670,7 +675,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
           _AdvancedGroup(
             id: 'startup',
             title: '启动命令',
-            hint: '连上后在 shell 里执行一次；断线恢复时不会再执行。',
+            hint: localized('连上后在 shell 里执行一次；断线恢复时不会再执行。'),
             filled: _startupFilled,
             expanded: _expanded.contains('startup'),
             onToggle: () => _toggle('startup'),
@@ -688,8 +693,8 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   /// 连接方式和「断开后程序还在不在」是两回事（R41，借鉴 meshTerm 的持久性说明）。
   /// 这里只说明，不存会话名：按名字自动附着会碰到 tmux 的前缀匹配，选会话按 R21 的完整目标在终端里做。
   /// 不能写「重连就恢复原来的 shell」：普通 SSH 重连拿到的是新 shell。
-  Widget _persistenceNote() {
-    final lines = protocol == HostProtocol.mosh
+  List<String> _persistenceLines() {
+    return protocol == HostProtocol.mosh
         ? const [
             '从主机列表直接连 Mosh，开的是 mosh-server 里的普通 shell。关标签或服务器重启时，mosh-server 和里面的程序一起结束；「重新连接」是新起的 mosh-server，接不回原来那个。',
             '想断开后程序还在：先用 SSH 连上，在「系统管理 → tmux」里附着一个 tmux 会话，再点终端顶上的徽标切到 Mosh——还是同一个 tmux 会话。这样的 Mosh 标签断了，点「重新连接」会核对后附着回那个会话。',
@@ -701,25 +706,14 @@ class _HostEditorState extends ConsumerState<HostEditor> {
             'App 里留着的终端画面只是这台手机上的历史，不代表远端还开着。',
             '「测试连接」会只读查一次远端有没有 tmux、有几个会话，不新建、不附着。',
           ];
-    final style = Theme.of(context).textTheme.bodySmall;
-    return Column(
-      key: const ValueKey('tmux-persistence-note'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        for (final line in lines)
-          Padding(
-            padding: const EdgeInsets.only(bottom: 6),
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('• ', style: style),
-                Expanded(child: LText(line, style: style)),
-              ],
-            ),
-          ),
-      ],
-    );
   }
+
+  /// ⓘ 里的几段：逐段本地化再拼，拼好的整段在英文表里查不到。
+  static String _hint(List<String> paragraphs) => paragraphs.join('\n\n');
+
+  /// ⓘ 里的一段「字段名：什么时候填」。原来挂在输入框下面，页面上只留字段名和默认值。
+  static String _fieldHint(String label, String helper) =>
+      '${localized(label)}：${localized(helper)}';
 
   /// 底部固定的操作栏：验证状态 +【测试连接】【取消】【保存】（R41）。
   /// 测试连接只有普通 SSH 有：它只走 SSH、只查 PTY，测不了 Mosh 的 UDP，也不开远端会话。
@@ -1347,13 +1341,11 @@ class _AdvancedNumberField extends StatelessWidget {
   const _AdvancedNumberField({
     required this.controller,
     required this.label,
-    required this.helper,
     required this.fallback,
   });
 
   final TextEditingController controller;
   final String label;
-  final String helper;
   final int fallback;
 
   @override
@@ -1364,9 +1356,7 @@ class _AdvancedNumberField extends StatelessWidget {
           labelText: label,
           hintText: '自动（$fallback）',
           floatingLabelBehavior: FloatingLabelBehavior.always,
-          helperText: helper,
           suffixText: '秒',
-          helperMaxLines: 2,
         ),
         validator: (value) {
           final text = value?.trim() ?? '';
@@ -1405,48 +1395,51 @@ class _AdvancedGroup extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final header = ConstrainedBox(
+      constraints: const BoxConstraints(minHeight: 48),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 说明在组名旁的 ⓘ 里，展开后页面上只有字段（docs/dev/ui-text.md）。
+                HintTitle(title, hint: hint, style: theme.textTheme.titleSmall),
+                LText(
+                  state ?? (filled ? '已填写' : '自动'),
+                  key: ValueKey('advanced-$id-state'),
+                  style: theme.textTheme.bodySmall,
+                ),
+              ],
+            ),
+          ),
+          if (children.isNotEmpty)
+            Icon(expanded ? Icons.expand_less : Icons.expand_more),
+        ],
+      ),
+    );
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        InkWell(
-          key: ValueKey('advanced-$id'),
-          onTap: onToggle,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      LText(title, style: theme.textTheme.titleSmall),
-                      LText(
-                        state ?? (filled ? '已填写' : '自动'),
-                        key: ValueKey('advanced-$id-state'),
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(expanded ? Icons.expand_less : Icons.expand_more),
-              ],
+        if (children.isEmpty)
+          KeyedSubtree(key: ValueKey('advanced-$id'), child: header)
+        else ...[
+          InkWell(
+            key: ValueKey('advanced-$id'),
+            onTap: onToggle,
+            child: header,
+          ),
+          Offstage(
+            offstage: !expanded,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: children,
+              ),
             ),
           ),
-        ),
-        Offstage(
-          offstage: !expanded,
-          child: Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                LText(hint, style: theme.textTheme.bodySmall),
-                const SizedBox(height: 10),
-                ...children,
-              ],
-            ),
-          ),
-        ),
+        ],
         const Divider(height: 1),
       ],
     );

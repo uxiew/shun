@@ -71,9 +71,8 @@ void main() {
     expect(find.text('Keepalive 间隔'), findsOneWidget);
     expect(find.text('连接超时'), findsOneWidget);
     expect(find.text('认证超时'), findsOneWidget);
-    expect(find.text('每隔多少秒发送一次保活消息'), findsOneWidget);
-    expect(find.text('建立 TCP 连接的最长等待时间'), findsOneWidget);
-    expect(find.text('SSH 身份认证的最长等待时间'), findsOneWidget);
+    // 每个字段管什么在组名旁的 ⓘ 里（host_editor_r41_test），输入框下面不挂说明。
+    expect(find.text('每隔多少秒发送一次保活消息'), findsNothing);
     expect(
       tester.getCenter(find.text('Keepalive 间隔')).dy,
       lessThan(tester.getCenter(find.text('连接超时')).dy),

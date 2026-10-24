@@ -105,6 +105,22 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  /// 点开高级某组组名旁的 ⓘ，返回弹层里的字，再关掉弹层。
+  Future<String> groupHint(WidgetTester tester, String group) async {
+    await reveal(tester, key('advanced-$group'));
+    await tester.tap(find.descendant(
+        of: key('advanced-$group'), matching: find.byIcon(Icons.info_outline)));
+    await tester.pumpAndSettle();
+    final text = tester
+        .widgetList<Text>(find.descendant(
+            of: find.byType(BottomSheet), matching: find.byType(Text)))
+        .map((t) => t.data)
+        .join('\n');
+    await tester.tap(find.text('知道了'));
+    await tester.pumpAndSettle();
+    return text;
+  }
+
   testWidgets('新建页没动手不报错；点过保存才标红，填好了红字马上消失', (tester) async {
     await open(tester);
     expect(find.text('必填'), findsNothing);
@@ -252,6 +268,30 @@ void main() {
     expect(result!.data['sshAuthReadyTimeoutSeconds'], 30);
   });
 
+  testWidgets('高级各组：说明和字段用法在组名旁 ⓘ 里，展开后页面上只有字段；点 ⓘ 不展开、不收起', (tester) async {
+    await open(tester, host: ssh({'protocol': 'mosh'}));
+    final mosh = await groupHint(tester, 'mosh');
+    expect(mosh, contains('mosh-server 路径：留空就先按 PATH 找'));
+    expect(mosh, contains('Mosh UDP 端口范围：mosh-server 只在这个范围里挑 UDP 端口'));
+    expect(mosh, contains('Mosh locale：留空用 en_US.UTF-8'));
+    expect(find.byKey(const ValueKey('mosh-ports')).hitTestable(), findsNothing,
+        reason: '点 ⓘ 不该把组展开');
+    await tester.tap(key('advanced-mosh'));
+    await tester.pumpAndSettle();
+    expect(
+        find.byKey(const ValueKey('mosh-ports')).hitTestable(), findsOneWidget);
+    expect(find.textContaining('留空就先按 PATH 找'), findsNothing,
+        reason: '展开后输入框下面不再挂说明');
+    expect(find.textContaining('建议留空让 App 自动处理'), findsNothing);
+    final timeouts = await groupHint(tester, 'timeouts');
+    expect(timeouts, contains('只管启动 mosh-server 前那段 SSH 登录'),
+        reason: 'Mosh 主机的超时说明要写清只管 SSH 那段');
+    expect(timeouts, contains('认证超时：SSH 身份认证的最长等待时间'));
+    expect(
+        find.byKey(const ValueKey('mosh-ports')).hitTestable(), findsOneWidget,
+        reason: '点别组的 ⓘ 不该把已展开的组收起');
+  });
+
   testWidgets('收起的组里有写错的值：保存时自己展开、红字看得见、不保存', (tester) async {
     await open(tester, host: ssh({'protocol': 'mosh', moshLocaleKey: 'en_US'}));
     await reveal(tester, key('advanced-mosh'));
@@ -331,13 +371,12 @@ void main() {
                 of: key('advanced-tmux-state'), matching: find.byType(Text)))
             .data,
         '普通 shell');
-    await tester.tap(key('advanced-tmux'));
-    await tester.pumpAndSettle();
-    final note = tester
-        .widgetList<Text>(find.descendant(
-            of: key('tmux-persistence-note'), matching: find.byType(Text)))
-        .map((t) => t.data)
-        .join('\n');
+    // 这组只有说明：不能展开，说明全在 ⓘ 里。
+    expect(
+        find.descendant(
+            of: key('advanced-tmux'), matching: find.byIcon(Icons.expand_more)),
+        findsNothing);
+    final note = await groupHint(tester, 'tmux');
     expect(note, contains('重新连接得到的是一个新 shell，不是原来那个'));
     expect(note, contains('「系统管理 → tmux」'));
     expect(note, contains('只是这台手机上的历史'));
@@ -348,14 +387,7 @@ void main() {
   testWidgets('tmux 说明：Mosh 主机说明直连是普通 shell、想留住程序先 SSH 附着 tmux 再切，不写测试连接',
       (tester) async {
     await open(tester, host: ssh({'protocol': 'mosh'}));
-    await reveal(tester, key('advanced-tmux'));
-    await tester.tap(key('advanced-tmux'));
-    await tester.pumpAndSettle();
-    final note = tester
-        .widgetList<Text>(find.descendant(
-            of: key('tmux-persistence-note'), matching: find.byType(Text)))
-        .map((t) => t.data)
-        .join('\n');
+    final note = await groupHint(tester, 'tmux');
     expect(note, contains('开的是 mosh-server 里的普通 shell'));
     expect(note, contains('接不回原来那个'));
     expect(note, contains('还是同一个 tmux 会话'));
