@@ -413,14 +413,6 @@ const englishTranslations = <String, String>{
   '背景图片无法读取，请重新选择': 'The background image cannot be read. Choose it again',
   r'选择背景图片失败：$error': r'Unable to choose background image: $error',
   '无法读取所选背景图片': 'Unable to read the selected background image',
-  "topLeft' => '左上": 'top left',
-  "topCenter' => '顶部居中": 'top center',
-  "topRight' => '右上": 'top right',
-  "centerLeft' => '左侧居中": 'center left',
-  "centerRight' => '右侧居中": 'center right',
-  "bottomLeft' => '左下": 'bottom left',
-  "bottomCenter' => '底部居中": 'bottom center',
-  "bottomRight' => '右下": 'bottom right',
   '居中': 'Center',
   '终端字号': 'Terminal font size',
   '云同步': 'Cloud sync',
@@ -516,14 +508,6 @@ const englishTranslations = <String, String>{
   '默认思考强度': 'Default reasoning effort',
   '调整思考强度': 'Change reasoning effort',
   '模型默认': 'Model default',
-  "minimal' => '极低": 'minimal reasoning effort',
-  "low' => '低": 'low reasoning effort',
-  "medium' => '中": 'medium reasoning effort',
-  "high' => '高": 'high reasoning effort',
-  "minimal' => '思考：极低": 'minimal reasoning effort',
-  "low' => '思考：低": 'low reasoning effort',
-  "medium' => '思考：中": 'medium reasoning effort',
-  "high' => '思考：高": 'high reasoning effort',
   '思考：模型默认': 'Reasoning: model default',
   '添加': 'Add',
   '添加模型': 'Add model',
@@ -744,8 +728,6 @@ const englishTranslations = <String, String>{
   '请至少填写一个有效的上游地址': 'Enter at least one valid upstream address',
   '管理 Caddy 配置需要管理员权限，且 sudo 需要密码。':
       'Managing Caddy configuration requires administrator access and a sudo password.',
-  r'管理 Caddy 配置需要管理员权限，且 sudo 需要密码。\n${error.message}':
-      r'Managing Caddy configuration requires administrator access and a sudo password.\n${error.message}',
   '用 sudo 再试？': 'Retry with sudo?',
   '需要 sudo 密码': 'Sudo password required',
   '免密 sudo 的服务器可以留空；密码只在这次系统管理面板打开期间保留':
@@ -838,10 +820,6 @@ const englishTranslations = <String, String>{
   '已附着的客户端': 'Attached clients',
   '没有客户端附着': 'No clients attached',
   '启动命令太长': 'The startup command is too long',
-  '默认是 tmux 不带参数时用的那个（/tmp/tmux-你的 uid/default）。':
-      'Default is the one tmux uses without arguments (/tmp/tmux-<your uid>/default).',
-  '如果你在 shell 配置里改了 TMUX_TMPDIR，这里看不到，请填 -S 路径。':
-      'If your shell config changes TMUX_TMPDIR, it is not visible here; enter the -S path instead.',
   'session 名称': 'Session name',
   '启动命令（可选）': 'Startup command (optional)',
   '从命令片段选择（可选）': 'Choose a command snippet (optional)',
@@ -865,8 +843,6 @@ const englishTranslations = <String, String>{
   '连接已由用户终止': 'Connection cancelled by the user',
   '未找到受支持的服务管理器，需要 systemd 或 OpenRC。':
       'No supported service manager was found. systemd or OpenRC is required.',
-  r'管理系统服务需要管理员权限，且 sudo 需要密码。\n${error.message}':
-      r'Managing system services requires administrator access and sudo needs a password.\n${error.message}',
   '断开并关闭': 'Disconnect & close',
   '关闭 SSH 标签页？': 'Close SSH tab?',
   '关闭标签页': 'Close tab',
@@ -910,14 +886,11 @@ const englishTranslations = <String, String>{
       'This version ships only Ghostty and has no other engine: connections fail outright instead of silently switching to another engine.',
   '正常，这次运行建过的终端：': 'Working. Terminals created this run: ',
   '这次运行还没开过终端': 'No terminal opened yet this run',
-  "shu Agent', '使用 OpenAI 兼容接口生成命令，执行前始终确认":
-      "shu Agent', 'Generate commands with an OpenAI-compatible API and always confirm before execution",
   '正在等待 GitHub 授权…': 'Waiting for GitHub authorization…',
   '文件将从当前挂载的手机目录删除，无法撤销。':
       'The file will be deleted from the mounted phone folder. This cannot be undone.',
   '此操作会直接修改远程服务器，无法撤销。':
       'This directly modifies the remote server and cannot be undone.',
-  r"${pending.error ?? '未知错误": r"${pending.error ?? 'Unknown error",
   r'将从保险库中删除“${host.label}”，此操作可通过云同步传播到其他设备。':
       r'Delete “${host.label}” from the vault. Cloud sync can propagate this to other devices.',
   r'已保存 · ${profile.label}': r'Saved · ${profile.label}',
@@ -1199,14 +1172,10 @@ const englishTranslations = <String, String>{
   '本 App 关掉了这个会话（插件被停用、撤销批准或更新），插件没有在 2 秒内确认已停止。':
       'This app closed the session (the plugin was disabled, revoked or updated); the plugin did not confirm within 2 seconds that it stopped.',
   // X12：插件主机（主机协议选「插件」，第三方终端插件开标签）。
-  'Mosh 插件不在这里，Mosh 主机请选 Mosh 协议。':
-      'The Mosh plugin is not listed here; choose the Mosh protocol for Mosh hosts.',
   r'\r\n\x1b[33m[$name] $reason不会自动重连。\x1b[0m\r\n':
       r'\r\n\x1b[33m[$name] $reason It will not reconnect automatically.\x1b[0m\r\n',
   r'\x1b[33m不会自动重连，也不会重发断开前的输入；断开前最后打的字插件有没有收到，App 无法确认。\r\n':
       r'\x1b[33mIt will not reconnect automatically or resend earlier input; the app cannot tell whether the plugin received the last keys typed before the disconnect.\r\n',
-  '不能用「插件」协议连。Mosh 主机请把协议选成 Mosh。':
-      'so it cannot be used with the Plugin protocol. Choose the Mosh protocol for Mosh hosts.',
   '代理和跳板机': 'a proxy and jump hosts',
   '关闭插件标签页？': 'Close the plugin tab?',
   '将关闭插件会话：': 'This will close the plugin session: ',
@@ -1221,8 +1190,6 @@ const englishTranslations = <String, String>{
       r"Plugin “$name” was uninstalled: reinstalling a package with the same certificate restores it, and this host's settings are kept.",
   r'插件“$name”没有声明终端会话能力（terminal-session），不能用来连接。':
       r'Plugin “$name” does not declare the terminal session capability (terminal-session) and cannot be used to connect.',
-  r'插件“$name”申请了本会话的临时凭据：这种插件（比如 Mosh）的会话要本 App 先经 SSH 拿一次性材料，':
-      r'Plugin “$name” requests temporary credentials of its own session: sessions of such plugins (like Mosh) need one-time material this app first gets over SSH, ',
   r'插件“$name”被停用了：到「设置 → 插件（实验）」启用它，再连。':
       r'Plugin “$name” is disabled: enable it in Settings → Plugins (experimental), then connect.',
   r'插件“$name”被拒绝了：$reason': r'Plugin “$name” was rejected: $reason',
@@ -1230,8 +1197,6 @@ const englishTranslations = <String, String>{
       r'Plugin “$name” is not approved yet: check its certificate in Settings → Plugins (experimental) and approve it, then connect.',
   '插件主机不走本 App 的连接路径：插件自己联网，不经过代理和跳板。':
       'Plugin hosts do not use this app\'s connection route: the plugin uses its own network, without proxies or jump hosts.',
-  r'插件主机只能直连：这台主机配了$what。插件自己联网，不经过本 App 的代理和跳板；':
-      r"Plugin hosts can only be direct: this host has $what configured. The plugin uses its own network, not this app's proxies or jump hosts; ",
   '插件主机要经插件连接，不能按普通 SSH 终端打开。':
       'Plugin hosts connect through their plugin and cannot be opened as a plain SSH terminal.',
   '插件关掉了这个会话，没说原因。': 'The plugin closed this session without saying why.',
@@ -1244,25 +1209,17 @@ const englishTranslations = <String, String>{
       'The plugin process is gone (ended by the system or by hand).',
   '改成直连（去掉这台主机上的代理和跳板设置）':
       'Switch to direct (remove this host\'s proxy and jump host settings)',
-  '本 App 不把这台主机的地址、密码、私钥交给它。':
-      'this app never gives it this host\'s address, password or private key.',
   '本 App 先关自己这一端，再请插件关，2 秒内等它确认；插件自己连着的东西怎么收尾由插件决定。':
       'This app closes its own end first, then asks the plugin to close and waits 2 seconds for confirmation; how the plugin winds down its own connections is up to the plugin.',
   '本 App 关掉了这个会话（插件被停用、撤销批准或更新），插件确认已停止。':
       'This app closed the session (the plugin was disabled, revoked or updated); the plugin confirmed that it stopped.',
   r'正在核对本机的插件“$label”（还没打开会话）':
       r'Checking the plugin “$label” on this device (no session opened yet)',
-  '没有打开插件，也不会悄悄去掉这些设置。在编辑器里把连接路径改成直连，或者把协议改回 SSH。':
-      'the plugin was not opened, and these settings are not silently removed. Switch the route to direct in the editor, or change the protocol back to SSH.',
   r'没有装插件“$pluginId”。装好后到「设置 → 插件（实验）」核对证书并批准，再连。':
       r'Plugin “$pluginId” is not installed. Install it, check its certificate and approve it in Settings → Plugins (experimental), then connect.',
   '用哪个插件': 'Which plugin',
   r'要再连，从保险库重新连接这台主机。\x1b[0m\r\n':
       r'To connect again, connect this host from the vault again.\x1b[0m\r\n',
-  '还没有能用来连接的插件：装好终端插件后到「设置 → 插件（实验）」核对证书、批准。':
-      'No plugin can be used to connect yet: install a terminal plugin, then check its certificate and approve it in Settings → Plugins (experimental). ',
-  '这个插件自己联网，不经过本 App 的代理和跳板。连哪里、用什么账号，由插件自己的设置页决定；':
-      'This plugin uses its own network, not this app\'s proxies or jump hosts. Where it connects and with which account is set on the plugin\'s own settings page; ',
   '这台主机还没选插件：在编辑器里选一个。':
       'No plugin is chosen for this host yet: pick one in the editor.',
   r'连不上插件“$name”：${check.message}':
@@ -1713,12 +1670,6 @@ const englishTranslations = <String, String>{
   '[链接]': '[link]',
   // X09：用 Mosh 连接（mosh_route.dart、mosh_session.dart、编辑器、失败页、终端里的结束提示）。
   // 由几段字面量拼成、又经 LText 显示的整句，整句也各配一条，界面上才是完整的英文。
-  'Mosh 只能直连，这台主机的连接路径是：\$description。':
-      'Mosh only works over a direct connection; this host\'s route is: \$description. ',
-  'Mosh 会话走 UDP，代理和跳板机只转发 TCP，承载不了；':
-      'A Mosh session runs over UDP, which proxies and jump hosts (TCP only) cannot carry; ',
-  '没有连接服务器、没有启动 mosh-server，也不会改成直连绕过你选的路线。':
-      'nothing was sent to the server, no mosh-server was started, and the route you chose was not bypassed with a direct connection.',
   '经\$proxy': 'via \$proxy',
   '经跳板机 \$jumps': 'via jump host \$jumps',
   '先经\$proxy再走跳板机 \$jumps': 'via \$proxy, then jump host \$jumps',
@@ -1755,18 +1706,8 @@ const englishTranslations = <String, String>{
   '远端 shell 已退出，Mosh 会话结束。': 'The remote shell exited; the Mosh session ended.',
   'Mosh 插件关掉了这个会话，没说原因。远端可能还有旧会话（mosh-server）。':
       'The Mosh plugin closed this session without saying why. An old session (mosh-server) may still be on the server.',
-  'Mosh 插件进程没了（被系统或手动结束）。':
-      'The Mosh plugin process is gone (ended by the system or by hand). ',
-  '远端可能还有旧会话：mosh-server 会一直等客户端回来，可以在服务器上用 pkill mosh-server 清掉。':
-      'An old session may still be on the server: mosh-server keeps waiting for the client; clean it up with pkill mosh-server on the server.',
   'Mosh 插件被停用、撤销批准、更新或断开了连接，会话已关闭。远端可能还有旧会话（mosh-server）。':
       'The Mosh plugin was disabled, revoked, updated or disconnected, so the session was closed. An old session (mosh-server) may still be on the server.',
-  'mosh-client 没能正常收尾（退出码 1）。最常见的是 UDP 到不了服务器：':
-      'mosh-client did not shut down cleanly (exit code 1). Most often UDP cannot reach the server: ',
-  '服务器或中间的防火墙没放行 mosh-server 用的 UDP 端口；也可能是网络断得太久、服务器一直没回应。':
-      'the server or a firewall in between does not allow the UDP port mosh-server uses; or the network was down too long and the server never answered. ',
-  '上面终端里 mosh 自己打印的说明更具体。远端可能还有旧会话（mosh-server）。':
-      'Mosh\'s own message in the terminal above is more specific. An old session (mosh-server) may still be on the server.',
   'mosh-client 被强制结束（信号 9）：关闭时 8 秒内没退出会被插件强杀，系统内存紧张时也会这样。远端可能还有旧会话（mosh-server）。':
       'mosh-client was killed (signal 9): the plugin kills it if it has not exited 8 seconds after closing, and the system does the same when memory is low. An old session (mosh-server) may still be on the server.',
   'mosh-client 被信号 \$signal 结束。远端可能还有旧会话（mosh-server）。':
@@ -1820,10 +1761,6 @@ const englishTranslations = <String, String>{
   'mosh-server 只在这个范围里挑 UDP 端口。服务器或防火墙只放行了某几个端口时填它，比如 60001 或 60001:60010。':
       'mosh-server picks its UDP port only from this range. Fill it in when the server or a firewall only allows certain ports, for example 60001 or 60001:60010.',
   '关闭 Mosh 标签页？': 'Close the Mosh tab?',
-  r'将断开 ${session.host.label} 的 Mosh 会话：服务器上这次的 mosh-server 和里面的 shell 会一起退出，':
-      r'This disconnects the Mosh session to ${session.host.label}: this mosh-server on the server exits together with its shell, ',
-  '没在 tmux 之类工具里运行的程序也会结束。':
-      'and programs not running inside something like tmux end too.',
   // X08：Mosh 引导输出的解析结果（mosh_bootstrap.dart）和交给插件时的拒绝原因。
   'mosh-server 的输出过长，已停止解析':
       'The mosh-server output is too long; parsing stopped',
@@ -1899,9 +1836,6 @@ const englishTranslations = <String, String>{
   '会话密钥已清除': 'The session key has been wiped',
   r'MoshBootstrapResult(port: $port, serverPid: $serverPid, key: <已隐藏>)':
       r'MoshBootstrapResult(port: $port, serverPid: $serverPid, key: <hidden>)',
-  "\$low:\$high', 'portRange', 'UDP 端口范围无效":
-      "\$low:\$high', 'portRange', 'Invalid UDP port range",
-  'BAD_ARGS\', \'Mosh 目标或材料无效': 'BAD_ARGS\', \'Invalid Mosh target or material',
   '插件没有申请临时会话密钥权限，不能交给它 Mosh 会话材料':
       'The plugin did not request the ephemeral session-key permission, so Mosh session material cannot be handed to it',
 
@@ -1932,10 +1866,6 @@ const englishTranslations = <String, String>{
       r'This host’s address has changed (tmux session ${tmuxAttach.displayName} was found on ${tmuxAttach.hostKey}), so it was not attached.',
   r'新的 SSH 没能附着到 tmux 会话 ${target.displayName}（${target.sessionId}），没有切换。':
       r'The new SSH connection could not attach tmux session ${target.displayName} (${target.sessionId}), so nothing was switched.',
-  r'Mosh 会话结束了，下面是断开前的画面。tmux 会话 ${tmux.displayName}（${tmux.sessionId}）如果还在，':
-      r'The Mosh session ended; below is the screen from before the disconnect. If tmux session ${tmux.displayName} (${tmux.sessionId}) still exists, ',
-  '点「重新连接」会新起一个 mosh-server、核对还是不是原来那个再附着，不新建。':
-      'Reconnect starts a new mosh-server, verifies it is still the same session and only then attaches; it never creates one.',
   r'\x1b[33m[Mosh] 这个标签附着的是 tmux 会话 ${tmux.displayName}（${tmux.sessionId}）。':
       r'\x1b[33m[Mosh] This tab was attached to tmux session ${tmux.displayName} (${tmux.sessionId}). ',
   r'Mosh 结束只带走 tmux 客户端，会话和里面的程序留在服务器上（除非是会话自己结束的）。\x1b[0m\r\n':
@@ -1947,14 +1877,6 @@ const englishTranslations = <String, String>{
   r'用 $to 另开一个': r'Open another tab with $to',
   r'另开一个 $to 标签（新的 shell），这个标签和里面的 shell 不动。':
       r'Opens another $to tab (a new shell); this tab and its shell stay as they are.',
-  r'在这条 SSH 上起 mosh-server，附着同一个 tmux 会话 ${tmux!.displayName}（${tmux.sessionId}），':
-      r'Starts mosh-server over this SSH and attaches the same tmux session ${tmux!.displayName} (${tmux.sessionId}); ',
-  r'重新登录 SSH，附着同一个 tmux 会话 ${tmux!.displayName}（${tmux.sessionId}），':
-      r'Logs in over SSH again and attaches the same tmux session ${tmux!.displayName} (${tmux.sessionId}); ',
-  '核对过才换过去，然后关掉这条 SSH。不重发任何输入。':
-      'the tab moves over only after that is verified, then this SSH is closed. No input is resent.',
-  '核对过才换过去，然后关掉 Mosh。不重发任何输入。':
-      'the tab moves over only after that is verified, then Mosh is closed. No input is resent.',
   r'把 ${option.transport.label} 设为这台主机的默认':
       r'Make ${option.transport.label} the default for this host',
   r'以后从主机列表连这台都用 ${option.transport.label}。开着的标签不变，Mosh 的端口、路径设置照旧留着。':
@@ -1990,22 +1912,16 @@ const englishTranslations = <String, String>{
   r'${_socket.describe()} 上现在没有 tmux 会话。':
       r'There is no tmux session on ${_socket.describe()} right now.',
   '读不出 tmux 会话列表。': 'Could not read the tmux session list.',
-  '只读列出；要新建、结束或换 socket，用「系统管理 → tmux」。':
-      'Read-only list. To create, end or change socket, use System management → tmux.',
   r'列不出来：${snapshot.error}': r'Could not list: ${snapshot.error}',
   r'${row.sessionId} · ${row.windows} 个窗口 · 已有 ${row.attached} 个客户端附着':
       r'${row.sessionId} · ${row.windows} windows · ${row.attached} clients attached',
   r'${row.sessionId} · ${row.windows} 个窗口':
       r'${row.sessionId} · ${row.windows} windows',
-  '只分离这个标签的 tmux 客户端：关掉 Mosh 会话后，它里面的 tmux 客户端跟着退出，tmux 会话 ':
-      'Only this tab’s tmux client is detached: once the Mosh session closes, the tmux client inside it exits, and tmux session ',
   '服务器上没有 mosh-server': 'mosh-server is not installed on the server',
   '看安装命令': 'Show install command',
   r'认出来的系统：${hint.distro}': r'Detected system: ${hint.distro}',
   '在服务器上执行这一条：': 'Run this on the server:',
   '已复制安装命令': 'Install command copied',
-  '再 sudo nixos-rebuild switch（它会顺带放行 Mosh 的 UDP 端口）。不用了就删掉这一行、再 rebuild 一次。':
-      'then run sudo nixos-rebuild switch (it also opens the Mosh UDP ports). To remove it later, delete that line and rebuild again.',
   '在服务器上执行这一条。要管理员权限：sudo 会在终端里问你的密码。':
       'Run this on the server. It needs administrator rights: sudo will ask for your password in the terminal.',
   '安装…': 'Install…',
@@ -2017,14 +1933,6 @@ const englishTranslations = <String, String>{
   '在服务器上安装 mosh？': 'Install mosh on the server?',
   r'会新开一个 SSH 标签「安装 mosh · $label」，登录这台主机后执行：':
       r'A new SSH tab “Install mosh · $label” will open, sign in to this host and run:',
-  '要管理员权限：sudo 会在那个终端里问你的密码，你自己输。App 看不到、也不保存这个密码。':
-      'This needs administrator rights: sudo will ask for your password in that terminal and you type it yourself. The app neither sees nor stores it.',
-  '服务器上没有 sudo 的，会报「sudo: not found」：用 root 登录再装，或者自己换成 doas。':
-      'If the server has no sudo you will see “sudo: not found”: sign in as root and install again, or use doas yourself.',
-  'mosh 从这台服务器自己配的软件源下载，服务器要能上网。包管理器问「要不要继续」时，也在那个终端里回答。':
-      'mosh is downloaded from the package sources configured on this server, so the server needs network access. If the package manager asks whether to continue, answer in that terminal.',
-  '标签断线恢复时不会再执行一次。':
-      'It is not run again when the tab recovers from a disconnect.',
   r'装完还要在服务器防火墙（和云服务器的安全组）里放行 $ports，否则 Mosh 连不上。':
       r'After installing, allow $ports in the server firewall (and the cloud security group), otherwise Mosh cannot connect.',
   '以后不用了怎么卸载、怎么清理，见使用手册《Mosh 使用指南》。':
@@ -2043,22 +1951,12 @@ const englishTranslations = <String, String>{
       'The server has no /etc/os-release, or the distribution was not recognized. Install mosh with its own package manager; the package is usually called mosh.',
   '没有这个发行版的现成命令。用它自己的包管理器装 mosh，包名一般就叫 mosh。':
       'There is no ready-made command for this distribution. Install mosh with its own package manager; the package is usually called mosh.',
-  'NixOS 不建议用命令临时装：在 configuration.nix 里加 programs.mosh.enable = true;，':
-      'On NixOS, do not install it ad hoc: add programs.mosh.enable = true; to configuration.nix, ',
-  'RHEL 本体的 epel-release 不在默认源，先按 EPEL 官方说明启用 EPEL 再装。':
-      'On RHEL itself epel-release is not in the default repositories; enable EPEL by its official instructions first.',
   'mosh.org 没列 Void；这是 Void 仓库里 mosh 包的装法。':
       'mosh.org does not list Void; this is how the mosh package installs from the Void repositories.',
-  'mosh.org 没列这一系；CentOS / Rocky / Alma 的 mosh 在 EPEL 里。':
-      'mosh.org does not list this family; on CentOS / Rocky / Alma, mosh is in EPEL.',
   'mosh-server 没有报出自己的进程号（或报了不止一个），没法核对 Mosh 里附着的是不是这个 tmux 会话，没有用它':
       'mosh-server did not report its process ID (or reported more than one), so it cannot be verified which tmux session Mosh attached; it was not used',
   '同一个 mosh-server 下面出现了不止一个 tmux 客户端，分不出哪个是这次的，没有切换':
       'More than one tmux client appeared under the same mosh-server and this one could not be told apart, so nothing was switched',
-  r'${timeout.inSeconds} 秒内没看到 Mosh 附着到 tmux 会话“${target.displayName}”（${target.sessionId}）。':
-      r'Mosh did not attach tmux session “${target.displayName}” (${target.sessionId}) within ${timeout.inSeconds} seconds.',
-  '最常见的是 UDP 到不了服务器（防火墙没放行 Mosh 的端口）。':
-      'Most often UDP cannot reach the server (the firewall does not allow the Mosh ports).',
   r'Mosh 会话在附着上 tmux 会话“${target.displayName}”（${target.sessionId}）之前就结束了：${describeMoshEnd(session)}':
       r'The Mosh session ended before it attached tmux session “${target.displayName}” (${target.sessionId}): ${describeMoshEnd(session)}',
   r'第 2 段 UDP：Mosh 插件正在直连 $detail；SSH 先留着，核对 tmux 会话“$label”附着上了再断开':
@@ -2391,6 +2289,65 @@ const englishTranslations = <String, String>{
   '还没有代理': 'No proxies yet',
   '安装包标注版本：': 'Package version: ',
   '此范围未发现': 'Not found in this scope',
+  // 10-24：整句。以前按行写或按怪键写，覆盖测试逐行查能过，运行时查的是整句，对不上（英文界面显示中文）。
+  r'${timeout.inSeconds} 秒内没看到 Mosh 附着到 tmux 会话“${target.displayName}”（${target.sessionId}）。最常见的是 UDP 到不了服务器（防火墙没放行 Mosh 的端口）。':
+      r'Mosh did not attach tmux session “${target.displayName}” (${target.sessionId}) within ${timeout.inSeconds} seconds. Most often UDP cannot reach the server (the firewall does not allow the Mosh ports).',
+  'Mosh 插件进程没了（被系统或手动结束）。远端可能还有旧会话：mosh-server 会一直等客户端回来，可以在服务器上用 pkill mosh-server 清掉。':
+      'The Mosh plugin process is gone (ended by the system or by hand). An old session may still be on the server: mosh-server keeps waiting for the client; clean it up with pkill mosh-server on the server.',
+  'mosh-client 没能正常收尾（退出码 1）。最常见的是 UDP 到不了服务器：服务器或中间的防火墙没放行 mosh-server 用的 UDP 端口；也可能是网络断得太久、服务器一直没回应。上面终端里 mosh 自己打印的说明更具体。远端可能还有旧会话（mosh-server）。':
+      'mosh-client did not shut down cleanly (exit code 1). Most often UDP cannot reach the server: the server or a firewall in between does not allow the UDP port mosh-server uses; or the network was down too long and the server never answered. Mosh\'s own message in the terminal above is more specific. An old session (mosh-server) may still be on the server.',
+  r'插件“$name”申请了本会话的临时凭据：这种插件（比如 Mosh）的会话要本 App 先经 SSH 拿一次性材料，不能用「插件」协议连。Mosh 主机请把协议选成 Mosh。':
+      r'Plugin “$name” requests temporary credentials of its own session: sessions of such plugins (like Mosh) need one-time material this app first gets over SSH, so it cannot be used with the Plugin protocol. Choose the Mosh protocol for Mosh hosts.',
+  r'Mosh 会话结束了，下面是断开前的画面。tmux 会话 ${tmux.displayName}（${tmux.sessionId}）如果还在，点「重新连接」会新起一个 mosh-server、核对还是不是原来那个再附着，不新建。':
+      r'The Mosh session ended; below is the screen from before the disconnect. If tmux session ${tmux.displayName} (${tmux.sessionId}) still exists, Reconnect starts a new mosh-server, verifies it is still the same session and only then attaches; it never creates one.',
+  'mosh.org 没列这一系；CentOS / Rocky / Alma 的 mosh 在 EPEL 里。RHEL 本体的 epel-release 不在默认源，先按 EPEL 官方说明启用 EPEL 再装。':
+      'mosh.org does not list this family; on CentOS / Rocky / Alma, mosh is in EPEL. On RHEL itself epel-release is not in the default repositories; enable EPEL by its official instructions first.',
+  'NixOS 不建议用命令临时装：在 configuration.nix 里加 programs.mosh.enable = true;，再 sudo nixos-rebuild switch（它会顺带放行 Mosh 的 UDP 端口）。不用了就删掉这一行、再 rebuild 一次。':
+      'On NixOS, do not install it ad hoc: add programs.mosh.enable = true; to configuration.nix, then run sudo nixos-rebuild switch (it also opens the Mosh UDP ports). To remove it later, delete that line and rebuild again.',
+  r'Mosh 只能直连，这台主机的连接路径是：$description。Mosh 会话走 UDP，代理和跳板机只转发 TCP，承载不了；没有连接服务器、没有启动 mosh-server，也不会改成直连绕过你选的路线。':
+      'Mosh only works over a direct connection; this host\'s route is: \$description. A Mosh session runs over UDP, which proxies and jump hosts (TCP only) cannot carry; nothing was sent to the server, no mosh-server was started, and the route you chose was not bypassed with a direct connection.',
+  r'插件主机只能直连：这台主机配了$what。插件自己联网，不经过本 App 的代理和跳板；没有打开插件，也不会悄悄去掉这些设置。在编辑器里把连接路径改成直连，或者把协议改回 SSH。':
+      'Plugin hosts can only be direct: this host has \$what configured. The plugin uses its own network, not this app\'s proxies or jump hosts; the plugin was not opened, and these settings are not silently removed. Switch the route to direct in the editor, or change the protocol back to SSH.',
+  r'只分离这个标签的 tmux 客户端：关掉 Mosh 会话后，它里面的 tmux 客户端跟着退出，tmux 会话 ${session.tmux!.target.displayName}（${session.tmux!.target.sessionId}）和里面的程序留在远端，不发送 Ctrl-C，也不结束会话。':
+      r'Only this tab’s tmux client is detached: once the Mosh session closes, the tmux client inside it exits, and tmux session ${session.tmux!.target.displayName} (${session.tmux!.target.sessionId}) and its programs stay on the remote; no Ctrl-C is sent and the session is not terminated.',
+  r'将断开 ${session.host.label} 的 Mosh 会话：服务器上这次的 mosh-server 和里面的 shell 会一起退出，没在 tmux 之类工具里运行的程序也会结束。':
+      r'This disconnects the Mosh session to ${session.host.label}: this mosh-server on the server exits together with its shell, and programs not running inside something like tmux end too.',
+  r'在这条 SSH 上起 mosh-server，附着同一个 tmux 会话 ${tmux!.displayName}（${tmux.sessionId}），核对过才换过去，然后关掉这条 SSH。不重发任何输入。':
+      r'Starts mosh-server over this SSH and attaches the same tmux session ${tmux!.displayName} (${tmux.sessionId}); the tab moves over only after that is verified, then this SSH is closed. No input is resent.',
+  r'重新登录 SSH，附着同一个 tmux 会话 ${tmux!.displayName}（${tmux.sessionId}），核对过才换过去，然后关掉 Mosh。不重发任何输入。':
+      r'Logs in over SSH again and attaches the same tmux session ${tmux!.displayName} (${tmux.sessionId}); the tab moves over only after that is verified, then Mosh is closed. No input is resent.',
+  r'${widget.session.host.username}@${tmuxHostKeyOf(widget.session)} · ${_socket.describe()}。只读列出；要新建、结束或换 socket，用「系统管理 → tmux」。':
+      r'${widget.session.host.username}@${tmuxHostKeyOf(widget.session)} · ${_socket.describe()}. Read-only list. To create, end or change socket, use System management → tmux.',
+  '要管理员权限：sudo 会在那个终端里问你的密码，你自己输。App 看不到、也不保存这个密码。服务器上没有 sudo 的，会报「sudo: not found」：用 root 登录再装，或者自己换成 doas。':
+      'This needs administrator rights: sudo will ask for your password in that terminal and you type it yourself. The app neither sees nor stores it. If the server has no sudo you will see “sudo: not found”: sign in as root and install again, or use doas yourself.',
+  'mosh 从这台服务器自己配的软件源下载，服务器要能上网。包管理器问「要不要继续」时，也在那个终端里回答。标签断线恢复时不会再执行一次。':
+      'mosh is downloaded from the package sources configured on this server, so the server needs network access. If the package manager asks whether to continue, answer in that terminal. It is not run again when the tab recovers from a disconnect.',
+  '这个插件自己联网，不经过本 App 的代理和跳板。连哪里、用什么账号，由插件自己的设置页决定；本 App 不把这台主机的地址、密码、私钥交给它。':
+      'This plugin uses its own network, not this app\'s proxies or jump hosts. Where it connects and with which account is set on the plugin\'s own settings page; this app never gives it this host\'s address, password or private key.',
+  '还没有能用来连接的插件：装好终端插件后到「设置 → 插件（实验）」核对证书、批准。Mosh 插件不在这里，Mosh 主机请选 Mosh 协议。':
+      'No plugin can be used to connect yet: install a terminal plugin, then check its certificate and approve it in Settings → Plugins (experimental). The Mosh plugin is not listed here; choose the Mosh protocol for Mosh hosts.',
+  '默认是 tmux 不带参数时用的那个（/tmp/tmux-你的 uid/default）。如果你在 shell 配置里改了 TMUX_TMPDIR，这里看不到，请填 -S 路径。':
+      'Default is the one tmux uses without arguments (/tmp/tmux-<your uid>/default). If your shell config changes TMUX_TMPDIR, it is not visible here; enter the -S path instead.',
+  'UDP 端口范围无效': 'Invalid UDP port range',
+  'Mosh 目标或材料无效': 'Invalid Mosh target or material',
+  '已选目录': 'Selected folder',
+  '未知错误': 'Unknown error',
+  '左上': 'Top left',
+  '顶部居中': 'Top center',
+  '右上': 'Top right',
+  '左侧居中': 'Center left',
+  '右侧居中': 'Center right',
+  '左下': 'Bottom left',
+  '底部居中': 'Bottom center',
+  '右下': 'Bottom right',
+  '思考：极低': 'Reasoning: minimal',
+  '思考：低': 'Reasoning: low',
+  '思考：中': 'Reasoning: medium',
+  '思考：高': 'Reasoning: high',
+  '管理系统服务需要管理员权限，且 sudo 需要密码。\n\${error.message}':
+      'Managing system services requires administrator access and a sudo password.\n\${error.message}',
+  '管理 Caddy 配置需要管理员权限，且 sudo 需要密码。\n\${error.message}':
+      'Managing Caddy configuration requires administrator access and a sudo password.\n\${error.message}',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
@@ -2407,6 +2364,8 @@ const englishReplacements = <(String, String)>[
   ('自动：先试私钥“', 'Automatic: try private key “'),
   ('自动：先试保存的密码', 'Automatic: try the saved password'),
   ('，再试保存的密码', ', then the saved password'),
+  // 「自动：先试私钥“a”，再试私钥“b”……」：上一条之后，别的「，再试」。
+  ('，再试', ', then '),
   ('自动：先试', 'Automatic: try '),
   ('，都不行再问你', ', and if none works you are asked'),
   // 私钥列表删除前问的那句，要在下面单独的「私钥“」之前。
