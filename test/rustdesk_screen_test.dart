@@ -335,8 +335,23 @@ void main() {
       noHan();
     }
 
+    // 标题栏和卡片标题旁的 ⓘ 逐个打开：里面有按片段翻的多行句子，也有逐句翻好再拼的。
+    Future<void> hintsHaveNoHan() async {
+      final count = find.byIcon(Icons.info_outline).evaluate().length;
+      expect(count, greaterThan(0));
+      for (var i = 0; i < count; i++) {
+        await tester.tap(find.byIcon(Icons.info_outline).at(i));
+        await tester.pumpAndSettle();
+        expect(find.text('Got it'), findsOneWidget);
+        noHan();
+        await tester.tap(find.text('Got it'));
+        await tester.pumpAndSettle();
+      }
+    }
+
     await open(tester, const RustDeskHostScreen(hostId: 'mac'));
     noHan();
+    await hintsHaveNoHan();
     // 每一种拒收原因都显示一遍。
     for (final bad in [
       '',
@@ -431,5 +446,6 @@ void main() {
     await tester.pumpWidget(const SizedBox());
     await open(tester, const RustDeskSettingsScreen());
     noHan();
+    await hintsHaveNoHan();
   });
 }

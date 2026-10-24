@@ -9,11 +9,13 @@ import '../../application/uuremote.dart';
 import '../../infrastructure/plugins/uuremote_adapter.dart';
 import '../localization/localized_widgets.dart';
 import '../widgets/catalog_text.dart';
+import '../widgets/hint.dart';
 import '../widgets/remote_entry_widgets.dart';
 
 // UU 远程（X06）的界面。规则都在 application/uuremote.dart；这里只负责说清楚：
 // 远控在 UU 远程里进行，本 App 只发起、只显示 UU 报告的结果；全屏 UU 不回报，所以永远不说「已连接」。
 
+// 原来常驻在两页顶上，现在收进标题栏的 ⓘ（docs/dev/ui-text.md）；完整说明在使用手册。
 const _limits = '远控画面、账号和网络都在 UU 远程里，本 App 只负责发起和记录 UU 报告的结果。'
     'UU 只能控制 Windows 和 macOS 电脑，不能控制 Linux、安卓或电视。';
 
@@ -66,10 +68,7 @@ class _UuRemoteListenerState extends ConsumerState<UuRemoteListener> {
             children: [
               catalogLine('要保存到连接：', host?.label ?? offer.hostId),
               const SizedBox(height: 8),
-              const LText(
-                'UU 只给了一个加密的设备标识，本 App 看不到设备名，也不会把它显示、导出或复制。'
-                '保存后可从这条连接发起 UU 远控；本 App 不会自动发起。',
-              ),
+              const LText('UU 只给了一个加密的设备标识，本 App 看不到设备名。保存后要从这条连接手动发起远控。'),
               const SizedBox(height: 8),
               const LText(
                 '如果你没有刚在 UU 里选过设备，点「不要」：这条回调可能不是你发起的。',
@@ -198,9 +197,7 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const LText('删除这条 UU 绑定？'),
-        content: const LText(
-          '只删本 App 里的这条绑定。主机、它的 SSH 设置和别的关联都不动；UU 远程里的设备也不受影响。',
-        ),
+        content: const LText('只删本 App 里的这条绑定，UU 远程里的设备不受影响。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -241,6 +238,7 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
               ? localized('UU 远程')
               : '${localized('UU 远程')} · ${host.label}'),
           actions: [
+            const HintButton(title: 'UU 远程', message: _limits),
             if (host != null)
               RemoteEntryActions(
                   entry: host,
@@ -250,8 +248,6 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          LText(_limits, style: small),
-          const SizedBox(height: 12),
           UuAppStatusCard(app: uu.app),
           UuCallbackRivalsNote(rivals: uu.callbackRivals),
           const SizedBox(height: 12),
@@ -264,27 +260,25 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const LText('绑定'),
-                    const SizedBox(height: 4),
+                    const HintTitle(
+                      '绑定',
+                      hint:
+                          '点「在 UU 里选设备」，UU 列出你账号下的 Windows/macOS 电脑，选一台再回来确认。UU 不把设备名告诉第三方 App，所以绑定后只显示绑定时间。',
+                    ),
                     if (binding == null)
-                      LText(
-                        '还没绑定。点「在 UU 里选设备」，UU 会列出你账号下的 Windows/macOS 电脑，选一台再回到这里确认。',
-                        style: small,
-                      )
+                      LText('还没绑定', style: small)
                     else if (binding.valid)
                       catalogLine('已绑定，时间：', catalogTime(binding.createdAt),
                           style: small)
                     else
                       LText(
-                        'UU 报告这条绑定已失效（设备解绑、被删，或换了 UU 账号），要重新绑定。只有这条 UU 绑定受影响，主机的 SSH 照常。',
+                        'UU 报告这条绑定已失效，要重新绑定',
                         key: const ValueKey('uu-binding-invalid'),
                         style: small,
                       ),
-                    if (binding != null && binding.valid)
-                      LText('UU 不把设备名告诉第三方 App，所以这里只显示绑定时间。', style: small),
                     if (host.routeWarning != RequestedRoute.systemDefault)
                       LText(
-                        '这台主机的 SSH 经代理或跳板；UU 远程不走这条路线，用它自己的网络。',
+                        'UU 不走这台主机的代理或跳板，用它自己的网络',
                         key: const ValueKey('uu-route-note'),
                         style: small,
                       ),
@@ -420,16 +414,23 @@ class _UuRemoteSettingsScreenState
   Widget build(BuildContext context) {
     final uu = ref.watch(uuRemoteProvider);
     final hosts = uu.entries;
-    final small = Theme.of(context).textTheme.bodySmall;
     return Scaffold(
-      appBar: AppBar(title: const LText('UU 远程')),
+      appBar: AppBar(
+        title: const LText('UU 远程'),
+        actions: [
+          // 逐句本地化再拼：拼好的整段在英文表里查不到。
+          HintButton(
+            title: 'UU 远程',
+            message: [
+              localized(_limits),
+              localized('在首页添加连接时选择 UU 远程，无需 SSH 地址和用户名。'),
+            ].join('\n\n'),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const LText(_limits),
-          const SizedBox(height: 4),
-          LText('在首页添加连接时选择 UU 远程，无需 SSH 地址和用户名。', style: small),
-          const SizedBox(height: 12),
           UuAppStatusCard(app: uu.app),
           UuCallbackRivalsNote(rivals: uu.callbackRivals),
           const SizedBox(height: 16),
@@ -526,7 +527,7 @@ class UuAppStatusCard extends ConsumerWidget {
             catalogLine('签名证书 SHA-256：', formatDigest(signer), style: small),
             const SizedBox(height: 4),
             const LText(
-              '这张证书还不在本 App 核对过的官方证书里。只有在你确定这个 UU 远程是从官方渠道（uuyc.163.com 或正规应用商店）装的时候才批准；批准后证书再变，本 App 会停下来让你重新核对。',
+              '这张证书还不在本 App 核对过的官方证书里。确定是从官方渠道（uuyc.163.com 或正规应用商店）装的才批准。',
               key: ValueKey('uu-needs-approval'),
             ),
             Align(

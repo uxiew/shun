@@ -2,8 +2,6 @@ const englishTranslations = <String, String>{
   '检查远控客户端失败，请稍后重试。': 'Could not check remote clients. Retry later.',
   '绑定确认已变化，请重新确认。': 'The binding offer has changed. Confirm it again.',
   '不支持多签名客户端': 'Clients signed by multiple certificates are not supported',
-  '保存后可从这条连接发起 UU 远控；本 App 不会自动发起。':
-      'After saving, you can launch UU from this connection. This app never launches it automatically.',
   '删除这条连接的 RustDesk ID？': 'Clear the RustDesk ID for this connection?',
   '删除远控连接？': 'Delete remote connection?',
   '删除远控连接': 'Delete remote connection',
@@ -1359,8 +1357,6 @@ const englishTranslations = <String, String>{
   'UU 远程联动目前只支持 Android。': 'UU Remote integration is Android only for now.',
   '这个 UU 远程由多张证书签名，暂不支持。':
       'This UU Remote is signed by several certificates, which is not supported yet.',
-  '这张证书还不在本 App 核对过的官方证书里。只有在你确定这个 UU 远程是从官方渠道（uuyc.163.com 或正规应用商店）装的时候才批准；批准后证书再变，本 App 会停下来让你重新核对。':
-      'This certificate is not among the official certificates this app has checked. Approve it only if you are sure this UU Remote came from an official source (uuyc.163.com or a reputable app store). If the certificate changes after approval, this app stops and asks you to check again.',
   '手机上的 UU 远程换了签名证书：可能是换了渠道重装，也可能是冒牌的。核对之前不会再发任何请求。':
       'UU Remote on this phone has a different signing certificate: it may have been reinstalled from another source, or it may be fake. No request is sent until you check it.',
   '签名证书和从官方下载的一致。':
@@ -1380,16 +1376,6 @@ const englishTranslations = <String, String>{
   '正在打开 UU 远程…': 'Opening UU Remote…',
   '如果你没有刚在 UU 里选过设备，点「不要」：这条回调可能不是你发起的。':
       'If you did not just pick a device in UU, tap "No": this callback may not come from you.',
-  '只删本 App 里的这条绑定。主机、它的 SSH 设置和别的关联都不动；UU 远程里的设备也不受影响。':
-      'Deletes only this binding in this app. The host, its SSH settings and other links stay; the device in UU Remote is not affected.',
-  '还没绑定。点「在 UU 里选设备」，UU 会列出你账号下的 Windows/macOS 电脑，选一台再回到这里确认。':
-      'Not bound yet. Tap "Pick a device in UU": UU lists the Windows/macOS computers in your account; pick one and confirm back here.',
-  'UU 报告这条绑定已失效（设备解绑、被删，或换了 UU 账号），要重新绑定。只有这条 UU 绑定受影响，主机的 SSH 照常。':
-      "UU reported this binding is no longer valid (the device was unbound or deleted, or the UU account changed); bind again. Only this UU binding is affected; the host's SSH works as before.",
-  'UU 不把设备名告诉第三方 App，所以这里只显示绑定时间。':
-      'UU does not tell other apps the device name, so only the binding time is shown.',
-  '这台主机的 SSH 经代理或跳板；UU 远程不走这条路线，用它自己的网络。':
-      "This host's SSH goes through a proxy or jump hosts; UU Remote does not take that route and uses its own network.",
   '另一台主机的 UU 请求还在等回报，先到那里结束等待。':
       "Another host's UU request is still waiting for a reply; stop waiting there first.",
   'UU 远程调用现在不可用：': 'UU Remote launcher is unavailable right now: ',
@@ -1526,16 +1512,8 @@ const englishTranslations = <String, String>{
       "This host's SSH goes through a proxy or jump hosts. RustDesk uses the ID server and relay configured inside it and does not go through them. If remote control must take the same route, RustDesk cannot do that; cancel.",
   '用 RustDesk 自己的网络继续': "Continue on RustDesk's own network",
   '删除这台主机的 RustDesk ID？': "Delete this host's RustDesk ID?",
-  '只删本 App 里的这条关联。主机、它的 SSH 设置和别的关联都不动；RustDesk 里的设备、密码和服务器设置也不受影响。':
-      'Deletes only this link in this app. The host, its SSH settings and other links stay; devices, passwords and server settings in RustDesk are not affected.',
   '这台主机的 RustDesk ID': "This host's RustDesk ID",
-  '在被控电脑的 RustDesk 主界面上看「ID」，照着填。只填 ID：密码到 RustDesk 里输，本 App 不保存、也不传密码。':
-      'Find "ID" on the main screen of RustDesk on the computer to be controlled and copy it here. Enter only the ID: type the password in RustDesk; this app neither stores nor sends passwords.',
-  '保存只是记下 ID，不会打开 RustDesk，也不会连接。':
-      'Saving only records the ID; it does not open RustDesk or connect.',
   '保存时间：': 'Saved at: ',
-  '这台主机的 SSH 经代理或跳板；RustDesk 不走这条路线，用它自己的网络。':
-      "This host's SSH goes through a proxy or jump hosts; RustDesk does not take that route and uses its own network.",
   '用 RustDesk 远控': 'Remote control with RustDesk',
   '改 ID': 'Change ID',
   '交给了：': 'Handed to: ',
@@ -1550,8 +1528,6 @@ const englishTranslations = <String, String>{
   '装着的 RustDesk 版本太旧：': 'The installed RustDesk is too old: ',
   '从这个版本起 RustDesk 才接受别的 App 发来的连接请求，请先更新：':
       'RustDesk accepts connection requests from other apps only from this version on; update first: ',
-  '这张证书不是本 App 核对过的发行渠道证书（GitHub 发行版、F-Droid）。应用商店重新签名的、自己编译的、冒牌的，本 App 分不出来。只有在你确定它的来源时才批准；批准后证书再变，本 App 会停下来让你重新核对。':
-      'This certificate is not one of the release-channel certificates this app has checked (GitHub releases, F-Droid). This app cannot tell a store-resigned build, a self-built one and a fake apart. Approve it only if you are sure where it came from. If the certificate changes after approval, this app stops and asks you to check again.',
   '你信任的那个 RustDesk 换了签名证书：可能是换了渠道重装，也可能是冒牌的。核对之前不会再发任何请求。':
       'The RustDesk you trusted has a different signing certificate: it may have been reinstalled from another source, or it may be fake. No request is sent until you check it.',
   '撤销信任': 'Revoke trust',
@@ -1562,10 +1538,6 @@ const englishTranslations = <String, String>{
       'This is a client you explicitly trusted. This app has not checked where it came from.',
   '这个版本的连接链接按源码核对过。':
       'The connection link for this version was checked against its source code.',
-  '这个版本能用，但它会执行任何 App 或网页发来的改密码、改服务器链接。建议更新 RustDesk，这个版本起默认不再执行：':
-      'This version works, but it runs links from any app or web page that change its password or server. Updating RustDesk is recommended; from this version on such links are off by default: ',
-  '这个版本比本 App 核对过的新，没有核对过。连接链接仍按原来的写法发；打不开或连错了，先怀疑这里。核对过的最高版本：':
-      'This version is newer than any this app has checked. The connection link is still sent in the known form; if it fails to open or connects wrongly, suspect this first. Highest version checked: ',
   '看不懂这个版本号，没法和核对过的版本对照。连接链接按核对过的写法发。':
       'The version number cannot be read, so it cannot be compared with the checked versions. The connection link is sent in the checked form.',
   '另有 App 也声明能打开 rustdesk://：': 'Another app also claims rustdesk://: ',
@@ -1578,8 +1550,6 @@ const englishTranslations = <String, String>{
   '之后远控请求（里面有 RustDesk ID）会发给它，不再发给官方包名的 RustDesk。只有当它是你自己编译的、或你信得过的 RustDesk 客户端时才信任。它的证书以后变了，本 App 会停下来让你重新核对。':
       'From now on remote-control requests (which contain the RustDesk ID) go to it instead of the RustDesk with the official package name. Trust it only if it is a RustDesk client you built yourself or otherwise trust. If its certificate changes later, this app stops and asks you to check again.',
   '没能打开 RustDesk：': 'Could not open RustDesk: ',
-  '已交给 RustDesk。它不向本 App 回报结果：连没连上、什么时候断开，请看 RustDesk。':
-      'Handed to RustDesk. It reports nothing back to this app: check RustDesk to see whether it connected and when it disconnected.',
   // R19：粘贴预览、多行编辑（terminal_paste_sheet.dart、session_controller.dart）。整句精确匹配。
   '粘贴到': 'Paste into',
   '行': 'lines',
@@ -2402,6 +2372,33 @@ const englishTranslations = <String, String>{
       'Create an OAuth client in the Tailscale admin console with only devices:core:read ticked.',
   '服务器确认它只能读设备才保存':
       'Saved only if the server confirms it can only read devices',
+  'UU 只给了一个加密的设备标识，本 App 看不到设备名。保存后要从这条连接手动发起远控。':
+      'UU gives only an encrypted device identifier; this app cannot see the device name. After saving, launch remote control from this connection yourself.',
+  '只删本 App 里的这条绑定，UU 远程里的设备不受影响。':
+      'Only this binding in this app is deleted; the device in UU Remote is not affected.',
+  '点「在 UU 里选设备」，UU 列出你账号下的 Windows/macOS 电脑，选一台再回来确认。UU 不把设备名告诉第三方 App，所以绑定后只显示绑定时间。':
+      'Tap “Choose a device in UU”: UU lists the Windows/macOS computers on your account; pick one and come back to confirm. UU does not tell third-party apps the device name, so only the binding time is shown afterwards.',
+  '还没绑定': 'Not bound yet',
+  'UU 报告这条绑定已失效，要重新绑定':
+      'UU reports this binding is no longer valid; bind again',
+  'UU 不走这台主机的代理或跳板，用它自己的网络':
+      'UU does not use this host’s proxy or jump host; it uses its own network',
+  '这张证书还不在本 App 核对过的官方证书里。确定是从官方渠道（uuyc.163.com 或正规应用商店）装的才批准。':
+      'This certificate is not among the official ones this app has checked. Approve it only if you are sure UU Remote came from an official source (uuyc.163.com or a reputable app store).',
+  '只删本 App 里的这条关联，RustDesk 里的设备、密码和服务器设置不受影响。':
+      'Only this link in this app is deleted; devices, passwords and server settings in RustDesk are not affected.',
+  '在被控电脑的 RustDesk 主界面上看「ID」，照着填。只填 ID：密码到 RustDesk 里输，本 App 不保存、也不传密码。保存只是记下 ID，不会打开 RustDesk，也不会连接。':
+      'Copy the “ID” from the RustDesk main screen on the computer you want to control. Enter only the ID: type the password in RustDesk; this app never stores or passes it. Saving only records the ID; it does not open RustDesk or connect.',
+  'RustDesk 不走这台主机的代理或跳板，用它自己的网络':
+      'RustDesk does not use this host’s proxy or jump host; it uses its own network',
+  '这张证书不是本 App 核对过的发行渠道证书（GitHub 发行版、F-Droid），本 App 分不出是重签、自己编译还是冒牌。确定来源才批准。':
+      'This certificate is not one of the release channels this app has checked (GitHub releases, F-Droid); this app cannot tell a re-signed, self-built or fake copy apart. Approve only if you are sure of its source.',
+  '这个版本能用，但它会执行任何 App 或网页发来的改密码、改服务器链接。建议至少更新到：':
+      'This version works, but it executes password- and server-changing links sent by any app or web page. Update to at least: ',
+  '这个版本比本 App 核对过的新，没有核对过；打不开或连错了先怀疑这里。核对过的最高版本：':
+      'This version is newer than any this app has checked; if it fails to open or connects to the wrong place, suspect this first. Highest checked version: ',
+  '已交给 RustDesk。它不向本 App 回报结果，连没连上请看 RustDesk。':
+      'Handed to RustDesk. It does not report back to this app; check RustDesk to see whether it connected.',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
@@ -2556,10 +2553,6 @@ const englishReplacements = <(String, String)>[
     ' session(s) on the default socket. After connecting, pick one to attach under “System management → tmux”.'
   ),
   ('，但会话列表没读出来：', ', but its session list could not be read: '),
-  (
-    '保存后可从这条连接发起 UU 远控；本 App 不会自动发起。',
-    'After saving, you can launch UU from this connection. This app never launches it automatically.'
-  ),
   ('Mosh 插件不可用：', 'Mosh plugin unavailable: '),
   ('仅本机保存', 'Local only'),
   ('终端插件', 'Terminal plugins'),
@@ -2893,14 +2886,6 @@ const englishReplacements = <(String, String)>[
   (
     'UU 只能控制 Windows 和 macOS 电脑，不能控制 Linux、安卓或电视。',
     'UU can control only Windows and macOS computers, not Linux, Android or TVs.'
-  ),
-  (
-    'UU 只给了一个加密的设备标识，本 App 看不到设备名，也不会把它显示、导出或复制。',
-    'UU gives only an encrypted device identifier; this app cannot see the device name and never shows, exports or copies it. '
-  ),
-  (
-    '关联之后可以在这台主机上用 UU 远程发起远控；本 App 不会自动发起。',
-    'Once linked, you can start UU remote control from this host; this app never starts it on its own.'
   ),
   (
     '这台主机的 SSH 经代理或跳板连接。UU 远程用它自己的网络和账号，不会经过这些设置。',

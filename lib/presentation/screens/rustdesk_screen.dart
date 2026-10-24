@@ -9,11 +9,13 @@ import '../../application/rustdesk.dart';
 import '../../infrastructure/plugins/rustdesk_external.dart';
 import '../localization/localized_widgets.dart';
 import '../widgets/catalog_text.dart';
+import '../widgets/hint.dart';
 import '../widgets/remote_entry_widgets.dart';
 
 // RustDesk 外部客户端联动（X07）的界面。规则都在 application/rustdesk.dart；这里只负责说清楚：
 // 远控在 RustDesk 里进行，本 App 只把 ID 交给它；RustDesk 不回报，所以永远不说「已连接」「已断开」。
 
+// 原来常驻在两页顶上，现在收进标题栏的 ⓘ（docs/dev/ui-text.md）；完整说明在使用手册。
 const _limits =
     '远控画面、密码、服务器设置和网络都在 RustDesk 里，本 App 只把这条连接的 RustDesk ID 交给它。RustDesk 不向本 App 回报结果：连没连上、什么时候断开，都要在 RustDesk 里看。';
 
@@ -122,9 +124,7 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
       context: context,
       builder: (context) => AlertDialog(
         title: const LText('删除这条连接的 RustDesk ID？'),
-        content: const LText(
-          '只删本 App 里的这条关联。主机、它的 SSH 设置和别的关联都不动；RustDesk 里的设备、密码和服务器设置也不受影响。',
-        ),
+        content: const LText('只删本 App 里的这条关联，RustDesk 里的设备、密码和服务器设置不受影响。'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
@@ -158,6 +158,7 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
       appBar: AppBar(
         title: Text(host == null ? 'RustDesk' : 'RustDesk · ${host.label}'),
         actions: [
+          const HintButton(title: 'RustDesk', message: _limits),
           if (host != null)
             RemoteEntryActions(
               entry: host,
@@ -169,8 +170,6 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          LText(_limits, style: small),
-          const SizedBox(height: 12),
           if (rd.notice != null) ...[
             LText(rd.notice!, key: const ValueKey('rd-notice')),
             const SizedBox(height: 12),
@@ -186,14 +185,13 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const LText('这条连接的 RustDesk ID'),
-                    const SizedBox(height: 4),
+                    const HintTitle(
+                      '这条连接的 RustDesk ID',
+                      hint:
+                          '在被控电脑的 RustDesk 主界面上看「ID」，照着填。只填 ID：密码到 RustDesk 里输，本 App 不保存、也不传密码。保存只是记下 ID，不会打开 RustDesk，也不会连接。',
+                    ),
                     if (editing) ...[
-                      LText(
-                        '在被控电脑的 RustDesk 主界面上看「ID」，照着填。只填 ID：密码到 RustDesk 里输，本 App 不保存、也不传密码。',
-                        style: small,
-                      ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 4),
                       TextField(
                         key: const ValueKey('rd-id-field'),
                         controller: _id,
@@ -230,7 +228,6 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
                             ),
                         ],
                       ),
-                      LText('保存只是记下 ID，不会打开 RustDesk，也不会连接。', style: small),
                     ] else ...[
                       Text(
                         link.peer.display,
@@ -244,7 +241,7 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
                       ),
                       if (host.routeWarning != RequestedRoute.systemDefault)
                         LText(
-                          '这台主机的 SSH 经代理或跳板；RustDesk 不走这条路线，用它自己的网络。',
+                          'RustDesk 不走这台主机的代理或跳板，用它自己的网络',
                           key: const ValueKey('rd-route-note'),
                           style: small,
                         ),
@@ -348,16 +345,23 @@ class _RustDeskSettingsScreenState
   Widget build(BuildContext context) {
     final rd = ref.watch(rustDeskProvider);
     final hosts = rd.entries;
-    final small = Theme.of(context).textTheme.bodySmall;
     return Scaffold(
-      appBar: AppBar(title: const Text('RustDesk')),
+      appBar: AppBar(
+        title: const Text('RustDesk'),
+        actions: [
+          // 逐句本地化再拼：拼好的整段在英文表里查不到。
+          HintButton(
+            title: 'RustDesk',
+            message: [
+              localized(_limits),
+              localized('在首页添加连接时选择 RustDesk，无需 SSH 地址和用户名。'),
+            ].join('\n\n'),
+          ),
+        ],
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const LText(_limits),
-          const SizedBox(height: 4),
-          LText('在首页添加连接时选择 RustDesk，无需 SSH 地址和用户名。', style: small),
-          const SizedBox(height: 12),
           if (rd.notice != null) ...[
             LText(rd.notice!, key: const ValueKey('rd-notice')),
             const SizedBox(height: 12),
@@ -490,7 +494,7 @@ class RustDeskAppStatusCard extends ConsumerWidget {
             catalogLine('签名证书 SHA-256：', formatDigest(signer), style: small),
             const SizedBox(height: 4),
             const LText(
-              '这张证书不是本 App 核对过的发行渠道证书（GitHub 发行版、F-Droid）。应用商店重新签名的、自己编译的、冒牌的，本 App 分不出来。只有在你确定它的来源时才批准；批准后证书再变，本 App 会停下来让你重新核对。',
+              '这张证书不是本 App 核对过的发行渠道证书（GitHub 发行版、F-Droid），本 App 分不出是重签、自己编译还是冒牌。确定来源才批准。',
               key: ValueKey('rd-needs-approval'),
             ),
             Align(
@@ -547,7 +551,7 @@ class RustDeskAppStatusCard extends ConsumerWidget {
                 ],
               RustDeskVersionSupport.deepLinksUngated => [
                   catalogLine(
-                    '这个版本能用，但它会执行任何 App 或网页发来的改密码、改服务器链接。建议更新 RustDesk，这个版本起默认不再执行：',
+                    '这个版本能用，但它会执行任何 App 或网页发来的改密码、改服务器链接。建议至少更新到：',
                     RustDeskProtocol.gatedSinceText,
                     key: const ValueKey('rd-version-ungated'),
                     style: small,
@@ -555,7 +559,7 @@ class RustDeskAppStatusCard extends ConsumerWidget {
                 ],
               RustDeskVersionSupport.newerUnverified => [
                   catalogLine(
-                    '这个版本比本 App 核对过的新，没有核对过。连接链接仍按原来的写法发；打不开或连错了，先怀疑这里。核对过的最高版本：',
+                    '这个版本比本 App 核对过的新，没有核对过；打不开或连错了先怀疑这里。核对过的最高版本：',
                     RustDeskProtocol.verifiedUpToText,
                     key: const ValueKey('rd-version-unverified'),
                     style: small,
@@ -619,6 +623,6 @@ String rustDeskAttemptText(RustDeskAttempt attempt) {
   }
   return [
     catalogTime(attempt.at),
-    localized('已交给 RustDesk。它不向本 App 回报结果：连没连上、什么时候断开，请看 RustDesk。'),
+    localized('已交给 RustDesk。它不向本 App 回报结果，连没连上请看 RustDesk。'),
   ].join(' · ');
 }
