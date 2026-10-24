@@ -117,7 +117,9 @@ class _ProxyProfileEditorState extends ConsumerState<ProxyProfileEditor> {
         body: Form(
             key: _form,
             child: ListView(padding: const EdgeInsets.all(16), children: [
-              const LText('修改后，引用此代理的主机下次连接使用新配置；已连接的会话不变。'),
+              // 新建时没有谁在用它，这句只在改已有代理时有意义。
+              if (widget.profile != null)
+                const LText('修改后，引用此代理的主机下次连接使用新配置；已连接的会话不变。'),
               TextFormField(
                   key: const ValueKey('proxy-label'),
                   controller: _label,

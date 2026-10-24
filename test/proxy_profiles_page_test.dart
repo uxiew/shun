@@ -113,6 +113,8 @@ void main() {
       (tester) async {
     await open(tester, const ProxyProfilesPage());
     await tapRoute(tester, find.byKey(const ValueKey('proxy-delete-p')));
+    expect(find.textContaining('这些主机在用它'), findsOneWidget);
+    expect(find.text('没有主机引用此代理。'), findsNothing);
     expect(find.text('a · ops@a.example:22'), findsOneWidget);
     expect(find.text('b · ops@b.example:22'), findsOneWidget);
     await tapRoute(tester, find.text('取消'));
@@ -122,6 +124,31 @@ void main() {
     final vault = await repository.loadVault();
     expect(vault.proxyProfiles, isEmpty);
     expect(vault.hosts.first.proxyProfileId, 'p');
+  });
+
+  testWidgets('没有主机在用时，删除确认框只写这一句，不再先说「以下主机引用此代理」', (tester) async {
+    await repository.saveVault(VaultData(
+        hosts: [host('edge1')],
+        keys: [],
+        snippets: [],
+        customGroups: [],
+        proxyProfiles: [profile]));
+    await open(tester, const ProxyProfilesPage());
+    await tapRoute(tester, find.byKey(const ValueKey('proxy-delete-p')));
+    expect(find.text('没有主机引用此代理。'), findsOneWidget);
+    // 旧版这里还有一句「以下主机引用此代理……」，两句都带「引用此代理」。
+    expect(find.textContaining('引用此代理'), findsOneWidget);
+    expect(find.textContaining('这些主机在用它'), findsNothing);
+  });
+
+  testWidgets('新建代理不显示「修改后，引用此代理的主机……」，编辑已有的才显示', (tester) async {
+    await open(tester, const ProxyProfilesPage());
+    await tapRoute(tester, find.byKey(const ValueKey('proxy-create')));
+    expect(find.textContaining('引用此代理的主机下次连接'), findsNothing);
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    await tapRoute(tester, find.byKey(const ValueKey('proxy-edit-p')));
+    expect(find.textContaining('引用此代理的主机下次连接'), findsOneWidget);
   });
 
   testWidgets(

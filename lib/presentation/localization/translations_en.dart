@@ -78,11 +78,8 @@ const englishTranslations = <String, String>{
   '代理无法读取或已变化，请重新打开后再操作。':
       'The proxy cannot be read or has changed. Reopen and try again.',
   '删除代理': 'Delete proxy',
-  '以下主机引用此代理。删除后会因代理缺失而拒绝连接，请重新选择代理；不会自动改成直连。':
-      'These hosts reference this proxy. Deleting it blocks their connections until another proxy is chosen. They will not switch to a direct connection.',
   '没有主机引用此代理。': 'No hosts reference this proxy.',
   '代理删除失败，请重试。': 'Could not delete the proxy. Please try again.',
-  '还没有代理，点「新建代理」添加。': 'No proxies yet. Choose New proxy to add one.',
   '代理配置缺失': 'Missing proxy profile',
   '主机自带代理': 'Host inline proxy',
   '清空路线': 'Clear route',
@@ -2399,6 +2396,9 @@ const englishTranslations = <String, String>{
       'This version is newer than any this app has checked; if it fails to open or connects to the wrong place, suspect this first. Highest checked version: ',
   '已交给 RustDesk。它不向本 App 回报结果，连没连上请看 RustDesk。':
       'Handed to RustDesk. It does not report back to this app; check RustDesk to see whether it connected.',
+  '这些主机在用它。删了以后它们会连不上，要重新选代理；不会自动改成直连：':
+      'These hosts use it. After deleting, they will fail to connect until you pick another proxy; they are not switched to a direct connection:',
+  '还没有代理': 'No proxies yet',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are

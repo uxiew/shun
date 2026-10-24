@@ -85,9 +85,11 @@ class _ProxyProfilesPageState extends ConsumerState<ProxyProfilesPage> {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                           Text(profile.label),
-                          const LText(
-                              '以下主机引用此代理。删除后会因代理缺失而拒绝连接，请重新选择代理；不会自动改成直连。'),
-                          if (shown.hosts.isEmpty) const LText('没有主机引用此代理。'),
+                          // 以前没有主机在用时也先写「以下主机引用此代理……」，再写「没有主机引用」，前后矛盾。
+                          if (shown.hosts.isEmpty)
+                            const LText('没有主机引用此代理。')
+                          else
+                            const LText('这些主机在用它。删了以后它们会连不上，要重新选代理；不会自动改成直连：'),
                           for (final h in shown.hosts)
                             Text(
                                 '${h.label} · ${h.username}@${h.hostname}:${h.port}'),
@@ -130,8 +132,7 @@ class _ProxyProfilesPageState extends ConsumerState<ProxyProfilesPage> {
           if (state.error != null) const LText('代理无法读取或已变化，请重新打开后再操作。'),
           if (_error != null)
             LText(_error!, key: const ValueKey('proxy-manager-error')),
-          if (profiles.isEmpty && !state.loading)
-            const LText('还没有代理，点「新建代理」添加。'),
+          if (profiles.isEmpty && !state.loading) const LText('还没有代理'),
           for (final profile in profiles)
             Card(
                 child: Column(children: [
