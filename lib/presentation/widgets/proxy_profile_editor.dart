@@ -170,7 +170,7 @@ class _ProxyProfileEditorState extends ConsumerState<ProxyProfileEditor> {
                               ? Icons.visibility
                               : Icons.visibility_off)))),
               const SizedBox(height: 12),
-              const LText('代理的用户名和密码是明文发给代理的：SSH 只加密之后的终端会话，保护不了这段口令。'),
+              const LText('代理口令是明文发给代理的，SSH 保护不了。'),
               if (_error != null)
                 LText(_error!,
                     key: const ValueKey('proxy-error'),

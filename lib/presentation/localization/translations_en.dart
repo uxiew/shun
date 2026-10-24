@@ -50,8 +50,6 @@ const englishTranslations = <String, String>{
   '路线': 'Route',
   '首跳': 'First hop',
   '展开后跳板机超过 3 台。': 'Expansion exceeds the three jump host limit.',
-  '跳板自带路线需要明确确认；展开后仍最多 3 跳，后续跳板不能自带代理。':
-      'Confirm jump host routes explicitly. Expansion allows up to three hops; later hops cannot have their own proxy.',
   '检查并展开跳板路线': 'Review and expand jump routes',
   '确认跳板路线': 'Confirm jump route',
   '展开后的跳板顺序：': 'Expanded jump order:',
@@ -95,8 +93,6 @@ const englishTranslations = <String, String>{
   '更换代理': 'Change proxy',
   '移除代理': 'Remove proxy',
   '存为可复用代理': 'Save as reusable proxy',
-  '代理只用于手机连第一跳；后续由上一台跳板转发。':
-      'The phone uses the proxy only to reach the first hop. Later hops are forwarded by the preceding SSH host.',
   '上移': 'Move up',
   '下移': 'Move down',
   '移除跳板机': 'Remove jump host',
@@ -1105,8 +1101,6 @@ const englishTranslations = <String, String>{
       'The proxy is only used from the phone to the first jump host; every later hop is forwarded by the previous one, not through the proxy.',
   '还没有保存的代理配置（目前只能从桌面端导入）。可以选「自定义」。':
       'No saved proxy profiles (currently they only come from a desktop import). You can choose "Custom".',
-  '代理的用户名和密码是明文发给代理的：SSH 只加密之后的终端会话，保护不了这段口令。':
-      'The proxy username and password are sent to the proxy in clear text: SSH only encrypts the terminal session after it and cannot protect them.',
   '选了「经跳板机」，但还没有添加跳板机。':
       '"Via jump hosts" is selected but no jump host has been added.',
   '选一个代理：已保存的配置，或者自定义。': 'Choose a proxy: a saved profile or a custom one.',
@@ -1966,21 +1960,7 @@ const englishTranslations = <String, String>{
   '填整数秒，或留空用自动': 'Enter whole seconds, or leave empty for automatic',
   '连上后在 shell 里执行一次；断线恢复时不会再执行。':
       'Runs once in the shell after connecting; it does not run again when a dropped connection is restored.',
-  '配置有问题，按上面的提示改好才能保存':
-      'The configuration has problems; fix them as shown above before saving',
-  '插件自己联网，这里测试不了':
-      'The plugin does its own networking, so it cannot be tested here',
-  'Telnet 没有测试连接；保存后连接时才知道通不通':
-      'Telnet has no connection test; you only find out whether it works when you connect after saving',
-  'Mosh 要真正连接时才验证：测试连接只测得了 SSH 那一段':
-      'Mosh is only verified when you really connect: Test connection can only check the SSH leg',
   '未验证': 'Not verified',
-  '已验证：这组地址、认证和路线刚测试连接成功':
-      'Verified: Test connection just succeeded with this address, authentication and route',
-  '未验证：测试通过后改了地址、端口、认证或路线':
-      'Not verified: the address, port, authentication or route changed after the test passed',
-  '未验证：点「测试连接」核对指纹、登录和路线':
-      'Not verified: tap “Test connection” to check the fingerprint, login and route',
   '放弃没保存的改动？': 'Discard unsaved changes?',
   '这次的修改还没保存，离开后就没了。':
       'These changes have not been saved and will be lost if you leave.',
@@ -2428,6 +2408,20 @@ const englishTranslations = <String, String>{
       'The device key may have been invalidated, or the data was altered. Host settings are intact; connections that need these credentials are refused.',
   '在编辑器里重新填写对应的密码或私钥': 'Re-enter the password or private key in the editor',
   '原终端仍连接': 'Original terminal still connected',
+  'Telnet 只能直连；保存时会去掉这台主机的代理和跳板。':
+      'Telnet is direct only; saving removes this host’s proxy and jump hosts.',
+  '手机 →（代理）→（跳板机）→ 目标。代理只用于手机连第一跳，之后由上一台跳板转发。跳板机要先存成普通 SSH 主机。':
+      'Phone → (proxy) → (jump hosts) → target. The proxy is used only for the phone’s first hop; each later hop is forwarded by the previous jump host. Save a jump host as a regular SSH host first.',
+  '按上面红字改好才能保存': 'Fix the red items above to save',
+  '插件自己联网，这里测不了': 'The plugin uses its own network; it cannot be tested here',
+  '保存后连一次才知道通不通': 'Save and connect once to find out whether it works',
+  'Mosh 连接时才验证': 'Mosh is verified only when it connects',
+  '已验证': 'Verified',
+  '未验证：测试后改过': 'Not verified: changed after the test',
+  '跳板自带路线，先确认怎么展开（最多 3 跳）。':
+      'A jump host has its own route; confirm how to expand it first (at most 3 hops).',
+  '代理口令是明文发给代理的，SSH 保护不了。':
+      'Proxy passwords are sent to the proxy in plain text; SSH cannot protect them.',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are

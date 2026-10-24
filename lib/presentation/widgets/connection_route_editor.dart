@@ -135,7 +135,11 @@ class _ConnectionRouteEditorState extends State<ConnectionRouteEditor> {
             RouteLegKind.jump,
             widget.hosts.where((h) => h.id == id).firstOrNull?.label ??
                 '缺失的主机'),
-      RouteLeg(RouteLegKind.target, widget.targetLabel, widget.targetDetail),
+      // 新建时名字、地址都还空：写「目标」，不画「2. @:22」这种半截东西。
+      RouteLeg(
+          RouteLegKind.target,
+          widget.targetLabel.trim().isEmpty ? '目标' : widget.targetLabel,
+          widget.targetDetail),
     ];
   }
 
@@ -173,7 +177,7 @@ class _ConnectionRouteEditorState extends State<ConnectionRouteEditor> {
                     host.data['proxyConfig'] != null ||
                     host.data['hostChain'] != null);
           })) ...[
-            const LText('跳板自带路线需要明确确认；展开后仍最多 3 跳，后续跳板不能自带代理。'),
+            const LText('跳板自带路线，先确认怎么展开（最多 3 跳）。'),
             if (!widget.canConfirmRoutes)
               const LText('代理凭据尚未就绪，请等待加载或修复无法读取的凭据。'),
             TextButton(
@@ -187,9 +191,11 @@ class _ConnectionRouteEditorState extends State<ConnectionRouteEditor> {
             LText(_choiceError!,
                 key: const ValueKey('route-choice-error'),
                 style: TextStyle(color: Theme.of(context).colorScheme.error)),
-          LText(widget.plan != null && widget.error == null
-              ? '连接时会这样走'
-              : '路线草稿（尚未通过校验）'),
+          // 没有错误也没算出路线（新建页还没填地址）时不加标题：链本身就看得懂。
+          if (widget.plan != null && widget.error == null)
+            const LText('连接时会这样走')
+          else if (widget.error != null)
+            const LText('路线草稿（尚未通过校验）'),
           Column(key: const ValueKey('route-legs'), children: [
             for (var index = 0; index < legs.length; index++) ...[
               if (index > 0) const Icon(Icons.arrow_downward, size: 18),
@@ -242,9 +248,9 @@ class _ConnectionRouteEditorState extends State<ConnectionRouteEditor> {
                     )),
             ],
           ]),
-          if (draft.usesProxy) const LText('代理只用于手机连第一跳；后续由上一台跳板转发。'),
-          if (draft.usesProxy)
-            const LText('代理的用户名和密码是明文发给代理的：SSH 只加密之后的终端会话，保护不了这段口令。'),
+          // 「代理只用于第一跳」挪进了「连接路径」的 ⓘ；口令明文这句留在页面上：
+          // 选了代理就该看见的风险（docs/dev/ui-text.md），socks5_hardening_test 守着。
+          if (draft.usesProxy) const LText('代理口令是明文发给代理的，SSH 保护不了。'),
           if (widget.error != null)
             LText(widget.error!,
                 key: const ValueKey('route-preview-error'),

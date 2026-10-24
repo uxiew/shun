@@ -12,6 +12,7 @@ import '../../infrastructure/tailscale/catalog_cache.dart';
 import '../localization/localized_widgets.dart';
 import 'connection_route_draft.dart';
 import 'connection_route_editor.dart';
+import 'hint.dart';
 import 'proxy_profiles_page.dart';
 
 /// 把选中的目录设备批量导入为主机。返回实际新建的台数，取消返回 null。
@@ -202,8 +203,11 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
             style: small,
           ),
           const SizedBox(height: 16),
-          const LText('连接路径'),
-          const SizedBox(height: 4),
+          // 和主机编辑页同一句 ⓘ：两页共用路线编辑器，说明也只写一份译文。
+          const HintTitle(
+            '连接路径',
+            hint: '手机 →（代理）→（跳板机）→ 目标。代理只用于手机连第一跳，之后由上一台跳板转发。跳板机要先存成普通 SSH 主机。',
+          ),
           ConnectionRouteEditor(
             canConfirmRoutes: !vaultState.loading &&
                 vaultState.error == null &&

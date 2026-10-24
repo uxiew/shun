@@ -29,6 +29,7 @@ import 'proxy_profiles_page.dart';
 import 'secret_content.dart';
 import 'unsupported_connection_page.dart';
 import 'connection_endpoint_fields.dart';
+import 'hint.dart';
 
 class HostEditor extends ConsumerStatefulWidget {
   const HostEditor({
@@ -91,6 +92,15 @@ class _HostEditorState extends ConsumerState<HostEditor> {
 
   /// 最近一次测试连接成功时的 [_signature]；没测过或没成功为 null。
   String? _verifiedSignature;
+
+  /// 点过保存或测试连接。之前不报「必填」、不报路线问题：新建页一打开就满屏红字，
+  /// 用户还没动手就被说错了（docs/dev/ui-text.md）。之后每次重画都重新校验，改对了红字马上消失
+  /// ——以前点一次保存后「必填」会一直挂着，填好了也不走。
+  var _triedSave = false;
+
+  /// 新建、还没点过保存、地址也没填：这时路线必然算不出来，那条错误不是用户的错。
+  bool get _quiet =>
+      widget.host == null && !_triedSave && hostname.text.trim().isEmpty;
 
   /// 高级里展开着的组。
   late final Set<String> _expanded;
@@ -231,6 +241,9 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         bottomNavigationBar: _bottomBar(preview),
         body: Form(
           key: _form,
+          autovalidateMode: _triedSave
+              ? AutovalidateMode.always
+              : AutovalidateMode.onUserInteraction,
           child: ListView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
@@ -269,7 +282,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
               if (protocol == HostProtocol.telnet) ...[
                 _section('连接路径'),
                 const LText(
-                  'Telnet 只支持直连，不能经代理或跳板机；保存时会去掉这台主机上的代理和跳板设置。',
+                  'Telnet 只能直连；保存时会去掉这台主机的代理和跳板。',
                   key: ValueKey('telnet-direct-only'),
                 ),
                 _routePreview(preview),
@@ -282,7 +295,11 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                   _tailscaleLoginNote(preview.plan)
                 else
                   ..._credentialFields(keys),
-                _section('连接路径'),
+                _section(
+                  '连接路径',
+                  hint:
+                      '手机 →（代理）→（跳板机）→ 目标。代理只用于手机连第一跳，之后由上一台跳板转发。跳板机要先存成普通 SSH 主机。',
+                ),
                 ConnectionRouteEditor(
                   canConfirmRoutes: !vaultState.loading &&
                       vaultState.error == null &&
@@ -294,11 +311,12 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                   profiles: profiles,
                   targetHostId: widget.host?.id,
                   plan: preview.plan,
-                  error: preview.error,
+                  error: _quiet ? null : preview.error,
                   warnings: preview.warnings,
                   targetLabel: label.text,
-                  targetDetail:
-                      '${username.text}@${hostname.text}:${port.text}',
+                  targetDetail: hostname.text.trim().isEmpty
+                      ? ''
+                      : '${username.text}@${hostname.text}:${port.text}',
                   onSelectProxy: (inline) => selectRouteProxy(context, inline),
                   onManageProxies: () => Navigator.push(
                       context,
@@ -454,7 +472,12 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     final sshLike =
         protocol == HostProtocol.ssh || protocol == HostProtocol.mosh;
     return [
-      _section(sshLike ? '首选连接方式' : '连接类型'),
+      _section(
+        sshLike ? '首选连接方式' : '连接类型',
+        // R42：终端顶上的 SSH / MOSH 徽标能切换。不写「切网不断」——X10 还没在真机上证实。
+        hint: sshLike ? '建议先用 SSH，连上后点终端顶上的「SSH」徽标能切到 Mosh。' : null,
+        hintKey: const ValueKey('protocol-advice'),
+      ),
       if (widget.host != null || sshLike)
         SegmentedButton<HostProtocol>(
           key: const ValueKey('host-protocol'),
@@ -490,16 +513,6 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         )
       else
         LText(protocol == HostProtocol.telnet ? 'Telnet' : '终端插件'),
-      if (sshLike)
-        Padding(
-          padding: const EdgeInsets.only(top: 8),
-          // R42：终端顶上的 SSH / MOSH 徽标能切换。不写「切网不断」——X10 还没在真机上证实。
-          child: LText(
-            '建议先用 SSH，连上后点终端顶上的「SSH」徽标能切到 Mosh。',
-            key: const ValueKey('protocol-advice'),
-            style: small,
-          ),
-        ),
       if (protocol == HostProtocol.mosh)
         Padding(
           padding: const EdgeInsets.only(top: 8),
@@ -788,27 +801,28 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     final scheme = Theme.of(context).colorScheme;
     const info = Icons.info_outline;
     const unknown = Icons.help_outline;
-    if (preview.error != null) {
+    if (preview.error != null && !_quiet) {
       return (
         icon: Icons.error_outline,
-        text: '配置有问题，按上面的提示改好才能保存',
+        text: '按上面红字改好才能保存',
         color: scheme.error,
       );
     }
+    // 只写状态：旁边就是「测试连接」按钮，它测什么写在使用手册第 4 节。
     return switch (protocol) {
       HostProtocol.plugin => (
           icon: info,
-          text: '插件自己联网，这里测试不了',
+          text: '插件自己联网，这里测不了',
           color: null,
         ),
       HostProtocol.telnet => (
           icon: info,
-          text: 'Telnet 没有测试连接；保存后连接时才知道通不通',
+          text: '保存后连一次才知道通不通',
           color: null,
         ),
       HostProtocol.mosh => (
           icon: info,
-          text: 'Mosh 要真正连接时才验证：测试连接只测得了 SSH 那一段',
+          text: 'Mosh 连接时才验证',
           color: null,
         ),
       _ when widget.verifyHostKey == null => (
@@ -818,17 +832,17 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         ),
       _ when _verifiedSignature == _signature(_draft()) => (
           icon: Icons.verified_outlined,
-          text: '已验证：这组地址、认证和路线刚测试连接成功',
+          text: '已验证',
           color: scheme.primary,
         ),
       _ when _verifiedSignature != null => (
           icon: unknown,
-          text: '未验证：测试通过后改了地址、端口、认证或路线',
+          text: '未验证：测试后改过',
           color: null,
         ),
       _ => (
           icon: unknown,
-          text: '未验证：点「测试连接」核对指纹、登录和路线',
+          text: '未验证',
           color: null,
         ),
     };
@@ -1044,13 +1058,25 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     ];
   }
 
-  Widget _section(String title) => Padding(
+  Widget _section(String title, {String? hint, Key? hintKey}) {
+    const style = TextStyle(fontWeight: FontWeight.w700, fontSize: 15);
+    if (hint == null) {
+      return Padding(
         padding: const EdgeInsets.fromLTRB(2, 22, 2, 10),
-        child: LText(
-          title,
-          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 15),
-        ),
+        child: LText(title, style: style),
       );
+    }
+    // ⓘ 自带 48dp 高，上下边距收掉一些，和没有 ⓘ 的分组标题对齐。
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(2, 8, 2, 0),
+      child: Row(
+        children: [
+          Flexible(child: LText(title, style: style)),
+          HintButton(key: hintKey, title: title, message: hint),
+        ],
+      ),
+    );
+  }
 
   String? _required(String? value) =>
       value == null || value.trim().isEmpty ? '必填' : null;
@@ -1253,6 +1279,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   /// 保存前的共同检查：表单必填项、私钥认证要选私钥、路线要算得出来。
   /// 返回能用的草稿和路线；不能用时已经提示过原因，返回 null。
   ({HostProfile host, RoutePlan? plan})? _checkedDraft() {
+    if (!_triedSave) setState(() => _triedSave = true);
     if (!(_form.currentState?.validate() ?? false)) {
       // 写错的值可能在收起的高级组里：写了东西的组都展开，红字才看得见。
       setState(() => _expanded.addAll(_filledGroups()));

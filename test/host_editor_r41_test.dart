@@ -105,6 +105,34 @@ void main() {
     await tester.pumpAndSettle();
   }
 
+  testWidgets('新建页没动手不报错；点过保存才标红，填好了红字马上消失', (tester) async {
+    await open(tester);
+    expect(find.text('必填'), findsNothing);
+    expect(status(tester), '未验证');
+    // 路线编辑器在屏幕外时 ListView 根本不建它，先滚过去再看，不然这两条怎么都过。
+    await reveal(tester, key('route-legs'));
+    expect(key('route-preview-error'), findsNothing,
+        reason: '还没填地址，路线算不出来不是用户的错');
+    expect(find.text('路线草稿（尚未通过校验）'), findsNothing);
+    expect(find.text('2. 目标'), findsOneWidget, reason: '不画「2. @:22」这种半截东西');
+    await tester.drag(find.byType(Scrollable).first, const Offset(0, 3000));
+    await tester.pumpAndSettle();
+
+    await tester.tap(key('host-editor-save'));
+    await tester.pumpAndSettle();
+    expect(result, isNull);
+    expect(find.text('必填'), findsNWidgets(3));
+    expect(status(tester), '按上面红字改好才能保存');
+
+    // 以前点过一次保存，「必填」会一直挂着，填好了也不走。
+    await tester.enterText(field('名称'), 'web');
+    await tester.enterText(field('主机名 / IP'), 'web.example.com');
+    await tester.enterText(field('用户名'), 'deploy');
+    await tester.pumpAndSettle();
+    expect(find.text('必填'), findsNothing);
+    expect(status(tester), '未验证');
+  });
+
   testWidgets('键盘弹出时底部栏在键盘上方，点得到保存', (tester) async {
     await open(tester);
     await tester.enterText(field('名称'), 'web');
@@ -239,7 +267,7 @@ void main() {
 
   testWidgets('验证状态：测试连接真跑通才「已验证」；改端口、认证回到未验证；改名称不影响', (tester) async {
     await open(tester, host: ssh());
-    expect(status(tester), startsWith('未验证：点「测试连接」'));
+    expect(status(tester), '未验证');
 
     probe.fail = true;
     await tester.tap(key('test-connection'));
@@ -267,7 +295,7 @@ void main() {
 
     await tester.enterText(field('SSH 端口'), '2222');
     await tester.pump();
-    expect(status(tester), startsWith('未验证：测试通过后改了'));
+    expect(status(tester), startsWith('未验证：测试后改过'));
     await tester.enterText(field('SSH 端口'), '22');
     await tester.pump();
     expect(status(tester), startsWith('已验证'), reason: '和测试时完全一样的配置');
@@ -276,18 +304,19 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('密码').last);
     await tester.pumpAndSettle();
-    expect(status(tester), startsWith('未验证：测试通过后改了'));
+    expect(status(tester), startsWith('未验证：测试后改过'));
   });
 
   testWidgets('Mosh 主机没有测试连接，状态说明要连接时才验证；建议指到终端里的切换（R42），不说切网不断',
       (tester) async {
     await open(tester, host: ssh({'protocol': 'mosh'}));
     expect(key('test-connection'), findsNothing);
-    expect(status(tester), contains('Mosh 要真正连接时才验证'));
+    expect(status(tester), contains('Mosh 连接时才验证'));
+    // 建议收进「首选连接方式」旁的 ⓘ（docs/dev/ui-text.md），点开才看。
     await reveal(tester, key('protocol-advice'));
-    final advice = tester.widget<Text>(find.descendant(
-        of: key('protocol-advice'), matching: find.byType(Text)));
-    expect(advice.data, contains('能切到 Mosh'));
+    await tester.tap(key('protocol-advice'));
+    await tester.pumpAndSettle();
+    final advice = tester.widget<Text>(find.textContaining('能切到 Mosh'));
     expect(advice.data, isNot(contains('漫游')));
     expect(advice.data, isNot(contains('切网不断')));
   });
@@ -388,7 +417,7 @@ void main() {
     expect(status(tester), startsWith('已验证'));
     await reveal(tester, find.byType(ConnectionRouteEditor));
     await addRouteJump(tester, 'edge');
-    expect(status(tester), startsWith('未验证：测试通过后改了'));
+    expect(status(tester), startsWith('未验证：测试后改过'));
   });
 
   testWidgets('R25：认证方式只显示登录时会发的；藏起来的密码不清，写明不用', (tester) async {
