@@ -148,7 +148,7 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
                 () => collapsed ? _collapsed.remove(id) : _collapsed.add(id)),
             contentPadding: const EdgeInsets.only(left: 12, right: 4),
             leading: Icon(collapsed ? Icons.chevron_right : Icons.expand_more),
-            title: Text(cache.label ?? id),
+            title: Text(catalogSourceName(cache)),
             subtitle: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [

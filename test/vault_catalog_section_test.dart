@@ -274,6 +274,18 @@ void main() {
         findsNothing);
   });
 
+  testWidgets('没起名的来源：保险库里这一组叫「未命名来源」，不是内部 ID', (tester) async {
+    repo.caches['ts-work'] =
+        const CatalogCache(catalogId: 'ts-work', tailnet: '-').merge(
+            TailscaleDeviceSnapshot.parse(jsonEncode({
+              'devices': [device('1', 'nas', '100.64.0.1')]
+            })),
+            now);
+    await open(tester);
+    expect(inGroup('ts-work', find.text('未命名来源')), findsOneWidget);
+    expect(find.text('ts-work'), findsNothing);
+  });
+
   testWidgets('控制面状态用字写、带缓存时间和多久前；不说在线；打开列表不发请求', (tester) async {
     await open(tester);
     String status(String k) => tester

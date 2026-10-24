@@ -2348,6 +2348,8 @@ const englishTranslations = <String, String>{
       'Managing system services requires administrator access and a sudo password.\n\${error.message}',
   '管理 Caddy 配置需要管理员权限，且 sudo 需要密码。\n\${error.message}':
       'Managing Caddy configuration requires administrator access and a sudo password.\n\${error.message}',
+  '未命名来源': 'Unnamed source',
+  'ID：': 'ID: ',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are

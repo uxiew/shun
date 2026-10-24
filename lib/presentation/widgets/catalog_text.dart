@@ -3,8 +3,23 @@ import 'package:intl/intl.dart';
 
 import '../../application/tailscale_catalog_access.dart';
 import '../../application/tailscale_catalog_refresh.dart';
+import '../../infrastructure/tailscale/catalog_cache.dart';
 import '../../infrastructure/tailscale/tailscale_api.dart';
 import '../localization/localized_widgets.dart';
+
+/// 来源在界面上叫什么。没起名字时不拿本机 ID（`ts-ozz7e7tmue`）当标题，那串字对人没有意义：
+/// 填过具体 tailnet 的用 tailnet，都没有就叫「未命名来源」。
+/// 几个未命名来源要分开看时，来源列表里另写一行 ID（[catalogSourceUnnamed]）。
+String catalogSourceName(CatalogCache cache) {
+  final label = cache.label?.trim() ?? '';
+  if (label.isNotEmpty) return label;
+  if (cache.tailnet != '-') return cache.tailnet;
+  return localized('未命名来源');
+}
+
+/// 名字和 tailnet 都没有：界面上只能叫「未命名来源」，要靠 ID 区分。
+bool catalogSourceUnnamed(CatalogCache cache) =>
+    (cache.label?.trim() ?? '').isEmpty && cache.tailnet == '-';
 
 /// 目录里的时间一律按本机时区显示到分钟。
 String catalogTime(DateTime at) =>

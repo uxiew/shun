@@ -493,6 +493,46 @@ void main() {
     expect(() => list.sort((a, b) => 0), throwsUnsupportedError);
   });
 
+  testWidgets('没起名的来源：标题不用内部 ID；填过 tailnet 用 tailnet，否则「未命名来源」另写一行 ID',
+      (tester) async {
+    repo.caches['ts-a0b1c2d3e4'] =
+        const CatalogCache(catalogId: 'ts-a0b1c2d3e4', tailnet: '-');
+    repo.caches['ts-f5g6h7i8j9'] =
+        const CatalogCache(catalogId: 'ts-f5g6h7i8j9', tailnet: 'example.com');
+    await open(tester, const TailscaleCatalogScreen());
+    expect(find.text('未命名来源'), findsOneWidget);
+    expect(find.text('ID：ts-a0b1c2d3e4'), findsOneWidget,
+        reason: '几个未命名来源要靠它分开');
+    expect(find.text('example.com'), findsOneWidget);
+    expect(find.text('ts-a0b1c2d3e4'), findsNothing);
+    expect(find.text('ts-f5g6h7i8j9'), findsNothing);
+    expect(find.textContaining('ts-f5g6h7i8j9'), findsNothing,
+        reason: '有 tailnet 能叫，就不另写 ID');
+
+    await tester.tap(find.text('未命名来源'));
+    await tester.pumpAndSettle();
+    expect(
+        find.descendant(of: find.byType(AppBar), matching: find.text('未命名来源')),
+        findsOneWidget);
+  });
+
+  testWidgets('添加来源：名称预先填「Tailscale」，被占了填「Tailscale 2」；建好后就叫它', (tester) async {
+    repo.caches['ts-home'] = const CatalogCache(
+        catalogId: 'ts-home', tailnet: '-', label: 'Tailscale');
+    await open(tester, const TailscaleCatalogScreen());
+    await tester.tap(find.byKey(const ValueKey('catalog-add-source')));
+    await tester.pumpAndSettle();
+    expect(find.text('Tailscale 2'), findsOneWidget);
+    await tester.tap(find.text('添加'));
+    await tester.pumpAndSettle();
+    final added = repo.caches.values.where((c) => c.catalogId != 'ts-home');
+    expect(added.single.label, 'Tailscale 2');
+    expect(
+        find.descendant(
+            of: find.byType(AppBar), matching: find.text('Tailscale 2')),
+        findsOneWidget);
+  });
+
   testWidgets('全新安装：来源页正常显示「还没有目录来源」，不因空列表崩溃', (tester) async {
     repo = _ConstEmptyRepository();
     await open(tester, const TailscaleCatalogScreen());

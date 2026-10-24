@@ -78,7 +78,12 @@ class _CatalogSourceSectionState extends ConsumerState<CatalogSourceSection> {
               children: [
                 const LText('目录来源'),
                 const SizedBox(height: 4),
-                catalogLine('来源：', cache?.label ?? binding.catalogId,
+                // 本机没有这个来源时只剩 ID 可写，下面另有一行说本机没有它。
+                catalogLine(
+                    '来源：',
+                    cache == null
+                        ? binding.catalogId
+                        : catalogSourceName(cache),
                     style: small),
                 catalogLine(
                   '设备：',

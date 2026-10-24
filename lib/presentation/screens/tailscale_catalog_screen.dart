@@ -62,9 +62,9 @@ class _TailscaleCatalogScreenState
       final sources = [
         ...await ref.read(catalogCacheRepositoryProvider).loadAll()
       ];
-      sources.sort((a, b) => (a.label ?? a.catalogId)
+      sources.sort((a, b) => catalogSourceName(a)
           .toLowerCase()
-          .compareTo((b.label ?? b.catalogId).toLowerCase()));
+          .compareTo(catalogSourceName(b).toLowerCase()));
       final missing = await _catalog.missingSources();
       if (mounted) {
         setState(() {
@@ -90,7 +90,8 @@ class _TailscaleCatalogScreenState
         confirm: confirm,
         explain: explain,
         fields: [
-          _Field(label: localized('名称（可选）')),
+          // 预先填一个名字：不填就只能显示「未命名来源」，几个来源分不清，而来源建好后改不了名。
+          _Field(label: localized('名称（可选）'), initial: _suggestedName()),
           _Field(
             label: 'tailnet',
             initial: '-',
@@ -107,6 +108,20 @@ class _TailscaleCatalogScreenState
       return null;
     }
     return (name.isEmpty ? null : name, net);
+  }
+
+  /// 「Tailscale」，被占了就「Tailscale 2」「Tailscale 3」……
+  String _suggestedName() {
+    final taken = {
+      for (final source in _sources ?? const <CatalogCache>[])
+        catalogSourceName(source),
+    };
+    if (!taken.contains('Tailscale')) return 'Tailscale';
+    var n = 2;
+    while (taken.contains('Tailscale $n')) {
+      n++;
+    }
+    return 'Tailscale $n';
   }
 
   Future<void> _add() async {
@@ -187,10 +202,12 @@ class _TailscaleCatalogScreenState
             Card(
               child: ListTile(
                 leading: const Icon(Icons.lan_outlined),
-                title: Text(source.label ?? source.catalogId),
+                title: Text(catalogSourceName(source)),
                 subtitle: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    if (catalogSourceUnnamed(source))
+                      catalogLine('ID：', source.catalogId),
                     catalogLine('tailnet：', source.tailnet),
                     catalogLine('设备数：', '${source.devices.length}'),
                     catalogLine(
@@ -467,7 +484,8 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
         .compareTo(catalogDeviceName(b).toLowerCase()));
     return Scaffold(
       appBar: AppBar(
-        title: Text(cache?.label ?? widget.catalogId),
+        // 还没读到缓存时先空着，别闪一下内部 ID。
+        title: Text(cache == null ? '' : catalogSourceName(cache)),
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) => switch (value) {
