@@ -23,6 +23,7 @@ import '../../domain/ai_cli_work.dart';
 import '../../domain/plugins/plugin_host.dart';
 import '../../application/home_navigation.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/hint.dart';
 import '../widgets/host_editor.dart';
 import '../widgets/ai_cli_tools_sheet.dart';
 import '../../infrastructure/storage/ai_cli_recent_work.dart';
@@ -235,9 +236,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                       LText(
                           '${recentHost.label} · ${recent.name} · ${recent.projectDirectory}'),
                       LText(
-                        recentLive
-                            ? '原终端仍连接；工具状态请在终端确认'
-                            : '会话状态待核对。点开会先查这台主机上的工具，没连着时会连一次',
+                        recentLive ? '原终端仍连接' : '会话状态待核对',
                         key: const ValueKey('vault-recent-ai-state'),
                       ),
                     ],
@@ -271,13 +270,11 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                     Icons.key_off_outlined,
                     color: Theme.of(context).colorScheme.onErrorContainer,
                   ),
-                  title: LText(
+                  title: HintTitle(
                     '保存的凭据中有 ${state.unreadableSecrets.length} 条无法解密',
+                    hint: '设备密钥可能已失效，或数据被改动过。主机配置都还在；用到这些凭据的连接会被拒绝。',
                   ),
-                  subtitle: const LText(
-                    '设备密钥可能已失效，或数据被改动过。主机配置都还在；用到这些凭据的连接会被拒绝，'
-                    '在编辑器里重新填写对应的密码或私钥即可恢复。',
-                  ),
+                  subtitle: const LText('在编辑器里重新填写对应的密码或私钥'),
                 ),
               ),
             ),
@@ -338,7 +335,6 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                       child: EmptyState(
                         icon: Icons.dns_outlined,
                         title: '还没有终端连接',
-                        subtitle: '添加连接时先选择类型。远控条目仅保存在本机。',
                         action: FilledButton.icon(
                           onPressed: () => _editHost(),
                           icon: const Icon(Icons.add),

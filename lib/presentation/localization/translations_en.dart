@@ -2,8 +2,6 @@ const englishTranslations = <String, String>{
   '检查远控客户端失败，请稍后重试。': 'Could not check remote clients. Retry later.',
   '绑定确认已变化，请重新确认。': 'The binding offer has changed. Confirm it again.',
   '不支持多签名客户端': 'Clients signed by multiple certificates are not supported',
-  '使用外部 App 自己的网络；不继承 SSH 代理或跳板。未安装时可以先保存条目。':
-      'Uses the external app’s network, not SSH proxies or jump hosts. You can save an entry before installing the client.',
   '保存后可从这条连接发起 UU 远控；本 App 不会自动发起。':
       'After saving, you can launch UU from this connection. This app never launches it automatically.',
   '删除这条连接的 RustDesk ID？': 'Clear the RustDesk ID for this connection?',
@@ -11,12 +9,6 @@ const englishTranslations = <String, String>{
   '删除远控连接': 'Delete remote connection',
   '只删除本机条目和绑定，并作废它的待回调；不影响 SSH、其他远控连接或外部 App。':
       'Deletes only this local entry and binding, and invalidates its pending callback. SSH, other remote connections and external apps are unchanged.',
-  '可用 · SSH 终端': 'Available · SSH terminal',
-  '可用 · 仅 Windows/macOS 目标': 'Available · Windows/macOS targets only',
-  '可用 · 仅直连 UDP': 'Available · Direct UDP only',
-  '可用 · 外部客户端': 'Available · External client',
-  '可用 · 插件自己联网': 'Available · Plugin-managed network',
-  '可用 · 明文，仅直连': 'Available · Unencrypted, direct only',
   '名称须为 1–200 个字符': 'Name must contain 1–200 characters',
   '回调地址冲突，绑定不可用': 'Callback address conflict: binding is unavailable',
   '在首页添加连接时选择 RustDesk，无需 SSH 地址和用户名。':
@@ -26,13 +18,9 @@ const englishTranslations = <String, String>{
   '客户端不接受跨 App 请求': 'The client does not accept cross-app requests',
   '插件检查失败，请重试': 'Plugin check failed. Retry.',
   '新建远控连接': 'New remote connection',
-  '未安装 Mosh 插件，可先保存配置': 'Mosh plugin not installed; configuration can be saved',
-  '未安装，可先保存条目': 'Not installed; entries can be saved',
   '正在检查客户端': 'Checking client',
   '正在检查插件': 'Checking plugins',
   '添加连接': 'Add connection',
-  '添加连接时先选择类型。远控条目仅保存在本机。':
-      'Choose a type before adding a connection. Remote entries are stored only on this device.',
   '版本过旧，请更新客户端': 'Client version is too old. Update it.',
   '等待 UU 回调': 'Waiting for UU callback',
   '签名证书已变化，需要重新核对': 'Signing certificate changed. Verify it again.',
@@ -2388,12 +2376,8 @@ const englishTranslations = <String, String>{
   // UX02 真机：终端标签上断开的那个橙色图标给读屏的名字。
   '已断开': 'disconnected',
   // R25 接 R57：首页「最近 AI 工作」和 ⋮ 菜单的「AI 工具」。
-  '会话状态待核对。点开会先查这台主机上的工具，没连着时会连一次':
-      'Session state unchecked. Opening it first looks up the tools on this host, connecting once if it is not connected',
   '查这台上装的 AI 命令行工具、接着最近的工作；没连着时会先连一次去查':
       'Find the AI command-line tools on this host and pick up recent work; connects once to look if not connected',
-  '没发现第三方终端插件（插件是单独安装的 App，装上后这里会列出来）。':
-      'No third-party terminal plugins found (plugins are separate apps; once installed they are listed here).',
   // R25 / UX04：拨不通时的人话（ssh_service.dart 的 describeDialFailure）。整句在片段表。
   '连不上代理': 'Cannot reach proxy',
   '连不上地址': 'Cannot reach',
@@ -2430,6 +2414,20 @@ const englishTranslations = <String, String>{
       'Hands control of a computer to UU Remote or RustDesk on this phone; they use their own network.',
   '插件是单独安装的 App，每个都要你批准后才会用。':
       'Plugins are separately installed apps; each is used only after you approve it.',
+  '仅直连': 'Direct only',
+  '未装插件': 'Plugin not installed',
+  '明文，仅直连': 'Unencrypted, direct only',
+  '交给手机上的外部 App 去连，用它自己的网络，不走 SSH 的代理或跳板。没装也能先保存条目。':
+      'Handed to an external app on this phone, which uses its own network rather than SSH proxies or jump hosts. You can save an entry before installing it.',
+  '未安装': 'Not installed',
+  '只能控制 Windows/macOS': 'Windows/macOS only',
+  '插件是单独安装的 App，装上后这里会列出来。它自己联网，不走这里配的代理或跳板。':
+      'Plugins are separate apps and are listed here once installed. They use their own network, not the proxies or jump hosts configured here.',
+  '没有插件': 'No plugins',
+  '设备密钥可能已失效，或数据被改动过。主机配置都还在；用到这些凭据的连接会被拒绝。':
+      'The device key may have been invalidated, or the data was altered. Host settings are intact; connections that need these credentials are refused.',
+  '在编辑器里重新填写对应的密码或私钥': 'Re-enter the password or private key in the editor',
+  '原终端仍连接': 'Original terminal still connected',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
@@ -3419,14 +3417,6 @@ const englishReplacements = <(String, String)>[
   ('保存的凭据中有 ', 'Saved credentials that cannot be decrypted: '),
   (' 条无法解密', ''),
   ('无法解密', ' cannot be decrypted'),
-  (
-    '设备密钥可能已失效，或数据被改动过。主机配置都还在；用到这些凭据的连接会被拒绝，',
-    'The device key may have been invalidated, or the data was altered. Host settings are intact; connections that need these credentials are refused. '
-  ),
-  (
-    '在编辑器里重新填写对应的密码或私钥即可恢复。',
-    'Re-enter the password or private key in the editor to restore them.'
-  ),
   // SFTP 握手期限（sftp_service.dart）。
   ('服务器没有回应 SFTP（', 'The server did not answer SFTP ('),
   (

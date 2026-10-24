@@ -6,12 +6,14 @@ class EmptyState extends StatelessWidget {
     super.key,
     required this.icon,
     required this.title,
-    required this.subtitle,
+    this.subtitle,
     this.action,
   });
   final IconData icon;
   final String title;
-  final String subtitle;
+
+  /// 一般不要：空状态一句标题 + 一个按钮就够了（docs/dev/ui-text.md）。
+  final String? subtitle;
   final Widget? action;
 
   @override
@@ -25,12 +27,14 @@ class EmptyState extends StatelessWidget {
                   size: 48, color: Theme.of(context).colorScheme.primary),
               const SizedBox(height: 16),
               LText(title, style: Theme.of(context).textTheme.titleLarge),
-              const SizedBox(height: 8),
-              LText(
-                subtitle,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
+              if (subtitle != null) ...[
+                const SizedBox(height: 8),
+                LText(
+                  subtitle!,
+                  textAlign: TextAlign.center,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ],
               if (action != null) ...[const SizedBox(height: 20), action!],
             ],
           ),

@@ -101,7 +101,7 @@ void main() {
     final opened =
         await open(tester, [tab('other'), tab('tab', launch: launch)]);
     final state = find.byKey(const ValueKey('vault-recent-ai-state'));
-    expect(find.descendant(of: state, matching: find.text('原终端仍连接；工具状态请在终端确认')),
+    expect(find.descendant(of: state, matching: find.text('原终端仍连接')),
         findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('vault-recent-ai-work')));

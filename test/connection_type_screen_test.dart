@@ -192,7 +192,7 @@ void main() {
       (tester) async {
     rd.probeResult = const RustDeskProbe(platformSupported: true, handlers: []);
     await open(tester, const ConnectionTypeScreen());
-    expect(find.text('未安装，可先保存条目'), findsOneWidget);
+    expect(find.text('未安装'), findsOneWidget);
     expect(find.text('签名证书待批准'), findsOneWidget);
     expect(rdBackend.values.containsKey('rustdesk.trust.v1'), isFalse);
     expect(uuBackend.values.containsKey('uuremote.approvedSigner.v1'), isFalse);
