@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dartssh2/dartssh2.dart';
@@ -163,7 +164,8 @@ void main() {
       await socket.close();
     });
 
-    Future<RouteHopException> failure(Map<String, Object?> extra) async {
+    Future<RouteHopException> failure(Map<String, Object?> extra,
+        {TcpDialer? dialer}) async {
       final target = HostProfile({
         'id': 'web',
         'label': 'web',
@@ -174,7 +176,7 @@ void main() {
         ...extra,
       });
       try {
-        await SshService().connect(
+        await SshService(dialer: dialer).connect(
           terminal: GhosttyTerminalAdapter(),
           sessionId: 'ux04-dial',
           host: target,
@@ -187,12 +189,24 @@ void main() {
       fail('应当失败');
     }
 
-    test('直连', () async {
+    int count(String text, String part) => part.allMatches(text).length;
+
+    test('直连：地址只写一遍（前面「目标“web”（地址）」已经写了）', () async {
       final error = await failure(const {});
       expect(error.cause, isA<ConnectStageException>());
-      expect(error.message, contains('连不上地址 127.0.0.1:$closed：对方拒绝连接'));
+      expect(error.message, contains('目标“web”（127.0.0.1:$closed）直连失败：对方拒绝连接'));
+      expect(count(error.message, '127.0.0.1:$closed'), 1,
+          reason: error.message);
       expect(error.message, isNot(contains('SocketException')));
       expect(connectionHint(error), contains('VPN'));
+    });
+
+    test('直连超时：地址也只写一遍，秒数照写', () async {
+      final error = await failure(const {'sshTcpConnectTimeoutSeconds': 1},
+          dialer: (host, port, {timeout}) => Completer<Socket>().future);
+      expect(error.message, contains('直连失败：TCP 连接超时（1 秒）'));
+      expect(count(error.message, '127.0.0.1:$closed'), 1,
+          reason: error.message);
     });
 
     test('经代理：说的是代理那个地址，不是手机这头的随机端口', () async {
@@ -203,6 +217,8 @@ void main() {
       });
       expect(error.cause, isA<ConnectStageException>());
       expect(error.message, contains('连不上代理 127.0.0.1:$closed：对方拒绝连接'));
+      // 拨的是代理、前面写的是目标：两个地址各写一遍，代理地址不能省。
+      expect(error.message, contains('目标“web”（web.internal:22）经代理连接失败'));
       expect(error.message, isNot(contains('port =')));
     });
   });

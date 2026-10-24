@@ -1545,7 +1545,7 @@ class SshService {
           : '跳板机“${hop.host.label}”';
       final reason = guard?.expired == true
           ? '${_connectTimeout(hop.host).inSeconds} 秒内没有收到 SSH 版本信息，端口上可能不是 SSH 服务或服务卡住了'
-          : _describeSshError(error);
+          : _describeSshError(error, hop.endpoint.authority);
       throw RouteHopException(
         index,
         '$who（${hop.endpoint.authority}）$stage：$reason',
@@ -1558,6 +1558,13 @@ class SshService {
   /// 拨不通的原因，写清连的是哪个地址。认不出的原因照抄系统的话，但不带 SocketException 里的 port。
   static String describeDialFailure(Endpoint endpoint, SocketException error,
       {bool proxy = false}) {
+    // 单独一行：本地化覆盖测试按行找引号里的中文，引号套引号会把它绕糊涂。
+    final what = proxy ? '连不上代理' : '连不上地址';
+    return '$what ${endpoint.authority}：${_dialReason(error)}';
+  }
+
+  /// 拨不通的原因本身，不带地址。
+  static String _dialReason(SocketException error) {
     final os = error.osError?.message ?? '';
     final text = '${error.message} $os'.toLowerCase();
     final why = text.contains('refused')
@@ -1573,12 +1580,17 @@ class SshService {
                     : text.contains('unreachable')
                         ? '网络不通'
                         : (os.isNotEmpty ? os : error.message);
-    // 单独一行：本地化覆盖测试按行找引号里的中文，引号套引号会把它绕糊涂。
-    final what = proxy ? '连不上代理' : '连不上地址';
-    return '$what ${endpoint.authority}：$why';
+    return why;
   }
 
-  static String _describeSshError(Object error) => switch (error) {
+  /// [authority] 是报错前面已经写出来的这一跳的地址：拨的就是它时不再写一遍。
+  /// 以前是「目标“demo”（127.0.0.1:1）直连失败：连不上地址 127.0.0.1:1：…」。
+  /// 经代理时拨的是代理，地址不同，照样写出来。
+  static String _describeSshError(Object error, String authority) =>
+      switch (error) {
+        ConnectStageException(:final address, :final brief?)
+            when address == authority =>
+          brief,
         SSHHostkeyError() ||
         SSHAuthAbortError(reason: SSHHostkeyError()) =>
           '主机指纹没有通过校验，已在发送任何登录信息之前断开',
@@ -1761,11 +1773,17 @@ class SshService {
         );
         throw ConnectStageException(
           'TCP 连接超时（${endpoint.authority}，${timeout.inSeconds} 秒）',
+          // 拨代理时报错前面写的是目标的地址，这里的代理地址不能省。
+          address: proxy ? null : endpoint.authority,
+          brief: 'TCP 连接超时（${timeout.inSeconds} 秒）',
         );
       },
     ).onError<SocketException>(
       (error, _) => throw ConnectStageException(
-          describeDialFailure(endpoint, error, proxy: proxy)),
+        describeDialFailure(endpoint, error, proxy: proxy),
+        address: proxy ? null : endpoint.authority,
+        brief: _dialReason(error),
+      ),
     );
   }
 

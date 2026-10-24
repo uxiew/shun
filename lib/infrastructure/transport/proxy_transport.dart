@@ -26,9 +26,15 @@ class ProxyHandshakeException implements IOException {
 
 /// 某个网络阶段在期限内没完成：TCP 没连上，或 SSH 服务一个字节都没回。
 class ConnectStageException implements IOException {
-  const ConnectStageException(this.message);
+  const ConnectStageException(this.message, {this.address, this.brief});
 
   final String message;
+
+  /// 拨的是哪个地址（`host:port`）。只在 [message] 里写了它、[brief] 是去掉它的说法时给。
+  final String? address;
+
+  /// 不带 [address] 的说法。报错前面已经写了这个地址的（路线上的一跳），用它，免得同一个地址写两遍。
+  final String? brief;
 
   @override
   String toString() => message;
