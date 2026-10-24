@@ -46,7 +46,7 @@ adb logcat -s ShunHello ShunPlugins AndroidRuntime:E
 
 ## 宿主插件页：列表、状态
 
-插件页最底下「某个应用没出现在这里？」：填包名点「检查」，宿主说它看到了什么。
+插件页最底下点开「某个应用没出现在这里？」：填包名点「检查」，宿主说它看到了什么。
 
 | 看到的 | 原因 | 怎么办 |
 |---|---|---|
@@ -79,7 +79,7 @@ adb logcat -s ShunHello ShunPlugins AndroidRuntime:E
 | 看到的 | 原因 | 怎么办 |
 |---|---|---|
 | 没有「连接测试」按钮 | 插件不是「可用」 | 先批准；停用了就点「启用」 |
-| 连接失败：插件拒绝了宿主：top.xdwa.shun 的签名证书不是信任的那张（实测） | 你在 `shunHostSha256` 里写的不是手上这个宿主的证书。最常见：宿主是另一台电脑编的 debug 包，或者换成了正式版宿主 | 从宿主插件页底部「给插件作者」抄证书，重新构建插件 |
+| 连接失败：插件拒绝了宿主：top.xdwa.shun 的签名证书不是信任的那张（实测） | 你在 `shunHostSha256` 里写的不是手上这个宿主的证书。最常见：宿主是另一台电脑编的 debug 包，或者换成了正式版宿主 | 从宿主插件页底部点开「给插件作者」抄证书，重新构建插件 |
 | 连接失败：插件拒绝了宿主：调用方 UID … 不是 top.xdwa.shun | 插件认的宿主包名和手上的宿主对不上。最常见：宿主是自己 `flutter run` 编的调试版（`top.xdwa.shun.debug`），插件按默认认正式版 | `gradle.properties` 写 `shunHostPackage=top.xdwa.shun.debug`，重新构建插件（README 第 3 步） |
 | 连接失败：插件不接受宿主的 API 版本：本插件要求宿主 API 1.1 及以上，宿主是 1.0（实测，样例加 `-PminHostMinor=1` 构建） | 你的 `handshake` 不接受这个宿主版本（抛了 `IllegalStateException`） | 宿主升级，或者降低你的要求。后面那半句是你自己抛的原话 |
 | 连接失败：插件握手出错：UnsupportedOperationException …（实测，测试插件 echo-badhandshake） | 握手里抛了 `IllegalStateException` 以外的异常 | 握手里只抛 `IllegalStateException`。2026-10-07 之前编的宿主遇到这种会整个闪退（实测：`FATAL EXCEPTION: pool-6-thread-1`），新宿主只报错 |
@@ -93,7 +93,7 @@ adb logcat -s ShunHello ShunPlugins AndroidRuntime:E
 | 看到的 | 原因 | 怎么办 |
 |---|---|---|
 | 详情页没有「会话测试」按钮 | 插件不是「可用」，或描述符的 `capabilities` 里没有 `terminal-session` | 批准；加上能力（加能力后要重新批准） |
-| 没有「会话测试」按钮，写着「这个插件申请了「本会话的临时凭据」：…会话测试拿不出这些材料，所以不在这里开」 | 描述符的 `permissions` 里有 `own-session-ephemeral-secret`。这种会话（Mosh）要宿主先经 SSH 拿一次性材料 | 普通终端插件别申请这个权限（它也拿不到任何东西）；Mosh 插件从主机列表用 Mosh 协议连接 |
+| 没有「会话测试」按钮，写着「这个插件申请了「本会话的临时凭据」，会话测试拿不出这些材料。…」 | 描述符的 `permissions` 里有 `own-session-ephemeral-secret`。这种会话（Mosh）要宿主先经 SSH 拿一次性材料 | 普通终端插件别申请这个权限（它也拿不到任何东西）；Mosh 插件从主机列表用 Mosh 协议连接 |
 | 打开会话失败：插件拒绝：会话数已到上限 | 开的会话超过了你 `ProviderSessions` 的上限 | 调大上限，或检查会话结束时有没有 `drop` |
 | 一直停在「打开会话」，没有「插件回报：运行中（active）」 | 你没回报 `active` | 会话线程开始收发前先 `onSessionEvent(…, "active")` |
 | 框里是空的，「插件写回来的字节数」一直是 0 | 没往 `stream` 里写，或写在了别的地方 | 用 `new FileOutputStream(stream.getFileDescriptor())` 写 |

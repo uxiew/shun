@@ -8,6 +8,7 @@ import '../../application/plugin_discovery.dart';
 import '../../application/plugin_registry.dart';
 import '../../application/plugin_sessions.dart';
 import '../localization/localized_widgets.dart';
+import '../widgets/hint.dart';
 import 'plugin_session_test_screen.dart';
 
 String pluginStatusLabel(PluginStatus status) => switch (status) {
@@ -17,6 +18,14 @@ String pluginStatusLabel(PluginStatus status) => switch (status) {
       PluginStatus.incompatible => '不兼容',
       PluginStatus.disabled => '已停用',
       PluginStatus.missing => '已卸载',
+    };
+
+/// 状态牌旁边要不要写原因。状态牌已经说清楚的不再写一遍（首次安装的「待批准」、「已停用」、「已卸载」）；
+/// 写的是看状态牌猜不到的：为什么被拒、为什么不兼容、批准过的插件为什么又要批准。
+String? pluginReasonWorthShowing(PluginEntry entry) => switch (entry.status) {
+      PluginStatus.rejected || PluginStatus.incompatible => entry.reason,
+      PluginStatus.needsApproval when entry.hasApproval => entry.reason,
+      _ => null,
     };
 
 String _deploymentLabel(Deployment deployment) => switch (deployment) {
@@ -170,8 +179,8 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
                 label: LText(pluginStatusLabel(entry.status)),
               ),
               const SizedBox(width: 8),
-              if (entry.reason != null)
-                Expanded(child: LText(entry.reason!, style: small)),
+              if (pluginReasonWorthShowing(entry) case final reason?)
+                Expanded(child: LText(reason, style: small)),
             ],
           ),
           if (_busy) const LinearProgressIndicator(),
@@ -193,7 +202,7 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
           if (d?.license != null) _line('许可证：', d!.license!),
           if (d?.sourceUrl != null) _line('源码：', d!.sourceUrl!),
           const SizedBox(height: 8),
-          const LText('签名证书 SHA-256（请与插件作者公布的核对）：'),
+          const HintTitle('签名证书 SHA-256', hint: '和插件作者公布的核对，一致再批准。'),
           SelectableText(
             entry.signerDigests.isEmpty ? '—' : entry.signerDigests.join('\n'),
             key: const ValueKey('plugin-signers'),
@@ -202,7 +211,10 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
           if (entry.androidDebugSigned)
             LText('用 Android 调试证书签名：只有开发构建能用', style: small),
           if (d != null) ...[
-            _section('它能做什么'),
+            _section(
+              '它能做什么',
+              hint: '插件拿不到保险库、私钥、密码或其他主机；它是独立的 App，有自己的系统权限，本 App 管不住它自己联网。',
+            ),
             _line(
                 '能力：',
                 d.capabilities
@@ -218,16 +230,12 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
                 d.permissions
                     .map((p) => _named(_permissionLabel(p), p.wire))
                     .join('、')),
-            LText(
-              '插件拿不到保险库、私钥、密码或其他主机；它是独立的 App，有自己的系统权限，本 App 管不住它自己联网。',
-              style: small,
-            ),
           ],
-          _section('插件自己的设置页'),
+          _section('插件自己的设置页', hint: '设置由插件自己保存，本 App 看不到，也不替它管理。'),
           ..._settings(entry, small),
           _section('操作'),
           if (stale)
-            LText('插件包刚变过（更新、换签或状态变化），之前的连接测试结果已作废。', style: small)
+            LText('插件包刚变过，之前的连接测试结果已作废', style: small)
           else if (_result != null)
             LText(_result!, key: const ValueKey('plugin-check-result')),
           if (entry.status == PluginStatus.ready &&
@@ -239,10 +247,8 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
                 key: const ValueKey('plugin-session-test-unavailable'),
                 style: small),
           if (entry.status == PluginStatus.ready && _liveSessions() > 0)
-            LText(
-                '这个插件有正在跑的会话（比如 Mosh 标签）：连接测试沿用它们的那条连接、不重新握手，这页也不给「断开」，免得把它们一起关掉。',
-                key: const ValueKey('plugin-live-sessions'),
-                style: small),
+            LText('有会话在用这个插件（比如 Mosh 标签）：连接测试沿用那条连接，这页不给「断开」',
+                key: const ValueKey('plugin-live-sessions'), style: small),
           const SizedBox(height: 8),
           Wrap(
             spacing: 8,
@@ -256,20 +262,17 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
 
   List<Widget> _settings(PluginEntry entry, TextStyle? small) {
     if (entry.settingsActivity == null) {
-      return [LText('这个插件没有声明设置页。', style: small)];
+      return [LText('没有', style: small)];
     }
     if (entry.status != PluginStatus.ready) {
       return [
         LText(
-          entry.status == PluginStatus.disabled
-              ? '启用后才能打开：停用的插件本 App 不会再启动它。'
-              : '批准并启用后才能打开：批准之前不会启动插件的任何代码。',
+          entry.status == PluginStatus.disabled ? '启用后才能打开' : '插件可用后才能打开',
           style: small,
         ),
       ];
     }
     return [
-      LText('设置由插件自己保存，本 App 看不到，也不替它管理。', style: small),
       Align(
         alignment: Alignment.centerLeft,
         child: OutlinedButton.icon(
@@ -414,9 +417,10 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
     await _run((discovery) => discovery.approve(entry));
   }
 
-  Widget _section(String title) => Padding(
-        padding: const EdgeInsets.only(top: 16, bottom: 4),
-        child: LText(title, style: Theme.of(context).textTheme.titleSmall),
+  Widget _section(String title, {String? hint}) => Padding(
+        padding: EdgeInsets.only(top: hint == null ? 16 : 4, bottom: 4),
+        child: HintTitle(title,
+            hint: hint, style: Theme.of(context).textTheme.titleSmall),
       );
 
   /// 「标签：值」。值是 ID、包名、版本这类原样显示的数据，长按可复制，方便和作者公布的核对。

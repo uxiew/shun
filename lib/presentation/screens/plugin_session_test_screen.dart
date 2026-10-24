@@ -10,6 +10,7 @@ import '../../application/plugin_discovery.dart';
 import '../../application/plugin_registry.dart';
 import '../../application/plugin_sessions.dart';
 import '../localization/localized_widgets.dart';
+import '../widgets/hint.dart';
 
 /// 会话测试（X12）：插件作者只装本 App 的安装包，就能核对自己的插件走不走得完一次终端会话——
 /// 连接（握手）→ 打开 80×24 会话 → 插件写回来什么 → 自己敲一行发过去 → 改尺寸 → 关闭，每一步照实写结果。
@@ -32,7 +33,7 @@ class PluginSessionTestScreen extends ConsumerStatefulWidget {
       return '这个插件没有声明终端会话能力（terminal-session），没有会话可测。';
     }
     if (descriptor.permissions.contains(Permission.ownSessionEphemeralSecret)) {
-      return '这个插件申请了「本会话的临时凭据」：它的会话要本 App 先经 SSH 在服务器上拿到这一次的一次性材料（比如 Mosh 的 key）才能开，会话测试拿不出这些材料，所以不在这里开。Mosh 插件请在主机列表里用 Mosh 协议连接。';
+      return '这个插件申请了「本会话的临时凭据」，会话测试拿不出这些材料。Mosh 插件请从主机列表用 Mosh 协议连接。';
     }
     return null;
   }
@@ -264,6 +265,14 @@ class _PluginSessionTestScreenState
     return '$title · $name';
   }
 
+  /// 页面顶上原来常驻的两段说明，收进 ⓘ。逐句本地化再拼：拼好的整段在英文表里查不到。
+  String _about() => [
+        localized(
+            '给插件作者核对插件用：连接、打开一个 80×24 的终端会话、看插件写回来什么、发一行字、改尺寸、关闭，每一步写在下面。本 App 不替插件发任何东西，只发你在下面敲的那一行。'),
+        localized(
+            '插件已经连着（比如有 Mosh 标签开着）就沿用那条连接、不重新握手，它正在跑的会话不受影响。离开这页只关测试会话；连接是这页开的、又没有别的会话在用，才断开。'),
+      ].join('\n\n');
+
   String _receivedLabel() {
     final label = localized('插件写回来的字节数（控制字符显示成 ^X，^[ 是 ESC）：');
     return '$label$_receivedTotal';
@@ -283,16 +292,13 @@ class _PluginSessionTestScreenState
     return Scaffold(
       appBar: AppBar(
         title: Text(_title(entry)),
+        actions: [
+          HintButton(title: '会话测试', message: _about()),
+        ],
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const LText(
-              '给插件作者核对插件用：连接、打开一个 80×24 的终端会话、看插件写回来什么、发一行字、改尺寸、关闭，每一步写在下面。本 App 不替插件发任何东西，只发你在下面敲的那一行。'),
-          LText(
-            '插件已经连着（比如有 Mosh 标签开着）就沿用那条连接、不重新握手，它正在跑的会话不受影响。离开这页只关测试会话；连接是这页开的、又没有别的会话在用，才断开。',
-            style: small,
-          ),
           if (!ready) LText('插件现在不是「可用」，先回详情页批准或启用。', style: small),
           if (ready && unavailable != null)
             LText(unavailable,

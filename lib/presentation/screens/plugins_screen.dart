@@ -7,6 +7,7 @@ import 'package:plugin_api/plugin_api.dart' show hostApiMajor, hostApiMinor;
 import '../../application/plugin_discovery.dart';
 import '../../application/plugin_registry.dart';
 import '../localization/localized_widgets.dart';
+import '../widgets/hint.dart';
 import 'plugin_detail_screen.dart';
 
 /// 独立插件 APK 的管理页（X02 起、X04 补全）：列出、诊断某个包为什么不在、事件记录。
@@ -110,11 +111,12 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
     final discovery = _discovery;
     final small = Theme.of(context).textTheme.bodySmall;
     final builtinNames =
-        builtin.map((e) => e.descriptor!.displayName).join('、');
+        builtin.map((e) => localized(e.descriptor!.displayName)).join('、');
     return Scaffold(
       appBar: AppBar(
         title: const LText('插件（实验）'),
         actions: [
+          HintButton(title: '插件（实验）', message: _about(builtinNames)),
           IconButton(
             tooltip: localized('重新扫描'),
             onPressed: _busy || discovery == null
@@ -127,53 +129,50 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const LText(
-            '这里只列出声明了本 App 插件接口的已安装应用。批准之前不会启动它们的任何代码；'
-            '插件是独立的 App，有自己的权限，本 App 管不住它自己联网。',
-          ),
-          const SizedBox(height: 8),
-          LText('随 App 提供、不能停用：$builtinNames', style: small),
-          LText('插件由你自己安装和卸载；本 App 不下载、不安装任何插件。装上、更新、卸载后这里会自动重新核对。',
-              style: small),
           if (discovery != null && !discovery.supported)
-            const Padding(
-              padding: EdgeInsets.only(top: 16),
-              child: LText('独立插件只支持 Android'),
-            ),
+            const LText('独立插件只支持 Android'),
           if (_busy) const LinearProgressIndicator(),
           if (_error != null) LText('扫描失败：$_error'),
           if (discovery != null &&
               discovery.supported &&
               external.isEmpty &&
               !_busy)
-            const Padding(
-              padding: EdgeInsets.only(top: 16),
-              child: LText('没有发现插件'),
-            ),
+            const LText('没有发现插件'),
           for (final entry in external) _summary(entry),
+          // 排查和给作者的两块大多数人用不上，收起来；点标题展开（docs/dev/ui-text.md）。
           if (discovery != null && discovery.supported) ...[
             const SizedBox(height: 16),
-            const LText('某个应用没出现在这里？'),
-            Row(
+            _fold(
+              key: const ValueKey('plugin-inspect'),
+              title: '某个应用没出现在这里？',
               children: [
-                Expanded(
-                  child: TextField(
-                    controller: _inspectPackage,
-                    decoration: InputDecoration(labelText: localized('包名')),
-                  ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextField(
+                        controller: _inspectPackage,
+                        decoration: InputDecoration(labelText: localized('包名')),
+                      ),
+                    ),
+                    TextButton(
+                      onPressed: () async {
+                        final result =
+                            await discovery.inspect(_inspectPackage.text);
+                        if (mounted) setState(() => _inspectResult = result);
+                      },
+                      child: const LText('检查'),
+                    ),
+                  ],
                 ),
-                TextButton(
-                  onPressed: () async {
-                    final result =
-                        await discovery.inspect(_inspectPackage.text);
-                    if (mounted) setState(() => _inspectResult = result);
-                  },
-                  child: const LText('检查'),
-                ),
+                if (_inspectResult != null) LText(_inspectResult!),
               ],
             ),
-            if (_inspectResult != null) LText(_inspectResult!),
-            ..._forAuthors(small),
+            if (_hostSigners != null)
+              _fold(
+                key: const ValueKey('plugin-for-authors'),
+                title: '给插件作者',
+                children: _forAuthors(small),
+              ),
           ],
           if (_events.isNotEmpty) ...[
             const SizedBox(height: 16),
@@ -185,14 +184,38 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
     );
   }
 
+  /// 页面顶上原来常驻的三段说明，收进 ⓘ。逐句本地化再拼：拼好的整段在英文表里查不到。
+  String _about(String builtinNames) => [
+        localized(
+          '这里只列出声明了本 App 插件接口的已安装应用。批准之前不会启动它们的任何代码；'
+          '插件是独立的 App，有自己的权限，本 App 管不住它自己联网。',
+        ),
+        '${localized('随 App 提供、不能停用：')}$builtinNames',
+        localized('插件由你自己安装和卸载；本 App 不下载、不安装任何插件。装上、更新、卸载后这里会自动重新核对。'),
+      ].join('\n\n');
+
+  Widget _fold({
+    required Key key,
+    required String title,
+    required List<Widget> children,
+  }) =>
+      ExpansionTile(
+        key: key,
+        tilePadding: EdgeInsets.zero,
+        childrenPadding: const EdgeInsets.only(bottom: 8),
+        expandedCrossAxisAlignment: CrossAxisAlignment.start,
+        expandedAlignment: Alignment.centerLeft,
+        shape: const Border(),
+        collapsedShape: const Border(),
+        title: LText(title),
+        children: children,
+      );
+
   /// 插件作者要的两样：插件里写信任哪张宿主证书、宿主是哪个插件 API 版本（X12）。
   List<Widget> _forAuthors(TextStyle? small) {
-    final signers = _hostSigners;
-    if (signers == null) return const [];
+    final signers = _hostSigners!;
     final api = localized('本 App 的插件 API：');
     return [
-      const SizedBox(height: 16),
-      const LText('给插件作者'),
       Text('$api$hostApiMajor.$hostApiMinor', style: small),
       LText('本 App 的签名证书 SHA-256（插件里要写信任这一张）：', style: small),
       SelectableText(
@@ -224,7 +247,8 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
           children: [
             Text('${d?.pluginId ?? package} · ${d?.version ?? '?'}',
                 style: small),
-            if (entry.reason != null) LText(entry.reason!, style: small),
+            if (pluginReasonWorthShowing(entry) case final reason?)
+              LText(reason, style: small),
           ],
         ),
         trailing: Chip(label: LText(pluginStatusLabel(entry.status))),

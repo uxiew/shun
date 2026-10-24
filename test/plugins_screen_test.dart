@@ -22,7 +22,12 @@ const author =
 const impostor =
     'e257e747678f3ce38aa6fa1878c87a8f26dd7d9503ac8da3289d598fb472397f';
 
-DiscoveredPackage echo({String cert = author, String version = '0.1.0'}) =>
+DiscoveredPackage echo({
+  String cert = author,
+  String version = '0.1.0',
+  List<String> capabilities = const ['terminal-session'],
+  List<String> permissions = const ['own-session-input-output'],
+}) =>
     DiscoveredPackage(
       packageName: pkg,
       serviceClass: 'example.shun.fixture.echo.EchoProviderService',
@@ -38,10 +43,10 @@ DiscoveredPackage echo({String cert = author, String version = '0.1.0'}) =>
         'apiMajor': 1,
         'apiMinor': 0,
         'deployment': 'android-service',
-        'capabilities': ['terminal-session'],
+        'capabilities': capabilities,
         'supportedRoutes': ['system-default'],
         'platforms': ['android'],
-        'permissions': ['own-session-input-output'],
+        'permissions': permissions,
         'packageName': pkg,
         'serviceClass': 'example.shun.fixture.echo.EchoProviderService',
         'license': 'GPL-3.0-or-later',
@@ -90,6 +95,10 @@ class FakeBridge extends AndroidPluginBridge {
   @override
   Future<void> openSettings(String packageName, String activity) async =>
       settingsOpened.add(activity);
+
+  @override
+  Future<List<({String sha256, bool androidDebug})>> hostSigners() async =>
+      const [(sha256: author, androidDebug: true)];
 }
 
 void main() {
@@ -141,7 +150,7 @@ void main() {
     ]) {
       expect(find.byKey(ValueKey(key)), findsNothing, reason: key);
     }
-    expect(find.text('批准并启用后才能打开：批准之前不会启动插件的任何代码。'), findsOneWidget);
+    expect(find.text('插件可用后才能打开'), findsOneWidget);
     expect(find.text('来源：独立安装的 App'), findsOneWidget);
     expect(find.text('插件自称的版本：0.1.0'), findsOneWidget);
     expect(find.text('安装包版本：0.1.0（7）'), findsOneWidget);
@@ -150,6 +159,33 @@ void main() {
     expect(
         find.text('申请的权限：本会话的输入输出（own-session-input-output）'), findsOneWidget);
     expect(find.text(author), findsOneWidget);
+  });
+
+  testWidgets('状态牌说清楚的不再写原因；批准过的插件又要批准时写为什么', (tester) async {
+    await open(tester);
+    // 首次安装：「待批准」就够了，列表和详情都不再写「首次安装：需要用户确认…」。
+    expect(find.textContaining('首次安装'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('plugin-entry-$pkg')));
+    await tester.pumpAndSettle();
+    expect(status(tester), '待批准');
+    expect(find.textContaining('首次安装'), findsNothing);
+
+    await tapKey(tester, 'plugin-approve');
+    await tapKey(tester, 'plugin-approve-confirm');
+    bridge.installed = [
+      echo(
+        version: '0.2.0',
+        capabilities: ['terminal-session', 'remote-desktop-external'],
+        permissions: [
+          'own-session-input-output',
+          'user-initiated-external-launch'
+        ],
+      ),
+    ];
+    bridge.changes.add(const PackageChange(pkg, 'replaced', replacing: true));
+    await tester.pumpAndSettle();
+    expect(status(tester), '待批准');
+    expect(find.textContaining('批准范围之外的新能力'), findsOneWidget);
   });
 
   testWidgets('批准后：可用，出现连接测试、设置页、停用、撤销；设置页只打开系统查出的那个组件', (tester) async {
@@ -255,6 +291,33 @@ void main() {
     expect(RegExp(r'[一-鿿]').hasMatch(text), isFalse, reason: text);
     expect(text, contains('Capabilities: Terminal session (terminal-session)'));
     expect(text, contains('Installed package version: 0.1.0 (7)'));
+  });
+
+  testWidgets('英文界面：列表页的 ⓘ 和两个折叠块里没有汉字', (tester) async {
+    ShunLocalizations.use('en');
+    addTearDown(() => ShunLocalizations.use('zh'));
+    await open(tester);
+    // ⓘ 里是逐句本地化后拼起来的，内置插件名也要跟着翻。
+    await tester.tap(find.byIcon(Icons.info_outline));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('Shipped with the app'), findsOneWidget);
+    await tester.tap(find.text('Got it'));
+    await tester.pumpAndSettle();
+    for (final key in ['plugin-inspect', 'plugin-for-authors']) {
+      await tester.tap(find.byKey(ValueKey(key)));
+      await tester.pumpAndSettle();
+    }
+    await tester.tap(find.byIcon(Icons.info_outline));
+    await tester.pumpAndSettle();
+    final text = tester
+        .widgetList<Text>(find.byType(Text))
+        .map((t) => t.data ?? t.textSpan?.toPlainText() ?? '')
+        .followedBy(tester
+            .widgetList<SelectableText>(find.byType(SelectableText))
+            .map((t) => t.data ?? ''))
+        .join('\n');
+    expect(RegExp(r'[一-鿿]').hasMatch(text), isFalse, reason: text);
+    expect(text, contains('SSH / Telnet (built-in)'));
   });
 
   test('详情页用的状态名和注册表的状态一一对应', () {

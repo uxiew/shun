@@ -1160,21 +1160,14 @@ const englishTranslations = <String, String>{
   '插件拿不到保险库、私钥、密码或其他主机；它是独立的 App，有自己的系统权限，本 App 管不住它自己联网。':
       'The plugin cannot get the vault, private keys, passwords or other hosts; it is a separate app with its own system permissions, and this app cannot stop it from using the network by itself.',
   '插件自己的设置页': 'Settings page of the plugin',
-  '这个插件没有声明设置页。': 'This plugin does not declare a settings page.',
-  '批准并启用后才能打开：批准之前不会启动插件的任何代码。':
-      'Available once approved and enabled: none of the plugin code runs before approval.',
   '设置由插件自己保存，本 App 看不到，也不替它管理。':
       'Settings are stored by the plugin itself; this app cannot see or manage them.',
   '打开插件的设置页': 'Open the plugin settings page',
   '操作': 'Actions',
-  '插件包刚变过（更新、换签或状态变化），之前的连接测试结果已作废。':
-      'The plugin package just changed (update, re-signing or status change); the earlier connection test result no longer applies.',
   '停用': 'Disable',
   '已停用：它的会话已关闭，批准记录保留，重新启用不用再批准。':
       'Disabled: its sessions were closed and the approval kept; enabling it again needs no new approval.',
   '启用': 'Enable',
-  '启用后才能打开：停用的插件本 App 不会再启动它。':
-      'Available once enabled: this app does not start a disabled plugin.',
   '插件由你自己安装和卸载；本 App 不下载、不安装任何插件。装上、更新、卸载后这里会自动重新核对。':
       'You install and uninstall plugins yourself; this app never downloads or installs any. After an install, update or uninstall, this page checks again automatically.',
   // X12：给插件作者的会话测试页（plugin_session_test_screen.dart）和插件页的宿主证书。
@@ -1196,10 +1189,6 @@ const englishTranslations = <String, String>{
       'ping returned the wrong value (reused connection, not disconnected)',
   '这个插件没有声明终端会话能力（terminal-session），没有会话可测。':
       'This plugin does not declare the terminal session capability (terminal-session), so there is no session to test.',
-  '这个插件申请了「本会话的临时凭据」：它的会话要本 App 先经 SSH 在服务器上拿到这一次的一次性材料（比如 Mosh 的 key）才能开，会话测试拿不出这些材料，所以不在这里开。Mosh 插件请在主机列表里用 Mosh 协议连接。':
-      'This plugin requests "temporary credentials of its own session": its sessions need one-time material that this app first obtains on the server over SSH (such as the Mosh key). The session test cannot provide it, so it is not offered here. Connect Mosh hosts from the host list with the Mosh protocol.',
-  '这个插件有正在跑的会话（比如 Mosh 标签）：连接测试沿用它们的那条连接、不重新握手，这页也不给「断开」，免得把它们一起关掉。':
-      'This plugin has running sessions (such as Mosh tabs): the connection test reuses their connection without a new handshake, and this page offers no "Disconnect" so they are not closed with it.',
   '插件现在不是「可用」，先回详情页批准或启用。':
       'The plugin is not available; approve or enable it on the details page first.',
   '开始': 'Start',
@@ -2402,6 +2391,18 @@ const englishTranslations = <String, String>{
   '另开标签，不改默认方式': 'Opens a new tab; the default stays the same',
   '点上方的文件夹图标选手机目录': 'Tap the folder icon above to pick a phone folder',
   '未连接服务器': 'No server connected',
+  '签名证书 SHA-256': 'Signing certificate SHA-256',
+  '和插件作者公布的核对，一致再批准。':
+      'Compare it with the one the plugin author publishes; approve only if they match.',
+  '没有': 'None',
+  '启用后才能打开': 'Available after you enable it',
+  '插件可用后才能打开': 'Available once the plugin is usable',
+  '插件包刚变过，之前的连接测试结果已作废':
+      'The plugin package just changed; the earlier connection test result no longer counts',
+  '有会话在用这个插件（比如 Mosh 标签）：连接测试沿用那条连接，这页不给「断开」':
+      'Sessions are using this plugin (a Mosh tab, for example): the connection test reuses that connection, and this page offers no “Disconnect”',
+  '这个插件申请了「本会话的临时凭据」，会话测试拿不出这些材料。Mosh 插件请从主机列表用 Mosh 协议连接。':
+      'This plugin asks for “this session’s temporary credentials”, which the session test cannot provide. Connect Mosh hosts from the host list with the Mosh protocol.',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are

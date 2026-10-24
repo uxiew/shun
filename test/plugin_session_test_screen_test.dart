@@ -212,7 +212,10 @@ void main() {
 
   testWidgets('插件页底部给作者看本 App 的证书和插件 API 版本', (tester) async {
     await openList(tester);
-    expect(find.text('给插件作者'), findsOneWidget);
+    // 默认收着，点标题展开。
+    expect(find.text('本 App 的插件 API：1.0'), findsNothing);
+    await tester.tap(find.text('给插件作者'));
+    await tester.pumpAndSettle();
     expect(find.text('本 App 的插件 API：1.0'), findsOneWidget);
     expect(find.text(hostDebug), findsOneWidget);
     expect(find.textContaining('这是 Android 调试证书：换一台电脑构建'), findsOneWidget);
