@@ -144,8 +144,8 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
         children: [
           ListTile(
             key: ValueKey('vault-catalog-toggle-$id'),
-            onTap: () => setState(() =>
-                collapsed ? _collapsed.remove(id) : _collapsed.add(id)),
+            onTap: () => setState(
+                () => collapsed ? _collapsed.remove(id) : _collapsed.add(id)),
             contentPadding: const EdgeInsets.only(left: 12, right: 4),
             leading: Icon(collapsed ? Icons.chevron_right : Icons.expand_more),
             title: Text(cache.label ?? id),
@@ -165,8 +165,7 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
                   catalogLine('最近一次读取失败：', catalogTime(attempt.at),
                       style: small),
                 if (!source.hasSavedCredentials)
-                  LText('本机没保存凭据：点刷新会打开来源页，在那里读一次',
-                      style: small),
+                  LText('本机没保存凭据：点刷新会打开来源页，在那里读一次', style: small),
               ],
             ),
             trailing: Row(
@@ -185,8 +184,8 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
                 else
                   IconButton(
                     key: ValueKey('vault-catalog-refresh-$id'),
-                    tooltip: localized(
-                        source.hasSavedCredentials ? '刷新' : '去来源页读取'),
+                    tooltip:
+                        localized(source.hasSavedCredentials ? '刷新' : '去来源页读取'),
                     onPressed: () => widget.onRefresh(source),
                     icon: const Icon(Icons.refresh),
                   ),
@@ -238,8 +237,8 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
                 key: ValueKey('vault-catalog-status-${host.id}'), style: small),
           ],
         ),
-        trailing:
-            vaultHostMenuButton(host, () => widget.onMenu(host), Icons.more_vert),
+        trailing: vaultHostMenuButton(
+            host, () => widget.onMenu(host), Icons.more_vert),
       ),
     );
   }

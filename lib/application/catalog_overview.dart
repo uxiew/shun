@@ -37,8 +37,7 @@ class CatalogSourceView {
 /// 只有用户点「刷新」才向 Tailscale 发请求：打开列表、切回首页、下拉都只重读本机缓存文件。
 /// 一次一个来源，正在刷的再点不会再发。这是 R11、R12 的规矩：没有后台轮询、不自动重试，
 /// 不为了显示控制面状态去频繁要列表（Tailscale 会回 429）。
-class CatalogOverviewController
-    extends StateNotifier<List<CatalogSourceView>> {
+class CatalogOverviewController extends StateNotifier<List<CatalogSourceView>> {
   CatalogOverviewController({
     required CatalogCacheRepository repository,
     required TailscaleCatalogProvider catalog,
@@ -114,8 +113,9 @@ class CatalogOverviewController
   }
 }
 
-final catalogOverviewProvider = StateNotifierProvider<CatalogOverviewController,
-    List<CatalogSourceView>>((ref) {
+final catalogOverviewProvider =
+    StateNotifierProvider<CatalogOverviewController, List<CatalogSourceView>>(
+        (ref) {
   final controller = CatalogOverviewController(
     repository: ref.watch(catalogCacheRepositoryProvider),
     catalog: ref.watch(tailscaleCatalogProvider),

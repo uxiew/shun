@@ -139,8 +139,7 @@ void main() {
         'hosts': [
           bound('a-nas', '家里 NAS', 'ts-home', '1'),
           // 另一个来源里的同名、同 IP、同设备 ID：是另一台主机，各用各的账号。
-          bound('b-nas', '公司 NAS', 'ts-work', '1',
-              username: 'ops', port: 22),
+          bound('b-nas', '公司 NAS', 'ts-work', '1', username: 'ops', port: 22),
           // 用户改过地址：不再跟随目录。
           bound('a-pc', '书房', 'ts-home', '3',
               hostname: 'pc.lan', applied: '100.64.0.3'),
@@ -260,7 +259,8 @@ void main() {
     expect(inGroup('ts-work', key('vault-catalog-host-a-nas')), findsNothing);
     expect(inGroup('ts-home', find.text('家里 NAS')), findsOneWidget,
         reason: '显示的是用户起的别名，不是目录里的设备名');
-    expect(inGroup('ts-home', find.text('admin@100.64.0.1:2222')), findsOneWidget);
+    expect(
+        inGroup('ts-home', find.text('admin@100.64.0.1:2222')), findsOneWidget);
     expect(inGroup('ts-work', find.text('ops@100.64.0.1:22')), findsOneWidget);
     // 两边的设备 1 都已导入，不再当成没导入的设备列出来。
     expect(key('vault-catalog-device-ts-home-1'), findsNothing);
@@ -269,7 +269,8 @@ void main() {
     // 每台只出现一次：在分节里就不在普通列表里。
     expect(key('vault-host-menu-a-nas'), findsOneWidget);
     expect(key('vault-host-menu-plain'), findsOneWidget);
-    expect(find.descendant(of: sections, matching: key('vault-host-menu-plain')),
+    expect(
+        find.descendant(of: sections, matching: key('vault-host-menu-plain')),
         findsNothing);
   });
 
@@ -283,17 +284,15 @@ void main() {
     expect(status('vault-catalog-status-b-nas'), 'Tailscale 控制面：未连接',
         reason: '同一个设备 ID，另一个来源说的是另一回事');
     expect(status('vault-catalog-status-a-pc'), 'Tailscale 控制面：不知道');
-    expect(status('vault-catalog-device-status-ts-home-2'),
-        'Tailscale 控制面：未连接');
-    expect(status('vault-catalog-device-status-ts-work-4'),
-        '目录：最近完整列表里没有它',
+    expect(
+        status('vault-catalog-device-status-ts-home-2'), 'Tailscale 控制面：未连接');
+    expect(status('vault-catalog-device-status-ts-work-4'), '目录：最近完整列表里没有它',
         reason: '不见了的设备不再拿上次的「已连接」说事');
     expect(status('vault-catalog-age-ts-home'), endsWith('3 小时前'));
     expect(status('vault-catalog-age-ts-work'), endsWith('3 天前'));
-    expect(inGroup('ts-work', find.textContaining('最近一次读取失败：')),
-        findsOneWidget);
-    expect(inGroup('ts-home', find.textContaining('最近一次读取失败')),
-        findsNothing);
+    expect(
+        inGroup('ts-work', find.textContaining('最近一次读取失败：')), findsOneWidget);
+    expect(inGroup('ts-home', find.textContaining('最近一次读取失败')), findsNothing);
     expect(find.textContaining('在线'), findsNothing);
     expect(find.textContaining('离线'), findsNothing);
     expect(find.textContaining('不代表手机能连上它'), findsOneWidget);
@@ -306,8 +305,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(CatalogImportPage), findsOneWidget);
     expect(container.read(sessionControllerProvider).sessions, isEmpty);
-    expect(container.read(sessionControllerProvider).pendingConnections,
-        isEmpty);
+    expect(
+        container.read(sessionControllerProvider).pendingConnections, isEmpty);
     await tester.enterText(key('catalog-import-username'), 'me');
     await tester.pumpAndSettle();
     await tester.tap(key('catalog-import-confirm'));
@@ -342,7 +341,8 @@ void main() {
         findsOneWidget);
     gate!.complete();
     await tester.pumpAndSettle();
-    expect(requests.where((r) => r.url.path.contains('/devices')), hasLength(1));
+    expect(
+        requests.where((r) => r.url.path.contains('/devices')), hasLength(1));
 
     final nas = saved('a-nas');
     expect(nas.hostname, '100.64.0.50', reason: '地址还跟随目录：跟着改');
@@ -394,7 +394,8 @@ void main() {
     expect(key('vault-catalog-ts-work'), findsNothing);
     expect(key('vault-catalog-ts-home'), findsOneWidget);
     expect(key('vault-host-menu-b-nas'), findsOneWidget);
-    expect(find.descendant(of: sections, matching: key('vault-host-menu-b-nas')),
+    expect(
+        find.descendant(of: sections, matching: key('vault-host-menu-b-nas')),
         findsNothing,
         reason: '来源不在本机了，主机回到普通列表');
     expect(fields('b-nas'), before, reason: '主机和它上面的关联都留着');
