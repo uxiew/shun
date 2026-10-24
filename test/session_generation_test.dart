@@ -114,6 +114,27 @@ void main() {
       expect(controller.state.error, isNull);
     });
 
+    test('失败页「重试」：普通连接失败可以重试，重试是一次新的拨号、旧卡片不留', () async {
+      final first = controller.connect(host, accept);
+      await settle();
+      service.calls.single.result.completeError(StateError('对方拒绝连接'));
+      await expectLater(first, throwsStateError);
+      final failed = controller.state.pendingConnections.single;
+      expect(failed.phase, PendingConnectionPhase.failed);
+      expect(failed.retryable, isTrue);
+
+      unawaited(
+          controller.retryPending(failed.id, accept).catchError((_) => false));
+      await settle();
+      expect(service.calls, hasLength(2), reason: '重试真的再拨一次');
+      final again = controller.state.pendingConnections.single;
+      expect(again.id, isNot(failed.id));
+      expect(again.phase, PendingConnectionPhase.connecting);
+      expect(again.retryable, isTrue);
+      service.calls.last.result.completeError(StateError('还是不通'));
+      await settle();
+    });
+
     test('等保险库解锁时就取消：一次拨号都不发起', () async {
       container.dispose();
       final vault = _GatedVaultController();

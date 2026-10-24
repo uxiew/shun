@@ -103,7 +103,10 @@ sequenceDiagram
 - `phase`：`connecting` 或 `failed`；
 - `stage`：连到哪一步，`ConnectionStage.describe()` 生成「第 2/3 跳，“web”：SSH 握手、核对指纹、登录」这类文字；
 - `routePlan`：这次实际走的路线，失败页据此画出路径；
-- `checkPrompt`：Tailscale check 链接（见 2.7）。
+- `checkPrompt`：Tailscale check 链接（见 2.7）；
+- `retryable`：失败页给不给「重试」。只有不带 `routePlan` / `tmuxAttach` / AI 参数、`eventKind` 是 `open`、也不是换方式（`allowRetry: false`）的 `connect` 才是真。
+  `retryPending` 只拿 `pending.host` 再调一次 `connect`，那些参数带不回来；给 `connect` 加新的「特殊入口」参数时记得也让它把 `retryable` 置假，
+  不然失败页的重试会把它连成普通 shell。
 
 卡片画在 `presentation/screens/terminal_screen_pane.dart` 的 `_ConnectionStatusPane`；失败后那句「下一步怎么办」来自 `application/connection_diagnosis.dart` 的 `connectionHint`。用户点「终止」走 `cancelPendingConnection`：先 `attempt.cancel()` 关掉已建好的 socket 和 client，再改界面。
 

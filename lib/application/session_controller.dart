@@ -44,6 +44,7 @@ class PendingTerminalConnection {
     this.stage,
     this.routePlan,
     this.checkPrompt,
+    this.retryable = false,
   });
 
   static const _keep = Object();
@@ -52,6 +53,10 @@ class PendingTerminalConnection {
   final HostProfile host;
   final PendingConnectionPhase phase;
   final Object? error;
+
+  /// 失败页能不能给「重试」：只有用户点「连接」开的普通标签。附着 tmux、启动 AI 工具、沿用别的标签冻结路线的，
+  /// 重试要把这些参数原样带上，带错了就是另一回事（比如 AI 工具重试成了普通 shell），所以不给，让用户从原入口再来。
+  final bool retryable;
 
   /// 连到哪一步了；还没开始拨号时为 null。
   final ConnectionStage? stage;
@@ -79,6 +84,7 @@ class PendingTerminalConnection {
         checkPrompt: identical(checkPrompt, _keep)
             ? this.checkPrompt
             : checkPrompt as TailscaleCheckPrompt?,
+        retryable: retryable,
       );
 }
 
@@ -352,6 +358,7 @@ class SessionController extends StateNotifier<SessionState> {
     AiCliTmuxRun? aiTmuxRun,
     void Function(ActiveTerminalSession)? onOpened,
     ConnectionEventKind eventKind = ConnectionEventKind.open,
+    bool allowRetry = true,
   }) async {
     if ((aiLaunch != null || aiTmuxRun != null) &&
         (host.protocol != HostProtocol.ssh ||
@@ -378,7 +385,16 @@ class SessionController extends StateNotifier<SessionState> {
         ],
       );
     };
-    final pending = PendingTerminalConnection(id: sessionId, host: host);
+    final pending = PendingTerminalConnection(
+      id: sessionId,
+      host: host,
+      retryable: allowRetry &&
+          routePlan == null &&
+          tmuxAttach == null &&
+          aiLaunch == null &&
+          aiTmuxRun == null &&
+          eventKind == ConnectionEventKind.open,
+    );
     state = state.copyWith(
       pendingConnections: [...state.pendingConnections, pending],
       activePendingId: sessionId,
@@ -936,6 +952,8 @@ class SessionController extends StateNotifier<SessionState> {
       transportCopy(source, to),
       verifyHostKey,
       keyboardInteractive: keyboardInteractive,
+      // 换方式前要先查现在还能不能换；失败页直接重试会跳过那一步，所以不给重试。
+      allowRetry: false,
     );
   }
 
@@ -977,6 +995,8 @@ class SessionController extends StateNotifier<SessionState> {
       transportCopy(source, to),
       verifyHostKey,
       keyboardInteractive: keyboardInteractive,
+      // 换方式前要先查现在还能不能换；失败页直接重试会跳过那一步，所以不给重试。
+      allowRetry: false,
     );
   }
 
@@ -2147,6 +2167,28 @@ class SessionController extends StateNotifier<SessionState> {
     }
     final pending = state.pendingConnections[index - state.sessions.length];
     state = state.copyWith(activePendingId: pending.id);
+  }
+
+  /// 失败页的「重试」：关掉这张失败卡片，按同一份主机再连一次（路线、凭据按保险库现在的样子重算，
+  /// 用户在两次之间改过配置就用新的）。不是失败的、不能重试的（见 [PendingTerminalConnection.retryable]）不动。
+  Future<bool> retryPending(
+    String id,
+    HostKeyVerifier verifyHostKey, {
+    KeyboardInteractiveHandler? keyboardInteractive,
+  }) async {
+    final pending =
+        state.pendingConnections.where((value) => value.id == id).firstOrNull;
+    if (pending == null ||
+        !pending.retryable ||
+        pending.phase != PendingConnectionPhase.failed) {
+      return false;
+    }
+    dismissPending(id);
+    return connect(
+      pending.host,
+      verifyHostKey,
+      keyboardInteractive: keyboardInteractive,
+    );
   }
 
   void dismissPending(String id) {

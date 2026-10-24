@@ -879,14 +879,12 @@ const englishTranslations = <String, String>{
   '已复制终端文本': 'Terminal text copied',
   '选择并复制': 'Select and copy',
   '复制全部': 'Copy all',
-  '正在建立安全连接…': 'Establishing a secure connection…',
   '终止连接': 'Cancel connection',
   '连接已由用户终止': 'Connection cancelled by the user',
   '未找到受支持的服务管理器，需要 systemd 或 OpenRC。':
       'No supported service manager was found. systemd or OpenRC is required.',
   r'管理系统服务需要管理员权限，且 sudo 需要密码。\n${error.message}':
       r'Managing system services requires administrator access and sudo needs a password.\n${error.message}',
-  '安全连接建立失败': 'Secure connection failed',
   '断开并关闭': 'Disconnect & close',
   '关闭 SSH 标签页？': 'Close SSH tab?',
   '关闭标签页': 'Close tab',
@@ -2337,7 +2335,6 @@ const englishTranslations = <String, String>{
   '这台主机最近 7 天没有记录。连一次，或者断线、恢复以后，这里就会有。':
       'Nothing recorded for this host in the last 7 days. Entries appear after you connect, or after a drop and recovery.',
   '一个阶段都没开始就停了：还没拨号。': 'Stopped before any stage began: nothing was dialed.',
-  '看这台主机的连接记录': 'View this host’s connection log',
   '最近 7 天每次连接走到哪一步、用了多久、失败在哪':
       'How far each connection got in the last 7 days, how long it took, where it failed',
   // R25 第四部分：主机详情的认证一行（host_summary.dart 的 describeLogin）。带私钥名字的几句在片段表。

@@ -452,6 +452,11 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                 .read(sessionControllerProvider.notifier)
                                 .dismissPending(selectedPending.id)
                             : null,
+                        onRetry: selectedPending.phase ==
+                                    PendingConnectionPhase.failed &&
+                                selectedPending.retryable
+                            ? () => unawaited(_retry(selectedPending))
+                            : null,
                         onCancel: selectedPending.phase ==
                                 PendingConnectionPhase.connecting
                             ? () => ref
@@ -790,6 +795,27 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
       recovering: recovering,
       onReconnect: () => unawaited(_reconnect(session)),
     );
+  }
+
+  /// 失败页的「重试」。又失败了新的失败页会自己出来，这里不再弹一条重复的报错；
+  /// 只有服务器缺 mosh-server 时和「重新连接」一样给安装命令。
+  Future<void> _retry(PendingTerminalConnection pending) async {
+    try {
+      await ref.read(sessionControllerProvider.notifier).retryPending(
+            pending.id,
+            hostKeyVerifier(context),
+            keyboardInteractive: keyboardInteractivePrompt(context),
+          );
+    } on MoshServerMissing catch (error) {
+      if (!mounted) return;
+      await showMoshInstallHint(
+        context,
+        hint: error.hint,
+        hostId: sourceHostIdOf(pending.host),
+      );
+    } catch (_) {
+      // 失败页已经写了原因。
+    }
   }
 
   Future<void> _reconnect(ActiveTerminalSession session) async {

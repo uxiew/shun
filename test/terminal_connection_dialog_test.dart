@@ -250,7 +250,7 @@ void main() {
         find.byKey(const ValueKey('terminal-connection-status-dialog')),
         findsOneWidget,
       );
-      expect(find.text('正在建立安全连接…'), findsOneWidget);
+      expect(find.text('正在连接…'), findsOneWidget);
       expect(find.text('第 2/3 跳，“hop2”：SSH 握手、核对指纹、登录'), findsOneWidget,
           reason: '等待页要写出当前卡在哪一跳、哪一步');
       expect(

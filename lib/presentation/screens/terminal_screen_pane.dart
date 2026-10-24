@@ -4,12 +4,14 @@ class _ConnectionStatusPane extends StatelessWidget {
   const _ConnectionStatusPane({
     required this.pending,
     this.onReturn,
+    this.onRetry,
     this.onClose,
     this.onCancel,
   });
 
   final PendingTerminalConnection pending;
   final VoidCallback? onReturn;
+  final VoidCallback? onRetry;
   final VoidCallback? onClose;
   final VoidCallback? onCancel;
 
@@ -17,6 +19,9 @@ class _ConnectionStatusPane extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final failed = pending.phase == PendingConnectionPhase.failed;
+    // 直连只有「手机 → 目标」两段，画出来等于把上面的地址再写一遍；经代理、跳板才有看头。
+    final route = pending.routePlan;
+    final showRoute = route != null && describeRoute(route).length > 2;
     return ColoredBox(
       color: scheme.surface,
       child: Center(
@@ -61,7 +66,7 @@ class _ConnectionStatusPane extends StatelessWidget {
                       const SizedBox(height: 18),
                     ],
                     LText(
-                      failed ? '安全连接建立失败' : '正在建立安全连接…',
+                      failed ? '连接失败' : '正在连接…',
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                             color: failed ? scheme.error : null,
                           ),
@@ -144,7 +149,7 @@ class _ConnectionStatusPane extends StatelessWidget {
                           label: const LText('看安装命令'),
                         ),
                       ],
-                      if (pending.routePlan != null) ...[
+                      if (showRoute) ...[
                         const SizedBox(height: 14),
                         Align(
                           alignment: Alignment.centerLeft,
@@ -154,7 +159,7 @@ class _ConnectionStatusPane extends StatelessWidget {
                           ),
                         ),
                         const SizedBox(height: 4),
-                        RouteLegsView(plan: pending.routePlan!, dense: true),
+                        RouteLegsView(plan: route, dense: true),
                       ],
                       // 这一次和之前几次各卡在哪一步、用了多久（R25）。只是打开本机记录，不重试、不探测。
                       const SizedBox(height: 6),
@@ -170,7 +175,7 @@ class _ConnectionStatusPane extends StatelessWidget {
                             ),
                           ),
                           icon: const Icon(Icons.history),
-                          label: const LText('看这台主机的连接记录'),
+                          label: const LText('连接记录'),
                         ),
                       ),
                     ],
@@ -200,11 +205,26 @@ class _ConnectionStatusPane extends StatelessWidget {
                               icon: const Icon(Icons.arrow_back),
                               label: const LText('返回当前终端'),
                             ),
-                          if (onClose != null)
-                            FilledButton.icon(
+                          if (onClose != null && onRetry != null)
+                            OutlinedButton.icon(
+                              key: const ValueKey('close-failed-connection'),
                               onPressed: onClose,
                               icon: const Icon(Icons.close),
                               label: const LText('关闭标签页'),
+                            )
+                          else if (onClose != null)
+                            FilledButton.icon(
+                              key: const ValueKey('close-failed-connection'),
+                              onPressed: onClose,
+                              icon: const Icon(Icons.close),
+                              label: const LText('关闭标签页'),
+                            ),
+                          if (onRetry != null)
+                            FilledButton.icon(
+                              key: const ValueKey('retry-failed-connection'),
+                              onPressed: onRetry,
+                              icon: const Icon(Icons.refresh),
+                              label: const LText('重试'),
                             ),
                           if (onCancel != null)
                             FilledButton.icon(

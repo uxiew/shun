@@ -9,10 +9,13 @@ import 'package:shun/application/connection_diagnosis.dart';
 import 'package:shun/application/connection_events.dart';
 import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/vault_controller.dart';
+import 'package:shun/domain/ai_cli_launch.dart';
 import 'package:shun/domain/connection_route.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/domain/plugins/mosh_install_hint.dart';
 import 'package:shun/domain/route_description.dart';
+import 'package:shun/domain/tmux/ai_cli_tmux_run.dart';
+import 'package:shun/domain/tmux/tmux_target.dart';
 import 'package:shun/infrastructure/ssh/ssh_identity.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
@@ -274,7 +277,7 @@ void main() {
       child: const MaterialApp(home: Scaffold(body: TerminalScreen())),
     ));
     await tester.pump();
-    expect(find.text('安全连接建立失败'), findsOneWidget);
+    expect(find.text('连接失败'), findsOneWidget);
     expect(
         find.byKey(const ValueKey('connection-failure-hint')), findsOneWidget);
     expect(find.textContaining('代理或跳板机之后的那一段断了'), findsOneWidget);
@@ -290,11 +293,110 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(ConnectionLogScreen), findsOneWidget);
   });
+
+  group('失败页的「重试」', () {
+    late _Recording controller;
+
+    Future<void> open(
+        WidgetTester tester, PendingTerminalConnection failed) async {
+      tester.view.physicalSize = const Size(900, 2400);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.resetPhysicalSize);
+      addTearDown(tester.view.resetDevicePixelRatio);
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+              const MethodChannel(
+                  'plugins.it_nomads.com/flutter_secure_storage'),
+              (call) async => null);
+      SharedPreferences.setMockInitialValues({});
+      final repository = await VaultRepository.open();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [
+          vaultRepositoryProvider.overrideWithValue(repository),
+          connectionEventStoreProvider
+              .overrideWithValue(MemoryConnectionEventStore()),
+          sessionControllerProvider
+              .overrideWith((ref) => controller = _Recording(
+                    ref.read(vaultControllerProvider.notifier),
+                    ref,
+                    SessionState(
+                        pendingConnections: [failed],
+                        activePendingId: failed.id),
+                  )),
+        ],
+        child: const MaterialApp(home: Scaffold(body: TerminalScreen())),
+      ));
+      await tester.pump();
+    }
+
+    PendingTerminalConnection failedDirect({required bool retryable}) {
+      final target = host('web');
+      return PendingTerminalConnection(
+        id: 'p1',
+        host: target,
+        phase: PendingConnectionPhase.failed,
+        error: const SocketException('Connection refused'),
+        routePlan:
+            resolveRoutePlan(target, hosts: const [], proxyProfiles: const []),
+        retryable: retryable,
+      );
+    }
+
+    testWidgets('直连不画路线；点「重试」关掉这张卡片、按同一台主机再连一次', (tester) async {
+      await open(tester, failedDirect(retryable: true));
+      expect(find.text('连接失败'), findsOneWidget);
+      expect(find.text('这次实际走的路线'), findsNothing,
+          reason: '直连只有「手机 → 目标」，等于把地址再写一遍');
+
+      await tester.tap(find.byKey(const ValueKey('retry-failed-connection')));
+      await tester.pump();
+      expect(controller.connected.map((h) => h.id), ['web']);
+      expect(controller.state.pendingConnections, isEmpty,
+          reason: '旧的失败卡片关掉，新的一次自己开卡片');
+    });
+
+    testWidgets('附着 tmux、启动 AI 工具、换方式这类失败不给「重试」，只能关掉', (tester) async {
+      await open(tester, failedDirect(retryable: false));
+      expect(
+          find.byKey(const ValueKey('retry-failed-connection')), findsNothing);
+      expect(find.byKey(const ValueKey('close-failed-connection')),
+          findsOneWidget);
+      // 绕过界面直接调也不连。
+      expect(await controller.retryPending('p1', (_, __, ___) async => true),
+          isFalse);
+      expect(controller.connected, isEmpty);
+      expect(controller.state.pendingConnections, hasLength(1));
+    });
+  });
 }
 
 class _Seeded extends SessionController {
   _Seeded(VaultController vault, Ref ref, SessionState initial)
       : super(SshService(), vault, ref) {
     state = initial;
+  }
+}
+
+/// 只记「要连哪台」，不拨号：重试该不该发生、连的是不是同一台，看这里。
+class _Recording extends _Seeded {
+  _Recording(super.vault, super.ref, super.initial);
+
+  final connected = <HostProfile>[];
+
+  @override
+  Future<bool> connect(
+    HostProfile host,
+    HostKeyVerifier verifyHostKey, {
+    KeyboardInteractiveHandler? keyboardInteractive,
+    RoutePlan? routePlan,
+    TmuxTarget? tmuxAttach,
+    AiCliLaunchSpec? aiLaunch,
+    AiCliTmuxRun? aiTmuxRun,
+    void Function(ActiveTerminalSession)? onOpened,
+    ConnectionEventKind eventKind = ConnectionEventKind.open,
+    bool allowRetry = true,
+  }) async {
+    connected.add(host);
+    return false;
   }
 }

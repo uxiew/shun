@@ -424,10 +424,15 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
         ).showSnackBar(SnackBar(content: LText('${host.label} 已连接')));
       }
     } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: LText('连接失败：$error')));
+      // 连接失败页已经把原因、下一步写全了，再弹一条一样的提示条只是重复（docs/dev/ui-text.md）。
+      // 没走到失败页的（比如还没开始连就被拒）才在这里说。
+      if (!mounted) return;
+      final shown = ref.read(sessionControllerProvider).pendingConnections.any(
+          (p) =>
+              p.host.id == host.id && p.phase == PendingConnectionPhase.failed);
+      if (!shown) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: LText('连接失败：$error')));
       }
     }
   }
