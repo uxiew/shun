@@ -87,6 +87,29 @@ void main() {
     expect(find.text('关着时截屏是黑的。'), findsOneWidget);
   });
 
+  testWidgets('说明很长、屏幕很矮（横屏）：弹层不溢出，滚到底能点「知道了」', (tester) async {
+    tester.view.physicalSize = const Size(800, 360);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+    await tester.pumpWidget(MaterialApp(
+      home: Scaffold(
+        body: HintButton(
+          title: 'AI 命令行工具',
+          message: List.filled(12, '很长的一段说明。').join('\n\n'),
+        ),
+      ),
+    ));
+    await tester.tap(find.byIcon(Icons.info_outline));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    await tester.scrollUntilVisible(find.text('知道了'), 100,
+        scrollable: find.byType(Scrollable).last);
+    await tester.tap(find.text('知道了'));
+    await tester.pumpAndSettle();
+    expect(find.text('知道了'), findsNothing);
+  });
+
   testWidgets('英文界面的 ⓘ 读作 About …', (tester) async {
     ShunLocalizations.use('en');
     await tester.pumpWidget(const MaterialApp(

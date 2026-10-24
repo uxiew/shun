@@ -25,7 +25,10 @@ Future<void> showHint(
       context: context,
       useSafeArea: true,
       showDragHandle: true,
-      builder: (context) => Padding(
+      // 说明有三段长的（AI 工具），横屏或大字号时默认的半屏高度放不下：允许长高，再放不下就滚动。
+      // 以前是固定的 Column，溢出时「知道了」被挤出屏幕。
+      isScrollControlled: true,
+      builder: (context) => SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(24, 0, 24, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
