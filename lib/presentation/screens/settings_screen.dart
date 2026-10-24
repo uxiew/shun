@@ -32,6 +32,7 @@ import '../widgets/terminal_engine_status.dart';
 import '../widgets/custom_background.dart';
 import '../widgets/ai_providers_page.dart';
 import '../widgets/github_manual_config.dart';
+import '../widgets/hint.dart';
 import '../widgets/secret_content.dart';
 import '../widgets/vault_import_dialog.dart';
 import 'connection_log_screen.dart';
@@ -186,7 +187,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           body: ListView(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
             children: [
-              _header('外观', '改了马上生效'),
+              _header('外观'),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(14),
@@ -250,11 +251,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         key: const ValueKey('custom-background-switch'),
                         contentPadding: EdgeInsets.zero,
                         title: const LText('自定义背景'),
-                        subtitle: LText(
-                          customBackgroundPath.isEmpty
-                              ? '选择图片后可调整显示效果'
-                              : '背景图片已保存到 App 本地目录',
-                        ),
                         value: customBackgroundEnabled,
                         onChanged: (value) async {
                           if (value && customBackgroundPath.isEmpty) {
@@ -293,16 +289,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               ),
                             );
                           },
-                        ),
-                        const SizedBox(height: 6),
-                        Align(
-                          alignment: Alignment.centerLeft,
-                          child: LText(
-                            customBackgroundScope == 'global'
-                                ? '背景应用到所有页面、顶部栏和底部导航栏'
-                                : '背景仅应用到终端页面',
-                            style: Theme.of(context).textTheme.bodySmall,
-                          ),
                         ),
                         const SizedBox(height: 10),
                         _backgroundPreview(),
@@ -431,7 +417,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
               ),
-              _header('终端', null),
+              _header('终端'),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(14),
@@ -488,25 +474,23 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ),
                         ),
                       ),
-                      SwitchListTile(
+                      HintSwitchTile(
                         contentPadding: EdgeInsets.zero,
-                        title: const LText('系统安全键盘'),
-                        subtitle: const LText(
-                          '使用系统密码键盘并关闭联想学习；终端快捷键仍可输入 Ctrl 组合键',
-                        ),
+                        title: '系统安全键盘',
+                        hint: '用系统的密码键盘打字，输入法不联想、不记词。快捷键栏照样能发 Ctrl 组合键。',
                         value: terminalSecureKeyboard,
                         onChanged: _savingTerminalSecureKeyboard
                             ? null
                             : _setTerminalSecureKeyboard,
                       ),
-                      SwitchListTile(
+                      HintSwitchTile(
                         key: const ValueKey('terminal-fullscreen-swipe'),
                         contentPadding: EdgeInsets.zero,
-                        title: const LText('全屏程序里滑动翻页'),
+                        title: '全屏程序里滑动翻页',
+                        // 只留会出事的那一句：没开 mouse 的 tmux 也算全屏程序，滑一下就翻出历史命令。
                         // 一整句一个字面量：本地化按整句查译文，拆成几段拼起来就查不到了。
-                        subtitle: const LText(
-                          '在 less、man、vim 这类全屏程序里，手指上下滑会发方向键，每滑过一行发一个。注意：没开 mouse 的 tmux 也算全屏程序，这时滑动的方向键会到 shell，翻出上一条历史命令，再按回车就执行了。开着鼠标的程序（tmux 开了 mouse、htop）不受影响，照样发滚轮',
-                        ),
+                        hint:
+                            '在 less、man、vim 里上下滑会发方向键。没开 mouse 的 tmux 也算全屏程序：滑动会翻出上一条历史命令，再按回车就执行了。',
                         value: terminalFullscreenSwipe,
                         onChanged: _savingTerminalFullscreenSwipe
                             ? null
@@ -518,12 +502,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
               ),
-              _header('文件', null),
+              _header('文件'),
               Card(
                 child: SwitchListTile(
                   key: const ValueKey('settings-sftp-highlight'),
                   title: const LText('SFTP 代码高亮'),
-                  subtitle: const LText('编辑文件时显示语法颜色'),
                   value: sftpSyntaxHighlight,
                   onChanged: (value) {
                     setState(() => sftpSyntaxHighlight = value);
@@ -533,7 +516,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   },
                 ),
               ),
-              _header('连接', '代理、密钥、设备目录和每次连接的记录'),
+              _header('连接'),
               Card(
                 child: Column(
                   children: [
@@ -550,7 +533,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ListTile(
                       leading: const Icon(Icons.key_outlined),
                       title: const LText('SSH 密钥库'),
-                      subtitle: const LText('导入私钥与口令'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => showModalBottomSheet<void>(
                         context: context,
@@ -564,7 +546,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       key: const ValueKey('settings-tailscale-catalog'),
                       leading: const Icon(Icons.lan_outlined),
                       title: const LText('Tailscale 设备目录'),
-                      subtitle: const LText('只读设备列表；导入不会连接，也不会启动 VPN'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
@@ -577,9 +558,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       key: const ValueKey('settings-connection-log'),
                       leading: const Icon(Icons.history),
                       title: const LText('连接记录'),
-                      subtitle: const LText(
-                        '各主机最近 7 天的连接阶段、用时和失败位置；只存在这台手机上，不含地址和凭据。在这里导出、清除',
-                      ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
@@ -590,32 +568,21 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ],
                 ),
               ),
-              _header('安全', null),
+              // 存储和指纹两条以前各占一行卡片，点了没反应，只是在说明；收进分组的 ⓘ。
+              _header(
+                '安全',
+                hint: '密码和私钥只存在系统的安全存储里。第一次连一台服务器要你核对指纹；以后指纹变了直接拦下，不发登录信息。',
+              ),
               Card(
                 child: Column(
                   children: [
-                    const ListTile(
-                      leading: Icon(Icons.security),
-                      title: LText('系统安全存储'),
-                      subtitle: LText('Android Keystore / iOS Keychain'),
-                    ),
-                    const Divider(height: 1),
-                    const ListTile(
-                      leading: Icon(Icons.fingerprint),
-                      title: LText('服务器身份验证'),
-                      // 以前写「每次首次连接显示」：没说指纹变了会怎样（硬拦、不给更新，见使用手册）。
-                      subtitle:
-                          LText('第一次连时让你核对 SHA-256 指纹；以后指纹变了直接拦下，发登录信息之前就断开'),
-                    ),
-                    const Divider(height: 1),
-                    SwitchListTile(
+                    HintSwitchTile(
                       key: const ValueKey(
                           'settings-allow-sensitive-screenshots'),
                       secondary: const Icon(Icons.screenshot_outlined),
-                      title: const LText('敏感页面允许截屏'),
-                      subtitle: const LText(
-                        '默认关：编辑连接、编辑代理这类带密码的页面，和输入密码、口令、token 的对话框，截屏和录屏都是黑的，最近任务里也看不到内容。终端页不受影响。只对 Android 有效',
-                      ),
+                      title: '敏感页面允许截屏',
+                      hint:
+                          '关着时，编辑连接、编辑代理和输密码的对话框截屏、录屏都是黑的，最近任务里也看不到。终端页不受影响。只对 Android 有效。',
                       value: allowSensitiveScreenshots,
                       onChanged: _savingAllowSensitiveScreenshots
                           ? null
@@ -624,28 +591,31 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ],
                 ),
               ),
-              _header('数据', '导入导出会保留桌面端未知字段和插件数据'),
+              _header(
+                '数据',
+                hint:
+                    '导入的是 Netcatty 桌面端解密后导出的保险库 JSON。导出的文件不带密码、私钥和代理口令，换手机导入后要重新填。',
+              ),
               Card(
                 child: Column(
                   children: [
                     ListTile(
                       leading: const Icon(Icons.file_upload_outlined),
                       title: const LText('导入 Netcatty JSON'),
-                      subtitle: const LText('支持桌面端解密后的保险库数据'),
                       onTap: _import,
                     ),
                     const Divider(height: 1),
                     ListTile(
                       leading: const Icon(Icons.file_download_outlined),
                       title: const LText('导出保险库 JSON'),
-                      subtitle: const LText('不含密码、私钥和代理口令；换手机导入后要重新填写'),
                       onTap: _export,
                     ),
                   ],
                 ),
               ),
               if (features.cloudSync)
-                _header('云同步', '兼容桌面端 netcatty-vault.json 加密格式'),
+                _header('云同步',
+                    hint: '和桌面端用同一个加密文件 netcatty-vault.json，两边能互相同步。'),
               // 整张卡片防截屏（R44）：里面有 WebDAV/S3/GitHub 的口令和同步主密码。
               // 设置页一直挂在首页的 IndexedStack 里，切到别的标签页时不算在屏幕上，见 SecretContent。
               if (features.cloudSync)
@@ -776,22 +746,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               hintText: 'shun',
                             ),
                           ),
-                          SwitchListTile(
+                          HintSwitchTile(
                             contentPadding: EdgeInsets.zero,
-                            title: const LText('使用路径式访问'),
-                            subtitle: const LText(
-                              '兼容 MinIO 等自建 S3，默认开启',
-                            ),
+                            title: '使用路径式访问',
+                            hint: 'MinIO 这类自建 S3 要开着。默认开。',
                             value: s3ForcePathStyle,
                             onChanged: (value) =>
                                 setState(() => s3ForcePathStyle = value),
                           ),
-                          SwitchListTile(
+                          HintSwitchTile(
                             contentPadding: EdgeInsets.zero,
-                            title: const LText('允许不安全连接'),
-                            subtitle: const LText(
-                              '仅用于 HTTP 或自签名 HTTPS，存在安全风险',
-                            ),
+                            title: '允许不安全连接',
+                            hint:
+                                '只给 HTTP 或自签名 HTTPS 的服务用。开着时任何证书都接受，被中间人截走也发现不了。',
                             value: s3AllowInsecure,
                             onChanged: (value) =>
                                 setState(() => s3AllowInsecure = value),
@@ -897,23 +864,26 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 )),
               if (features.ai)
-                _header('shu Agent', '使用 OpenAI 兼容接口连续对话，命令执行前始终确认'),
+                _header(
+                  'shu Agent',
+                  // 标题没有中文：和提示写在同一行，本地化覆盖测试会把两段当成一句。
+                  hint: '用 OpenAI 兼容接口对话。它要执行的命令，每条都先问你。',
+                ),
               if (features.ai)
                 ListTile(
                   leading: const Icon(Icons.dns_outlined),
                   title: const LText('管理多个 AI 服务商'),
-                  subtitle: const LText('独立地址、密钥、模型与兼容参数，仅保存在本机'),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: _openAiProviders,
                 ),
               if (Platform.isAndroid) ...[
-                _header('远程桌面', '交给手机上装的 UU 远程或 RustDesk 去控制电脑'),
+                _header('远程桌面',
+                    hint: '交给手机上装的 UU 远程或 RustDesk 去控制电脑，它们用自己的网络。'),
                 Card(
                   child: ListTile(
                     key: const ValueKey('settings-uuremote'),
                     leading: const Icon(Icons.desktop_windows_outlined),
                     title: const LText('UU 远程'),
-                    subtitle: const LText('检查手机上的 UU 远程、核对证书、管理绑定'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -927,8 +897,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     key: const ValueKey('settings-rustdesk'),
                     leading: const Icon(Icons.connected_tv_outlined),
                     title: const Text('RustDesk'),
-                    subtitle:
-                        const LText('检查手机上的 RustDesk、核对证书、管理各主机的 RustDesk ID'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -937,12 +905,11 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                   ),
                 ),
-                _header('插件', '独立安装的插件 App，需要你逐个批准'),
+                _header('插件', hint: '插件是单独安装的 App，每个都要你批准后才会用。'),
                 Card(
                   child: ListTile(
                     leading: const Icon(Icons.extension_outlined),
                     title: const LText('插件（实验）'),
-                    subtitle: const LText('发现、批准和测试独立插件 App'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute<void>(
@@ -953,7 +920,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ],
               if (features.updateCheck) ...[
-                _header('关于与更新', '自动检查 GitHub 上的最新正式版本'),
+                _header('关于与更新'),
                 Card(child: _updateCheckTile()),
               ],
               const SizedBox(height: 20),
@@ -979,21 +946,15 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       );
 
-  Widget _header(String title, String? subtitle) => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 20, 4, 8),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            LText(title, style: const TextStyle(fontWeight: FontWeight.w600)),
-            if (subtitle != null)
-              LText(
-                subtitle,
-                style: TextStyle(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                  fontSize: 12,
-                ),
-              ),
-          ],
+  /// 分组标题。以前每组下面一行小字说明，现在有要说的才放 ⓘ（docs/dev/ui-text.md）。
+  Widget _header(String title, {String? hint}) => Padding(
+        // 有 ⓘ 时按钮自带 48dp 高，上下边距收一点，免得两种标题离卡片远近不一。
+        padding: EdgeInsets.fromLTRB(
+            4, hint == null ? 20 : 8, 4, hint == null ? 8 : 0),
+        child: HintTitle(
+          title,
+          hint: hint,
+          style: const TextStyle(fontWeight: FontWeight.w600),
         ),
       );
 

@@ -374,7 +374,6 @@ const englishTranslations = <String, String>{
       'Server-side transfer is unavailable. Direct transfers require reachable servers, configured key authentication and trusted host keys. Phone relay uses your phone’s data connection.',
   '正在压缩…': 'Compressing…',
   'SFTP 代码高亮': 'SFTP syntax highlighting',
-  '编辑文件时显示语法颜色': 'Show syntax colors when editing files',
   '放弃未保存的修改？': 'Discard unsaved changes?',
   '放弃': 'Discard',
   '撤销': 'Undo',
@@ -422,10 +421,7 @@ const englishTranslations = <String, String>{
   '片段': 'Snippets',
   // R25 设置页分组：外观 / 终端 / 文件 / 连接 / 安全 / 数据，改了就存。
   '外观': 'Appearance',
-  '改了马上生效': 'Changes apply right away',
   '界面语言': 'Interface language',
-  '代理、密钥、设备目录和每次连接的记录':
-      'Proxies, keys, device directory and a log of each connection',
   r'设置没存上：$error': r'Setting not saved: $error',
   // R25：整屏快照从终端右上角挪到标签条和「更多」。
   '复制屏幕文字': 'Copy screen text',
@@ -436,12 +432,6 @@ const englishTranslations = <String, String>{
   '自定义背景': 'Custom background',
   '全局背景': 'Global background',
   '仅终端': 'Terminal only',
-  '背景应用到所有页面、顶部栏和底部导航栏':
-      'Apply the background to every page, app bar, and bottom navigation bar',
-  '背景仅应用到终端页面': 'Apply the background only to the terminal page',
-  '选择图片后可调整显示效果': 'Choose an image, then adjust how it is displayed',
-  '背景图片已保存到 App 本地目录':
-      'The background image is stored in the app local directory',
   '选择背景图片': 'Choose background image',
   '更换背景图片': 'Change background image',
   '移除背景图片': 'Remove background image',
@@ -461,8 +451,6 @@ const englishTranslations = <String, String>{
   '居中': 'Center',
   '终端字号': 'Terminal font size',
   '云同步': 'Cloud sync',
-  '兼容桌面端 netcatty-vault.json 加密格式':
-      'Compatible with the desktop netcatty-vault.json encryption format',
   '自动同步': 'Auto-sync',
   '数据变更后自动同步，并在启动、返回前台及每 5 分钟检查云端':
       'Sync after local changes and check the cloud at startup, on resume, and every 5 minutes',
@@ -480,11 +468,7 @@ const englishTranslations = <String, String>{
   '对象前缀（可选）': 'Object prefix (optional)',
   'Session Token（可选）': 'Session token (optional)',
   '使用路径式访问': 'Use path-style access',
-  '兼容 MinIO 等自建 S3，默认开启':
-      'Compatible with self-hosted S3 services such as MinIO; enabled by default',
   '允许不安全连接': 'Allow insecure connections',
-  '仅用于 HTTP 或自签名 HTTPS，存在安全风险':
-      'Only for HTTP or self-signed HTTPS; this has security risks',
   '测试 S3 连接': 'Test S3 connection',
   'S3 连接成功': 'S3 connection successful',
   'S3 连接测试失败': 'S3 connection test failed',
@@ -545,8 +529,6 @@ const englishTranslations = <String, String>{
       'The cloud vault has an invalid sync format. Writing was stopped to protect your data',
   '使用 OpenAI 兼容接口生成命令，执行前始终确认':
       'Generate commands through an OpenAI-compatible API and always confirm before execution',
-  '使用 OpenAI 兼容接口连续对话，命令执行前始终确认':
-      'Chat through an OpenAI-compatible API and always confirm before executing commands',
   'API 地址': 'API endpoint',
   '模型': 'Model',
   '当前模型': 'Current model',
@@ -607,23 +589,12 @@ const englishTranslations = <String, String>{
   '发送': 'Send',
   'shu 正在思考…': 'shu is thinking…',
   '数据管理': 'Data management',
-  '导入导出会保留桌面端未知字段和插件数据':
-      'Import and export preserve unknown desktop fields and plugin data',
   'SSH 密钥库': 'SSH keychain',
-  '导入私钥与口令': 'Import private keys and passphrases',
   '导入 Netcatty JSON': 'Import Netcatty JSON',
   '基于 Netcatty Mobile 修改': 'Modified from Netcatty Mobile',
-  '支持桌面端解密后的保险库数据': 'Supports decrypted desktop vault data',
   '导出保险库 JSON': 'Export vault JSON',
-  '不含密码、私钥和代理口令；换手机导入后要重新填写':
-      'Passwords, private keys and proxy passwords are not included; re-enter them after importing on another phone',
   '安全': 'Security',
-  '系统安全存储': 'System secure storage',
-  '服务器身份验证': 'Server identity verification',
-  '第一次连时让你核对 SHA-256 指纹；以后指纹变了直接拦下，发登录信息之前就断开':
-      'The first connection asks you to check the SHA-256 fingerprint; if it changes later the connection is stopped before any login data is sent',
   '关于与更新': 'About & updates',
-  '自动检查 GitHub 上的最新正式版本': 'Automatically check the latest GitHub release',
   '语言': 'Language',
   '中文': 'Chinese',
   '英文': 'English',
@@ -1021,9 +992,6 @@ const englishTranslations = <String, String>{
   '某个应用没出现在这里？': 'An app is missing from this list?',
   '独立插件只支持 Android': 'Standalone plugins are only supported on Android',
   '批准这个插件？': 'Approve this plugin?',
-  '发现、批准和测试独立插件 App': 'Discover, approve and test standalone plugin apps',
-  '独立安装的插件 App，需要你逐个批准':
-      'Separately installed plugin apps; each one needs your approval',
   '用 Android 调试证书签名：只有开发构建能用':
       'Signed with an Android debug certificate: only development builds accept it',
   '这是 Android 调试证书：每台开发机都有一张，任何人都能用它签名。':
@@ -1057,8 +1025,6 @@ const englishTranslations = <String, String>{
   '从 Tailscale 读取设备列表，批量导入为主机':
       'Read the device list from Tailscale and import devices as hosts',
   'Tailscale 设备目录': 'Tailscale device directory',
-  '只读设备列表；导入不会连接，也不会启动 VPN':
-      'Read-only device list; importing does not connect or start a VPN',
   '添加目录来源': 'Add directory source',
   '名称（可选）': 'Name (optional)',
   '填 - 表示「凭据所属的 tailnet」，一般不用改':
@@ -1437,8 +1403,6 @@ const englishTranslations = <String, String>{
   '远程桌面': 'Remote desktop',
   '用网易 UU 远程控制 Windows / Mac 电脑':
       'Control Windows / Mac computers with NetEase UU Remote',
-  '检查手机上的 UU 远程、核对证书、管理绑定':
-      'Check UU Remote on this phone, verify its certificate, manage bindings',
   '（主机已删除）': '(host deleted)',
   '已关联 UU 远程。': 'Linked to UU Remote.',
   '还没有 UU 绑定。': 'No UU bindings yet.',
@@ -1615,10 +1579,6 @@ const englishTranslations = <String, String>{
       'This RustDesk is signed by several certificates, which is not supported yet.',
   '还没检查手机上的 RustDesk': 'RustDesk on this phone has not been checked yet',
   // X07 界面（rustdesk_screen.dart、设置页入口）。
-  '交给手机上装的 UU 远程或 RustDesk 去控制电脑':
-      'Hand off to UU Remote or RustDesk on this phone to control a computer',
-  '检查手机上的 RustDesk、核对证书、管理各主机的 RustDesk ID':
-      "Check RustDesk on this phone, verify its certificate, manage each host's RustDesk ID",
   '远控画面、密码、服务器设置和网络都在 RustDesk 里，本 App 只把这台主机的 RustDesk ID 交给它。RustDesk 不向本 App 回报结果：连没连上、什么时候断开，都要在 RustDesk 里看。':
       "The remote screen, password, server settings and network all live in RustDesk; this app only hands it this host's RustDesk ID. RustDesk reports nothing back to this app: whether it connected and when it disconnected can only be seen in RustDesk.",
   'RustDesk 调用现在不可用：': 'RustDesk launcher is unavailable right now: ',
@@ -1732,13 +1692,9 @@ const englishTranslations = <String, String>{
   // 10-07：链接改从选字菜单打开；全屏程序里滑动翻页。
   '打开链接': 'Open link',
   '全屏程序里滑动翻页': 'Swipe to scroll in full-screen programs',
-  '在 less、man、vim 这类全屏程序里，手指上下滑会发方向键，每滑过一行发一个。注意：没开 mouse 的 tmux 也算全屏程序，这时滑动的方向键会到 shell，翻出上一条历史命令，再按回车就执行了。开着鼠标的程序（tmux 开了 mouse、htop）不受影响，照样发滚轮':
-      'In full-screen programs such as less, man and vim, swiping up or down sends arrow keys, one per line swiped. Note: tmux without mouse also counts as a full-screen program; there the arrow keys reach the shell and bring back the previous command from history, which runs if you then press Enter. Programs with mouse reporting on (tmux with mouse, htop) are not affected and still get wheel events',
   '滑动翻页设置保存失败：': 'Could not save the swipe setting: ',
   // R44：敏感页面防截屏的开关。
   '敏感页面允许截屏': 'Allow screenshots of sensitive pages',
-  '默认关：编辑连接、编辑代理这类带密码的页面，和输入密码、口令、token 的对话框，截屏和录屏都是黑的，最近任务里也看不到内容。终端页不受影响。只对 Android 有效':
-      'Off by default: pages with passwords, such as editing a connection or a proxy, and dialogs that ask for a password, passphrase or token come out black in screenshots and screen recordings, and their content is hidden in Recents. The terminal is not affected. Android only',
   '防截屏设置保存失败：': 'Could not save the screenshot setting: ',
   // R25：快捷键栏和按键面板上的键给读屏软件念的名字（terminal_keys.dart）。
   '上箭头': 'Up arrow',
@@ -2414,8 +2370,6 @@ const englishTranslations = <String, String>{
       'Nothing recorded for this host in the last 7 days. Entries appear after you connect, or after a drop and recovery.',
   '一个阶段都没开始就停了：还没拨号。': 'Stopped before any stage began: nothing was dialed.',
   '看这台主机的连接记录': 'View this host’s connection log',
-  '各主机最近 7 天的连接阶段、用时和失败位置；只存在这台手机上，不含地址和凭据。在这里导出、清除':
-      'Connection stages, times and failure points for each host over the last 7 days; kept only on this phone, without addresses or credentials. Export or clear it here',
   '最近 7 天每次连接走到哪一步、用了多久、失败在哪':
       'How far each connection got in the last 7 days, how long it took, where it failed',
   // R25 第四部分：主机详情的认证一行（host_summary.dart 的 describeLogin）。带私钥名字的几句在片段表。
@@ -2454,6 +2408,28 @@ const englishTranslations = <String, String>{
   // 界面文字精简（2026-10-24，docs/dev/ui-text.md）：ⓘ 功能提示，和从页面挪进提示里的说明。
   '说明': 'About',
   '知道了': 'Got it',
+  '用系统的密码键盘打字，输入法不联想、不记词。快捷键栏照样能发 Ctrl 组合键。':
+      'Type with the system password keyboard: no suggestions, no learned words. The shortcut bar still sends Ctrl combinations.',
+  '在 less、man、vim 里上下滑会发方向键。没开 mouse 的 tmux 也算全屏程序：滑动会翻出上一条历史命令，再按回车就执行了。':
+      'In less, man or vim, swiping up and down sends arrow keys. tmux without mouse counts as full-screen too: a swipe recalls the previous shell command, and Enter runs it.',
+  '密码和私钥只存在系统的安全存储里。第一次连一台服务器要你核对指纹；以后指纹变了直接拦下，不发登录信息。':
+      'Passwords and private keys are kept only in the system secure storage. The first connection to a server asks you to check its fingerprint; if it changes later, the connection is stopped before any login is sent.',
+  '关着时，编辑连接、编辑代理和输密码的对话框截屏、录屏都是黑的，最近任务里也看不到。终端页不受影响。只对 Android 有效。':
+      'When off, screenshots and recordings of the connection and proxy editors and password dialogs are black, and Recents hides them. Terminal pages are not affected. Android only.',
+  '导入的是 Netcatty 桌面端解密后导出的保险库 JSON。导出的文件不带密码、私钥和代理口令，换手机导入后要重新填。':
+      'Import takes the decrypted vault JSON exported by Netcatty desktop. Exported files contain no passwords, private keys or proxy passwords; fill them in again after importing on another phone.',
+  '和桌面端用同一个加密文件 netcatty-vault.json，两边能互相同步。':
+      'Uses the same encrypted netcatty-vault.json as the desktop app, so both can sync with each other.',
+  'MinIO 这类自建 S3 要开着。默认开。':
+      'Keep this on for self-hosted S3 such as MinIO. On by default.',
+  '只给 HTTP 或自签名 HTTPS 的服务用。开着时任何证书都接受，被中间人截走也发现不了。':
+      'Only for HTTP or self-signed HTTPS services. While on, any certificate is accepted, so an interception would go unnoticed.',
+  '用 OpenAI 兼容接口对话。它要执行的命令，每条都先问你。':
+      'Chats through an OpenAI-compatible API. Every command it wants to run asks you first.',
+  '交给手机上装的 UU 远程或 RustDesk 去控制电脑，它们用自己的网络。':
+      'Hands control of a computer to UU Remote or RustDesk on this phone; they use their own network.',
+  '插件是单独安装的 App，每个都要你批准后才会用。':
+      'Plugins are separately installed apps; each is used only after you approve it.',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
