@@ -2451,6 +2451,9 @@ const englishTranslations = <String, String>{
   '只管启动 mosh-server 前那段 SSH 登录；之后的 Mosh 会话自己保活，不用这里的值。':
       'These only apply to the SSH login that starts mosh-server; the Mosh session afterwards keeps itself alive and ignores them.',
   '没有主机在用它。删了不能撤销。': 'No host uses it. This cannot be undone.',
+  // 界面文字精简（2026-10-24，docs/dev/ui-text.md）：ⓘ 功能提示，和从页面挪进提示里的说明。
+  '说明': 'About',
+  '知道了': 'Got it',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
