@@ -24,6 +24,8 @@ import '../../infrastructure/storage/ai_cli_recent_work.dart';
 import '../../infrastructure/tmux/ai_cli_tmux_service.dart';
 import '../../infrastructure/tmux/tmux_protocol.dart';
 import '../localization/localized_widgets.dart';
+import 'catalog_text.dart';
+import 'hint.dart';
 import 'tailscale_check_card.dart';
 
 typedef AiCliScan = Future<AiCliScanResult> Function(
@@ -796,6 +798,7 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
               const SizedBox(width: 8),
               const Expanded(
                   child: LText('AI 命令行工具', style: TextStyle(fontSize: 20))),
+              HintButton(title: 'AI 命令行工具', message: _about()),
               IconButton(
                   tooltip: localized('关闭'),
                   onPressed: () => Navigator.pop(context),
@@ -805,11 +808,6 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
             child: ListView(padding: const EdgeInsets.all(16), children: [
           LText(
               '${widget.host.label} · ${widget.host.username}@${widget.host.hostname}:${widget.host.port}'),
-          const SizedBox(height: 8),
-          const LText(
-              '检测范围：当前 SSH 用户的非交互 PATH、常见安装目录，以及你补充的位置。别名、shell 函数、其他用户和容器内的工具可能无法发现。'),
-          const SizedBox(height: 8),
-          const LText('找到工具不代表已登录。仅检查可执行文件和安装包标注的版本；不会运行工具、安装软件或调用模型。'),
           if (_recent.isNotEmpty || _recentUnreadable) ...[
             const SizedBox(height: 12),
             if (_recentUnreadable) const LText('无法读取最近工作记录'),
@@ -868,14 +866,21 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
                         .where((x) =>
                             x.kind == AiCliKind.custom && x.name == tool.name)
                         .toList()),
-            const SizedBox(height: 8),
-            const LText(
-                '可在新终端启动，或选择专属 tmux 保留远端进程；Claude 支持按记录的 ID 尝试继续，Codex 可选择历史。实际登录和继续结果以工具显示为准。'),
           ],
         ])),
       ]),
     ));
   }
+
+  /// 原来常驻在面板上的三段说明，收进标题旁的 ⓘ（docs/dev/ui-text.md）。
+  /// 逐句本地化再拼：拼好的整段在英文表里查不到。
+  static String _about() => [
+        localized(
+            '检测范围：当前 SSH 用户的非交互 PATH、常见安装目录，以及你补充的位置。别名、shell 函数、其他用户和容器内的工具可能无法发现。'),
+        localized('找到工具不代表已登录。仅检查可执行文件和安装包标注的版本；不会运行工具、安装软件或调用模型。'),
+        localized(
+            '可在新终端启动，或选择专属 tmux 保留远端进程；Claude 支持按记录的 ID 尝试继续，Codex 可选择历史。实际登录和继续结果以工具显示为准。'),
+      ].join('\n\n');
 
   String _sourceLabel(String source) {
     if (source == 'common') {
@@ -895,14 +900,16 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
         padding: const EdgeInsets.all(12),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
           LText(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-          if (items.isEmpty) const LText('此范围未发现 · 可补充目录或工具路径'),
+          if (items.isEmpty) const LText('此范围未发现'),
           for (final item in items) ...[
             const SizedBox(height: 8),
             SelectableText(item.path),
-            LText(item.packageVersion == null
-                ? '版本未核验'
-                : '安装包标注版本：${item.packageVersion}（未运行工具核验）'),
-            LText('来源：${_sourceLabel(item.source)} · 已发现可执行文件'),
+            // 标签按精确表翻、值原样拼上：带插值的整句在英文表里永远查不到（以前英文界面这两行是中文）。
+            if (item.packageVersion case final version?)
+              catalogLine('安装包标注版本：', version)
+            else
+              const LText('版本未核验'),
+            catalogLine('来源：', _sourceLabel(item.source)),
             if (_scannedPlan != null)
               Align(
                 alignment: Alignment.centerRight,

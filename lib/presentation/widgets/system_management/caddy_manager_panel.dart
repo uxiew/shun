@@ -4,6 +4,7 @@ import 'package:shun/presentation/localization/localized_widgets.dart';
 import '../../../domain/models/system_management.dart';
 import '../../../infrastructure/ssh/ssh_service.dart';
 import '../../../infrastructure/ssh/system_management_service.dart';
+import '../hint.dart';
 import 'sudo_prompt.dart';
 
 class CaddyManagerPanel extends StatefulWidget {
@@ -224,11 +225,6 @@ class _CaddyManagerPanelState extends State<CaddyManagerPanel> {
                     status!.version.isEmpty ? 'Caddy' : status.version,
                     style: Theme.of(context).textTheme.labelLarge,
                   ),
-                  const SizedBox(height: 2),
-                  LText(
-                    'shun 创建的反向代理会直接保存到该 Caddyfile。',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
                   Row(
                     children: [
                       LText(
@@ -242,6 +238,10 @@ class _CaddyManagerPanelState extends State<CaddyManagerPanel> {
                           overflow: TextOverflow.ellipsis,
                           style: Theme.of(context).textTheme.bodySmall,
                         ),
+                      ),
+                      const HintButton(
+                        title: '配置入口',
+                        message: 'shun 创建的反向代理会直接保存到该 Caddyfile。',
                       ),
                     ],
                   ),

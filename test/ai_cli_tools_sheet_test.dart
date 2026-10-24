@@ -9,6 +9,7 @@ import 'package:shun/domain/ai_cli_work.dart';
 import 'package:shun/application/session_controller.dart';
 import 'package:shun/domain/connection_route.dart';
 import 'package:shun/domain/models/host.dart';
+import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:shun/infrastructure/ssh/ai_cli_discovery.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/storage/ai_cli_preferences.dart';
@@ -146,7 +147,7 @@ void main() {
     expect(scans, 1);
     expect(find.text('/bin/claude'), findsOneWidget);
     expect(find.text('版本未核验'), findsOneWidget);
-    expect(find.text('此范围未发现 · 可补充目录或工具路径'), findsWidgets);
+    expect(find.text('此范围未发现'), findsWidgets);
     await tester.tap(find.byKey(const ValueKey('ai-cli-settings')));
     await tester.pumpAndSettle();
     await tester.enterText(
@@ -162,6 +163,42 @@ void main() {
     final other = HostProfile({...host.data, 'username': 'other'});
     expect(aiCliHostScope(other), isNot(aiCliHostScope(host)));
   });
+  testWidgets('英文界面：工具卡片的版本、来源和 ⓘ 里没有汉字', (tester) async {
+    ShunLocalizations.use('en');
+    addTearDown(() => ShunLocalizations.use('zh'));
+    await tester.pumpWidget(ProviderScope(
+        child: MaterialApp(
+            home: Scaffold(
+                body: AiCliToolsSheet(
+                    host: host,
+                    preferences: Preferences(),
+                    recentWork: Recent(),
+                    scan: (r, c) async => AiCliScanResult(
+                            unixUser: 'user',
+                            uid: '1000',
+                            scannedAt: DateTime(2026, 10, 12),
+                            installations: const [
+                              AiCliInstallation(
+                                  kind: AiCliKind.claude,
+                                  name: 'Claude Code',
+                                  path: '/bin/claude',
+                                  source: 'common',
+                                  packageVersion: '2.1.0'),
+                            ]))))));
+    await tester.pumpAndSettle();
+    // 以前这两行是带插值的整句，英文表查不到，英文界面显示中文。
+    expect(find.text('Package version: 2.1.0'), findsOneWidget);
+    expect(find.textContaining('Source: '), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.info_outline));
+    await tester.pumpAndSettle();
+    expect(find.text('Got it'), findsOneWidget);
+    final text = tester
+        .widgetList<Text>(find.byType(Text))
+        .map((t) => t.data ?? t.textSpan?.toPlainText() ?? '')
+        .join('\n');
+    expect(RegExp(r'[一-鿿]').hasMatch(text), isFalse, reason: text);
+  });
+
   testWidgets('cancel and dispose invalidate late results', (tester) async {
     final pending = Completer<AiCliScanResult>();
     AiCliProbeCancellation? token;

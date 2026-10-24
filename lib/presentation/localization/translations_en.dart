@@ -227,8 +227,6 @@ const englishTranslations = <String, String>{
   r'取消检测': r'Cancel scan',
   r'启动和原生继续能力尚未核验。可以在终端手动使用上述工具路径。':
       r'Launch and native resume capabilities have not been verified. You can use these executable paths manually in a terminal.',
-  r'安装包标注版本：${item.packageVersion}（未运行工具核验）':
-      r'Package version: ${item.packageVersion} (not verified by running the tool)',
   r'已达到检测数量上限，结果只覆盖部分范围。可缩小范围后重试。':
       r'The discovery limit was reached. Results cover only part of the scope; narrow the scope and try again.',
   r'找到工具不代表已登录。仅检查可执行文件和安装包标注的版本；不会运行工具、安装软件或调用模型。':
@@ -240,8 +238,6 @@ const englishTranslations = <String, String>{
   r'检测范围：当前 SSH 用户的非交互 PATH、常见安装目录，以及你补充的位置。别名、shell 函数、其他用户和容器内的工具可能无法发现。':
       r'Scope: the current SSH user’s non-interactive PATH, common installation directories and your added locations. Aliases, shell functions, other users and tools inside containers may not be found.',
   r'检测设置未能保存，请重试': r'Unable to save discovery settings; try again',
-  r'此范围未发现 · 可补充目录或工具路径':
-      r'Not found in this scope · Add a directory or executable path',
   r'版本未核验': r'Version not verified',
   r'自定义工具格式：名称 | /绝对路径': r'Custom tool format: Name | /absolute/path',
   r'自定义工具（名称 | 路径）': r'Custom tools (Name | Path)',
@@ -251,8 +247,6 @@ const englishTranslations = <String, String>{
   r'设置只保存在本机，按主机和 SSH 用户分开。每项最多 16 条；保存空白可清除补充项。':
       r'Settings stay on this device and are separate for each host and SSH user. Add up to 16 of each; save empty fields to clear them.',
   r'重新检测': r'Scan again',
-  r'来源：${_sourceLabel(item.source)} · 已发现可执行文件':
-      r'Source: ${_sourceLabel(item.source)} · Executable found',
   // R22：连接生命周期（session_controller.dart、connection_lifecycle.dart、终端页的状态条）。整句精确匹配。
   '这台主机已经从保险库里删掉了。': 'This host has been deleted from the vault.',
   '这台主机已经从保险库里删掉了，没有自动恢复。要连就重新从主机列表打开。':
@@ -550,10 +544,6 @@ const englishTranslations = <String, String>{
   '粘贴到终端': 'Paste into terminal',
   '复制命令': 'Copy command',
   '有什么可以帮你？': 'How can I help?',
-  'shu 会结合当前服务器信息和近期终端输出连续对话，并在需要时提供可粘贴或确认执行的命令。':
-      'shu keeps the current server and recent terminal output in context, and provides commands you can paste or confirm when needed.',
-  'shu 会结合当前服务器信息连续对话，并在需要时提供可粘贴或确认执行的命令。':
-      'shu keeps the current server in context and provides commands you can paste or confirm when needed.',
   '每次提问会将当前终端的近期输出发送给已配置的 AI 服务。':
       'Each question sends recent output from the current terminal to the configured AI service.',
   '终端输出上传已关闭，可在设置中开启。':
@@ -2399,6 +2389,8 @@ const englishTranslations = <String, String>{
   '这些主机在用它。删了以后它们会连不上，要重新选代理；不会自动改成直连：':
       'These hosts use it. After deleting, they will fail to connect until you pick another proxy; they are not switched to a direct connection:',
   '还没有代理': 'No proxies yet',
+  '安装包标注版本：': 'Package version: ',
+  '此范围未发现': 'Not found in this scope',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
@@ -4043,10 +4035,6 @@ const englishReplacements = <(String, String)>[
     'Cannot open Compose configuration: the SSH session is disconnected'
   ),
   ('没有发现 Docker Compose 项目', 'No Docker Compose projects found'),
-  (
-    '通过 Compose 创建过容器后，项目会自动显示在这里',
-    'Projects appear here after Compose creates containers'
-  ),
   (
     '搜索项目、服务、镜像或配置文件',
     'Search projects, services, images, or configuration files'

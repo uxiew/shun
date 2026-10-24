@@ -286,14 +286,6 @@ class _DockerComposePanelState extends State<DockerComposePanel> {
                       LText(_error == null
                           ? '没有发现 Docker Compose 项目'
                           : 'Docker Compose 当前不可用'),
-                      if (_error == null)
-                        const Padding(
-                          padding: EdgeInsets.fromLTRB(24, 6, 24, 0),
-                          child: LText(
-                            '通过 Compose 创建过容器后，项目会自动显示在这里。',
-                            textAlign: TextAlign.center,
-                          ),
-                        ),
                     ],
                   ),
                 )

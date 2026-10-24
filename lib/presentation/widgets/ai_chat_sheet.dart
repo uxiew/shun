@@ -735,14 +735,7 @@ class _AiChatSheetState extends State<AiChatSheet> {
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.titleLarge,
           ),
-          const SizedBox(height: 8),
-          LText(
-            _includeContext
-                ? 'shu 会结合当前服务器信息和近期终端输出连续对话，并在需要时提供可粘贴或确认执行的命令。'
-                : 'shu 会结合当前服务器信息连续对话，并在需要时提供可粘贴或确认执行的命令。',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium,
-          ),
+          // 只留「终端输出会不会上传」这条隐私状态；shu 是做什么的写在使用手册里。
           const SizedBox(height: 8),
           LText(
             _includeContext
