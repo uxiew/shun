@@ -15,10 +15,23 @@ import '../../infrastructure/tailscale/tailscale_api.dart';
 import '../localization/localized_widgets.dart';
 import '../widgets/catalog_import_sheet.dart';
 import '../widgets/catalog_text.dart';
+import '../widgets/hint.dart';
 import '../widgets/secret_content.dart';
+
+// 原来这几段常驻在页面上，现在收进 ⓘ（docs/dev/ui-text.md）；完整说明在使用手册第 13 节。
+const _catalogAbout =
+    '从 Tailscale 读设备列表，勾选后批量建成主机。只读列表：不连设备、不开 VPN。手机要能到达设备（开着官方 Tailscale App，或经代理、跳板机）才连得上。';
 
 const _catalogLimits = '目录只知道设备在不在 Tailscale 的列表里、有没有连上 Tailscale 控制面。'
     '它不知道手机能不能连到设备，也不知道设备开没开 SSH——这些要实际连接才知道。';
+
+const _importHint = '已导入的不能再勾，不会重复建主机。保险库里已经有这台机器？点设备下面的「关联到已有主机」，不用再导入一台。';
+
+const _sharedDevicesNote =
+    '用 OAuth client 读取时，别人共享给你的设备可能不在列表里（Tailscale 的已知问题 tailscale#16911），这不代表设备被删了。';
+
+/// 几段说明逐句本地化再拼：拼好的整段在英文表里查不到。
+String _paragraphs(List<String> sources) => sources.map(localized).join('\n\n');
 
 /// Tailscale 设备目录（R13）：来源列表。
 class TailscaleCatalogScreen extends ConsumerStatefulWidget {
@@ -117,9 +130,7 @@ class _TailscaleCatalogScreenState
     final source = await _askSource(
       title: '在本机恢复来源',
       confirm: '恢复来源',
-      explain: '按主机里记着的来源 ID 在本机重建一个空来源，不发请求、不改任何主机。'
-          '之后用同一个 tailnet 的凭据读一次设备列表，这些主机就重新对上目录里的设备；'
-          '读的是别的 tailnet，设备对不上，主机什么都不会被改。',
+      explain: '只在本机建一个空来源，不发请求、不改任何主机。再用同一个 tailnet 的凭据读一次，这些主机就重新对上目录。',
     );
     if (source == null) return;
     try {
@@ -152,7 +163,12 @@ class _TailscaleCatalogScreenState
     final sources = _sources;
     final small = Theme.of(context).textTheme.bodySmall;
     return Scaffold(
-      appBar: AppBar(title: const LText('Tailscale 设备目录')),
+      appBar: AppBar(
+        title: const LText('Tailscale 设备目录'),
+        actions: const [
+          HintButton(title: 'Tailscale 设备目录', message: _catalogAbout),
+        ],
+      ),
       floatingActionButton: FloatingActionButton.extended(
         key: const ValueKey('catalog-add-source'),
         onPressed: _add,
@@ -162,23 +178,11 @@ class _TailscaleCatalogScreenState
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
         children: [
-          const LText(
-            '从 Tailscale 读取设备列表，选中的设备可以批量导入为主机。'
-            '导入不会连接这些设备，也不会启动 VPN；要连上，手机得先能到达它们'
-            '（比如开着官方 Tailscale App，或者经代理、跳板机）。',
-          ),
-          const SizedBox(height: 8),
-          LText(_catalogLimits, style: small),
-          const SizedBox(height: 12),
           if (_error != null) LText('读取来源失败：$_error'),
           if (sources == null && _error == null)
             const LinearProgressIndicator()
           else if (sources != null && sources.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 16),
-              child: LText(
-                  '还没有目录来源。点「添加来源」，再用 Tailscale 的 token 或你自己的 OAuth client 读一次设备列表。'),
-            ),
+            const LText('还没有目录来源'),
           for (final source in sources ?? const <CatalogCache>[])
             Card(
               child: ListTile(
@@ -203,10 +207,9 @@ class _TailscaleCatalogScreenState
             ),
           if (_missing.isNotEmpty) ...[
             const SizedBox(height: 16),
-            const LText('主机里引用了、本机没有的来源'),
-            LText(
-              '来源被移除过，或主机是从别的手机同步、导入来的。这些主机照常能连，只是看不到目录状态、地址也不跟随目录。',
-              style: small,
+            const HintTitle(
+              '主机里引用了、本机没有的来源',
+              hint: '来源被移除过，或主机是从别的手机同步、导入来的。这些主机照常能连，只是看不到目录状态、地址也不跟随目录。',
             ),
             for (final missing in _missing)
               Card(
@@ -302,7 +305,7 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
   Future<void> _readWithToken() async {
     final token = await _askSecret(
       title: '粘贴 token 读一次',
-      explain: 'token 只用这一次，读完就丢，不保存。建议在 Tailscale 后台生成一个短期 token，用完删掉。',
+      explain: 'token 只用这一次，不保存。建议用短期 token，用完在后台删掉。',
       label: 'Access token',
     );
     if (token == null || token.isEmpty) return;
@@ -370,9 +373,7 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
             const LText('会删除本机的设备缓存和保存的 OAuth client。'),
             const SizedBox(height: 8),
             catalogLine('关联它的主机：', '${bound.length}'),
-            const LText('这些主机都会保留，照常能连；编辑器里会显示「本机没有这个来源」。要删主机请到保险库逐台删。'),
-            if (bound.isNotEmpty)
-              const LText('以后想让它们重新对上目录，可以在目录页的「主机里引用了、本机没有的来源」里恢复这个来源。'),
+            if (bound.isNotEmpty) const LText('这些主机都保留，照常能连。'),
           ],
         ),
         actions: [
@@ -434,7 +435,7 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
         catalogId: widget.catalogId,
         deviceId: record.id,
       );
-      _message('已关联。主机的地址、用户名、端口、路线、指纹都没改，刷新也不会改它的地址。');
+      _message('已关联');
     } on Object catch (error) {
       _message('$error');
     } finally {
@@ -543,13 +544,14 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
                       const LinearProgressIndicator(),
                     ],
                     const SizedBox(height: 16),
-                    if (devices.isEmpty)
-                      const LText('缓存里还没有设备。读一次设备列表后会出现在这里。')
-                    else ...[
-                      const LText('勾选要导入的设备。已导入的不能再选，不会重复建主机。'),
-                      LText(
-                        '保险库里已经有这台机器的主机？点设备下面的「关联到已有主机」，不用再导入一台。',
-                        style: small,
+                    // 还没读过时上面的状态卡已经写了，这里不再说一遍。
+                    if (devices.isEmpty && cache.lastSuccess != null)
+                      const LText('列表里没有设备')
+                    else if (devices.isNotEmpty) ...[
+                      HintTitle(
+                        '勾选要导入的设备',
+                        hint: _paragraphs(
+                            [_importHint, _catalogLimits, _sharedDevicesNote]),
                       ),
                       for (final record in devices)
                         _deviceTile(record, linked[record.id], small),
@@ -572,9 +574,10 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             catalogLine('tailnet：', cache.tailnet),
-            catalogLine(
-                '缓存时间：', success == null ? '—' : catalogTime(success.at)),
-            if (success == null) const LText('还没有成功读取过设备列表。'),
+            if (success == null)
+              const LText('还没读过设备列表')
+            else
+              catalogLine('缓存时间：', catalogTime(success.at)),
             // 列表不完整时只写一句：优先用缓存里记下的具体原因（几条无法识别、几个重复 ID），
             // 没有才用通用说法。两句一起显示是同一件事说两遍。
             if (success != null && (!success.complete || success.note != null))
@@ -589,20 +592,9 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
               const SizedBox(height: 4),
               catalogLine('最近一次读取失败：', catalogTime(attempt.at)),
               if (attempt.note case final note?) LText(note, style: small),
-              LText('缓存里的设备和主机都没动。', style: small),
             ],
-            const SizedBox(height: 4),
-            LText(
-              _hasSaved
-                  ? '本机保存了这个来源的 OAuth client，可以直接刷新。'
-                  : '本机没有保存凭据：每次读取都要粘贴 token 或填 OAuth client。',
-            ),
-            const SizedBox(height: 4),
-            LText(_catalogLimits, style: small),
-            LText(
-              '用 OAuth client 读取时，别人共享给你的设备可能不在列表里（Tailscale 的已知问题 tailscale#16911），这不代表设备被删了。',
-              style: small,
-            ),
+            // 没保存时不写：下面只有「粘贴 token」「用 OAuth client」两个按钮，已经说明了。
+            if (_hasSaved) const LText('本机保存了 OAuth client'),
           ],
         ),
       ),
@@ -682,8 +674,7 @@ class _LinkHostDialog extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const LText(
-                '选一台已有主机。只记下它对应目录里的这台设备：主机的地址、用户名、端口、路线、指纹一概不改，'
-                '刷新也不会改它的地址，也不会连接它。以后要断开，在主机编辑器里点「断开和目录的关联」。',
+                '只记下对应关系：主机的地址、用户名、端口、路线、指纹一概不改，刷新也不改它的地址，也不会去连。',
               ),
               const SizedBox(height: 8),
               Flexible(
@@ -753,7 +744,7 @@ class _OAuthClientDialogState extends State<_OAuthClientDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const LText(
-                '在 Tailscale 后台新建一个只勾 devices:core:read 的 OAuth client，把 ID 和 secret 填在这里。',
+                '在 Tailscale 后台建一个只勾 devices:core:read 的 OAuth client。',
               ),
               const SizedBox(height: 12),
               TextField(
@@ -780,10 +771,7 @@ class _OAuthClientDialogState extends State<_OAuthClientDialog> {
                 value: _persist,
                 onChanged: (value) => setState(() => _persist = value == true),
                 title: const LText('保存到本机，以后直接刷新'),
-                subtitle: const LText(
-                  '只在服务器确认它只能读设备时才保存。存在和保险库分开的加密存储里；'
-                  '在这里删除不等于在 Tailscale 那边作废。',
-                ),
+                subtitle: const LText('服务器确认它只能读设备才保存'),
               ),
             ],
           ),

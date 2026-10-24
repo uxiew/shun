@@ -1005,8 +1005,6 @@ const englishTranslations = <String, String>{
   'tailnet 不能为空，也不能有空格或斜杠':
       'tailnet cannot be empty or contain spaces or slashes',
   '添加来源': 'Add source',
-  '还没有目录来源。点「添加来源」，再用 Tailscale 的 token 或你自己的 OAuth client 读一次设备列表。':
-      'No directory sources yet. Tap "Add source", then read the device list once with a Tailscale token or your own OAuth client.',
   'tailnet：': 'tailnet: ',
   '设备数：': 'Devices: ',
   '缓存时间：': 'Cached at: ',
@@ -1023,8 +1021,6 @@ const englishTranslations = <String, String>{
   '没有保存 OAuth client：它能读的不止设备。请在 Tailscale 后台新建一个只有 devices:core:read 的 client。':
       'The OAuth client was not saved: it can read more than devices. Create a client with only devices:core:read in the Tailscale admin console.',
   '粘贴 token 读一次': 'Paste a token and read once',
-  'token 只用这一次，读完就丢，不保存。建议在 Tailscale 后台生成一个短期 token，用完删掉。':
-      'The token is used once and discarded, never saved. Prefer a short-lived token from the Tailscale admin console and delete it afterwards.',
   '读取': 'Read',
   '已删除本机保存的 OAuth client。它在 Tailscale 那边仍然有效，要彻底作废请到 Tailscale 后台撤销。':
       'Deleted the OAuth client saved on this device. It is still valid at Tailscale; revoke it in the Tailscale admin console to invalidate it.',
@@ -1032,8 +1028,6 @@ const englishTranslations = <String, String>{
   '会删除本机的设备缓存和保存的 OAuth client。':
       'This deletes the cached devices and the saved OAuth client on this device.',
   '关联它的主机：': 'Hosts linked to it: ',
-  '这些主机都会保留，照常能连；编辑器里会显示「本机没有这个来源」。要删主机请到保险库逐台删。':
-      'These hosts are kept and still connect; their editor will show "source not on this device". Delete hosts one by one in the vault if you want.',
   '移除来源': 'Remove source',
   '已导入主机：': 'Hosts imported: ',
   '。还没有连接过：第一次连接时照常核对服务器指纹。':
@@ -1044,17 +1038,9 @@ const englishTranslations = <String, String>{
   '用 OAuth client 读取': 'Read with an OAuth client',
   '缓存里还没有设备。读一次设备列表后会出现在这里。':
       'No cached devices yet. They appear here after you read the device list.',
-  '勾选要导入的设备。已导入的不能再选，不会重复建主机。':
-      'Select devices to import. Already imported ones cannot be selected, so no duplicate hosts are created.',
-  '还没有成功读取过设备列表。': 'The device list has never been read successfully.',
   '上次读到的列表不完整：没有据此把任何设备标成不见了。':
       'The last list was incomplete: no device was marked missing because of it.',
   '最近一次读取失败：': 'Last read failed at: ',
-  '缓存里的设备和主机都没动。': 'Cached devices and hosts were not changed.',
-  '本机保存了这个来源的 OAuth client，可以直接刷新。':
-      'An OAuth client for this source is saved on this device, so you can refresh directly.',
-  '本机没有保存凭据：每次读取都要粘贴 token 或填 OAuth client。':
-      'No credentials saved on this device: paste a token or enter an OAuth client each time.',
   '用 OAuth client 读取时，别人共享给你的设备可能不在列表里（Tailscale 的已知问题 tailscale#16911），这不代表设备被删了。':
       'When reading with an OAuth client, devices shared with you may be missing from the list (known Tailscale issue tailscale#16911). That does not mean they were deleted.',
   'Tailscale 控制面：已连接': 'Tailscale control plane: connected',
@@ -1063,8 +1049,6 @@ const englishTranslations = <String, String>{
   '上次连控制面：': 'Last seen by control plane: ',
   '最近完整列表里没有它，标记于：': 'Not in the latest complete list, marked at: ',
   '已导入为主机：': 'Imported as host: ',
-  '在 Tailscale 后台新建一个只勾 devices:core:read 的 OAuth client，把 ID 和 secret 填在这里。':
-      'Create an OAuth client with only devices:core:read in the Tailscale admin console and enter its ID and secret here.',
   '保存到本机，以后直接刷新': 'Save on this device to refresh later',
   '导入为主机': 'Import as hosts',
   '导入': 'Import',
@@ -1319,14 +1303,8 @@ const englishTranslations = <String, String>{
       'The source was removed, or the hosts came from another phone by sync or import. They still connect as usual; they just show no directory status and their address does not follow the directory.',
   '引用它的主机：': 'Hosts referring to it: ',
   '在本机恢复': 'Restore here',
-  '以后想让它们重新对上目录，可以在目录页的「主机里引用了、本机没有的来源」里恢复这个来源。':
-      'To match them with the directory again later, restore this source from "Sources that hosts refer to but this device does not have" on the directory page.',
   '没有可以关联的主机：已经关联了目录设备的主机，要先在编辑器里断开。':
       'No host can be linked: hosts already linked to a directory device must be unlinked in the editor first.',
-  '已关联。主机的地址、用户名、端口、路线、指纹都没改，刷新也不会改它的地址。':
-      'Linked. The host address, username, port, route and fingerprints were not changed, and refreshing will not change its address.',
-  '保险库里已经有这台机器的主机？点设备下面的「关联到已有主机」，不用再导入一台。':
-      'Already have a host for this machine in the vault? Tap "Link to an existing host" under the device instead of importing another one.',
   '已关联主机：': 'Linked to host: ',
   '关联到已有主机': 'Link to an existing host',
   '关联设备：': 'Link device: ',
@@ -2403,6 +2381,27 @@ const englishTranslations = <String, String>{
       'Sessions are using this plugin (a Mosh tab, for example): the connection test reuses that connection, and this page offers no “Disconnect”',
   '这个插件申请了「本会话的临时凭据」，会话测试拿不出这些材料。Mosh 插件请从主机列表用 Mosh 协议连接。':
       'This plugin asks for “this session’s temporary credentials”, which the session test cannot provide. Connect Mosh hosts from the host list with the Mosh protocol.',
+  '从 Tailscale 读设备列表，勾选后批量建成主机。只读列表：不连设备、不开 VPN。手机要能到达设备（开着官方 Tailscale App，或经代理、跳板机）才连得上。':
+      'Reads the device list from Tailscale; tick devices to create hosts in bulk. It only reads the list: it does not connect to devices or start a VPN. The phone must be able to reach a device (official Tailscale app running, or through a proxy or jump host) to connect.',
+  '已导入的不能再勾，不会重复建主机。保险库里已经有这台机器？点设备下面的「关联到已有主机」，不用再导入一台。':
+      'Devices already imported cannot be ticked again, so no duplicate hosts. Already have this machine in the vault? Tap “Link to an existing host” under the device instead of importing another one.',
+  '只在本机建一个空来源，不发请求、不改任何主机。再用同一个 tailnet 的凭据读一次，这些主机就重新对上目录。':
+      'This only creates an empty source on this device; it sends no request and changes no host. Read once more with credentials for the same tailnet and these hosts match the directory again.',
+  '还没有目录来源': 'No directory sources yet',
+  'token 只用这一次，不保存。建议用短期 token，用完在后台删掉。':
+      'The token is used once and not saved. Use a short-lived token and delete it in the admin console afterwards.',
+  '这些主机都保留，照常能连。': 'These hosts stay and still connect.',
+  '已关联': 'Linked',
+  '列表里没有设备': 'The list has no devices',
+  '勾选要导入的设备': 'Tick devices to import',
+  '还没读过设备列表': 'Device list not read yet',
+  '本机保存了 OAuth client': 'OAuth client saved on this device',
+  '只记下对应关系：主机的地址、用户名、端口、路线、指纹一概不改，刷新也不改它的地址，也不会去连。':
+      'This only records the match: the host address, username, port, route and fingerprints stay unchanged, refreshing never changes its address, and nothing connects to it.',
+  '在 Tailscale 后台建一个只勾 devices:core:read 的 OAuth client。':
+      'Create an OAuth client in the Tailscale admin console with only devices:core:read ticked.',
+  '服务器确认它只能读设备才保存':
+      'Saved only if the server confirms it can only read devices',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are
@@ -2947,27 +2946,6 @@ const englishReplacements = <(String, String)>[
     'Callback parameter too long or contains control characters: '
   ),
   ('回调参数重复出现：', 'Duplicate callback parameter: '),
-  // X05：多行拼接的说明（精确表匹配不到运行时的整句，按片段翻）。
-  (
-    '按主机里记着的来源 ID 在本机重建一个空来源，不发请求、不改任何主机。',
-    'This recreates an empty source on this device with the source ID the hosts refer to; it sends no request and changes no host. '
-  ),
-  (
-    '之后用同一个 tailnet 的凭据读一次设备列表，这些主机就重新对上目录里的设备；',
-    'Then read the device list once with credentials for the same tailnet and these hosts match their directory devices again; '
-  ),
-  (
-    '读的是别的 tailnet，设备对不上，主机什么都不会被改。',
-    'if you read a different tailnet, the devices will not match and nothing about the hosts changes.'
-  ),
-  (
-    '选一台已有主机。只记下它对应目录里的这台设备：主机的地址、用户名、端口、路线、指纹一概不改，',
-    'Pick an existing host. This only records which directory device it corresponds to: the host address, username, port, route and fingerprints stay unchanged, '
-  ),
-  (
-    '刷新也不会改它的地址，也不会连接它。以后要断开，在主机编辑器里点「断开和目录的关联」。',
-    'refreshing never changes its address, and nothing connects to it. To undo it, tap "Unlink from the directory" in the host editor.'
-  ),
   // X04：插件包变化的提示带包名，按片段翻。
   ('检测到插件包卸载：', 'Plugin package uninstalled: '),
   (
@@ -2991,26 +2969,6 @@ const englishReplacements = <(String, String)>[
   (
     '它不知道手机能不能连到设备，也不知道设备开没开 SSH——这些要实际连接才知道。',
     'It does not know whether the phone can reach the device or whether SSH is enabled; only a real connection tells.'
-  ),
-  (
-    '从 Tailscale 读取设备列表，选中的设备可以批量导入为主机。',
-    'Read the device list from Tailscale and import selected devices as hosts. '
-  ),
-  (
-    '导入不会连接这些设备，也不会启动 VPN；要连上，手机得先能到达它们',
-    'Importing does not connect to them or start a VPN; to connect, the phone must be able to reach them '
-  ),
-  (
-    '（比如开着官方 Tailscale App，或者经代理、跳板机）。',
-    '(for example with the official Tailscale app running, or through a proxy or jump host).'
-  ),
-  (
-    '只在服务器确认它只能读设备时才保存。存在和保险库分开的加密存储里；',
-    'Saved only if the server confirms it can only read devices, in encrypted storage separate from the vault; '
-  ),
-  (
-    '在这里删除不等于在 Tailscale 那边作废。',
-    'deleting it here does not revoke it at Tailscale.'
   ),
   ('读取来源失败：', 'Failed to read sources: '),
   ('已导入为“', 'Already imported as “'),

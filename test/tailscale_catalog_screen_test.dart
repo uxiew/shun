@@ -174,7 +174,7 @@ void main() {
     repo.caches['ts-home'] =
         const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
     await open(tester, const CatalogSourceScreen(catalogId: 'ts-home'));
-    expect(find.text('缓存里还没有设备。读一次设备列表后会出现在这里。'), findsOneWidget);
+    expect(find.text('还没读过设备列表'), findsOneWidget);
 
     await tester.tap(find.byKey(const ValueKey('catalog-read-token')));
     await tester.pumpAndSettle();
@@ -386,7 +386,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('catalog-link-host-manual')));
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('已关联。'), findsOneWidget);
+    expect(find.text('已关联'), findsOneWidget);
     expect(find.text('已关联主机：my nas'), findsOneWidget);
     expect(find.byKey(const ValueKey('catalog-link-1')), findsNothing);
     final checkbox = tester.widget<CheckboxListTile>(
@@ -419,7 +419,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(repo.caches['ts-gone']!.devices, isEmpty);
-    expect(find.text('缓存里还没有设备。读一次设备列表后会出现在这里。'), findsOneWidget);
+    expect(find.text('还没读过设备列表'), findsOneWidget);
     expect(requests, isEmpty);
     expect(jsonEncode((await vault.loadVault()).hosts.single.data), before);
 
@@ -465,6 +465,13 @@ void main() {
         reason: allText(tester));
     expect(find.text('Tailscale control plane: unknown'), findsOneWidget);
     expect(find.textContaining('This list was incomplete'), findsOneWidget);
+    // 设备列表的 ⓘ 是几段逐句本地化后拼的，其中一段是按片段翻的多行句子。
+    await tester.tap(find.byTooltip('About “Tick devices to import”'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('tailscale#16911'), findsOneWidget);
+    expect(han.hasMatch(allText(tester)), isFalse, reason: allText(tester));
+    await tester.tap(find.text('Got it'));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('catalog-link-2')));
     await tester.pumpAndSettle();
     expect(han.hasMatch(allText(tester)), isFalse, reason: allText(tester));
