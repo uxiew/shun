@@ -904,7 +904,7 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
           for (final item in items) ...[
             const SizedBox(height: 8),
             SelectableText(item.path),
-            // 标签按精确表翻、值原样拼上：带插值的整句在英文表里永远查不到（以前英文界面这两行是中文）。
+            // 标签翻译、值（版本号、来源名）原样拼在后面。
             if (item.packageVersion case final version?)
               catalogLine('安装包标注版本：', version)
             else
