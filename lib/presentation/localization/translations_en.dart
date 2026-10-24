@@ -646,8 +646,6 @@ const englishTranslations = <String, String>{
   '认证超时': 'Authentication timeout',
   '命令片段': 'Command snippets',
   '还没有命令片段': 'No command snippets yet',
-  '保存常用命令，一次点击即可发送到当前终端。':
-      'Save common commands and send them to the active terminal with one tap.',
   '新建片段': 'New snippet',
   '新建命令片段': 'New command snippet',
   '编辑命令片段': 'Edit command snippet',
@@ -660,7 +658,6 @@ const englishTranslations = <String, String>{
       'The file is larger than the preview limit and was not opened',
   '切换为单栏模式': 'Switch to single-pane mode',
   '切换为双栏模式': 'Switch to dual-pane mode',
-  '连接 SSH 后可选择服务器': 'Connect SSH to select a server',
   '当前': 'Current',
   '左侧': 'Left',
   '右侧': 'Right',
@@ -930,13 +927,7 @@ const englishTranslations = <String, String>{
   '这次运行还没开过终端': 'No terminal opened yet this run',
   "shu Agent', '使用 OpenAI 兼容接口生成命令，执行前始终确认":
       "shu Agent', 'Generate commands with an OpenAI-compatible API and always confirm before execution",
-  "shu Agent', '使用 OpenAI 兼容接口连续对话，命令执行前始终确认":
-      "shu Agent', 'Chat through an OpenAI-compatible API and always confirm before executing commands",
   '正在等待 GitHub 授权…': 'Waiting for GitHub authorization…',
-  '尚未挂载手机目录\n点上方文件夹按钮选择目录':
-      'No phone folder is mounted\nTap the folder button above to choose one',
-  r'尚未挂载手机目录\n点上方文件夹按钮选择目录':
-      r'No phone folder is mounted\nTap the folder button above to choose one',
   '文件将从当前挂载的手机目录删除，无法撤销。':
       'The file will be deleted from the mounted phone folder. This cannot be undone.',
   '此操作会直接修改远程服务器，无法撤销。':
@@ -2168,13 +2159,6 @@ const englishTranslations = <String, String>{
   '用 SSH 连接': 'Connect with SSH',
   '在列表里隐藏': 'Hide from list',
   '取消隐藏': 'Unhide',
-  '另开一个标签；这台主机保存的默认方式不变':
-      'Opens a new tab; this host’s saved default stays the same',
-  '用这台主机已经连着的 SSH 标签': 'Uses this host’s SSH tab that is already connected',
-  '只走一遍路线、指纹和登录，不开 shell':
-      'Only walks the route, fingerprint and login; opens no shell',
-  '照常能连；列表底部「显示已隐藏的主机」能找回来':
-      'Still connects; find it again with “Show hidden hosts” at the bottom of the list',
   'Tailscale 设备': 'Tailscale devices',
   '状态来自目录缓存：只说设备连没连 Tailscale 控制面，不代表手机能连上它，也不代表 SSH 开着。':
       'Status comes from the catalog cache: it only says whether a device is connected to the Tailscale control plane, not that this phone can reach it or that SSH is running.',
@@ -2335,8 +2319,6 @@ const englishTranslations = <String, String>{
   '这台主机最近 7 天没有记录。连一次，或者断线、恢复以后，这里就会有。':
       'Nothing recorded for this host in the last 7 days. Entries appear after you connect, or after a drop and recovery.',
   '一个阶段都没开始就停了：还没拨号。': 'Stopped before any stage began: nothing was dialed.',
-  '最近 7 天每次连接走到哪一步、用了多久、失败在哪':
-      'How far each connection got in the last 7 days, how long it took, where it failed',
   // R25 第四部分：主机详情的认证一行（host_summary.dart 的 describeLogin）。带私钥名字的几句在片段表。
   '密码（没保存，登录时问你）': 'Password (not saved; you are asked when logging in)',
   '保存的密码': 'the saved password',
@@ -2353,8 +2335,6 @@ const englishTranslations = <String, String>{
   // UX02 真机：终端标签上断开的那个橙色图标给读屏的名字。
   '已断开': 'disconnected',
   // R25 接 R57：首页「最近 AI 工作」和 ⋮ 菜单的「AI 工具」。
-  '查这台上装的 AI 命令行工具、接着最近的工作；没连着时会先连一次去查':
-      'Find the AI command-line tools on this host and pick up recent work; connects once to look if not connected',
   // R25 / UX04：拨不通时的人话（ssh_service.dart 的 describeDialFailure）。整句在片段表。
   '连不上代理': 'Cannot reach proxy',
   '连不上地址': 'Cannot reach',
@@ -2419,6 +2399,9 @@ const englishTranslations = <String, String>{
       'A jump host has its own route; confirm how to expand it first (at most 3 hops).',
   '代理口令是明文发给代理的，SSH 保护不了。':
       'Proxy passwords are sent to the proxy in plain text; SSH cannot protect them.',
+  '另开标签，不改默认方式': 'Opens a new tab; the default stays the same',
+  '点上方的文件夹图标选手机目录': 'Tap the folder icon above to pick a phone folder',
+  '未连接服务器': 'No server connected',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are

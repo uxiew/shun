@@ -148,21 +148,24 @@ class _SftpPaneState extends State<_SftpPane> {
                   ],
                 ),
               ),
-              Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 6),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: LText(
-                    service.displayPath(path),
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: const TextStyle(
-                      fontFamily: 'monospace',
-                      fontSize: 10,
+              // 没挂载时路径行只会写「尚未选择手机目录」，和上面的「手机目录（未挂载）」、
+              // 下面的空列表提示说的是同一件事，不再重复一遍。
+              if (localReady)
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 6),
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: LText(
+                      service.displayPath(path),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        fontFamily: 'monospace',
+                        fontSize: 10,
+                      ),
                     ),
                   ),
                 ),
-              ),
               SizedBox(
                 height: 38,
                 child: Row(
@@ -321,7 +324,7 @@ class _SftpPaneState extends State<_SftpPane> {
                     ? Center(
                         child: LText(
                           mountable != null && !mountable.isMounted
-                              ? '尚未挂载手机目录\n点上方文件夹按钮选择目录'
+                              ? '点上方的文件夹图标选手机目录'
                               : mountable?.usesAppDocuments == true
                                   ? 'shun 文件夹为空\n可从服务器下载或导入文件'
                                   : service.isLocal

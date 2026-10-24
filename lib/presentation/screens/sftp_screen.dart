@@ -166,7 +166,7 @@ class _SftpScreenState extends ConsumerState<SftpScreen> {
                           if (sessions.isEmpty)
                             const Flexible(
                               child: LText(
-                                '连接 SSH 后可选择服务器',
+                                '未连接服务器',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(fontSize: 11),

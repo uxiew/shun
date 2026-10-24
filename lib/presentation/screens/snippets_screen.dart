@@ -31,7 +31,6 @@ class SnippetsScreen extends ConsumerWidget {
             ? EmptyState(
                 icon: Icons.code,
                 title: '还没有命令片段',
-                subtitle: '保存常用命令，一次点击即可发送到当前终端。',
                 action: FilledButton.icon(
                   onPressed: () => _edit(context, ref),
                   icon: const Icon(Icons.add),

@@ -76,16 +76,10 @@ class HostActionsSheet extends StatelessWidget {
         HostMenuAction.unhide => '取消隐藏',
       };
 
+  /// 只留会让人误会的那一项：「用 Mosh 连接」听着像改了这台的默认方式。其余的标题就够了，
+  /// 各项做什么写在使用手册第 2 节「主机列表」；隐藏之后的提示条里有撤销（docs/dev/ui-text.md）。
   String? _subtitle(HostMenuAction action) => switch (action) {
-        HostMenuAction.connectOther => '另开一个标签；这台主机保存的默认方式不变',
-        HostMenuAction.portForward ||
-        HostMenuAction.files ||
-        HostMenuAction.monitor =>
-          '用这台主机已经连着的 SSH 标签',
-        HostMenuAction.aiCli => '查这台上装的 AI 命令行工具、接着最近的工作；没连着时会先连一次去查',
-        HostMenuAction.testConnection => '只走一遍路线、指纹和登录，不开 shell',
-        HostMenuAction.connectionLog => '最近 7 天每次连接走到哪一步、用了多久、失败在哪',
-        HostMenuAction.hide => '照常能连；列表底部「显示已隐藏的主机」能找回来',
+        HostMenuAction.connectOther => '另开标签，不改默认方式',
         _ => null,
       };
 }
