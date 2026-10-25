@@ -1,7 +1,9 @@
 #!/bin/bash
 # 补回引入 fork 时去掉的字体和示例 wasm（共 51.6 MB，见 third_party/README.md）。
 # 只有跑 flterm 自己的字体/渲染测试、或跑它的示例程序时才需要；App 构建用不到。
-# 从上游固定提交下载，逐个核对 SHA256，对不上就删掉并报错。
+# 从上游固定提交下载，逐个核对 SHA256，对不上就删掉并报错。下回来的都在 .gitignore 里，不会被提交。
+# 报 `curl: (35) Recv failure: Connection reset by peer`：直连 GitHub 被重置了，带上本机代理再跑，
+# 比如这台 Mac 的 `https_proxy=http://127.0.0.1:7890 third_party/fetch-libghostty-assets.sh`（约 2 分钟）。
 set -euo pipefail
 commit=9e40b1130c093e57a77deed26f94d4039ec3532c
 root=$(cd "$(dirname "$0")/libghostty" && pwd)
