@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:dartssh2/dartssh2.dart';
+import 'package:flutter/foundation.dart' show visibleForTesting;
 
 import 'ssh_service.dart';
 
@@ -66,6 +67,27 @@ class SshLease {
   final _lost = Completer<void>();
   late final void Function() _forget;
 
+  /// 还在和「连接断了」赛跑的操作：做完就从这里删掉，断线时一起报错。
+  ///
+  /// 不用 `lost.then(...)`：连接活着时那个 future 不完成，挂上去的回调连同它拿着的那次结果
+  /// 要一直留到断线。监控复用同一个借用、每 3 秒采一次，就是每 3 秒多留一份采样输出
+  /// （10-25 LIFE06 在模拟器上查到：常驻标签的 `_lost` 上挂着一长串监听，跟着时间涨）。
+  final _watchers = <void Function()>{};
+
+  /// 测试用：还挂着几个等断线的操作。做完的操作不该留在这里。
+  @visibleForTesting
+  int get pendingWatchers => _watchers.length;
+
+  /// 断线时调 [onLost]（已经断了就马上调），返回撤销函数；操作结束一定要撤。
+  void Function() _watchLoss(void Function() onLost) {
+    if (_lost.isCompleted) {
+      onLost();
+      return () {};
+    }
+    _watchers.add(onLost);
+    return () => _watchers.remove(onLost);
+  }
+
   String get hostLabel => session.host.label;
 
   /// 借的这条连接还能用。一旦变成 false 就不会再变回来——恢复出来的是另一条连接、另一个借用。
@@ -78,6 +100,14 @@ class SshLease {
     if (_lost.isCompleted) return;
     _lost.complete();
     _forget();
+    // 和以前 `lost.then` 的时机一样放到下一个 microtask：这里常常是在标签释放连接的钩子里调的。
+    final watchers = List.of(_watchers);
+    _watchers.clear();
+    scheduleMicrotask(() {
+      for (final watcher in watchers) {
+        watcher();
+      }
+    });
   }
 
   /// 借用者自己不用了（比如开转发时本机端口被占了）：撤销在标签上的登记，之后按已失效处理。
@@ -122,6 +152,7 @@ class SshLease {
   Stream<T> readStream<T>(Stream<T> source) {
     late final StreamController<T> controller;
     StreamSubscription<T>? subscription;
+    void Function()? stopWatching;
     void lostNow() {
       if (controller.isClosed) return;
       controller.addError(ConnectionGone(hostLabel));
@@ -139,14 +170,16 @@ class SshLease {
             controller.addError(error, stack);
           },
           onDone: () {
+            stopWatching?.call();
             if (!controller.isClosed) unawaited(controller.close());
           },
         );
-        lost.then((_) => lostNow());
+        stopWatching = _watchLoss(lostNow);
       },
       onPause: () => subscription?.pause(),
       onResume: () => subscription?.resume(),
       onCancel: () {
+        stopWatching?.call();
         unawaited(subscription?.cancel());
       },
     );
@@ -155,17 +188,19 @@ class SshLease {
 
   Future<T> _raceLoss<T>(Future<T> work) {
     final result = Completer<T>();
+    final stopWatching = _watchLoss(() {
+      if (!result.isCompleted) result.completeError(ConnectionGone(hostLabel));
+    });
     work.then(
       (value) {
+        stopWatching();
         if (!result.isCompleted) result.complete(value);
       },
       onError: (Object error, StackTrace stack) {
+        stopWatching();
         if (!result.isCompleted) result.completeError(error, stack);
       },
     );
-    lost.then((_) {
-      if (!result.isCompleted) result.completeError(ConnectionGone(hostLabel));
-    });
     return result.future;
   }
 }

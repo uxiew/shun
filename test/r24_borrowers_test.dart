@@ -172,6 +172,45 @@ void main() {
       await source.close();
     });
 
+    // LIFE06（10-25）：以前每一步都在「连接断了」的 future 上挂一个监听，连接不断就永远不摘，
+    // 连同那一步的结果一起留着；监控复用一个借用、每 3 秒采一次，就每 3 秒多留一份。
+    test('复用的借用做完一步就不再等断线：做 100 步不攒东西，没做完的照样报断线', () async {
+      final lease = SshLease.of(tab);
+      for (var i = 0; i < 100; i++) {
+        expect(await lease.read((_) async => 'sample $i'), 'sample $i');
+      }
+      await expectLater(
+        lease.write('删除 /tmp/a', (_) async => throw StateError('没有这个文件')),
+        throwsA(isA<StateError>()),
+      );
+      expect(lease.pendingWatchers, 0);
+
+      final reading = lease.read((_) => Completer<int>().future);
+      expect(lease.pendingWatchers, 1, reason: '还没做完的那一步要等断线');
+      socket.drop();
+      await expectLater(reading.timeout(const Duration(seconds: 2)),
+          throwsA(isA<ConnectionGone>()));
+      expect(lease.pendingWatchers, 0);
+    });
+
+    test('下载流读完、被取消以后也不再等断线', () async {
+      final lease = SshLease.of(tab);
+      final finished = StreamController<Uint8List>();
+      final chunks = lease.readStream(finished.stream).toList();
+      expect(lease.pendingWatchers, 1);
+      finished.add(Uint8List(3));
+      await finished.close();
+      expect(await chunks, hasLength(1));
+      expect(lease.pendingWatchers, 0);
+
+      final endless = StreamController<Uint8List>();
+      final subscription = lease.readStream(endless.stream).listen((_) {});
+      expect(lease.pendingWatchers, 1);
+      await subscription.cancel();
+      expect(lease.pendingWatchers, 0);
+      await endless.close();
+    });
+
     test('提示里只有主机名称和那一步，没有密码、地址、用户名（SEC12）', () {
       final texts = [
         const ConnectionGone('box').toString(),
