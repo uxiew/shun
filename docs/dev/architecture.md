@@ -405,6 +405,8 @@ flowchart TD
 | Tailscale 设备目录 | 设置 → `TailscaleCatalogScreen` | `application/tailscale_catalog_*.dart`、`infrastructure/tailscale/` | 只请求写死的 `https://api.tailscale.com`，只要 `devices:core:read`。粘贴的 token 用一次就丢；OAuth client 只有用户要求持续刷新、且服务器确认只读时才存进独立的安全存储。目录缓存在 `ApplicationSupportDirectory/tailscale_catalog/`，不进保险库（保险库会导出、会同步）。导入只写主机，不连接、不写指纹信任 |
 | RustDesk、UU 远程 | 保险库页的远控条目（`widgets/remote_connections.dart`） | `application/rustdesk.dart`、`uuremote.dart`，`infrastructure/plugins/rustdesk_external.dart`、`uuremote_adapter.dart` | 不是插件 APK，是拉起官方 App 的内置适配器（`builtin.rustdesk`、`builtin.uuremote`）。外部 App 走它自己的网络，不继承 SSH 路线；条目关联的 SSH 主机经代理或跳板时，发起前要用户确认。条目存在 `infrastructure/storage/remote_entry_store.dart` 的加密快照里（写后读回比对）；迁移规则见[本机手册第 2 节](README.md#2-测试) R39 段 |
 
+同一台设备在几处的关联（主机上的目录绑定、远控条目的 `sourceHostId`）由 `application/device_links.dart` 的 `deviceLinksOf` 拼起来。它只认显式关联：名字、地址一样也不算同一台，改这里别加按名字猜的规则，不然两个 Tailscale 来源里同名的设备会被并成一台。
+
 ## 8. 保险库、导入导出、云同步
 
 ### 数据模型和未知字段
@@ -492,7 +494,7 @@ Kotlin 在 `android/app/src/main/kotlin/top/xdwa/shun/`，9 个文件共 2120 �
 
 另外两个文件：`ProcessEngine.kt`（进程里唯一的 FlutterEngine，见第 6 节最后一段；连接通道和插件桥跟它同寿命）和 `SshKeepAliveService.kt`（保活前台服务，通知上的「全部断开」交给 Dart 去断，5 秒没反应就自己停）。
 
-`AndroidManifest.xml`：权限是网络、网络状态、唤醒锁、通知、前台服务（specialUse）；`allowBackup=false`；`<queries>` 只列插件 action 和 UU、RustDesk 两个官方包，故意不申请 `QUERY_ALL_PACKAGES`。applicationId `top.xdwa.shun` 不能改，原因见 [AGENTS.md](../../AGENTS.md)。发布包只带 arm64-v8a（`android/app/build.gradle.kts`，原因写在那里的注释）。
+`AndroidManifest.xml`：权限是网络、网络状态、通知、前台服务（specialUse），没有唤醒锁（10-17 去掉的，保活服务也不拿唤醒锁，见第 6 节）；`allowBackup=false`；`<queries>` 只列插件 action 和 UU、RustDesk 两个官方包，故意不申请 `QUERY_ALL_PACKAGES`。applicationId `top.xdwa.shun` 不能改，原因见 [AGENTS.md](../../AGENTS.md)。发布包只带 arm64-v8a（`android/app/build.gradle.kts`，原因写在那里的注释）。
 
 `ios/Runner/AppDelegate.swift` 也注册了 `connection` 和 `picture_in_picture` 两个通道；`plan/v3/STATUS.md` 里 iOS 一直没有测。
 
