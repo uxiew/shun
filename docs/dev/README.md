@@ -322,6 +322,8 @@ tool/build-release.sh && adb install -r build/app/outputs/flutter-apk/app-releas
     `top.xdwa.shun.debug.MainActivity`，报 `Error: Activity class {top.xdwa.shun.debug/top.xdwa.shun.debug.MainActivity} does not exist.`。
   - 给调试宿主用的插件要信任 `top.xdwa.shun.debug`：`plugins/build-fixtures.sh` 默认就这么编；自己编时带 `-PhostPackage=top.xdwa.shun.debug`
     （样例插件是 `gradle.properties` 的 `shunHostPackage`）。不带的话插件只认正式包，宿主来连时报「调用方 UID … 不是 top.xdwa.shun」。
+  - profile 包（`flutter run/build/drive --profile`）是 `top.xdwa.shun.profile`。Flutter 插件照 debug 复制 profile 时 debug 还没加后缀，
+    `build.gradle.kts` 不单独写的话它就是正式包的 `top.xdwa.shun`（10-25 编出来看过），在装着正式包的手机上会同样把它连数据卸掉。
   - 两个都装着时，UU 远程在两边都发不出请求：它们声明了同一个回调地址 `shun-uuremote://callback`，各自把对方当成抢回调的 App，
     报「另有 App 也声明了本 App 的 UU 回调地址……先卸载它再试：top.xdwa.shun.debug」（按 `UuRemoteBridge.kt` 的检测和 `lib/application/uuremote.dart` 的报错推的，没实测）。
     在正式版里用 UU 之前先 `adb uninstall top.xdwa.shun.debug`。`flutter test` 跑完默认会自己卸（加了 `--no-uninstall` 就不卸），`flutter run` 不卸。

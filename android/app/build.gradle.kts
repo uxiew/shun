@@ -59,6 +59,13 @@ android {
             applicationIdSuffix = ".debug"
             manifestPlaceholders["appLabel"] = "shun 调试"
         }
+        // profile（flutter run/build/drive --profile）是 Flutter 插件在这个文件之前照 debug 复制出来的，
+        // 那时 debug 还没加后缀：不写这几行，它的包名就是正式包 top.xdwa.shun（10-25 编出来看过），
+        // 在装着正式包的手机上跑 --profile，和上面说的一样会把正式包连数据卸掉。
+        getByName("profile") {
+            applicationIdSuffix = ".profile"
+            manifestPlaceholders["appLabel"] = "shun profile"
+        }
         release {
             // Local release builds remain installable with the debug key. CI injects
             // one persistent keystore so every downloaded artifact can update the
