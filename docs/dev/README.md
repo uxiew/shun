@@ -158,7 +158,7 @@ flutter test test/integration_ssh_fixture_test.dart
     要所有者当次同意、本人解锁手机；一串跑下来一个多小时，手机 30 分钟会熄屏，熄了测试就失败，所以 G3 复核时临时开了 `adb shell svc power stayon ac`，测完 `svc power stayon false` 改回。
     用完 `down.sh` 后，`android/local.properties` 的 `sdk.dir` 还指着已删的假 SDK，怎么改回见 `tool/remote-device/README.md`「撞墙时」。
 - 连接生命周期（R22，`integration_test/r22_lifecycle_test.dart`，**只在模拟器上跑**）：起好上面的测试环境，`tool/r22-lifecycle.sh emulator-5580 <场景>`。
-  脚本 adb root、转发 22201/21080、预授权通知，再按测试打出的 `R22 ACTION=…` 去按 HOME、点通知、开关 Wi-Fi、锁屏、停代理容器，做完用 `run-as` 在 App 私有目录放个文件告诉测试。
+  脚本转发 22201/21080、预授权通知（不要 root，带 Play 的 `shun-r39-a30` 也能跑），再按测试打出的 `R22 ACTION=…` 去按 HOME、点通知、开关 Wi-Fi、锁屏、停代理容器，做完用 `run-as` 在 App 私有目录放个文件告诉测试。
   | 场景 | 测什么 | 时长 |
   |---|---|---|
   | `notify` / `svcstop` | 通知上「全部断开」/ `am stopservice` 停服务，再切网：不复活、不登录；回前台有状态条 | 各约 1.5 分钟 |
