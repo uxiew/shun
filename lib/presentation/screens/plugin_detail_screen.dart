@@ -87,6 +87,10 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
   /// 做连接测试时这个包的样子。包变了（更新、换签）测试结果就不再作数。
   String? _testedAs;
 
+  /// 测完以后包被覆盖安装过、发现流程断开了那条连接。同版本号重装时 [_testedAs] 对不出差别，要靠这个。
+  var _resetSinceTest = false;
+  StreamSubscription<String>? _resetWatch;
+
   /// 连接测试时原来没连着、是这页开的连接。沿用别人的（比如 Mosh 标签在用的）不算：那条不归这页断。
   var _opened = false;
   var _busy = false;
@@ -97,7 +101,15 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
     super.initState();
     _sessions = ref.read(pluginSessionManagerProvider);
     unawaited(ref.read(pluginDiscoveryProvider.future).then((discovery) {
-      if (mounted) setState(() => _discovery = discovery);
+      if (!mounted) return;
+      setState(() => _discovery = discovery);
+      _resetWatch = discovery.connectionResets.listen((package) {
+        if (package != widget.packageName || !mounted) return;
+        setState(() {
+          _resetSinceTest = _testedAs != null;
+          _opened = false;
+        });
+      });
     }));
   }
 
@@ -108,6 +120,7 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
 
   @override
   void dispose() {
+    unawaited(_resetWatch?.cancel());
     // 这页开的连接离开就断开，不在后台留着；但期间有会话用上了它（比如开了 Mosh 标签），就留给它们。
     if (_opened && _liveSessions() == 0) {
       unawaited(_discovery?.disconnect(widget.packageName));
@@ -164,7 +177,8 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
       );
     }
     final d = entry.descriptor;
-    final stale = _testedAs != null && _testedAs != _fingerprint(entry);
+    final stale = _testedAs != null &&
+        (_resetSinceTest || _testedAs != _fingerprint(entry));
     // 包变了之后发现流程已经断开了那条连接，这里不能再给「断开」，免得以为还连着。
     final connected = _opened && !stale;
     return Scaffold(
@@ -306,6 +320,7 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
                     setState(() {
                       _result = result.message;
                       _testedAs = _fingerprint(entry);
+                      _resetSinceTest = false;
                       _opened = _opened || (result.ok && !result.reused);
                     });
                   }),

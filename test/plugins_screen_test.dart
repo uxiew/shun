@@ -266,6 +266,34 @@ void main() {
     expect(bridge.disconnects, contains(pkg));
   });
 
+  // 10-25 模拟器上撞到：echo-author 和 echo-leaky 同为 0.1.0（1）、同一把密钥，互相覆盖安装后
+  // 连接已经断了（系统里 0 个绑定），详情页还写「握手成功」、还给「断开」。
+  testWidgets('同版本号覆盖安装：之前的测试结果作废、不再给「断开」，重测一次又正常',
+      (tester) async {
+    await openDetail(tester);
+    await tapKey(tester, 'plugin-approve');
+    await tapKey(tester, 'plugin-approve-confirm');
+    await tapKey(tester, 'plugin-check');
+    expect(find.byKey(const ValueKey('plugin-check-result')), findsOneWidget);
+    expect(find.text('断开'), findsOneWidget);
+
+    // 和 Android 覆盖安装一样的三条广播；包的样子一点没变。
+    for (final action in ['removed', 'added', 'replaced']) {
+      bridge.changes.add(PackageChange(pkg, action, replacing: true));
+    }
+    await tester.pumpAndSettle();
+    expect(status(tester), '可用');
+    expect(bridge.connected, isNot(contains(pkg)));
+    expect(find.byKey(const ValueKey('plugin-check-result')), findsNothing);
+    expect(find.textContaining('之前的连接测试结果已作废'), findsOneWidget);
+    expect(find.text('断开'), findsNothing);
+
+    await tapKey(tester, 'plugin-check');
+    expect(find.byKey(const ValueKey('plugin-check-result')), findsOneWidget);
+    expect(find.textContaining('之前的连接测试结果已作废'), findsNothing);
+    expect(find.text('断开'), findsOneWidget);
+  });
+
   testWidgets('列表页：包更新后自动重新核对，事件里写明，不用手动重新扫描', (tester) async {
     await open(tester);
     bridge.installed = [echo(version: '0.2.0')];

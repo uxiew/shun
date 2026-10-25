@@ -37,12 +37,18 @@ class PluginDiscovery {
   Future<void>? _running;
   var _again = false;
   final _notices = StreamController<String>.broadcast();
+  final _resets = StreamController<String>.broadcast();
 
   bool get supported => _bridge.supported;
   Stream<PluginBridgeEvent> get events => _bridge.events;
 
   /// 检测到插件包安装、更新、卸载后给用户看的一句话。
   Stream<String> get notices => _notices.stream;
+
+  /// 包变了、这里断开了它的连接时发出包名。详情页靠它作废手上的连接测试结果：
+  /// 同版本号覆盖安装（插件作者 `adb install -r` 重装）时状态、版本、证书都没变，只看注册表看不出来，
+  /// 页面会一直写「握手成功」、给「断开」，其实那条连接已经没了。
+  Stream<String> get connectionResets => _resets.stream;
 
   /// 载入批准和停用记录、发现一次、开始跟踪包变化。可以重复调用，只会订阅一次。
   Future<void> start() async {
@@ -120,6 +126,7 @@ class PluginDiscovery {
     // 包一变，之前「连接测试」开的连接就不再沿用：旧进程已被系统杀掉，新包要重新核对后才能再连。
     if (before != null && change.action != 'changed') {
       await _bridge.disconnect(package);
+      _resets.add(package);
     }
     _notices.add(switch (change.action) {
       'removed' => '检测到插件包卸载：$package。它的会话已关闭，批准记录保留，重装同一证书的包会直接恢复。',
@@ -133,6 +140,7 @@ class PluginDiscovery {
   Future<void> dispose() async {
     await _watch?.cancel();
     await _notices.close();
+    await _resets.close();
   }
 
   Future<String> inspect(String packageName) =>
