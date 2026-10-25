@@ -42,11 +42,16 @@ class GhosttyDetachedThemeSync extends StatefulWidget {
 }
 
 class _GhosttyDetachedThemeSyncState extends State<GhosttyDetachedThemeSync> {
+  ColorScheme? _scheme;
+
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    GhosttyTerminalAdapter.useDetachedTheme(
-        terminalColorsFor(Theme.of(context).colorScheme));
+    final scheme = Theme.of(context).colorScheme;
+    if (scheme == _scheme) return;
+    _scheme = scheme;
+    // 传「怎么算」不传算好的：这里在 App 最外层，原生库坏了也会走到，见 useDetachedTheme。
+    GhosttyTerminalAdapter.useDetachedTheme(() => terminalColorsFor(scheme));
   }
 
   @override

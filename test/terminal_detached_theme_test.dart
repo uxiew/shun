@@ -44,8 +44,7 @@ void main() {
         home: const SizedBox(),
       );
 
-  testWidgets('浅色主题下新建的终端回浅色背景；换成深色主题，没显示过的终端跟着换',
-      (tester) async {
+  testWidgets('浅色主题下新建的终端回浅色背景；换成深色主题，没显示过的终端跟着换', (tester) async {
     await tester.pumpWidget(app(ThemeMode.light));
     final terminal = GhosttyTerminalAdapter();
     addTearDown(terminal.dispose);
@@ -54,6 +53,23 @@ void main() {
     await tester.pumpWidget(app(ThemeMode.dark));
     await tester.pumpAndSettle();
     expect(askBackground(terminal), answer(dark.colorScheme.surface));
+  });
+
+  // R20 TER12 10-25 复跑撞出来的：配色以前在 App 最外层当场算，算要调 libghostty，
+  // 原生库加载不了时整个 App 起不来。现在有终端要上色时才算。
+  testWidgets('没有终端时不算配色，建第一个终端时才算、只算一次', (tester) async {
+    var computed = 0;
+    GhosttyTerminalAdapter.useDetachedTheme(() {
+      computed++;
+      return terminalColorsFor(light.colorScheme);
+    });
+    expect(computed, 0);
+    final first = GhosttyTerminalAdapter();
+    addTearDown(first.dispose);
+    final second = GhosttyTerminalAdapter();
+    addTearDown(second.dispose);
+    expect(computed, 1);
+    expect(askBackground(second), answer(light.colorScheme.surface));
   });
 
   testWidgets('关掉的终端不再被推主题，换主题不出错', (tester) async {
