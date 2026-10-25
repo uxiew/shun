@@ -132,10 +132,10 @@ cp signing.properties.example signing.properties    # 已被 .gitignore 忽略�
 插件只接受用某一张证书签名的宿主来调它，不然谁冒充宿主都能用你的插件。这张证书的 SHA-256 写进 `gradle.properties`：
 
 ```properties
-shunHostSha256=499ff3abf2d0aeb386ce3b30da1c3a0fa3566d5d89b042bf279c0773f79d500f
+shunHostSha256=67111bde75fa3a641411aa5659fde8ff3485bfaf9d60bb38be219f02bdf12589
 ```
 
-上面这串是项目这台 Mac 上编的 debug 宿主的证书。**你手里的宿主不一定是这张**，两种办法取：
+上面这串是项目现在这台 Mac（10-13 搬机后）上编的 debug 宿主的证书。**你手里的宿主不一定是这张**，两种办法取：
 
 - 装好宿主后打开「设置 → 插件（实验）」，拉到最底下「给插件作者」：「本 App 的签名证书 SHA-256」那一行，长按能复制；
 - 或者对宿主 APK 文件：`$ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs 宿主.apk`，取 `certificate SHA-256 digest` 那一行。
