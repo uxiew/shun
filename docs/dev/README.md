@@ -168,10 +168,10 @@ flutter test test/integration_ssh_fixture_test.dart
   | `proxy` | 经 SOCKS 到 target：代理容器停了再起、target 重启 | 约 3 分钟 |
   | `activity` | 首页返回键、「不保留活动」、从最近任务划掉：会话对象和 SSH 连接不变 | 约 2 分钟 |
   | `engine` | 只建/销毁 Ghostty 终端各 400 次（挂视图、不挂视图），每 100 次抓 meminfo | 约 5 分钟 |
-  | `restore` | 进程被「停止」、强行停止后放回标签：先 `flutter drive` 跑 seed，再装正式 debug 包用 uiautomator 点「重新连接」 | 约 5 分钟 |
+  | `restore` | 进程被「停止」、强行停止后放回标签：先 `flutter drive` 跑 seed，再装正式 debug 包用 uiautomator 点「重新连接」。「停止」要 Android 14 起，更早的跳过、摘要里记 `NOT_RUN` | 约 5 分钟 |
 
   日志、截图、meminfo 在 `../.toolchain/artifacts/r22-<提交>/`。脚本会改模拟器设置（Wi-Fi、锁屏 PIN、「不保留活动」），正常结束会复原；
-  中途停掉的话手动复原：`adb shell 'settings put global always_finish_activities 0; locksettings clear --old 1234; svc wifi enable'`。会改手机设置，**别在真机上跑**。
+  中途停掉的话手动复原：`adb shell 'settings put global always_finish_activities 0; locksettings clear --old 1234; svc wifi enable; cmd wifi connect-network AndroidWifi open'`（Android 11 上只 `svc wifi enable` 不会连回去）。会改手机设置，**别在真机上跑**。
   撞过的墙：截图全黑——测试在等脚本回执时不出帧（集成测试只在 `pump` 时画），要看画面用测试请求的 `shot-…` 截图；
   uiautomator 找不到「全部断开」——通知在「静音」区折叠着，要先点它右边的展开箭头（脚本已处理）；
   脚本悄悄退出、测试卡在等回执——别给这类脚本开 `pipefail`，`adb … | grep -m1` 会让 adb 收到 SIGPIPE。
