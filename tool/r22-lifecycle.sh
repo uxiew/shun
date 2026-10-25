@@ -291,7 +291,9 @@ run_test() {
   TEST=$!
 }
 # 脚本在哪一步失败退出（set -e）时把后台的测试也停掉：不停的话它一直等脚本回执，占着模拟器。
-trap '[[ -n "${TEST:-}" ]] && kill "$TEST" 2>/dev/null; true' EXIT
+# 别写成 `[[ … ]] && kill …; true`：macOS 自带的 bash 3.2 在 set -e 下，trap 里 kill 一个已经结束的测试
+# 就让脚本退 1，测试明明过了、脚本也跑完了，看着像失败。
+trap '[[ -z "${TEST:-}" ]] || kill "$TEST" 2>/dev/null || true' EXIT
 
 serve_actions() {
   local seen=0
