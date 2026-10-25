@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
+import '../../application/connection_events.dart';
 import '../../application/connection_lifecycle.dart';
 import '../../application/ai_cli_return.dart';
 import '../../application/home_navigation.dart';
@@ -112,6 +113,20 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
     unawaited(_loadRecent());
   }
 
+  /// 这里为检测、核对、启动临时拨的连接用完就关、不变成标签，以前不进连接记录（R25），
+  /// 卡在哪一跳记录页里看不到。记录对象在拨之前拿：拨到一半关掉弹层，那时 ref 已经不能用了。
+  Future<T> _logDial<T>(
+          HostProfile host,
+          RoutePlan plan,
+          ConnectionAttempt attempt,
+          Future<T> Function(void Function() connected) dial) =>
+      loggedDial(ref.read(connectionEventLogProvider.notifier),
+          kind: ConnectionEventKind.aiCli,
+          host: host,
+          plan: plan,
+          attempt: attempt,
+          dial: dial);
+
   Future<void> _loadRecent() async {
     try {
       final items = await widget.recentWork.load(_scope);
@@ -201,14 +216,21 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
       if (mounted) setState(() {});
     });
     _attempt = attempt;
-    return ref.read(sshServiceProvider).withVerifiedClient(
-          routePlan: plan,
-          verifyHostKey: verifier,
-          keyboardInteractive: widget.keyboardInteractive,
-          attempt: attempt,
-          query: (client) =>
-              widget.service.discoverClient(client, _request, cancellation),
-        );
+    return _logDial(
+        host,
+        plan,
+        attempt,
+        (connected) => ref.read(sshServiceProvider).withVerifiedClient(
+              routePlan: plan,
+              verifyHostKey: verifier,
+              keyboardInteractive: widget.keyboardInteractive,
+              attempt: attempt,
+              query: (client) {
+                connected();
+                return widget.service
+                    .discoverClient(client, _request, cancellation);
+              },
+            ));
   }
 
   Future<void> _refresh() async {
@@ -438,13 +460,20 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
           ((_, __, ___) async => false);
       final attempt = ConnectionAttempt();
       _launchAttempt = attempt;
-      await ref.read(sshServiceProvider).withVerifiedClient(
-          routePlan: route,
-          verifyHostKey: verifier,
-          keyboardInteractive:
-              widget.keyboardInteractive ?? widget.session?.keyboardInteractive,
-          attempt: attempt,
-          query: (client) => const AiCliTmuxService().verify(client, run));
+      await _logDial(
+          current,
+          route,
+          attempt,
+          (connected) => ref.read(sshServiceProvider).withVerifiedClient(
+              routePlan: route,
+              verifyHostKey: verifier,
+              keyboardInteractive: widget.keyboardInteractive ??
+                  widget.session?.keyboardInteractive,
+              attempt: attempt,
+              query: (client) {
+                connected();
+                return const AiCliTmuxService().verify(client, run);
+              }));
       if (!mounted) return;
       String? openedTabId;
       final opened =
@@ -666,16 +695,21 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
       final probe = AiCliProbeCancellation();
       _launchAttempt = attempt;
       _launchProbe = probe;
-      final actualProject =
-          await ref.read(sshServiceProvider).withVerifiedClient(
+      final actualProject = await _logDial(
+          current,
+          route,
+          attempt,
+          (connected) => ref.read(sshServiceProvider).withVerifiedClient(
                 routePlan: route,
                 verifyHostKey: verifier,
                 keyboardInteractive: widget.keyboardInteractive ??
                     widget.session?.keyboardInteractive,
                 attempt: attempt,
-                query: (client) =>
-                    widget.service.canonicalProject(client, launch, probe),
-              );
+                query: (client) {
+                  connected();
+                  return widget.service.canonicalProject(client, launch, probe);
+                },
+              ));
       if (!mounted) return;
       final checkedLaunch = AiCliLaunchSpec(
           executable: launch.executable,
@@ -686,21 +720,29 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
       if (useTmux) {
         final createAttempt = ConnectionAttempt();
         _launchAttempt = createAttempt;
-        run = await ref.read(sshServiceProvider).withVerifiedClientForAiTmux(
-              routePlan: route,
-              verifyHostKey: verifier,
-              keyboardInteractive: widget.keyboardInteractive ??
-                  widget.session?.keyboardInteractive,
-              attempt: createAttempt,
-              action: (client) => const AiCliTmuxService().start(
-                client,
-                hostKey: route.target.endpoint.authority,
-                socket: const TmuxSocketSpec.standard(),
-                requestId: requestId,
-                launch: checkedLaunch,
-                onCreateAttempted: () => tmuxCreateAttempted = true,
-              ),
-            );
+        run = await _logDial(
+            current,
+            route,
+            createAttempt,
+            (connected) =>
+                ref.read(sshServiceProvider).withVerifiedClientForAiTmux(
+                      routePlan: route,
+                      verifyHostKey: verifier,
+                      keyboardInteractive: widget.keyboardInteractive ??
+                          widget.session?.keyboardInteractive,
+                      attempt: createAttempt,
+                      action: (client) {
+                        connected();
+                        return const AiCliTmuxService().start(
+                          client,
+                          hostKey: route.target.endpoint.authority,
+                          socket: const TmuxSocketSpec.standard(),
+                          requestId: requestId,
+                          launch: checkedLaunch,
+                          onCreateAttempted: () => tmuxCreateAttempted = true,
+                        );
+                      },
+                    ));
         if (!mounted) return;
       }
       final opened = useTmux

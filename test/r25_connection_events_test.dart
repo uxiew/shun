@@ -235,6 +235,56 @@ void main() {
       expect(recorded.stages.map((s) => s.step), [ConnectionStep.dial]);
     });
 
+    // 10-25：AI 工具面板为检测、核对、启动临时拨的连接以前不记。
+    test('临时拨号：连上前出错记失败和分类，连上后出错（工具没装、tmux 核对）记连上了，错照样抛给调用方', () async {
+      // 记录按真实时钟记；日志也得用真实时钟，不然按上面固定的 now 算是「未来」，被修剪掉。
+      final log = ConnectionEventLog(MemoryConnectionEventStore([]));
+      final target = host('web', const {});
+      Future<void> dial({required bool reach, Object? error}) async {
+        final attempt = ConnectionAttempt()
+          ..report(const ConnectionStage(ConnectionStep.handshake));
+        await expectLater(
+          loggedDial<int>(log,
+              kind: ConnectionEventKind.aiCli,
+              host: target,
+              plan: plan,
+              attempt: attempt, dial: (connected) async {
+            if (reach) connected();
+            if (error != null) throw error;
+            return 1;
+          }),
+          error == null ? completion(1) : throwsA(same(error)),
+        );
+      }
+
+      const unreachable = RouteHopException(0, 'x', SocketException('x'));
+      await dial(reach: true);
+      await dial(reach: false, error: unreachable);
+      await dial(reach: true, error: StateError('这台主机没装 claude'));
+      await dial(reach: false, error: const ConnectionCancelledException());
+      await log.ready;
+      await Future<void>.delayed(Duration.zero);
+      expect([
+        for (final e in log.state) (e.kind, e.outcome, e.failure)
+      ], [
+        (ConnectionEventKind.aiCli, ConnectionOutcome.connected, null),
+        (
+          ConnectionEventKind.aiCli,
+          ConnectionOutcome.failed,
+          ConnectionFailureKind.unreachable
+        ),
+        (ConnectionEventKind.aiCli, ConnectionOutcome.connected, null),
+        (ConnectionEventKind.aiCli, ConnectionOutcome.cancelled, null),
+      ]);
+      expect(log.state.first.hostId, 'web');
+      expect(log.state.first.hopIds, ['edge', 'web']);
+      expect(log.state.first.stages.map((s) => s.step),
+          [ConnectionStep.handshake]);
+      final again = ConnectionEvent.fromJson(
+          jsonDecode(jsonEncode(log.state.first.toJson())));
+      expect(again?.kind, ConnectionEventKind.aiCli);
+    });
+
     test('代理、连不上、指纹各归各的类', () {
       expect(
         classifyConnectionFailure(const RouteHopException(

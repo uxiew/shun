@@ -2053,6 +2053,7 @@ const englishTranslations = <String, String>{
   '切换连接方式': 'Switch connection method',
   '连接断开': 'Connection dropped',
   '自动恢复停了': 'Automatic recovery stopped',
+  'AI 工具临时连接': 'AI tools: temporary connection',
   '连接被关了（对方关闭或网络断开，App 分不出是哪种）':
       'The connection was closed (by the other side or by the network; the app cannot tell which)',
   '远端 shell 退出了': 'The remote shell exited',

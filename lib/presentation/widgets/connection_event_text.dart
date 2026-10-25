@@ -32,6 +32,7 @@ String connectionEventTitle(ConnectionEvent event) => switch (event.kind) {
       ConnectionEventKind.probe => _t('测试连接'),
       ConnectionEventKind.drop => _t('连接断开'),
       ConnectionEventKind.recoveryStopped => _t('自动恢复停了'),
+      ConnectionEventKind.aiCli => _t('AI 工具临时连接'),
     };
 
 /// 结果一句话。不只靠颜色和图标说成败（UX02）。

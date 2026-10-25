@@ -51,6 +51,10 @@ enum ConnectionEventKind {
 
   /// 自动恢复停了、不再试。
   recoveryStopped,
+
+  /// AI 命令行工具面板为检测、核对、启动临时拨的连接：用完就关，不变成标签。
+  /// 新加的（10-25）：旧版 App 读到不认识的类型就跳过这一条（[ConnectionEvent.fromJson]），不影响其余的。
+  aiCli,
 }
 
 enum ConnectionOutcome { connected, failed, cancelled }
@@ -311,6 +315,40 @@ ConnectionEvent attemptEvent({
     failureHop: failed && error is RouteHopException ? error.hop : null,
     attempt: recoveryAttempt,
   );
+}
+
+/// 拨一次用完就关的连接（AI 工具面板的检测、核对、启动），并记一条 [kind]。
+///
+/// [dial] 在连上、开始在远端做事时调 `connected`：之后再出的错（检测脚本、tmux 核对、建 tmux 会话）
+/// 不是连接的问题，照样记「连上了」，免得把「没装这个工具」记成网络失败；没连上就记失败在哪一类。
+/// 错照样抛给调用方。
+Future<T> loggedDial<T>(
+  ConnectionEventLog log, {
+  required ConnectionEventKind kind,
+  required HostProfile host,
+  required RoutePlan plan,
+  required ConnectionAttempt attempt,
+  required Future<T> Function(void Function() connected) dial,
+}) async {
+  var reached = false;
+  Object? failure;
+  try {
+    return await dial(() => reached = true);
+  } catch (error) {
+    if (!reached) failure = error;
+    rethrow;
+  } finally {
+    log.record(attemptEvent(
+      hostId: host.id,
+      now: DateTime.now(),
+      kind: kind,
+      protocol: host.protocol,
+      attempt: attempt,
+      plan: plan,
+      error: failure,
+      cancelled: failure is ConnectionCancelledException,
+    ));
+  }
 }
 
 /// 按上限修剪：超过 7 天的（以及记在「未来」一天以后的——系统时间被往回拨过，不删就会一直留着）、
