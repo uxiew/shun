@@ -34,7 +34,15 @@ Future<void> waitFor(
     WidgetTester tester, bool Function() ready, String what) async {
   final deadline = DateTime.now().add(const Duration(seconds: 35));
   while (!ready()) {
-    if (DateTime.now().isAfter(deadline)) fail('Timed out: $what');
+    if (DateTime.now().isAfter(deadline)) {
+      // 只说「超时」看不出卡在哪：把屏幕上的字打出来（检测中、报错、还是没打开工具列表）。
+      final texts = tester
+          .widgetList<Text>(find.byType(Text))
+          .map((t) => t.data ?? t.textSpan?.toPlainText() ?? '')
+          .where((t) => t.trim().isNotEmpty)
+          .join(' | ');
+      fail('Timed out: $what. On screen: $texts');
+    }
     await tester.pump(const Duration(milliseconds: 50));
   }
 }
@@ -215,8 +223,21 @@ chmod +x ~/r56device/tool
       expect(await remote('wc -l < ~/r56device/count'), '1');
       expect(
           await remote('test -e ~/r56device/startup && printf BAD'), isEmpty);
-      await toolsSheet(fromHome: true);
-      await returnRecent();
+      // 原终端还连着：首页卡片直接切回去，不开工具列表、不拨号（0aff381 起；这一步以前等工具列表，
+      // 之后就一直报「Timed out: discovery」）。下面两次原终端关了、或是 tmux 的，还是走工具列表。
+      container.read(homeTabProvider.notifier).state = 0;
+      await frames(tester);
+      await waitFor(
+          tester,
+          () => find
+              .byKey(const ValueKey('vault-recent-ai-work'))
+              .evaluate()
+              .isNotEmpty,
+          'recent homepage card');
+      await tester.tap(find.byKey(const ValueKey('vault-recent-ai-work')));
+      await frames(tester);
+      expect(find.byType(AiCliToolsSheet), findsNothing);
+      expect(container.read(homeTabProvider), 1);
       expect(controller.state.sessions.single, same(plain));
       expect(await remote('wc -l < ~/r56device/count'), '1');
       await controller.close(0);
