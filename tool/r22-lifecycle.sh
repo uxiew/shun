@@ -7,8 +7,9 @@
 #   tool/r22-lifecycle.sh emulator-5580 notify|svcstop|network|lock|saver|proxy|activity|engine
 #   tool/r22-lifecycle.sh emulator-5580 restore      # 进程被结束后放回标签：先 seed，再装正式 debug 包用 uiautomator 点
 #
-# 只在模拟器上跑过：要 adb root（停服务、数 App 的 socket），会开关模拟器的 Wi-Fi、设锁屏 PIN（测完清掉）、
-# 临时打开「不保留活动」（测完关掉）。真机上别跑：会改手机设置。
+# 只在模拟器上跑过：会开关模拟器的 Wi-Fi、设锁屏 PIN（测完清掉）、临时打开「不保留活动」（测完关掉）。
+# 真机上别跑：会改手机设置。不要 root：数 socket、停服务都用 App 自己的 uid（run-as）做，
+# 带 Play 的镜像（shun-r39-a30）没有 root 也能跑；最早写的时候用的是能 root 的 API 35 镜像。
 # 日志、截图、meminfo 放在 ../.toolchain/artifacts/r22-<提交>/，最后打印路径。
 # 不开 pipefail：下面很多 `… | grep -m1` 会让前面的 adb 收到 SIGPIPE，开着的话整个脚本悄悄退出。
 set -eu
@@ -48,19 +49,29 @@ adb root >/dev/null 2>&1 || true
 adb wait-for-device
 adb reverse tcp:22201 tcp:22201 >/dev/null
 adb reverse tcp:21080 tcp:21080 >/dev/null
-adb shell svc wifi enable
+# shun-r39-a30（API 30）上 `svc wifi enable` 只开无线电、不会自己连回 AndroidWifi，不补这一步默认网络一直是蜂窝，
+# 「Wi-Fi 开关」就只剩「关」那一下算数。API 35 镜像会自己连，多发一次没影响。
+wifi_on() {
+  adb shell svc wifi enable
+  adb shell cmd wifi connect-network AndroidWifi open >/dev/null 2>&1 || true
+}
+wifi_on
 (for _ in $(seq 1 900); do
   adb shell pm grant $PKG android.permission.POST_NOTIFICATIONS 2>/dev/null && break
   sleep 0.3
 done >/dev/null 2>&1 &)
 
 # App 里连到 22201（十六进制 56B9）的 TCP，按 App 自己的 socket inode 筛。
+# 没有 root 时分两步：App 的 fd 只有 App 自己的 uid 读得了（run-as），连接表反过来 run-as 读不了
+# （Android 10 起 App 读不到 /proc/net）、shell 读得了。哪一步读不到，计数都会是 0，看着像「连接都关了」。
+# 整张表只经过管道、不存盘，只数本 App 的。
 ssh_sockets() {
   local pid inodes
   pid=$(adb shell pidof $PKG | tr -d '\r')
   [[ -n "$pid" ]] || { echo "没有进程"; return; }
-  inodes=$(adb shell "ls -l /proc/$pid/fd" 2>/dev/null | grep -o 'socket:\[[0-9]*\]' | grep -o '[0-9]*' | sort -u)
-  adb shell "cat /proc/$pid/net/tcp /proc/$pid/net/tcp6" 2>/dev/null |
+  inodes=$(adb shell "run-as $PKG ls -l /proc/$pid/fd" 2>/dev/null | grep -o 'socket:\[[0-9]*\]' | grep -o '[0-9]*' | sort -u)
+  [[ -n "$inodes" ]] || { echo "?（读不到 fd）"; return; }
+  adb shell "cat /proc/net/tcp /proc/net/tcp6" 2>/dev/null |
     awk -v inodes="$(echo $inodes)" 'BEGIN{n=split(inodes,a," "); for(i=1;i<=n;i++) mine[a[i]]=1}
       $3 ~ /:56B9$/ && ($10 in mine) && $4 == "01" {c++} END{print c+0}'
 }
@@ -121,10 +132,13 @@ box = lambda n: list(map(int, re.findall(r'\d+', n.get('bounds'))))
 title = next((n for n in nodes if sys.argv[2] in (n.get('text') or '')), None)
 if title is not None:
     cy = (box(title)[1] + box(title)[3]) // 2
+    # 按钮和标题同在一条通知的框里。API 35 上它和标题同一行；API 30 上在标题上面、和应用名同一行。
+    frames = [box(n) for n in nodes if (n.get('resource-id') or '').endswith('/expanded') and box(n)[1] <= cy <= box(n)[3]]
+    top, bottom = min(frames, key=lambda b: b[3] - b[1])[1::2] if frames else (cy, cy)
     for n in nodes:
         if (n.get('resource-id') or '').endswith('expand_button') and (n.get('content-desc') or '') == 'Expand':
             x1, y1, x2, y2 = box(n)
-            if y1 <= cy <= y2:
+            if y1 <= cy <= y2 or top <= (y1 + y2) // 2 <= bottom:
                 print((x1 + x2) // 2, (y1 + y2) // 2)
                 break
 EOF2
@@ -172,10 +186,12 @@ do_action() {
       sleep 4; adb shell cmd statusbar collapse; lifecycle_facts "after-notify-stop" ;;
     stop-service)
       lifecycle_facts "before-stop-service"
-      adb shell am stopservice -n $PKG/top.xdwa.shun.SshKeepAliveService | tee -a "$LOG"
+      # App 自己的 uid 去停它未导出的服务，和系统停掉一样（不是 App 让停的），不要 root。
+      # 不带 --user 0 会报 INTERACT_ACROSS_USERS、服务其实没停（本机手册第 7 节）。
+      adb shell run-as $PKG am stopservice --user 0 -n $PKG/top.xdwa.shun.SshKeepAliveService 2>&1 | tee -a "$LOG"
       sleep 4; lifecycle_facts "after-stop-service" ;;
     wifi-toggle)
-      adb shell svc wifi disable; sleep 4; adb shell svc wifi enable; sleep 4
+      adb shell svc wifi disable; sleep 4; wifi_on; sleep 4
       lifecycle_facts "after-wifi-toggle" ;;
     cellular-only)
       adb shell svc wifi disable; sleep 5
@@ -184,7 +200,7 @@ do_action() {
       for i in $(seq 1 20); do
         local on=8 off=12
         (( i > 10 )) && on=45 && off=20
-        host "cycle $i wifi on (${on}s) $(date +%T)"; adb shell svc wifi enable; sleep $on
+        host "cycle $i wifi on (${on}s) $(date +%T)"; wifi_on; sleep $on
         host "cycle $i wifi off (${off}s) $(date +%T) sockets=$(ssh_sockets)"; adb shell svc wifi disable; sleep $off
       done
       lifecycle_facts "after-wifi-cycle" ;;
@@ -274,6 +290,8 @@ run_test() {
   fi
   TEST=$!
 }
+# 脚本在哪一步失败退出（set -e）时把后台的测试也停掉：不停的话它一直等脚本回执，占着模拟器。
+trap '[[ -n "${TEST:-}" ]] && kill "$TEST" 2>/dev/null; true' EXIT
 
 serve_actions() {
   local seen=0
@@ -312,7 +330,7 @@ restore() {
     kill "$TEST" 2>/dev/null || true
     sleep 3
     host "$kill: pid=$(adb shell pidof $PKG | tr -d '\r') service=$(adb shell dumpsys activity services $PKG | grep -c SshKeepAliveService || true)"
-    adb shell svc wifi disable; sleep 4; adb shell svc wifi enable; sleep 16
+    adb shell svc wifi disable; sleep 4; wifi_on; sleep 16
     host "$kill +20s with network change: pid=$(adb shell pidof $PKG | tr -d '\r') edge-accepted-delta=$(( $(accepted) - before ))" \
       "tmux clients=$(docker exec -u fixture "$EDGE" tmux list-clients -t r22 2>/dev/null | wc -l | tr -d ' ')"
     if [[ $kill == stop-app ]]; then
@@ -344,7 +362,7 @@ else
 fi
 # 收尾：设置复原。
 [[ "$(adb shell settings get global always_finish_activities | tr -d '\r')" == 1 ]] && toggle_dont_keep
-adb shell svc wifi enable
+wifi_on
 adb shell locksettings clear --old 1234 >/dev/null 2>&1 || true
 adb shell cmd power set-mode 0 >/dev/null 2>&1 || true
 adb shell dumpsys battery reset >/dev/null 2>&1 || true
