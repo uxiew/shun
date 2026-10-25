@@ -335,11 +335,15 @@ tool/build-release.sh && adb install -r build/app/outputs/flutter-apk/app-releas
 ## 5. 改任务状态
 
 ```bash
-P=python3    # 系统自带的就行，脚本只用标准库（迁移前用的 ../.toolchain/pyenv 已经不在了）
+P=python3    # 用 PATH 上的（这台是 mise 装的 3.12，带 jsonschema）；别用 /usr/bin/python3
 $P plan/v3/scripts/set_status.py case <用例ID> <PASS|FAIL|...> --evidence evidence/<任务ID>.md
 $P plan/v3/scripts/sync_docs.py       # 同步到 docs/08、09；别手改那两张表
 $P plan/v3/scripts/validate_plan.py   # 只查计划本身，不测 App
 ```
+
+`set_status.py`、`sync_docs.py` 只用标准库，哪个 Python 都行；`validate_plan.py` 要 `jsonschema` 查插件描述符样例。
+macOS 自带的 `/usr/bin/python3`（3.9）没装它，跑出来是 `"passed": false`、错误只有一条 `jsonschema missing`，
+看着像计划坏了，其实是那一段检查没跑。换 PATH 上的 `python3`，或给那个 Python 装上：`python3 -m pip install jsonschema`。
 
 ## 6. 磁盘与清理
 
