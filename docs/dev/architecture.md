@@ -238,6 +238,7 @@ Tailscale SSH 是**一跳的登录方式**：主机 data 里写着 `shunSshLogin
 - 传文件先写临时文件再改名（`writeStreamAtomically`、`transferEntry`）：写临时文件时断了是 `TransferInterrupted`（目标没动），只有改名那一步是「结果未知」。改名前再查一次目标在不在，因为 dartssh2 的 `rename` 优先走 posix-rename，会悝悝替换已有文件；查完到改名之间仍有一次来回的空当。
 - dartssh2 的 `SftpFileWriter` 订阅数据流不挂 onError：数据流报错（用户取消、本机文件读失败）会变成没人接的全局错误，`done` 永远不完成。`_writeSftpStream` 先把错误截下、停掉 writer 再抛。直接调 `file.write(stream)` 就会把这个问题带回来。
 - 长期开着的（监控采样、系统管理）用 `SshLease.reuse(Expando, session)`，每个会话只借一次。每次操作都 `SshLease.of` 的话，每 3 秒一次的采样会在标签上越攒越多释放钩子。
+- 同理，借用里的赛跑不能写成在 `lease.lost` 上挂 `.then`：连接不断那个 future 就不完成，每一步挂的回调连同那一步的结果要留到断线（复用的借用上就是每 3 秒留一份采样输出，10-25 LIFE06 查到、e40534d 修了）。现在是 `_watchLoss` 登记、做完就撤；`lease.lost` 只给「每个借用者只挂一次」的场合用（端口转发一条一个、SFTP 一个客户端一个）。
 - 端口转发在 `lease.lost` 时关本机端口和已接进来的 socket，条目留在列表里、带 `endedReason`；`forwardsOn` 只算还在跑的（R42 切 Mosh 前用它列会停掉哪几条）。
 
 测试：不连网的在 `test/r24_borrowers_test.dart`（假 socket `_QuietSocket` 不回任何字节，`drop()` 模拟断线）；真实 OpenSSH 上的在 `test/integration_ssh_fixture_test.dart` 的「R24 借用者跟着连接走」组，Direct / SOCKS / Jump 三条路线各跑同一套。
