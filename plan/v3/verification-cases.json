@@ -587,7 +587,7 @@
       "action": "100 次连接/取消/断开/引擎销毁，检查 fd、线程、协程和 native 内存。",
       "expected": "无逐轮增长；每次 close 幂等，失败路径同样释放。",
       "level": "硬门禁",
-      "result": "FAIL",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
         "evidence/R08.md",
