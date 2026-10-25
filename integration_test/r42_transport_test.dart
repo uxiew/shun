@@ -21,10 +21,10 @@ import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
-import 'package:shun/presentation/screens/terminal_screen.dart';
 import 'package:shun/presentation/widgets/connection_transport_sheet.dart';
 
-import 'mosh_session_test.dart' show Monitor, config, verifyFixture, waitFor, settle;
+import 'mosh_session_test.dart'
+    show Monitor, config, verifyFixture, waitFor, settle;
 
 void report(String key, Object? value) => debugPrint('R42 $key=$value');
 
@@ -38,7 +38,8 @@ void main() {
     await monitor.run('tmux kill-server 2>/dev/null; rm -f /tmp/r42-input; '
         'tmux new-session -d -s r42 -x 80 -y 24 "stty raw -echo; exec cat > /tmp/r42-input"');
     addTearDown(() => monitor.run('tmux kill-server 2>/dev/null; true'));
-    final sessionId = await monitor.run("tmux display-message -p -t r42 '#{session_id} #{session_created}'");
+    final sessionId = await monitor.run(
+        "tmux display-message -p -t r42 '#{session_id} #{session_created}'");
     Future<List<String>> clients() async {
       final out = await monitor.run(
           "tmux list-clients -t r42 -F '#{client_pid} #{session_id}' 2>/dev/null; true");
@@ -70,7 +71,8 @@ void main() {
 
     Finder key(String value) => find.byKey(ValueKey(value));
     String texts(Finder within) => tester
-        .widgetList<Text>(find.descendant(of: within, matching: find.byType(Text)))
+        .widgetList<Text>(
+            find.descendant(of: within, matching: find.byType(Text)))
         .map((t) => t.data ?? t.textSpan?.toPlainText() ?? '')
         .where((t) => t.isNotEmpty)
         .join(' | ');
@@ -89,7 +91,8 @@ void main() {
     // ---- 普通 SSH 标签 ----
     expect(await controller.connect(host, verifyFixture), isTrue);
     final shell = controller.state.sessions.single;
-    await waitFor(tester, () => shell.terminal.allText().contains(r'$'), what: '远端提示符');
+    await waitFor(tester, () => shell.terminal.allText().contains(r'$'),
+        what: '远端提示符');
     await settle(tester);
     report('plain.badge', texts(key('terminal-transport-badge')));
     expect(texts(key('terminal-transport-badge')), 'SSH');
@@ -109,13 +112,15 @@ void main() {
     expect(await clients(), isEmpty);
     await tester.tap(key('transport-pick-tmux'));
     final row = find.byWidgetPredicate((w) =>
-        w.key is ValueKey && '${(w.key! as ValueKey).value}'.startsWith('tmux-pick-'));
+        w.key is ValueKey &&
+        '${(w.key! as ValueKey).value}'.startsWith('tmux-pick-'));
     await waitFor(tester, () => row.evaluate().isNotEmpty, what: 'tmux 会话列表');
     await settle(tester, 400);
     report('picker.rows', row.evaluate().length);
     report('picker.text', texts(row.first));
     expect(row, findsOneWidget);
-    final sessionsBefore = await monitor.run("tmux list-sessions -F '#{session_id}'");
+    final sessionsBefore =
+        await monitor.run("tmux list-sessions -F '#{session_id}'");
     await tester.tap(row);
     await waitFor(tester, () => controller.state.sessions.length == 2,
         timeout: const Duration(seconds: 40), what: 'tmux 标签');
@@ -126,7 +131,8 @@ void main() {
     }
     report('tmux.clients', await clients());
     expect((await clients()).single, startsWith('${tmuxTab.tmux!.clientPid} '));
-    expect(await monitor.run("tmux list-sessions -F '#{session_id}'"), sessionsBefore,
+    expect(await monitor.run("tmux list-sessions -F '#{session_id}'"),
+        sessionsBefore,
         reason: '选会话没有新建');
 
     // ---- tmux 标签的菜单：写目标全名，插件没装时原地切换变灰 ----
@@ -134,16 +140,24 @@ void main() {
     await openMenu();
     final tmuxMenu = texts(find.byType(TransportSheet));
     report('tmux.menu', tmuxMenu);
-    expect(tmuxMenu, contains('tmux 会话 r42（${tmuxTab.tmux!.target.sessionId}）'));
-    expect(tmuxMenu, contains('${config['user']}@${config['sshHost']}:${config['sshPort']}'));
+    expect(
+        tmuxMenu, contains('tmux 会话 r42（${tmuxTab.tmux!.target.sessionId}）'));
+    expect(
+        tmuxMenu,
+        contains(
+            '${config['user']}@${config['sshHost']}:${config['sshPort']}'));
     expect(tester.widget<ListTile>(key('transport-switch')).enabled, isFalse);
     await closeSheet();
 
     // ---- 关 tmux 标签：只分离，会话和里面的程序留在远端 ----
-    final delete = MaterialLocalizations.of(tester.element(find.byType(TerminalScreen)))
-        .deleteButtonTooltip;
-    await tester.tap(find.descendant(
-        of: key('terminal-tab-${tmuxTab.id}'), matching: find.byTooltip(delete)));
+    // 标签上 × 的提示 6407c94 起是「关闭标签“名字”」，不再是系统默认的「删除」；按默认文字找会报 Found 0 widgets。
+    // 它是第二个标签，× 在标签条可见区外（右边是连接方式徽标）：像用户一样先划过去再点，不然点在徽标上。
+    final delete = find.descendant(
+        of: key('terminal-tab-${tmuxTab.id}'),
+        matching: find.byTooltip('关闭标签“${tmuxTab.host.label}”'));
+    await tester.ensureVisible(delete);
+    await settle(tester);
+    await tester.tap(delete);
     await settle(tester, 600);
     final dialog = texts(find.byType(AlertDialog));
     report('close.dialog', dialog);
@@ -154,10 +168,15 @@ void main() {
       await settle(tester, 200);
     }
     report('after.close.clients', await clients());
-    report('after.close.session', await monitor.run("tmux display-message -p -t r42 '#{session_id} #{session_created}'"));
+    report(
+        'after.close.session',
+        await monitor.run(
+            "tmux display-message -p -t r42 '#{session_id} #{session_created}'"));
     report('input.bytes', await monitor.run('wc -c < /tmp/r42-input'));
     expect(await clients(), isEmpty);
-    expect(await monitor.run("tmux display-message -p -t r42 '#{session_id} #{session_created}'"),
+    expect(
+        await monitor.run(
+            "tmux display-message -p -t r42 '#{session_id} #{session_created}'"),
         sessionId);
     expect(await monitor.run('wc -c < /tmp/r42-input'), '0');
     expect(controller.state.sessions.single, same(shell));
