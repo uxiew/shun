@@ -193,6 +193,32 @@ void main() {
       await frames(tester);
     }
 
+    // 保存都要等写进加密存储。点完「保存」「导入」马上读保险库可能还是旧的：10-25 在 API 30 上
+    // 撞到过新建的代理读不到（`Bad state: No element`）、改了端口还连旧端口、导入的主机一台都没有。
+    // 按看得见的状态等（编辑页关掉、保险库里有了），等不到就把屏幕上的字打出来，分得清是没等够还是报了错。
+    Future<void> until(String what, Future<bool> Function() done) async {
+      final deadline = DateTime.now().add(const Duration(seconds: 10));
+      while (!await done()) {
+        if (DateTime.now().isAfter(deadline)) {
+          final texts = tester
+              .widgetList<Text>(find.byType(Text))
+              .map((t) => t.data ?? t.textSpan?.toPlainText() ?? '')
+              .where((t) => t.trim().isNotEmpty)
+              .join(' | ');
+          fail('Timed out: $what. On screen: $texts');
+        }
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+    }
+
+    // 故意保存失败的地方别用：它等编辑页关掉。
+    Future<void> saveProxy() async {
+      await tap(tester, key('proxy-save'));
+      await hideKeyboard(tester);
+      await until('proxy editor closes after saving',
+          () async => key('proxy-save').evaluate().isEmpty);
+    }
+
     Future<void> saveHost() async {
       await hideKeyboard(tester);
       await tap(tester, find.byKey(const ValueKey('host-editor-save')));
@@ -269,8 +295,7 @@ void main() {
       }
       debugPrint(
           'R40 KEYBOARD=visible width=${tester.view.physicalSize.width / tester.view.devicePixelRatio}');
-      await tap(tester, key('proxy-save'));
-      await hideKeyboard(tester);
+      await saveProxy();
       final profile = (await controller.ready()).proxyProfiles.single;
       expect(profile.config!.password == inline['password'], isTrue);
       expect(profile.data['config']['desktop-extra'], {'preserve': true});
@@ -335,8 +360,7 @@ void main() {
       expect(
           (await controller.ready()).proxyProfiles.single.config!.port, 21080);
       await type(tester, key('proxy-port'), '21081');
-      await tap(tester, key('proxy-save'));
-      await hideKeyboard(tester);
+      await saveProxy();
       final beforeFailure = dials.length;
       await expectLater(
           connect('peer', [], 21081), throwsA(isA<RouteHopException>()));
@@ -345,8 +369,7 @@ void main() {
       // 21082 is a second adb entrance to the same authenticated fixture.
       await tap(tester, key('proxy-edit-${profile.id}'));
       await type(tester, key('proxy-port'), '21082');
-      await tap(tester, key('proxy-save'));
-      await hideKeyboard(tester);
+      await saveProxy();
       await screenshot(tester, 'proxy-manager');
       await back(tester);
       await frames(tester);
@@ -384,6 +407,14 @@ void main() {
       expect(editor().draft.jumpHostIds, ['edge', 'hop2']);
       await screenshot(tester, 'catalog-chain');
       await tap(tester, key('catalog-import-confirm'));
+      await until(
+          'imported hosts saved',
+          () async =>
+              (await controller.ready())
+                  .hosts
+                  .where((h) => h.label.startsWith('catalog-'))
+                  .length >=
+              2);
       final imported = (await controller.ready())
           .hosts
           .where((h) => h.label.startsWith('catalog-'))
@@ -417,8 +448,10 @@ void main() {
       await tap(tester, key('route-confirm-jumps'));
       await screenshot(tester, 'jump-route-confirm');
       // The editor's bottom bar also has 取消 since R41; cancel the dialog itself.
-      await tap(tester,
-          find.descendant(of: find.byType(AlertDialog), matching: find.text('取消')));
+      await tap(
+          tester,
+          find.descendant(
+              of: find.byType(AlertDialog), matching: find.text('取消')));
       expect(editor().draft.confirmation, isNull);
       expect(editor().draft.jumpHostIds, ['nested-c']);
       await tap(tester, key('route-confirm-jumps'));
@@ -550,8 +583,7 @@ void main() {
       await tap(tester, find.text('HTTP').last);
       await type(tester, key('proxy-host'), '127.0.0.1');
       await type(tester, key('proxy-port'), '21081');
-      await tap(tester, key('proxy-save'));
-      await hideKeyboard(tester);
+      await saveProxy();
       expect((await controller.ready()).proxyProfiles.single.config!.type,
           ProxyType.http);
       await screenshot(tester, 'english-manager');
