@@ -344,6 +344,9 @@ Future<void> _lockScenario(
   r22('connect-calls-while-locked', _service.total - calls);
   r22('hold', tabOf(controller, session.id)?.restoreHold?.message);
   await action('unlock-foreground');
+  // 先出帧再等：集成测试只在 pump 时出帧，解锁后 Android 要等窗口重新画出来才给焦点。
+  // 不出帧的话 App 一直停在 inactive、不算回到前台，也就不恢复；API 30 上就是这样等满 60 秒判失败的。
+  await frames(tester, 1000);
   final back = await until(
       () => tabOf(controller, session.id)?.connected == true,
       timeout: const Duration(seconds: 60));
