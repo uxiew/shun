@@ -36,6 +36,28 @@ const _every = int.fromEnvironment('LIFE06_EVERY', defaultValue: 50);
 /// 那两次量的「第 100 → 500 次 +15 MiB」中间夹着一次这个调用。0 = 不调。
 const _profileAt = int.fromEnvironment('LIFE06_PROFILE_AT');
 
+/// 查 Dart 堆：第一个和最后一个采样点各取一次分配档案（先 GC），打出实例数、字节数涨得最多的类。
+/// 这一轮的 Native Heap 读数不算：取档案本身会留下一大块原生内存。
+const _classDiff = bool.fromEnvironment('LIFE06_CLASSDIFF');
+
+/// 每轮都连同一台主机（同一个 ID），和用户反复开关同一台机器一样。不开时每轮是新主机：
+/// 按主机记的东西（连接记录每台最多 200 条、一共 1000 条）会一直涨到上限，算进「每轮增长」。
+const _sameHost = bool.fromEnvironment('LIFE06_SAME_HOST');
+
+/// 一开始就关掉 Dart 时间线（setVMTimelineFlags 不记任何流）。debug / profile 包的时间线记录器给每个异步事件 ID
+/// 存一条元数据、不删，引擎每请求一帧就发一个新 ID：原生内存按帧涨，和开关标签无关。
+/// 发布版引擎里这一步是空函数（10-25 看过反汇编），关掉它量出来的更接近发布包。
+const _timelineOff = bool.fromEnvironment('LIFE06_TIMELINE_OFF');
+
+/// 和 LIFE06_CLASSDIFF 一起用：这几个类（逗号分隔，写法同「grew=」那一行的 类名@库；
+/// auto = 涨得最多的 6 个）打引用链。
+/// 输出里每一节是「类.字段」：这个对象放在下一节的哪个字段里（[] 列表、{} Map），最后是 GC 根。
+const _retainers = String.fromEnvironment('LIFE06_RETAINERS');
+
+/// 类快照的基线在第几轮取（0 = 第一个采样点）。要等有上限的历史（连接记录每台 200 条、服务器监控 60 条）封顶以后再取，
+/// 不然它们还在长的那段会算成增长。
+const _classDiffAt = int.fromEnvironment('LIFE06_CLASSDIFF_AT');
+
 void report(String key, Object? value) => debugPrint('LIFE06 $key=$value');
 
 Future<void> settle(WidgetTester tester, [int ms = 600]) async {
@@ -80,15 +102,16 @@ class _Vm {
         socket, replies, developer.Service.getIsolateId(Isolate.current)!);
   }
 
-  Future<Map<String, dynamic>> call(
-      String method, Map<String, dynamic> params) async {
+  /// [vmLevel]：整个 VM 的方法（setVMTimelineFlags 这类），带上 isolateId 会报 Invalid params。
+  Future<Map<String, dynamic>> call(String method, Map<String, dynamic> params,
+      {bool vmLevel = false}) async {
     final my = '${++_id}';
     final reply = _replies.firstWhere((r) => r['id'] == my);
     _ws.add(jsonEncode({
       'jsonrpc': '2.0',
       'id': my,
       'method': method,
-      'params': {'isolateId': isolateId, ...params},
+      'params': {if (!vmLevel) 'isolateId': isolateId, ...params},
     }));
     final result = await reply;
     if (result['error'] != null) {
@@ -124,6 +147,12 @@ void main() {
     debugPrint('LIFE06 VMSERVICE=${info.serverWebSocketUri}');
     final vm = await _Vm.connect();
     addTearDown(vm.close);
+    if (_timelineOff) {
+      await vm.call('setVMTimelineFlags', {'recordedStreams': <String>[]},
+          vmLevel: true);
+      final flags = await vm.call('getVMTimelineFlags', {}, vmLevel: true);
+      report('timeline', flags['recordedStreams']);
+    }
 
     Future<void> host(String verb, String name) async {
       final done = File('$private/life06-$name-done');
@@ -153,8 +182,8 @@ void main() {
       final before = controller.state.sessions.length;
       final connected = controller.connect(
         HostProfile({
-          'id': 'life06-${++tabs}',
-          'label': 'life06-$tabs',
+          'id': _sameHost ? 'life06-cycle' : 'life06-${++tabs}',
+          'label': _sameHost ? 'life06-cycle' : 'life06-$tabs',
           'hostname': '127.0.0.1',
           'port': ssh!['port'],
           'username': ssh['user'],
@@ -206,8 +235,84 @@ void main() {
     await controller.state.sessions.last.sshClient!.run(
         r"""awk 'BEGIN{for(i=0;i<3000;i++) printf "\033[3%dm第%05d行 中文输出 🙂 abc\033[0m\n", i%8, i}' > /tmp/life06.txt""");
     report('mode', _mode);
-    report('cycles', '$_cycles every=$_every profileAt=$_profileAt');
+    report('cycles',
+        '$_cycles every=$_every profileAt=$_profileAt sameHost=$_sameHost timelineOff=$_timelineOff');
 
+    final classIds = <String, String>{};
+    Future<Map<String, (int, int)>> classes({bool keepIds = false}) async {
+      final profile = await vm.call('getAllocationProfile', {'gc': true});
+      final out = <String, (int, int)>{};
+      for (final member
+          in (profile['members'] as List).cast<Map<String, dynamic>>()) {
+        final cls = member['class'] as Map<String, dynamic>;
+        final name = '${cls['name']}@${(cls['library'] as Map?)?['uri'] ?? ''}';
+        final count = member['instancesCurrent'] as int? ?? 0;
+        final bytes = member['bytesCurrent'] as int? ?? 0;
+        if (count > 0) {
+          final (c0, b0) = out[name] ?? (0, 0);
+          out[name] = (c0 + count, b0 + bytes);
+          if (keepIds) classIds[name] = cls['id'] as String;
+        }
+      }
+      return out;
+    }
+
+    // 涨得多的类各挑一批实例问「谁拿着它」，按引用链的样子归堆：新旧实例混在一起挑不出来，
+    // 但谁在攻一个大列表，它的链会在样本里反复出现。
+    Future<void> reportRetainers(Iterable<String> names) async {
+      for (final name in names) {
+        final id = classIds[name];
+        if (id == null) continue;
+        final set =
+            await vm.call('getInstances', {'objectId': id, 'limit': 4000});
+        final instances =
+            (set['instances'] as List).cast<Map<String, dynamic>>();
+        final paths = <String, int>{};
+        final step = instances.length <= 60 ? 1 : instances.length ~/ 60;
+        for (var i = 0; i < instances.length; i += step) {
+          final path = await vm.call('getRetainingPath',
+              {'targetId': instances[i]['id'], 'limit': 10});
+          // 取的时候已经被回收了：返回的是 Sentinel，没有 elements。
+          final elements = (path['elements'] as List? ?? const [])
+              .cast<Map<String, dynamic>>();
+          final key = [
+            for (final e in elements.skip(1))
+              '${(e['value'] as Map)['class']?['name'] ?? (e['value'] as Map)['type']}'
+                  '${e['parentField'] is String ? '.${e['parentField']}' : e['parentListIndex'] != null ? '[]' : e['parentMapKey'] != null ? '{}' : ''}',
+            path['gcRootType'] ?? '',
+          ].join(' < ');
+          paths[key] = (paths[key] ?? 0) + 1;
+        }
+        report('retainers',
+            '$name total=${set['totalCount']} sampled=${paths.values.fold(0, (a, b) => a + b)}');
+        for (final MapEntry(:key, :value) in (paths.entries.toList()
+              ..sort((a, b) => b.value.compareTo(a.value)))
+            .take(6)) {
+          report('retainedBy', '$value x $key');
+        }
+      }
+    }
+
+    List<(String, int, int)> reportGrowth(
+        Map<String, (int, int)> before, Map<String, (int, int)> after) {
+      final grown = [
+        for (final MapEntry(:key, :value) in after.entries)
+          (
+            key,
+            value.$1 - (before[key]?.$1 ?? 0),
+            value.$2 - (before[key]?.$2 ?? 0)
+          ),
+      ]..sort((a, b) => b.$3.compareTo(a.$3));
+      for (final (name, count, bytes) in grown.take(25)) {
+        report('grew', '$bytes B, $count instances: $name');
+      }
+      return grown;
+    }
+
+    // 热身的那一段（JIT 编译、缓存长到台阶）不算：第 LIFE06_CLASSDIFF_AT 轮（默认第一个采样点）才取第一份。
+    // 第一份压成一个 JSON 字符串存着：留着 Map 的话，它自己的几千个类名字符串和 record 会被
+    // 第二份算成「涨了」（10-25 第一次这么量，涨得最多的三个类大半是它）。
+    String? firstClasses;
     await sample('c0');
     final watch = Stopwatch()..start();
     for (var c = 1; c <= _cycles; c++) {
@@ -215,6 +320,12 @@ void main() {
       if (c % _every == 0) {
         report('c$c.elapsedS', watch.elapsed.inSeconds);
         await sample('c$c');
+        if (_classDiff && c == (_classDiffAt > 0 ? _classDiffAt : _every)) {
+          firstClasses = jsonEncode({
+            for (final MapEntry(:key, :value) in (await classes()).entries)
+              key: [value.$1, value.$2],
+          });
+        }
         if (c == _profileAt) {
           final profile = await vm.call('getAllocationProfile', {'gc': true});
           report('c$c.allocationProfileClasses',
@@ -225,6 +336,19 @@ void main() {
       }
     }
     report('sessionsLeft', controller.state.sessions.length);
+    if (firstClasses != null) {
+      // 先取第二份、再解码第一份：反过来的话解码出来的几千个 record 和字符串又被算成「涨了」。
+      final after = await classes(keepIds: true);
+      final before = {
+        for (final MapEntry(:key, :value)
+            in (jsonDecode(firstClasses) as Map<String, dynamic>).entries)
+          key: ((value as List)[0] as int, value[1] as int),
+      };
+      final grown = reportGrowth(before, after);
+      await reportRetainers(_retainers == 'auto'
+          ? grown.where((g) => g.$2 > 0).take(6).map((g) => g.$1)
+          : _retainers.split(',').where((n) => n.isNotEmpty));
+    }
     for (var i = controller.state.sessions.length - 1; i >= 0; i--) {
       await controller.close(i);
     }

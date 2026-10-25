@@ -57,6 +57,15 @@ R25 / UX04（从常见错误进诊断、看实际引擎和路线）：同样先�
 
 SEC12（崩溃、通知、Intent、最近任务、整机日志里有没有密码、私钥、按键、终端原文）：同样先起测试环境、开好模拟器、拿锁，再 `SHUN_R39_AVD=shun-r39-a30 python3 tool/sec12-device.py native`（再跑一遍 `java`），每遍约 1.5 分钟。`native` 用 `run-as … kill -SEGV` 弄崩（项目模拟器是 Play 镜像，没有 root），`java` 用 `am crash`。脚本每轮随机生成标记，跑完在两份 logcat、`dumpsys dropbox`（崩溃记录和 tombstone 全文）、通知、Activity、最近任务、App 私有文件里搜，只打名字和个数；还往 logcat 写一个对照标记，搜不到就算失败（说明搜索本身不灵）。两个坑：不加 `--no-uninstall` 的话 `flutter test` 一结束就卸掉 App，私有目录跟着没了，脚本打包时报 `truncated header`；`app_flutter/flutter_assets/kernel_blob.bin` 是调试包自己的代码，测试经 `--dart-define` 拿到的标记和登录会被编进去，脚本不搜这个目录，否则全是误报。结果只看 `plan/v3/evidence/R25.md` 第六部分。
 
+LIFE06（反复开关标签后原生内存涨不涨）：同样先起测试环境、开好模拟器、拿锁。最接近发布包的量法是 `SHUN_R39_AVD=shun-r39-a30 python3 tool/life06-device.py view --profile --same-host --timeline-off --cycles 400 --every 100`，约 10 分钟（第一次要编 profile 包，再加约 7 分钟）；`view` 换成 `hidden` 就是只开关 SSH、不显示终端。每个采样点读三次 Native Heap（不 GC、Dart GC 后、再加 Java GC 后），按第一个采样点之后的斜率算每次涨多少，打在 `LIFE06HOST slopes` 那一行。想知道涨的是谁：加 `--heapprofd 100:400 --flutter-symbols <没裁符号的 libflutter.so>`（Android 10 以上；从哪下、怎么核对 Build ID 写在 `tool/heapprofd-summary.py` 开头），按库和调用方列出这几轮里分配了、没释放的；Dart 对象这层用 `--classdiff`（再加 `--retainers '类名@库,…'` 打引用链）。踩过的坑：
+
+- 量之前别调 `getAllocationProfile`（DevTools 内存页、R20 的 `_heapAfterGc` 都会调）：调一次 Native Heap 多出 15–19 MB、不还。R20 / R22 记的「每次约 40 KiB」就是第 100 轮读数在它之前、第 500 轮在它之后量出来的。`--classdiff` 也要调它，那一轮的 Native Heap 读数不算。
+- debug / profile 包里 Dart 时间线的记录器给每个异步事件 ID 存一条、不删，引擎每请求一帧发一个新 ID，所以原生内存按帧涨，和 App 无关；发布版引擎里这一步是空函数。不加 `--timeline-off` 量到的大头是它。
+- debug 包的读数 GC 后也会上下跳约 2 MB（profile 包不跳，多半是 JIT），分不出每次 1 KiB 这个量级，要用 `--profile`。`--profile` 走 `flutter drive --no-dds`（不加 `--no-dds`，测试连自己的 VM service 报 `Connection refused`），包名 `top.xdwa.shun.profile`。
+- 不加 `--same-host` 时每轮是一台新主机，连接记录会一直涨到一共 1000 条的上限，Dart 堆读数跟着涨。
+
+结果只看 `plan/v3/evidence/R22.md`「LIFE06 复查」。
+
 R40 的 `lib/presentation/widgets/connection_route_editor.dart` 是共用链式编辑器，接收页面已有 `RoutePlan`，通过 `describeRoute` 显示已验证的节点；无有效计划时只显示草稿和错误。`connection_route_draft.dart` 管理选择及兼容字段，保留未修正的失效引用和旧内联配置；不读仓库、不执行网络请求。两页负责预览和提交，只有 `resolveRoutePlan` 决定路线规则。`domain/jump_route_choices.dart` 是 RoutePlan 库的一部分，集中做有界展开、首跳代理候选及确认复核；`jump_route_choice_dialog.dart` 只展示方案并返回明确选择。确认前、来源变化后和后续跳板自带代理时均拒绝执行。
 
 R40 确认信息保存在原 `hostChain` 的 `shunRouteConfirmation` 扩展中：只有版本、顺序、来源的非秘密路线信息和入口选择，没有密码或私钥。`hostIds`、`proxyProfileId` / `proxyConfig` 仍是完整平面路线，不迁移或修改其他主机；缺失/损坏/失效确认一律拒绝。旧客户端的确认语义未实测，不以 JSON 字段兼容冒充跨端执行兼容。
