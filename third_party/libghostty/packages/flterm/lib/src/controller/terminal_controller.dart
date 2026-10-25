@@ -472,6 +472,15 @@ sealed class TerminalController implements Listenable {
   /// ignored; otherwise virtual modifiers are cleared after output is sent.
   void sendText(String text);
 
+  /// shun: Colors the terminal reports and uses while no [TerminalView] is
+  /// attached: answers to OSC 10/11/12 and OSC 4 queries, and the light/dark
+  /// preference programs ask for. Ignored while a view is attached; the view's
+  /// theme replaces these colors when it attaches.
+  ///
+  /// 后台标签没挂过视图时，控制器只有建好时设的默认深色主题，浅色界面下远端问背景色会拿到深色、
+  /// 按深色配色（vim 的 background=dark 之类）。App 用它把当前主题先交给还没显示的终端。
+  void setDetachedTheme(TerminalTheme theme);
+
   /// Encodes the current terminal state as libghostty snapshot bytes.
   ///
   /// Returns a newly allocated list that remains valid independently of this

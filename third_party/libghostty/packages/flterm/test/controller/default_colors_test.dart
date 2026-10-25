@@ -55,4 +55,30 @@ void main() {
     expect(ask('\x1b]11;?\x07'), '\x1b]11;rgb:fafa/fafa/fafa\x07');
     expect(ask('\x1b]10;?\x07'), '\x1b]10;rgb:3838/3a3a/4242\x07');
   });
+
+  TerminalTheme light() => TerminalTheme(
+        palette: ColorPalette(
+          ansiColors: TerminalTheme.light().palette.ansiColors,
+          background: const Color(0xFFFAFAFA),
+          foreground: const Color(0xFF383A42),
+        ),
+      );
+
+  // shun: 浅色界面下的后台标签，挂视图之前问背景色也要拿到浅色。
+  test('no view yet: setDetachedTheme replaces the dark defaults', () {
+    controller.setDetachedTheme(light());
+    expect(ask('\x1b]11;?\x07'), '\x1b]11;rgb:fafa/fafa/fafa\x07');
+    expect(ask('\x1b]10;?\x07'), '\x1b]10;rgb:3838/3a3a/4242\x07');
+  });
+
+  test('setDetachedTheme does nothing while a view is attached', () {
+    final attachment = ViewAttachment(controller);
+    attachment.applyTheme(TerminalTheme.dark(), initial: true);
+    controller.setDetachedTheme(light());
+    expect(ask('\x1b]11;?\x07'), '\x1b]11;rgb:1d1d/1f1f/2121\x07');
+    attachment.dispose();
+    // 视图卸下以后又算「没挂视图」。
+    controller.setDetachedTheme(light());
+    expect(ask('\x1b]11;?\x07'), '\x1b]11;rgb:fafa/fafa/fafa\x07');
+  });
 }
