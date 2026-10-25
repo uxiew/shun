@@ -6,7 +6,10 @@
   它和 `example/` 是 Apache-2.0（各自目录里的 `LICENSE`）；测试插件 `fixture-*`、`mosh/` 和仓库其余部分仍是 GPL-3.0-or-later。
 - `example/`：**插件样例**（Hello 终端，X12）。独立的 Gradle 工程，自带 wrapper，不在下面的测试工程里、`build-fixtures.sh` 不构建它；
   用作者自己的密钥签名（本机测试用的放在仓库外 `../../.toolchain/plugin-keys/example-author.jks`，配置在同目录 `example-signing.properties`；
-  10-13 搬机时这两个没带过来，这台上要先照 [作者文档第 2 步](../docs/plugin-authors/README.md) 生成一把，不然构建报「缺签名配置」）。
+  10-13 搬机时旧的那把没带过来，10-25 重新生成了一把，`CN=shun example author`，证书 `13fcc00a…c024`）。
+  给这台的调试宿主编（X12 设备测试用），不改工程里的 `gradle.properties`：
+  `cd example && ./gradlew assembleRelease -PshunHostSha256=67111bde75fa3a641411aa5659fde8ff3485bfaf9d60bb38be219f02bdf12589 -PshunHostPackage=top.xdwa.shun.debug -PsigningProperties="$(cd ../../../.toolchain/plugin-keys && pwd)/example-signing.properties"`，
+  首次先 `cp ../android/local.properties example/`，产物在 `example/app/build/outputs/apk/release/app-release.apk`。
 - `fixture-echo/`、`fixture-rogue/`：X02–X04 的测试 APK。**只用于测试**：echo 连上不代表 Mosh 或任何真实 provider 可用。
 - `fixture-fakeuu/`、`fixture-fakerustdesk/`：X06、X07 的「假 UU 远程」「假 RustDesk」，扮演外部远控 App 接请求。它们不是真的，和它们走通不代表真实 App 能用。
 - `mosh/`：**真实插件**，不是测试用的。Mosh 运行时（官方 mosh-client 交叉编译，X08）。要先编运行时再构建，见 `mosh/README.md`；
