@@ -125,7 +125,8 @@ flutter test test/integration_ssh_fixture_test.dart
   - 硬件键和快捷键栏修饰键（`integration_test/r18_keys_test.dart`）：要模拟器有硬件键盘设备。关掉模拟器，把
     `../.toolchain/avd/shun-r39-a30.avd/config.ini` 的 `hw.keyboard = no` 改成 `yes`，重新起，再
     `tool/ime-replay.sh emulator-5580 "" integration_test/r18_keys_test.dart`；**测完改回 `no` 再重起**，
-    不然软键盘默认不弹，别的设备测试会等不到键盘。
+    不然软键盘默认不弹，别的设备测试会等不到键盘。不要 root：脚本写不了输入设备时会说「硬件键改用 hid 临时造的 USB 键盘」，
+    结果一样；要是只看到一串 `sendevent: … Permission denied`，是脚本是旧的。
   - 真人在真机上用自己的输入法打拼音、说话（`integration_test/r18_voice_device_test.dart`，TER02）：要所有者当次同意、本人拿着手机。
     `tool/r18-real-device.sh xdwmbp /opt/homebrew/share/android-commandlinetools/platform-tools/adb <手机序列号>`，
     约 4 分钟（构建安装 1 分多钟，6 项每项半分钟）。手机上出现「点一下这里叫出键盘」后照屏幕说明做，每项按一次回车。
