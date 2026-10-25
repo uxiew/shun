@@ -278,7 +278,7 @@
       "action": "导出诊断、触发认证失败与崩溃；检查日志/通知/Intent/截图模板。",
       "expected": "无代理密码、私钥、按键和完整终端原文；导出前可预览；没有自动上传。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
         "evidence/R11.md",
