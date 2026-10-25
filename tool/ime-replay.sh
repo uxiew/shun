@@ -14,7 +14,9 @@
 # 测试打印 "R18 READY=<名字>" 时这里替它按：名字以 hw: 开头就按硬件键（要 AVD 的 hw.keyboard = yes，见 docs/dev/README.md），
 # 否则广播给回放输入法。硬件键能 root 就 sendevent 往模拟器的键盘写扫描码；带 Play 的镜像 root 不了、SELinux 不让 shell 写输入设备，
 # 就用系统自带的 hid 命令临时造一个 USB 键盘去按（shell 在 uhid 组里），两条路都经过内核输入设备和系统的键位表。
-# 模拟器控制台的 `adb emu event send` 回 OK 但不送进系统（10-25 在 API 30 上试过），别用。
+# 模拟器控制台的 `adb emu event send` 回 OK 但不送进系统（10-25 在 API 30 上试过），别用：镜像开着 VirtioInput 时，
+# 模拟器把按键交给触摸屏设备，那个设备不认这些键，内核直接丢掉（模拟器源码 virtio-input-multi-touch.c）。
+# sendevent 也不是权限位的问题：sepolicy 里写死了 `neverallow shell input_device:chr_file` 写。
 #
 # 会临时把模拟器的默认输入法换成回放输入法，结束（含失败、Ctrl-C）后换回原来的输入法并卸载它。
 # 只在模拟器上用：真机上换默认输入法会动到所有者的输入法设置。
