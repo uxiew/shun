@@ -12,6 +12,47 @@ import '../localization/localized_widgets.dart';
 import '../widgets/terminal_link_sheet.dart';
 import 'terminal_view.dart';
 
+/// 终端跟着 App 主题用的颜色。视图里再按选项配字号、透明度；没挂视图的终端用它回答远端的颜色查询。
+TerminalTheme terminalColorsFor(ColorScheme scheme) => TerminalTheme(
+      palette: ColorPalette(
+        ansiColors: scheme.brightness == Brightness.light
+            ? terminalAnsiColorsLight
+            : terminalAnsiColors,
+        background: scheme.surface,
+        foreground: scheme.onSurface,
+      ),
+      cursor: CursorTheme(color: DynamicColor.fixed(scheme.primary)),
+      selection: SelectionTheme(
+        background: DynamicColor.fixed(scheme.primary.withValues(alpha: 0.35)),
+      ),
+      fontFamily: 'monospace',
+      minimumContrast: terminalMinimumContrast,
+    );
+
+/// 把 App 当前主题交给还没显示过的终端（后台标签等），放在 `MaterialApp.builder` 里，主题一变就跟着推。
+/// 不放的话它们在挂视图之前一直按深色回答，浅色主题下远端的 vim 会选深色配色。
+class GhosttyDetachedThemeSync extends StatefulWidget {
+  const GhosttyDetachedThemeSync({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  State<GhosttyDetachedThemeSync> createState() =>
+      _GhosttyDetachedThemeSyncState();
+}
+
+class _GhosttyDetachedThemeSyncState extends State<GhosttyDetachedThemeSync> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    GhosttyTerminalAdapter.useDetachedTheme(
+        terminalColorsFor(Theme.of(context).colorScheme));
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
+}
+
 /// Ghostty 引擎的终端视图（R17）。除了测试，App 里只有这个文件和适配器认识 flterm。
 ///
 /// 视图只借用终端：挂载时占用显示权，销毁时释放（GST02）。
@@ -188,24 +229,10 @@ class _GhosttyTerminalViewState extends State<GhosttyTerminalView> {
       return const SizedBox.expand();
     }
     _showingEngine = true;
-    final scheme = Theme.of(context).colorScheme;
     final options = widget.options;
     final interactive = options.interactive;
-    final theme = TerminalTheme(
-      palette: ColorPalette(
-        ansiColors: scheme.brightness == Brightness.light
-            ? terminalAnsiColorsLight
-            : terminalAnsiColors,
-        background: scheme.surface,
-        foreground: scheme.onSurface,
-      ),
-      cursor: CursorTheme(color: DynamicColor.fixed(scheme.primary)),
-      selection: SelectionTheme(
-        background: DynamicColor.fixed(scheme.primary.withValues(alpha: 0.35)),
-      ),
+    final theme = terminalColorsFor(Theme.of(context).colorScheme).copyWith(
       fontSize: options.fontSize,
-      fontFamily: 'monospace',
-      minimumContrast: terminalMinimumContrast,
       backgroundOpacity: options.transparentBackground ? 0 : 1,
     );
     return Stack(

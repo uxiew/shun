@@ -13,6 +13,7 @@ import 'application/session_controller.dart';
 import 'infrastructure/ssh/connection_platform_service.dart';
 import 'presentation/home_shell.dart';
 import 'presentation/localization/localized_widgets.dart';
+import 'presentation/terminal/ghostty_terminal_view.dart';
 import 'presentation/theme.dart';
 
 class ShunApp extends ConsumerStatefulWidget {
@@ -100,6 +101,9 @@ class _ShunAppState extends ConsumerState<ShunApp> with WidgetsBindingObserver {
         GlobalWidgetsLocalizations.delegate,
         GlobalCupertinoLocalizations.delegate,
       ],
+      // 后台标签的终端还没显示过时，也按现在的主题回答远端「背景是什么颜色」。
+      builder: (context, child) =>
+          GhosttyDetachedThemeSync(child: child ?? const SizedBox.shrink()),
       home: const HomeShell(),
     );
   }

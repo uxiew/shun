@@ -75,6 +75,30 @@ final class GhosttyTerminalAdapter extends TerminalSessionAdapterBase {
       ..onResize = _onResize
       ..addListener(_onControllerChanged);
     input.addListener(_syncModifiers);
+    if (_detachedTheme case final theme?) controller.setDetachedTheme(theme);
+    _live
+      ..removeWhere((ref) => ref.target?._controllerDisposed ?? true)
+      ..add(WeakReference(this));
+  }
+
+  /// 还没挂上视图的终端（后台标签、刚建好还没切过去的）按哪套颜色回答远端的颜色查询（OSC 10/11/12）、
+  /// 报深色还是浅色。由 Ghostty 视图那边按 App 当前主题设（`GhosttyDetachedThemeSync`）；没设过时是 flterm 默认的深色。
+  /// 不设的话，浅色界面下后台标签里开的 vim 问背景色拿到深色，按深色配色画，切过去才发现。
+  static TerminalTheme? _detachedTheme;
+
+  /// 活着的适配器，主题变了要通知它们。只拿弱引用：这张表不能把关掉的标签留住（R20 leak 场景数它）。
+  static final _live = <WeakReference<GhosttyTerminalAdapter>>[];
+
+  /// App 主题变了：记下来给之后建的终端，并交给现在没挂视图的。挂着视图的由视图自己换主题，这里不碰。
+  static void useDetachedTheme(TerminalTheme theme) {
+    if (theme == _detachedTheme) return;
+    _detachedTheme = theme;
+    _live.removeWhere((ref) {
+      final adapter = ref.target;
+      if (adapter == null || adapter._controllerDisposed) return true;
+      adapter.controller.setDetachedTheme(theme);
+      return false;
+    });
   }
 
   /// 只给 Ghostty 专用视图（`presentation/terminal/ghostty_terminal_view.dart`）和测试用。
