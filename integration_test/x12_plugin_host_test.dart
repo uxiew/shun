@@ -9,7 +9,7 @@
 //   until adb -s emulator-5580 shell pm grant top.xdwa.shun.debug android.permission.POST_NOTIFICATIONS 2>/dev/null; do sleep 0.3; done
 // 输出以 "X12 " 开头的行作为证据。
 //
-// 走的路：主机编辑器（选「插件」、选插件、保存）→ 主机列表点它连接 → 欢迎语、命令回显、转屏改尺寸 →
+// 走的路：「添加连接」→ 类型页选这个插件 → 主机编辑器（填名称、保存）→ 主机列表点它连接 → 欢迎语、命令回显、转屏改尺寸 →
 // 按键面板、大输入框、粘贴预览 → 标签开着时到插件页点「连接测试」，标签不受影响 → 关标签（确认框写清楚）→
 // 插件停用后点条目 → 插件卸载后点条目。
 import 'dart:async';
@@ -97,16 +97,28 @@ void main() {
         .map((t) => t.data ?? t.textSpan?.toPlainText() ?? '')
         .join('\n');
 
-    // ---- 1. 主机编辑器：选「插件」、选插件、保存 ----
+    // ---- 1. 「添加连接」→ 类型页点这个插件 → 主机编辑器（插件已选好）→ 保存 ----
+    // 10-14（R39）起新建先进「选择连接类型」，首页不再有「添加主机」，编辑器里也不用再切协议、选插件。
     container.read(homeTabProvider.notifier).state = 0;
     await settle(tester);
-    await tap(find.text('添加主机').last);
-    await tap(find.text('插件'));
+    await tap(find.byTooltip('添加连接').first);
+    final typeTile = find.byKey(const ValueKey('connection-type-$pluginName'));
+    await waitFor(
+        tester,
+        () =>
+            typeTile.evaluate().isNotEmpty &&
+            tester.widget<ListTile>(typeTile).enabled,
+        what: '类型页列出可用的插件');
+    await tap(typeTile);
     report('editor.hostnameField',
         find.widgetWithText(TextFormField, '主机名 / IP').evaluate().length);
+    report(
+        'editor.plugin',
+        tester
+            .widget<DropdownButtonFormField<String>>(
+                find.byKey(const ValueKey('plugin-picker')))
+            .initialValue);
     await tester.enterText(find.widgetWithText(TextFormField, '名称'), hostLabel);
-    await tap(find.byKey(const ValueKey('plugin-picker')));
-    await tap(find.textContaining(pluginName).last);
     report('editor.note',
         find.byKey(const ValueKey('plugin-network-note')).evaluate().length);
     await tap(find.text('保存'));
