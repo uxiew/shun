@@ -321,9 +321,15 @@ restore() {
   host "seeded: $(grep -m1 'R22 SEEDED=' "$LOG" | sed 's/.*SEEDED=//')"
   host "tmux clients before: $(docker exec -u fixture "$EDGE" tmux list-clients -t r22 2>&1 | wc -l | tr -d ' ')"
   lifecycle_facts "seeded"
-  local before
+  local before kills="stop-app force-stop" installed=0
+  # 「任务管理器」里的停止（`cmd activity stop-app`）Android 14 才有，更早的系统用户也点不到，只测强行停止。
+  # 不判断的话 API 30 上报 `Unknown command: stop-app`，脚本就停在这儿。
+  if ! adb shell cmd activity help 2>/dev/null | grep -q stop-app; then
+    kills=force-stop
+    host "stop-app: NOT_RUN（Android $(adb shell getprop ro.build.version.release | tr -d '\r') 没有）"
+  fi
   before=$(accepted)
-  for kill in stop-app force-stop; do
+  for kill in $kills; do
     if [[ $kill == stop-app ]]; then
       adb shell cmd activity stop-app $PKG   # 「任务管理器」里的停止：杀进程、不回调
     else
@@ -335,7 +341,8 @@ restore() {
     adb shell svc wifi disable; sleep 4; wifi_on; sleep 16
     host "$kill +20s with network change: pid=$(adb shell pidof $PKG | tr -d '\r') edge-accepted-delta=$(( $(accepted) - before ))" \
       "tmux clients=$(docker exec -u fixture "$EDGE" tmux list-clients -t r22 2>/dev/null | wc -l | tr -d ' ')"
-    if [[ $kill == stop-app ]]; then
+    if [[ $installed == 0 ]]; then
+      installed=1
       adb install -r "$OUT/app-debug.apk" >/dev/null
       host "installed the real debug app over the test build (data kept: $(adb shell run-as $PKG ls shared_prefs 2>/dev/null | tr '\n' ' '))"
     fi
