@@ -468,39 +468,47 @@ class _HostEditorState extends ConsumerState<HostEditor> {
 
   /// 首选连接方式放在路线后面：先填好怎么连到这台机器，再选用什么协议（R41）。
   List<Widget> _protocolSection() {
-    final small = Theme.of(context).textTheme.bodySmall;
     final sshLike =
         protocol == HostProtocol.ssh || protocol == HostProtocol.mosh;
+    // 编辑已有主机时四个选项：手机竖屏每格不到 100dp，带图标和选中的对勾时「Telnet」会断成两行
+    // （模拟器 1080×2340 上看到的）。四个时只留文字，选中靠底色。
+    final four = widget.host != null;
     return [
       _section(
         sshLike ? '首选连接方式' : '连接类型',
         // R42：终端顶上的 SSH / MOSH 徽标能切换。不写「切网不断」——X10 还没在真机上证实。
-        hint: sshLike ? '建议先用 SSH，连上后点终端顶上的「SSH」徽标能切到 Mosh。' : null,
+        // Mosh 怎么连、要装什么原来是选项下面常驻的一段，也收进这里（docs/dev/ui-text.md）。
+        hint: !sshLike
+            ? null
+            : protocol == HostProtocol.mosh
+                ? [
+                    localized('建议先用 SSH，连上后点终端顶上的「SSH」徽标能切到 Mosh。'),
+                    localized(
+                        'Mosh 先用 SSH 登录这台主机、在上面启动 mosh-server，然后断开 SSH，改由 Mosh 插件经 UDP 直连。要先装好 Mosh 插件并在「设置 → 插件（实验）」批准；服务器上要有 mosh-server，没有时连接会停下、给出安装命令。只能直连：UDP 走不了代理和跳板机。'),
+                  ].join('\n\n')
+                : '建议先用 SSH，连上后点终端顶上的「SSH」徽标能切到 Mosh。',
         hintKey: const ValueKey('protocol-advice'),
       ),
       if (widget.host != null || sshLike)
         SegmentedButton<HostProtocol>(
           key: const ValueKey('host-protocol'),
+          showSelectedIcon: !four,
           segments: [
-            const ButtonSegment(
+            ButtonSegment(
               value: HostProtocol.ssh,
-              label: Text('SSH'),
-              icon: Icon(Icons.lock_outline),
+              label: const Text('SSH'),
+              icon: four ? null : const Icon(Icons.lock_outline),
             ),
-            const ButtonSegment(
+            ButtonSegment(
               value: HostProtocol.mosh,
-              label: Text('Mosh'),
-              icon: Icon(Icons.wifi_tethering),
+              label: const Text('Mosh'),
+              icon: four ? null : const Icon(Icons.wifi_tethering),
             ),
-            if (widget.host != null) ...[
+            if (four) ...[
               const ButtonSegment(
-                  value: HostProtocol.telnet,
-                  label: Text('Telnet'),
-                  icon: Icon(Icons.cable)),
+                  value: HostProtocol.telnet, label: Text('Telnet')),
               const ButtonSegment(
-                  value: HostProtocol.plugin,
-                  label: LText('插件'),
-                  icon: Icon(Icons.extension_outlined)),
+                  value: HostProtocol.plugin, label: LText('插件')),
             ],
           ],
           selected: {protocol},
@@ -513,17 +521,6 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         )
       else
         LText(protocol == HostProtocol.telnet ? 'Telnet' : '终端插件'),
-      if (protocol == HostProtocol.mosh)
-        Padding(
-          padding: const EdgeInsets.only(top: 8),
-          child: LText(
-            'Mosh 先用 SSH 登录这台主机、在上面启动 mosh-server，然后断开 SSH，改由 Mosh 插件经 UDP 直连。'
-            '要先装好 Mosh 插件并在「设置 → 插件（实验）」批准；服务器上要有 mosh-server，没有时连接会停下、给出安装命令。'
-            '只能直连：UDP 走不了代理和跳板机。',
-            key: const ValueKey('mosh-note'),
-            style: small,
-          ),
-        ),
     ];
   }
 

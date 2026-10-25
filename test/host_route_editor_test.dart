@@ -5,6 +5,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/domain/models/vault.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/presentation/widgets/hint.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shun/presentation/widgets/host_address_line.dart';
 import 'package:shun/presentation/widgets/host_system_icon.dart';
@@ -316,7 +317,12 @@ void main() {
       await open(tester);
       await fillTarget(tester);
       await chooseMosh(tester);
-      expect(find.byKey(const ValueKey('mosh-note')), findsOneWidget);
+      // Mosh 怎么连、只能直连，写在「首选连接方式」旁的 ⓘ 里。
+      expect(
+          tester
+              .widget<HintButton>(find.byKey(const ValueKey('protocol-advice')))
+              .message,
+          contains('只能直连：UDP 走不了代理和跳板机'));
       await createRouteProxy(tester, port: '1055');
       expect(preview(tester), contains('Mosh 只能直连'));
       expect(preview(tester), contains('经SOCKS5 代理 127.0.0.1:1055'));

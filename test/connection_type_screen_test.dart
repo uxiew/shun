@@ -18,6 +18,7 @@ import 'package:shun/presentation/screens/connection_type_screen.dart';
 import 'package:shun/presentation/screens/rustdesk_screen.dart';
 import 'package:shun/presentation/screens/uuremote_screen.dart';
 import 'package:shun/presentation/screens/vault_screen.dart';
+import 'package:shun/presentation/widgets/hint.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
 
 import 'fixtures/fake_plugin_bridge.dart';
@@ -91,8 +92,15 @@ void main() {
       expect(editor.initialProtocol.name, type.toLowerCase());
       expect(find.widgetWithText(TextFormField, '用户名'),
           type == 'Telnet' ? findsNothing : findsOneWidget);
-      expect(find.byKey(const ValueKey('mosh-note')),
-          type == 'Mosh' ? findsOneWidget : findsNothing);
+      // Mosh 的用法在「首选连接方式」旁的 ⓘ 里，只有 Mosh 表单写它。
+      final advice = find.byKey(const ValueKey('protocol-advice'));
+      expect(
+          advice.evaluate().isEmpty
+              ? ''
+              : tester.widget<HintButton>(advice).message,
+          type == 'Mosh'
+              ? contains('启动 mosh-server')
+              : isNot(contains('启动 mosh-server')));
       expect(rd.launched, isEmpty);
       expect(uu.launched, isEmpty);
       expect(bridge.opened, isEmpty);

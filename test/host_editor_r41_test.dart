@@ -361,6 +361,29 @@ void main() {
     expect(advice.data, isNot(contains('切网不断')));
   });
 
+  testWidgets('Mosh 主机：怎么连、要装什么在「首选连接方式」的 ⓘ 里，选项下面不再常驻一段', (tester) async {
+    await open(tester, host: ssh({'protocol': 'mosh'}));
+    // 先滚到这一节：列表是懒建的，没滚到时「页面上没有」什么也说明不了。
+    await reveal(tester, key('host-protocol'));
+    expect(find.textContaining('改由 Mosh 插件经 UDP 直连'), findsNothing);
+    await tester.tap(key('protocol-advice'));
+    await tester.pumpAndSettle();
+    Finder inSheet(String text) => find.descendant(
+        of: find.byType(BottomSheet), matching: find.textContaining(text));
+    expect(inSheet('改由 Mosh 插件经 UDP 直连'), findsOneWidget);
+    expect(inSheet('能切到 Mosh'), findsOneWidget);
+  });
+
+  testWidgets('编辑已有主机：四个连接方式只写字，不带图标和对勾（带了「Telnet」会断成两行）', (tester) async {
+    await open(tester, host: ssh());
+    final protocols = key('host-protocol');
+    await reveal(tester, protocols);
+    expect(find.descendant(of: protocols, matching: find.text('Telnet')),
+        findsOneWidget);
+    expect(find.descendant(of: protocols, matching: find.byType(Icon)),
+        findsNothing);
+  });
+
   testWidgets('tmux 说明：SSH 写清普通 shell 重连是新 shell、去哪里选 tmux；不提按名字自动附着',
       (tester) async {
     await open(tester, host: ssh());
