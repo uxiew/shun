@@ -202,7 +202,7 @@ Tailscale SSH 是**一跳的登录方式**：主机 data 里写着 `shunSshLogin
 
 用户看到的是什么见[使用手册第 6 节](../user/README.md#连接记录每次连到哪一步用了多久)。这里只讲值从哪来、存在哪、改的时候别踩什么。
 
-- **值从哪来**：只从已有的事件取，不另拨号、不定时。`ConnectionAttempt`（`ssh_service.dart`）带一个从创建起走的 `Stopwatch`，`report()` 顺手把阶段和开始时刻记进 `timeline`；确认指纹、键盘交互这两个回调包在 `waitingForUser` 里，用时记在当前阶段的 `userWait`。`SessionController` 在新开（`connect`）、恢复（`_recoverOne`，带第几次；用户点「重新连接」开的那一轮第一次记成 `reconnect`）、原地切换、`_markDisconnected`、自动恢复停下这几处的结果处调 `_logAttempt` / `_logStop` / `_logEvent`；「断开前连了多久」用按连接对象记的 `_connectedClocks`。测试连接在 `connection_probe_sheet.dart` 里自己记，只记保险库里已有的主机。
+- **值从哪来**：只从已有的事件取，不另拨号、不定时。`ConnectionAttempt`（`ssh_service.dart`）带一个从创建起走的 `Stopwatch`，`report()` 顺手把阶段和开始时刻记进 `timeline`；确认指纹、键盘交互这两个回调包在 `waitingForUser` 里，用时记在当前阶段的 `userWait`。`SessionController` 在新开（`connect`）、恢复（`_recoverOne`，带第几次；用户点「重新连接」开的那一轮第一次记成 `reconnect`）、原地切换、`_markDisconnected`、自动恢复停下这几处的结果处调 `_logAttempt` / `_logStop` / `_logEvent`；「断开前连了多久」用按连接对象记的 `_connectedClocks`。测试连接在 `connection_probe_sheet.dart` 里自己记，只记保险库里已有的主机。AI 工具面板（`ai_cli_tools_sheet.dart`）的 4 处临时拨号经 `loggedDial` 记成 `aiCli`：拨号里一开始在远端做事就调 `connected`，之后的错记「连上了」。新加类型时要知道：旧版读到不认识的 `k` 整条跳过。
 - **用时只用单调时钟**：墙上时钟只用来显示「几点」和算 7 天。拿 `DateTime.now()` 相减算用时，手机对时时会算出负数。
 - **存什么**（`application/connection_events.dart` 的 `ConnectionEvent`）：主机和各跳的保险库 ID、协议、入口类型（直连 / socks5 / http）、阶段名和时刻、结果、失败分类和失败跳。**不存**报错原话、`ConnectionStage.label/detail`、地址、用户名、banner、check 链接——这些里不是有地址就是有服务器发来的文字。要加字段，先想它会不会带上这些；`test/r25_connection_events_test.dart` 和测试环境里的「R25 连接记录」组会拿诱饵查存盘的 JSON。
 - **失败分类**在 `connection_diagnosis.dart`：`classifyConnectionFailure` 按异常类型分，失败页的 `connectionHint` 和记录页的 `failureNextStep` 都从它出，一句建议只写一处。`ConnectionFailureKind` 和 `ConnectionStep` 的**名字会写进文件**：改名等于旧记录读不出来（不认识的分类按「其他」，不认识的阶段整条丢掉），只加不改。
