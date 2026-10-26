@@ -421,8 +421,8 @@ String describeMoshEnd(PluginTerminalSession session) {
     SessionPhase.closed => '远端 shell 已退出，Mosh 会话结束。',
     SessionPhase.interrupted when failure != null => _describeFailure(failure),
     SessionPhase.interrupted => 'Mosh 插件关掉了这个会话，没说原因。远端可能还有旧会话（mosh-server）。',
-    SessionPhase.providerDied => 'Mosh 插件进程没了（被系统或手动结束）。'
-        '远端可能还有旧会话：mosh-server 会一直等客户端回来，可以在服务器上用 pkill mosh-server 清掉。',
+    SessionPhase.providerDied =>
+      'Mosh 插件进程没了（被系统或手动结束）。远端可能还有旧会话（mosh-server）。',
     SessionPhase.permissionRevoked =>
       'Mosh 插件被停用、撤销批准、更新或断开了连接，会话已关闭。远端可能还有旧会话（mosh-server）。',
     _ => 'Mosh 会话已结束。',
@@ -452,14 +452,33 @@ String _describeFailure(String failure) {
   return 'Mosh 插件报告运行时失败（$failure）。远端可能还有旧会话（mosh-server）。';
 }
 
-/// 会话结束时写进终端的提示：原因、不会自动重连、不会重发输入、怎么再连。
+/// [describeMoshEnd] 说了「远端可能还有旧会话」的那些结束：mosh-client 没来得及（或没确认）通知服务器。
+/// 远端先结束的、插件确认 mosh-client 已退出的，服务器那边已经收尾了。
+bool _mayLeaveServer(PluginTerminalSession session) => switch (session.phase) {
+      SessionPhase.closed =>
+        session.failure != null || session.stopConfirmed == false,
+      SessionPhase.interrupted ||
+      SessionPhase.providerDied ||
+      SessionPhase.permissionRevoked =>
+        true,
+      _ => false,
+    };
+
+/// 会话结束时写进终端的提示：原因、不会自动重连、不会重发输入、怎么再连；可能留下旧会话的，再说它会怎样、怎么清。
+///
+/// 清理办法只写在这里一处：以前只有「插件进程没了」那句带了 pkill，段错误、强杀那几句没有（X10）。
+/// 7 天跟着 [MoshBootstrap.defaultNetworkTimeout]；服务器自己设了 MOSH_SERVER_NETWORK_TMOUT 的以它为准，所以写「默认」。
+/// 带 -u 是为了 root 登录时不碰别人的 Mosh 会话。
 String moshEndNotice(PluginTerminalSession session) {
   final reason = describeMoshEnd(session);
   final normal = session.phase == SessionPhase.closed &&
       session.failure == null &&
       session.stopConfirmed == null;
   if (normal) return '\r\n\x1b[33m[Mosh] $reason 不会自动重连。\x1b[0m\r\n';
+  final days = MoshBootstrap.defaultNetworkTimeout.inDays;
   return '\r\n\x1b[31m[Mosh] $reason\x1b[0m\r\n'
       '\x1b[33m不会自动重连，也不会重发断开前的输入；断开前最后打的字有没有到远端，App 无法确认。\r\n'
-      '要再连，点上面的「重新连接」：会在服务器上新起一个 mosh-server，不是原来那个会话。\x1b[0m\r\n';
+      '要再连，点上面的「重新连接」：会在服务器上新起一个 mosh-server，不是原来那个会话。\x1b[0m\r\n'
+      '${_mayLeaveServer(session) ? '\x1b[33m远端留下的 mosh-server 默认 $days 天收不到客户端会自己退出，期间占一个 UDP 端口；'
+          '急着腾端口就在服务器上执行 pkill -u "\$USER" mosh-server（会结束你在这台服务器上的所有 Mosh 会话）。\x1b[0m\r\n' : ''}';
 }

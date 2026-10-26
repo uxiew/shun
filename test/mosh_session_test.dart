@@ -246,7 +246,7 @@ void main() {
       expect(tab.done, completes);
       terminal.sendText('rm -rf /tmp/x\r');
       expect(plugin.writes, isEmpty);
-      expect(link.endNotice, contains('pkill mosh-server'));
+      expect(link.endNotice, contains('pkill -u "\$USER" mosh-server'));
     });
   });
 
@@ -286,6 +286,34 @@ void main() {
       final b = await open();
       await plugin.state(b, 1, 'failed:exit-139');
       expect(describeMoshEnd(b), contains('信号 11'));
+    });
+
+    // X10：以前只有「插件进程没了」那句带清理命令，段错误（信号 11）没有；现在终端里的结束提示统一写一遍。
+    test('可能留下旧会话的结束：终端里都写默认 7 天自己退出和怎么清；服务器已收尾的不写', () async {
+      const cleanup = 'pkill -u "\$USER" mosh-server';
+      final crashed = await open();
+      await plugin.state(crashed, 1, 'active');
+      await plugin.state(crashed, 2, 'failed:exit-139');
+      expect(moshEndNotice(crashed), contains('默认 7 天收不到客户端会自己退出'));
+      expect(moshEndNotice(crashed), contains(cleanup));
+      final died = await open();
+      await plugin.providerDied(died);
+      expect(moshEndNotice(died), contains(cleanup));
+      expect(describeMoshEnd(died), isNot(contains('一直等')),
+          reason: '现在引导时设了超时，不再永远等');
+
+      final exited = await open();
+      await plugin.state(exited, 1, 'active');
+      await plugin.state(exited, 2, 'closed');
+      expect(moshEndNotice(exited), isNot(contains(cleanup)),
+          reason: '远端 shell 退出是服务器先结束的');
+      final confirmed = await open();
+      plugin.registry.revoke('shun.mosh');
+      await pumpEventQueue();
+      await plugin.state(confirmed, 1, 'closed');
+      expect(confirmed.stopConfirmed, isTrue);
+      expect(moshEndNotice(confirmed), isNot(contains(cleanup)),
+          reason: '插件确认 mosh-client 已退出，它通知过服务器');
     });
 
     test('远端 shell 正常退出：只说会话结束、不会自动重连', () async {

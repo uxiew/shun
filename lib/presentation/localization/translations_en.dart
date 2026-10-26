@@ -2299,8 +2299,8 @@ const englishTranslations = <String, String>{
   // 10-24：整句。以前按行写或按怪键写，覆盖测试逐行查能过，运行时查的是整句，对不上（英文界面显示中文）。
   r'${timeout.inSeconds} 秒内没看到 Mosh 附着到 tmux 会话“${target.displayName}”（${target.sessionId}）。最常见的是 UDP 到不了服务器（防火墙没放行 Mosh 的端口）。':
       r'Mosh did not attach tmux session “${target.displayName}” (${target.sessionId}) within ${timeout.inSeconds} seconds. Most often UDP cannot reach the server (the firewall does not allow the Mosh ports).',
-  'Mosh 插件进程没了（被系统或手动结束）。远端可能还有旧会话：mosh-server 会一直等客户端回来，可以在服务器上用 pkill mosh-server 清掉。':
-      'The Mosh plugin process is gone (ended by the system or by hand). An old session may still be on the server: mosh-server keeps waiting for the client; clean it up with pkill mosh-server on the server.',
+  'Mosh 插件进程没了（被系统或手动结束）。远端可能还有旧会话（mosh-server）。':
+      'The Mosh plugin process is gone (ended by the system or by hand). An old session (mosh-server) may still be on the server.',
   'mosh-client 没能正常收尾（退出码 1）。最常见的是 UDP 到不了服务器：服务器或中间的防火墙没放行 mosh-server 用的 UDP 端口；也可能是网络断得太久、服务器一直没回应。上面终端里 mosh 自己打印的说明更具体。远端可能还有旧会话（mosh-server）。':
       'mosh-client did not shut down cleanly (exit code 1). Most often UDP cannot reach the server: the server or a firewall in between does not allow the UDP port mosh-server uses; or the network was down too long and the server never answered. Mosh\'s own message in the terminal above is more specific. An old session (mosh-server) may still be on the server.',
   r'插件“$name”申请了本会话的临时凭据：这种插件（比如 Mosh）的会话要本 App 先经 SSH 拿一次性材料，不能用「插件」协议连。Mosh 主机请把协议选成 Mosh。':
