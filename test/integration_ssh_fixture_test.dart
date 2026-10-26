@@ -1257,10 +1257,12 @@ void main() {
       final verify = gatedVerifier({'127.0.0.1': f.edgeFingerprint});
       await controller.connect(edgeHost({'id': 'restore-close'}), verify);
       final old = controller.state.sessions.single;
+      // 先挂住再断线：断线当场自动恢复就开始了，用的也是 verify。断线后才挂的话，自动恢复可能已经
+      // 核对完、连回去了，下面的 reached 永远等不到，等满 60 秒超时（10-25 全量里撞过一次）。
+      final held = hold();
       await killSessions('ssh-edge');
       await waitUntil(() => !old.connected);
 
-      final held = hold();
       final restoring = controller.reconnectDisconnected();
       await held.reached; // 恢复已经连到服务器，卡在指纹确认
       await controller.close(0);
