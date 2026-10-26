@@ -2101,19 +2101,18 @@ void main() {
       final sftp = SftpService(old);
       await sftp.list('/tmp');
       final bytes = StreamController<Uint8List>();
-      final watch = Stopwatch();
       // 修之前：断线后这里 15 秒都不返回（dartssh2 的 SFTP 不再回复挂着的请求）。
       final upload = expectLater(
-          sftp
-              .writeStream('/tmp/r24-upload.bin', bytes.stream)
-              .timeout(const Duration(seconds: 8)),
+          sftp.writeStream('/tmp/r24-upload.bin', bytes.stream),
           throwsA(isA<OutcomeUnknown>()));
       bytes.add(Uint8List(64 * 1024));
       await Future<void>.delayed(const Duration(milliseconds: 500));
-      watch.start();
       await killSessions('ssh-edge');
+      // 从会话被杀算起，不算 `docker compose exec` 自己的耗时：空闲时量到 0.1–1.4 秒，全量并行、整机卡顿时更久，
+      // 以前算进 8 秒里，10-21 全量超过一次。App 报错和 exec 返回几乎同时（10-26 量 5 次都 ≤ 1 ms）。
+      final watch = Stopwatch()..start();
       bytes.add(Uint8List(64 * 1024));
-      await upload;
+      await upload.timeout(const Duration(seconds: 8));
       expect(watch.elapsed, lessThan(const Duration(seconds: 5)));
       await expectLater(sftp.list('/tmp').timeout(const Duration(seconds: 5)),
           throwsA(isA<ConnectionGone>()));
