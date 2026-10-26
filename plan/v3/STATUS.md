@@ -105,9 +105,11 @@ R24「上传到一半断线」、NET09「恢复进行中关标签」两条偶发
 测试等一个不会再来的指纹确认等满 60 秒。在旧写法里加 2 秒等待每次都复现同样的超时；改成先挂住再断线（6307aed），同样加 2 秒也过。
 R24 的 5 秒 / 8 秒判据把 `docker compose exec` 算了进去（空闲时 0.1–1.4 秒），而 App 报错和 exec 返回几乎同时（≤ 1 ms）；那次失败（10-21 全量）
 前后整个全量停顿过 10–36 秒。改成从会话被杀开始算（0de8c27）；把租用里「跟断线赛跑」去掉，改过的测试仍在 8 秒后挂掉。
-`test/integration_ssh_fixture_test.dart` 整份 65 过。之后 OrbStack 被停了（停着就不去拉，拉起来会带起别的项目的容器），全量在没开任何 fixture 时跑了一遍：
-1492 过 / 145 跳过 / 0 失败，跳过的全是要 Docker（65）、tmux（32）、Mosh（25）、Tailscale（21）fixture 的，按 NOT_RUN 算。
-**没验的**：真机；两条偶发都在要 Docker fixture 的那组里，这遍全量没跑到它们，以后会不会再偶发还要开着 fixture 多跑几遍全量。
+`test/integration_ssh_fixture_test.dart` 整份 65 过。之后开着 fixture-environment、tmux-fixture、mosh-fixture 连跑三遍全量，
+三遍都是 1614 过 / 23 跳过 / 0 失败（276–335 秒），跳过的只有 Tailscale SSH fixture 21 条和 `VT_BENCH` 基准 1 条，Docker 那组一条没跳，
+所以两条每遍都跑了、都过了。（`-j 4` 并发时 expanded 报告不把每条测试名都打出来，在日志里 grep 测试名可能一行都找不到，要看跳过原因和总数。）
+日志在 `../.toolchain/tmp/full-1026-fx{1,2,3}.log`。OrbStack 开工前是停着的，所有者同意后才启动；跑完 `down.sh` 删了 shun 的容器，再 `orb stop` 停回去。
+三遍不大可能撞上 10-21 那种整机停顿，所以这只说明改过的两条平常不卡；卡住的原因在上面是按复现和计时查实的。**没验的**：真机。
 
 10-25 改包名后的设备测试在 `shun-r39-a30` 上重跑完，顺带修了「下一批」里的三个小毛病和一个这次改出来的启动崩溃。任务和用例状态没变。
 **App 改的**：后台标签挂视图前按 App 当前主题回答颜色查询（30540e0 fork、fe076d9）；fe076d9 让原生库加载不了时 App 一启动就崩（整个 App 最外层就去调 libghostty），
