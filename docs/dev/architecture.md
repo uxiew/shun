@@ -256,6 +256,7 @@ Mosh 是先用 SSH 登录、在远端拉起 `mosh-server`，拿到 UDP 端口和
 1. `domain/plugins/mosh_route.dart` 的 `moshRouteProblem`：只许直连、没有跳板。代理的 CONNECT 和跳板的 direct-tcpip 都只转 TCP，承载不了 UDP；不是直连就一个连接都不拨，也不改成直连绕过用户选的路线。
 2. `MoshRuntime.prepare()`：每次都向系统重新发现插件、按当下的证书和描述符核对、确认已批准、能 ping 通。只认 pluginId `shun.mosh`（包名 `top.xdwa.shun.mosh`）。已经连着就沿用，因为桥的 connect 会断开同一插件的旧连接，第一个 Mosh 标签就断了。
 3. `SshService.bootstrapMosh`：用同一套逐跳逻辑登录，跑 `domain/plugins/mosh_bootstrap.dart` 的 `MoshBootstrap.command` 生成的固定脚本。用户能影响的只有三个按白名单校验过的位置参数：UDP 端口范围（主机字段 `shunMoshPorts`，默认 60001–60999）、mosh-server 路径（`shunMoshServerPath`，空着就先查 PATH 再查几个常见位置）、locale（`shunMoshLocale`）。输出最多收 64 KiB、等 20 秒；解析出 key 后原始输出清零。不装软件、不 sudo、不重试。
+   脚本还给 mosh-server 设 `MOSH_SERVER_NETWORK_TMOUT=604800`（服务器已设就不动）：7 天收不到客户端就自己退出，mosh-client 崩溃时留下的不会永远占着端口（X10，为什么是 7 天见 `MoshBootstrap.defaultNetworkTimeout`）。
 4. UDP 发往这次 SSH 实际连上的那个 IP（`attempt.directPeer`），不是主机名：名字只由系统解析一次，SSH 和 UDP 去的是同一台机器。
 5. 关掉引导用的 SSH，`MoshRuntime.open` 把 IP、端口、key 交给插件（经 `PluginSessionManager.open`，交完宿主这边的 key 清零）。插件拿不到 SSH 密码、私钥、代理口令。交给插件失败时，远端那个没人连的 mosh-server 按它自己的规矩 60 秒后退出。
 6. `MoshTerminalProvider.attach` 把插件会话的字节流接到终端上。

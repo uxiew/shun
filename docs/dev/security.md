@@ -241,7 +241,7 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 
 **UDP 发去哪**：`SshService.bootstrapMosh` 取这次 SSH socket 的对端 IP（`MoshBootstrapOutcome.udpHost`）。主机名只由系统解析一次，SSH 和 UDP 去的是同一台；命令里的 `-s` 让 mosh-server 也只在这个地址上收。插件不做 DNS，Dart 侧的桥收到非数字 IP 直接拒。
 
-**引导命令**：`MoshBootstrap.command`（`lib/domain/plugins/mosh_bootstrap.dart`）拼成 `sh -c '<写死的脚本>' shun '<端口范围>' '<mosh-server 路径或 auto>' '<locale>'`。用户能影响的只有这三个位置参数：路径必须 `/` 或 `~/` 开头、每段只有字母数字和 `._+-`、不能是 `.` 或 `..`、最长 200；locale 必须是 UTF-8 的写法；端口 1–65535。不装软件、不用 sudo、不重试；无 PTY，20 秒超时，输出最多 64 KiB。
+**引导命令**：`MoshBootstrap.command`（`lib/domain/plugins/mosh_bootstrap.dart`）拼成 `sh -c '<写死的脚本>' shun '<端口范围>' '<mosh-server 路径或 auto>' '<locale>' '<网络超时秒数>'`（第 4 个固定 604800，脚本拿它 export `MOSH_SERVER_NETWORK_TMOUT`，服务器已设就不动）。用户能影响的只有前三个位置参数：路径必须 `/` 或 `~/` 开头、每段只有字母数字和 `._+-`、不能是 `.` 或 `..`、最长 200；locale 必须是 UTF-8 的写法；端口 1–65535。不装软件、不用 sudo、不重试；无 PTY，20 秒超时，输出最多 64 KiB。
 
 **解析输出**：`MoshBootstrap.parse` 按字节解析，不转成字符串——Dart 字符串清不掉，key 进了字符串就一直留在堆里。必须**恰好一行**完整的 `MOSH CONNECT <端口> <22 个 base64 字符>`：两行都像就都不用（可能是 motd 或恶意服务器夹带的），端口不在请求的范围、key 不是规范的 base64、行中间夹 `\r`（能把后半行盖到前面伪装）都拒绝。报错只说类别。
 
