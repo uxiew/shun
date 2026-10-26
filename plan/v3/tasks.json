@@ -2143,7 +2143,7 @@
       "id": "X10",
       "phase": "E2",
       "title": "Mosh移动恢复与运行时生命周期验收",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "depends_on": [
         "X09",
         "R22"
@@ -2183,7 +2183,7 @@
       "evidence": [
         "evidence/X10.md"
       ],
-      "commit": null
+      "commit": "e6b56ae"
     },
     {
       "id": "X11",
