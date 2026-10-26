@@ -1907,8 +1907,8 @@ const englishTranslations = <String, String>{
   '已连接': 'Connected',
   '正在自动恢复…': 'Recovering automatically…',
   '正在重新附着…': 'Re-attaching…',
-  'Mosh 运行中（网络断了，终端第一行会出现「mosh: Last contact … ago.」）':
-      'Mosh running (if the network drops, the first line of the terminal shows “mosh: Last contact … ago.”)',
+  'Mosh 运行中（网络断了，终端最上面一行会出现「mosh: …」，写着多久没联系上）':
+      'Mosh running (if the network drops, the top line of the terminal shows “mosh: …” with how long since last contact)',
   '普通 shell：跟着这条连接走，断了就没了；切换会另开一个标签。':
       'Plain shell: it lives with this connection and is gone when it drops; switching opens another tab.',
   '这个 SSH 标签已经断开了。': 'This SSH tab is disconnected.',

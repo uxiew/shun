@@ -174,7 +174,7 @@ void main() {
     await openMenu(tester);
     // 宿主只知道 mosh-client 还活着，断网时也是「连着」，所以不能说已连接。
     expect(
-        find.text('状态：Mosh 运行中（网络断了，终端第一行会出现「mosh: Last contact … ago.」）'),
+        find.text('状态：Mosh 运行中（网络断了，终端最上面一行会出现「mosh: …」，写着多久没联系上）'),
         findsOneWidget);
     expect(find.textContaining('已连接'), findsNothing);
   });
@@ -188,8 +188,8 @@ void main() {
     expect(localized('状态：已断开 · 终端里是断开前的画面（历史）'),
         'Status: Disconnected · the terminal shows the screen from before the disconnect (history)');
     expect(
-        localized('状态：Mosh 运行中（网络断了，终端第一行会出现「mosh: Last contact … ago.」）'),
-        'Status: Mosh running (if the network drops, the first line of the terminal shows “mosh: Last contact … ago.”)');
+        localized('状态：Mosh 运行中（网络断了，终端最上面一行会出现「mosh: …」，写着多久没联系上）'),
+        'Status: Mosh running (if the network drops, the top line of the terminal shows “mosh: …” with how long since last contact)');
   });
 
   testWidgets('tmux 标签原地切到 Mosh：先列出这条 SSH 上会停掉的转发，确认了才切，传的就是列出的那几条',

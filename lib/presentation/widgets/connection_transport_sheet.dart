@@ -400,9 +400,10 @@ class _Facts extends StatelessWidget {
         ? progress.describe()
         : session.connected
             // Mosh 标签的 connected 只说明 mosh-client 还活着：网络通不通宿主不知道，只有 mosh-client 自己知道，
-            // 它在终端第一行写「mosh: Last contact … ago.」。以前这里写「已连接」，断网时也这么写（X10）。
+            // 它在终端最上面一行写「mosh: Last contact 30 seconds ago.」或「mosh: sendto: … (2:28 without contact.)」。
+            // 以前这里写「已连接」，断网时也这么写（X10）。
             ? transport == TabTransport.mosh
-                ? 'Mosh 运行中（网络断了，终端第一行会出现「mosh: Last contact … ago.」）'
+                ? 'Mosh 运行中（网络断了，终端最上面一行会出现「mosh: …」，写着多久没联系上）'
                 : '已连接'
             : recovering
                 ? tmux == null
