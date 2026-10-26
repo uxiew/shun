@@ -1901,8 +1901,14 @@ const englishTranslations = <String, String>{
       r'Not switched; the original connection is unchanged: $error',
   '已断开 · 终端里是断开前的画面（历史）':
       'Disconnected · the terminal shows the screen from before the disconnect (history)',
+  // 连接方式菜单里的「状态：$status」：以前没有整句模板，落到片段表成了「status: 正in automaticresume…」。
+  // $status 的每种写法都要有整句翻译，否则模板对不上、又退回片段表。
+  r'状态：$status': r'Status: $status',
+  '已连接': 'Connected',
   '正在自动恢复…': 'Recovering automatically…',
   '正在重新附着…': 'Re-attaching…',
+  'Mosh 运行中（网络断了，终端第一行会出现「mosh: Last contact … ago.」）':
+      'Mosh running (if the network drops, the first line of the terminal shows “mosh: Last contact … ago.”)',
   '普通 shell：跟着这条连接走，断了就没了；切换会另开一个标签。':
       'Plain shell: it lives with this connection and is gone when it drops; switching opens another tab.',
   '这个 SSH 标签已经断开了。': 'This SSH tab is disconnected.',

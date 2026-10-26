@@ -17,6 +17,7 @@ import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:shun/infrastructure/tmux/tmux_protocol.dart';
+import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:shun/presentation/screens/terminal_screen.dart';
 import 'package:shun/presentation/widgets/connection_transport_sheet.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -161,6 +162,34 @@ void main() {
     await tester.pumpAndSettle();
     expect(controller.defaults, ['m']);
     expect(find.text('已把 Mosh 设为这台主机的默认'), findsOneWidget);
+  });
+
+  testWidgets('X10：Mosh 标签连着时不说「已连接」，只说运行中，网络情况指到 mosh 自己写的第一行', (tester) async {
+    await open(tester, [tab('m', protocol: 'mosh')]);
+    controller.menu = const TransportMenu(
+      current: TabTransport.mosh,
+      switchTo: TransportSwitchOption(from: TabTransport.mosh, inPlace: false),
+      hostDefault: TabTransport.mosh,
+    );
+    await openMenu(tester);
+    // 宿主只知道 mosh-client 还活着，断网时也是「连着」，所以不能说已连接。
+    expect(
+        find.text('状态：Mosh 运行中（网络断了，终端第一行会出现「mosh: Last contact … ago.」）'),
+        findsOneWidget);
+    expect(find.textContaining('已连接'), findsNothing);
+  });
+
+  test('英文界面：「状态：…」整句翻，不再半中半英', () {
+    ShunLocalizations.use('en');
+    addTearDown(() => ShunLocalizations.use('zh-CN'));
+    expect(localized('状态：已连接'), 'Status: Connected');
+    expect(localized('状态：正在自动恢复…'), 'Status: Recovering automatically…');
+    expect(localized('状态：正在重新附着…'), 'Status: Re-attaching…');
+    expect(localized('状态：已断开 · 终端里是断开前的画面（历史）'),
+        'Status: Disconnected · the terminal shows the screen from before the disconnect (history)');
+    expect(
+        localized('状态：Mosh 运行中（网络断了，终端第一行会出现「mosh: Last contact … ago.」）'),
+        'Status: Mosh running (if the network drops, the first line of the terminal shows “mosh: Last contact … ago.”)');
   });
 
   testWidgets('tmux 标签原地切到 Mosh：先列出这条 SSH 上会停掉的转发，确认了才切，传的就是列出的那几条',
