@@ -27,20 +27,24 @@ Matcher _fails(MoshBootstrapFailure f) => throwsA(
 
 void main() {
   group('命令', () {
-    test('sh -c 加固定脚本，只有三个单引号包着的位置参数可变', () {
+    test('sh -c 加固定脚本，只有单引号包着的位置参数可变', () {
       final auto = MoshBootstrap.command();
       expect(auto, startsWith("sh -c '"));
-      expect(auto, endsWith("' shun '60001:60999' 'auto' 'en_US.UTF-8'"));
+      expect(auto,
+          endsWith("' shun '60001:60999' 'auto' 'en_US.UTF-8' '604800'"));
       expect(MoshBootstrap.command(portRange: (60101, 60108)),
-          endsWith("' shun '60101:60108' 'auto' 'en_US.UTF-8'"));
+          endsWith("' shun '60101:60108' 'auto' 'en_US.UTF-8' '604800'"));
       expect(MoshBootstrap.command(portRange: (60101, 60101)),
-          endsWith("' shun '60101' 'auto' 'en_US.UTF-8'"));
+          endsWith("' shun '60101' 'auto' 'en_US.UTF-8' '604800'"));
       final custom = MoshBootstrap.command(
           serverPath: '/opt/mosh/bin/mosh-server', locale: 'C.UTF-8');
       expect(
           custom,
-          endsWith(
-              "' shun '60001:60999' '/opt/mosh/bin/mosh-server' 'C.UTF-8'"));
+          endsWith("' shun '60001:60999' '/opt/mosh/bin/mosh-server' "
+              "'C.UTF-8' '604800'"));
+      expect(
+          MoshBootstrap.command(networkTimeout: const Duration(seconds: 5)),
+          endsWith("' shun '60001:60999' 'auto' 'en_US.UTF-8' '5'"));
       // 脚本部分不随参数变：用户填的东西进不了脚本。
       String script(String command) =>
           command.substring(7, command.indexOf("' shun '"));
@@ -50,6 +54,11 @@ void main() {
         expect(body, isNot(contains(banned)), reason: banned);
       }
       expect(body, contains(r'exec "$m" new -s -c 256 -l "LANG=$l" -p "$p"'));
+      // X10：服务器自己设了超时就用它的，没设才用第 4 个参数；在 exec 之前 export，mosh-server 才看得到。
+      final export = body.indexOf(
+          r'export MOSH_SERVER_NETWORK_TMOUT="${MOSH_SERVER_NETWORK_TMOUT:-$4}";');
+      expect(export, greaterThan(0));
+      expect(export, lessThan(body.indexOf(r'exec "$m" new')));
       // 自动探测：先 PATH，再按固定顺序。
       var at = body.indexOf('command -v mosh-server');
       expect(at, greaterThan(0));
@@ -143,13 +152,13 @@ void main() {
           displayName: "w'o\$(id)rk",
         );
 
-    test('附着 tmux（R42）：前三个参数不变，后五个是 socket、uid、核对串、会话 ID；名字不进命令', () {
+    test('附着 tmux（R42）：前四个参数不变，后五个是 socket、uid、核对串、会话 ID；名字不进命令', () {
       final command =
           MoshBootstrap.command(portRange: (60101, 60108), tmux: target());
       expect(command, startsWith("sh -c '"));
       expect(
           command,
-          endsWith("' shun '60101:60108' 'auto' 'en_US.UTF-8' "
+          endsWith("' shun '60101:60108' 'auto' 'en_US.UTF-8' '604800' "
               "'D' '-' '1000' '\$3:4242:17:99' '\$3'"));
       expect(command, isNot(contains(r'$(id)rk')), reason: '会话名只给人看，不进命令');
       expect(
@@ -170,8 +179,9 @@ void main() {
       final start = body.indexOf(r'exec "$m" new');
       expect(locate, lessThan(guard));
       expect(guard, lessThan(start));
-      expect(body, contains(r'[ "$g" = "$7" ] || exit 97;'));
-      expect(body, endsWith(r'-- "$t" -u -S "$s" attach-session -t "$8"'));
+      expect(body, contains(r'[ "$g" = "$8" ] || exit 97;'));
+      expect(body, endsWith(r'-- "$t" -u -S "$s" attach-session -t "$9"'));
+      expect(body, contains(r'${MOSH_SERVER_NETWORK_TMOUT:-$4}'));
       expect(body, isNot(contains('attach-session -d')));
       expect(body, isNot(contains('new-session')));
     });
@@ -188,6 +198,19 @@ void main() {
       for (final r in [(0, 10), (10, 65536), (60010, 60001), (-1, 5)]) {
         expect(() => MoshBootstrap.command(portRange: r), throwsArgumentError,
             reason: '$r');
+      }
+    });
+
+    test('网络超时不是整秒或不到 1 秒就不拼：0 在 mosh-server 那里是「永远等」', () {
+      expect(MoshBootstrap.defaultNetworkTimeout.inSeconds, 604800);
+      for (final bad in [
+        Duration.zero,
+        const Duration(seconds: -1),
+        const Duration(milliseconds: 1500),
+      ]) {
+        expect(() => MoshBootstrap.command(networkTimeout: bad),
+            throwsArgumentError,
+            reason: '$bad');
       }
     });
   });

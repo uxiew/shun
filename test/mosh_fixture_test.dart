@@ -923,4 +923,75 @@ void main() {
       await refused(rebuilt, 'tmux server 重启');
     }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
   });
+
+  // X10：mosh-server 默认永远等客户端回来，客户端崩了远端就一直留着一个。引导时设了 MOSH_SERVER_NETWORK_TMOUT（默认 7 天），
+  // 这里看三件事：App 真发出去的命令让 mosh-server 拿到了 604800；连着的真 mosh-client 不打字也不会被这个超时断掉；
+  // 客户端被强杀以后 mosh-server 到点自己退出。后两条等不了 7 天，用同一条命令、只把秒数改小。
+  group('X10 mosh-server 收不到客户端就自己退出（MOSH_SERVER_NETWORK_TMOUT）', () {
+    tearDown(() async {
+      if (fixture == null) return;
+      await fixture.exec(
+          'tmux -L x10client kill-server 2>/dev/null; pkill -x mosh-client; true');
+    });
+
+    /// 这台上所有 mosh-server 进程（没被连过的有父、子两个）环境里的这个变量，去重。
+    /// 要用 mosh-server 自己的用户读：容器里的 root 没有 CAP_SYS_PTRACE，读别人的 /proc/…/environ 报 Permission denied，
+    /// 结果是空串，看着像变量没传过去。
+    Future<String> serverTimeoutEnv() => fixture!.exec(
+        r'for p in $(pgrep -x mosh-server); do tr "\0" "\n" < /proc/$p/environ'
+        r' | grep ^MOSH_SERVER_NETWORK_TMOUT=; done | sort -u',
+        user: fixture.user);
+
+    test('App 发出的引导命令：mosh-server 环境里是 604800（7 天）', () async {
+      final f = fixture!;
+      final session = await connect(f.host());
+      expect(await serverTimeoutEnv(), 'MOSH_SERVER_NETWORK_TMOUT=604800');
+      await session.close();
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
+    test('同一条命令改成 6 秒：连着的真 mosh-client 不打字过了 18 秒还在；客户端被强杀后 mosh-server 到点自己退出',
+        () async {
+      final f = fixture!;
+      final ports = f.udpPorts.split(':').map(int.parse).toList();
+      final client = SSHClient(
+        await SSHSocket.connect('127.0.0.1', f.sshPort),
+        username: f.user,
+        onPasswordRequest: () => f.password,
+      );
+      final MoshBootstrapResult boot;
+      try {
+        boot = MoshBootstrap.parse(await client.run(MoshBootstrap.command(
+          portRange: (ports.first, ports.last),
+          networkTimeout: const Duration(seconds: 6),
+        )));
+      } finally {
+        client.close();
+      }
+      final pid = boot.serverPid!;
+      expect(await serverTimeoutEnv(), 'MOSH_SERVER_NETWORK_TMOUT=6');
+      Future<bool> alive() async =>
+          await f.exec('kill -0 $pid 2>/dev/null && echo y || echo n') == 'y';
+
+      await f.exec('tmux -L x10client new-session -d -x 80 -y 24 '
+          '"env MOSH_KEY=${ascii.decode(boot.printableKey)} LANG=C.UTF-8 '
+          'mosh-client \$(hostname -i) ${boot.port}"');
+      // 没有客户端时它从启动起算，6 秒就会退；过了 18 秒还在，说明是客户端每 3 秒的心跳在续。
+      await Future<void>.delayed(const Duration(seconds: 18));
+      expect(await alive(), isTrue, reason: '连着的客户端不打字也不算闲置');
+
+      // 模拟崩溃：SIGKILL 不给客户端发关闭的机会，和插件被强停时一样。
+      await f.exec('pkill -9 -x mosh-client');
+      final clock = Stopwatch()..start();
+      while (await alive()) {
+        if (clock.elapsed > const Duration(seconds: 20)) {
+          fail('客户端被杀 20 秒后 mosh-server 还在');
+        }
+        await Future<void>.delayed(const Duration(milliseconds: 200));
+      }
+      // ignore: avoid_print
+      print('X10：客户端被杀 ${clock.elapsedMilliseconds} ms 后 mosh-server 退出');
+      expect(clock.elapsed, greaterThan(const Duration(seconds: 2)),
+          reason: '是超时到了才退，不是跟着客户端一起被带走');
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 90)));
+  });
 }

@@ -22,6 +22,15 @@ class MoshBootstrap {
   /// 没填 locale 时交给 mosh-server 的备用值。
   static const defaultLocale = 'en_US.UTF-8';
 
+  /// 多久收不到客户端，mosh-server 就自己退出（引导时设 `MOSH_SERVER_NETWORK_TMOUT`，X10 所有者定的）。
+  ///
+  /// 不设的话 mosh-server 永远等客户端回来：mosh-client 崩溃、插件被强停时来不及通知它，远端就一直留着一个
+  /// mosh-server，占一个 UDP 端口和一个 shell，端口范围填得窄的留够了新会话就起不来。7 天是 mosh-server 手册建议的值。
+  /// 代价：手机离线超过 7 天，这个会话就接不回去了，只能重新连接（附着 tmux 的，tmux 里的东西不丢）。
+  /// 计时看的是多久没收到客户端的包；连着的 mosh-client 不打字也每 3 秒发一次心跳，所以连着不算闲置
+  /// （test/mosh_fixture_test.dart 用真 mosh-client 实测过）。
+  static const defaultNetworkTimeout = Duration(days: 7);
+
   /// mosh-server 路径为「自动」时，PATH 里找不到再按这个顺序看的位置（`$HOME` 由远端 sh 展开）。
   /// 固定写在脚本里，不含任何用户输入。
   static const probeLocations = [
@@ -37,7 +46,7 @@ class MoshBootstrap {
   /// 指定的路径不能执行时脚本打印的固定一行；解析时据此报 [MoshBootstrapFailure.serverPathMissing]。
   static const pathNotExecutable = 'shun: mosh-server path not executable';
 
-  /// 远端执行的固定脚本，三个位置参数：端口范围、mosh-server 路径（`auto` 或校验过的路径）、locale。
+  /// 远端执行的固定脚本，四个位置参数：端口范围、mosh-server 路径（`auto` 或校验过的路径）、locale、网络超时秒数。
   ///
   /// 交给 `sh -c` 而不是让登录 shell 直接跑：登录 shell 可能是 fish、csh，`for`、`case` 写法都不一样。
   /// 不能出现单引号、`!`、反斜杠和换行，否则在部分登录 shell 里会被改写（同 tmux_protocol 的 isPortableScript）。
@@ -56,11 +65,16 @@ class MoshBootstrap {
     '"$pathNotExecutable" >&2; exit 126; fi;',
   ].join(' ');
 
-  static const _start = r'exec "$m" new -s -c 256 -l "LANG=$l" -p "$p"';
+  /// 服务器上已经设了 `MOSH_SERVER_NETWORK_TMOUT`（管理员写进 /etc/environment 之类）就用它的，没设才用第 4 个参数，
+  /// 和用户自己 `mosh host` 时一样听服务器的。这个变量会跟着传给 mosh-server 起的 shell（mosh-server 不清它），
+  /// 影响的只是在那个 shell 里再手动起的 mosh-server。
+  static const _start =
+      r'export MOSH_SERVER_NETWORK_TMOUT="${MOSH_SERVER_NETWORK_TMOUT:-$4}";'
+      r' exec "$m" new -s -c 256 -l "LANG=$l" -p "$p"';
 
   static final _script = '$_locate $_start';
 
-  /// 附着 tmux 的变体（R42）：第 4–8 个位置参数是 socket 种类（D/L/S）、socket 名或路径、uid、
+  /// 附着 tmux 的变体（R42）：第 5–9 个位置参数是 socket 种类（D/L/S）、socket 名或路径、uid、
   /// R21 的核对串（`$ID:server pid:server 启动时间:会话创建时间`）和会话 ID。
   ///
   /// 先按 R21 的规矩核对：登录的还是那个 uid、socket 还在、server 还是那一代、会话还是那一个；
@@ -74,14 +88,14 @@ class MoshBootstrap {
   /// （tmux_protocol 的 `tmuxClientByParentCommand`）：核不到就不算切换成功。
   static final _tmuxScript = [
     _locate,
-    r'case "$4" in S) s=$5;; L) s=${TMUX_TMPDIR:-/tmp}/tmux-$(id -u)/$5;; *) s=${TMUX_TMPDIR:-/tmp}/tmux-$(id -u)/default;; esac;',
-    r'[ "$(id -u)" = "$6" ] || exit 96;',
+    r'case "$5" in S) s=$6;; L) s=${TMUX_TMPDIR:-/tmp}/tmux-$(id -u)/$6;; *) s=${TMUX_TMPDIR:-/tmp}/tmux-$(id -u)/default;; esac;',
+    r'[ "$(id -u)" = "$7" ] || exit 96;',
     r't=$(command -v tmux 2>/dev/null); [ -n "$t" ] || exit 95;',
     r'[ -S "$s" ] || exit 97;',
-    r'g=$("$t" -S "$s" display-message -p -t "$8" "#{session_id}:#{pid}:#{start_time}:#{session_created}" 2>/dev/null);',
-    r'[ "$g" = "$7" ] || exit 97;',
+    r'g=$("$t" -S "$s" display-message -p -t "$9" "#{session_id}:#{pid}:#{start_time}:#{session_created}" 2>/dev/null);',
+    r'[ "$g" = "$8" ] || exit 97;',
     _start,
-    r'-- "$t" -u -S "$s" attach-session -t "$8"',
+    r'-- "$t" -u -S "$s" attach-session -t "$9"',
   ].join(' ');
 
   /// tmux 变体的位置参数只收这些字符（同 tmux_protocol）：都来自按白名单解析过的 [TmuxTarget]。
@@ -114,7 +128,8 @@ class MoshBootstrap {
     r'^(?:C|POSIX|[A-Za-z]{2,8}(?:_[A-Za-z0-9]{2,8})?)\.[Uu][Tt][Ff]-?8(?:@[A-Za-z0-9]{1,16})?$',
   );
 
-  /// 固定命令。用户能影响的只有端口范围、mosh-server 路径和 locale 三个位置参数，都按白名单校验、单引号包着。
+  /// 固定命令。用户能影响的只有端口范围、mosh-server 路径和 locale 三个位置参数，都按白名单校验、单引号包着；
+  /// 第 4 个是 [networkTimeout] 的秒数，不是用户填的，测试才改它（要等 7 天才看得到效果）。
   ///
   /// - `-s`：mosh-server 绑定到这次 SSH 连接的本地地址（官方 mosh 脚本的默认做法）。
   /// - `-c 256`：告诉服务器客户端支持 256 色（宿主的终端引擎支持）。
@@ -125,11 +140,13 @@ class MoshBootstrap {
   /// - [serverPath]：null 表示「自动」，见 [probeLocations]；否则必须过 [isValidServerPath]。
   /// - [locale]：null 用 [defaultLocale]；否则必须过 [isValidLocale]。
   /// - [tmux]：给了就不跑登录 shell，而是核对后附着这个 tmux 会话（R42，见 [_tmuxScript]）。
+  /// - [networkTimeout]：见 [defaultNetworkTimeout]；只收整秒、至少 1 秒（0 在 mosh-server 那里是「永远等」）。
   static String command({
     (int, int) portRange = defaultPortRange,
     String? serverPath,
     String? locale,
     TmuxTarget? tmux,
+    Duration networkTimeout = defaultNetworkTimeout,
   }) {
     final (low, high) = portRange;
     if (low < 1 || high > 65535 || low > high) {
@@ -140,8 +157,13 @@ class MoshBootstrap {
     }
     final lang = locale ?? defaultLocale;
     if (!isValidLocale(lang)) throw ArgumentError.value(lang, 'locale');
+    final seconds = networkTimeout.inSeconds;
+    if (seconds < 1 || networkTimeout != Duration(seconds: seconds)) {
+      throw ArgumentError.value(networkTimeout, 'networkTimeout');
+    }
     final ports = low == high ? '$low' : '$low:$high';
-    final base = "shun '$ports' '${serverPath ?? 'auto'}' '$lang'";
+    final base =
+        "shun '$ports' '${serverPath ?? 'auto'}' '$lang' '$seconds'";
     if (tmux == null) return "sh -c '$_script' $base";
     if (!_tmuxSessionId.hasMatch(tmux.sessionId)) {
       throw ArgumentError.value(tmux.sessionId, 'tmux.sessionId');

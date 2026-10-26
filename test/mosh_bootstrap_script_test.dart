@@ -43,13 +43,14 @@ void main() {
     await File(path).writeAsString(
       '#!/bin/sh\n'
       'echo "$marker ARGS:\$*" >&2\n'
+      'echo "$marker TMOUT:\${MOSH_SERVER_NETWORK_TMOUT-unset}" >&2\n'
       'echo "MOSH CONNECT 60001 $_key"\n',
     );
     await Process.run('chmod', ['755', path]);
   }
 
   Future<({String output, int exitCode})> run(String shell, String command,
-      {bool withPathBin = false}) async {
+      {bool withPathBin = false, Map<String, String> env = const {}}) async {
     final result = await Process.run(
       shell,
       ['-c', command],
@@ -57,6 +58,7 @@ void main() {
         'HOME': home,
         // 只留系统目录：本机真装了 mosh 的 Homebrew 目录不进 PATH。
         'PATH': [if (withPathBin) pathBin, '/usr/bin', '/bin'].join(':'),
+        ...env,
       },
       includeParentEnvironment: false,
       stdoutEncoding: utf8,
@@ -97,6 +99,25 @@ void main() {
                 'PATH ARGS:new -s -c 256 -l LANG=en_US.UTF-8 -p 60001:60999'));
         expect(r.output, isNot(contains('HOME ARGS')));
         expect(parse(r.output).port, 60001);
+      });
+
+      test('网络超时（X10）：没设就给 mosh-server 604800；服务器上已经设了就用它的', () async {
+        await fake('$pathBin/mosh-server', 'PATH');
+        final unset =
+            await run(shell, MoshBootstrap.command(), withPathBin: true);
+        expect(unset.output, contains('PATH TMOUT:604800'));
+        final short = await run(
+            shell,
+            MoshBootstrap.command(networkTimeout: const Duration(seconds: 5)),
+            withPathBin: true);
+        expect(short.output, contains('PATH TMOUT:5'));
+        final preset = await run(shell, MoshBootstrap.command(),
+            withPathBin: true, env: {'MOSH_SERVER_NETWORK_TMOUT': '3600'});
+        expect(preset.output, contains('PATH TMOUT:3600'));
+        // 设成空串和没设一样：mosh-server 自己也把空串当没设，空串传过去就又变回「永远等」。
+        final empty = await run(shell, MoshBootstrap.command(),
+            withPathBin: true, env: {'MOSH_SERVER_NETWORK_TMOUT': ''});
+        expect(empty.output, contains('PATH TMOUT:604800'));
       });
 
       test('自动：PATH 里没有就按固定顺序找到 ~/.local/bin', () async {
@@ -221,6 +242,8 @@ void main() {
               contains(
                   'PATH ARGS:new -s -c 256 -l LANG=en_US.UTF-8 -p 60001:60999 '
                   '-- $pathBin/tmux -u -S $socketPath attach-session -t \$3'));
+          expect(r.output, contains('PATH TMOUT:604800'),
+              reason: '附着 tmux 的变体里参数往后挪了一位，超时仍是第 4 个');
           expect(r.output, isNot(contains('TMUX RAN')),
               reason: '核对只调 display-message，附着由 mosh-server 的子进程做');
           expect(parse(r.output).port, 60001);

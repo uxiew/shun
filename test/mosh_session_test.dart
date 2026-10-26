@@ -128,7 +128,7 @@ void main() {
           moshPortRangeOf(mosh({moshPortsKey: '60001:60010'})), (60001, 60010));
       // 拼出来的命令里只有校验过的数字。
       expect(MoshBootstrap.command(portRange: parseMoshPorts('60001:60010')),
-          endsWith("' shun '60001:60010' 'auto' 'en_US.UTF-8'"));
+          endsWith("' shun '60001:60010' 'auto' 'en_US.UTF-8' '604800'"));
     });
   });
 
@@ -151,8 +151,8 @@ void main() {
             serverPath: custom.serverPath,
             locale: custom.locale,
           ),
-          endsWith(
-              "' shun '60101:60108' '~/.local/bin/mosh-server' 'C.UTF-8'"));
+          endsWith("' shun '60101:60108' '~/.local/bin/mosh-server' "
+              "'C.UTF-8' '604800'"));
       for (final bad in [
         {moshServerPathKey: 'mosh-server; id'},
         {moshServerPathKey: 'bin/mosh-server'},
