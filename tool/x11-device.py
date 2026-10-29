@@ -86,7 +86,14 @@ def fds(package):
     pid = r39.shell('pidof', package, check=False).strip()
     if not pid:
         return 'no process'
-    return r39.shell('run-as', package, 'sh', '-c', f'ls /proc/{pid}/fd | wc -l', check=False).strip()
+    # 只数个数分不出「会话 socket 没关」和「多了一个别的」：按指向的类型分组。
+    listing = r39.shell('run-as', package, 'sh', '-c',
+                        f'for f in /proc/{pid}/fd/*; do readlink $f; done', check=False)
+    kinds = {}
+    for target in listing.split():
+        kind = target.split(':', 1)[0] if ':' in target else target.rsplit('/', 1)[0]
+        kinds[kind] = kinds.get(kind, 0) + 1
+    return f'{sum(kinds.values())} {dict(sorted(kinds.items()))}'
 
 
 def x03(scenario):
@@ -138,10 +145,91 @@ def x03(scenario):
     return code
 
 
+def run_marked(target, actions, out, env, *, keep_host=False):
+    """跑一个打「X11 ACTION <名字>」的设备测试，照 actions 做完就放确认文件。返回 (退出码, 失败的动作)。"""
+    log = (out / 'flutter-test.log').open('w')
+    args = ['flutter', 'test', '--no-pub', target, '-d', r39.SERIAL]
+    if keep_host:
+        args.insert(3, '--no-uninstall')
+    proc = subprocess.Popen(args, cwd=ROOT, env=env, stdout=subprocess.PIPE,
+                            stderr=subprocess.STDOUT, text=True)
+    failed_action = None
+    for line in proc.stdout:
+        log.write(line)
+        log.flush()
+        text = line.strip()
+        if 'X11 ' not in text:
+            continue
+        print(text, flush=True)
+        marker = text[text.index('X11 '):].split()
+        if len(marker) == 3 and marker[1] == 'ACTION':
+            name = marker[2]
+            try:
+                actions[name]()
+                ack(name)
+                log.write(f'[x11-device] action {name} done\n')
+            except Exception as error:  # noqa: BLE001 — 记下来，让测试等超时失败
+                failed_action = f'{name}: {error}'
+                log.write(f'[x11-device] action {name} FAILED: {error}\n')
+    code = proc.wait()
+    log.close()
+    return code, failed_action
+
+
+UU = 'com.netease.uuremote'
+HIJACKER = 'example.shun.fixture.fakeuu'
+
+
+def uu_mode(mode):
+    # 不带 -W：设模式的页面存完就 finish，am 等不到「启动完成」，会一直等到 adb 超时。
+    r39.shell('am', 'start', '-n', f'{UU}/{HIJACKER}.ModeActivity', '--es', 'mode', mode)
+    time.sleep(2)
+
+
+def forge(uri):
+    # 和任何一个 App 能发的一样：隐式 VIEW，系统按 scheme 交给声明了它的 Activity。
+    r39.shell('am', 'start', '-W', '-a', 'android.intent.action.VIEW', '-d', uri)
+    time.sleep(1.5)
+
+
+UU_ACTIONS = {
+    'forge-nopending': lambda: forge(
+        'shun-uuremote://callback/bind?state=AAAAAAAAAAAAAAAAAAAAAA&anonymous_device_id=x&nonce=y'),
+    'forge-malformed': lambda: forge(
+        'shun-uuremote://callback/../bind?state=%00%0a&state=B&nonce=' + 'z' * 4000),
+    'mode-bind_twice': lambda: uu_mode('bind_twice'),
+    'mode-bind_wrong_nonce': lambda: uu_mode('bind_wrong_nonce'),
+    'install-hijack': lambda: r39.adb('install', apk('fakeuu-hijack')),
+    'uninstall-hijack': lambda: r39.adb('uninstall', HIJACKER),
+}
+
+
+def uu():
+    env = r39.environment()
+    r39.check_device()
+    out = r39.CHAIN / 'artifacts' / time.strftime('x11-uu-%Y%m%d-%H%M%S')
+    out.mkdir(parents=True)
+    for package in [HOST, UU, HIJACKER]:
+        r39.adb('uninstall', package, check=False)
+    r39.adb('install', apk('fakeuu'))
+    r39.adb('logcat', '-c')
+    code, failed_action = run_marked('integration_test/plugins/x11_uu_test.dart', UU_ACTIONS, out, env)
+    (out / 'logcat-fakeuu.txt').write_text(r39.adb('logcat', '-d', '-s', 'ShunFakeUu', check=False) + '\n')
+    summary = [f'flutter test exit={code}', f'failed action={failed_action}']
+    (out / 'summary.txt').write_text('\n'.join(summary) + '\n')
+    print('\n'.join(summary), flush=True)
+    for package in [HOST, UU, HIJACKER]:
+        r39.adb('uninstall', package, check=False)
+    print(f'evidence in {out}', flush=True)
+    return 0 if code == 0 and failed_action is None else 1
+
+
 def main():
     if sys.argv[1:2] == ['x03']:
         r39.require(len(sys.argv) == 3, '用法：tool/x11-device.py x03 <场景>')
         return x03(sys.argv[2])
+    if sys.argv[1:2] == ['uu']:
+        return uu()
     env = r39.environment()
     r39.check_device()
     out = r39.CHAIN / 'artifacts' / time.strftime('x11-device-%Y%m%d-%H%M%S')
@@ -158,31 +246,8 @@ def main():
         'fingerprint=' + r39.shell('getprop', 'ro.build.fingerprint'),
     ]) + '\n')
     r39.adb('logcat', '-c')
-    log = (out / 'flutter-test.log').open('w')
-    # --no-uninstall：跑完还要看宿主申请了哪些权限，脚本最后自己卸。
-    proc = subprocess.Popen(
-        ['flutter', 'test', '--no-pub', '--no-uninstall', TARGET, '-d', r39.SERIAL],
-        cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-    failed_action = None
-    for line in proc.stdout:
-        log.write(line)
-        log.flush()
-        text = line.strip()
-        if 'X11 ' not in text:
-            continue
-        print(text, flush=True)
-        marker = text[text.index('X11 '):].split()
-        if len(marker) == 3 and marker[1] == 'ACTION':
-            name = marker[2]
-            try:
-                ACTIONS[name]()
-                ack(name)
-                log.write(f'[x11-device] action {name} done\n')
-            except Exception as error:  # noqa: BLE001 — 记下来，让测试等超时失败
-                failed_action = f'{name}: {error}'
-                log.write(f'[x11-device] action {name} FAILED: {error}\n')
-    code = proc.wait()
-    log.close()
+    # keep_host：跑完还要看宿主申请了哪些权限，脚本最后自己卸。
+    code, failed_action = run_marked(TARGET, ACTIONS, out, env, keep_host=True)
 
     tags = {'rogue': 'ShunRogue', 'echo': 'ShunEcho', 'host': 'ShunPlugins', 'mosh': 'ShunMosh'}
     for name, tag in tags.items():
