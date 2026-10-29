@@ -88,7 +88,7 @@ cd .. && flutter test integration_test/plugin_session_test.dart -d emulator-5554
 | `stubborn` | echo-stubborn + echo-debugkey | 撤销后插件持续发的事件全被丢弃，记「停止未确认」，另一个插件不受影响 |
 | `version` | echo-major2 | 握手被拒，打不开会话 |
 | `kill` | echo-author + echo-debugkey，另起 `tool/fixture-environment/up.sh` 并 `adb reverse tcp:22201 tcp:22201` | 测试打出 `X03 kill.READY` 后执行 `adb shell run-as example.shun.fixture.echo kill -9 $(adb shell pidof example.shun.fixture.echo)`：它的会话记插件死亡，另一个插件、SSH、SFTP 照常 |
-| `hostkill` | echo-author | 打出 `X03 hostkill.READY` 后 `adb shell run-as top.xdwa.shun.debug kill -9 $(adb shell pidof top.xdwa.shun.debug)`；看 echo 日志「宿主已退出，关闭 1 个会话」和它的 fd 数。测试会报「未完成」，那是被杀掉了，正常 |
+| `hostkill` | echo-author | 打出 `X03 hostkill.READY` 后 `adb shell run-as top.xdwa.shun.debug kill -9 $(adb shell pidof top.xdwa.shun.debug)`；看 echo 日志「宿主已退出，关闭 N 个会话」和它的 fd 数。N 是 1 还是 0 都对：会话的 socket 先读到 EOF 就已经自己关了，轮到 death recipient 时就是 0（API 30 镜像上 `am crash` 杀宿主时是这样，前面会有一行「会话 … 结束」）。不对的是两行都没有。这台镜像的 SELinux 不让 run-as 发 SIGKILL，用 `adb shell am crash top.xdwa.shun.debug`，或直接 `SHUN_R39_AVD=shun-r39-a30 python3 tool/x11-device.py x03 hostkill`。测试会报「未完成」，那是被杀掉了，正常 |
 
 `kill` 场景的 SSH 参数用 `--dart-define` 传：`SSH_PORT=22201`、`SSH_USER`、`SSH_PASS`、`SSH_FP`，取自 `tool/fixture-environment/.run/fixture.json`（`sshEdge.fingerprintSha256`）。
 
