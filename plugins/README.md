@@ -42,6 +42,7 @@ cp ../android/local.properties .      # 首次：告诉 Gradle SDK 在哪（被 
 | `echo-v2.apk` | 同上 | 独立作者密钥 | 版本 0.2.0（versionCode 2），能力不变：普通更新，应仍可用（PLG11） |
 | `echo-morecaps.apk` | 同上 | 独立作者密钥 | 0.3.0，多申请 `remote-desktop-external`：应回到待批准，不自动扩大批准（PLG11） |
 | `echo-apimajor2.apk` | 同上 | 独立作者密钥 | 0.4.0，描述符声明 API major 2：应判不兼容（X04「major 变化阻断」） |
+| `echo-moreperms.apk` | 同上 | 独立作者密钥 | 版本号、能力都和 echo-author 一样，只多申请 `own-session-ephemeral-secret`：`adb install -r` 盖上去应回到待批准（X11；以前仍可用） |
 | `fakeuu.apk` | com.netease.uuremote | 独立作者密钥 | X06 假 UU 远程 4.42.0：冒充官方包名，证书不是官方的，宿主要用户批准证书后才发请求 |
 | `fakeuu-old.apk` | 同上 | 独立作者密钥 | 4.41.0：宿主应判「版本太旧」 |
 | `fakeuu-resigned.apk` | 同上 | 另一把密钥 | 同包名换签：批准过 `fakeuu` 之后装它，宿主应停下来要求重新核对。要先卸载 `fakeuu` 才装得上 |

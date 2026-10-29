@@ -12,6 +12,7 @@
 //   -PdescriptorVersion=0.1.0 -PversionCode=1               X04 模拟插件更新（版本号要递增才能覆盖安装）
 //   -PextraCapability=<能力名>                               X04 更新后多申请一项能力，宿主应要求重新批准
 //   -PapiMajor=1                                             X04 描述符声明的 API major，改成 2 宿主应判不兼容
+//   -PextraPermission=<权限名>                              X11 更新后多申请一项权限（能力不变），宿主应要求重新批准
 plugins {
     id("com.android.application")
 }
@@ -28,9 +29,11 @@ val descriptorVersion = (findProperty("descriptorVersion") as String?) ?: "0.1.0
 val fixtureVersionCode = ((findProperty("versionCode") as String?) ?: "1").toInt()
 val extraCapability = (findProperty("extraCapability") as String?) ?: ""
 val apiMajor = ((findProperty("apiMajor") as String?) ?: "1").toInt()
+val extraPermission = (findProperty("extraPermission") as String?) ?: ""
 val capabilities = listOf("terminal-session") + listOfNotNull(extraCapability.ifBlank { null })
 val permissions = listOf("own-session-input-output") +
-    if (extraCapability == "remote-desktop-external") listOf("user-initiated-external-launch") else emptyList()
+    (if (extraCapability == "remote-desktop-external") listOf("user-initiated-external-launch") else emptyList()) +
+    listOfNotNull(extraPermission.ifBlank { null })
 fun jsonList(items: List<String>) = items.joinToString(", ") { "\"$it\"" }
 if (behavior !in setOf("normal", "slowopen", "stubborn", "misbehave", "major2", "badhandshake")) {
     throw GradleException("behavior 只能是 normal/slowopen/stubborn/misbehave/major2/badhandshake")

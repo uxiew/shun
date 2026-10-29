@@ -52,6 +52,8 @@ build echo-v2        fixture-echo  -PsignWith=author -PdescriptorVersion=0.2.0 -
 build echo-morecaps  fixture-echo  -PsignWith=author -PdescriptorVersion=0.3.0 -PversionCode=3 \
   -PextraCapability=remote-desktop-external
 build echo-apimajor2 fixture-echo  -PsignWith=author -PdescriptorVersion=0.4.0 -PversionCode=4 -PapiMajor=2
+# X11：只多申请一项权限，版本号、能力都和 echo-author 一样（adb install -r 同 versionCode 也能覆盖）。宿主应回到待批准。
+build echo-moreperms fixture-echo  -PsignWith=author -PextraPermission=own-session-ephemeral-secret
 # X06「假 UU 远程」：冒充官方包名 com.netease.uuremote（证书当然不是官方的）。同包名的变体要先卸载才能换装。
 build fakeuu           fixture-fakeuu -PsignWith=author
 build fakeuu-old       fixture-fakeuu -PsignWith=author -PfakeUuVersion=4.41.0 -PfakeUuVersionCode=44100
