@@ -255,7 +255,89 @@ def intents(package):
     return 0 if not crashes and 'gone' not in ''.join(lines) else 1
 
 
+MOSH_PKG = 'top.xdwa.shun.mosh'
+
+
+def mosh_client_facts():
+    """mosh-client 的命令行和环境变量名（只记名字，不记值）。key 该走 fd 3，不该出现在这两处。"""
+    ps = r39.shell('ps', '-A', '-o', 'PID,NAME', check=False)
+    pids = [l.split()[0] for l in ps.splitlines() if 'mosh' in l and 'top.xdwa.shun.mosh' not in l]
+    facts = []
+    for pid in pids:
+        cmd = r39.shell('run-as', MOSH_PKG, 'sh', '-c', f"tr '\\0' ' ' < /proc/{pid}/cmdline", check=False)
+        env = r39.shell('run-as', MOSH_PKG, 'sh', '-c', f"tr '\\0' '\\n' < /proc/{pid}/environ | cut -d= -f1", check=False)
+        facts.append((pid, cmd.strip(), sorted(set(env.split()))))
+    return facts
+
+
+def mosh():
+    """PLG09/PLG14：真 Mosh 会话开着时看 mosh-client 拿到了什么，强杀插件，再到处搜测试秘密。"""
+    env = r39.environment()
+    r39.check_device()
+    out = r39.CHAIN / 'artifacts' / time.strftime('x11-mosh-%Y%m%d-%H%M%S')
+    out.mkdir(parents=True)
+    fixture = ROOT / 'tool/mosh-fixture/.run/fixture.json'
+    r39.require(fixture.is_file(), '先 (cd tool/mosh-fixture && ./up.sh)')
+    import json
+    password = json.loads(fixture.read_text())['password']
+    define = subprocess.run([sys.executable, 'tool/mosh-fixture/x08_config.py'], cwd=ROOT,
+                            capture_output=True, text=True, check=True).stdout.strip()
+    r39.adb('uninstall', HOST, check=False)
+    r39.adb('install', '-r', str(MOSH_APK))
+    # 模拟器经 10.0.2.2 的 TCP 只在蜂窝上通（本机手册第 3 节）。
+    r39.shell('svc', 'wifi', 'disable')
+    r39.adb('logcat', '-b', 'all', '-c', check=False)
+    notes = []
+    log = (out / 'flutter-test.log').open('w')
+    proc = subprocess.Popen(
+        ['flutter', 'test', '--no-pub', '--no-uninstall', 'integration_test/mosh_session_test.dart',
+         '-d', r39.SERIAL, f'--dart-define=X09_MOSH={define}', '--dart-define=X09_SCENARIO=kill'],
+        cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    for line in proc.stdout:
+        # 测试自己不打密码；万一打了，证据里也不留原文。
+        log.write(line.replace(password, '<FIXTURE-PASSWORD>'))
+        log.flush()
+        if 'X09 ' in line:
+            print(line.strip().replace(password, '<FIXTURE-PASSWORD>')[:200], flush=True)
+        if 'X09 kill.READY' in line:
+            for pid, cmd, names in mosh_client_facts():
+                notes.append(f'mosh-client pid={pid} argv=[{cmd}] env names={names}')
+                notes.append(f'  MOSH_KEY in env: {"MOSH_KEY" in names}; password in argv: {password in cmd}')
+            # SELinux 不让 run-as 发 SIGKILL，用 am crash 让插件进程真崩一次（X10 同样做法）。
+            r39.shell('am', 'crash', MOSH_PKG)
+    code = proc.wait()
+    log.close()
+    r39.shell('svc', 'wifi', 'enable')
+
+    def hits(text):
+        return {k: text.count(k) for k in [password, 'MOSH CONNECT', 'MOSH_KEY']}
+    places = {
+        'logcat (all buffers)': r39.adb('logcat', '-d', '-b', 'all', check=False),
+        'dropbox': r39.shell('dumpsys', 'dropbox', '--print', check=False),
+    }
+    for package in [HOST, MOSH_PKG]:
+        # 调试包的 flutter_assets/kernel_blob.bin 是测试代码本身，--dart-define 的密码编在里面（R25 说过），不搜。
+        places[f'{package} private files'] = r39.shell(
+            'run-as', package, 'sh', '-c',
+            "find . -type f ! -path '*/flutter_assets/*' -exec cat {} + 2>/dev/null", check=False)
+    summary = [f'flutter test exit={code}', *notes]
+    for where, text in places.items():
+        found = hits(text)
+        summary.append(f'{where}: password={found[password]} "MOSH CONNECT"={found["MOSH CONNECT"]} '
+                       f'MOSH_KEY={found["MOSH_KEY"]} ({len(text)} chars searched)')
+    # 对照：往 logcat 写一个标记再搜，搜不到说明搜法本身不灵，上面的 0 不算数。
+    marker = f'x11-control-{time.time_ns()}'
+    r39.shell('log', '-t', 'X11', marker)
+    summary.append('control marker found in logcat: ' + str(marker in r39.adb('logcat', '-d', '-b', 'all', check=False)))
+    (out / 'summary.txt').write_text('\n'.join(summary) + '\n')
+    print('\n'.join(summary), f'\nevidence in {out}', flush=True)
+    r39.adb('uninstall', HOST, check=False)
+    return code
+
+
 def main():
+    if sys.argv[1:2] == ['mosh']:
+        return mosh()
     if sys.argv[1:2] == ['intents']:
         r39.require(len(sys.argv) == 3, '用法：tool/x11-device.py intents <包名>')
         return intents(sys.argv[2])
