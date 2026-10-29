@@ -2189,7 +2189,7 @@
       "id": "X11",
       "phase": "E3",
       "title": "插件信任、撤销、外部调用对抗回归",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "X04",
         "X05",
@@ -2237,8 +2237,10 @@
       ],
       "stop_condition": "发布硬阻断，审查者不能仅照实施总结填通过。",
       "owner_role": "独立安全代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/X11.md"
+      ],
+      "commit": "6da02fe"
     },
     {
       "id": "X12",
