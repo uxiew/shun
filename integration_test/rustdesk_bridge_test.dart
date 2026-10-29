@@ -76,6 +76,14 @@ void main() {
       'intent://connect/1#Intent;scheme=rustdesk;end',
       'uuremote://external/device/control?anonymous_device_id=x',
       '',
+      // X11 补的：全角数字、百分号编码、片段、结尾空白/\r/NUL、超长数字 ID。
+      'rustdesk://connect/１２３４５６',
+      'rustdesk://connect/%31%32%33%34%35%36',
+      'rustdesk://connect/123456789#password=x',
+      'rustdesk://connect/123456789 ',
+      'rustdesk://connect/123456789\r',
+      'rustdesk://connect/123456789\u0000',
+      'rustdesk://connect/12345678901234567',
     ]) {
       final reason = await refused(uri);
       report('refused', '${uri.replaceAll('\n', r'\n')} -> $reason');
