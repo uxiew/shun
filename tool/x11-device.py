@@ -291,7 +291,15 @@ def main():
     accepted = [l for l in probes if 'ACCEPTED' in l]
     package_dump = r39.shell('dumpsys', 'package', HOST, check=False)
     (out / 'host-package.txt').write_text(package_dump + '\n')
+    # PLG13 运行时那一半：跑完一整套插件流程，宿主私有目录里不该出现任何能执行的代码文件。
+    # 调试包自己的 Dart 代码在 app_flutter/flutter_assets/kernel_blob.bin（flutter test 推进来的），不在这个名单里。
+    code_files = r39.shell('run-as', HOST, 'sh', '-c',
+                           "find . -type f \\( -name '*.so' -o -name '*.dex' -o -name '*.jar' -o -name '*.apk'"
+                           " -o -name '*.odex' -o -name '*.vdex' -o -name '*.oat' -o -name '*.zip' \\) 2>/dev/null",
+                           check=False).split()
+    (out / 'host-code-files.txt').write_text('\n'.join(code_files) + '\n')
     summary = [
+        f'host private code files={len(code_files)} {code_files[:5]}',
         f'flutter test exit={code}',
         f'failed action={failed_action}',
         f'rogue probes={len(probes)} accepted={len(accepted)}',
