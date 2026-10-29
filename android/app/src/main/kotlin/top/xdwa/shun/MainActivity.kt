@@ -1,6 +1,7 @@
 package top.xdwa.shun
 
 import android.app.PictureInPictureParams
+import android.content.ComponentName
 import android.content.Context
 import android.content.res.Configuration
 import android.content.Intent
@@ -21,19 +22,34 @@ class MainActivity : FlutterActivity() {
     private var rustDeskBridge: RustDeskBridge? = null
 
     /**
-     * UU 远程的回调（X06）不由这里接，由 UuCallbackActivity 接（原因写在那里）。
-     * 这里只防一种情况：别的 App 用显式组件名把回调地址直接塞给 MainActivity。那不是 UU 回调的正常路径，
-     * 不当回调处理；data 要去掉，否则 Flutter 会把它当成深链路由。
+     * MainActivity 必须导出（启动器要用），所以别的 App 能用显式组件名带任意 extras 和 data 启动它，
+     * FlutterActivity 又会照单全收：`cached_engine_id` 指向一个不存在的引擎，冷启动在 provideFlutterEngine 之前就抛
+     * IllegalStateException，整个 App 崩掉（X11 在 release 包上实测）；`route` 和 data 被当成路由推给导航；
+     * `background_mode` 改窗口背景；`dart_entrypoint_args` 交给 Dart 入口。本 App 自己从不往这里放 extras 和 data
+     * （通知点开用的是启动器那条 Intent），所以进来的一律换成普通启动：ACTION_MAIN，只留 category 和 flags。
+     * 逐个重写 getCachedEngineId 这类方法也行，但 Flutter 哪天多读一个 extra 这里就漏了。
+     *
+     * UU 远程的回调（X06）不由这里接，由 UuCallbackActivity 接（原因写在那里）。别的 App 把回调地址直接塞给
+     * MainActivity 不是 UU 回调的正常路径，不当回调处理。
      */
     override fun onCreate(savedInstanceState: Bundle?) {
-        if (UuRemoteBridge.isCallback(intent)) intent = UuRemoteBridge.stripped(intent)
+        intent = withoutPayload(intent)
         super.onCreate(savedInstanceState)
     }
 
     override fun onNewIntent(intent: Intent) {
         if (UuRemoteBridge.isCallback(intent)) return
-        super.onNewIntent(intent)
+        val clean = withoutPayload(intent)
+        setIntent(clean)
+        super.onNewIntent(clean)
     }
+
+    private fun withoutPayload(source: Intent?): Intent =
+        Intent(Intent.ACTION_MAIN).apply {
+            component = ComponentName(this@MainActivity, MainActivity::class.java)
+            source?.categories?.forEach(::addCategory)
+            source?.let { flags = it.flags }
+        }
 
     /** 引擎归进程（R22），见 ProcessEngine。 */
     override fun provideFlutterEngine(context: Context): FlutterEngine = ProcessEngine.obtain(context)

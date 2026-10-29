@@ -17,6 +17,12 @@
 重跑 X03 的会话场景（integration_test/plugin_session_test.dart）：stream、slowopen、misbehave、stubborn、
 version、hostkill。前置插件自动装；hostkill 看到 READY 就强杀宿主，前后各数一次 echo 的 fd。
 证据在 ../.toolchain/artifacts/x11-x03-<场景>-<时间>/。kill 场景要 SSH 测试环境，不在这里。
+
+  SHUN_R39_AVD=shun-r39-a30 python3 tool/x11-device.py intents <包名>
+
+别的 App 能做的：显式启动 MainActivity，带 FlutterActivity 会读的 extras（cached_engine_id、route……）和 data。
+先冷启动、再对已在运行的各发一次，看进程还在不在、crash 缓冲区里有没有它。要先装好那个包（release 包是
+ top.xdwa.shun）。修之前 release 包冷启动会崩：The requested cached FlutterEngine did not exist。
 """
 import importlib.util
 from pathlib import Path
@@ -224,7 +230,35 @@ def uu():
     return 0 if code == 0 and failed_action is None else 1
 
 
+PAYLOAD = ['--es', 'route', '/settings/plugins', '--es', 'cached_engine_id', 'evil',
+           '--es', 'background_mode', 'transparent', '--es', 'dart_entrypoint_args', 'x',
+           '--ez', 'enable_state_restoration', 'false', '-d', 'https://evil.example/plugins?approve=1']
+
+
+def intents(package):
+    r39.check_device()
+    out = r39.CHAIN / 'artifacts' / time.strftime('x11-intents-%Y%m%d-%H%M%S')
+    out.mkdir(parents=True)
+    r39.require(r39.shell('pm', 'path', package, check=False).startswith('package:'), f'{package} 没装')
+    r39.shell('am', 'force-stop', package)
+    r39.adb('logcat', '-b', 'crash', '-c', check=False)
+    lines = []
+    for round_ in ['cold', 'warm']:
+        r39.shell('am', 'start', '-W', '-n', f'{package}/top.xdwa.shun.MainActivity', *PAYLOAD, check=False)
+        time.sleep(4)
+        lines.append(f'{round_}: pid={r39.shell("pidof", package, check=False).strip() or "gone"}')
+    crashes = [l for l in r39.adb('logcat', '-d', '-b', 'crash', check=False).splitlines() if package in l]
+    lines.append(f'crash lines mentioning {package}: {len(crashes)}')
+    lines += crashes[:6]
+    (out / 'summary.txt').write_text('\n'.join(lines) + '\n')
+    print('\n'.join(lines), f'\nevidence in {out}', flush=True)
+    return 0 if not crashes and 'gone' not in ''.join(lines) else 1
+
+
 def main():
+    if sys.argv[1:2] == ['intents']:
+        r39.require(len(sys.argv) == 3, '用法：tool/x11-device.py intents <包名>')
+        return intents(sys.argv[2])
     if sys.argv[1:2] == ['x03']:
         r39.require(len(sys.argv) == 3, '用法：tool/x11-device.py x03 <场景>')
         return x03(sys.argv[2])

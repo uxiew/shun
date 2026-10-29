@@ -62,12 +62,6 @@ class UuRemoteBridge(
             queue.addLast(raw)
             instance?.channel?.invokeMethod("callbacksAvailable", null)
         }
-
-        /** 去掉 data 的同一个 Intent：Flutter 看到的就是普通启动。 */
-        fun stripped(intent: Intent): Intent = Intent(intent).apply {
-            data = null
-            action = Intent.ACTION_MAIN
-        }
     }
 
     override fun onMethodCall(call: MethodCall, result: MethodChannel.Result) {

@@ -305,6 +305,10 @@ AI 命令行的「按会话 ID 继续」「同项目新建」点一下就启动�
 - **默认不外连**：AI、云同步、检查更新都由 `ForkFeatures` 默认关掉，`test/fork_features_test.dart`「默认开关下冷启动、打开设置、后台恢复都不发网络请求」钉着。
 - Android 清单 `usesCleartextTraffic="false"`，没有自定义 `networkSecurityConfig`。
 - 清单只声明用得到的：权限是白名单，`MainActivity` 不接 VIEW（`test/android_manifest_test.dart` 钉着）。以前声明了 `ssh://` 链接和 `WAKE_LOCK`，都没代码用：前者让网页和别的 App 能拉起本 App，链接还被 Flutter 当深链路由交给导航；后者是 `SshKeepAliveService` 已经不拿的唤醒锁。iOS 的 `CFBundleURLTypes`（`ssh`、`shun`）同理删了。要加链接入口，先写处理和用户确认。
+- `MainActivity` 只能导出（启动器要用），别的 App 仍能用显式组件名带任意 extras 和 data 启动它。`MainActivity.withoutPayload` 在 `onCreate`、`onNewIntent` 把进来的 Intent 换成不带 extras、data 的普通启动。
+  不这么做会怎样（X11 在 release 包上实测）：带 `cached_engine_id` 冷启动，FlutterActivity 在调 `provideFlutterEngine` 之前就报 `The requested cached FlutterEngine did not exist in the FlutterEngineCache`，整个 App 崩掉；
+  `route` 和 data 被当成路由推给导航（现在没有命名路由，只记一条「找不到路由」；哪天加了，别的 App 就能直接打开那一页）。自家代码从不往这里放 extras，通知点开用的也是启动器那条 Intent；
+  要加就得先改 `withoutPayload`。复现：`SHUN_R39_AVD=shun-r39-a30 python3 tool/x11-device.py intents top.xdwa.shun`。
 
 ## 10. 提交前检查
 
