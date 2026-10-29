@@ -225,7 +225,8 @@ void main() {
         pluginId: 'example.terminal',
         packageName: 'com.example.terminal',
         signingDigest: 'author-cert',
-        capabilities: {Capability.terminalSession}));
+        capabilities: {Capability.terminalSession},
+        permissions: {Permission.ownSessionInputOutput}));
     final container = await open(tester, const ConnectionTypeScreen());
     final tile = find.byKey(const ValueKey('connection-type-Terminal'));
     await tester.ensureVisible(tile);
@@ -255,7 +256,8 @@ void main() {
         pluginId: 'example.terminal',
         packageName: 'com.example.terminal',
         signingDigest: 'author-cert',
-        capabilities: {Capability.terminalSession}));
+        capabilities: {Capability.terminalSession},
+        permissions: {Permission.ownSessionInputOutput}));
     await open(tester, const VaultScreen());
     await select(tester, 'Terminal');
     expect(find.widgetWithText(TextFormField, '主机名 / IP'), findsNothing);

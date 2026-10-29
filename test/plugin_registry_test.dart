@@ -42,12 +42,14 @@ ApprovedBinding approval({
   String package = 'example.terminal.mosh',
   String cert = 'author-cert',
   Set<Capability> capabilities = const {Capability.terminalSession},
+  Set<Permission> permissions = const {Permission.ownSessionInputOutput},
 }) =>
     ApprovedBinding(
       pluginId: id,
       packageName: package,
       signingDigest: cert,
       capabilities: capabilities,
+      permissions: permissions,
     );
 
 PluginRegistry registry() => PluginRegistry(

@@ -319,6 +319,7 @@ class PluginRegistry extends StateNotifier<List<PluginEntry>> {
             packageName: null,
             signingDigest: 'host',
             capabilities: d.capabilities,
+            permissions: d.permissions,
           ),
         ),
     ];

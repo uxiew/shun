@@ -475,7 +475,7 @@ flowchart TD
 
 **信任与签名**，这里只指路：
 
-- 准入规则：`packages/plugin_api/lib/src/admission.dart` 的 `AdmissionPolicy.evaluate`（保留 id、官方 id 绑证书、调试证书只在 debug 构建收、换签即拒、申请新能力要重新批准）。
+- 准入规则：`packages/plugin_api/lib/src/admission.dart` 的 `AdmissionPolicy.evaluate`（保留 id、官方 id 绑证书、调试证书只在 debug 构建收、换签即拒、申请新能力或新权限要重新批准）。
 - 官方插件证书：`lib/domain/plugins/official_plugins.dart`，`shun.mosh` 只认一张证书（现在是测试作者证书）。**Mosh 插件换签名必须同步改这里**，不然真插件也会被当冒充者拒掉；操作见本机手册第 2 节 Mosh 那条。
 - 绑定前复核证书在 `PluginBridge.kt`；插件一侧逐事务核对调用方在 `plugins/provider-sdk/` 的 `CallerVerifier.java`；插件构建时写进它信任的宿主证书（`plugins/mosh/build.gradle.kts` 的 `-PhostSha256`）。
 - 设计口径：`plan/v3/docs/15-plugin-architecture.md`（代码注释里的「docs/15 §x」）、`16-mosh-plugin.md`。

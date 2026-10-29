@@ -188,6 +188,32 @@ void main() {
     expect(find.textContaining('批准范围之外的新能力'), findsOneWidget);
   });
 
+  // X11：批准记录连权限一起绑，确认框里就得列出权限（以前只列能力）；只多一条权限的更新也要重批。
+  testWidgets('确认框列出权限；更新后只多一条权限也回到待批准', (tester) async {
+    await openDetail(tester);
+    await tapKey(tester, 'plugin-approve');
+    expect(
+      find.descendant(
+        of: find.byType(AlertDialog),
+        matching: find.text('申请的权限：本会话的输入输出（own-session-input-output）'),
+      ),
+      findsOneWidget,
+    );
+    await tapKey(tester, 'plugin-approve-confirm');
+    expect(status(tester), '可用');
+
+    bridge.installed = [
+      echo(permissions: [
+        'own-session-input-output',
+        'own-session-ephemeral-secret',
+      ]),
+    ];
+    bridge.changes.add(const PackageChange(pkg, 'replaced', replacing: true));
+    await tester.pumpAndSettle();
+    expect(status(tester), '待批准');
+    expect(find.textContaining('批准范围之外的权限'), findsOneWidget);
+  });
+
   testWidgets('批准后：可用，出现连接测试、设置页、停用、撤销；设置页只打开系统查出的那个组件', (tester) async {
     await openDetail(tester);
     await tapKey(tester, 'plugin-approve');
@@ -268,8 +294,7 @@ void main() {
 
   // 10-25 模拟器上撞到：echo-author 和 echo-leaky 同为 0.1.0（1）、同一把密钥，互相覆盖安装后
   // 连接已经断了（系统里 0 个绑定），详情页还写「握手成功」、还给「断开」。
-  testWidgets('同版本号覆盖安装：之前的测试结果作废、不再给「断开」，重测一次又正常',
-      (tester) async {
+  testWidgets('同版本号覆盖安装：之前的测试结果作废、不再给「断开」，重测一次又正常', (tester) async {
     await openDetail(tester);
     await tapKey(tester, 'plugin-approve');
     await tapKey(tester, 'plugin-approve-confirm');

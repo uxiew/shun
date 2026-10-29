@@ -30,6 +30,7 @@ String descriptor({
   String version = '0.1.0',
   int apiMajor = 1,
   List<String> capabilities = const ['terminal-session'],
+  List<String> permissions = const ['own-session-input-output'],
 }) =>
     jsonEncode({
       'schemaVersion': 1,
@@ -42,7 +43,7 @@ String descriptor({
       'capabilities': capabilities,
       'supportedRoutes': ['system-default'],
       'platforms': ['android'],
-      'permissions': ['own-session-input-output'],
+      'permissions': permissions,
       'packageName': package,
       'serviceClass': service,
     });
@@ -319,6 +320,49 @@ void main() {
     expect(PluginApprovalStore(prefs).load(), isEmpty);
   });
 
+  test('X11 批准记录含不认识的权限：整条作废，不挑认识的留下', () async {
+    await prefs.setString(
+      'shun.plugins.approvals.v1',
+      jsonEncode([
+        {
+          'pluginId': 'example.fixture_echo',
+          'packageName': echoPackage,
+          'signingDigest': authorCert,
+          'capabilities': ['terminal-session'],
+          'permissions': ['own-session-input-output', 'vault-read'],
+        },
+      ]),
+    );
+    expect(PluginApprovalStore(prefs).load(), isEmpty);
+  });
+
+  // 所有者 10-29 定：旧记录没存权限，当一条都没批。申请了权限的插件升级后要重批一次。
+  test('X11 升级前的批准记录（没有 permissions）：申请了权限的插件回到待批准，重批后存上权限', () async {
+    await prefs.setString(
+      'shun.plugins.approvals.v1',
+      jsonEncode([
+        {
+          'pluginId': 'example.fixture_echo',
+          'packageName': echoPackage,
+          'signingDigest': authorCert,
+          'capabilities': ['terminal-session'],
+        },
+      ]),
+    );
+    expect(PluginApprovalStore(prefs).load().single.permissions, isEmpty);
+    bridge.installed = [echo()];
+    await discovery.start();
+    final entry = entryOf(echoPackage);
+    expect(entry.status, PluginStatus.needsApproval);
+    expect(entry.reason, contains('权限'));
+    expect(entry.hasApproval, isTrue);
+
+    await discovery.approve(entry);
+    expect(entryOf(echoPackage).status, PluginStatus.ready);
+    expect(PluginApprovalStore(prefs).load().single.permissions,
+        {Permission.ownSessionInputOutput});
+  });
+
   group('X04 包变化后重新核验，不沿用旧判定、不自动重新批准（PLG11）', () {
     Future<List<String>> approvedAndTrack() async {
       bridge.installed = [echo()];
@@ -369,6 +413,46 @@ void main() {
         PluginApprovalStore(prefs).load().single.capabilities,
         {Capability.terminalSession},
       );
+    });
+
+    // X11：以前只比能力，这种更新会直接可用、拿到 Mosh 会话密钥。版本号不变也一样（adb install -r 允许同 versionCode）。
+    test('更新后多申请了权限（版本号没变）：回到待批准，批准记录不扩大', () async {
+      await approvedAndTrack();
+      bridge.installed = [
+        echo(
+          json: descriptor(permissions: [
+            'own-session-input-output',
+            'own-session-ephemeral-secret',
+          ]),
+        ),
+      ];
+      await change('replaced', replacing: true);
+      final entry = entryOf(echoPackage);
+      expect(entry.status, PluginStatus.needsApproval);
+      expect(entry.reason, contains('权限'));
+      expect(registry.readyEntry('example.fixture_echo'), isNull);
+      expect(PluginApprovalStore(prefs).load().single.permissions,
+          {Permission.ownSessionInputOutput});
+    });
+
+    test('确认框开着时只多了一条权限（证书、版本、能力都没变）：拒绝批准', () async {
+      bridge.installed = [echo()];
+      await discovery.start();
+      final shown = entryOf(echoPackage);
+      bridge.installed = [
+        echo(
+          json: descriptor(permissions: [
+            'own-session-input-output',
+            'own-session-ephemeral-secret',
+          ]),
+        ),
+      ];
+      await expectLater(
+        discovery.approve(shown),
+        throwsA(isA<PluginApprovalRefused>()
+            .having((e) => e.message, 'message', contains('确认期间插件有变化'))),
+      );
+      expect(PluginApprovalStore(prefs).load(), isEmpty);
     });
 
     test('更新后 API major 变了：不兼容，不能用', () async {

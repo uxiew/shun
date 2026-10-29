@@ -13,7 +13,7 @@ import 'package:shun/domain/plugins/plugin_host.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/plugins/android_plugin_bridge.dart';
 import 'package:plugin_api/plugin_api.dart'
-    show AdmissionPolicy, ApprovedBinding, Capability, SessionPhase;
+    show AdmissionPolicy, ApprovedBinding, Capability, Permission, SessionPhase;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fixtures/fake_plugin_bridge.dart';
@@ -260,6 +260,7 @@ void main() {
         packageName: hello,
         signingDigest: 'author-cert',
         capabilities: {Capability.terminalSession},
+        permissions: {Permission.ownSessionInputOutput},
       ));
       final result = pluginHostAvailability(registry.entries, helloId);
       expect(result.problem, isNull);

@@ -270,14 +270,17 @@ class PluginSessionManager {
       const reason = '不是已安装的插件';
       throw PluginUnavailable(package ?? '?', null, reason);
     }
-    _registry.require(id, Capability.terminalSession);
+    final binding = _registry.require(id, Capability.terminalSession);
+    // 插件现在申请了、用户也批过，两者都要有。Ready 已经保证「申请的都批过」，这里再查批准记录
+    // 是为了密钥交出前不只靠准入那一处：哪天准入改坏了，也不会把密钥交给没批过这条权限的插件（X11）。
     if (mosh != null &&
-        !(_registry
-                .readyEntry(id)
-                ?.descriptor
-                ?.permissions
-                .contains(Permission.ownSessionEphemeralSecret) ??
-            false)) {
+        !(binding.permissions.contains(Permission.ownSessionEphemeralSecret) &&
+            (_registry
+                    .readyEntry(id)
+                    ?.descriptor
+                    ?.permissions
+                    .contains(Permission.ownSessionEphemeralSecret) ??
+                false))) {
       throw PluginUnavailable(
           id, PluginStatus.ready, '插件没有申请临时会话密钥权限，不能交给它 Mosh 会话材料');
     }

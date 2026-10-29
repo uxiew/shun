@@ -10,7 +10,8 @@ import 'package:shun/infrastructure/plugins/plugin_approval_store.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/widgets/host_address_line.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
-import 'package:plugin_api/plugin_api.dart' show ApprovedBinding, Capability;
+import 'package:plugin_api/plugin_api.dart'
+    show ApprovedBinding, Capability, Permission;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'fixtures/fake_plugin_bridge.dart';
@@ -35,6 +36,11 @@ void main() {
       packageName: package,
       signingDigest: 'author-cert',
       capabilities: const {Capability.terminalSession},
+      // 批准范围大于申请的也算批过：com.x.secret 要的是两条，得是 Ready 才测得到「因为是 Mosh 类被排除」。
+      permissions: const {
+        Permission.ownSessionInputOutput,
+        Permission.ownSessionEphemeralSecret,
+      },
     ));
   }
 

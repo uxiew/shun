@@ -74,6 +74,10 @@ void main() {
       packageName: fakePackage,
       signingDigest: otherCert,
       capabilities: const {Capability.terminalSession},
+      permissions: const {
+        Permission.ownSessionInputOutput,
+        Permission.ownSessionEphemeralSecret,
+      },
     ));
     expect(entryOf(fakePackage).status, PluginStatus.rejected);
     expect(registry.readyEntry('shun.mosh'), isNull);
@@ -89,6 +93,10 @@ void main() {
       packageName: realPackage,
       signingDigest: OfficialPlugins.moshTestAuthorCertSha256,
       capabilities: {Capability.terminalSession},
+      permissions: {
+        Permission.ownSessionInputOutput,
+        Permission.ownSessionEphemeralSecret,
+      },
     ));
     expect(entryOf(realPackage).status, PluginStatus.ready);
     expect(registry.readyEntry('shun.mosh')!.packageName, realPackage);

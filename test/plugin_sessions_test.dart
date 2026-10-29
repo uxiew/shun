@@ -110,6 +110,10 @@ void main() {
           packageName: package,
           signingDigest: 'cert-$package',
           capabilities: {Capability.terminalSession},
+          permissions: {
+            for (final p in Permission.values)
+              if (permissions.contains(p.wire)) p,
+          },
         ),
       );
     return registry.readyEntry(id)!;

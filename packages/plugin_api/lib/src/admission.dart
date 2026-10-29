@@ -19,19 +19,24 @@ class InstalledCandidate {
   final Set<String> actualSignerDigests;
 }
 
-/// 用户在授权页批准过的绑定：pluginId + 包名 + 证书 + 能力，四者都要对上。
+/// 用户在授权页批准过的绑定：pluginId + 包名 + 证书 + 能力 + 权限，五者都要对上。
 class ApprovedBinding {
   const ApprovedBinding({
     required this.pluginId,
     required this.packageName,
     required this.signingDigest,
     required this.capabilities,
+    required this.permissions,
   });
 
   final String pluginId;
   final String? packageName;
   final String signingDigest;
   final Set<Capability> capabilities;
+
+  /// 用户批准时看到的权限。插件更新后多申请的权限不在这里，就回到待批准：
+  /// 只比能力的话，同一把密钥签的新版加一句 own-session-ephemeral-secret 就能拿到 Mosh 会话密钥（X11）。
+  final Set<Permission> permissions;
 }
 
 sealed class Admission {
@@ -126,6 +131,7 @@ class AdmissionPolicy {
           packageName: null,
           signingDigest: 'host',
           capabilities: d.capabilities,
+          permissions: d.permissions,
         ),
       );
     }
@@ -150,6 +156,9 @@ class AdmissionPolicy {
     }
     if (!approval.capabilities.containsAll(d.capabilities)) {
       return const NeedsApproval('插件申请了批准范围之外的新能力，需要重新批准');
+    }
+    if (!approval.permissions.containsAll(d.permissions)) {
+      return const NeedsApproval('插件申请了批准范围之外的权限，需要重新批准');
     }
     return Admitted(approval);
   }

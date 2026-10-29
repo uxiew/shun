@@ -3,7 +3,7 @@ import 'dart:convert';
 import 'package:plugin_api/plugin_api.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-/// 用户批准过的插件绑定（pluginId + 包名 + 证书 + 能力）。
+/// 用户批准过的插件绑定（pluginId + 包名 + 证书 + 能力 + 权限）。
 ///
 /// 放普通偏好而不是安全存储：里面没有秘密，只有公开的证书摘要；
 /// 被人改了也只会让插件变成「待批准」或「换签被拒」，不会让未批准的插件变可用——
@@ -71,6 +71,7 @@ class PluginApprovalStore {
               'packageName': b.packageName,
               'signingDigest': b.signingDigest,
               'capabilities': [for (final c in b.capabilities) c.wire],
+              'permissions': [for (final p in b.permissions) p.wire],
             },
         ]),
       );
@@ -94,11 +95,23 @@ class PluginApprovalStore {
       if (known == null) return null;
       capabilities.add(known);
     }
+    // 10-29 以前的记录没有 permissions：当时确认框只列能力、不列权限，记录里也没存，说不清用户批过哪些。
+    // 当作一条权限都没批：申请了权限的插件（Mosh 就是）升级后回到待批准，用户重新点一次批准。
+    // 改成「接受插件现在申请的」就等于替升级前已经多要了权限的插件补上批准（X11，所有者 10-29 定）。
+    final perms = item['permissions'] ?? const <Object?>[];
+    if (perms is! List) return null;
+    final permissions = <Permission>{};
+    for (final name in perms) {
+      final known = Permission.values.where((p) => p.wire == name).firstOrNull;
+      if (known == null) return null;
+      permissions.add(known);
+    }
     return ApprovedBinding(
       pluginId: id,
       packageName: package,
       signingDigest: digest,
       capabilities: capabilities,
+      permissions: permissions,
     );
   }
 }

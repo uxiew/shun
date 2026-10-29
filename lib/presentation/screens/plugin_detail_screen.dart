@@ -406,10 +406,16 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
                   d.capabilities
                       .map((c) => _named(_capabilityLabel(c), c.wire))
                       .join('、')),
+              // 批准记录从 X11 起连权限一起绑：用户点批准时必须看得到自己批了哪些。
+              _line(
+                  '申请的权限：',
+                  d.permissions
+                      .map((p) => _named(_permissionLabel(p), p.wire))
+                      .join('、')),
               const SizedBox(height: 8),
               const LText(
                 '批准后它能收到自己会话里的数据，拿不到保险库、私钥、密码或其他主机。'
-                '以后换了签名证书或申请新能力，会重新请你确认。',
+                '以后换了签名证书、申请新能力或新权限，会重新请你确认。',
               ),
             ],
           ),

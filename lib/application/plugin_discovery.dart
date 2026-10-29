@@ -168,6 +168,7 @@ class PluginDiscovery {
         descriptor.pluginId != shown.descriptor?.pluginId ||
         descriptor.version != shown.descriptor?.version ||
         !setEquals(descriptor.capabilities, shown.descriptor?.capabilities) ||
+        !setEquals(descriptor.permissions, shown.descriptor?.permissions) ||
         entry.installedVersionCode != shown.installedVersionCode) {
       throw const PluginApprovalRefused('确认期间插件有变化（更新、换签或卸载），没有批准。请重新核对后再批准。');
     }
@@ -183,6 +184,7 @@ class PluginDiscovery {
       packageName: package,
       signingDigest: entry.signerDigests.single,
       capabilities: descriptor.capabilities,
+      permissions: descriptor.permissions,
     );
     await _store.save(binding);
     _registry.approve(binding);

@@ -57,6 +57,10 @@ class MoshPluginHarness implements MoshRuntime {
           packageName: package,
           signingDigest: 'cert-mosh',
           capabilities: {Capability.terminalSession},
+          permissions: {
+            Permission.ownSessionInputOutput,
+            Permission.ownSessionEphemeralSecret,
+          },
         ),
       );
     manager = PluginSessionManager(bridge, registry);

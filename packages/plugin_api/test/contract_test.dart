@@ -114,6 +114,7 @@ void main() {
         packageName: 'example.terminal.mosh',
         signingDigest: 'aa',
         capabilities: {Capability.terminalSession},
+        permissions: {},
       );
       expect(
         () => requireCapability(binding, Capability.deviceCatalog),
@@ -219,6 +220,10 @@ void main() {
       packageName: 'example.terminal.mosh',
       signingDigest: 'author-cert',
       capabilities: {Capability.terminalSession},
+      permissions: {
+        Permission.ownSessionEphemeralSecret,
+        Permission.ownSessionInputOutput,
+      },
     );
 
     test('首次安装：需要用户批准，批准前不能进入 Ready', () {
@@ -260,6 +265,7 @@ void main() {
         packageName: 'example.terminal.mosh',
         signingDigest: 'author-cert',
         capabilities: {},
+        permissions: approval.permissions,
       );
       expect(
         policy.evaluate(
@@ -268,6 +274,39 @@ void main() {
           approvals: [wider],
         ),
         isA<NeedsApproval>(),
+      );
+    });
+
+    // X11：以前只比能力。同一把密钥签的新版加一句 own-session-ephemeral-secret，不用重新批准就能拿 Mosh 密钥。
+    test('新版本申请了批准之外的权限：重新批准，不自动扩大', () {
+      final onlyIo = ApprovedBinding(
+        pluginId: 'example.mosh',
+        packageName: 'example.terminal.mosh',
+        signingDigest: 'author-cert',
+        capabilities: {Capability.terminalSession},
+        permissions: {Permission.ownSessionInputOutput},
+      );
+      final result = policy.evaluate(
+        installed({'author-cert'}),
+        alreadyRegistered: {},
+        approvals: [onlyIo],
+      );
+      expect(result, isA<NeedsApproval>());
+      expect((result as NeedsApproval).reason, contains('权限'));
+    });
+
+    test('新版本少要了权限：仍可用（批准范围覆盖它）', () {
+      final fewer = InstalledCandidate(
+        descriptor: parse(
+          example('mosh-provider.json')
+            ..['permissions'] = ['own-session-input-output'],
+        ),
+        installedPackage: 'example.terminal.mosh',
+        actualSignerDigests: {'author-cert'},
+      );
+      expect(
+        policy.evaluate(fewer, alreadyRegistered: {}, approvals: [approval]),
+        isA<Admitted>(),
       );
     });
 

@@ -222,7 +222,9 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
    - `builtin.` 开头和内置的 ID 只给宿主自己，外部包占用直接「已拒绝」；
    - `OfficialPlugins.reserved`（`lib/domain/plugins/official_plugins.dart`）里登记的 ID 只认登记的证书。现在只登记了 `shun.mosh`，别的证书签的包自称它，直接「已拒绝」，没有批准按钮；
    - Android 调试证书签的插件只在 `kDebugMode` 下放行（`allowDebugSigners: kDebugMode`），profile、release 一律拒：每台开发机都有调试证书，谁都能拿来签。
-3. **用户批准**：`PluginApprovalStore` 存 pluginId、包名、证书摘要、能力。放普通偏好：被人改了也只会让插件变「待批准」或「已拒绝」。**不存权限**，所以插件新版本多申请一项权限不会回到待批准——这是 compatibility.md 里写的已知缺口。
+3. **用户批准**：`PluginApprovalStore` 存 pluginId、包名、证书摘要、能力、权限。放普通偏好：被人改了也只会让插件变「待批准」或「已拒绝」。插件新版本多申请能力或权限都回到待批准。
+   X11 以前不存权限：同一把密钥签的新版加一句 `own-session-ephemeral-secret` 就能拿到 Mosh 会话密钥。那时的旧记录读进来当「权限一条没批」，不替它补上（所有者 10-29 定）。
+   Mosh 密钥交出前 `PluginSessionManager` 再查一次：描述符申请了、批准记录里也有，两者都要。
 4. **每次连接**：`PluginBridge.connect`（`android/app/src/main/kotlin/top/xdwa/shun/PluginBridge.kt`）绑定前再读一次系统里的证书，必须**恰好等于**批准的那一张（多张证书签的包因此批不了），用显式组件绑定那个类；握手返回的描述符里 `pluginId` 要和批准的一致。
 5. **每次回调**：`IShunHost` 的两个方法第一行都调 `verifier.requireTrustedCaller()`。`CallerVerifier`（`plugins/provider-sdk`）按 `Binder.getCallingUid()` 查包名、每次重新读证书、不缓存。所以插件把这个 Binder 转交给别的 App，对方也调不进宿主。插件那头反过来核对宿主证书，写法见 contract.md 第 4 节。
 

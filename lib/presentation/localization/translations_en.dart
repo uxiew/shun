@@ -2984,8 +2984,8 @@ const englishReplacements = <(String, String)>[
     'Once approved it receives the data of its own sessions; it cannot get the vault, private keys, passwords or other hosts. '
   ),
   (
-    '以后换了签名证书或申请新能力，会重新请你确认。',
-    'If its signing certificate changes or it asks for new capabilities, you will be asked again.'
+    '以后换了签名证书、申请新能力或新权限，会重新请你确认。',
+    'If its signing certificate changes or it asks for new capabilities or permissions, you will be asked again.'
   ),
   (
     '描述符自称的服务类与实际声明插件 action 的服务不一致',
@@ -3066,6 +3066,10 @@ const englishReplacements = <(String, String)>[
   (
     '插件申请了批准范围之外的新能力，需要重新批准',
     'The plugin asks for capabilities beyond what was approved; approve it again'
+  ),
+  (
+    '插件申请了批准范围之外的权限，需要重新批准',
+    'The plugin asks for permissions beyond what was approved; approve it again'
   ),
   (
     'debug 证书签名的插件只在开发构建中可用',
