@@ -58,6 +58,7 @@ adb logcat -s ShunHello ShunPlugins AndroidRuntime:E
 | 不兼容：描述符超过 16 KiB / 读不出描述符资源 / 不是合法 JSON | 描述符文件本身的问题 | 用自查命令（README 第 4 步）先过一遍 |
 | 不兼容：不允许的字段：… | 描述符里多了约定以外的字段 | 删掉。字段集合是封闭的 |
 | 不兼容：某个字段的格式不对，比如「version 必须是 x.y.z：0.3」「pluginId 格式无效：…」「displayName 为空或含控制字符」「schemaVersion 必须是 1」「permissions 取值无效：…」「capabilities 有重复项」 | 描述符的那个字段不合规则 | 跑自查（README 第 4 步），对照 [contract.md](contract.md) 第 2 节每个字段的规则改 |
+| 不兼容：「displayName 含看不见的方向控制或零宽字符」「license/sourceUrl 含控制字符或…」 | 字段里有 U+200B–U+200F、U+202A–U+202E、U+2060–U+2069、U+FEFF、U+061C，多半是从网页或文档复制时带进来的。这些字符能让名字显示得和实际不一样，宿主一律不收（X11 起） | 删掉重打一遍；阿拉伯文、希伯来文不需要这些字符也能正常显示 |
 | 不兼容：API major 2 不兼容（宿主 1）（实测，用测试插件 echo-apimajor2） | `apiMajor` 不是 1 | 写 `1`。版本规则见 compatibility.md |
 | 不兼容：未知能力：… | `capabilities` 里有宿主不认识的名字，而 `apiMinor` 又不比宿主新 | 只写 contract.md 里列的能力 |
 | 不兼容：描述符自称的服务类与实际声明插件 action 的服务不一致 | 改了包名或类名，描述符的 `serviceClass` 没跟着改 | 改成服务的全名 |

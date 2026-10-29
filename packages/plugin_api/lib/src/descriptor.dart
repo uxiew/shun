@@ -136,6 +136,12 @@ class PluginDescriptor {
   static final _semver = RegExp(r'^[0-9]+\.[0-9]+\.[0-9]+$');
   static final _control = RegExp(r'[\x00-\x1f\x7f]');
 
+  /// 双向控制符和零宽字符。显示名是批准框第一行：带 U+202E 的 `shun \u202Ehsom` 会显示成 「shun mosh」，
+  /// 带零宽字符的两个名字看着一样、字串不同（X11 发现）。正常的阿拉伯文、希伯来文不靠这些字符也能显示。
+  static final _invisible = RegExp(
+    '[\u061C\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF]',
+  );
+
   /// 从 JSON 文本解析。任何不合规都抛 [DescriptorException]，不做"尽量修复"。
   static PluginDescriptor parse(String json) {
     if (utf8.encode(json).length > maxDescriptorBytes) {
@@ -177,6 +183,9 @@ class PluginDescriptor {
     final displayName = _string(m, 'displayName', max: 80);
     if (displayName.isEmpty || _control.hasMatch(displayName)) {
       throw const DescriptorException('displayName 为空或含控制字符');
+    }
+    if (_invisible.hasMatch(displayName)) {
+      throw const DescriptorException('displayName 含看不见的方向控制或零宽字符');
     }
     final version = _string(m, 'version', max: 32);
     if (!_semver.hasMatch(version)) {
@@ -224,6 +233,16 @@ class PluginDescriptor {
     final serviceClass = _optionalString(m, 'serviceClass', max: 220);
     final license = _optionalString(m, 'license', max: 100);
     final sourceUrl = _optionalString(m, 'sourceUrl', max: 1024);
+    // 详情页也显示这两个；源码地址里的方向控制符能把别人的域名排在前面。
+    for (final (key, value) in [
+      ('license', license),
+      ('sourceUrl', sourceUrl),
+    ]) {
+      if (value != null &&
+          (_control.hasMatch(value) || _invisible.hasMatch(value))) {
+        throw DescriptorException('$key 含控制字符或看不见的方向控制、零宽字符');
+      }
+    }
     if (sourceUrl != null && !sourceUrl.startsWith('https://')) {
       throw const DescriptorException('sourceUrl 必须是 https');
     }

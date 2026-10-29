@@ -33,7 +33,7 @@
 |---|---|---|---|
 | `schemaVersion` | 是 | 只能是 `1` | `1` |
 | `pluginId` | 是 | `^[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)+$`，≤128 字符。`builtin.` 开头的归宿主；`shun.mosh` 只认 Mosh 插件的证书。和设备上别的已可用插件重复会被拒 | `example.hello_terminal` |
-| `displayName` | 是 | 1–80 字符，不含控制字符 | `Hello 终端（样例）` |
+| `displayName` | 是 | 1–80 字符，不含控制字符、方向控制符和零宽字符（`license`、`sourceUrl` 同） | `Hello 终端（样例）` |
 | `version` | 是 | `x.y.z`，≤32 字符。建议和 `versionName` 一致 | `0.1.0` |
 | `apiMajor` | 是 | 只能是 `1` | `1` |
 | `apiMinor` | 是 | 0–999，见 [compatibility.md](compatibility.md) | `0` |
