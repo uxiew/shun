@@ -1017,7 +1017,6 @@ const englishTranslations = <String, String>{
   '从 Tailscale 读取设备列表，批量导入为主机':
       'Read the device list from Tailscale and import devices as hosts',
   'Tailscale 设备目录': 'Tailscale device directory',
-  '添加目录来源': 'Add directory source',
   '名称（可选）': 'Name (optional)',
   '填 - 表示「凭据所属的 tailnet」，一般不用改':
       'Use - for "the tailnet the credential belongs to"; usually leave it',
@@ -1039,7 +1038,6 @@ const englishTranslations = <String, String>{
       'The OAuth client was not saved: the server did not report its scope, so it cannot be confirmed as device read-only.',
   '没有保存 OAuth client：它能读的不止设备。请在 Tailscale 后台新建一个只有 devices:core:read 的 client。':
       'The OAuth client was not saved: it can read more than devices. Create a client with only devices:core:read in the Tailscale admin console.',
-  '粘贴 token 读一次': 'Paste a token and read once',
   '读取': 'Read',
   '已删除本机保存的 OAuth client。它在 Tailscale 那边仍然有效，要彻底作废请到 Tailscale 后台撤销。':
       'Deleted the OAuth client saved on this device. It is still valid at Tailscale; revoke it in the Tailscale admin console to invalidate it.',
@@ -1052,9 +1050,6 @@ const englishTranslations = <String, String>{
   '。还没有连接过：第一次连接时照常核对服务器指纹。':
       '. Not connected yet: you will verify the server fingerprint on first connection as usual.',
   '删除本机保存的 OAuth client': 'Delete the OAuth client saved on this device',
-  '移除这个来源': 'Remove this source',
-  '导入所选设备：': 'Import selected devices: ',
-  '用 OAuth client 读取': 'Read with an OAuth client',
   '缓存里还没有设备。读一次设备列表后会出现在这里。':
       'No cached devices yet. They appear here after you read the device list.',
   '上次读到的列表不完整：没有据此把任何设备标成不见了。':
@@ -1062,13 +1057,8 @@ const englishTranslations = <String, String>{
   '最近一次读取失败：': 'Last read failed at: ',
   '用 OAuth client 读取时，别人共享给你的设备可能不在列表里（Tailscale 的已知问题 tailscale#16911），这不代表设备被删了。':
       'When reading with an OAuth client, devices shared with you may be missing from the list (known Tailscale issue tailscale#16911). That does not mean they were deleted.',
-  'Tailscale 控制面：已连接': 'Tailscale control plane: connected',
-  'Tailscale 控制面：未连接': 'Tailscale control plane: not connected',
-  'Tailscale 控制面：不知道': 'Tailscale control plane: unknown',
-  '上次连控制面：': 'Last seen by control plane: ',
   '最近完整列表里没有它，标记于：': 'Not in the latest complete list, marked at: ',
   '已导入为主机：': 'Imported as host: ',
-  '保存到本机，以后直接刷新': 'Save on this device to refresh later',
   '导入为主机': 'Import as hosts',
   '导入': 'Import',
   '选中的设备按同一套设置建成新主机。只写进保险库：不连接、不启动 VPN，第一次连接时照常核对指纹。':
@@ -2049,18 +2039,8 @@ const englishTranslations = <String, String>{
   '在列表里隐藏': 'Hide from list',
   '取消隐藏': 'Unhide',
   'Tailscale 设备': 'Tailscale devices',
-  '状态来自目录缓存：只说设备连没连 Tailscale 控制面，不代表手机能连上它，也不代表 SSH 开着。':
-      'Status comes from the catalog cache: it only says whether a device is connected to the Tailscale control plane, not that this phone can reach it or that SSH is running.',
   '还没成功读过设备列表': 'No device list read successfully yet',
   '状态截至：': 'Status as of: ',
-  '本机没保存凭据：点刷新会打开来源页，在那里读一次':
-      'No credentials saved on this phone: Refresh opens the source page to read once there',
-  '去来源页读取': 'Read on the source page',
-  '来源设置': 'Source settings',
-  '目录：缓存里没有这台设备': 'Catalog: this device is not in the cache',
-  '目录：最近完整列表里没有它': 'Catalog: not in the latest complete list',
-  '还没导入：点一下导入为主机，不会连接':
-      'Not imported: tap to import it as a host; it will not connect',
   '刚刚': 'just now',
   '分钟前': 'min ago',
   '小时前': 'h ago',
@@ -2304,27 +2284,16 @@ const englishTranslations = <String, String>{
       'Sessions are using this plugin (a Mosh tab, for example): the connection test reuses that connection, and this page offers no “Disconnect”',
   '这个插件申请了「本会话的临时凭据」，会话测试拿不出这些材料。Mosh 插件请从主机列表用 Mosh 协议连接。':
       'This plugin asks for “this session’s temporary credentials”, which the session test cannot provide. Connect Mosh hosts from the host list with the Mosh protocol.',
-  '从 Tailscale 读设备列表，勾选后批量建成主机。只读列表：不连设备、不开 VPN。手机要能到达设备（开着官方 Tailscale App，或经代理、跳板机）才连得上。':
-      'Reads the device list from Tailscale; tick devices to create hosts in bulk. It only reads the list: it does not connect to devices or start a VPN. The phone must be able to reach a device (official Tailscale app running, or through a proxy or jump host) to connect.',
-  '已导入的不能再勾，不会重复建主机。保险库里已经有这台机器？点设备下面的「关联到已有主机」，不用再导入一台。':
-      'Devices already imported cannot be ticked again, so no duplicate hosts. Already have this machine in the vault? Tap “Link to an existing host” under the device instead of importing another one.',
   '只在本机建一个空来源，不发请求、不改任何主机。再用同一个 tailnet 的凭据读一次，这些主机就重新对上目录。':
       'This only creates an empty source on this device; it sends no request and changes no host. Read once more with credentials for the same tailnet and these hosts match the directory again.',
   '还没有目录来源': 'No directory sources yet',
-  'token 只用这一次，不保存。建议用短期 token，用完在后台删掉。':
-      'The token is used once and not saved. Use a short-lived token and delete it in the admin console afterwards.',
   '这些主机都保留，照常能连。': 'These hosts stay and still connect.',
   '已关联': 'Linked',
   '列表里没有设备': 'The list has no devices',
-  '勾选要导入的设备': 'Tick devices to import',
   '还没读过设备列表': 'Device list not read yet',
   '本机保存了 OAuth client': 'OAuth client saved on this device',
   '只记下对应关系：主机的地址、用户名、端口、路线、指纹一概不改，刷新也不改它的地址，也不会去连。':
       'This only records the match: the host address, username, port, route and fingerprints stay unchanged, refreshing never changes its address, and nothing connects to it.',
-  '在 Tailscale 后台建一个只勾 devices:core:read 的 OAuth client。':
-      'Create an OAuth client in the Tailscale admin console with only devices:core:read ticked.',
-  '服务器确认它只能读设备才保存':
-      'Saved only if the server confirms it can only read devices',
   'UU 只给了一个加密的设备标识，本 App 看不到设备名。保存后要从这条连接手动发起远控。':
       'UU gives only an encrypted device identifier; this app cannot see the device name. After saving, launch remote control from this connection yourself.',
   '只删本 App 里的这条绑定，UU 远程里的设备不受影响。':
@@ -2972,14 +2941,6 @@ const englishReplacements = <(String, String)>[
     '. Certificate and descriptor checked again; the earlier connection was closed.'
   ),
   // R13：多行拼接和带插值的句子（精确表匹配不到运行时的整句，按片段翻）。
-  (
-    '目录只知道设备在不在 Tailscale 的列表里、有没有连上 Tailscale 控制面。',
-    'The directory only knows whether a device is in the Tailscale list and whether it is connected to the Tailscale control plane. '
-  ),
-  (
-    '它不知道手机能不能连到设备，也不知道设备开没开 SSH——这些要实际连接才知道。',
-    'It does not know whether the phone can reach the device or whether SSH is enabled; only a real connection tells.'
-  ),
   ('读取来源失败：', 'Failed to read sources: '),
   ('已导入为“', 'Already imported as “'),
   // 导入保险库：带数字的句子（vault_import_dialog.dart、settings_screen.dart 的 _import）。
