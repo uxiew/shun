@@ -274,7 +274,7 @@ mkdir ../.toolchain/locks/emulator && echo "<你是谁>" > ../.toolchain/locks/e
 emulator -avd shun-r39-a30 -port 5580 -no-window -no-snapshot -gpu host &   # 要看画面就去掉 -no-window
 adb -s emulator-5580 wait-for-device; adb -s emulator-5580 shell getprop sys.boot_completed   # 等到 1
 flutter run -d emulator-5580
-adb -s emulator-5580 logcat -s flutter      # 看 Flutter 框架报的错；App 自己不打日志（安全文档第 5 节）
+adb -s emulator-5580 logcat -s flutter      # 看 Flutter 框架报的错。App 不往 logcat 写自己的日志；崩溃、出错、同步记在 App 里「设置 → 连接 → 日志」（去敏后只存本机，lib/application/app_log.dart）
 adb -s emulator-5580 emu kill && rm -r ../.toolchain/locks/emulator   # 关机、还锁
 ```
 

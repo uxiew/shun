@@ -7,7 +7,7 @@
 
     <application
         android:label="${appLabel}"
-        android:name="${applicationName}"
+        android:name=".ShunApplication"
         android:icon="@mipmap/ic_launcher"
         android:usesCleartextTraffic="false"
         android:allowBackup="false"

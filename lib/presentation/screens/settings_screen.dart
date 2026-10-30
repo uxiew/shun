@@ -36,6 +36,7 @@ import '../widgets/github_manual_config.dart';
 import '../widgets/hint.dart';
 import '../widgets/secret_content.dart';
 import '../widgets/vault_import_dialog.dart';
+import 'app_log_screen.dart';
 import 'connection_log_screen.dart';
 import 'plugins_screen.dart';
 import 'rustdesk_screen.dart';
@@ -563,6 +564,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(
                           builder: (_) => const ConnectionLogScreen(),
+                        ),
+                      ),
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      key: const ValueKey('settings-app-log'),
+                      leading: const Icon(Icons.receipt_long_outlined),
+                      title: const LText('日志'),
+                      subtitle: const LText('崩溃、出错、连接、同步'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const AppLogScreen(),
                         ),
                       ),
                     ),

@@ -8,6 +8,7 @@ import '../infrastructure/http_client_provider.dart';
 import '../infrastructure/storage/vault_repository.dart';
 import '../infrastructure/sync/cloud_sync_service.dart';
 import '../infrastructure/sync/vault_merge_service.dart';
+import 'app_log.dart';
 import 'vault_controller.dart';
 
 const autoSyncChangeDebounce = Duration(seconds: 10);
@@ -45,6 +46,9 @@ typedef AutoSyncVaultLoader = Future<VaultData> Function();
 typedef AutoSyncOperation = Future<CloudSyncResult> Function(VaultData vault);
 typedef AutoSyncVaultApplier = Future<void> Function(VaultData vault);
 
+/// 每一轮同步（手动、自动都算）的结果：成功时是给用户看的那句结果，失败时是报错。
+typedef AutoSyncOutcome = void Function(bool ok, String detail);
+
 final autoSyncControllerProvider =
     StateNotifierProvider<AutoSyncController, AutoSyncState>((ref) {
   final repository = ref.watch(vaultRepositoryProvider);
@@ -60,6 +64,9 @@ final autoSyncControllerProvider =
     synchronizeConfirmed: (vault) =>
         service.synchronize(vault, overrideShrink: true),
     applyVault: (vault) => vaultController.replace(vault, remote: true),
+    // 记进日志（R26 F24）。每 5 分钟一次的远端检查结果一样，日志里会合成一条、计数。
+    onOutcome: (ok, detail) =>
+        ref.read(appLogProvider.notifier).recordSync(ok: ok, detail: detail),
   );
 });
 
@@ -74,6 +81,7 @@ class AutoSyncController extends StateNotifier<AutoSyncState> {
     required AutoSyncOperation synchronize,
     AutoSyncOperation? synchronizeConfirmed,
     required AutoSyncVaultApplier applyVault,
+    AutoSyncOutcome? onOutcome,
     this.changeDebounce = autoSyncChangeDebounce,
     this.remoteInterval = autoSyncRemoteInterval,
     this.retryDelays = const [
@@ -86,6 +94,7 @@ class AutoSyncController extends StateNotifier<AutoSyncState> {
         _synchronize = synchronize,
         _synchronizeConfirmed = synchronizeConfirmed,
         _applyVault = applyVault,
+        _onOutcome = onOutcome,
         super(const AutoSyncState()) {
     _localChangesSubscription = localChanges.listen(_onLocalChange);
   }
@@ -94,6 +103,7 @@ class AutoSyncController extends StateNotifier<AutoSyncState> {
   final AutoSyncOperation _synchronize;
   final AutoSyncOperation? _synchronizeConfirmed;
   final AutoSyncVaultApplier _applyVault;
+  final AutoSyncOutcome? _onOutcome;
   final Duration changeDebounce;
   final Duration remoteInterval;
   final List<Duration> retryDelays;
@@ -216,9 +226,11 @@ class AutoSyncController extends StateNotifier<AutoSyncState> {
         clearError: true,
       );
       final changed = !cloudSyncPayloadsEqual(merged, result.vault);
+      final message = changed ? '云端同步完成；同步期间的本地修改已保留，待下次同步' : result.message;
+      _onOutcome?.call(true, message);
       return CloudSyncResult(
         vault: merged,
-        message: changed ? '云端同步完成；同步期间的本地修改已保留，待下次同步' : result.message,
+        message: message,
         versions: CloudSyncVersions(
           localVersion: result.versions.localVersion + (changed ? 1 : 0),
           cloudVersion: result.versions.cloudVersion,
@@ -228,6 +240,7 @@ class AutoSyncController extends StateNotifier<AutoSyncState> {
       );
     } on Object catch (error) {
       state = state.copyWith(syncing: false, lastError: error);
+      _onOutcome?.call(false, '$error');
       _scheduleRetry();
       rethrow;
     } finally {

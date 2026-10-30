@@ -1,0 +1,359 @@
+import 'dart:async';
+
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../application/app_log.dart';
+import '../../application/connection_events.dart';
+import '../../application/vault_controller.dart';
+import '../localization/localized_widgets.dart';
+import '../widgets/connection_event_text.dart';
+import 'connection_log_screen.dart';
+
+/// 日志页（R26 F24）：崩溃、出错、同步（[AppLog]）和连接（[ConnectionEventLog]，R25）合在一起，新的在上。
+///
+/// 只读本机记录，不连任何东西。连接那几条点进去是那台主机的连接记录（阶段、用时在那里）。
+class AppLogScreen extends ConsumerStatefulWidget {
+  const AppLogScreen({super.key});
+
+  @override
+  ConsumerState<AppLogScreen> createState() => _AppLogScreenState();
+}
+
+enum _Filter { all, crash, error, connection, sync }
+
+String _filterLabel(_Filter filter) => switch (filter) {
+      _Filter.all => '全部',
+      _Filter.crash => '崩溃',
+      _Filter.error => '出错',
+      _Filter.connection => '连接事件',
+      _Filter.sync => '同步',
+    };
+
+_Filter _filterOf(AppLogKind kind) => switch (kind) {
+      AppLogKind.crash => _Filter.crash,
+      AppLogKind.error => _Filter.error,
+      AppLogKind.sync => _Filter.sync,
+    };
+
+/// 一行：要么是日志条目，要么是连接事件。
+class _Row {
+  _Row.app(AppLogEntry this.entry)
+      : at = entry.at,
+        filter = _filterOf(entry.kind),
+        event = null;
+  _Row.connection(ConnectionEvent this.event)
+      : at = event.at,
+        filter = _Filter.connection,
+        entry = null;
+
+  final DateTime at;
+  final _Filter filter;
+  final AppLogEntry? entry;
+  final ConnectionEvent? event;
+}
+
+class _AppLogScreenState extends ConsumerState<AppLogScreen> {
+  var _filter = _Filter.all;
+
+  @override
+  void initState() {
+    super.initState();
+    // 过了保留期的在这时删：不在后台定时扫。
+    unawaited(ref.read(appLogProvider.notifier).prune());
+    unawaited(ref.read(connectionEventLogProvider.notifier).prune());
+  }
+
+  List<_Row> _rows(List<AppLogEntry> entries, List<ConnectionEvent> events) => [
+        for (final entry in entries) _Row.app(entry),
+        for (final event in events) _Row.connection(event),
+      ]..sort((a, b) => b.at.compareTo(a.at));
+
+  @override
+  Widget build(BuildContext context) {
+    final entries = ref.watch(appLogProvider);
+    final events = ref.watch(connectionEventLogProvider);
+    final vaultHosts = ref.watch(vaultControllerProvider).data?.hosts;
+    final hosts = <String, String>{
+      if (vaultHosts != null)
+        for (final host in vaultHosts) host.id: host.label,
+    };
+    final all = _rows(entries, events);
+    final rows = _filter == _Filter.all
+        ? all
+        : all.where((row) => row.filter == _filter).toList();
+    final small = Theme.of(context).textTheme.bodySmall;
+    return Scaffold(
+      appBar: AppBar(
+        title: const LText('日志'),
+        actions: [
+          IconButton(
+            key: const ValueKey('app-log-export'),
+            tooltip: localized('导出'),
+            onPressed: all.isEmpty ? null : () => _export(entries, events),
+            icon: const Icon(Icons.ios_share),
+          ),
+          IconButton(
+            key: const ValueKey('app-log-clear'),
+            tooltip: localized('清除'),
+            onPressed: all.isEmpty
+                ? null
+                : () => _clear(entries.length, events.length),
+            icon: const Icon(Icons.delete_outline),
+          ),
+        ],
+      ),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+            child: LText(
+              '只存在这部手机上，不上传、不进备份和同步。地址、用户名、令牌写进来之前就换成了「<IP>」这类记号。'
+              '崩溃、出错、同步留 14 天，连接留 7 天。',
+              style: small,
+            ),
+          ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+            child: Row(
+              children: [
+                for (final filter in _Filter.values)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    child: ChoiceChip(
+                      key: ValueKey('app-log-filter-${filter.name}'),
+                      label: Text(
+                        '${localized(_filterLabel(filter))} '
+                        '${filter == _Filter.all ? all.length : all.where((r) => r.filter == filter).length}',
+                      ),
+                      selected: _filter == filter,
+                      onSelected: (_) => setState(() => _filter = filter),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          Expanded(
+            child: rows.isEmpty
+                ? const Center(child: LText('还没有记录'))
+                : ListView.separated(
+                    key: const ValueKey('app-log-list'),
+                    itemCount: rows.length,
+                    separatorBuilder: (_, __) => const Divider(height: 1),
+                    itemBuilder: (context, index) =>
+                        _tile(context, rows[index], hosts, small),
+                  ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _tile(BuildContext context, _Row row, Map<String, String> hosts,
+      TextStyle? small) {
+    final scheme = Theme.of(context).colorScheme;
+    final time = formatConnectionEventTime(row.at);
+    if (row.event case final event?) {
+      final host = hosts[event.hostId] ?? localized('已删除的主机');
+      return ListTile(
+        key: ValueKey(
+            'app-log-connection-${event.hostId}-${event.at.millisecondsSinceEpoch}'),
+        leading: Icon(Icons.lan_outlined, color: scheme.primary),
+        title: Text(
+            '${connectionEventTitle(event)} · ${connectionEventOutcome(event)}'),
+        subtitle: Text('$time · $host', style: small),
+        trailing: const Icon(Icons.chevron_right),
+        onTap: hosts.containsKey(event.hostId)
+            ? () => Navigator.of(context).push(MaterialPageRoute<void>(
+                  builder: (_) => ConnectionLogScreen(hostId: event.hostId),
+                ))
+            : null,
+      );
+    }
+    final entry = row.entry!;
+    final (icon, color) = switch (entry.kind) {
+      AppLogKind.crash => (Icons.error, scheme.error),
+      AppLogKind.error => (Icons.warning_amber, scheme.tertiary),
+      AppLogKind.sync => (Icons.sync, scheme.primary),
+    };
+    final first = entry.detail?.split('\n').first;
+    return ListTile(
+      key: ValueKey('app-log-entry-${entry.at.millisecondsSinceEpoch}'),
+      leading: Icon(icon, color: color),
+      title: Text(localized(entry.title)),
+      subtitle: Text(
+        [
+          time,
+          if (entry.count > 1)
+            localized('{n} 次').replaceAll('{n}', '${entry.count}'),
+          if (first != null && first.isNotEmpty) first,
+        ].join(' · '),
+        maxLines: 2,
+        overflow: TextOverflow.ellipsis,
+        style: small,
+      ),
+      onTap: () => _details(entry),
+    );
+  }
+
+  Future<void> _details(AppLogEntry entry) => showModalBottomSheet<void>(
+        context: context,
+        isScrollControlled: true,
+        useSafeArea: true,
+        builder: (context) {
+          final text = formatAppLogEntry(entry);
+          return DraggableScrollableSheet(
+            expand: false,
+            initialChildSize: 0.7,
+            builder: (context, controller) => ListView(
+              controller: controller,
+              padding: const EdgeInsets.all(16),
+              children: [
+                Text(localized(entry.title),
+                    style: Theme.of(context).textTheme.titleMedium),
+                const SizedBox(height: 8),
+                SelectableText(
+                  key: const ValueKey('app-log-details'),
+                  text,
+                  style: const TextStyle(fontFamily: 'monospace', fontSize: 12),
+                ),
+                const SizedBox(height: 12),
+                Align(
+                  alignment: Alignment.centerLeft,
+                  child: FilledButton.tonalIcon(
+                    key: const ValueKey('app-log-copy-one'),
+                    onPressed: () async {
+                      await Clipboard.setData(ClipboardData(text: text));
+                      if (context.mounted) Navigator.pop(context);
+                    },
+                    icon: const Icon(Icons.copy),
+                    label: const LText('复制这条'),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+
+  Future<void> _export(
+      List<AppLogEntry> entries, List<ConnectionEvent> events) async {
+    final text = exportAppLog(entries, events, now: DateTime.now());
+    final copy = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const LText('导出前预览'),
+        content: SizedBox(
+          width: double.maxFinite,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const LText('复制的就是下面这些。地址、用户名、令牌已经换成记号，主机只写编号。发给别人之前再看一眼。'),
+              const SizedBox(height: 8),
+              Flexible(
+                child: SingleChildScrollView(
+                  child: SelectableText(
+                    key: const ValueKey('app-log-export-preview'),
+                    text,
+                    style:
+                        const TextStyle(fontFamily: 'monospace', fontSize: 11),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const LText('取消'),
+          ),
+          FilledButton.icon(
+            key: const ValueKey('app-log-copy'),
+            onPressed: () => Navigator.pop(context, true),
+            icon: const Icon(Icons.copy),
+            label: const LText('复制到剪贴板'),
+          ),
+        ],
+      ),
+    );
+    if (copy != true || !mounted) return;
+    await Clipboard.setData(ClipboardData(text: text));
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          localized('已复制 {n} 条记录')
+              .replaceAll('{n}', '${entries.length + events.length}'),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _clear(int logCount, int connectionCount) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const LText('清除全部日志？'),
+        content: Text(
+          localized('会删掉崩溃、出错、同步 {a} 条和连接记录 {b} 条，删了找不回来。主机和连着的标签都不动。')
+              .replaceAll('{a}', '$logCount')
+              .replaceAll('{b}', '$connectionCount'),
+        ),
+        actions: [
+          // 取消在前、是默认；删除不是默认动作（UX03）。
+          FilledButton(
+            autofocus: true,
+            onPressed: () => Navigator.pop(context, false),
+            child: const LText('取消'),
+          ),
+          TextButton(
+            key: const ValueKey('app-log-clear-confirm'),
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            onPressed: () => Navigator.pop(context, true),
+            child: const LText('清除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
+    await ref.read(appLogProvider.notifier).clearAll();
+    await ref.read(connectionEventLogProvider.notifier).clearAll();
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: LText('已清除')),
+    );
+  }
+}
+
+/// 一条日志的全文（详情页、复制、导出用同一份）。
+String formatAppLogEntry(AppLogEntry entry) => [
+      '${formatConnectionEventTime(entry.at)} '
+          '[${localized(_filterLabel(_filterOf(entry.kind)))}] ${localized(entry.title)}'
+          '${entry.count > 1 ? ' ×${entry.count}' : ''}',
+      if (entry.detail case final detail? when detail.isNotEmpty) detail,
+      if (entry.stack case final stack?) stack,
+    ].join('\n');
+
+/// 导出整份日志：崩溃、出错、同步在前（新的在上），连接记录用连接记录页同一种写法（主机只写编号）。
+String exportAppLog(
+  List<AppLogEntry> entries,
+  List<ConnectionEvent> events, {
+  required DateTime now,
+}) {
+  final newest = [...entries]..sort((a, b) => b.at.compareTo(a.at));
+  return [
+    'shun ${localized('日志')} · ${formatConnectionEventTime(now)}',
+    '',
+    '== ${localized('崩溃、出错、同步')}（${newest.length}）',
+    for (final entry in newest) '${formatAppLogEntry(entry)}\n',
+    '== ${localized('连接事件')}（${events.length}）',
+    if (events.isNotEmpty) exportConnectionEvents(events, now: now),
+  ].join('\n');
+}
