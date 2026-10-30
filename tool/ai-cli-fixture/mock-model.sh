@@ -4,8 +4,10 @@
 #
 # 两个工具的配置只写进容器里 fixture 用户的家目录：
 #   Claude：~/.claude/settings.json 把 ANTHROPIC_BASE_URL 指到假接口，apiKeyHelper 给一个假密钥；
-#           ~/.claude.json 标记走完引导、信任 ~/aic（不然每次先弹选主题、信任目录）。
-#   Codex： ~/.codex/config.toml 用自定义 provider 指到假接口，信任 ~/aic 下的测试目录。
+#           ~/.claude.json 标记走完引导、信任测试目录（不然每次先弹选主题、信任目录）。
+#   Codex： ~/.codex/config.toml 用自定义 provider 指到假接口，信任测试目录。
+# 信任要写到每个项目目录本身（AIC06 用 ~/aic/repo、~/aic/repo-wt、~/aic/codex）：Claude Code 2.1.314 不从父目录
+# ~/aic 继承，只信任 ~/aic 时在 repo 里一启动就停在「Accessing workspace … Yes, I trust this folder」。
 # 不配这些，工具一启动就停在登录页，测试等不到提示符。
 #
 # 另外装两样东西（要联网，第一次约 30 秒）：git（测「另一个 worktree」）、Claude Code 1.0.0 装在 ~/old-claude
@@ -35,8 +37,14 @@ const fs = require(\"fs\"), p = process.env.HOME + \"/.claude.json\";
 const c = fs.existsSync(p) ? JSON.parse(fs.readFileSync(p)) : {};
 c.hasCompletedOnboarding = true;
 c.theme = \"dark\";
+// 2.1.314 前三次启动弹「Try the new fullscreen renderer?」选择框，会吞掉测试打的第一句；选 Not now 也只是计数加一。
+c.fullscreenUpsellSeenCount = 3;
 c.projects = c.projects || {};
-c.projects[process.env.HOME + \"/aic\"] = { hasTrustDialogAccepted: true };
+// allowedTools：同一个目录也要给 Claude Code 1.0.0 用。它不检查就遍历这个字段，而 2.1.314 写项目条目时不带它：
+// 缺了的话 1.0.0 一启动就崩成「B.allowedTools is not iterable」，测不到它对「会话 ID 不存在」的真实反应。
+for (const d of [\"aic\", \"aic/repo\", \"aic/repo-wt\", \"aic/codex\"]) {
+  c.projects[process.env.HOME + \"/\" + d] = { hasTrustDialogAccepted: true, allowedTools: [] };
+}
 fs.writeFileSync(p, JSON.stringify(c, null, 2));
 "
 cat > ~/.codex/config.toml <<EOF
@@ -54,6 +62,15 @@ base_url = "http://127.0.0.1:18080/v1"
 wire_api = "responses"
 
 [projects."$HOME/aic"]
+trust_level = "trusted"
+
+[projects."$HOME/aic/repo"]
+trust_level = "trusted"
+
+[projects."$HOME/aic/repo-wt"]
+trust_level = "trusted"
+
+[projects."$HOME/aic/codex"]
 trust_level = "trusted"
 EOF
 '
