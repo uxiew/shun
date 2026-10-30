@@ -77,3 +77,5 @@ AIC09（真实账号、真实模型）等全部任务做完后，由所有者自
 ## 复跑
 
 见 `docs/dev/README.md` 第 2 节 AIC06 那段：先拿锁、开 `emulator-5580`，`bash tool/aic06-real-cli.sh`，约 7 分钟。
+
+收尾：`shun-ai-cli` 容器已 `down.sh`；`emulator-5580` 已关机、锁已还；flutter test 跑完自己卸了测试包，22401 的 reverse 脚本已撤。没碰别的容器和模拟器。
