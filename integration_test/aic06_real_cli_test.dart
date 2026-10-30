@@ -106,8 +106,11 @@ void main() {
         ].where((r) => r['main'] == true).toList();
 
     // 工具发不发请求是异步的：屏幕上已经有回复时，日志一定已经写了（先记日志再回话）。
+    // 只看回答我们提问的那些（MOCK-REMEMBER / MOCK-RECALL）。Claude 2.1.314 有时在回复后几十毫秒再发一条
+    // 带工具定义的请求（同一会话 ID、多一句不进会话文件的提问，假服务记为 other），不排除的话
+    // userMessages 会偶尔多 1。「没发任何请求」仍按 mainRequests() 全数，它也算。
     Future<Map<String, dynamic>> lastMain() async =>
-        (await mainRequests()).last;
+        (await mainRequests()).lastWhere((r) => r['rule'] != 'other');
 
     final rnd = Random();
     String token(String prefix) => '$prefix${1000 + rnd.nextInt(9000)}';
