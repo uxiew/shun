@@ -20,7 +20,7 @@ void main() {
   final socket = TmuxSocketSpec.named('r28ai');
   // 每一种写法都对应一个带编号的 pwn 文件，哪种被执行了一眼就能看出来。
   const evil = "a;touch \$HOME/r28/pwn1;'b\"\$(touch \$HOME/r28/pwn2)\"`touch \$HOME/r28/pwn3`"
-      r" #{session_name} %1 \\x";
+      r' #{session_name} %1 \\x';
   final b64 = base64Encode(utf8.encode(evil));
   const node = 'tmux35';
 
