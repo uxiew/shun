@@ -138,6 +138,14 @@ String normalizeDistroId(String value) {
   }
   if (normalized.contains('freebsd')) return 'freebsd';
   if (normalized.contains('windows')) return 'windows';
+  // Tailscale 设备列表的 os 字段：android、iOS、tvOS（R26）。没有 SVG，图标用 Material 自带的。
+  if (normalized.contains('android')) return 'android';
+  if (normalized == 'ios' ||
+      normalized == 'ipados' ||
+      normalized == 'tvos' ||
+      normalized == 'watchos') {
+    return 'ios';
+  }
   for (final vendor in const [
     'cisco',
     'juniper',

@@ -22,10 +22,40 @@ class HostSystemIcon extends StatelessWidget {
       return Icon(Icons.help_outline, size: size);
     }
     final distro = normalizeDistroId(systemInfo?.distro ?? host.distro);
+    return SystemIcon(
+      distro: distro,
+      size: size,
+      label: systemInfo?.prettyName ?? host.systemInfo?.prettyName,
+    );
+  }
+}
+
+/// 一个系统的图标（还没成为主机的 Tailscale 设备也用它）。[distro] 是 [normalizeDistroId] 的结果。
+/// Android、iOS 没有 SVG，用 Material 自带的图标；不认识的显示服务器图标。
+class SystemIcon extends StatelessWidget {
+  const SystemIcon({
+    super.key,
+    required this.distro,
+    this.size = 44,
+    this.label,
+  });
+
+  final String distro;
+  final double size;
+
+  /// 读屏念的名字（比如 os-release 的 PRETTY_NAME），没有就念 [distro]。
+  final String? label;
+
+  @override
+  Widget build(BuildContext context) {
     final color = _brandColors[distro] ?? Theme.of(context).colorScheme.primary;
+    final material = switch (distro) {
+      'android' => Icons.android,
+      'ios' => Icons.apple,
+      _ => null,
+    };
     return Semantics(
-      label:
-          '${systemInfo?.prettyName ?? host.systemInfo?.prettyName ?? distro} 系统',
+      label: '${label ?? distro} 系统',
       image: true,
       child: Container(
         width: size,
@@ -36,15 +66,17 @@ class HostSystemIcon extends StatelessWidget {
           borderRadius: BorderRadius.circular(size * 0.27),
           border: Border.all(color: color.withValues(alpha: 0.32)),
         ),
-        child: SvgPicture.asset(
-          'assets/distro/$distro.svg',
-          fit: BoxFit.contain,
-          placeholderBuilder: (_) => Icon(
-            Icons.dns_outlined,
-            size: size * 0.55,
-            color: color,
-          ),
-        ),
+        child: material != null
+            ? FittedBox(child: Icon(material, color: color))
+            : SvgPicture.asset(
+                'assets/distro/$distro.svg',
+                fit: BoxFit.contain,
+                placeholderBuilder: (_) => Icon(
+                  Icons.dns_outlined,
+                  size: size * 0.55,
+                  color: color,
+                ),
+              ),
       ),
     );
   }
@@ -67,6 +99,8 @@ const _brandColors = <String, Color>{
   'alinux': Color(0xffff6a00),
   'openeuler': Color(0xff002fa7),
   'macos': Color(0xffa2aaad),
+  'ios': Color(0xffa2aaad),
+  'android': Color(0xff3ddc84),
   'freebsd': Color(0xffab2b28),
   'windows': Color(0xff0078d4),
   'linux': Color(0xfff2c94c),

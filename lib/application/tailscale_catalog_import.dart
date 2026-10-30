@@ -1,13 +1,17 @@
+import 'package:uuid/uuid.dart';
+
 import '../domain/connection_route.dart';
 import '../domain/models/host.dart';
 import '../domain/models/vault.dart';
 import '../infrastructure/tailscale/catalog_cache.dart';
 import 'tailscale_catalog_refresh.dart';
+import 'vault_controller.dart';
 
 /// 从目录批量导入主机（R13）：选中的设备按同一套设置生成新主机，只写保险库，不连接、不开 VPN。
 ///
 /// 规则（docs/05「连接入口」、R13 验收）：
-/// - 用户名必须填：目录只知道设备，不知道服务器上的 Unix 用户，不默认 root。
+/// - 用户名可以空着，但不默认 root：目录只知道设备，不知道服务器上的 Unix 用户。空着的主机第一次连接时问
+///   （R26 所有者：不是每台机器都用同一个用户，导入时统一填不合理）。
 /// - 路线按用户选的走：直连、已保存的代理配置、保险库里的跳板机。目录不创造连通性。
 /// - 不写任何指纹信任：导入的主机第一次连接照常核对指纹，设备 ID 不能替 host key 担保（TSC04）。
 /// - 已导入过的设备跳过，不重复建、也不改已有主机（包括用户手动建的）。
@@ -44,7 +48,73 @@ class CatalogImportOptions {
   final String? group;
 }
 
-/// 设置本身不成立（比如没填用户名），一台都不导。
+/// 来源上存的导入默认值（R26）：导入不再弹设置页，直接按它建主机。存在 [CatalogCache.importDefaults]，
+/// 只有设置、没有凭据：代理只记已保存代理的 ID（口令在安全存储里），跳板只记主机 ID。
+class CatalogImportDefaults {
+  const CatalogImportDefaults({
+    this.username = '',
+    this.port = 22,
+    this.address = CatalogAddressKind.ipv4,
+    this.proxyProfileId,
+    this.jumpHostIds = const [],
+    this.jumpRouteConfirmation,
+  });
+
+  factory CatalogImportDefaults.of(CatalogCache cache) =>
+      CatalogImportDefaults.fromJson(cache.importDefaults);
+
+  /// 读不懂的项按默认值：这只是偏好，不该让整个来源读不出来。
+  factory CatalogImportDefaults.fromJson(Map<String, Object?> json) {
+    final port = json['port'];
+    final jumps = json['jumpHostIds'];
+    return CatalogImportDefaults(
+      username: json['username'] is String ? json['username'] as String : '',
+      port: port is int && port >= 1 && port <= 65535 ? port : 22,
+      address: CatalogAddressKind.values
+              .where((kind) => kind.name == json['address'])
+              .firstOrNull ??
+          CatalogAddressKind.ipv4,
+      proxyProfileId: json['proxyProfileId'] is String
+          ? json['proxyProfileId'] as String
+          : null,
+      jumpHostIds: jumps is List
+          ? [
+              for (final id in jumps)
+                if (id is String && id.isNotEmpty) id
+            ]
+          : const [],
+      jumpRouteConfirmation: json['jumpRouteConfirmation'],
+    );
+  }
+
+  final String username;
+  final int port;
+  final CatalogAddressKind address;
+  final String? proxyProfileId;
+  final List<String> jumpHostIds;
+  final Object? jumpRouteConfirmation;
+
+  Map<String, Object?> toJson() => {
+        if (username.trim().isNotEmpty) 'username': username.trim(),
+        if (port != 22) 'port': port,
+        'address': address.name,
+        if ((proxyProfileId ?? '').isNotEmpty) 'proxyProfileId': proxyProfileId,
+        if (jumpHostIds.isNotEmpty) 'jumpHostIds': jumpHostIds,
+        if (jumpRouteConfirmation != null)
+          'jumpRouteConfirmation': jumpRouteConfirmation,
+      };
+
+  CatalogImportOptions options() => CatalogImportOptions(
+        username: username,
+        port: port,
+        address: address,
+        proxyProfileId: proxyProfileId,
+        jumpHostIds: jumpHostIds,
+        jumpRouteConfirmation: jumpRouteConfirmation,
+      );
+}
+
+/// 设置本身不成立（比如端口不对、路线矛盾），一台都不导。
 class CatalogImportInvalid implements Exception {
   const CatalogImportInvalid(this.message);
   final String message;
@@ -97,9 +167,6 @@ CatalogImportResult buildCatalogImport({
   required String Function() newId,
 }) {
   final username = options.username.trim();
-  if (username.isEmpty) {
-    throw const CatalogImportInvalid('要填登录用户名：目录不知道服务器上的 Unix 用户，不会默认用 root。');
-  }
   if (RegExp(r'[\s\x00-\x1f\x7f]').hasMatch(username)) {
     throw const CatalogImportInvalid('用户名里不能有空格或控制字符。');
   }
@@ -172,6 +239,7 @@ CatalogImportResult buildCatalogImport({
         address: options.address,
         appliedAddress: address,
       ),
+      os: record.device.os,
     );
     // 和连接时同一个函数检查路线：路线矛盾（找不到跳板、循环、代理配置缺失）整批都不成立，
     // 只和这台设备有关的（地址不合法、和某台跳板是同一台机器）只跳过这台。
@@ -195,14 +263,52 @@ CatalogImportResult buildCatalogImport({
   return CatalogImportResult(hosts, skipped);
 }
 
+/// 按来源上存的默认值直接导入，不弹设置页（R26）。和设置页一样只写保险库、不连接；
+/// 写入前再查一次已导入的（[alreadyImported]）。设置本身不成立时抛 [CatalogImportInvalid]。
+Future<({List<HostProfile> added, List<CatalogImportSkip> skipped})>
+    importCatalogDevices(
+  VaultController controller,
+  CatalogCache cache,
+  Iterable<String> deviceIds,
+) async {
+  final vault = await controller.ready();
+  const uuid = Uuid();
+  final result = buildCatalogImport(
+    cache: cache,
+    deviceIds: [...deviceIds],
+    options: CatalogImportDefaults.of(cache).options(),
+    vault: vault,
+    newId: uuid.v4,
+  );
+  final added = result.hosts.isEmpty
+      ? const <HostProfile>[]
+      : await controller.addHosts(result.hosts, skip: alreadyImported);
+  return (added: added, skipped: result.skipped);
+}
+
+/// 这个来源里还没导入、导得进来的设备（「全部导入」用）：不含最近完整列表里不见了的。
+List<String> importableCatalogDevices(CatalogCache cache, VaultData vault) {
+  final imported = {
+    for (final host in vault.hosts)
+      if (CatalogBinding.of(host) case final binding?
+          when binding.catalogId == cache.catalogId)
+        binding.deviceId,
+  };
+  return [
+    for (final record in cache.devices.values)
+      if (!record.missing && !imported.contains(record.id)) record.id,
+  ];
+}
+
 HostProfile _host(
   String id,
   String label,
   String address,
   String username,
   CatalogImportOptions options,
-  CatalogBinding binding,
-) {
+  CatalogBinding binding, {
+  String? os,
+}) {
   final data = HostProfile.create(
     id: id,
     label: label,
@@ -212,6 +318,8 @@ HostProfile _host(
   ).data
     ..['authMethod'] = options.authMethod.name
     ..[CatalogBinding.key] = binding.toJson();
+  // 先按 Tailscale 报的系统显示图标（R26）；连上以后读到 os-release 会换成具体发行版。
+  if (os case final os? when os.trim().isNotEmpty) data['os'] = os.trim();
   final keyId = options.identityFileId ?? '';
   if (options.authMethod != HostAuthMethod.password && keyId.isNotEmpty) {
     data['identityFileId'] = keyId;

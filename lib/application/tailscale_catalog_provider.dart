@@ -94,6 +94,19 @@ class TailscaleCatalogProvider {
     );
   }
 
+  /// 存这个来源的导入默认值（R26 的 Tailscale 设置页）。只改设置：设备、缓存时间、已导入的主机都不动。
+  Future<CatalogCache> saveImportDefaults(
+    String catalogId,
+    Map<String, Object?> defaults,
+  ) async {
+    _require();
+    final cache = await _repository.load(catalogId);
+    if (cache == null) throw StateError('本机没有这个目录来源');
+    final next = cache.copyWith(importDefaults: defaults);
+    await _repository.save(next);
+    return next;
+  }
+
   Future<bool> hasSavedCredentials(String catalogId) async {
     _require();
     return _refresher.hasSavedCredentials(catalogId);

@@ -107,14 +107,67 @@ void main() {
   setUp(() => _ids = 0);
 
   group('设置不成立就一台都不导', () {
-    test('没填用户名：报错，不默认 root', () {
+    test('R26：没填用户名照样导入，用户名空着（第一次连接时问），不默认 root', () {
       for (final name in ['', '   ']) {
-        expect(
-          () => run(CatalogImportOptions(username: name)),
-          throwsA(isA<CatalogImportInvalid>()
-              .having((e) => e.message, 'message', contains('不会默认用 root'))),
-        );
+        final result = run(CatalogImportOptions(username: name));
+        expect(result.hosts, isNotEmpty);
+        for (final host in result.hosts) {
+          expect(host.username, isEmpty);
+        }
       }
+    });
+
+    test('R26：导入时记下 Tailscale 报的系统，主机图标照它显示', () {
+      final mixed = cacheOf([
+        {...device('w', hostname: 'win'), 'os': 'windows'},
+        {...device('m', hostname: 'mac'), 'os': 'macOS'},
+        {...device('p', hostname: 'phone'), 'os': 'android'},
+        {...device('i', hostname: 'pad'), 'os': 'iOS'},
+      ]);
+      final hosts = buildCatalogImport(
+        cache: mixed,
+        deviceIds: ['w', 'm', 'p', 'i'],
+        options: const CatalogImportOptions(username: 'u'),
+        vault: vaultWith([]),
+        newId: newId,
+      ).hosts;
+      expect([for (final h in hosts) h.distro],
+          ['windows', 'macos', 'android', 'ios']);
+    });
+
+    test('R26：来源上的导入默认值读写一致；读不懂的项按默认，不连累来源', () {
+      const defaults = CatalogImportDefaults(
+        username: ' fodelf ',
+        port: 2222,
+        address: CatalogAddressKind.fqdn,
+        proxyProfileId: 'p1',
+        jumpHostIds: ['j1'],
+      );
+      final json = defaults.toJson();
+      expect(json.toString(), isNot(contains('password')));
+      final back = CatalogImportDefaults.of(CatalogCache.fromJson(jsonDecode(
+          jsonEncode(const CatalogCache(catalogId: 'c', tailnet: '-')
+              .copyWith(importDefaults: json)
+              .toJson())))!);
+      expect(back.username, 'fodelf');
+      expect(back.port, 2222);
+      expect(back.address, CatalogAddressKind.fqdn);
+      expect(back.proxyProfileId, 'p1');
+      expect(back.jumpHostIds, ['j1']);
+
+      final junk = CatalogImportDefaults.fromJson(
+          {'port': 'x', 'address': 'nope', 'jumpHostIds': 3, 'username': 7});
+      expect(junk.port, 22);
+      expect(junk.address, CatalogAddressKind.ipv4);
+      expect(junk.jumpHostIds, isEmpty);
+      expect(junk.username, isEmpty);
+      // 旧缓存没有这一项。
+      expect(CatalogImportDefaults.of(cache).username, isEmpty);
+    });
+
+    test('R26：「全部导入」只算还没导入、没从列表里不见的', () {
+      expect(importableCatalogDevices(cache, vaultWith([already]))..sort(),
+          ['1', '2']);
     });
 
     test('用户名带空格、端口越界、私钥认证没选私钥', () {

@@ -15,6 +15,7 @@ class CatalogCache {
     this.devices = const {},
     this.lastAttempt,
     this.lastSuccess,
+    this.importDefaults = const {},
   });
 
   static const schemaVersion = 1;
@@ -32,10 +33,15 @@ class CatalogCache {
   /// 最近一次成功拿到设备列表。界面上显示的「缓存时间」是它。
   final CatalogRefresh? lastSuccess;
 
+  /// 这个来源导入主机时用的默认设置（默认用户名、地址类型、路线），由应用层解读
+  /// （`CatalogImportDefaults`）。只有设置、没有凭据：路线只记已保存代理的 ID 和跳板主机的 ID。
+  final Map<String, Object?> importDefaults;
+
   CatalogCache copyWith({
     Map<String, CatalogDeviceRecord>? devices,
     CatalogRefresh? lastAttempt,
     CatalogRefresh? lastSuccess,
+    Map<String, Object?>? importDefaults,
   }) =>
       CatalogCache(
         catalogId: catalogId,
@@ -44,6 +50,7 @@ class CatalogCache {
         devices: devices ?? this.devices,
         lastAttempt: lastAttempt ?? this.lastAttempt,
         lastSuccess: lastSuccess ?? this.lastSuccess,
+        importDefaults: importDefaults ?? this.importDefaults,
       );
 
   /// 把一次成功的列设备结果并进缓存。**只加、只改、只标记，从不删除**。
@@ -104,6 +111,7 @@ class CatalogCache {
         'devices': [for (final d in devices.values) d.toJson()],
         if (lastAttempt != null) 'lastAttempt': lastAttempt!.toJson(),
         if (lastSuccess != null) 'lastSuccess': lastSuccess!.toJson(),
+        if (importDefaults.isNotEmpty) 'importDefaults': importDefaults,
       };
 
   /// 读不懂（版本不对、结构坏）返回 null，由调用方当作「没有缓存」，不猜。
@@ -128,6 +136,10 @@ class CatalogCache {
       devices: devices,
       lastAttempt: CatalogRefresh.fromJson(json['lastAttempt']),
       lastSuccess: CatalogRefresh.fromJson(json['lastSuccess']),
+      // 旧缓存没有这一项；读不懂就当没设置，不连累整个来源。
+      importDefaults: json['importDefaults'] is Map
+          ? Map<String, Object?>.from(json['importDefaults'] as Map)
+          : const {},
     );
   }
 }

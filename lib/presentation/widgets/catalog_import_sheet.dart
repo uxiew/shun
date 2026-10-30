@@ -82,6 +82,13 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
     VaultData vault,
     String Function() newId,
   ) {
+    // 这一页是「统一设置一批」，还是要填用户名；不填用户名的导入走来源设置里的默认值（R26）。
+    if (_username.text.trim().isEmpty) {
+      return (
+        result: null,
+        error: '要填登录用户名：目录不知道服务器上的 Unix 用户，不会默认用 root。',
+      );
+    }
     try {
       return (
         result: buildCatalogImport(
