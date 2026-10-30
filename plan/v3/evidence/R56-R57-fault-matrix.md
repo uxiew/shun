@@ -1,5 +1,7 @@
 # R56/R57 无账号故障矩阵与 Android 模拟器证据
 
+> 10-30 更新：AIC06 用真的 Claude Code / Codex + 模拟模型测过、PASS，R56/R57 DONE；AIC09 按所有者决定 NOT_RUN。见 [真实 CLI 证据](R56-R57-real-cli.md)。下面是 10-12 当时的记录。
+
 日期：2026-10-12。基线 `1b7d652`，本轮是在 R56/R57 初版上补测、修复，代码提交 `af17597`。R56/R57 仍 IN_PROGRESS；AIC03/04/05/07/08 按下述本机 + Android 模拟器范围记 PASS。AIC06 的参数派发边界已测，但真实原生会话连续性未测，AIC06/AIC09 仍 NOT_RUN。
 
 ## 环境与边界

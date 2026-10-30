@@ -1123,7 +1123,7 @@
       "id": "R25",
       "phase": "P4",
       "title": "日用UI、诊断与参考交互收敛",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "depends_on": [
         "R10",
         "R13",
@@ -1173,7 +1173,7 @@
       "evidence": [
         "evidence/R25.md"
       ],
-      "commit": null
+      "commit": "a269361"
     },
     {
       "id": "R26",
@@ -2926,7 +2926,7 @@
       "id": "R56",
       "phase": "P4",
       "title": "AI CLI 项目启动器",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "depends_on": [
         "R55",
         "R21",
@@ -2960,15 +2960,16 @@
         "evidence/R56.md",
         "evidence/R56-R57-fault-matrix.md",
         "evidence/R56-R57-modularity.md",
-        "evidence/R56-R57-modularity-regression.md"
+        "evidence/R56-R57-modularity-regression.md",
+        "evidence/R56-R57-real-cli.md"
       ],
-      "commit": "8bbb460"
+      "commit": "93a011e"
     },
     {
       "id": "R57",
       "phase": "P4",
       "title": "继续最后 AI 会话与最近工作入口",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "depends_on": [
         "R56",
         "R22"
@@ -3005,9 +3006,10 @@
         "evidence/R57.md",
         "evidence/R56-R57-fault-matrix.md",
         "evidence/R56-R57-modularity.md",
-        "evidence/R56-R57-modularity-regression.md"
+        "evidence/R56-R57-modularity-regression.md",
+        "evidence/R56-R57-real-cli.md"
       ],
-      "commit": "8bbb460"
+      "commit": "93a011e"
     }
   ],
   "plan_revision": "3.0"

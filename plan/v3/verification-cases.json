@@ -1835,11 +1835,12 @@
       "action": "原进程退出后，以固定版本 Claude/Codex 的已绑定原生 ID 继续；另造同目录更新对话、另一 worktree、失效/缺失 ID、配置身份更换与不支持版本。",
       "expected": "回到原工具/用户/目录和同一对话，指定 ID 失效不改用 --last/--continue 或新建；无可靠 ID 提供历史选择器。Gemini/OpenCode/自定义仅声明实测模式，列表提示词不留存。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
       "evidence": [
         "evidence/R56-R57-fault-matrix.md",
-        "evidence/R56-R57-modularity-regression.md"
+        "evidence/R56-R57-modularity-regression.md",
+        "evidence/R56-R57-real-cli.md"
       ]
     },
     {
@@ -1874,7 +1875,8 @@
       "result": "NOT_RUN",
       "inherited_from": null,
       "evidence": [
-        "evidence/R56-R57-fault-matrix.md"
+        "evidence/R56-R57-fault-matrix.md",
+        "evidence/R56-R57-real-cli.md"
       ]
     }
   ],
