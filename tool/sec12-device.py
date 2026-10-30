@@ -117,7 +117,7 @@ def main():
 
     marks = {name: marker(f'sec12{name[:2]}') for name in [
         'typed', 'injected', 'outputA', 'outputB', 'title', 'osc9', 'osc777', 'osc52',
-        'wrongPassword', 'wrongProxyPassword']}
+        'wrongPassword', 'wrongProxyPassword', 'forwarded', 'aiOutputA', 'aiOutputB']}
     control = marker('sec12control')
     key_pem = Path(fixture['privateKeyPath']).read_text()
     key_lines = [l for l in key_pem.strip().splitlines()[1:-1] if len(l) >= 40]
@@ -137,6 +137,9 @@ def main():
         'osc777': marks['osc777'],
         'osc52': marks['osc52'],
         'osc52.base64': base64.b64encode(marks['osc52'].encode()).decode(),
+        # R28：经本地端口转发送出去的字节、AI 工具终端里的输出。
+        'forwarded': marks['forwarded'],
+        'aiOutput': marks['aiOutputA'] + marks['aiOutputB'],
     }
 
     # 只存这轮随机生成的标记（复查时能重搜）；测试环境的密码和私钥只存摘要。
@@ -144,7 +147,8 @@ def main():
         'markers': marks,
         'control': control,
         'fixtureSha256': {n: hashlib.sha256(v.encode()).hexdigest()
-                          for n, v in secret.items() if n not in marks and n != 'output'
+                          for n, v in secret.items() if n not in marks
+                          and n not in ('output', 'aiOutput')
                           and not n.startswith(('osc', 'title', 'typed', 'injected'))},
     }, indent=2))
     (out / 'device.txt').write_text('\n'.join([
@@ -169,7 +173,12 @@ def main():
                 found = re.search(rf'package:{re.escape(pkg)} uid:(\d+)', listed)
                 if found:
                     uid[0] = found.group(1)
-                    adb_run('shell', 'dumpsys', 'netstats', '--poll', check=False)
+                    # API 30 上 shell 没权限 --poll（报 Requires … NETWORK_STACK），detail 里是系统自己上次读的旧数，
+                    # 读出来的 0 不代表没有流量（R28）。这时只记「没刷新」，以 /proc/net 采样为准。
+                    if 'Security exception' in adb_run('shell', 'dumpsys', 'netstats', '--poll',
+                                                       check=False).stdout:
+                        net_before[0] = 'poll refused'
+                        continue
                     net_before[0] = netstats_bytes(
                         adb_run('shell', 'dumpsys', 'netstats', 'detail', check=False).stdout,
                         uid[0])
@@ -292,8 +301,9 @@ def main():
                 if entry.isfile():
                     storage[entry.name] = archive.extractfile(entry).read().decode('latin-1')
         (out / 'storage-files.txt').write_text('\n'.join(sorted(storage)) + '\n')
-        adb_run('shell', 'dumpsys', 'netstats', '--poll', check=False)
-        net_after = netstats_bytes(
+        refused = 'Security exception' in adb_run('shell', 'dumpsys', 'netstats', '--poll',
+                                                  check=False).stdout
+        net_after = 'poll refused' if refused else netstats_bytes(
             adb_run('shell', 'dumpsys', 'netstats', 'detail', check=False).stdout, uid[0]) \
             if uid[0] else None
 

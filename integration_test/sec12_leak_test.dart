@@ -18,8 +18,11 @@ import 'package:integration_test/integration_test.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shun/app.dart';
 import 'package:shun/application/home_navigation.dart';
+import 'package:shun/application/port_forward_controller.dart';
 import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/vault_controller.dart';
+import 'package:shun/domain/ai_cli_launch.dart';
+import 'package:shun/domain/connection_route.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 
@@ -181,6 +184,56 @@ void main() {
     await settle(tester, 1500);
     final clipboard = (await Clipboard.getData(Clipboard.kTextPlain))?.text;
     report('clipboard.isRemote', clipboard == '${config['osc52']}');
+
+    // R28：端口转发和 AI 工具是 SEC12 之后才加的入口，各走一遍。
+    // 本地转发借这个标签的连接转到边缘自己的 sshd，经它送一串标记过去。
+    final forwards = container.read(portForwardControllerProvider.notifier);
+    await forwards.startLocal(
+        session: session, localPort: 0, remoteHost: '127.0.0.1', remotePort: 22);
+    final forward = container.read(portForwardControllerProvider).last;
+    final socket = await Socket.connect('127.0.0.1', forward.localPort);
+    final banner = <int>[];
+    final reading = socket.listen(banner.addAll, onError: (Object _) {});
+    await waitFor(tester, () => utf8.decode(banner, allowMalformed: true).contains('\n'),
+        what: '转发过来的 SSH 版本行');
+    socket.add(utf8.encode('${config['forwarded']}\r\n'));
+    await socket.flush();
+    await settle(tester, 500);
+    await reading.cancel();
+    socket.destroy();
+    report('forward.banner', utf8.decode(banner, allowMalformed: true).startsWith('SSH-'));
+    await forwards.stop(forward.id);
+
+    // AI 工具：远端放一个只会打一行字的「工具」，按用户点启动的那条路新开专用终端（私钥登录）。
+    // 输出拆成两半写进脚本，只有真跑起来才会拼在一起。
+    await run("printf '#!/bin/sh\\nprintf %%s%%s\\\\n ${config['aiOutputA']} ${config['aiOutputB']}\\nexec sleep 60\\n' > ~/sec12-ai && chmod +x ~/sec12-ai");
+    final now = await vault.ready();
+    final aiPlan = resolveRoutePlan(withKey,
+        hosts: now.hosts, proxyProfiles: now.proxyProfiles, keys: now.keys);
+    expect(
+        await controller.openAiCliTerminal(
+          requestId: '00000000-0000-4000-8000-0000000012a1',
+          host: withKey,
+          routePlan: aiPlan,
+          label: 'SEC12 AI',
+          launch: AiCliLaunchSpec(
+              executable: '/home/${config['user']}/sec12-ai',
+              projectDirectory: '/home/${config['user']}'),
+          verifyHostKey: verify,
+        ),
+        isTrue);
+    final ai = controller.state.sessions.firstWhere((s) => s.aiLaunch != null);
+    await waitFor(
+        tester,
+        () => ai.terminal
+            .allText()
+            .contains('${config['aiOutputA']}${config['aiOutputB']}'),
+        what: 'AI 工具的输出');
+    report('ai.hasOutput', true);
+    // 后面的按键注入还是打到私钥登录的那个普通标签。
+    controller.activate(
+        controller.state.sessions.indexWhere((s) => s.id == session.id));
+    await settle(tester, 1000);
 
     // 系统按键注入：脚本用 adb shell input text 打一串字再回车。到没到终端只报告，不算失败：
     // 这一步是为了让按键走一遍 Android 的输入链路，再看日志里有没有它。
