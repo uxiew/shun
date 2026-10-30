@@ -642,6 +642,15 @@ class _SftpPaneState extends State<_SftpPane> {
     final result = await FilePicker.platform.pickFiles(withReadStream: true);
     if (result == null) return;
     final file = result.files.single;
+    try {
+      await _uploadPicked(file);
+    } finally {
+      // 选择器把要传的文件整份复制在缓存里（可能就是一把私钥），传完、取消、失败都删。
+      await discardPickedCopy(file);
+    }
+  }
+
+  Future<void> _uploadPicked(PlatformFile file) async {
     Stream<Uint8List>? stream;
     if (file.readStream != null) {
       stream = asUint8ListStream(file.readStream!);

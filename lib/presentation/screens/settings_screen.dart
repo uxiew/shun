@@ -17,6 +17,7 @@ import '../../application/vault_import.dart';
 import '../../domain/models/settings.dart';
 import '../../domain/models/vault.dart';
 import '../../infrastructure/storage/background_image_service.dart';
+import '../../infrastructure/storage/picked_files.dart';
 import '../../infrastructure/storage/vault_repository.dart';
 import '../../infrastructure/storage/vault_export_service.dart';
 import '../../infrastructure/http_client_provider.dart';
@@ -1468,12 +1469,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       );
       if (result == null || result.files.isEmpty) return;
       final selected = result.files.single;
-      final stored = await _backgroundImageService.persist(
-        sourcePath: selected.path,
-        bytes: selected.bytes,
-        stream: selected.readStream,
-        extension: selected.extension,
-      );
+      final String stored;
+      try {
+        stored = await _backgroundImageService.persist(
+          sourcePath: selected.path,
+          bytes: selected.bytes,
+          stream: selected.readStream,
+          extension: selected.extension,
+        );
+      } finally {
+        // 已经另存了一份，选择器留在缓存里的那份没用了。
+        await discardPickedCopy(selected);
+      }
       if (!mounted) {
         await _backgroundImageService.remove(stored);
         return;
@@ -1615,7 +1622,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     if (result == null) return;
     try {
       final file = result.files.single;
-      final bytes = file.bytes ?? await File(file.path!).readAsBytes();
+      final List<int> bytes;
+      try {
+        bytes = file.bytes ?? await File(file.path!).readAsBytes();
+      } finally {
+        // 导入的 JSON 里可能带密码（桌面端导出的）：选择器在缓存里那份读完就删。
+        await discardPickedCopy(file);
+      }
       final imported = VaultData.fromJson(
         jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>,
       );

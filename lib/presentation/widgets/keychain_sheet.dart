@@ -10,6 +10,7 @@ import 'package:uuid/uuid.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/models/host.dart';
 import '../../domain/ssh_key_type.dart';
+import '../../infrastructure/storage/picked_files.dart';
 import 'secret_content.dart';
 
 class KeychainSheet extends ConsumerWidget {
@@ -119,7 +120,13 @@ class KeychainSheet extends ConsumerWidget {
     );
     if (result == null) return;
     final file = result.files.single;
-    final bytes = file.bytes ?? await File(file.path!).readAsBytes();
+    final List<int> bytes;
+    try {
+      bytes = file.bytes ?? await File(file.path!).readAsBytes();
+    } finally {
+      // 选择器在 App 缓存里复制了一份私钥明文，读完就删；用户后面取消导入也不留。
+      await discardPickedCopy(file);
+    }
     final privateKey = utf8.decode(bytes);
     if (!privateKey.contains('PRIVATE KEY')) {
       if (context.mounted) {
