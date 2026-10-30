@@ -2,19 +2,26 @@
 // 写入一份带特征串的假凭据，再读回来确认能解密。之后在设备上翻 App 私有目录、备份产物和日志，
 // 搜这些特征串——出现就是明文泄漏。
 //
-// 用法见 plan/v3/evidence/R09.md。它和正式 App 同一个包名，会覆盖设备上这个 App 的数据，
-// 只在测试设备/模拟器上跑。
+// 用法见 plan/v3/evidence/R09.md；R28 起由 tool/r28-sec05-device.py 跑。它和调试包同一个包名，
+// 会覆盖设备上这个 App 的数据，只在测试设备/模拟器上跑。
+//
+// 特征串在运行时拼：整串写在源码里会被编进 kernel_blob.bin，扫私有目录时误报（R09 撞过）。
+// `--dart-define=SEC05_RUN=<随机串>` 让每轮标记都不同，上一轮留下的东西不会被当成这一轮的。
 import 'package:flutter/material.dart';
 import 'package:shun/domain/models/vault.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 
-const markers = {
-  'hostPassword': 'SEC05-HOST-PW-7f1c',
-  'telnetPassword': 'SEC05-TELNET-PW-2b9d',
-  'inlineProxyPassword': 'SEC05-INLINE-PROXY-4e0a',
-  'profileProxyPassword': 'SEC05-PROFILE-PROXY-9a37',
-  'privateKey': 'SEC05-KEY-MATERIAL-c58e',
-  'passphrase': 'SEC05-KEY-PASS-61d2',
+const _run = String.fromEnvironment('SEC05_RUN', defaultValue: '7f1c');
+final markers = {
+  for (final kind in [
+    'hostPassword',
+    'telnetPassword',
+    'inlineProxyPassword',
+    'profileProxyPassword',
+    'privateKey',
+    'passphrase',
+  ])
+    kind: ['SEC05', kind, _run].join('-'),
 };
 
 Future<void> main() async {
