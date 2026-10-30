@@ -192,7 +192,7 @@ def control(out, log):
     （docs/dev/README.md 第 3 节），所以这里可能一直等到超时，不影响对照。"""
     log('control-start', adb('shell', 'am', 'start', '-W', '-n', ACTIVITY))
     time.sleep(4)
-    tap('保险库\n')
+    tap('连接\n')  # 底栏第一页，10-30 前叫「保险库」
     time.sleep(1)
     tap('添加连接')
     time.sleep(2)

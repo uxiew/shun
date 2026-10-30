@@ -126,7 +126,7 @@ void main() {
             await tester.pump(const Duration(milliseconds: 100));
           }
 
-          where = '保险库';
+          where = '连接页';
           await tester.pump(const Duration(milliseconds: 300));
 
           where = '选择连接类型';

@@ -468,7 +468,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                         ? const EmptyState(
                             icon: Icons.terminal_outlined,
                             title: '没有活动会话',
-                            subtitle: '从“保险库”选择主机开始连接。',
+                            subtitle: '从「连接」页选一台主机开始连接。',
                           )
                         : LayoutBuilder(
                             builder: (context, constraints) {

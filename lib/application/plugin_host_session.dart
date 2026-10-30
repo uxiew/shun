@@ -177,7 +177,7 @@ String pluginHostEndNotice(PluginTerminalSession session, String name) {
   if (normal) return '\r\n\x1b[33m[$name] $reason不会自动重连。\x1b[0m\r\n';
   return '\r\n\x1b[31m[$name] $reason\x1b[0m\r\n'
       '\x1b[33m不会自动重连，也不会重发断开前的输入；断开前最后打的字插件有没有收到，App 无法确认。\r\n'
-      '要再连，从保险库重新连接这台主机。\x1b[0m\r\n';
+      '要再连，从「连接」页重新连这台主机。\x1b[0m\r\n';
 }
 
 final pluginHostConnectorProvider = Provider(PluginHostConnector.new);

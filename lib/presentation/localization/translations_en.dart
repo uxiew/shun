@@ -275,8 +275,8 @@ const englishTranslations = <String, String>{
       'Enter a Tailscale key to list the devices in your tailnet; tap one to import and connect. Only reads the device list; no VPN is started.',
   '从 Tailscale 读设备列表，点一台就导入并连接。只读列表：不连设备、不开 VPN。手机要能到达设备（开着官方 Tailscale App，或经代理、跳板机）才连得上。':
       'Reads the device list from Tailscale; tap a device to import and connect. List only: it doesn’t connect to devices or start a VPN. The phone must be able to reach the device (official Tailscale app on, or via a proxy or jump host).',
-  '点一台就按 Tailscale 设置里的默认值导入并连接，用户名、密码没填的连接时问。保险库里已经有这台机器？点 ⋮ →「关联到已有主机」，不用再导入一台。':
-      'Tap a device to import it with the defaults from Tailscale settings and connect; a missing username or password is asked when connecting. Already have this machine in the vault? Tap ⋮ → “Link to existing host” instead of importing another.',
+  '点一台就按 Tailscale 设置里的默认值导入并连接，用户名、密码没填的连接时问。「连接」页里已经有这台机器？点 ⋮ →「关联到已有主机」，不用再导入一台。':
+      'Tap a device to import it with the defaults from Tailscale settings and connect; a missing username or password is asked when connecting. Already have this machine on the Hosts page? Tap ⋮ → “Link to existing host” instead of importing another.',
   'Tailscale 设置里的导入设置不成立：':
       'Import settings in Tailscale settings are invalid: ',
   '用自定义设置导入…': 'Import with custom settings…',
@@ -447,7 +447,6 @@ const englishTranslations = <String, String>{
   '解压完成': 'Extraction complete',
   '正在服务器上解压…': 'Extracting on the server…',
   '设置': 'Settings',
-  '保险库': 'Vault',
   '终端': 'Terminal',
   '文件': 'Files',
   '片段': 'Snippets',
@@ -907,7 +906,7 @@ const englishTranslations = <String, String>{
   '关闭标签页': 'Close tab',
   '返回当前终端': 'Return to current terminal',
   '没有活动会话': 'No active session',
-  '从“保险库”选择主机开始连接。': 'Choose a host from Vault to start a connection.',
+  '从「连接」页选一台主机开始连接。': 'Choose a host on the Hosts page to start a connection.',
   '生成命令': 'Generate command',
   '确认命令': 'Confirm command',
   '执行': 'Run',
@@ -1267,8 +1266,8 @@ const englishTranslations = <String, String>{
   r'没有装插件“$pluginId”。装好后到「设置 → 插件（实验）」核对证书并批准，再连。':
       r'Plugin “$pluginId” is not installed. Install it, check its certificate and approve it in Settings → Plugins (experimental), then connect.',
   '用哪个插件': 'Which plugin',
-  r'要再连，从保险库重新连接这台主机。\x1b[0m\r\n':
-      r'To connect again, connect this host from the vault again.\x1b[0m\r\n',
+  r'要再连，从「连接」页重新连这台主机。\x1b[0m\r\n':
+      r'To connect again, connect this host from the Hosts page again.\x1b[0m\r\n',
   '这台主机还没选插件：在编辑器里选一个。':
       'No plugin is chosen for this host yet: pick one in the editor.',
   r'连不上插件“$name”：${check.message}':

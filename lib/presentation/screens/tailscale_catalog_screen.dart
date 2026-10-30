@@ -24,7 +24,7 @@ const _catalogAbout =
     '从 Tailscale 读设备列表，点一台就导入并连接。只读列表：不连设备、不开 VPN。手机要能到达设备（开着官方 Tailscale App，或经代理、跳板机）才连得上。';
 
 const _importHint =
-    '点一台就按 Tailscale 设置里的默认值导入并连接，用户名、密码没填的连接时问。保险库里已经有这台机器？点 ⋮ →「关联到已有主机」，不用再导入一台。';
+    '点一台就按 Tailscale 设置里的默认值导入并连接，用户名、密码没填的连接时问。「连接」页里已经有这台机器？点 ⋮ →「关联到已有主机」，不用再导入一台。';
 
 const _sharedDevicesNote =
     '用 OAuth client 读取时，别人共享给你的设备可能不在列表里（Tailscale 的已知问题 tailscale#16911），这不代表设备被删了。';

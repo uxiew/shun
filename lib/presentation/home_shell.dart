@@ -100,7 +100,9 @@ class HomeShell extends ConsumerWidget {
         NavigationDestination(
           icon: const Icon(Icons.dns_outlined),
           selectedIcon: const Icon(Icons.dns),
-          label: localized('保险库'),
+          // 以前叫「保险库」，所有者觉得不像放主机的地方（R26）。英文表里「连接」是按钮上的 Connect，
+          // 底栏要的是页名，单独写。
+          label: ShunLocalizations.isEnglish ? 'Hosts' : '连接',
         ),
         NavigationDestination(
           icon: const Icon(Icons.terminal_outlined),

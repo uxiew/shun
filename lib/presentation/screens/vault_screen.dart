@@ -173,13 +173,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                         : 'assets/brand/header_icon_light.png',
                     width: 28,
                     height: 28),
-                const SizedBox(width: 10),
-                Text(
-                  'shun',
-                  style: Theme.of(
-                    context,
-                  ).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-                ),
+                // 只留图标，不写 App 名（R26 所有者）。
                 const Spacer(),
                 PopupMenuButton<String>(
                   tooltip: localized('服务器视图'),
