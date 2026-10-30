@@ -321,19 +321,21 @@ class _SftpPaneState extends State<_SftpPane> {
                 ),
               Expanded(
                 child: _entries.isEmpty && !_loading
-                    ? Center(
-                        child: LText(
-                          mountable != null && !mountable.isMounted
-                              ? '点上方的文件夹图标选手机目录'
-                              : mountable?.usesAppDocuments == true
+                    ? mountable != null &&
+                            !mountable.isMounted &&
+                            !mountable.usesAppDocuments
+                        ? _mountHint()
+                        : Center(
+                            child: LText(
+                              mountable?.usesAppDocuments == true
                                   ? 'shun 文件夹为空\n可从服务器下载或导入文件'
                                   : service.isLocal
                                       ? '挂载目录为空\n可直接上传或导入文件'
                                       : '目录为空',
-                          textAlign: TextAlign.center,
-                          style: const TextStyle(fontSize: 11),
-                        ),
-                      )
+                              textAlign: TextAlign.center,
+                              style: const TextStyle(fontSize: 11),
+                            ),
+                          )
                     : ListView.separated(
                         padding: const EdgeInsets.symmetric(horizontal: 3),
                         itemCount: _entries.length,
@@ -504,14 +506,54 @@ class _SftpPaneState extends State<_SftpPane> {
     refresh();
   }
 
+  /// 没挂载时那一栏里直接给按钮和系统的限制。以前只写「点上方的文件夹图标」，图标没字，
+  /// 选了 Download 被系统拦下来也不知道为什么（R26 所有者报「手机目录无法挂载」）。
+  Widget _mountHint() => Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              FilledButton.tonalIcon(
+                key: const ValueKey('sftp-mount-phone-directory'),
+                onPressed: _mountPhoneDirectory,
+                icon: const Icon(Icons.folder_open_outlined),
+                label: const LText('选择手机目录'),
+              ),
+              const SizedBox(height: 8),
+              const LText(
+                _mountLimits,
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 11),
+              ),
+            ],
+          ),
+        ),
+      );
+
+  static const _mountLimits = 'Android 不让选整个内部存储和「Download」文件夹本身（「使用此文件夹」是灰的），'
+      '选它们下面的一个文件夹；没有就在选择器里新建一个。';
+  static const _mountCancelled = '没有选上目录。Android 不让选整个内部存储和「Download」文件夹本身，'
+      '选它们下面的一个文件夹；没有就在选择器里新建一个。';
+
   Future<void> _mountPhoneDirectory() async {
-    if (widget.sharedTransferBusy || _transfer != null || _extracting) return;
     final mountable = service is MountableFileTransferService
         ? service as MountableFileTransferService
         : null;
-    if (mountable == null || mountable.activeOperations > 0) return;
+    if (mountable == null) return;
+    if (widget.sharedTransferBusy ||
+        _transfer != null ||
+        _extracting ||
+        mountable.activeOperations > 0) {
+      // 以前这里不声不响地返回，点了像没反应。
+      _message('正在传文件，传完再换目录');
+      return;
+    }
     try {
-      if (!await mountable.mount()) return;
+      if (!await mountable.mount()) {
+        if (!mountable.isMounted) _message(_mountCancelled);
+        return;
+      }
       widget.clipboard.value = null;
       _selected.clear();
       _selecting = false;

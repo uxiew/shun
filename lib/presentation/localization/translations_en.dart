@@ -257,6 +257,12 @@ const englishTranslations = <String, String>{
       'This host needs a Tailscale check in the browser, and automatic recovery does not open the link for you. Close this tab and connect again from the host list to see the confirmation link.',
   '会话已结束。点「重新连接」会新开一个会话（新的 shell），不是接回原来那个。':
       'The session has ended. “Reconnect” opens a new session (a new shell); it does not resume the old one.',
+  '选择手机目录': 'Choose a phone folder',
+  'Android 不让选整个内部存储和「Download」文件夹本身（「使用此文件夹」是灰的），选它们下面的一个文件夹；没有就在选择器里新建一个。':
+      'Android does not allow the whole internal storage or the Download folder itself (“Use this folder” is greyed out). Choose a folder inside them, or create one in the picker.',
+  '没有选上目录。Android 不让选整个内部存储和「Download」文件夹本身，选它们下面的一个文件夹；没有就在选择器里新建一个。':
+      'No folder was chosen. Android does not allow the whole internal storage or the Download folder itself; choose a folder inside them, or create one in the picker.',
+  '正在传文件，传完再换目录': 'A transfer is running. Change the folder after it finishes.',
   '会话已结束：远端的 shell 退出了（比如输入了 exit）。不会自动重连；要再用就点「重新连接」开一个新的 shell。':
       'The session has ended: the remote shell exited (for example, after exit). It will not reconnect automatically; tap “Reconnect” to open a new shell.',
   '已从通知「全部断开」。不会自动重连；要继续就点「重新连接」。':

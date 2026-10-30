@@ -522,6 +522,32 @@ void main() {
 
   // 10-07 起快捷键栏默认 14 个键（加了 PgUp/PgDn）：够宽时每行 7 个、两行放完，方向键上下对齐；
   // 每格放不下 48dp（触控目标）时回到每行 6 个，多一行。
+  testWidgets('R26：手机目录没挂载时那一栏里就有「选择手机目录」；没选上写明系统的限制，选上了列出文件', (tester) async {
+    SharedPreferences.setMockInitialValues({});
+    final repository = await VaultRepository.open();
+    final phone = _UnmountedService('local')
+      ..files['/notes.txt'] = Uint8List.fromList([1]);
+    await tester.pumpWidget(ProviderScope(
+      overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
+      child: MaterialApp(
+          home: Scaffold(body: SftpScreen(localService: Future.value(phone)))),
+    ));
+    await tester.pumpAndSettle();
+    final button = find.byKey(const ValueKey('sftp-mount-phone-directory'));
+    expect(button, findsWidgets);
+    expect(find.textContaining('Download'), findsWidgets);
+
+    await tester.tap(button.first);
+    await tester.pumpAndSettle();
+    expect(phone.mountCalls, 1);
+    expect(find.textContaining('没有选上目录'), findsOneWidget, reason: '以前不声不响');
+
+    phone.pick = true;
+    await tester.tap(button.first);
+    await tester.pumpAndSettle();
+    expect(find.text('notes.txt'), findsWidgets);
+  });
+
   testWidgets('quick key region: two rows of seven on a 411dp phone, ↑ over ↓',
       (tester) async {
     await pumpQuickKeys(tester, 411);
@@ -837,6 +863,27 @@ class _DelayedListingService extends _MemoryMountableTransferService {
   @override
   Future<List<RemoteEntry>> list(String path) =>
       path == '/slow' ? pending.future : super.list(path);
+}
+
+/// 还没挂载的手机目录（Android 的目录选择器）。[pick] 为 false 时像用户没选成（取消，或选了 Download 被系统拦下）。
+class _UnmountedService extends _MemoryMountableTransferService {
+  _UnmountedService(super.name);
+  var mounted = false;
+  var pick = false;
+  var mountCalls = 0;
+  @override
+  bool get usesAppDocuments => false;
+  @override
+  bool get isMounted => mounted;
+  @override
+  Future<List<RemoteEntry>> list(String path) async =>
+      mounted ? super.list(path) : const [];
+  @override
+  Future<bool> mount() async {
+    mountCalls++;
+    mounted = mounted || pick;
+    return pick;
+  }
 }
 
 class _RemountableService extends _MemoryMountableTransferService {
