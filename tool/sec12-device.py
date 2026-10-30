@@ -318,6 +318,10 @@ def main():
                  for src, text in sources.items()}
         leaks = {k: v for k, v in leaks.items() if v}
         control_found = sorted(src for src, text in sources.items() if control in text)
+        # 私有文件这一路的对照：主机 id 不是秘密，保险库的普通偏好里应当搜得到。
+        # 搜不到说明打包或解码没拿到内容，「私有文件 0 命中」就不算数（R28 补的）。
+        storage_control = sorted(src for src, text in sources.items()
+                                 if src.startswith('storage:') and 'sec12-socks' in text)
         app_lines = [l for l in sources.get('logcat-after.txt', '').splitlines()
                      if pkg in l or 'AndroidRuntime' in l or ' DEBUG ' in l or 'flutter' in l]
         (out / 'logcat-app-lines.txt').write_text('\n'.join(app_lines) + '\n')
@@ -342,6 +346,7 @@ def main():
             'startIntents': len(intents),
             'storageFiles': len(storage),
             'controlFoundIn': control_found,
+            'storageControlFoundIn': storage_control,
             'searched': sorted(secret),
             'leaks': leaks,
         }
@@ -350,7 +355,7 @@ def main():
                          ensure_ascii=False, indent=2), flush=True)
         ran = all(steps.get(s) for s in ['type', 'recents', 'dump', 'crash'])
         control_ok = control_found == ['logcat-after.txt', 'logcat-before-crash.txt']
-        code = 0 if (ran and control_ok and not leaks
+        code = 0 if (ran and control_ok and storage_control and not leaks
                      and not summary['nonLoopbackEndpoints']) else 1
     finally:
         stop.set()

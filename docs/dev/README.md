@@ -479,6 +479,12 @@ Android SDK 在 `../.toolchain/android-sdk`（3.3 GB）：`build-tools`、`cmake
   加 `--user 0`。不加的话命令看着跑了，服务其实没停（没有 root 时想模拟「系统停掉服务」就用这个）。
 - **设备测试中途把 App 杀了（测进程被杀后放回标签那类），之后 App 数据没了**：`flutter test` 发现 App 死了会顺手卸掉它。
   用 `flutter drive --driver test_driver/integration_test.dart --target … --keep-app-running`（`tool/r22-lifecycle.sh` 的 restore、`tool/x10-mosh.sh` 的 hostkill）。
+- **按 uid 数流量时 `dumpsys netstats detail` 里 App 一直是 0 字节，连开了 SSH 也是 0**（R28，`shun-r39-a30`）：
+  先看 `dumpsys netstats --poll` 的输出——API 30 上它报 `Security exception: Requires ... NETWORK_STACK`，什么都没刷新，
+  detail 里是系统自己（默认 30 分钟一次）读的旧数。网络一变系统会自己读一次：`svc data disable`、等 3 秒、`svc data enable`、等 8 秒再读
+  （`tool/r28-bas02-device.py` 的 `force_poll`）。这之前在这台镜像上记的「netstats 前后 0」都不是测量结果。API 36 上 `--poll` 是通的（R01）。
+- **模拟器 `-tcpdump` 抓的包，按宿主机时间划窗口一个包都对不上**：它写的时间戳比宿主机慢整整一个时区（这台 Mac 是 JST，慢 9 小时）。
+  拿文件最后写入时间减最后一个包的时间来校（`tool/r28-bas02-device.py pcap`）。包里还有 IPv6（`fec0::`），只解 IPv4 会漏一半。
 - **Android 8.1 及更早的模拟器上 `adb logcat -c` 清不掉日志**（8.0 直接报 `failed to clear the 'main' log`）：
   按日志核对结果时别依赖清空，按"操作前已有几行"截取（`spikes/terminal_spike/tool/adb_key_check.sh` 就是这么做的）。
 
