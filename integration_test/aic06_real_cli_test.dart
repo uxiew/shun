@@ -614,8 +614,17 @@ tmux -L aic06decoy kill-server 2>/dev/null || :
     await waitFor(tester, () => !c3.connected, 'Codex resumed ended');
     await closeTab(c3);
 
+    // 历史列表和终端里显示过的提问不进 App 的存储：最近工作只有工具、目录、会话 ID、tmux 目标这些指针。
+    // 存储本身是加密的，直接 grep 私有文件搜不到也说明不了什么，所以查解密后写进去的那份。
+    final items = await recent.load(scope);
+    final stored = jsonEncode([for (final i in items) i.toJson()]);
+    for (final t in [tokA, tokB, tokC, decoyA, decoyC, 'MOCK-']) {
+      expect(stored, isNot(contains(t)), reason: '最近工作里不该有对话内容');
+    }
+    aic('noPromptStored', 'items=${items.length} promptsFound=0');
+
     expect(tester.takeException(), isNull);
     aic('PASS',
-        'claude-new-tmux,tmux-return,exit-exact-resume,newer-same-dir,worktree,missing-id,config-identity,unsupported-version,codex-new-tmux,tmux-return,picker');
+        'claude-new-tmux,tmux-return,exit-exact-resume,newer-same-dir,worktree,missing-id,config-identity,unsupported-version,codex-new-tmux,tmux-return,picker,no-prompt-stored');
   }, skip: config.isEmpty, timeout: const Timeout(Duration(minutes: 12)));
 }
