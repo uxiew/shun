@@ -197,9 +197,15 @@ class TmuxService {
     }
 
     final SSHSession session;
+    final opening = client.execute(command);
     try {
-      session = await client.execute(command).timeout(left());
+      session = await opening.timeout(left());
     } on TimeoutException {
+      // 期限过了通道才开出来：开出来就关掉，不挂在标签的连接上等远端自己结束（R26 审计）。
+      unawaited(opening.then(
+        (late) => client.isClosed ? null : late.close(),
+        onError: (Object _) {},
+      ));
       throw TmuxCommandException('远端在 ${timeout.inSeconds} 秒内没有回应，已放弃');
     }
     final buffer = BytesBuilder(copy: false);

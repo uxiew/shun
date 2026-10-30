@@ -1259,12 +1259,23 @@ class SystemManagementService {
       throw UnsupportedError('系统管理仅支持 SSH 连接');
     }
     Future<_RemoteResult> run(SSHClient client) async {
-      final process = await client.execute(command);
-      if (stdinText != null) {
-        process.stdin.add(Uint8List.fromList(utf8.encode(stdinText)));
-        await process.stdin.close();
+      final opening = client.execute(command);
+      final SSHSession process;
+      try {
+        // 开通道这一步也算在期限里；过了期限才开出来的通道关掉，不挂在标签的连接上（R26 审计）。
+        process = await opening.timeout(timeout);
+      } on TimeoutException {
+        unawaited(opening.then(
+          (late) => client.isClosed ? null : late.close(),
+          onError: (Object _) {},
+        ));
+        throw TimeoutException('远程系统管理命令执行超时');
       }
       try {
+        if (stdinText != null) {
+          process.stdin.add(Uint8List.fromList(utf8.encode(stdinText)));
+          await process.stdin.close();
+        }
         final values = await Future.wait<String>([
           utf8.decoder.bind(process.stdout).join(),
           utf8.decoder.bind(process.stderr).join(),
@@ -1281,6 +1292,10 @@ class SystemManagementService {
       } on TimeoutException {
         process.close();
         throw TimeoutException('远程系统管理命令执行超时');
+      } catch (_) {
+        // 别的错也关通道；已经结束的通道 close 什么都不做。
+        if (!client.isClosed) process.close();
+        rethrow;
       }
     }
 

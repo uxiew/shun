@@ -60,6 +60,10 @@ class FakeBridge extends AndroidPluginBridge {
   final disconnects = <String>[];
   PluginBridgeException? connectError;
   PluginBridgeException? openError;
+
+  /// 设了就卡住连接 / 开会话，等测试放行：模拟用户在这一步还没回来时离开页面。
+  Completer<void>? connectGate;
+  Completer<void>? openGate;
   final _data = StreamController<SessionDataEvent>.broadcast(sync: true);
   final _events = StreamController<SessionBridgeEvent>.broadcast(sync: true);
   final _changes = StreamController<PackageChange>.broadcast(sync: true);
@@ -103,6 +107,7 @@ class FakeBridge extends AndroidPluginBridge {
     required String sha256,
   }) async {
     if (connectError != null) throw connectError!;
+    await connectGate?.future;
     connects.add(packageName);
     connected.add(packageName);
     return '';
@@ -138,6 +143,7 @@ class FakeBridge extends AndroidPluginBridge {
     Uint8List? moshKey,
   }) async {
     if (openError != null) throw openError!;
+    await openGate?.future;
     opened
         .add((handle: handle, generation: generation, cols: cols, rows: rows));
   }
@@ -337,6 +343,48 @@ void main() {
     await tester.pumpAndSettle();
     expect(bridge.disconnects, [pkg]);
     await drain(tester);
+  });
+
+  testWidgets('R26 审计：会话开到一半离开页面，开出来的会话关掉、这页开的连接断开', (tester) async {
+    await openList(tester);
+    await tester.tap(find.byKey(const ValueKey('plugin-entry-$pkg')));
+    await tester.pumpAndSettle();
+    await tapKey(tester, 'plugin-approve');
+    await tapKey(tester, 'plugin-approve-confirm');
+    await tapKey(tester, 'plugin-session-test');
+    bridge.openGate = Completer<void>();
+    await tester.tap(find.byKey(const ValueKey('session-test-start')));
+    await tester.pump();
+    expect(bridge.connects, [pkg]);
+    expect(bridge.opened, isEmpty, reason: '卡在开会话这一步');
+
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    // 以前：dispose 时会话还没开出来、也不知道连接是这页开的，之后会话开出来就没人关了。
+    bridge.openGate!.complete();
+    await tester.pump();
+    expect(bridge.closed, [bridge.opened.single.handle]);
+    bridge.event(1, 'closed');
+    await drain(tester);
+    expect(bridge.disconnects, [pkg]);
+  });
+
+  testWidgets('R26 审计：「连接测试」连到一半离开详情页，新开的连接断开', (tester) async {
+    await openList(tester);
+    await tester.tap(find.byKey(const ValueKey('plugin-entry-$pkg')));
+    await tester.pumpAndSettle();
+    await tapKey(tester, 'plugin-approve');
+    await tapKey(tester, 'plugin-approve-confirm');
+    bridge.connectGate = Completer<void>();
+    await tester.tap(find.byKey(const ValueKey('plugin-check')));
+    await tester.pump();
+    await tester.pageBack();
+    await tester.pumpAndSettle();
+    expect(bridge.disconnects, isEmpty);
+    bridge.connectGate!.complete();
+    await tester.pumpAndSettle();
+    expect(bridge.connects, [pkg]);
+    expect(bridge.disconnects, [pkg], reason: '以前这条连接一直留在后台');
   });
 
   testWidgets('英文界面：会话测试页和插件页底部没有汉字', (tester) async {

@@ -244,7 +244,19 @@ class ServerMonitorService {
       .toList(growable: false);
 
   static Future<String> _execute(SSHClient client, String command) async {
-    final process = await client.execute(command);
+    final opening = client.execute(command);
+    final SSHSession process;
+    try {
+      // 开通道这一步也有期限：以前卡在这里时监控一直停在「正在读取」；过了期限才开出来的通道关掉，
+      // 不挂在标签的连接上（R26 审计）。
+      process = await opening.timeout(const Duration(seconds: 12));
+    } on TimeoutException {
+      unawaited(opening.then(
+        (late) => client.isClosed ? null : late.close(),
+        onError: (Object _) {},
+      ));
+      throw TimeoutException('读取服务器性能信息超时');
+    }
     final stdout = utf8.decoder.bind(process.stdout).join();
     final stderr = utf8.decoder.bind(process.stderr).join();
     try {
@@ -262,6 +274,10 @@ class ServerMonitorService {
     } on TimeoutException {
       process.close();
       throw TimeoutException('读取服务器性能信息超时');
+    } catch (_) {
+      // 别的错（读失败、命令失败）也关通道；已经结束的通道 close 什么都不做。
+      if (!client.isClosed) process.close();
+      rethrow;
     }
   }
 }

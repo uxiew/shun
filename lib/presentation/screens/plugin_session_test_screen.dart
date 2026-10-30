@@ -156,11 +156,15 @@ class _PluginSessionTestScreenState
     _clock
       ..reset()
       ..start();
+    final package = widget.packageName;
     try {
       final discovery = await ref.read(pluginDiscoveryProvider.future);
       _discovery = discovery;
       final check = await discovery.check(entry);
       _opened = _opened || (check.ok && !check.reused);
+      if (!mounted) {
+        return await _releaseAfterLeaving(discovery, package, null);
+      }
       _say('连接：', check.message);
       if (!check.ok) return;
       final PluginTerminalSession session;
@@ -169,6 +173,9 @@ class _PluginSessionTestScreenState
       } on Object catch (e) {
         _say('打开会话失败：', e);
         return;
+      }
+      if (!mounted) {
+        return await _releaseAfterLeaving(discovery, package, session);
       }
       _session = session;
       _say('打开会话：80×24，代次 ', session.generation);
@@ -180,6 +187,19 @@ class _PluginSessionTestScreenState
     } finally {
       if (mounted) setState(() => _busy = false);
     }
+  }
+
+  /// 开到一半离开了这页：dispose 那时还不知道这次开了什么（`_session` 是空的、`_opened` 是旧值），
+  /// 没关它们。这里补上，和 dispose 同一个顺序、同一个规矩（R26 审计：以前会话和连接一直留到插件被停用）。
+  Future<void> _releaseAfterLeaving(
+    PluginDiscovery discovery,
+    String package,
+    PluginTerminalSession? session,
+  ) async {
+    if (session != null) await session.close();
+    if (!_opened) return;
+    final others = _manager.sessions.where((s) => s.packageName == package);
+    if (others.isEmpty) await discovery.disconnect(package);
   }
 
   void _onOutput(Uint8List bytes) {

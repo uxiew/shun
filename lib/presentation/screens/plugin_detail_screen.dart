@@ -315,8 +315,20 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
               ? null
               : () => _run((d) async {
                     setState(() => _result = localized('正在连接…'));
+                    final package = widget.packageName;
+                    final sessions = _sessions;
                     final result = await d.check(entry);
-                    if (!mounted) return;
+                    if (!mounted) {
+                      // 测到一半离开了这页：dispose 时还不知道这次新开了连接，没断开它，它会一直留在后台。
+                      // 和 dispose 一个规矩：没有会话在用就断开（R26 审计）。
+                      if (result.ok &&
+                          !result.reused &&
+                          !sessions.sessions
+                              .any((s) => s.packageName == package)) {
+                        unawaited(d.disconnect(package));
+                      }
+                      return;
+                    }
                     setState(() {
                       _result = result.message;
                       _testedAs = _fingerprint(entry);
