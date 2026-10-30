@@ -1179,7 +1179,7 @@
       "id": "R26",
       "phase": "P5",
       "title": "用户手机VPN + TailSocks真实日用",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [
         "R15",
         "R20",
@@ -1216,7 +1216,9 @@
       ],
       "stop_condition": "无设备/权限标BLOCKED；用户之前LobiShell成功不可计本App通过。",
       "owner_role": "测试代理",
-      "evidence": [],
+      "evidence": [
+        "evidence/R26.md"
+      ],
       "commit": null
     },
     {
