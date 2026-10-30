@@ -268,7 +268,24 @@ void main() {
 
     expect(settings.terminalQuickKeys, defaultTerminalQuickKeys);
     expect(settings.terminalQuickKeys, containsAll(['alt', 'ctrl', 'shift']));
-    expect(settings.terminalQuickKeys, containsAll(['home', 'end', 'paste']));
+    expect(settings.terminalQuickKeys, containsAll(['home', 'end', 'ctrlC']));
+    expect(settings.terminalQuickKeys, isNot(contains('paste')),
+        reason: 'R26：粘贴挪到了按键面板顶上');
+  });
+
+  test('R26：10-07 的默认（含粘贴）换成新默认；自己排过的顺序里的粘贴拿掉，别的不动', () {
+    expect(
+      AppSettings.fromJson({
+        'terminalQuickKeys': r25DefaultTerminalQuickKeys,
+      }).terminalQuickKeys,
+      defaultTerminalQuickKeys,
+    );
+    expect(
+      AppSettings.fromJson({
+        'terminalQuickKeys': ['tab', 'paste', 'escape'],
+      }).terminalQuickKeys,
+      ['tab', 'escape'],
+    );
   });
 
   test('previous mobile defaults migrate to the screenshot ordering', () {
@@ -277,7 +294,7 @@ void main() {
     });
 
     expect(settings.terminalQuickKeys, defaultTerminalQuickKeys);
-    // 10-07 起每行 7 个：PgUp/PgDn 插在方向键和粘贴/Shift 之间。
+    // 10-07 起每行 7 个：PgUp/PgDn 插在方向键和 Ctrl+C/Shift 之间（10-30 前那个位置是粘贴）。
     expect(settings.terminalQuickKeys, [
       'escape',
       'alt',
@@ -285,7 +302,7 @@ void main() {
       'arrowUp',
       'end',
       'pageUp',
-      'paste',
+      'ctrlC',
       'tab',
       'ctrl',
       'arrowLeft',
@@ -511,9 +528,10 @@ void main() {
     double y(String label) => tester.getCenter(find.text(label)).dy;
     double x(String label) => tester.getCenter(find.text(label)).dx;
     final firstRowY = [
-      for (final label in ['Esc', 'Alt', 'Home', '↑', 'End', 'PgUp']) y(label),
-      tester.getCenter(find.byTooltip('粘贴')).dy,
+      for (final label in ['Esc', 'Alt', 'Home', '↑', 'End', 'PgUp', 'Ctrl+C'])
+        y(label),
     ];
+    expect(find.byTooltip('粘贴'), findsNothing, reason: 'R26：粘贴挪到了按键面板顶上');
     expect(firstRowY.every((v) => (v - firstRowY.first).abs() < 1), isTrue);
     final secondRowY =
         ['Tab', 'Ctrl', '←', '↓', '→', 'PgDn', 'Shift'].map(y).toList();

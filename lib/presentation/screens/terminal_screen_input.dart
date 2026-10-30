@@ -235,6 +235,9 @@ mixin _TerminalInputHost on ConsumerState<TerminalScreen> {
     final remaining = height - panelHeight - reserve;
     final tight = remaining < _tightTerminalHeight;
     return _InputLayout(
+      // 键盘（系统键盘或面板）收着时只留操作按钮那一行，两行快捷键不显示（R26 所有者要的）：
+      // 那时是在看输出，不打字，终端多留两行的地方。键盘刚要升起（[_awaitingKeyboard]）就算开着。
+      showQuickKeys: panelVisible || inset > 0 || _awaitingKeyboard,
       panelHeight: panelHeight,
       // 面板按完整高度排版、多出来的剪掉：键盘还没收完那几帧面板只露出一截，不报溢出。
       // 大输入框弹着键盘时按露出来的高度排，按钮才在看得见的地方。
@@ -268,6 +271,7 @@ class _InputLayout {
     required this.tight,
     required this.hideQuickBar,
     required this.showPanelHeader,
+    required this.showQuickKeys,
   });
 
   /// 面板露出来的高度。
@@ -284,4 +288,7 @@ class _InputLayout {
   final bool tight;
   final bool hideQuickBar;
   final bool showPanelHeader;
+
+  /// 快捷键栏里的快捷键要不要显示；不显示时只剩操作按钮一行。
+  final bool showQuickKeys;
 }

@@ -114,7 +114,8 @@ class AppSettings {
             _sameStrings(rawStoredOrder, legacyDefaultTerminalQuickKeys) ||
             _sameStrings(
                 rawStoredOrder, previousMobileDefaultTerminalQuickKeys) ||
-            _sameStrings(rawStoredOrder, r18DefaultTerminalQuickKeys)
+            _sameStrings(rawStoredOrder, r18DefaultTerminalQuickKeys) ||
+            _sameStrings(rawStoredOrder, r25DefaultTerminalQuickKeys)
         ? defaultTerminalQuickKeys
         : storedOrder;
     final selectedAiModel =
@@ -322,7 +323,26 @@ class AppSettings {
 
 /// 快捷键栏的默认顺序：两行，每行 7 个（屏幕够宽时，见 `terminal_special_keys.dart`）。
 /// Home ↑ End 正好在 ← ↓ → 上面，PgUp 在 PgDn 上面（PgUp/PgDn 是 10-07 加的）。
+/// 「粘贴」10-30 挪到了按键面板顶上那行（R26 所有者要的），它的位置换成 Ctrl+C。
 const defaultTerminalQuickKeys = <String>[
+  'escape',
+  'alt',
+  'home',
+  'arrowUp',
+  'end',
+  'pageUp',
+  'ctrlC',
+  'tab',
+  'ctrl',
+  'arrowLeft',
+  'arrowDown',
+  'arrowRight',
+  'pageDown',
+  'shift',
+];
+
+/// 10-07 到 10-30 的默认（含「粘贴」）。存的顺序正好是它时换成新默认。
+const r25DefaultTerminalQuickKeys = <String>[
   'escape',
   'alt',
   'home',
@@ -371,9 +391,9 @@ const previousMobileDefaultTerminalQuickKeys = <String>[
   'paste',
 ];
 
+/// 不含「粘贴」：自己排过顺序、里面有粘贴的，读出来时就拿掉了（挪到面板上，见上面）。
 const supportedTerminalQuickKeys = <String>[
   ...defaultTerminalQuickKeys,
-  'ctrlC',
   'ctrlD',
   'ctrlZ',
   'pipe',

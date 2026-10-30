@@ -577,6 +577,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                   onCopyScreen: () => _copyScreen(inputSession),
                   onPerformanceMonitor: _performanceMonitorFor(inputSession),
                   compact: layout.compact,
+                  showQuickKeys: layout.showQuickKeys,
                   inputPanel: panelVisible,
                   onInputPanel: () => _toggleInputPanel(inputSession),
                   onHideKeyboard: _hideInput,
@@ -668,12 +669,17 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                           onText: (text) => ref
                               .read(sessionControllerProvider.notifier)
                               .typeInto(inputSession.id, text),
+                          onPaste: () =>
+                              pasteClipboardInto(context, ref, inputSession),
                         ),
                         customKeys: settings.terminalCustomKeys,
                         drafts: _drafts,
                         composeFocus: _composeFocus,
                         onSystemKeyboard: () =>
                             _useSystemKeyboard(inputSession),
+                        onHide: _hideInput,
+                        onCompose: () => showTerminalPasteSheet(context,
+                            target: inputSession),
                         secureKeyboard: settings.terminalSecureKeyboard,
                         dense: layout.dense,
                         showHeader: layout.showPanelHeader,

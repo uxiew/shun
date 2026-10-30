@@ -218,6 +218,12 @@ void main() {
           .read(settingsControllerProvider.notifier)
           .updateTerminalFullscreenSwipe(true);
       await settle(tester);
+      // 快捷键栏的两行快捷键只在键盘弹着时显示（R26）；没有就用按键面板常用页上的 PgUp/PgDn。
+      if (find.text('PgUp').evaluate().isEmpty) {
+        await tester
+            .tap(find.byKey(const ValueKey('terminal-action-input-panel')));
+        await settle(tester, 500);
+      }
       bytes = await capture(tester, session, () async {
         await swipe(tester, 500);
         await swipe(tester, -500);
@@ -469,7 +475,19 @@ void main() {
       var (session, controller, _) = await connectR19(tester);
       final terminal = session.terminal;
       final failures = <String>[];
-      final paste = find.byTooltip('粘贴');
+      // 「粘贴」在按键面板顶上那行（R26 从快捷键栏挪过去的）：每次点之前确认面板开着。
+      final pasteButton = find.byTooltip('粘贴');
+      Future<void> openPanel() async {
+        if (find
+            .byKey(const ValueKey('terminal-input-panel'))
+            .evaluate()
+            .isEmpty) {
+          await tester
+              .tap(find.byKey(const ValueKey('terminal-action-input-panel')));
+          await settle(tester, 500);
+        }
+      }
+
       final sheet = find.byKey(const ValueKey('terminal-paste-editor'));
       Future<String> files() =>
           exec(session, 'cd; ls r19-* 2>/dev/null | tr "\\n" " "');
@@ -481,7 +499,8 @@ void main() {
       // 1. 多行 + 末尾换行，bracketed paste 开着（bash 默认）：先预览；点「粘贴」后 bash 等回车，没执行。
       await Clipboard.setData(
           const ClipboardData(text: 'touch ~/r19-a\ntouch ~/r19-b\n'));
-      await tester.tap(paste);
+      await openPanel();
+      await tester.tap(pasteButton);
       await settle(tester);
       final previewed = sheet.evaluate().isNotEmpty;
       final bracketedNote = find
@@ -502,7 +521,8 @@ void main() {
 
       // 2. 一行普通命令：直接粘贴、不弹框、不回车。
       await Clipboard.setData(const ClipboardData(text: 'touch ~/r19-c'));
-      await tester.tap(paste);
+      await openPanel();
+      await tester.tap(pasteButton);
       await settle(tester, 1500);
       final single = sheet.evaluate().isNotEmpty;
       created = await files();
@@ -512,7 +532,8 @@ void main() {
 
       // 3. 「粘贴并回车」：用户明确点了才执行。
       await Clipboard.setData(const ClipboardData(text: 'touch ~/r19-d\n'));
-      await tester.tap(paste);
+      await openPanel();
+      await tester.tap(pasteButton);
       await settle(tester);
       if (sheet.evaluate().isNotEmpty) {
         await tester.tap(find.byKey(const ValueKey('terminal-paste-enter')));
@@ -526,7 +547,8 @@ void main() {
       await run(tester, terminal, "bind 'set enable-bracketed-paste off'");
       await Clipboard.setData(
           const ClipboardData(text: 'touch ~/r19-e\ntouch ~/r19-f'));
-      await tester.tap(paste);
+      await openPanel();
+      await tester.tap(pasteButton);
       await settle(tester);
       final runsNote = find
           .byKey(const ValueKey('terminal-paste-risk-lines-run'))
@@ -546,7 +568,8 @@ void main() {
       // 5. 预览开着时断线：按钮不可用；恢复成新连接后不补发；要发得点「改发到新连接」。
       await Clipboard.setData(
           const ClipboardData(text: 'touch ~/r19-g\ntouch ~/r19-h'));
-      await tester.tap(paste);
+      await openPanel();
+      await tester.tap(pasteButton);
       await settle(tester);
       terminal.sendText(r'(sleep 1; kill -9 $PPID) &' '\r');
       await waitFor(tester, () => !session.connected, what: '断线');

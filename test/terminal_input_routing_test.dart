@@ -127,6 +127,7 @@ void main() {
     group('$engine 终端页', () {
       testWidgets('分屏：快捷键栏的键和修饰键只发给点过的那一格，换格时上一格的修饰键清掉', (tester) async {
         final page = await _Page.open(tester, newTerminal);
+        await page.keyboardUp();
         final engineView = flterm.TerminalView;
         await tester.tap(find.byKey(const ValueKey('terminal-action-split')));
         await page.settle();
@@ -170,6 +171,7 @@ void main() {
         tester,
       ) async {
         final page = await _Page.open(tester, newTerminal);
+        await page.keyboardUp();
         final pgUp = tester.getCenter(find.text('PgUp'));
         final pgDn = tester.getCenter(find.text('PgDn'));
         expect(pgUp.dx, moreOrLessEquals(pgDn.dx, epsilon: 1));
@@ -192,6 +194,7 @@ void main() {
 
       testWidgets('切标签、切到后台：修饰键清掉', (tester) async {
         final page = await _Page.open(tester, newTerminal);
+        await page.keyboardUp();
         await tester.tap(find.text('Alt'));
         await page.settle();
         expect(page.first.terminal.input.modifiers, {'alt'});
@@ -241,19 +244,29 @@ void main() {
         Finder compactBar() =>
             find.byKey(const ValueKey('terminal-special-keys-compact'));
         Finder tabs() => find.byKey(const ValueKey('terminal-tab-strip'));
+        Finder quickKey() => find.text('PgUp');
+        final actions = find.byKey(const ValueKey('terminal-action-split'));
 
-        // 竖屏：两行快捷键 + 一行操作按钮。
+        // 竖屏、键盘收着：只有一行操作按钮，两行快捷键不显示（R26）。
         expect(compactBar(), findsNothing);
+        expect(quickKey(), findsNothing);
+        expect(actions, findsOneWidget);
         expect(tabs(), findsOneWidget);
+        // 弹出系统键盘：两行快捷键 + 一行操作按钮。
+        await page.keyboardUp();
+        expect(compactBar(), findsNothing);
+        expect(quickKey(), findsOneWidget);
+        tester.view.resetViewInsets();
+        await page.settle();
 
-        // 横屏（Pixel 7 横过来是 914x411dp）：一行。
+        // 横屏（Pixel 7 横过来是 914x411dp）、键盘收着：还是只有操作按钮一行。
         tester.view.physicalSize = const Size(2400, 1080);
         tester.view.devicePixelRatio = 2.625;
         await page.settle();
-        expect(compactBar(), findsOneWidget);
+        expect(compactBar(), findsNothing);
+        expect(quickKey(), findsNothing);
         expect(tabs(), findsOneWidget);
-        expect(
-            find.byKey(const ValueKey('terminal-action-more')), findsOneWidget);
+        expect(actions, findsOneWidget);
 
         // 再弹软键盘（模拟器上实测 261dp）：标签条也收起。
         tester.view.viewInsets = const FakeViewPadding(bottom: 261 * 2.625);
@@ -400,6 +413,12 @@ class _Page {
   }
 
   /// 隔开两次点按，免得被当成双击（双击是选词）；Ghostty 换手要多等一两帧。
+  /// 快捷键栏的两行快捷键只在键盘弹着时显示（R26）：按快捷键的测试先弹出系统键盘（300dp）。
+  Future<void> keyboardUp() async {
+    tester.view.viewInsets = const FakeViewPadding(bottom: 300 * 2.625);
+    await settle();
+  }
+
   Future<void> settle() async {
     for (var i = 0; i < 4; i++) {
       await tester.pump(const Duration(milliseconds: 100));

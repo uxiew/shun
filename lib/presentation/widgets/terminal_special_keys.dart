@@ -35,6 +35,7 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
     required this.onSplit,
     this.transparentBackground = false,
     this.compact = false,
+    this.showQuickKeys = true,
     this.inputPanel = false,
     this.onInputPanel,
     this.onHideKeyboard,
@@ -79,6 +80,10 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
   /// 操作按钮收进「更多」，「收起键盘」留在行尾（TER05、TER06）。
   final bool compact;
 
+  /// 键盘收着时不显示快捷键，只留操作按钮一行（R26）。这时不管 [compact]：
+  /// 操作按钮一行和收成一行的样式一样高，按钮不用挤进「更多」。
+  final bool showQuickKeys;
+
   /// 现在用的是按键面板 / 大输入框（R25），不是系统键盘直接打进终端。
   final bool inputPanel;
 
@@ -115,7 +120,9 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
         (value) => !widget.order.contains(value),
       ),
     ];
-    if (widget.compact) return _compactBar(context, normalized, definitions);
+    if (widget.compact && widget.showQuickKeys) {
+      return _compactBar(context, normalized, definitions);
+    }
     return AnimatedBuilder(
       animation: widget.inputController,
       builder: (context, _) => Material(
@@ -129,8 +136,10 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              _quickKeyGrid(normalized, definitions),
-              const SizedBox(height: 4),
+              if (widget.showQuickKeys) ...[
+                _quickKeyGrid(normalized, definitions),
+                const SizedBox(height: 4),
+              ],
               LayoutBuilder(builder: (context, constraints) {
                 final actions = <Widget>[
                   if (widget.onAiCli != null)

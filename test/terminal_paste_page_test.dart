@@ -8,7 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 // 引擎自带的快捷键表没导出、还标了 @internal，只能从实现文件拿；最后那条守卫测试就是要盯着它变。
 // ignore_for_file: invalid_use_of_internal_member
 // ignore: implementation_imports
-import 'package:flterm/src/view/shortcut_scope.dart' show DefaultShortcuts, PasteIntent;
+import 'package:flterm/src/view/shortcut_scope.dart'
+    show DefaultShortcuts, PasteIntent;
 import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/connection_route.dart';
@@ -190,6 +191,7 @@ void main() {
         expect(page.sent['first'], isEmpty, reason: '没有直接粘进终端，也没有发 Ctrl+V');
         await page.tap(find.byKey(const ValueKey('terminal-paste-cancel')));
 
+        await page.openPanel();
         await tester.longPress(find.byTooltip('粘贴'));
         await page.settle();
         expect(find.byKey(_sheet), findsOneWidget);
@@ -373,7 +375,17 @@ class _Page {
     await settle();
   }
 
-  Future<void> tapPaste() => tap(find.byTooltip('粘贴'));
+  /// 「粘贴」在按键面板顶上那行（R26 从快捷键栏挪过去的）：面板没开就先打开。
+  Future<void> openPanel() async {
+    if (find.byKey(const ValueKey('terminal-input-panel')).evaluate().isEmpty) {
+      await tap(find.byKey(const ValueKey('terminal-action-input-panel')));
+    }
+  }
+
+  Future<void> tapPaste() async {
+    await openPanel();
+    await tap(find.byTooltip('粘贴'));
+  }
 
   void disconnect(ActiveTerminalSession session) {
     session.connected = false;

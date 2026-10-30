@@ -119,8 +119,7 @@ void main() {
         //（系统键盘那一半是 R18 的设备测试核对的：快捷键栏 Ctrl + 软键盘 c 发 03）。
         await tester.tap(panelKey('Ctrl'));
         await page.settle();
-        await tester
-            .tap(find.byKey(const ValueKey('terminal-input-system-keyboard')));
+        await tester.tap(toggle);
         await page.settle();
         expect(panel, findsNothing);
         expect(page.first.terminal.input.modifiers, {'ctrl'});
@@ -163,6 +162,84 @@ void main() {
         await page.settle();
         expect(page.sent['first'], isEmpty);
         expect(page.sent['second'], ['\t']);
+      });
+
+      testWidgets('R26：左右滑不到头，往哪边滑都是另一页', (tester) async {
+        final page = await _Page.open(tester, newTerminal);
+        await tester.tap(toggle);
+        await page.settle();
+        final pages = find.byKey(const ValueKey('terminal-input-panel-pages'));
+        // 以前按键面板在最左边，往右滑滑不动。
+        await tester.drag(pages, const Offset(400, 0));
+        await page.settle();
+        expect(editor, findsOneWidget);
+        expect((await page.repository.loadSettings()).terminalInputMode,
+            terminalInputCompose);
+        // 大输入框往右滑也回得去，再往左滑又到大输入框。
+        await tester.drag(pages, const Offset(400, 0));
+        await page.settle();
+        expect(editor, findsNothing);
+        expect(panelKey('Esc'), findsOneWidget);
+        await tester.drag(pages, const Offset(-400, 0));
+        await page.settle();
+        expect(editor, findsOneWidget);
+        // 点顶上的标签切回去，切完还能接着滑。
+        await tester.tap(find.byKey(const ValueKey('terminal-input-tab-keys')));
+        await page.settle();
+        expect(panelKey('Esc'), findsOneWidget);
+        await tester.drag(pages, const Offset(-400, 0));
+        await page.settle();
+        expect(editor, findsOneWidget);
+      });
+
+      testWidgets('R26：顶上那行最右边是「粘贴」，没有「换回系统键盘」；下滑收起，上滑换回系统键盘', (
+        tester,
+      ) async {
+        final page = await _Page.open(tester, newTerminal);
+        await tester.tap(toggle);
+        await page.settle();
+        final paste = find.byKey(const ValueKey('terminal-input-paste'));
+        expect(paste, findsOneWidget);
+        expect(find.byKey(const ValueKey('terminal-input-system-keyboard')),
+            findsNothing);
+        expect(tester.getCenter(paste).dx,
+            greaterThan(tester.getCenter(find.text('F 键')).dx),
+            reason: '在 F 键右边');
+        // 大输入框那页不放：那里的粘贴该进框里。
+        await tester
+            .tap(find.byKey(const ValueKey('terminal-input-tab-compose')));
+        await page.settle();
+        expect(paste, findsNothing);
+        await tester.tap(find.byKey(const ValueKey('terminal-input-tab-keys')));
+        await page.settle();
+
+        // 下滑：面板和输入法都收起来，方式还是面板（点终端再展开）。从键上起步不算按键。
+        await tester.drag(panelKey('↓'), const Offset(0, 200));
+        await page.settle();
+        expect(panel, findsNothing);
+        expect(page.sent['first'], isEmpty);
+        expect(tester.testTextInput.isVisible, isFalse);
+        expect((await page.repository.loadSettings()).terminalInputMode,
+            terminalInputKeys);
+
+        // 上滑：换回系统键盘。
+        await tester.tap(toggle);
+        await page.settle();
+        expect(panel, findsOneWidget);
+        await tester.drag(panelKey('Esc'), const Offset(0, -200));
+        await page.settle();
+        expect(panel, findsNothing);
+        expect(page.sent['first'], isEmpty);
+        expect((await page.repository.loadSettings()).terminalInputMode,
+            terminalInputSystem);
+
+        // 手指抖一下不算。
+        await tester.tap(toggle);
+        await page.settle();
+        await tester.timedDrag(panelKey('Esc'), const Offset(0, 20),
+            const Duration(milliseconds: 500));
+        await page.settle();
+        expect(panel, findsOneWidget);
       });
     });
 
@@ -324,8 +401,7 @@ void main() {
         await tester.tapAt(tester.getCenter(find.byType(engineView)));
         await page.settle();
 
-        await tester
-            .tap(find.byKey(const ValueKey('terminal-input-system-keyboard')));
+        await tester.tap(toggle);
         await page.settle();
         expect(panel, findsNothing);
         expect((await page.repository.loadSettings()).terminalInputMode,
@@ -354,8 +430,7 @@ void main() {
         // 换回系统键盘、弹出键盘（336dp，竖屏 Gboard 的高度），记下键盘高度。
         await tester.tap(toggle);
         await page.settle();
-        await tester
-            .tap(find.byKey(const ValueKey('terminal-input-system-keyboard')));
+        await tester.tap(toggle);
         await page.keyboard(336);
         final rowsWithKeyboard = page.first.terminal.viewRows;
         page.resizes['first']!.clear();
@@ -401,8 +476,7 @@ void main() {
         await page.keyboard(0, gesturePadding: 24);
         await tester.tap(toggle);
         await page.settle();
-        await tester
-            .tap(find.byKey(const ValueKey('terminal-input-system-keyboard')));
+        await tester.tap(toggle);
         await page.keyboard(200, gesturePadding: 24);
         page.resizes['first']!.clear();
         final terminal = find.byType(engineView);
@@ -496,8 +570,7 @@ void main() {
         await page.settle();
         page.resizes['first']!.clear();
 
-        await tester
-            .tap(find.byKey(const ValueKey('terminal-input-system-keyboard')));
+        await tester.tap(toggle);
         // 输入法过了 0.5 秒才升上来（模拟器上的回放输入法就这么慢），比「先别发尺寸」的 400ms 还晚。
         for (var i = 0; i < 5; i++) {
           await tester.pump(const Duration(milliseconds: 100));
@@ -551,8 +624,7 @@ void main() {
         final terminal = find.byType(engineView);
         final before = tester.getSize(terminal).height;
 
-        await tester
-            .tap(find.byKey(const ValueKey('terminal-input-system-keyboard')));
+        await tester.tap(toggle);
         var tallest = tester.getSize(terminal).height;
         for (var frame = 1; frame <= 10; frame++) {
           tester.view.viewInsets = FakeViewPadding(

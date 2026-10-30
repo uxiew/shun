@@ -320,7 +320,8 @@ void main() {
         await tester.tapAt(tester.getCenter(viewFinder.first));
       });
       await step('backToSystemKeyboard', () async {
-        await tap(find.byKey(const ValueKey('terminal-input-system-keyboard')));
+        // 面板开着时点快捷键栏上的切换按钮就是换回系统键盘（R26 去掉了面板顶上那个重复的按钮）。
+        await tap(_toggle);
         await waitFor(tester, () => tester.view.viewInsets.bottom > 0,
             what: '换回系统键盘后键盘弹出');
       });

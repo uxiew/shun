@@ -158,7 +158,6 @@ final terminalQuickKeySpecs = <String, TerminalKeySpec>{
   'end': endKey,
   'pageUp': pageUpKey,
   'pageDown': pageDownKey,
-  'paste': pasteKey,
   'ctrlC': ctrlCKey,
   'ctrlD': ctrlDKey,
   'ctrlZ': ctrlZKey,

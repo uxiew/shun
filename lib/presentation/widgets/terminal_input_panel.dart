@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
@@ -11,7 +12,8 @@ import 'terminal_key_button.dart';
 import 'terminal_keys.dart';
 
 /// 终端下面的输入面板（R25 第一部分，所有者 10-07 提的；参考 LobiShell、UU 远程这类移动端的交互，没用它们的素材）：
-/// 左边一页是 App 自己的按键面板，右边一页是大输入框，左右滑动切换，顶上的两个标签也能点着切（读屏软件用）。
+/// 一页是 App 自己的按键面板，一页是大输入框，左右滑动切换、往哪边滑都不到头（R26），
+/// 顶上的两个标签也能点着切（读屏软件用）。往下滑收起面板和输入法，往上滑换回系统键盘。
 ///
 /// 面板开着时系统键盘收着（大输入框那页点进框里才弹），它占的就是系统键盘原来的位置。
 /// 按键面板的键和快捷键栏走同一个出口（[TerminalKeyActions]：功能键交给引擎编码，文字经修饰键发），
@@ -27,6 +29,8 @@ class TerminalInputPanel extends StatefulWidget {
     required this.drafts,
     required this.composeFocus,
     required this.onSystemKeyboard,
+    required this.onHide,
+    this.onCompose,
     this.secureKeyboard = false,
     this.dense = false,
     this.showHeader = true,
@@ -46,14 +50,21 @@ class TerminalInputPanel extends StatefulWidget {
   final TerminalComposeDrafts drafts;
   final FocusNode composeFocus;
 
-  /// 换回系统键盘直接打进终端（原来的方式）。
+  /// 往上滑：换回系统键盘直接打进终端（原来的方式）。以前顶上那行右边有个按钮，和快捷键栏上的切换按钮
+  /// 重复，R26 所有者要求去掉，那个位置换成「粘贴」。
   final VoidCallback onSystemKeyboard;
+
+  /// 往下滑：面板和输入法一起收起来（和「收起键盘」、返回键一样）。
+  final VoidCallback onHide;
+
+  /// 长按「粘贴」：打开空白的多行编辑框（R19）。点一下粘贴走 [keyActions] 的 onPaste。
+  final VoidCallback? onCompose;
   final bool secureKeyboard;
 
   /// 地方很小（横屏弹着键盘）：大输入框只留一行。
   final bool dense;
 
-  /// 顶上那一行（两个标签、分页、换回系统键盘）。在大输入框里打字、系统键盘弹着时收起来，地方留给框；
+  /// 顶上那一行（两个标签、分页、粘贴）。在大输入框里打字、系统键盘弹着时收起来，地方留给框；
   /// 那时要换页可以左右滑，换回系统键盘用快捷键栏上的按钮。
   final bool showHeader;
   final bool transparentBackground;
@@ -66,17 +77,30 @@ class TerminalInputPanel extends StatefulWidget {
 enum _KeyPage { common, symbols, control, function, custom }
 
 class _TerminalInputPanelState extends State<TerminalInputPanel> {
-  late final _pages = PageController(initialPage: _pageIndex(widget.mode));
+  /// 两页轮着排、页号的奇偶定是哪一页，从中间起步：往哪边滑都是另一页（R26）。
+  /// 以前只有两页，在按键面板上往右滑、在大输入框上往左滑都滑不动。
+  static const _loopStart = 10000;
+  late final _pages =
+      PageController(initialPage: _loopStart + _parity(widget.mode));
   var _keyPage = _KeyPage.common;
 
-  static int _pageIndex(String mode) => mode == terminalInputCompose ? 1 : 0;
+  /// 这一次上下拖了多远，判断是不是「上滑」「下滑」。
+  var _verticalDrag = 0.0;
+
+  /// 大输入框那页上这一根手指：从哪里按下、按下时翻到哪了，见 [_composeSwipe]。
+  ({int pointer, Offset start, double? page})? _composeTouch;
+
+  static int _parity(String mode) => mode == terminalInputCompose ? 1 : 0;
+
+  static String _modeAt(int page) =>
+      page.isOdd ? terminalInputCompose : terminalInputKeys;
 
   @override
   void didUpdateWidget(covariant TerminalInputPanel oldWidget) {
     super.didUpdateWidget(oldWidget);
-    final page = _pageIndex(widget.mode);
-    if (_pages.hasClients && (_pages.page?.round() ?? page) != page) {
-      _pages.jumpToPage(page);
+    if (_pages.hasClients) {
+      final current = _pages.page?.round() ?? _pages.initialPage;
+      if (_modeAt(current) != widget.mode) _pages.jumpToPage(current + 1);
     }
     if (_keyPage == _KeyPage.custom && widget.customKeys.isEmpty) {
       _keyPage = _KeyPage.common;
@@ -98,37 +122,87 @@ class _TerminalInputPanelState extends State<TerminalInputPanel> {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     final composing = widget.mode == terminalInputCompose;
-    return Material(
-      key: const ValueKey('terminal-input-panel'),
-      color: widget.transparentBackground ? Colors.transparent : scheme.surface,
-      child: Column(
-        children: [
-          if (widget.showHeader && !widget.dense) _header(context, composing),
-          Expanded(
-            child: PageView(
-              key: const ValueKey('terminal-input-panel-pages'),
-              controller: _pages,
-              onPageChanged: (index) => _show(
-                index == 1 ? terminalInputCompose : terminalInputKeys,
+    return GestureDetector(
+      // 上下滑（R26）：和左右换页不打架；从键上起步也算，键不会被按下（移动超过触摸容差就不算点击）。
+      // 键多到要上下滚的时候（很矮的面板），键区里的上下滑归滚动，在顶上那行滑照样算。
+      onVerticalDragStart: (_) => _verticalDrag = 0,
+      onVerticalDragUpdate: (details) => _verticalDrag += details.delta.dy,
+      onVerticalDragEnd: _onVerticalDragEnd,
+      child: Material(
+        key: const ValueKey('terminal-input-panel'),
+        color:
+            widget.transparentBackground ? Colors.transparent : scheme.surface,
+        child: Column(
+          children: [
+            if (widget.showHeader && !widget.dense) _header(context, composing),
+            Expanded(
+              child: PageView.builder(
+                key: const ValueKey('terminal-input-panel-pages'),
+                controller: _pages,
+                onPageChanged: (index) => _show(_modeAt(index)),
+                itemBuilder: (context, index) => index.isOdd
+                    ? _composeSwipe(
+                        TerminalComposeBox(
+                          session: widget.session,
+                          drafts: widget.drafts,
+                          focusNode: widget.composeFocus,
+                          secureKeyboard: widget.secureKeyboard,
+                          dense: widget.dense,
+                        ),
+                      )
+                    : AnimatedBuilder(
+                        animation: widget.keyActions.input,
+                        builder: (context, _) => _keysPage(),
+                      ),
               ),
-              children: [
-                AnimatedBuilder(
-                  animation: widget.keyActions.input,
-                  builder: (context, _) => _keysPage(),
-                ),
-                TerminalComposeBox(
-                  session: widget.session,
-                  drafts: widget.drafts,
-                  focusNode: widget.composeFocus,
-                  secureKeyboard: widget.secureKeyboard,
-                  dense: widget.dense,
-                ),
-              ],
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
+  }
+
+  /// 大输入框占了整页，Android 上在框里横着拖会被框自己的选字手势认领走（一拖就认领，单指拖又什么都不选），
+  /// PageView 收不到，这一页就滑不走。这里直接看手指：横着划过 64dp、横的是竖的两倍以上，就翻一页。
+  /// 从按钮那一行起步时 PageView 自己在翻（松手时页已经不在原处），这里不再翻一次。
+  Widget _composeSwipe(Widget child) => Listener(
+        onPointerDown: (event) => _composeTouch ??= (
+          pointer: event.pointer,
+          start: event.position,
+          page: _pages.page,
+        ),
+        onPointerUp: (event) {
+          final touch = _composeTouch;
+          if (touch == null || touch.pointer != event.pointer) return;
+          _composeTouch = null;
+          final delta = event.position - touch.start;
+          if (delta.dx.abs() < 64 || delta.dx.abs() < delta.dy.abs() * 2) {
+            return;
+          }
+          final page = _pages.page;
+          if (page == null || page != touch.page) return;
+          unawaited(_pages.animateToPage(
+            page.round() + (delta.dx < 0 ? 1 : -1),
+            duration: const Duration(milliseconds: 250),
+            curve: Curves.easeOut,
+          ));
+        },
+        onPointerCancel: (event) {
+          if (_composeTouch?.pointer == event.pointer) _composeTouch = null;
+        },
+        child: child,
+      );
+
+  /// 拖过 48dp 或者甩得够快才算，手指抖一下不算。
+  void _onVerticalDragEnd(DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0;
+    final distance = _verticalDrag;
+    _verticalDrag = 0;
+    if (distance > 48 || velocity > 600) {
+      widget.onHide();
+    } else if (distance < -48 || velocity < -600) {
+      widget.onSystemKeyboard();
+    }
   }
 
   Widget _header(BuildContext context, bool composing) {
@@ -194,12 +268,20 @@ class _TerminalInputPanelState extends State<TerminalInputPanel> {
                     ],
                   ),
           ),
-          IconButton(
-            key: const ValueKey('terminal-input-system-keyboard'),
-            tooltip: localized('换回系统键盘'),
-            onPressed: widget.onSystemKeyboard,
-            icon: const Icon(Icons.keyboard_outlined),
-          ),
+          // 粘贴从快捷键栏挪到这里（R26）：点一下粘贴（先预览，R19），长按打开多行编辑。
+          // 大输入框那页不放：粘贴进框里用输入法自己的，这里的会绕过框直接进终端。
+          if (!composing)
+            SizedBox.square(
+              key: const ValueKey('terminal-input-paste'),
+              dimension: 48,
+              child: TerminalKeyButton(
+                spec: pasteKey,
+                selected: false,
+                onPressed: widget.keyActions.press,
+                onLongPress: widget.onCompose,
+                onLongPressHint: widget.onCompose == null ? null : '多行编辑',
+              ),
+            ),
         ],
       ),
     );

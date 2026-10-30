@@ -41,8 +41,9 @@ void main() {
       final mine = [...r18DefaultTerminalQuickKeys.reversed];
       expect(
         AppSettings.fromJson({'terminalQuickKeys': mine}).terminalQuickKeys,
-        mine,
-        reason: '自己排过的顺序原样保留，PgUp/PgDn 由快捷键栏补在最后',
+        mine.where((key) => key != 'paste'),
+        reason: '自己排过的顺序原样保留，PgUp/PgDn 由快捷键栏补在最后；'
+            '粘贴 10-30 挪到了按键面板顶上（R26），从里面拿掉',
       );
       expect(defaultTerminalQuickKeys, containsAll(['pageUp', 'pageDown']));
     });

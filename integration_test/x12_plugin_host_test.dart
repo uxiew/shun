@@ -234,7 +234,8 @@ void main() {
       await tap(find.byKey(const ValueKey('terminal-compose-send')));
     });
     report('compose', infoLine.trim());
-    await tap(find.byKey(const ValueKey('terminal-action-input-panel')));
+    // 「粘贴」在按键面板那页的顶上（R26 从快捷键栏挪过去的）。
+    await tap(find.byKey(const ValueKey('terminal-input-tab-keys')));
     FocusManager.instance.primaryFocus?.unfocus();
     await settle(tester, 1000);
 
