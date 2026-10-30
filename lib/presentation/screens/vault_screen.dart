@@ -29,6 +29,7 @@ import '../widgets/ai_cli_tools_sheet.dart';
 import '../../infrastructure/storage/ai_cli_recent_work.dart';
 import '../../infrastructure/tailscale/catalog_cache.dart';
 import '../widgets/catalog_host_sections.dart';
+import '../widgets/connect_host.dart';
 import '../widgets/catalog_import_sheet.dart';
 import '../widgets/catalog_text.dart';
 import '../widgets/connection_probe_sheet.dart';
@@ -408,34 +409,8 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     );
   }
 
-  Future<void> _connect(HostProfile host) async {
-    ref.read(homeTabProvider.notifier).state = 1;
-    try {
-      final connected =
-          await ref.read(sessionControllerProvider.notifier).connect(
-                host,
-                _verifyHostKey,
-                keyboardInteractive: _promptKeyboardInteractive,
-              );
-      // 用户点了「终止连接」时 connect 正常返回 false，这时不能说已连接。
-      if (connected && mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: LText('${host.label} 已连接')));
-      }
-    } catch (error) {
-      // 连接失败页已经把原因、下一步写全了，再弹一条一样的提示条只是重复（docs/dev/ui-text.md）。
-      // 没走到失败页的（比如还没开始连就被拒）才在这里说。
-      if (!mounted) return;
-      final shown = ref.read(sessionControllerProvider).pendingConnections.any(
-          (p) =>
-              p.host.id == host.id && p.phase == PendingConnectionPhase.failed);
-      if (!shown) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: LText('连接失败：$error')));
-      }
-    }
-  }
+  Future<void> _connect(HostProfile host) =>
+      connectHostFromList(context, ref, host);
 
   /// 网格视图：一行几张卡片和以前的 SliverGrid 算法一样（每张最宽 230，间距 10），但行高跟着这一行里最高的
   /// 卡片走，最少 148。以前写死 148：系统字体 2 倍时地址那行超出 13 px（R25 模拟器）。卡片内容的高度和

@@ -1646,10 +1646,29 @@ class SshService {
       socket,
       username: host.username,
       identities: identities,
-      onPasswordRequest:
-          host.authMethod == HostAuthMethod.key || host.password == null
-              ? null
-              : () => host.password,
+      onPasswordRequest: host.authMethod == HostAuthMethod.key
+          ? null
+          : host.password != null
+              ? () => host.password
+              : keyboardInteractive == null
+                  ? null
+                  // 没存密码：像 ssh 命令一样当场问一次，取消就接着试别的方式。以前服务器只收密码时
+                  // 直接报「登录被拒绝」，Tailscale 导入的主机没法在连接时自己填（R26）。
+                  // dartssh2 按公钥 → 密码 → keyboard-interactive 的顺序试，不看服务器开了哪几种：
+                  // 私钥先登上就不会问；只开 keyboard-interactive 的服务器会先问这一次。
+                  : () async {
+                      final answers = await pending.waitingForUser(
+                        () => keyboardInteractive(
+                          '输入密码',
+                          '${host.username}@${host.hostname}',
+                          const [(text: '密码', echo: false)],
+                        ),
+                      );
+                      final password = answers?.firstOrNull;
+                      return password == null || password.isEmpty
+                          ? null
+                          : password;
+                    },
       onUserInfoRequest: (request) async {
         if (keyboardInteractive != null) {
           return pending.waitingForUser(

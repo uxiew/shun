@@ -231,6 +231,60 @@ void main() {
     return after.sublist(before.length - 1);
   }
 
+  group('R26 没存密码：连接时问（Tailscale 导入的主机各自配）', () {
+    Future<ActiveTerminalSession> connectAsking(
+      HostProfile host,
+      KeyboardInteractiveHandler ask,
+    ) =>
+        SshService().connect(
+          sessionId: 'it',
+          host: host,
+          hosts: [host],
+          verifyHostKey: verifyByLogicalName,
+          keyboardInteractive: ask,
+          terminal: GhosttyTerminalAdapter(),
+        );
+
+    test('服务器收密码：问一次、答对就登上；取消就报登录被拒，不拿空密码去试', () async {
+      final host = edgeHost({'id': 'r26-nopass', 'authMethod': 'auto'})
+        ..data.remove('password');
+      final asked = <String>[];
+      final session =
+          await connectAsking(host, (name, instruction, prompts) async {
+        asked.add('$name|$instruction|${prompts.map((p) => p.text).join(',')}');
+        return [fixture!.password];
+      });
+      addTearDown(session.close);
+      expect(await runInSession(session, 'whoami'), fixture!.user);
+      expect(asked, ['输入密码|${fixture.user}@${fixture.edgeHost}|密码']);
+
+      final before = await sshdLog('ssh-edge');
+      var cancelled = 0;
+      await expectLater(
+        connectAsking(host, (_, __, ___) async {
+          cancelled++;
+          return null;
+        }),
+        throwsA(predicate((Object e) => '$e'.contains('登录被拒绝'))),
+      );
+      expect(cancelled, greaterThanOrEqualTo(1));
+      final lines = await newLines('ssh-edge', before);
+      expect(lines.where((l) => l.contains('Failed password')), isEmpty,
+          reason: '取消了就不发密码，服务器不该记一次密码错误');
+    }, skip: skip);
+
+    test('存了密码的不问', () async {
+      final host = edgeHost({'id': 'r26-saved', 'authMethod': 'auto'});
+      var asked = 0;
+      final session = await connectAsking(host, (_, __, ___) async {
+        asked++;
+        return null;
+      });
+      addTearDown(session.close);
+      expect(asked, 0);
+    }, skip: skip);
+  });
+
   group('NET01 经 SOCKS5 建立真实 SSH', () {
     test('dante 无认证 → 仅代理可解析的目标', () async {
       final session = await connect(targetViaProxy({

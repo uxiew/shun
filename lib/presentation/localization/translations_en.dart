@@ -258,6 +258,13 @@ const englishTranslations = <String, String>{
   '会话已结束。点「重新连接」会新开一个会话（新的 shell），不是接回原来那个。':
       'The session has ended. “Reconnect” opens a new session (a new shell); it does not resume the old one.',
   '选择手机目录': 'Choose a phone folder',
+  '密码（可不填）': 'Password (optional)',
+  '填了就加密存在本机，以后不再问；不填就用私钥，或连接时再问':
+      'If filled in, it is stored encrypted on this phone and not asked again; otherwise a private key is used, or you are asked when connecting',
+  '显示密码': 'Show password',
+  '隐藏密码': 'Hide password',
+  '只给这一台。以后在主机的「编辑」里改。':
+      'For this host only. Change it later in the host’s “Edit”.',
   'Android 不让选整个内部存储和「Download」文件夹本身（「使用此文件夹」是灰的），选它们下面的一个文件夹；没有就在选择器里新建一个。':
       'Android does not allow the whole internal storage or the Download folder itself (“Use this folder” is greyed out). Choose a folder inside them, or create one in the picker.',
   '没有选上目录。Android 不让选整个内部存储和「Download」文件夹本身，选它们下面的一个文件夹；没有就在选择器里新建一个。':
