@@ -582,22 +582,21 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
       contentPadding: EdgeInsets.zero,
       enabled: !_busy && (linked.isNotEmpty || canImport),
       onTap: () => _open(record, linked),
-      leading: PresenceDot(
-        presence: deviceOnline(record),
+      leading: SystemIcon(
+        distro: normalizeDistroId(device.os ?? ''),
         size: 40,
-        child: SystemIcon(
-          distro: normalizeDistroId(device.os ?? ''),
-          size: 40,
-          label: device.os,
-        ),
+        label: device.os,
       ),
       title: Text(catalogDeviceName(record)),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(
-            device.addresses.isEmpty ? '—' : device.addresses.join('  '),
-            style: small,
+          PresenceLine(
+            presence: deviceOnline(record),
+            child: Text(
+              device.addresses.isEmpty ? '—' : device.addresses.join('  '),
+              style: small,
+            ),
           ),
           Text(deviceOnlineText(record, now), style: small),
           if (record.missingSince != null)

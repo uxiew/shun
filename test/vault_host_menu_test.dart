@@ -81,13 +81,13 @@ void main() {
     return items;
   }
 
-  testWidgets('类型角标跟着保存的协议走', (tester) async {
+  testWidgets('类型角标跟着保存的协议走；SSH 是默认的，不压角标', (tester) async {
     await open(tester, [
       host('web', 'ssh'),
       host('roam', 'mosh'),
       host('old', 'telnet'),
     ]);
-    expect(find.byKey(const ValueKey('host-type-ssh')), findsOneWidget);
+    expect(find.byKey(const ValueKey('host-type-ssh')), findsNothing);
     expect(find.byKey(const ValueKey('host-type-mosh')), findsOneWidget);
     expect(find.byKey(const ValueKey('host-type-telnet')), findsOneWidget);
   });

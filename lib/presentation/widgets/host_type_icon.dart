@@ -23,8 +23,9 @@ String _protocolLabel(HostProtocol protocol) => switch (protocol) {
       HostProtocol.unknown => '不支持的连接类型',
     };
 
-/// 主机条目前面的图标（R43）：系统图标的右下角压一个连接类型角标，一眼看出这台走 SSH 还是 Mosh。
+/// 主机条目前面的图标（R43）：系统图标的右下角压一个连接类型角标，一眼看出这台走 Mosh、Telnet 还是插件。
 /// 角标是这台主机保存的默认方式；终端里临时换了方式的标签不影响它。
+/// SSH 不压：绝大多数主机都是 SSH，那把锁所有者看不懂是什么意思（R26），只在不是默认的时候提醒。
 class HostLeadingIcon extends StatelessWidget {
   const HostLeadingIcon({super.key, required this.host, this.size = 42});
 
@@ -33,15 +34,13 @@ class HostLeadingIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final icon = hostProtocolIcon(host.protocol);
+    final icon = host.protocol == HostProtocol.ssh
+        ? null
+        : hostProtocolIcon(host.protocol);
     final system = HostSystemIcon(host: host, size: size);
     if (icon == null) return system;
     final scheme = Theme.of(context).colorScheme;
     final (background, foreground) = switch (host.protocol) {
-      HostProtocol.ssh => (
-          scheme.secondaryContainer,
-          scheme.onSecondaryContainer
-        ),
       HostProtocol.mosh => (
           scheme.tertiaryContainer,
           scheme.onTertiaryContainer

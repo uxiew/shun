@@ -19,7 +19,7 @@ import 'vault_host_items.dart';
 /// - 导入（或关联）过的设备显示成那台主机：名字是用户起的别名，点了、⋮ 都和普通主机一样；
 ///   在本机登录成功过的带「✓ 登录过」。
 /// - 没导入的设备点了就按来源的默认设置导入并连接，不再弹设置页；用户名、密码缺的在连接时问。
-/// - 每行一个系统图标加在线点，写「在线」「离线 · 上次在线」，和 Tailscale App 里看到的一样（[deviceOnline]）。
+/// - 每行一个系统图标；第二行地址前面是在线点，写「在线」「离线 · 上次在线」，和 Tailscale App 里看到的一样（[deviceOnline]）。
 /// - 两个来源里同名、同 IP 的设备各在各的组，不合并：认的是（来源 ID，设备 ID），不是名字和地址。
 class CatalogHostSections extends StatefulWidget {
   const CatalogHostSections({
@@ -238,16 +238,15 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
         key: ValueKey('vault-catalog-host-${host.id}'),
         onTap: () => widget.onConnect(host),
         onLongPress: () => widget.onMenu(host),
-        leading: PresenceDot(
-          presence: deviceOnline(record),
-          size: 40,
-          child: HostLeadingIcon(host: host, size: 40),
-        ),
+        leading: HostLeadingIcon(host: host, size: 40),
         title: LText(host.label),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            HostAddressLine(host),
+            PresenceLine(
+              presence: deviceOnline(record),
+              child: HostAddressLine(host),
+            ),
             Wrap(
               spacing: 8,
               crossAxisAlignment: WrapCrossAlignment.center,
@@ -273,20 +272,20 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
     return ListTile(
       key: ValueKey('vault-catalog-device-$key'),
       onTap: () => widget.onImport(cache, record.id),
-      leading: PresenceDot(
-        presence: deviceOnline(record),
+      leading: SystemIcon(
+        distro: normalizeDistroId(device.os ?? ''),
         size: 40,
-        child: SystemIcon(
-          distro: normalizeDistroId(device.os ?? ''),
-          size: 40,
-          label: device.os,
-        ),
+        label: device.os,
       ),
       title: Text(catalogDeviceName(record)),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (device.addresses.isNotEmpty) Text(device.addresses.first),
+          PresenceLine(
+            presence: deviceOnline(record),
+            child:
+                Text(device.addresses.isEmpty ? '—' : device.addresses.first),
+          ),
           Text(deviceOnlineText(record, widget.now()),
               key: ValueKey('vault-catalog-device-status-$key'), style: small),
           LText('还没导入：点一下导入并连接', style: small),

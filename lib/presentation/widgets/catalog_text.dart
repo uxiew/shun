@@ -105,47 +105,33 @@ Color? deviceOnlineColor(DeviceOnline presence) => switch (presence) {
       _ => null,
     };
 
-/// 图标右上角压一个在线点（右下角是协议角标）。
-class PresenceDot extends StatelessWidget {
-  const PresenceDot({
+/// 在线点放在条目第二行（地址）的行首。以前压在图标右上角，所有者嫌和图标上的角标挤在一起（R26）。
+/// 不明和不见了的不画点，这一行照常从行首开始。
+class PresenceLine extends StatelessWidget {
+  const PresenceLine({
     super.key,
     required this.presence,
-    required this.size,
     required this.child,
   });
 
   final DeviceOnline presence;
-  final double size;
   final Widget child;
 
   @override
   Widget build(BuildContext context) {
     final color = deviceOnlineColor(presence);
     if (color == null) return child;
-    final dot = (size * 0.3).clamp(10.0, 14.0);
-    return SizedBox.square(
-      dimension: size,
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          child,
-          Positioned(
-            right: -dot * 0.2,
-            top: -dot * 0.2,
-            child: Container(
-              key: ValueKey('presence-${presence.name}'),
-              width: dot,
-              height: dot,
-              decoration: BoxDecoration(
-                color: color,
-                shape: BoxShape.circle,
-                border: Border.all(
-                    color: Theme.of(context).colorScheme.surface, width: 2),
-              ),
-            ),
-          ),
-        ],
-      ),
+    return Row(
+      children: [
+        Container(
+          key: ValueKey('presence-${presence.name}'),
+          width: 8,
+          height: 8,
+          margin: const EdgeInsets.only(right: 6),
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+        Flexible(child: child),
+      ],
     );
   }
 }
