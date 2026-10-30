@@ -99,6 +99,14 @@ flutter test --no-pub test/ai_cli_fault_matrix_test.dart
 
 Android 用项目专用模拟器（现在是 `shun-r39-a30`，仅 `emulator-5580`），启动方式见第 3 节；执行 `bash tool/r56-ai-cli.sh`。脚本会清空该模拟器上的本项目测试数据、安装测试包、转发 22314、授权通知，运行真实界面/SSH/加密存储；后台按 HOME、息屏再唤醒。第一阶段完成断言后，在 SSH 仍连接时强制结束 App，因此 seed 日志的 `did not complete` 是有意中断；只有出现 `KILL_READY`、确认进程消失且第二进程 cold 全部通过，整轮才算成功。使用 `--no-uninstall` 保留两阶段之间的数据，不要拆成默认卸载的两次测试。日志和截图在 `../.toolchain/artifacts/r56-<基线提交>/`。凭据租期仅测试时缩短到 2 秒，不等于生产 10 分钟长时验收；不改 PIN、输入法或 Wi-Fi，不使用真实 AI 账号。测完卸载本项目包、移除 22314 reverse、关闭专用模拟器，两套 fixture 各用自己的 `down.sh` 关闭。结果范围见[故障矩阵证据](../../plan/v3/evidence/R56-R57-fault-matrix.md)。
 
+真的 Claude Code / Codex 续上同一段对话（AIC06，`integration_test/aic06_real_cli_test.dart`，**只在模拟器上跑**）：先拿锁、开好 `emulator-5580`（第 3 节），然后 `bash tool/aic06-real-cli.sh`。
+不用账号、不花额度：脚本重建 `tool/ai-cli-fixture` 容器，再用 `mock-model.sh` 把两个工具的模型接口指到容器里的假服务，工具本身、App、SSH、tmux 都是真的。
+约 7 分钟（编包 2 分钟 + 测试 5 分钟），最后一行是 `AIC06 PASS=…` 和 `All tests passed!` 才算过。日志、截图、假服务的请求记录在 `../.toolchain/artifacts/aic06-<提交>/`。
+每次都重建容器是有意的：Codex 历史列表默认选中哪段，取决于容器里已经有哪些对话，接着上一轮跑会选错。
+擞墙时：卡在「Timed out: Claude started」、屏幕上是「Yes, I trust this folder」或「Try the new fullscreen renderer?」，是换了项目目录或 Claude 版本而 `mock-model.sh` 没跟着改；
+旧版 Claude 1.0.0 报「B.allowedTools is not iterable」也是夹具配置的问题，不是 App 的（为什么都写在 `mock-model.sh` 开头）。
+测完 `(cd tool/ai-cli-fixture && ./down.sh)`，卸包、关模拟器、还锁同上。结果范围见[真实 CLI 证据](../../plan/v3/evidence/R56-R57-real-cli.md)。
+
 真实 SSH/SOCKS/跳板的集成测试要先起 Docker 测试环境：
 
 ```bash
