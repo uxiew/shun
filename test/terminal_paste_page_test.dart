@@ -5,6 +5,10 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+// 引擎自带的快捷键表没导出、还标了 @internal，只能从实现文件拿；最后那条守卫测试就是要盯着它变。
+// ignore_for_file: invalid_use_of_internal_member
+// ignore: implementation_imports
+import 'package:flterm/src/view/shortcut_scope.dart' show DefaultShortcuts, PasteIntent;
 import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/connection_route.dart';
@@ -240,6 +244,25 @@ void main() {
       });
     });
   }
+
+  // R28：引擎的 PasteIntent 不经预览直接粘进终端。引擎升级给它多加一个键（比如 Shift+Insert），
+  // 而这里没跟着盖掉，那个键就绕过了 SEC10 的预览。
+  test('引擎在任何平台上绑到「直接粘贴」的键，终端视图都改成发 TerminalPasteIntent', () {
+    final uncovered = <String>[];
+    var pasteKeys = 0;
+    for (final platform in TargetPlatform.values) {
+      for (final MapEntry(key: key, value: intent)
+          in DefaultShortcuts.defaultsFor(platform).entries) {
+        if (intent is! PasteIntent) continue;
+        pasteKeys++;
+        if (terminalKeyShortcuts[key] is! TerminalPasteIntent) {
+          uncovered.add('${platform.name}: $key');
+        }
+      }
+    }
+    expect(pasteKeys, greaterThan(0), reason: '对照：引擎自己的粘贴键要能找到');
+    expect(uncovered, isEmpty);
+  });
 }
 
 /// 两个标签的终端页，终端绑着记录用的 sink（像连着一样），不建真连接。剪贴板是假的。
