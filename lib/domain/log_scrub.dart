@@ -19,7 +19,10 @@ String scrubLogText(String text, {bool stack = false}) {
       _ipv6, (m) => _looksLikeIpv6(m[0]!) ? '<IP>' : m[0]!);
   if (!stack) {
     out = out.replaceAllMapped(
-        _domain, (m) => _codeSuffix.hasMatch(m[0]!) ? m[0]! : '<host>');
+        _domain,
+        (m) => _codeSuffix.hasMatch(m[0]!) || _className.hasMatch(m[0]!)
+            ? m[0]!
+            : '<host>');
   }
   return out;
 }
@@ -62,6 +65,12 @@ final _domain = RegExp(
 /// 堆栈和报错里常见的文件名：不是域名。
 final _codeSuffix =
     RegExp(r'\.(dart|kt|java|so|cc|cpp|c|h|js|json|yaml|xml|txt|log|png|apk)$');
+
+/// 异常的类名（`android.app.RemoteServiceException`、`java.io.IOException`）：不是域名。
+/// 换掉了就只剩「`<host>: 报错`」，看不出是什么异常（R26 F24 模拟器上实测踩到）。
+/// 只认这几个包名开头、最后一段大写开头的；用户自己的主机名哪怕带大写也照样换。
+final _className = RegExp(
+    r'^(?:java|javax|kotlin|kotlinx|android|androidx|dalvik|libcore|io\.flutter|top\.xdwa|com\.android|com\.google\.android|org\.json)\.(?:[a-z0-9_]+\.)*[A-Z][A-Za-z0-9_]*$');
 
 /// 时间 `12:34:56`、`::` 这类不是地址：至少要有一段十六进制字母或者五段以上。
 bool _looksLikeIpv6(String value) {

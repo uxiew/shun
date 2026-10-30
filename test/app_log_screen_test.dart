@@ -134,6 +134,10 @@ void main() {
         .widget<SelectableText>(find.byKey(const ValueKey('app-log-details')));
     expect(details.data, contains('IllegalStateException: boom'));
     expect(details.data, contains('X.kt:1'));
+    expect(
+        'IllegalStateException: boom'.allMatches(details.data!), hasLength(1),
+        reason: '详情第一行和堆栈第一行一样，只留一份');
+    expect(details.data, contains('thread: main'));
     await tester.tap(find.byKey(const ValueKey('app-log-copy-one')));
     await tester.pumpAndSettle();
     expect(copied, details.data);

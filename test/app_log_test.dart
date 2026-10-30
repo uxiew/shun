@@ -74,6 +74,19 @@ void main() {
       expect(scrubLogText('在 12:34:56 报错'), '在 12:34:56 报错');
       expect(scrubLogText('see app_log.dart'), 'see app_log.dart');
     });
+
+    test('异常类名不当域名换；同样大写开头的用户主机名照样换', () {
+      // 模拟器上 `am crash` 实测的第一行：类名换掉就只剩「<host>: shell-induced crash」。
+      expect(
+        scrubLogText('android.app.RemoteServiceException: shell-induced crash'),
+        'android.app.RemoteServiceException: shell-induced crash',
+      );
+      expect(scrubLogText('java.io.IOException: closed'),
+          'java.io.IOException: closed');
+      expect(
+          scrubLogText('ssh to MyServer.Local failed'), 'ssh to <host> failed');
+      expect(scrubLogText('Corp.Example.Com refused'), '<host> refused');
+    });
   });
 
   group('AppLog', () {

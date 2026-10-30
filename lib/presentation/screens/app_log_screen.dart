@@ -333,13 +333,24 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
 }
 
 /// 一条日志的全文（详情页、复制、导出用同一份）。
-String formatAppLogEntry(AppLogEntry entry) => [
-      '${formatConnectionEventTime(entry.at)} '
-          '[${localized(_filterLabel(_filterOf(entry.kind)))}] ${localized(entry.title)}'
-          '${entry.count > 1 ? ' ×${entry.count}' : ''}',
-      if (entry.detail case final detail? when detail.isNotEmpty) detail,
-      if (entry.stack case final stack?) stack,
-    ].join('\n');
+String formatAppLogEntry(AppLogEntry entry) {
+  var detail = entry.detail ?? '';
+  final stack = entry.stack;
+  // Java 崩溃的详情第一行就是堆栈第一行（列表里要靠它看出是什么异常），全文里只留堆栈那一份。
+  if (stack != null && detail.isNotEmpty) {
+    final first = detail.split('\n').first;
+    if (stack.startsWith(first)) {
+      detail = detail.substring(first.length).trimLeft();
+    }
+  }
+  return [
+    '${formatConnectionEventTime(entry.at)} '
+        '[${localized(_filterLabel(_filterOf(entry.kind)))}] ${localized(entry.title)}'
+        '${entry.count > 1 ? ' ×${entry.count}' : ''}',
+    if (detail.isNotEmpty) detail,
+    if (stack != null) stack,
+  ].join('\n');
+}
 
 /// 导出整份日志：崩溃、出错、同步在前（新的在上），连接记录用连接记录页同一种写法（主机只写编号）。
 String exportAppLog(
