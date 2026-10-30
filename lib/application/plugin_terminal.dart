@@ -99,6 +99,14 @@ class PluginTerminalProvider implements PluginTerminalLink {
   @override
   String? get endNotice => _endNotice;
 
+  // 和 [moshEndNotice]、[pluginHostEndNotice] 里的「正常结束」是同一个判断：stopConfirmed 只在本 App 关会话时才有值。
+  @override
+  bool get remoteExited =>
+      _ended.isCompleted &&
+      session.phase == SessionPhase.closed &&
+      session.failure == null &&
+      session.stopConfirmed == null;
+
   @override
   Future<void> close() => session.close();
 

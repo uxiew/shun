@@ -156,7 +156,7 @@ void main() {
       expect(bridge.opened, isEmpty);
     });
 
-    test('连上：80×24 开会话，不带任何主机数据；输入、输出、改尺寸都走插件；插件自己结束后不自动重连', () async {
+    test('连上：80×24 开会话，不带任何主机数据；输入、输出、改尺寸都走插件；插件自己结束后关标签、不自动重连', () async {
       await install([const DiscoveredPackageSpec(hello, helloId)],
           approve: {hello});
       expect(
@@ -184,19 +184,17 @@ void main() {
       expect(bridge.writes, ['help\r']);
       expect(bridge.writes.join(), isNot(contains('X12-HOST-SECRET')));
 
+      // 插件自己正常结束（远端 exit）：和 SSH 的 exit 一样直接关标签（R26）。
       bridge.data('再见\r\n');
       bridge.event(2, 'closed');
       await pumpEventQueue();
       expect(link.session.phase, SessionPhase.closed);
+      expect(link.remoteExited, isTrue);
       expect(tab.connected, isFalse);
-      expect(tab.autoRestoreBlocked, isTrue);
-      expect(
-          tab.terminal.allText().replaceAll('\n', ''), contains('插件结束了这个会话'));
+      expect(controller.state.sessions, isEmpty);
       await controller.reconnectDisconnected();
       await pumpEventQueue();
       expect(bridge.opened, hasLength(1), reason: '不自动重连');
-      await controller.close(0);
-      expect(controller.state.sessions, isEmpty);
     });
 
     test('插件已经连着（连接测试、别的标签在用）：沿用那条连接，不重新握手', () async {
@@ -229,6 +227,8 @@ void main() {
       expect(tab.connected, isFalse);
       expect(tab.terminal.allText().replaceAll('\n', ''),
           contains('本 App 关掉了这个会话（插件被停用、撤销批准或更新）'));
+      expect(tab.plugin!.remoteExited, isFalse);
+      expect(controller.state.sessions, [tab], reason: '不是远端 exit，标签留着写明原因');
       await expectLater(
         controller.connect(pluginHost(), accept),
         throwsA(isA<PluginHostUnavailable>()

@@ -185,6 +185,10 @@ abstract interface class PluginTerminalLink {
   /// 结束后给用户看的说明（为什么结束、远端可能留下什么、接下来怎么办）；还没结束时为 null。
   String? get endNotice;
 
+  /// 已经结束，而且是远端自己正常结束的（Mosh：远端 shell 退出了，比如输入了 exit）。
+  /// 插件报了失败、插件进程没了、本 App 关的，都不算。
+  bool get remoteExited;
+
   /// 幂等。
   Future<void> close();
 }
@@ -374,10 +378,10 @@ class ActiveTerminalSession {
       sshSession?.done ?? telnetSocket?.done ?? plugin?.ended ?? Future.value();
 
   /// 远端的 shell 自己退出了：服务器先发了退出状态或信号再关的通道（`exit`、Ctrl-D、shell 被结束）。
-  /// 这是会话结束，不是断线；断线时通道是跟着传输层一起没的，收不到这两样。
-  bool get remoteExited =>
-      sshSession != null &&
-      (sshSession!.exitCode != null || sshSession!.exitSignal != null);
+  /// 这是会话结束，不是断线；断线时通道是跟着传输层一起没的，收不到这两样。插件会话见 [PluginTerminalLink.remoteExited]。
+  bool get remoteExited => sshSession != null
+      ? sshSession!.exitCode != null || sshSession!.exitSignal != null
+      : plugin?.remoteExited ?? false;
 
   Future<void> ping({Duration timeout = const Duration(seconds: 8)}) async {
     if (!connected) throw StateError('SSH session is disconnected');

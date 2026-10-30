@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/application/connection_diagnosis.dart';
 import 'package:shun/application/connection_events.dart';
+import 'package:shun/application/home_navigation.dart';
 import 'package:shun/application/host_trust.dart';
 import 'package:shun/application/port_forward_controller.dart';
 import 'package:shun/application/session_controller.dart';
@@ -2627,25 +2628,24 @@ void main() {
       await controller.close(0);
     }, skip: skip, timeout: const Timeout(Duration(seconds: 90)));
 
-    test('R26 在 shell 里 exit：记成「退出」，不自动恢复、不再拨号', () async {
+    test('R26 在 shell 里 exit：记成「退出」，标签关掉、回到「连接」页，不再拨号', () async {
       final host = edgeHost({'id': 'r26-exit', 'label': 'R26-LABEL-exit'});
       await container.read(vaultControllerProvider.notifier).upsertHost(host);
       expect(await controller.connect(host, verifyByLogicalName), isTrue);
+      container.read(homeTabProvider.notifier).state = 1;
       final tab = controller.state.sessions.single;
       await Future<void>.delayed(const Duration(milliseconds: 300));
       controller.typeInto(tab.id, 'exit\r');
       await eventually(
-          () => !controller.state.sessions.single.connected, 'exit 后标签断开');
+          () => controller.state.sessions.isEmpty, 'exit 后标签关掉');
       // 真机上是断开当场就重拨；等过第一次退避（1 秒）再看。
       await Future<void>.delayed(const Duration(seconds: 2));
       expect(dialer.dials, hasLength(1), reason: 'exit 不是断线，不去重连');
-      expect(identical(controller.state.sessions.single, tab), isTrue);
+      expect(controller.state.sessions, isEmpty);
       expect(controller.state.recovering, isEmpty);
       expect(tab.remoteExited, isTrue, reason: 'OpenSSH 先发 exit-status 再关通道');
-      expect(tab.restoreHold?.kind, RestoreHoldKind.untilUser);
-      expect(tab.inputResultUnknown, isFalse);
+      expect(container.read(homeTabProvider), 0);
       expect(events().last.dropReason, ConnectionDropReason.exited);
-      await controller.close(0);
     }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
 
     test('UX10 「全部断开」后用户点「重新连接」：记成重新连接，不记成自动恢复', () async {

@@ -535,5 +535,7 @@ class _Link implements PluginTerminalLink {
   @override
   String? get endNotice => null;
   @override
+  bool get remoteExited => false;
+  @override
   Future<void> close() async {}
 }

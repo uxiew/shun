@@ -27,6 +27,7 @@ import 'connection_events.dart';
 import 'connection_lifecycle.dart';
 import 'connection_switch.dart';
 import 'credential_availability.dart';
+import 'home_navigation.dart';
 import 'mosh_session.dart';
 import 'plugin_host_session.dart';
 import 'plugin_terminal.dart';
@@ -1740,6 +1741,23 @@ class SessionController extends StateNotifier<SessionState> {
     }
   }
 
+  /// 远端 shell 自己退出了（输入了 exit、Ctrl-D，或 shell 被结束；Mosh 是远端 shell 退出后会话正常收尾）：
+  /// 用户要的就是离开。标签直接关掉，关的是正在看的那个就回到首页第一页「连接」（R26 所有者）。
+  /// 以前走断线恢复，exit 之后标签又自己连回去；后来改成留着「会话已结束」等人点关闭，所有者嫌多一步。
+  /// 跳板和目标的 SSH 连接这时可能还开着，[close] 一并关掉（LIFE06）。
+  /// tmux、AI 工具标签不走这里：它们后面还有会话可以再附着，标签留着给「重新连接」。
+  void _closeExitedTab(ActiveTerminalSession session) {
+    final index = state.sessions.indexOf(session);
+    if (index < 0) return;
+    final looking =
+        state.selectedPending == null && identical(state.active, session);
+    unawaited(close(index));
+    // 用户这时已经切到别的页（文件、设置）就不动他。
+    if (looking && ref.read(homeTabProvider) == 1) {
+      ref.read(homeTabProvider.notifier).state = 0;
+    }
+  }
+
   static bool _waitingForRestore(ActiveTerminalSession session) =>
       !session.connected &&
       !session.closedByUser &&
@@ -1771,6 +1789,10 @@ class SessionController extends StateNotifier<SessionState> {
               : reason,
     ));
     if (session.plugin case final plugin?) {
+      if (session.tmux == null && session.remoteExited) {
+        _closeExitedTab(session);
+        return;
+      }
       // Mosh 会话结束了就是结束了，不自动重连：重连等于在服务器上再起一个 mosh-server、开一个新 shell，
       // 冒充不了原来那个会话（docs/16 第 6 步）；断开前的输入也不重发。要不要再连由用户决定。
       // Mosh-tmux（R42）：tmux 会话不跟着 Mosh 结束，重新连接会核对后附着它，但同样不自动连。
@@ -1825,19 +1847,7 @@ class SessionController extends StateNotifier<SessionState> {
       return;
     }
     if (session.remoteExited) {
-      // 远端 shell 自己退出了（输入了 exit、Ctrl-D，或 shell 被结束）：会话就是结束了，不自动恢复。
-      // 以前这里也走断线恢复，R26 所有者真机上 exit 之后标签又自己连回去，等于关不掉。
-      // 输入的结果也不算「未知」：最后一条就是让 shell 退出的那条。
-      // 跳板和目标的 SSH 连接这时可能还开着，abort 一并关掉（LIFE06）。
-      session.restoreHold = const RestoreHold.untilUser(
-        '会话已结束：远端的 shell 退出了（比如输入了 exit）。不会自动重连；要再用就点「重新连接」开一个新的 shell。',
-      );
-      session.abort();
-      session.terminal.showNotice(
-        '\r\n\x1b[33m会话已结束：远端的 shell 退出了，不会自动重连。\x1b[0m\r\n',
-      );
-      if (!mounted) return;
-      state = state.copyWith(sessions: [...state.sessions]);
+      _closeExitedTab(session);
       return;
     }
     // 断了就把这一代的网络资源全部释放。shell 通道没收到退出状态就结束时，

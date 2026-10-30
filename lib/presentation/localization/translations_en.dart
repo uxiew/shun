@@ -316,8 +316,6 @@ const englishTranslations = <String, String>{
   '没有选上目录。Android 不让选整个内部存储和「Download」文件夹本身，选它们下面的一个文件夹；没有就在选择器里新建一个。':
       'No folder was chosen. Android does not allow the whole internal storage or the Download folder itself; choose a folder inside them, or create one in the picker.',
   '正在传文件，传完再换目录': 'A transfer is running. Change the folder after it finishes.',
-  '会话已结束：远端的 shell 退出了（比如输入了 exit）。不会自动重连；要再用就点「重新连接」开一个新的 shell。':
-      'The session has ended: the remote shell exited (for example, after exit). It will not reconnect automatically; tap “Reconnect” to open a new shell.',
   '已从通知「全部断开」。不会自动重连；要继续就点「重新连接」。':
       'Disconnected with “Disconnect all” in the notification. It will not reconnect automatically; tap “Reconnect” to continue.',
   '已从通知「全部断开」，这个会话断开了。':
@@ -2574,10 +2572,6 @@ const englishReplacements = <(String, String)>[
   (
     ' 如果还在，点「重新连接」会核对后附着它。',
     ': if it still exists, “Reconnect” verifies it and attaches.',
-  ),
-  (
-    '会话已结束：远端的 shell 退出了，不会自动重连。',
-    'Session ended: the remote shell exited. It will not reconnect automatically.',
   ),
   ('连接已断开，正在自动恢复（最多 ', 'Connection lost; restoring automatically (up to '),
   (' 分钟）…', ' minutes)…'),

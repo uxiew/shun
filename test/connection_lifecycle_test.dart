@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/application/connection_lifecycle.dart';
+import 'package:shun/application/home_navigation.dart';
 import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/connection_route.dart';
@@ -155,25 +156,36 @@ void main() {
       expect(controller.state.recovering, isEmpty);
     });
 
-    test('远端 shell 自己退出（exit）：会话结束，不自动恢复（R26 真机 exit 后又自己连回去）', () async {
+    test('远端 shell 自己退出（exit）：标签直接关掉，正在看的就回到「连接」页；不自动恢复（R26）', () async {
       final host = hostWith();
       await start(hosts: [host]);
+      final other = await connected(host);
       final old = await connected(host);
-      final calls = service.calls.length;
+      expect(controller.state.active, same(old));
+      container.read(homeTabProvider.notifier).state = 1;
       old
         ..inputSent = true
         ..exited = true
         ..drop();
       await settle();
-      expect(service.calls.length, calls, reason: 'exit 不是断线，不去重连');
-      expect(controller.state.recovering, isEmpty);
+      expect(controller.state.recovering, isEmpty, reason: 'exit 不是断线，不去重连');
       expect(old.aborted, isTrue, reason: '目标和跳板的连接一并释放');
-      final hold = tab(old.id).restoreHold!;
-      expect(hold.kind, RestoreHoldKind.untilUser);
-      expect(hold.message, contains('shell 退出了'));
-      expect(tab(old.id).inputResultUnknown, isFalse,
-          reason: '最后一条输入就是让 shell 退出的那条，结果是知道的');
-      expect(old.terminal.allText(), contains('不会自动重连'));
+      expect(controller.state.sessions, [other],
+          reason: '不留「会话已结束」等人点关闭');
+      expect(container.read(homeTabProvider), 0,
+          reason: '正在看的标签退出了，回到首页第一页');
+
+      // 不是正在看的标签退出（shell 被服务器结束）：也关掉，但不把人从当前页拽走。
+      final current = await connected(host);
+      expect(controller.state.active, same(current));
+      container.read(homeTabProvider.notifier).state = 1;
+      final calls = service.calls.length;
+      other
+        ..exited = true
+        ..drop();
+      await settle();
+      expect(controller.state.sessions, [current]);
+      expect(container.read(homeTabProvider), 1);
 
       clock = clock.add(const Duration(minutes: 1));
       await controller.runRecoveryPass();

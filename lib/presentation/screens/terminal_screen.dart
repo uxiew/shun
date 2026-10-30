@@ -800,8 +800,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
       message: session.inputResultUnknown ? '$message $unknown' : message,
       recovering: recovering,
       onReconnect: () => unawaited(_reconnect(session)),
-      // 断开的标签关掉只是把它移走（同标签条上的 ×），不再弹确认。输了 exit 的人要的是关掉，
-      // 以前只给「重新连接」，得去标签条上找 ×（R26）。
+      // 断开的标签关掉只是把它移走（同标签条上的 ×），不再弹确认。以前只给「重新连接」，
+      // 不想连了得去标签条上找 ×（R26）。输了 exit 的不走这里：标签自己就关了。
       onClose: () {
         final index =
             ref.read(sessionControllerProvider).sessions.indexOf(session);
