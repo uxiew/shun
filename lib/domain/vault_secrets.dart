@@ -7,18 +7,28 @@ import 'models/vault.dart';
 ///
 /// 凭据只进系统安全存储，不进普通文件（plan/v3/AGENTS.md：凭据不进日志、普通导出、备份）。
 
-/// 深拷贝后去掉全部凭据：主机密码、Telnet 密码、主机自带代理的口令、私钥与私钥口令、代理配置的口令。
+/// 一台主机配置里的凭据：登录密码、Telnet 密码、主机自带代理的口令。原地去掉，其余字段不动。
+///
+/// 存储和导出（[vaultWithoutSecrets]）、断线恢复用的路线副本、临时标签的主机拷贝都按这一份去。
+/// 以前三处各写各的，临时标签那处只删了 password，过了租期代理口令还留在内存里（R28）。
+/// 加新的凭据字段时只改这里。
+/// 代理配置换成一份新 Map 再删：原来那份可能还被保险库里的主机引用着。
+void removeHostSecrets(Map<String, dynamic> data) {
+  data
+    ..remove('password')
+    ..remove('telnetPassword');
+  final proxy = data['proxyConfig'];
+  if (proxy is Map) {
+    data['proxyConfig'] = Map<String, dynamic>.from(proxy)..remove('password');
+  }
+}
+
+/// 深拷贝后去掉全部凭据：主机凭据（[removeHostSecrets]）、私钥与私钥口令、代理配置的口令。
 /// 其余字段（包括不认识的扩展字段）原样保留。
 VaultData vaultWithoutSecrets(VaultData vault) {
   final copy = _deepCopy(vault);
   for (final host in copy.hosts) {
-    host.data.remove('password');
-    host.data.remove('telnetPassword');
-    if (host.data['proxyConfig'] is Map) {
-      host.data['proxyConfig'] =
-          Map<String, dynamic>.from(host.data['proxyConfig'] as Map)
-            ..remove('password');
-    }
+    removeHostSecrets(host.data);
   }
   for (final key in copy.keys) {
     key.data['privateKey'] = '';

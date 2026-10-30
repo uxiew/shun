@@ -4,6 +4,7 @@ import 'dart:io' show InternetAddress, InternetAddressType;
 
 import 'models/host.dart';
 import 'tailscale_ssh.dart' show sshLoginModeKey;
+import 'vault_secrets.dart' show removeHostSecrets;
 
 part 'jump_route_choices.dart';
 
@@ -171,14 +172,8 @@ class RouteHop {
   final SshKeyProfile? key;
 
   RouteHop _withoutSecrets() {
-    final data = _deepCopy(host.data)
-      ..remove('password')
-      ..remove('telnetPassword');
-    final proxy = data['proxyConfig'];
-    if (proxy is Map) {
-      data['proxyConfig'] = Map<String, dynamic>.from(proxy)
-        ..remove('password');
-    }
+    final data = _deepCopy(host.data);
+    removeHostSecrets(data);
     return RouteHop._(HostProfile(data), endpoint, null);
   }
 

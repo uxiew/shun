@@ -15,6 +15,7 @@ import '../domain/plugins/mosh_route.dart';
 import '../domain/terminal_paste.dart';
 import '../domain/tmux/tmux_target.dart';
 import '../domain/tmux/ai_cli_tmux_run.dart';
+import '../domain/vault_secrets.dart';
 import '../infrastructure/ssh/connection_platform_service.dart';
 import '../infrastructure/ssh/ssh_login_watch.dart';
 import '../infrastructure/ssh/ssh_service.dart';
@@ -1963,10 +1964,11 @@ class SessionController extends StateNotifier<SessionState> {
     if (!mounted || _backgroundedAt == null) return;
     for (final session in state.sessions) {
       session.forgetSecrets();
-      // 临时标签（tmux、托管终端）的 host 是从保险库主机拷出来的，拷贝里也有密码。
+      // 临时标签（tmux、AI 工具、托管终端）的 host 是从保险库主机整份拷出来的，
+      // 拷贝里有登录密码，也有内联代理口令、Telnet 密码。恢复时按保险库补（rehydrateRoutePlan），不用这份。
       if (session.host.data['_ephemeralTerminal'] == true) {
         try {
-          session.host.data.remove('password');
+          removeHostSecrets(session.host.data);
         } on UnsupportedError {
           // 不可改的 map：只有测试里手工构造的会这样。
         }

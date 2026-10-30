@@ -18,6 +18,7 @@ import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
+import 'package:shun/infrastructure/tmux/tmux_service.dart';
 import 'package:shun/infrastructure/transport/proxy_transport.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -417,6 +418,52 @@ void main() {
       expect(plan.target.host.password, 'pw-2');
     });
 
+    test('R28：临时标签的主机拷贝过了租期也不留代理口令、Telnet 口令，不只是登录密码', () async {
+      // 三个标记互不包含，否则一个还在会把另一个也算成「还在」。
+      final host = hostWith(password: 'r28-login')
+        ..data['telnetPassword'] = 'r28-telnet'
+        ..data['proxyConfig'] = {
+          'type': 'socks5',
+          'host': '127.0.0.1',
+          'port': 1080,
+          'username': 'proxy-user',
+          'password': 'r28-proxy',
+        };
+      await start(hosts: [host], leaseAfter: const Duration(milliseconds: 30));
+      final parent = await connected(host);
+      final target = TmuxTarget(
+        hostKey: tmuxHostKeyOf(parent),
+        unixUser: 'root',
+        uid: 0,
+        socket: const TmuxSocketSpec.standard(),
+        server: const TmuxServerIdentity(
+            socketPath: '/tmp/tmux-0/default', pid: 7, startTime: 1),
+        sessionId: r'$1',
+        sessionCreated: 1,
+        displayName: 'work',
+      );
+      final opening = controller.openTmuxTerminal(parent, target);
+      await settle();
+      final call = service.calls.last;
+      final copy = _Session(call.sessionId, call.host, routePlan: call.routePlan);
+      call.result.complete(copy);
+      expect(await opening, isTrue);
+      await settle();
+      expect(tab(copy.id).host.data['_ephemeralTerminal'], isTrue);
+      // 对照：租期之前这份拷贝里三样都在。
+      expect(jsonEncode(tab(copy.id).host.data),
+          allOf(contains('r28-login'), contains('r28-telnet'), contains('r28-proxy')));
+
+      controller.setBackgrounded(true);
+      await Future<void>.delayed(const Duration(milliseconds: 80));
+      expect(tab(copy.id).routePlan!.secretsForgotten, isTrue);
+      final left = jsonEncode(tab(copy.id).host.data);
+      for (final secret in ['r28-login', 'r28-telnet', 'r28-proxy']) {
+        expect(left, isNot(contains(secret)), reason: '过了租期拷贝里还有 $secret');
+      }
+      expect(left, contains('proxy-user'), reason: '只去掉口令，代理配置本身还在');
+    });
+
     test('断线期间地址改了：自动恢复不换路线，停下等用户', () async {
       final host = hostWith();
       await start(hosts: [host], leaseAfter: const Duration(milliseconds: 30));
@@ -682,9 +729,10 @@ class _Platform extends NoConnectionPlatform {
 }
 
 class _Call {
-  _Call(this.sessionId, this.attempt, this.purpose, this.routePlan,
+  _Call(this.sessionId, this.host, this.attempt, this.purpose, this.routePlan,
       this.tmuxAttach, this.verifyHostKey);
   final String sessionId;
+  final HostProfile host;
   final ConnectionAttempt attempt;
   final ConnectionPurpose purpose;
   final RoutePlan? routePlan;
@@ -711,8 +759,8 @@ class _Service extends SshService {
     ConnectionAttempt? attempt,
     TmuxTarget? tmuxAttach,
   }) {
-    final call = _Call(
-        sessionId, attempt!, purpose, routePlan, tmuxAttach, verifyHostKey);
+    final call = _Call(sessionId, host, attempt!, purpose, routePlan,
+        tmuxAttach, verifyHostKey);
     calls.add(call);
     return call.result.future;
   }

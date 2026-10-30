@@ -66,6 +66,7 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 
 - 保险库启动时整份读进内存，一直在。没有应用锁（使用手册第 12 节写明了）。
 - 每个标签为断线恢复冻结一份路线，里面有凭据。App 在后台满 `credentialLease`（10 分钟，`lib/application/connection_lifecycle.dart`）就调 `ActiveTerminalSession.forgetSecrets` 清掉。光靠 Timer 不够：手机睡着时 Timer 不走（LIFE07 真机锁屏 31 分钟 CPU 只醒了 2 分钟），所以 `SessionController._checkLease` 在每次醒来用路线时按墙上时钟再核一次。
+- 临时标签（tmux、AI 工具、托管终端）的主机是保险库主机的整份拷贝，同一时刻一并去掉凭据。哪些字段算凭据只在 `lib/domain/vault_secrets.dart` 的 `removeHostSecrets` 写一处，存储、导出、路线副本、临时拷贝都调它；R28 之前临时拷贝只删了登录密码，内联代理口令、Telnet 密码过了租期还在。
 - 还连着的连接清不掉：dartssh2 的客户端在连接存续期间一直引用登录用过的私钥。
 
 ### 1.4 系统备份和换机迁移
