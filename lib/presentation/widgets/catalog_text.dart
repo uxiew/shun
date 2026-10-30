@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
+import '../../application/catalog_overview.dart';
 import '../../application/tailscale_catalog_access.dart';
 import '../../application/tailscale_catalog_refresh.dart';
 import '../../infrastructure/tailscale/catalog_cache.dart';
+import '../../domain/models/host.dart';
 import '../../infrastructure/tailscale/tailscale_api.dart';
 import '../localization/localized_widgets.dart';
 
@@ -96,6 +98,15 @@ String deviceOnlineText(CatalogDeviceRecord? record, DateTime now) {
     false => localized('离线'),
     null => localized('在线状态不明'),
   };
+}
+
+/// 这台主机关联的 Tailscale 设备报的系统，从本机目录缓存里查。没关联、来源不在本机、缓存里没有这台都是 null。
+String? catalogOsOf(HostProfile host, List<CatalogSourceView> sources) {
+  final binding = CatalogBinding.of(host);
+  if (binding == null) return null;
+  final source =
+      sources.where((s) => s.cache.catalogId == binding.catalogId).firstOrNull;
+  return source?.cache.devices[binding.deviceId]?.device.os;
 }
 
 /// 在线绿点、离线灰点；不明和不见了的不画点，免得被当成离线。

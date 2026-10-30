@@ -9,9 +9,12 @@ import 'host_type_icon.dart';
 /// 主机列表里点 ⋮ 弹出来的菜单（R43）。列哪些项由 [HostMenu] 定，这里只管长什么样；
 /// 点了哪一项就把它返回给调用方，由调用方去做。
 class HostActionsSheet extends StatelessWidget {
-  const HostActionsSheet({super.key, required this.menu});
+  const HostActionsSheet({super.key, required this.menu, this.catalogOs});
 
   final HostMenu menu;
+
+  /// 见 [HostSystemIcon.catalogOs]。
+  final String? catalogOs;
 
   @override
   Widget build(BuildContext context) {
@@ -23,7 +26,8 @@ class HostActionsSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
-              leading: HostLeadingIcon(host: host, size: 40),
+              leading:
+                  HostLeadingIcon(host: host, size: 40, catalogOs: catalogOs),
               title: LText(host.label,
                   maxLines: 1, overflow: TextOverflow.ellipsis),
               subtitle: HostAddressLine(host,

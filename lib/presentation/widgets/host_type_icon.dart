@@ -27,17 +27,25 @@ String _protocolLabel(HostProtocol protocol) => switch (protocol) {
 /// 角标是这台主机保存的默认方式；终端里临时换了方式的标签不影响它。
 /// SSH 不压：绝大多数主机都是 SSH，那把锁所有者看不懂是什么意思（R26），只在不是默认的时候提醒。
 class HostLeadingIcon extends StatelessWidget {
-  const HostLeadingIcon({super.key, required this.host, this.size = 42});
+  const HostLeadingIcon({
+    super.key,
+    required this.host,
+    this.size = 42,
+    this.catalogOs,
+  });
 
   final HostProfile host;
   final double size;
+
+  /// 见 [HostSystemIcon.catalogOs]。
+  final String? catalogOs;
 
   @override
   Widget build(BuildContext context) {
     final icon = host.protocol == HostProtocol.ssh
         ? null
         : hostProtocolIcon(host.protocol);
-    final system = HostSystemIcon(host: host, size: size);
+    final system = HostSystemIcon(host: host, size: size, catalogOs: catalogOs);
     if (icon == null) return system;
     final scheme = Theme.of(context).colorScheme;
     final (background, foreground) = switch (host.protocol) {

@@ -30,11 +30,15 @@ class VaultHostTree extends StatelessWidget {
     required this.hosts,
     required this.onConnect,
     required this.onMenu,
+    this.catalogOsOf,
   });
 
   final List<HostProfile> hosts;
   final ValueChanged<HostProfile> onConnect;
   final ValueChanged<HostProfile> onMenu;
+
+  /// 主机关联的 Tailscale 设备报的系统，见 [HostSystemIcon.catalogOs]。
+  final String? Function(HostProfile host)? catalogOsOf;
 
   @override
   Widget build(BuildContext context) {
@@ -82,7 +86,10 @@ class VaultHostTree extends StatelessWidget {
                     contentPadding: const EdgeInsets.only(left: 28, right: 8),
                     onTap: () => onConnect(host),
                     onLongPress: () => onMenu(host),
-                    leading: HostLeadingIcon(host: host, size: 38),
+                    leading: HostLeadingIcon(
+                        host: host,
+                        size: 38,
+                        catalogOs: catalogOsOf?.call(host)),
                     title: LText(host.label),
                     subtitle: HostAddressLine(host),
                     trailing: vaultHostMenuButton(
@@ -103,10 +110,12 @@ class VaultHostCard extends StatelessWidget {
     required this.host,
     required this.onConnect,
     required this.onMenu,
+    this.catalogOs,
   });
   final HostProfile host;
   final VoidCallback onConnect;
   final VoidCallback onMenu;
+  final String? catalogOs;
 
   @override
   Widget build(BuildContext context) => dimIfHidden(host, _card(context));
@@ -123,7 +132,7 @@ class VaultHostCard extends StatelessWidget {
               children: [
                 Row(
                   children: [
-                    HostLeadingIcon(host: host, size: 40),
+                    HostLeadingIcon(host: host, size: 40, catalogOs: catalogOs),
                     const Spacer(),
                     if (host.pinned) const Icon(Icons.push_pin, size: 16),
                     vaultHostMenuButton(host, onMenu, Icons.more_horiz),
@@ -165,10 +174,12 @@ class VaultHostTile extends StatelessWidget {
     required this.host,
     required this.onConnect,
     required this.onMenu,
+    this.catalogOs,
   });
   final HostProfile host;
   final VoidCallback onConnect;
   final VoidCallback onMenu;
+  final String? catalogOs;
   @override
   Widget build(BuildContext context) => dimIfHidden(
         host,
@@ -176,7 +187,8 @@ class VaultHostTile extends StatelessWidget {
           child: ListTile(
             onTap: onConnect,
             onLongPress: onMenu,
-            leading: HostLeadingIcon(host: host, size: 42),
+            leading:
+                HostLeadingIcon(host: host, size: 42, catalogOs: catalogOs),
             title: LText(host.label),
             subtitle: HostAddressLine(host),
             trailing: vaultHostMenuButton(host, onMenu, Icons.more_vert),

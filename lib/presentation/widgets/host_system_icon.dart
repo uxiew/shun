@@ -10,18 +10,25 @@ class HostSystemIcon extends StatelessWidget {
     required this.host,
     this.size = 44,
     this.systemInfo,
+    this.catalogOs,
   });
 
   final HostProfile host;
   final double size;
   final ServerSystemInfo? systemInfo;
 
+  /// 这台主机关联的 Tailscale 设备报的系统（本机目录缓存里的），见 [hostIconDistro]。
+  final String? catalogOs;
+
   @override
   Widget build(BuildContext context) {
     if (host.protocol == HostProtocol.unknown) {
       return Icon(Icons.help_outline, size: size);
     }
-    final distro = normalizeDistroId(systemInfo?.distro ?? host.distro);
+    final distro = switch (systemInfo?.distro) {
+      final live? => normalizeDistroId(live),
+      null => hostIconDistro(host, catalogOs: catalogOs),
+    };
     return SystemIcon(
       distro: distro,
       size: size,
@@ -29,6 +36,20 @@ class HostSystemIcon extends StatelessWidget {
     );
   }
 }
+
+/// 主机图标按哪个系统画（R26 所有者：设置里的设备页图标对，首页的不对）。
+///
+/// Tailscale 报的系统大类（Windows、macOS、Android、iOS、FreeBSD）说了就用它：
+/// 用 26 包导入的主机没记 Tailscale 的系统，没连过只能当 Linux；连上后的探测跑的是 sh 脚本，
+/// Termux 这类 Android 上的 sshd 会报成 Linux，把导入时记的 android 冲掉。
+/// Tailscale 说是 Linux 或没说，才用主机自己的（连上后探测到的 Ubuntu、Debian…）。
+String hostIconDistro(HostProfile host, {String? catalogOs}) =>
+    switch (normalizeDistroId(catalogOs ?? '')) {
+      final reported &&
+            ('windows' || 'macos' || 'ios' || 'android' || 'freebsd') =>
+        reported,
+      _ => host.distro,
+    };
 
 /// 一个系统的图标（还没成为主机的 Tailscale 设备也用它）。[distro] 是 [normalizeDistroId] 的结果。
 /// Android、iOS 没有 SVG，用 Material 自带的图标；不认识的显示服务器图标。

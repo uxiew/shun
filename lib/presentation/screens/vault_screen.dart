@@ -349,6 +349,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                         hosts: hosts,
                         onConnect: _showHostDetails,
                         onMenu: _showHostMenu,
+                        catalogOsOf: _catalogOs,
                       ),
                     )
                   else
@@ -360,6 +361,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                             host: hosts[index],
                             onConnect: () => _showHostDetails(hosts[index]),
                             onMenu: () => _showHostMenu(hosts[index]),
+                            catalogOs: _catalogOs(hosts[index]),
                           ),
                           childCount: hosts.length,
                         ),
@@ -441,6 +443,8 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                                       hosts[row * columns + column]),
                                   onMenu: () => _showHostMenu(
                                       hosts[row * columns + column]),
+                                  catalogOs:
+                                      _catalogOs(hosts[row * columns + column]),
                                 ),
                               )
                             : const SizedBox.shrink(),
@@ -578,6 +582,10 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
   }
 
   /// ⋮ 菜单（R43）。菜单里列什么在打开的这一刻算：保险库现在的配置、开着的标签、Mosh 插件能不能用。
+  /// 主机关联的 Tailscale 设备报的系统，给图标用（见 [hostIconDistro]）。build 里已经 watch 了目录，这里 read 就够。
+  String? _catalogOs(HostProfile host) =>
+      catalogOsOf(host, ref.read(catalogOverviewProvider));
+
   Future<void> _showHostMenu(HostProfile host) async {
     final vault = await ref.read(vaultControllerProvider.notifier).ready();
     host = vault.hosts.firstWhere((h) => h.id == host.id, orElse: () => host);
@@ -600,7 +608,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       context: context,
       useSafeArea: true,
       isScrollControlled: true,
-      builder: (_) => HostActionsSheet(menu: menu),
+      builder: (_) => HostActionsSheet(menu: menu, catalogOs: _catalogOs(host)),
     );
     if (action == null || !mounted) return;
     final session = menu.sshSession;

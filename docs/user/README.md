@@ -704,7 +704,7 @@ key 框一直遮着，不能复制出来；整页防截屏。
 
 | 看到的 | 意思 |
 |---|---|
-| 系统图标（Windows / macOS / Linux / Android / iOS…） | Tailscale 报的设备系统。连上以后会换成读到的具体发行版（Ubuntu、Debian…） |
+| 系统图标（Windows / macOS / Linux / Android / iOS…） | Tailscale 报的设备系统，导入成主机以后也按它画。报的是 Linux 的，连上以后换成读到的具体发行版（Ubuntu、Debian…） |
 | 第二行地址前面的绿点，下一行写「在线」 | Tailscale 说这台设备现在连着（和 Tailscale App 里看到的一样） |
 | 灰点，下一行写「离线 · 上次在线：3 小时前」 | Tailscale 说它没连着，以及最后一次在线是什么时候 |
 | 在线状态不明 | Tailscale 这次没报（不画点，别当成离线） |

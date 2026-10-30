@@ -238,7 +238,8 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
         key: ValueKey('vault-catalog-host-${host.id}'),
         onTap: () => widget.onConnect(host),
         onLongPress: () => widget.onMenu(host),
-        leading: HostLeadingIcon(host: host, size: 40),
+        leading:
+            HostLeadingIcon(host: host, size: 40, catalogOs: record?.device.os),
         title: LText(host.label),
         subtitle: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
