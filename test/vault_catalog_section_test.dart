@@ -20,8 +20,8 @@ import 'package:shun/infrastructure/tailscale/catalog_cache_repository.dart';
 import 'package:shun/infrastructure/tailscale/catalog_secret_store.dart';
 import 'package:shun/infrastructure/tailscale/tailscale_api.dart';
 import 'package:shun/infrastructure/tailscale/tailscale_device.dart';
-import 'package:shun/presentation/screens/tailscale_catalog_screen.dart';
 import 'package:shun/presentation/screens/vault_screen.dart';
+import 'package:shun/presentation/screens/tailscale_settings_screen.dart';
 import 'package:shun/presentation/widgets/catalog_import_sheet.dart';
 
 // R43 / UX09：主机列表里的 Tailscale 分节。
@@ -286,44 +286,41 @@ void main() {
     expect(find.text('ts-work'), findsNothing);
   });
 
-  testWidgets('控制面状态用字写、带缓存时间和多久前；不说在线；打开列表不发请求', (tester) async {
+  testWidgets('R26：在线状态照 Tailscale 写、带缓存时间和多久前；不提「控制面」；打开列表不发请求',
+      (tester) async {
     await open(tester);
     String status(String k) => tester
         .widget<Text>(find.descendant(
             of: key(k), matching: find.byType(Text), matchRoot: true))
         .data!;
-    expect(status('vault-catalog-status-a-nas'), 'Tailscale 控制面：已连接');
-    expect(status('vault-catalog-status-b-nas'), 'Tailscale 控制面：未连接',
+    expect(status('vault-catalog-status-a-nas'), '在线');
+    expect(status('vault-catalog-status-b-nas'), '离线',
         reason: '同一个设备 ID，另一个来源说的是另一回事');
-    expect(status('vault-catalog-status-a-pc'), 'Tailscale 控制面：不知道');
-    expect(
-        status('vault-catalog-device-status-ts-home-2'), 'Tailscale 控制面：未连接');
-    expect(status('vault-catalog-device-status-ts-work-4'), '目录：最近完整列表里没有它',
-        reason: '不见了的设备不再拿上次的「已连接」说事');
+    expect(status('vault-catalog-status-a-pc'), '在线状态不明');
+    expect(status('vault-catalog-device-status-ts-home-2'), '离线');
+    expect(status('vault-catalog-device-status-ts-work-4'), '最近的设备列表里没有它了',
+        reason: '不见了的设备不再拿上次的「在线」说事');
+    expect(inGroup('ts-home', key('presence-online')), findsOneWidget);
+    expect(inGroup('ts-work', key('presence-online')), findsNothing,
+        reason: '不见了的设备不画点');
     expect(status('vault-catalog-age-ts-home'), endsWith('3 小时前'));
     expect(status('vault-catalog-age-ts-work'), endsWith('3 天前'));
     expect(
         inGroup('ts-work', find.textContaining('最近一次读取失败：')), findsOneWidget);
     expect(inGroup('ts-home', find.textContaining('最近一次读取失败')), findsNothing);
-    expect(find.textContaining('在线'), findsNothing);
-    expect(find.textContaining('离线'), findsNothing);
-    expect(find.textContaining('不代表手机能连上它'), findsOneWidget);
+    expect(find.textContaining('控制面'), findsNothing);
     expect(requests, isEmpty);
   });
 
-  testWidgets('没导入的设备点了走导入页，不连接；导入后变成这一组里的主机', (tester) async {
+  testWidgets('R26：没导入的设备点了按默认值导入，连接前问登录；取消就只留下主机、不连接', (tester) async {
     await open(tester);
     await tester.tap(key('vault-catalog-device-ts-home-2'));
     await tester.pumpAndSettle();
-    expect(find.byType(CatalogImportPage), findsOneWidget);
-    expect(container.read(sessionControllerProvider).sessions, isEmpty);
-    expect(
-        container.read(sessionControllerProvider).pendingConnections, isEmpty);
-    await tester.enterText(key('catalog-import-username'), 'me');
+    expect(find.byType(CatalogImportPage), findsNothing, reason: '不再弹批量设置页');
+    expect(key('first-login-dialog'), findsOneWidget);
+    // 测试里不点「连接」：设备地址是 100.x，真拨出去会碰到本机所在的真实 tailnet。
+    await tester.tap(find.text('取消'));
     await tester.pumpAndSettle();
-    await tester.tap(key('catalog-import-confirm'));
-    await tester.pumpAndSettle();
-    expect(find.byType(CatalogImportPage), findsNothing);
     expect(key('vault-catalog-device-ts-home-2'), findsNothing);
     final added = container
         .read(vaultControllerProvider)
@@ -332,11 +329,50 @@ void main() {
         .where((h) => CatalogBinding.of(h)?.deviceId == '2')
         .single;
     expect(CatalogBinding.of(added)!.catalogId, 'ts-home');
+    expect(added.username, isEmpty, reason: '没设默认用户名就空着，不默认 root');
     expect(inGroup('ts-home', key('vault-catalog-host-${added.id}')),
         findsOneWidget);
-    expect(container.read(sessionControllerProvider).sessions, isEmpty,
-        reason: '导入只建主机，不连');
+    expect(container.read(sessionControllerProvider).sessions, isEmpty);
+    expect(
+        container.read(sessionControllerProvider).pendingConnections, isEmpty);
     expect(requests, isEmpty);
+  });
+
+  testWidgets('R26：组里「全部导入」只算还没导入、没从列表里消失的；导入后不连接', (tester) async {
+    await open(tester);
+    expect(inGroup('ts-home', find.text('全部导入：1')), findsOneWidget);
+    expect(key('vault-catalog-import-all-ts-work'), findsNothing,
+        reason: 'Work 里唯一没导入的设备 4 已经不在列表里了');
+    await tester.tap(key('vault-catalog-import-all-ts-home'));
+    await tester.pumpAndSettle();
+    expect(key('first-login-dialog'), findsNothing);
+    expect(key('vault-catalog-import-all-ts-home'), findsNothing);
+    expect(key('vault-catalog-device-ts-home-2'), findsNothing);
+    expect(
+        container
+            .read(vaultControllerProvider)
+            .data!
+            .hosts
+            .where((h) => CatalogBinding.of(h)?.catalogId == 'ts-home'),
+        hasLength(3));
+    expect(container.read(sessionControllerProvider).sessions, isEmpty);
+    expect(requests, isEmpty);
+  });
+
+  testWidgets('R26：登录成功过的主机标「登录过」', (tester) async {
+    await open(tester, extraHosts: [
+      bound('h-lap', 'laptop', 'ts-home', '2', extra: {'lastConnectedAt': 1}),
+    ]);
+    expect(
+        find.descendant(
+            of: key('vault-catalog-host-h-lap'),
+            matching: key('logged-in-mark')),
+        findsOneWidget);
+    expect(
+        find.descendant(
+            of: key('vault-catalog-host-a-nas'),
+            matching: key('logged-in-mark')),
+        findsNothing);
   });
 
   testWidgets('刷新：点了才发；刷着的时候不能再点；只改跟随目录的地址，别名、账号、端口、另一来源都不动', (tester) async {
@@ -367,17 +403,17 @@ void main() {
         .widget<Text>(find.descendant(
             of: key(k), matching: find.byType(Text), matchRoot: true))
         .data!;
-    expect(status('vault-catalog-status-a-nas'), 'Tailscale 控制面：未连接');
+    expect(status('vault-catalog-status-a-nas'), '离线');
     expect(status('vault-catalog-age-ts-home'), endsWith('刚刚'));
     expect(status('vault-catalog-age-ts-work'), endsWith('3 天前'));
     expect(find.textContaining('读取成功，设备数：3'), findsOneWidget);
   });
 
-  testWidgets('没存凭据的来源：刷新打开来源页，不发请求', (tester) async {
+  testWidgets('没存 key 的来源：刷新打开 Tailscale 设置，不发请求', (tester) async {
     await open(tester);
     await tester.tap(key('vault-catalog-refresh-ts-work'));
     await tester.pumpAndSettle();
-    expect(find.byType(CatalogSourceScreen), findsOneWidget);
+    expect(find.byType(TailscaleSettingsScreen), findsOneWidget);
     expect(requests, isEmpty);
   });
 
@@ -395,14 +431,12 @@ void main() {
 
     await tester.tap(key('vault-catalog-settings-ts-work'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byType(PopupMenuButton<String>));
+    await tester.tap(key('ts-settings-remove'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('移除这个来源'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.widgetWithText(FilledButton, '移除来源'));
+    await tester.tap(key('ts-settings-remove-confirm'));
     await tester.pumpAndSettle();
 
-    expect(find.byType(CatalogSourceScreen), findsNothing);
+    expect(find.byType(TailscaleSettingsScreen), findsNothing);
     expect(key('vault-catalog-ts-work'), findsNothing);
     expect(key('vault-catalog-ts-home'), findsOneWidget);
     expect(key('vault-host-menu-b-nas'), findsOneWidget);

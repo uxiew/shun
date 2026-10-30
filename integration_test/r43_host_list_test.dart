@@ -27,8 +27,7 @@ import 'package:shun/domain/models/host.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/tailscale/catalog_secret_store.dart';
 import 'package:shun/infrastructure/tailscale/tailscale_api.dart';
-import 'package:shun/presentation/screens/tailscale_catalog_screen.dart';
-import 'package:shun/presentation/widgets/catalog_import_sheet.dart';
+import 'package:shun/presentation/screens/tailscale_settings_screen.dart';
 import 'package:shun/presentation/widgets/port_forward_sheet.dart';
 import 'package:shun/presentation/widgets/server_monitor_sheet.dart';
 
@@ -96,6 +95,7 @@ void main() {
         .map((t) => t.data ?? t.textSpan?.toPlainText() ?? '')
         .where((t) => t.isNotEmpty)
         .join(' | ');
+
     /// 滚到屏幕中间再点：贴着列表顶边会被搜索框压住，贴着底边会被提示条、底栏压住。
     Future<void> reveal(Finder finder) async {
       tester
@@ -111,8 +111,11 @@ void main() {
       await settle(tester, 1200);
     }
 
-    HostProfile saved(String id) =>
-        container.read(vaultControllerProvider).data!.hosts.firstWhere((h) => h.id == id);
+    HostProfile saved(String id) => container
+        .read(vaultControllerProvider)
+        .data!
+        .hosts
+        .firstWhere((h) => h.id == id);
 
     Future<List<String>> openMenu(String hostId) async {
       await reveal(key('vault-host-menu-$hostId'));
@@ -125,7 +128,9 @@ void main() {
       await settle(tester);
       return [
         for (final e in items.evaluate())
-          (e.widget.key! as ValueKey<String>).value.substring('host-menu-'.length),
+          (e.widget.key! as ValueKey<String>)
+              .value
+              .substring('host-menu-'.length),
       ];
     }
 
@@ -141,11 +146,13 @@ void main() {
     await catalog.addSource(catalogId: work, label: 'Work');
     final homeRead = await catalog.refreshWithOAuthClient(
       home,
-      const OAuthClientCredential(clientId: 'r43-client', clientSecret: 'r43-not-a-secret'),
+      const OAuthClientCredential(
+          clientId: 'r43-client', clientSecret: 'r43-not-a-secret'),
       persist: true,
     );
     expect(homeRead.error, isNull);
-    expect(homeRead.persistRefusal, isNull, reason: '假服务器回报只有 devices:core:read，应该存下');
+    expect(homeRead.persistRefusal, isNull,
+        reason: '假服务器回报只有 devices:core:read，应该存下');
     expect((await catalog.refreshWithToken(work, 'r43-token')).error, isNull);
     await overview.reload();
     await settle(tester, 1000);
@@ -160,54 +167,70 @@ void main() {
       }
     }
     final sections = key('vault-catalog-sections');
-    expect(find.descendant(of: sections, matching: find.textContaining('在线')),
-        findsNothing);
-    expect(find.descendant(of: sections, matching: find.textContaining('离线')),
+    // R26：在线状态照 Tailscale 写（在线 / 离线），不再出现「控制面」这种说法。
+    expect(find.descendant(of: sections, matching: find.textContaining('控制面')),
         findsNothing);
     await shot('01-two-sources');
 
-    // ---- 没导入的设备点了走导入页，不连接；两个来源的同一台各导一次，各用各的账号 ----
+    // ---- R26：没导入的设备点了按来源默认值导入，连接前先问登录；这里取消，不连。
+    // 两个来源的同一台各导一次，各用各的账号（用户名之后写进保险库，等于用户在编辑器里填）----
     Future<HostProfile> importDevice(String source, String user) async {
+      await catalog.saveImportDefaults(source, {'port': config['port']});
       final row = key('vault-catalog-device-$source-2001');
       await reveal(row);
       await tester.tap(row);
-      await waitFor(tester, () => find.byType(CatalogImportPage).evaluate().isNotEmpty,
-          what: '导入页');
+      await waitFor(
+          tester, () => key('first-login-dialog').evaluate().isNotEmpty,
+          what: '首次登录');
       await settle(tester);
       report('import.$source.sessions', controller.state.sessions.length);
-      expect(controller.state.sessions, isEmpty, reason: '点设备只开导入页，不连');
-      await tester.enterText(key('catalog-import-username'), user);
-      await tester.enterText(key('catalog-import-port'), '${config['port']}');
+      expect(controller.state.sessions, isEmpty, reason: '登录信息填好之前不连');
+      if (source == home) await shot('02-first-login');
+      await tester.tap(find.text('取消'));
+      await waitFor(tester, () => key('first-login-dialog').evaluate().isEmpty,
+          what: '取消首次登录');
       await settle(tester);
-      if (source == home) await shot('02-import-page');
-      await tester.tap(key('catalog-import-confirm'));
-      await waitFor(tester, () => find.byType(CatalogImportPage).evaluate().isEmpty,
-          what: '导入完成');
-      await settle(tester);
-      return container.read(vaultControllerProvider).data!.hosts.singleWhere((h) =>
-          CatalogBinding.of(h)?.catalogId == source &&
-          CatalogBinding.of(h)?.deviceId == '2001');
+      expect(controller.state.sessions, isEmpty, reason: '取消了就只留下主机');
+      final host = container
+          .read(vaultControllerProvider)
+          .data!
+          .hosts
+          .singleWhere((h) =>
+              CatalogBinding.of(h)?.catalogId == source &&
+              CatalogBinding.of(h)?.deviceId == '2001');
+      await vault.updateHost(
+          host.id, (h) => HostProfile({...h.data, 'username': user}));
+      await settle(tester, 300);
+      return saved(host.id);
     }
 
     final homeHost = await importDevice(home, '${config['user']}');
     final workHost = await importDevice(work, 'r43-other');
-    report('hosts', '${homeHost.label}=${homeHost.username}@${homeHost.hostname}:${homeHost.port} '
-        '${workHost.label}=${workHost.username}@${workHost.hostname}:${workHost.port}');
+    report(
+        'hosts',
+        '${homeHost.label}=${homeHost.username}@${homeHost.hostname}:${homeHost.port} '
+            '${workHost.label}=${workHost.username}@${workHost.hostname}:${workHost.port}');
     expect(homeHost.id, isNot(workHost.id));
     expect(homeHost.hostname, workHost.hostname, reason: '同 IP 也是两台主机');
     // 导入不收密码；像用户那样去编辑器填，这里直接写进保险库。顺手把别名改成中文。
-    await vault.updateHost(homeHost.id, (h) => HostProfile({
-          ...h.data,
-          'label': '家里 edge',
-          'password': config['password'],
-          'authMethod': 'password',
-        }));
+    await vault.updateHost(
+        homeHost.id,
+        (h) => HostProfile({
+              ...h.data,
+              'label': '家里 edge',
+              'password': config['password'],
+              'authMethod': 'password',
+            }));
     await vault.updateHost(
         workHost.id, (h) => HostProfile({...h.data, 'label': '公司 edge'}));
     await settle(tester, 800);
-    expect(find.descendant(of: key('vault-catalog-$home'), matching: find.text('家里 edge')),
+    expect(
+        find.descendant(
+            of: key('vault-catalog-$home'), matching: find.text('家里 edge')),
         findsOneWidget);
-    expect(find.descendant(of: key('vault-catalog-$work'), matching: find.text('公司 edge')),
+    expect(
+        find.descendant(
+            of: key('vault-catalog-$work'), matching: find.text('公司 edge')),
         findsOneWidget);
     report('type.ssh', key('host-type-ssh').evaluate().length);
     report('status.home', texts(key('vault-catalog-status-${homeHost.id}')));
@@ -232,7 +255,8 @@ void main() {
             (_, __, fingerprint) async => fingerprint == config['fingerprint']),
         isTrue);
     final shell = controller.state.sessions.single;
-    await waitFor(tester, () => shell.terminal.allText().contains(r'$'), what: '远端提示符');
+    await waitFor(tester, () => shell.terminal.allText().contains(r'$'),
+        what: '远端提示符');
     container.read(homeTabProvider.notifier).state = 0;
     await settle(tester, 1000);
     final connected = await openMenu(homeHost.id);
@@ -240,7 +264,8 @@ void main() {
     expect(connected, containsAll(['portForward', 'files', 'monitor']));
     await shot('05-menu-connected');
     await tester.tap(key('host-menu-portForward'));
-    await waitFor(tester, () => find.byType(PortForwardSheet).evaluate().isNotEmpty,
+    await waitFor(
+        tester, () => find.byType(PortForwardSheet).evaluate().isNotEmpty,
         what: '端口转发');
     await shot('06-port-forward');
     await closeSheet();
@@ -248,8 +273,10 @@ void main() {
     // 文件：切到文件页，左栏就是这台主机连着的那条 SSH（不另开连接、不切终端标签）。
     await openMenu(homeHost.id);
     await tester.tap(key('host-menu-files'));
-    await waitFor(tester, () => container.read(homeTabProvider) == 2, what: '切到文件页');
-    await waitFor(tester, () => container.read(sftpNavigationRequestProvider) == null,
+    await waitFor(tester, () => container.read(homeTabProvider) == 2,
+        what: '切到文件页');
+    await waitFor(
+        tester, () => container.read(sftpNavigationRequestProvider) == null,
         what: '文件页接住请求');
     await settle(tester, 2000);
     final pane = texts(key('sftp-left-pane'));
@@ -263,7 +290,8 @@ void main() {
     // 性能监控：同一条 SSH。
     await openMenu(homeHost.id);
     await tester.tap(key('host-menu-monitor'));
-    await waitFor(tester, () => find.byType(ServerMonitorSheet).evaluate().isNotEmpty,
+    await waitFor(
+        tester, () => find.byType(ServerMonitorSheet).evaluate().isNotEmpty,
         what: '性能监控');
     await settle(tester, 3000);
     await shot('06c-monitor');
@@ -274,22 +302,30 @@ void main() {
     await openMenu(homeHost.id);
     await tester.tap(key('host-menu-testConnection'));
     final accept = find.text('接受并记住');
-    await waitFor(tester,
-        () => accept.evaluate().isNotEmpty || key('probe-succeeded').evaluate().isNotEmpty,
-        timeout: const Duration(seconds: 40), what: '指纹确认或测试结果');
+    await waitFor(
+        tester,
+        () =>
+            accept.evaluate().isNotEmpty ||
+            key('probe-succeeded').evaluate().isNotEmpty,
+        timeout: const Duration(seconds: 40),
+        what: '指纹确认或测试结果');
     if (accept.evaluate().isNotEmpty) {
       final shown = tester
           .widget<SelectableText>(find.descendant(
-              of: find.byType(AlertDialog), matching: find.byType(SelectableText)))
+              of: find.byType(AlertDialog),
+              matching: find.byType(SelectableText)))
           .data!;
       expect(shown, contains('${config['fingerprint']}'));
       report('probe.fingerprintMatches', true);
       await tester.tap(accept);
     }
-    await waitFor(tester,
-        () => key('probe-succeeded').evaluate().isNotEmpty ||
+    await waitFor(
+        tester,
+        () =>
+            key('probe-succeeded').evaluate().isNotEmpty ||
             key('probe-failed').evaluate().isNotEmpty,
-        timeout: const Duration(seconds: 40), what: '测试连接结果');
+        timeout: const Duration(seconds: 40),
+        what: '测试连接结果');
     report('probe.succeeded', key('probe-succeeded').evaluate().isNotEmpty);
     expect(key('probe-succeeded'), findsOneWidget);
     expect(controller.state.sessions, hasLength(1), reason: '测试连接不开标签');
@@ -302,32 +338,45 @@ void main() {
         reason: '同名同 IP 的另一台主机不借用这条 SSH');
     await closeSheet();
 
-    // ---- 刷新 Home：只在点的时候发；控制面变成未连接，SSH 照样连着；用户字段不动；Work 不动 ----
+    // ---- 刷新 Home：只在点的时候发；Tailscale 说它离线了，SSH 照样连着；用户字段不动；Work 不动 ----
     final homeBefore = jsonDecode(jsonEncode(saved(homeHost.id).data));
     final workBefore = jsonDecode(jsonEncode(saved(workHost.id).data));
-    final swapped = File('${(await getApplicationSupportDirectory()).path}/r43-swapped');
+    final swapped =
+        File('${(await getApplicationSupportDirectory()).path}/r43-swapped');
     if (swapped.existsSync()) swapped.deleteSync();
     debugPrint('R43 SWAP');
     await waitFor(tester, swapped.existsSync, what: '驱动脚本换设备列表');
     await reveal(key('vault-catalog-refresh-$home'));
     await tester.tap(key('vault-catalog-refresh-$home'));
     await tester.pump(const Duration(milliseconds: 30));
-    report('refresh.spinner', key('vault-catalog-refresh-$home').evaluate().isEmpty);
-    await waitFor(tester, () => key('vault-catalog-refresh-$home').evaluate().isNotEmpty,
+    report('refresh.spinner',
+        key('vault-catalog-refresh-$home').evaluate().isEmpty);
+    await waitFor(
+        tester, () => key('vault-catalog-refresh-$home').evaluate().isNotEmpty,
         what: '刷新结束');
     await settle(tester, 800);
     report('refresh.home', texts(key('vault-catalog-toggle-$home')));
-    report('refresh.status.home', texts(key('vault-catalog-status-${homeHost.id}')));
-    report('refresh.status.work', texts(key('vault-catalog-status-${workHost.id}')));
+    report('refresh.status.home',
+        texts(key('vault-catalog-status-${homeHost.id}')));
+    report('refresh.status.work',
+        texts(key('vault-catalog-status-${workHost.id}')));
     report('refresh.ssh.connected', shell.connected);
     expect(shell.connected, isTrue);
     final homeAfter = jsonDecode(jsonEncode(saved(homeHost.id).data));
-    for (final field in ['label', 'username', 'port', 'hostname', 'password', 'authMethod']) {
-      expect((homeAfter as Map)[field], (homeBefore as Map)[field], reason: field);
+    for (final field in [
+      'label',
+      'username',
+      'port',
+      'hostname',
+      'password',
+      'authMethod'
+    ]) {
+      expect((homeAfter as Map)[field], (homeBefore as Map)[field],
+          reason: field);
     }
     expect(jsonDecode(jsonEncode(saved(workHost.id).data)), workBefore);
-    expect(texts(key('vault-catalog-status-${homeHost.id}')), contains('未连接'));
-    expect(texts(key('vault-catalog-status-${workHost.id}')), contains('已连接'),
+    expect(texts(key('vault-catalog-status-${homeHost.id}')), contains('离线'));
+    expect(texts(key('vault-catalog-status-${workHost.id}')), contains('在线'),
         reason: 'Work 没刷新，还是它自己缓存里的说法');
     await shot('07-after-refresh');
 
@@ -363,28 +412,30 @@ void main() {
     // ---- 移除 Home 来源：它的主机回到普通列表，正连着的 SSH 不断 ----
     await reveal(key('vault-catalog-settings-$home'));
     await tester.tap(key('vault-catalog-settings-$home'));
-    await waitFor(tester, () => find.byType(CatalogSourceScreen).evaluate().isNotEmpty,
-        what: '来源页');
+    await waitFor(tester,
+        () => find.byType(TailscaleSettingsScreen).evaluate().isNotEmpty,
+        what: 'Tailscale 设置');
     await settle(tester);
-    await tester.tap(find.descendant(
-        of: find.byType(CatalogSourceScreen),
-        matching: find.byType(PopupMenuButton<String>)));
+    await tester.tap(key('ts-settings-remove'));
     await settle(tester);
-    await tester.tap(find.text('移除这个来源'));
-    await settle(tester);
-    await tester.tap(find.widgetWithText(FilledButton, '移除来源'));
-    await waitFor(tester, () => find.byType(CatalogSourceScreen).evaluate().isEmpty,
+    await tester.tap(key('ts-settings-remove-confirm'));
+    await waitFor(
+        tester, () => find.byType(TailscaleSettingsScreen).evaluate().isEmpty,
         what: '回到主机列表');
     await settle(tester, 1000);
     expect(key('vault-catalog-$home'), findsNothing);
     expect(key('vault-catalog-host-${homeHost.id}'), findsNothing);
-    expect(key('vault-host-menu-${homeHost.id}'), findsOneWidget, reason: '回到普通列表');
-    expect(CatalogBinding.of(saved(homeHost.id))?.catalogId, home, reason: '关联留着');
+    expect(key('vault-host-menu-${homeHost.id}'), findsOneWidget,
+        reason: '回到普通列表');
+    expect(CatalogBinding.of(saved(homeHost.id))?.catalogId, home,
+        reason: '关联留着');
     report('remove.ssh.connected', shell.connected);
     expect(shell.connected, isTrue);
     controller.typeInto(shell.id, 'echo R43-$home-ALIVE\r');
-    await waitFor(tester,
-        () => 'R43-$home-ALIVE'.allMatches(shell.terminal.allText()).length >= 2,
+    await waitFor(
+        tester,
+        () =>
+            'R43-$home-ALIVE'.allMatches(shell.terminal.allText()).length >= 2,
         what: '移除来源后终端还能用');
     report('remove.ssh.echo', true);
     await shot('09-after-remove');

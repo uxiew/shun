@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -9,23 +8,23 @@ import '../../application/tailscale_catalog_provider.dart';
 import '../../application/tailscale_catalog_refresh.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/models/host.dart';
+import '../../domain/models/server_stats.dart';
 import '../../infrastructure/tailscale/catalog_cache.dart';
 import '../../infrastructure/tailscale/catalog_cache_repository.dart';
-import '../../infrastructure/tailscale/tailscale_api.dart';
 import '../localization/localized_widgets.dart';
 import '../widgets/catalog_import_sheet.dart';
 import '../widgets/catalog_text.dart';
+import '../widgets/connect_host.dart';
 import '../widgets/hint.dart';
-import '../widgets/secret_content.dart';
+import '../widgets/host_system_icon.dart';
+import 'tailscale_settings_screen.dart';
 
 // 原来这几段常驻在页面上，现在收进 ⓘ（docs/dev/ui-text.md）；完整说明在使用手册第 13 节。
 const _catalogAbout =
-    '从 Tailscale 读设备列表，勾选后批量建成主机。只读列表：不连设备、不开 VPN。手机要能到达设备（开着官方 Tailscale App，或经代理、跳板机）才连得上。';
+    '从 Tailscale 读设备列表，点一台就导入并连接。只读列表：不连设备、不开 VPN。手机要能到达设备（开着官方 Tailscale App，或经代理、跳板机）才连得上。';
 
-const _catalogLimits = '目录只知道设备在不在 Tailscale 的列表里、有没有连上 Tailscale 控制面。'
-    '它不知道手机能不能连到设备，也不知道设备开没开 SSH——这些要实际连接才知道。';
-
-const _importHint = '已导入的不能再勾，不会重复建主机。保险库里已经有这台机器？点设备下面的「关联到已有主机」，不用再导入一台。';
+const _importHint =
+    '点一台就按 Tailscale 设置里的默认值导入并连接，用户名、密码没填的连接时问。保险库里已经有这台机器？点 ⋮ →「关联到已有主机」，不用再导入一台。';
 
 const _sharedDevicesNote =
     '用 OAuth client 读取时，别人共享给你的设备可能不在列表里（Tailscale 的已知问题 tailscale#16911），这不代表设备被删了。';
@@ -124,20 +123,15 @@ class _TailscaleCatalogScreenState
     return 'Tailscale $n';
   }
 
+  /// 新建来源走 Tailscale 设置页（R26）：填 key、默认用户名，保存后读一次，再进它的设备页。
   Future<void> _add() async {
-    final source = await _askSource(title: '添加目录来源', confirm: '添加');
-    if (source == null) return;
-    try {
-      final cache = await _catalog.addSource(
-        catalogId: _newCatalogId(),
-        tailnet: source.$2,
-        label: source.$1,
-      );
+    final result = await openTailscaleSettings(context);
+    if (result == null || result.removed || !mounted) {
       await _load();
-      if (mounted) await _open(cache.catalogId);
-    } on Object catch (error) {
-      _message('$error');
+      return;
     }
+    await _load();
+    if (mounted) await _open(result.catalogId);
   }
 
   /// 按主机里记着的来源 ID 在本机重建来源（DEV02 的修复路径）。只建空来源，不发请求、不改主机。
@@ -253,13 +247,11 @@ class _TailscaleCatalogScreenState
   }
 }
 
-/// 本机给来源起的 ID：只用于文件名和凭据键，和 tailnet 名无关（两个来源都写 `-` 也各是各的，TSC10）。
-String _newCatalogId() {
-  final random = Random.secure();
-  return 'ts-${List.generate(10, (_) => random.nextInt(36).toRadixString(36)).join()}';
-}
-
-/// 一个目录来源：刷新状态、读取入口、设备列表与批量导入。
+/// 一个目录来源的设备页：刷新、Tailscale 设置、设备列表（R26 按所有者反馈改过）。
+///
+/// - 点一台没导入的设备：按 Tailscale 设置里的默认值导入并连接；导入过的直接连那台主机。
+/// - 「全部导入」把还没导入的都建成主机，不连接。
+/// - ⋮ 里是「只导入，不连接」和「关联到已有主机」。
 class CatalogSourceScreen extends ConsumerStatefulWidget {
   const CatalogSourceScreen({super.key, required this.catalogId});
 
@@ -275,7 +267,6 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
   bool _hasSaved = false;
   bool _busy = false;
   String? _loadError;
-  final _selected = <String>{};
 
   TailscaleCatalogProvider get _catalog => ref.read(tailscaleCatalogProvider);
 
@@ -295,19 +286,17 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
         _cache = cache;
         _hasSaved = saved;
         _loadError = cache == null ? '本机没有这个目录来源' : null;
-        _selected
-            .removeWhere((id) => !(cache?.devices.containsKey(id) ?? false));
       });
     } on Object catch (error) {
       if (mounted) setState(() => _loadError = '$error');
     }
   }
 
-  Future<void> _run(Future<CatalogRefreshOutcome> Function() read) async {
+  Future<void> _refresh() async {
     setState(() => _busy = true);
     try {
-      final outcome = await read();
-      _report(outcome);
+      final outcome = await _catalog.refreshSaved(widget.catalogId);
+      _plainMessage(catalogRefreshReport(outcome));
     } on Object catch (error) {
       _message('$error');
     } finally {
@@ -316,116 +305,74 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
     }
   }
 
-  void _report(CatalogRefreshOutcome outcome) =>
-      _message(catalogRefreshReport(outcome));
-
-  Future<void> _readWithToken() async {
-    final token = await _askSecret(
-      title: '粘贴 token 读一次',
-      explain: 'token 只用这一次，不保存。建议用短期 token，用完在后台删掉。',
-      label: 'Access token',
-    );
-    if (token == null || token.isEmpty) return;
-    await _run(() => _catalog.refreshWithToken(widget.catalogId, token));
-  }
-
-  Future<void> _readWithOAuth() async {
-    final result = await showDialog<(String, String, bool)>(
-      context: context,
-      builder: (context) => const _OAuthClientDialog(),
-    );
-    if (result == null) return;
-    final (id, secret, persist) = result;
-    await _run(() => _catalog.refreshWithOAuthClient(
-          widget.catalogId,
-          OAuthClientCredential(clientId: id, clientSecret: secret),
-          persist: persist,
-        ));
-  }
-
-  Future<String?> _askSecret({
-    required String title,
-    required String explain,
-    required String label,
-  }) async {
-    final values = await showDialog<List<String>>(
-      context: context,
-      builder: (context) => _FieldsDialog(
-        title: title,
-        explain: explain,
-        confirm: '读取',
-        fields: [
-          _Field(
-            label: label,
-            secret: true,
-            key: const ValueKey('catalog-secret-field'),
-          ),
-        ],
-      ),
-    );
-    return values?.single;
-  }
-
-  Future<void> _forgetCredentials() async {
-    await _catalog.forgetCredentials(widget.catalogId);
-    _message(
-        '已删除本机保存的 OAuth client。它在 Tailscale 那边仍然有效，要彻底作废请到 Tailscale 后台撤销。');
+  Future<void> _settings() async {
+    final result =
+        await openTailscaleSettings(context, catalogId: widget.catalogId);
+    if (!mounted) return;
+    if (result?.removed == true) {
+      Navigator.of(context).pop();
+      return;
+    }
     await _load();
   }
 
-  Future<void> _removeSource() async {
-    final vault = ref.read(vaultControllerProvider).data;
-    final bound = [
-      for (final host in vault?.hosts ?? const <HostProfile>[])
-        if (CatalogBinding.of(host)?.catalogId == widget.catalogId) host,
-    ];
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const LText('移除这个来源？'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const LText('会删除本机的设备缓存和保存的 OAuth client。'),
-            const SizedBox(height: 8),
-            catalogLine('关联它的主机：', '${bound.length}'),
-            if (bound.isNotEmpty) const LText('这些主机都保留，照常能连。'),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const LText('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const LText('移除来源'),
-          ),
-        ],
-      ),
-    );
-    if (confirmed != true) return;
-    await _catalog.removeSource(widget.catalogId);
-    if (mounted) Navigator.of(context).pop();
+  Future<void> _importAll() async {
+    final cache = _cache;
+    if (cache == null) return;
+    setState(() => _busy = true);
+    try {
+      await importAllFromCatalog(context, cache);
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
-  Future<void> _import() async {
+  /// 不用 Tailscale 设置里的默认值，这一批单独设（含自定义代理）。只导入，不连接。
+  Future<void> _importCustom(List<String> deviceIds) async {
     final cache = _cache;
-    if (cache == null || _selected.isEmpty) return;
+    if (cache == null || deviceIds.isEmpty) return;
     final added = await showCatalogImportSheet(
       context,
       cache: cache,
-      deviceIds: [
-        for (final id in cache.devices.keys)
-          if (_selected.contains(id)) id,
-      ],
+      deviceIds: deviceIds,
     );
     if (added == null || !mounted) return;
-    setState(_selected.clear);
     final head = localized('已导入主机：');
     final tail = localized('。还没有连接过：第一次连接时照常核对服务器指纹。');
-    _message('$head$added$tail');
+    _plainMessage('$head$added$tail');
+  }
+
+  /// 只导入这一台，不连接。
+  Future<void> _importOnly(CatalogDeviceRecord record) async {
+    final cache = _cache;
+    if (cache == null) return;
+    setState(() => _busy = true);
+    try {
+      final result = await importCatalogDevices(
+        ref.read(vaultControllerProvider.notifier),
+        cache,
+        [record.id],
+      );
+      final skip = result.skipped.firstOrNull;
+      _plainMessage(result.added.isNotEmpty
+          ? '${localized('已导入主机：')}${result.added.first.label}'
+          : '${localized('没有导入：')}${skip == null ? '' : localized(skip.reason)}');
+    } on CatalogImportInvalid catch (error) {
+      _plainMessage(
+          '${localized('Tailscale 设置里的导入设置不成立：')}${localized(error.message)}');
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
+  }
+
+  Future<void> _open(
+      CatalogDeviceRecord record, List<HostProfile> linked) async {
+    if (linked.isNotEmpty) {
+      await connectHostFromList(context, linked.first, leavePushedPages: true);
+    } else {
+      await importAndConnect(context, widget.catalogId, record.id,
+          leavePushedPages: true);
+    }
   }
 
   /// 用户选一台已有主机和这台设备关联（DEV01：只有用户关联才形成关联）。只写绑定，不连接。
@@ -465,6 +412,12 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: LText(value)));
   }
 
+  /// 已经翻译好、拼上了数据的提示。
+  void _plainMessage(String value) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value)));
+  }
+
   @override
   Widget build(BuildContext context) {
     final cache = _cache;
@@ -482,40 +435,56 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
     devices.sort((a, b) => catalogDeviceName(a)
         .toLowerCase()
         .compareTo(catalogDeviceName(b).toLowerCase()));
+    final importable = devices
+        .where((record) => !record.missing && linked[record.id] == null)
+        .length;
+    final now = DateTime.now();
     return Scaffold(
       appBar: AppBar(
         // 还没读到缓存时先空着，别闪一下内部 ID。
         title: Text(cache == null ? '' : catalogSourceName(cache)),
         actions: [
-          PopupMenuButton<String>(
-            onSelected: (value) => switch (value) {
-              'forget' => _forgetCredentials(),
-              _ => _removeSource(),
-            },
-            itemBuilder: (context) => [
-              if (_hasSaved)
-                PopupMenuItem(
-                  value: 'forget',
-                  child: LText('删除本机保存的 OAuth client'),
-                ),
-              PopupMenuItem(
-                value: 'remove',
-                child: LText('移除这个来源'),
-              ),
-            ],
+          if (_hasSaved)
+            IconButton(
+              key: const ValueKey('catalog-refresh-saved'),
+              tooltip: localized('刷新'),
+              onPressed: _busy ? null : _refresh,
+              icon: const Icon(Icons.refresh),
+            ),
+          IconButton(
+            key: const ValueKey('catalog-settings'),
+            tooltip: localized('Tailscale 设置'),
+            onPressed: _busy ? null : _settings,
+            icon: const Icon(Icons.tune),
           ),
+          if (importable > 0)
+            PopupMenuButton<String>(
+              key: const ValueKey('catalog-more'),
+              enabled: !_busy,
+              onSelected: (_) => _importCustom([
+                for (final record in devices)
+                  if (!record.missing && linked[record.id] == null) record.id,
+              ]),
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  key: const ValueKey('catalog-import-custom'),
+                  value: 'custom',
+                  child: const LText('用自定义设置导入…'),
+                ),
+              ],
+            ),
         ],
       ),
-      bottomNavigationBar: _selected.isEmpty
+      bottomNavigationBar: importable == 0
           ? null
           : SafeArea(
               child: Padding(
                 padding: const EdgeInsets.all(12),
                 child: FilledButton.icon(
-                  key: const ValueKey('catalog-import-selected'),
-                  onPressed: _busy ? null : _import,
+                  key: const ValueKey('catalog-import-all'),
+                  onPressed: _busy ? null : _importAll,
                   icon: const Icon(Icons.download_outlined),
-                  label: catalogLine('导入所选设备：', '${_selected.length}'),
+                  label: catalogLine('全部导入：', '$importable'),
                 ),
               ),
             ),
@@ -530,33 +499,15 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
                   padding: const EdgeInsets.all(16),
                   children: [
                     _statusCard(cache, small),
-                    const SizedBox(height: 8),
-                    Wrap(
-                      spacing: 8,
-                      runSpacing: 8,
-                      children: [
-                        if (_hasSaved)
-                          FilledButton.icon(
-                            key: const ValueKey('catalog-refresh-saved'),
-                            onPressed: _busy
-                                ? null
-                                : () => _run(() =>
-                                    _catalog.refreshSaved(widget.catalogId)),
-                            icon: const Icon(Icons.refresh),
-                            label: const LText('刷新'),
-                          ),
-                        OutlinedButton(
-                          key: const ValueKey('catalog-read-token'),
-                          onPressed: _busy ? null : _readWithToken,
-                          child: const LText('粘贴 token 读一次'),
-                        ),
-                        OutlinedButton(
-                          key: const ValueKey('catalog-read-oauth'),
-                          onPressed: _busy ? null : _readWithOAuth,
-                          child: const LText('用 OAuth client 读取'),
-                        ),
-                      ],
-                    ),
+                    if (!_hasSaved) ...[
+                      const SizedBox(height: 8),
+                      OutlinedButton.icon(
+                        key: const ValueKey('catalog-open-settings'),
+                        onPressed: _busy ? null : _settings,
+                        icon: const Icon(Icons.key_outlined),
+                        label: const LText('填 API key 读设备列表'),
+                      ),
+                    ],
                     if (_busy) ...[
                       const SizedBox(height: 8),
                       const LinearProgressIndicator(),
@@ -567,12 +518,11 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
                       const LText('列表里没有设备')
                     else if (devices.isNotEmpty) ...[
                       HintTitle(
-                        '勾选要导入的设备',
-                        hint: _paragraphs(
-                            [_importHint, _catalogLimits, _sharedDevicesNote]),
+                        '设备',
+                        hint: _paragraphs([_importHint, _sharedDevicesNote]),
                       ),
                       for (final record in devices)
-                        _deviceTile(record, linked[record.id], small),
+                        _deviceTile(record, linked[record.id], small, now),
                     ],
                   ],
                 ),
@@ -611,7 +561,6 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
               catalogLine('最近一次读取失败：', catalogTime(attempt.at)),
               if (attempt.note case final note?) LText(note, style: small),
             ],
-            // 没保存时不写：下面只有「粘贴 token」「用 OAuth client」两个按钮，已经说明了。
             if (_hasSaved) const LText('本机保存了 OAuth client'),
           ],
         ),
@@ -623,18 +572,25 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
     CatalogDeviceRecord record,
     List<HostProfile>? linkedHosts,
     TextStyle? small,
+    DateTime now,
   ) {
     final device = record.device;
     final linked = linkedHosts ?? const <HostProfile>[];
-    return CheckboxListTile(
+    final canImport = linked.isEmpty && !record.missing;
+    return ListTile(
       key: ValueKey('catalog-device-${record.id}'),
       contentPadding: EdgeInsets.zero,
-      value: linked.isNotEmpty || _selected.contains(record.id),
-      onChanged: linked.isNotEmpty
-          ? null
-          : (value) => setState(() => value == true
-              ? _selected.add(record.id)
-              : _selected.remove(record.id)),
+      enabled: !_busy && (linked.isNotEmpty || canImport),
+      onTap: () => _open(record, linked),
+      leading: PresenceDot(
+        presence: deviceOnline(record),
+        size: 40,
+        child: SystemIcon(
+          distro: normalizeDistroId(device.os ?? ''),
+          size: 40,
+          label: device.os,
+        ),
+      ),
       title: Text(catalogDeviceName(record)),
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -643,34 +599,49 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
             device.addresses.isEmpty ? '—' : device.addresses.join('  '),
             style: small,
           ),
-          if (device.os != null) Text(device.os!, style: small),
-          LText(controlPlaneText(device.connectedToControl), style: small),
-          if (device.lastSeen != null)
-            catalogLine('上次连控制面：', catalogTime(device.lastSeen!), style: small),
+          Text(deviceOnlineText(record, now), style: small),
           if (record.missingSince != null)
             catalogLine('最近完整列表里没有它，标记于：', catalogTime(record.missingSince!),
                 style: small),
           // 导入的主机地址由目录写入（appliedAddress 有值）；手动关联的从没由目录写过。
           for (final host in linked)
-            catalogLine(
-              CatalogBinding.of(host)?.appliedAddress == null
-                  ? '已关联主机：'
-                  : '已导入为主机：',
-              host.label,
-              style: small,
+            Wrap(
+              spacing: 8,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                catalogLine(
+                  CatalogBinding.of(host)?.appliedAddress == null
+                      ? '已关联主机：'
+                      : '已导入为主机：',
+                  host.label,
+                  style: small,
+                ),
+                if (host.lastConnectedAt > 0) LoggedInMark(style: small),
+              ],
             ),
-          if (linked.isEmpty && !record.missing)
-            Align(
-              alignment: Alignment.centerLeft,
-              child: TextButton.icon(
-                key: ValueKey('catalog-link-${record.id}'),
-                onPressed: _busy ? null : () => _linkExisting(record),
-                icon: const Icon(Icons.link),
-                label: const LText('关联到已有主机'),
-              ),
-            ),
+          if (canImport) LText('还没导入：点一下导入并连接', style: small),
         ],
       ),
+      trailing: canImport
+          ? PopupMenuButton<String>(
+              key: ValueKey('catalog-device-menu-${record.id}'),
+              enabled: !_busy,
+              onSelected: (value) =>
+                  value == 'link' ? _linkExisting(record) : _importOnly(record),
+              itemBuilder: (context) => [
+                PopupMenuItem(
+                  key: ValueKey('catalog-import-only-${record.id}'),
+                  value: 'import',
+                  child: const LText('只导入，不连接'),
+                ),
+                PopupMenuItem(
+                  key: ValueKey('catalog-link-${record.id}'),
+                  value: 'link',
+                  child: const LText('关联到已有主机'),
+                ),
+              ],
+            )
+          : null,
     );
   }
 }
@@ -727,109 +698,16 @@ class _LinkHostDialog extends StatelessWidget {
       );
 }
 
-class _OAuthClientDialog extends StatefulWidget {
-  const _OAuthClientDialog();
-
-  @override
-  State<_OAuthClientDialog> createState() => _OAuthClientDialogState();
-}
-
-class _OAuthClientDialogState extends State<_OAuthClientDialog> {
-  final _id = TextEditingController();
-  final _secret = TextEditingController();
-  bool _persist = false;
-
-  @override
-  void dispose() {
-    _id
-      ..clear()
-      ..dispose();
-    _secret
-      ..clear()
-      ..dispose();
-    super.dispose();
-  }
-
-  // 有 client secret：对话框开着时防截屏（R44）。
-  @override
-  Widget build(BuildContext context) => SecretContent(child: _dialog(context));
-
-  Widget _dialog(BuildContext context) => AlertDialog(
-        title: const LText('用 OAuth client 读取'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const LText(
-                '在 Tailscale 后台建一个只勾 devices:core:read 的 OAuth client。',
-              ),
-              const SizedBox(height: 12),
-              TextField(
-                key: const ValueKey('catalog-oauth-id'),
-                controller: _id,
-                onChanged: (_) => setState(() {}),
-                autocorrect: false,
-                enableSuggestions: false,
-                decoration: const InputDecoration(labelText: 'Client ID'),
-              ),
-              TextField(
-                key: const ValueKey('catalog-oauth-secret'),
-                controller: _secret,
-                onChanged: (_) => setState(() {}),
-                obscureText: true,
-                autocorrect: false,
-                enableSuggestions: false,
-                enableIMEPersonalizedLearning: false,
-                decoration: const InputDecoration(labelText: 'Client secret'),
-              ),
-              CheckboxListTile(
-                key: const ValueKey('catalog-oauth-persist'),
-                contentPadding: EdgeInsets.zero,
-                value: _persist,
-                onChanged: (value) => setState(() => _persist = value == true),
-                title: const LText('保存到本机，以后直接刷新'),
-                subtitle: const LText('服务器确认它只能读设备才保存'),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const LText('取消'),
-          ),
-          FilledButton(
-            // 两项都填了才能点：以前少填一项时按了没有任何反应，看着像卡住。
-            onPressed: _id.text.trim().isEmpty || _secret.text.trim().isEmpty
-                ? null
-                : () => Navigator.pop(
-                      context,
-                      (_id.text.trim(), _secret.text.trim(), _persist),
-                    ),
-            child: const LText('读取'),
-          ),
-        ],
-      );
-}
-
 class _Field {
   const _Field({
     required this.label,
     this.initial = '',
     this.helper,
-    this.secret = false,
-    this.key,
   });
 
   final String label;
   final String initial;
   final String? helper;
-
-  /// 遮挡、关联想和自动更正：token、secret 用。遮挡的输入框不给复制和剪切（TSC09）。
-  /// 有这种字段的对话框整个防截屏、这个框不让输入法学（R44）。
-  final bool secret;
-  final Key? key;
 }
 
 /// 几个输入框的对话框，确认时按顺序返回去掉首尾空白的值。
@@ -872,7 +750,7 @@ class _FieldsDialogState extends State<_FieldsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final dialog = AlertDialog(
+    return AlertDialog(
       title: LText(widget.title),
       content: Column(
         mainAxisSize: MainAxisSize.min,
@@ -885,12 +763,8 @@ class _FieldsDialogState extends State<_FieldsDialog> {
           ],
           for (final (index, field) in widget.fields.indexed)
             TextField(
-              key: field.key,
               controller: _controllers[index],
-              obscureText: field.secret,
               autocorrect: false,
-              enableSuggestions: !field.secret,
-              enableIMEPersonalizedLearning: !field.secret,
               decoration: InputDecoration(
                 labelText: field.label,
                 helperText: field.helper,
@@ -912,9 +786,5 @@ class _FieldsDialogState extends State<_FieldsDialog> {
         ),
       ],
     );
-    // 只填名称、tailnet 的那个不用防截屏。
-    return widget.fields.any((field) => field.secret)
-        ? SecretContent(child: dialog)
-        : dialog;
   }
 }

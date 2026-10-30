@@ -58,6 +58,8 @@ class CatalogImportDefaults {
     this.proxyProfileId,
     this.jumpHostIds = const [],
     this.jumpRouteConfirmation,
+    this.identityFileId,
+    this.group = '',
   });
 
   factory CatalogImportDefaults.of(CatalogCache cache) =>
@@ -84,6 +86,10 @@ class CatalogImportDefaults {
             ]
           : const [],
       jumpRouteConfirmation: json['jumpRouteConfirmation'],
+      identityFileId: json['identityFileId'] is String
+          ? json['identityFileId'] as String
+          : null,
+      group: json['group'] is String ? json['group'] as String : '',
     );
   }
 
@@ -94,6 +100,10 @@ class CatalogImportDefaults {
   final List<String> jumpHostIds;
   final Object? jumpRouteConfirmation;
 
+  /// 用哪把已存的私钥（只记 ID）。认证方式始终是自动：先试私钥，不行再问密码。
+  final String? identityFileId;
+  final String group;
+
   Map<String, Object?> toJson() => {
         if (username.trim().isNotEmpty) 'username': username.trim(),
         if (port != 22) 'port': port,
@@ -102,6 +112,8 @@ class CatalogImportDefaults {
         if (jumpHostIds.isNotEmpty) 'jumpHostIds': jumpHostIds,
         if (jumpRouteConfirmation != null)
           'jumpRouteConfirmation': jumpRouteConfirmation,
+        if ((identityFileId ?? '').isNotEmpty) 'identityFileId': identityFileId,
+        if (group.trim().isNotEmpty) 'group': group.trim(),
       };
 
   CatalogImportOptions options() => CatalogImportOptions(
@@ -111,6 +123,8 @@ class CatalogImportDefaults {
         proxyProfileId: proxyProfileId,
         jumpHostIds: jumpHostIds,
         jumpRouteConfirmation: jumpRouteConfirmation,
+        identityFileId: identityFileId,
+        group: group,
       );
 }
 

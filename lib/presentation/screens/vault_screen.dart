@@ -28,9 +28,9 @@ import '../widgets/host_editor.dart';
 import '../widgets/ai_cli_tools_sheet.dart';
 import '../../infrastructure/storage/ai_cli_recent_work.dart';
 import '../../infrastructure/tailscale/catalog_cache.dart';
+import '../../infrastructure/tailscale/catalog_cache_repository.dart';
 import '../widgets/catalog_host_sections.dart';
 import '../widgets/connect_host.dart';
-import '../widgets/catalog_import_sheet.dart';
 import '../widgets/catalog_text.dart';
 import '../widgets/connection_probe_sheet.dart';
 import '../widgets/connection_prompts.dart';
@@ -44,6 +44,7 @@ import 'rustdesk_screen.dart';
 import 'connection_log_screen.dart';
 import 'connection_type_screen.dart';
 import 'tailscale_catalog_screen.dart';
+import 'tailscale_settings_screen.dart';
 import '../../application/rustdesk.dart';
 import '../../application/uuremote.dart';
 import '../widgets/remote_entry_widgets.dart';
@@ -380,8 +381,10 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                         onConnect: _showHostDetails,
                         onMenu: _showHostMenu,
                         onImport: _importDevice,
+                        onImportAll: (cache) =>
+                            importAllFromCatalog(context, cache),
                         onRefresh: _refreshSource,
-                        onSettings: _openSource,
+                        onSettings: _openTailscaleSettings,
                       ),
                     ),
                   if (hiddenCount > 0)
@@ -409,8 +412,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     );
   }
 
-  Future<void> _connect(HostProfile host) =>
-      connectHostFromList(context, ref, host);
+  Future<void> _connect(HostProfile host) => connectHostFromList(context, host);
 
   /// 网格视图：一行几张卡片和以前的 SliverGrid 算法一样（每张最宽 230，间距 10），但行高跟着这一行里最高的
   /// 卡片走，最少 148。以前写死 148：系统字体 2 倍时地址那行超出 13 px（R25 模拟器）。卡片内容的高度和
@@ -666,23 +668,14 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     }
   }
 
-  /// 没导入的目录设备：只走导入页（先成为一台主机），不连接。
-  Future<void> _importDevice(CatalogCache cache, String deviceId) async {
-    final added = await showCatalogImportSheet(
-      context,
-      cache: cache,
-      deviceIds: [deviceId],
-    );
-    if (added == null || !mounted) return;
-    final head = localized('已导入主机：');
-    final tail = localized('。还没有连接过：第一次连接时照常核对服务器指纹。');
-    _plainMessage('$head$added$tail');
-  }
+  /// 没导入的目录设备：按来源的默认设置导入并连接（R26）。
+  Future<void> _importDevice(CatalogCache cache, String deviceId) =>
+      importAndConnect(context, cache.catalogId, deviceId);
 
-  /// 组头的刷新。本机没存凭据就读不了，打开来源页让用户粘 token 或填 OAuth client。
+  /// 组头的刷新。本机没存 key 就读不了，打开 Tailscale 设置让用户填。
   Future<void> _refreshSource(CatalogSourceView source) async {
     if (!source.hasSavedCredentials) {
-      await _openSource(source.catalogId);
+      await _openTailscaleSettings(source.catalogId);
       return;
     }
     try {
@@ -695,11 +688,23 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     }
   }
 
-  Future<void> _openSource(String catalogId) async {
-    await Navigator.of(context).push(MaterialPageRoute<void>(
-      builder: (_) => CatalogSourceScreen(catalogId: catalogId),
-    ));
-    // 来源页里可能读过列表、删了凭据、移除了来源。
+  /// Tailscale 设置。[catalogId] 为 null 是新建；只有一个来源时「新建连接 → Tailscale」打开的就是它，
+  /// 不再建第二个（要接第二个 tailnet，到设置 → Tailscale 设备目录里添加）。
+  Future<void> _openTailscaleSettings([String? catalogId]) async {
+    if (catalogId == null) {
+      final sources = await ref.read(catalogCacheRepositoryProvider).loadAll();
+      if (!mounted) return;
+      if (sources.length > 1) {
+        await Navigator.of(context).push(MaterialPageRoute<void>(
+          builder: (_) => const TailscaleCatalogScreen(),
+        ));
+        if (mounted) await ref.read(catalogOverviewProvider.notifier).reload();
+        return;
+      }
+      catalogId = sources.firstOrNull?.catalogId;
+    }
+    await openTailscaleSettings(context, catalogId: catalogId);
+    // 设置页里可能建了来源、读过列表、删了 key、移除了来源。
     if (mounted) await ref.read(catalogOverviewProvider.notifier).reload();
   }
 
@@ -803,6 +808,10 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
         MaterialPageRoute(builder: (_) => const ConnectionTypeScreen()),
       );
       if (!mounted || choice == null) return;
+      if (choice.tailscale) {
+        await _openTailscaleSettings();
+        return;
+      }
       if (choice.remote != null) {
         final name = await remoteEntryName(context);
         if (!mounted || name == null) return;

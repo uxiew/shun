@@ -265,6 +265,52 @@ const englishTranslations = <String, String>{
   '隐藏密码': 'Hide password',
   '只给这一台。以后在主机的「编辑」里改。':
       'For this host only. Change it later in the host’s “Edit”.',
+  // R26：Tailscale 设置页、设备在线状态、点设备导入并连接。
+  '这是让设备加入 tailnet 的 auth key，读不了设备列表。要 tskey-client-…（OAuth client，推荐）或 tskey-api-…（访问令牌）。':
+      'This is an auth key for adding devices to a tailnet; it can’t read the device list. Use tskey-client-… (OAuth client, recommended) or tskey-api-… (access token).',
+  '这种 key 读不了设备列表。要 tskey-client-…（OAuth client，推荐）或 tskey-api-…（访问令牌）。':
+      'This kind of key can’t read the device list. Use tskey-client-… (OAuth client, recommended) or tskey-api-… (access token).',
+  '批量导入': 'Bulk import',
+  '填一个 Tailscale 的 key，自动列出 tailnet 里的设备，点一下就导入并连接。只读设备列表，不开 VPN。':
+      'Enter a Tailscale key to list the devices in your tailnet; tap one to import and connect. Only reads the device list; no VPN is started.',
+  '从 Tailscale 读设备列表，点一台就导入并连接。只读列表：不连设备、不开 VPN。手机要能到达设备（开着官方 Tailscale App，或经代理、跳板机）才连得上。':
+      'Reads the device list from Tailscale; tap a device to import and connect. List only: it doesn’t connect to devices or start a VPN. The phone must be able to reach the device (official Tailscale app on, or via a proxy or jump host).',
+  '点一台就按 Tailscale 设置里的默认值导入并连接，用户名、密码没填的连接时问。保险库里已经有这台机器？点 ⋮ →「关联到已有主机」，不用再导入一台。':
+      'Tap a device to import it with the defaults from Tailscale settings and connect; a missing username or password is asked when connecting. Already have this machine in the vault? Tap ⋮ → “Link to existing host” instead of importing another.',
+  'Tailscale 设置里的导入设置不成立：':
+      'Import settings in Tailscale settings are invalid: ',
+  '用自定义设置导入…': 'Import with custom settings…',
+  '全部导入：': 'Import all: ',
+  '填 API key 读设备列表': 'Enter an API key to read devices',
+  '设备': 'Devices',
+  '还没导入：点一下导入并连接': 'Not imported: tap to import and connect',
+  '只导入，不连接': 'Import only, don’t connect',
+  '自动列出 tailnet 里的设备，点一下就导入并连接。只读设备列表：不开 VPN，手机要能到达设备（比如开着 Tailscale App）。':
+      'Lists the devices in your tailnet; tap one to import and connect. Only reads the device list: no VPN is started, and the phone must be able to reach the device (for example with the Tailscale app on).',
+  '本机已保存 OAuth client，不填就用它刷新':
+      'An OAuth client is saved on this phone; leave blank to refresh with it',
+  'tskey-client-…：OAuth client，只勾 devices:core:read，存在本机、以后自动刷新（推荐）。tskey-api-…：访问令牌，只读这一次、不保存。':
+      'tskey-client-…: OAuth client with only devices:core:read; saved on this phone and refreshes automatically (recommended). tskey-api-…: access token; read once, not saved.',
+  '在 Tailscale 后台的 Settings → OAuth clients 里创建。':
+      'Create one in the Tailscale admin console under Settings → OAuth clients.',
+  'SSH 用户名（可选）': 'SSH username (optional)',
+  '导入的主机默认用它登录。空着就每台第一次连接时问；以后可以在主机的「编辑」里单独改。':
+      'Imported hosts log in with it by default. Leave blank to be asked on each host’s first connection; change it per host later in “Edit”.',
+  '端口、地址、连接路径、私钥、分组、tailnet':
+      'Port, address, route, private key, group, tailnet',
+  '这些只用于以后导入的主机，已经导入的不动。密码不在这里填：每台第一次连接时问。':
+      'These apply only to hosts imported from now on; already imported hosts are unchanged. Passwords aren’t entered here: each host asks on its first connection.',
+  '本机没保存 key：点刷新会打开 Tailscale 设置，在那里填':
+      'No key saved on this phone: refresh opens Tailscale settings to enter one',
+  '去 Tailscale 设置填 key': 'Enter a key in Tailscale settings',
+  '导入并连接': 'Import and connect',
+  '登录过': 'Logged in before',
+  '最近的设备列表里没有它了': 'Not in the latest device list',
+  '在线': 'Online',
+  '离线 · 上次在线：': 'Offline · last seen: ',
+  '离线': 'Offline',
+  '在线状态不明': 'Online status unknown',
+  '没有还没导入的设备': 'No devices left to import',
   'Android 不让选整个内部存储和「Download」文件夹本身（「使用此文件夹」是灰的），选它们下面的一个文件夹；没有就在选择器里新建一个。':
       'Android does not allow the whole internal storage or the Download folder itself (“Use this folder” is greyed out). Choose a folder inside them, or create one in the picker.',
   '没有选上目录。Android 不让选整个内部存储和「Download」文件夹本身，选它们下面的一个文件夹；没有就在选择器里新建一个。':

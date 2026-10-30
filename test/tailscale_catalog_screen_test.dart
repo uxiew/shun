@@ -19,11 +19,13 @@ import 'package:shun/infrastructure/tailscale/tailscale_api.dart';
 import 'package:shun/infrastructure/tailscale/tailscale_device.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:shun/presentation/screens/tailscale_catalog_screen.dart';
+import 'package:shun/presentation/screens/tailscale_settings_screen.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-// R13 界面：目录页显示缓存时间和「不完整」（TSC05），控制面状态不说成「在线」（TSC03），
-// 粘贴框遮挡、不保存（TSC09），导入只建主机、写明还没连接过（TSC06），编辑器里看得到来源和跟随状态。
+// R13 界面，R26 按所有者反馈改过：目录页显示缓存时间和「不完整」（TSC05），在线状态照 Tailscale 写、
+// 不说能连上（TSC03 的底线），key 框遮挡、tskey-api 不保存（TSC09），点设备按来源默认值导入、连接前问登录，
+// 编辑器里看得到来源和跟随状态。
 // 服务器是 MockClient，缓存仓库在内存里（widget 测试的假时钟下真实文件读写不会完成）。
 
 class MemoryCatalogRepository extends CatalogCacheRepository {
@@ -88,6 +90,17 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final client = MockClient((request) async {
       requests.add(request);
+      if (request.url.path == '/api/v2/oauth/token') {
+        return http.Response(
+          jsonEncode({
+            'access_token': 'tok-oauth',
+            'token_type': 'Bearer',
+            'expires_in': 3600,
+            'scope': 'devices:core:read',
+          }),
+          200,
+        );
+      }
       return replies.length > 1 ? replies.removeAt(0) : replies.first;
     });
     await tester.pumpWidget(ProviderScope(
@@ -148,140 +161,6 @@ void main() {
       .map((t) => t.data ?? t.textSpan?.toPlainText() ?? '')
       .join('\n');
 
-  testWidgets('TSC05/TSC03：来源页显示缓存时间和「不完整」；控制面不知道就写不知道，不出现「在线」',
-      (tester) async {
-    seedIncomplete();
-    await open(tester, const TailscaleCatalogScreen());
-    expect(find.text('home'), findsOneWidget);
-    final time = catalogTimeForTest(at);
-    expect(find.text('缓存时间：$time'), findsOneWidget);
-
-    await tester.tap(find.text('home'));
-    await tester.pumpAndSettle();
-    expect(find.text('缓存时间：$time'), findsOneWidget);
-    expect(find.byKey(const ValueKey('catalog-incomplete')), findsOneWidget);
-    expect(find.textContaining('1 条无法识别'), findsOneWidget);
-    expect(find.text('Tailscale 控制面：已连接'), findsOneWidget);
-    expect(find.text('Tailscale 控制面：不知道'), findsOneWidget);
-    final text = allText(tester);
-    for (final word in ['在线', '可连接', 'SSH 可用', 'online']) {
-      expect(text, isNot(contains(word)));
-    }
-    expect(requests, isEmpty); // 打开页面不发请求：只在用户操作时读
-  });
-
-  testWidgets('TSC09：粘贴 token 的输入框遮挡、关闭联想；读完不保存任何东西', (tester) async {
-    repo.caches['ts-home'] =
-        const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
-    await open(tester, const CatalogSourceScreen(catalogId: 'ts-home'));
-    expect(find.text('还没读过设备列表'), findsOneWidget);
-
-    await tester.tap(find.byKey(const ValueKey('catalog-read-token')));
-    await tester.pumpAndSettle();
-    final field = tester
-        .widget<TextField>(find.byKey(const ValueKey('catalog-secret-field')));
-    expect(field.obscureText, isTrue);
-    expect(field.enableSuggestions, isFalse);
-    expect(field.autocorrect, isFalse);
-    await tester.enterText(
-        find.byKey(const ValueKey('catalog-secret-field')), 'tskey-api-CANARY');
-    await tester.tap(find.text('读取'));
-    await tester.pumpAndSettle();
-
-    expect(requests.single.headers['authorization'], 'Bearer tskey-api-CANARY');
-    expect(find.text('nas'), findsOneWidget);
-    expect(find.text('laptop'), findsOneWidget);
-    expect(find.textContaining('读取成功，设备数：2'), findsOneWidget);
-    expect(find.textContaining('无法确认它只能读设备'), findsOneWidget);
-    expect(secrets.values, isEmpty);
-    expect(jsonEncode(repo.caches['ts-home']!.toJson()),
-        isNot(contains('CANARY')));
-  });
-
-  testWidgets('OAuth client：ID 和 secret 都填了才能点读取；「不完整」只说一次', (tester) async {
-    seedIncomplete();
-    await open(tester, const CatalogSourceScreen(catalogId: 'ts-home'));
-    expect(find.textContaining('不完整'), findsOneWidget);
-    await tester.tap(find.byKey(const ValueKey('catalog-read-oauth')));
-    await tester.pumpAndSettle();
-    FilledButton read() =>
-        tester.widget<FilledButton>(find.widgetWithText(FilledButton, '读取'));
-    expect(read().onPressed, isNull);
-    await tester.enterText(
-        find.byKey(const ValueKey('catalog-oauth-id')), 'cid');
-    await tester.pump();
-    expect(read().onPressed, isNull);
-    await tester.enterText(
-        find.byKey(const ValueKey('catalog-oauth-secret')), 'csecret');
-    await tester.pump();
-    expect(read().onPressed, isNotNull);
-    final secret = tester
-        .widget<TextField>(find.byKey(const ValueKey('catalog-oauth-secret')));
-    expect(secret.obscureText, isTrue);
-  });
-
-  testWidgets('读取失败：写明失败、缓存里的设备不动', (tester) async {
-    seedIncomplete();
-    replies = [http.Response('{"message":"boom"}', 500)];
-    await open(tester, const CatalogSourceScreen(catalogId: 'ts-home'));
-    await tester.tap(find.byKey(const ValueKey('catalog-read-token')));
-    await tester.pumpAndSettle();
-    await tester.enterText(
-        find.byKey(const ValueKey('catalog-secret-field')), 'tok');
-    await tester.tap(find.text('读取'));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('读取失败，缓存里的设备和主机都没动'), findsOneWidget);
-    expect(find.textContaining('最近一次读取失败：'), findsOneWidget);
-    expect(find.text('nas'), findsOneWidget);
-    expect(repo.caches['ts-home']!.devices, hasLength(2));
-  });
-
-  testWidgets('TSC06：导入要填用户名；只建主机不连接，提示还没连接过；已导入的不能再选', (tester) async {
-    seedIncomplete();
-    await vault.saveVault(VaultData.fromJson({
-      'hosts': [
-        HostProfile.create(
-                id: 'manual', label: 'manual', hostname: 'x', username: 'me')
-            .toJson(),
-      ],
-      'keys': [],
-      'snippets': [],
-      'customGroups': [],
-    }));
-    await open(tester, const CatalogSourceScreen(catalogId: 'ts-home'));
-    await tester.tap(find.byKey(const ValueKey('catalog-device-1')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('catalog-import-selected')));
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('不会默认用 root'), findsWidgets);
-    final confirm = find.byKey(const ValueKey('catalog-import-confirm'));
-    expect(tester.widget<TextButton>(confirm).onPressed, isNull);
-
-    await tester.enterText(
-        find.byKey(const ValueKey('catalog-import-username')), 'ubuntu');
-    await tester.pumpAndSettle();
-    expect(find.text('将新建主机：1'), findsOneWidget);
-    expect(find.text('nas  →  ubuntu@100.64.0.1:22'), findsOneWidget);
-    expect(find.textContaining('目标“nas”'), findsOneWidget);
-    await tester.tap(confirm);
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('已导入主机：1'), findsOneWidget);
-    expect(find.textContaining('还没有连接过'), findsOneWidget);
-    expect(find.text('已导入为主机：nas'), findsOneWidget);
-    final checkbox = tester.widget<CheckboxListTile>(
-        find.byKey(const ValueKey('catalog-device-1')));
-    expect(checkbox.onChanged, isNull);
-
-    final hosts = (await vault.loadVault()).hosts;
-    expect(hosts.map((h) => h.label), ['manual', 'nas']);
-    final added = hosts.last;
-    expect(added.username, 'ubuntu');
-    expect(CatalogBinding.of(added)!.deviceId, '1');
-    expect(requests, isEmpty); // 导入不发任何网络请求
-  });
-
   testWidgets('编辑器：显示来源、设备、目录状态和地址是否跟随；断开关联后保存只去掉关联', (tester) async {
     seedIncomplete();
     final host = HostProfile({
@@ -325,7 +204,8 @@ void main() {
     expect(text(), contains('来源：home'));
     expect(text(), contains('设备：nas · 1'));
     expect(text(), contains('目录状态：最近一次列表里有它'));
-    expect(text(), contains('Tailscale 控制面：已连接'));
+    expect(text(), contains('在线'));
+    expect(text(), isNot(contains('控制面')));
     expect(text(), contains('地址跟随目录'));
 
     await tester.enterText(
@@ -365,6 +245,282 @@ void main() {
         ).toJson(),
       };
 
+  testWidgets('TSC05/R26：来源页显示缓存时间和「不完整」；在线状态照 Tailscale 写，不说能连、SSH 可用',
+      (tester) async {
+    seedIncomplete();
+    await open(tester, const TailscaleCatalogScreen());
+    expect(find.text('home'), findsOneWidget);
+    final time = catalogTimeForTest(at);
+    expect(find.text('缓存时间：$time'), findsOneWidget);
+
+    await tester.tap(find.text('home'));
+    await tester.pumpAndSettle();
+    expect(find.text('缓存时间：$time'), findsOneWidget);
+    expect(find.byKey(const ValueKey('catalog-incomplete')), findsOneWidget);
+    expect(find.textContaining('1 条无法识别'), findsOneWidget);
+    // 设备 1 连着 Tailscale：在线、绿点；设备 2 没报：不明、不画点（不能当成离线）。
+    expect(find.text('在线'), findsOneWidget);
+    expect(find.text('在线状态不明'), findsOneWidget);
+    expect(find.byKey(const ValueKey('presence-online')), findsOneWidget);
+    expect(find.byKey(const ValueKey('presence-offline')), findsNothing);
+    final text = allText(tester);
+    for (final word in ['可连接', 'SSH 可用', '控制面']) {
+      expect(text, isNot(contains(word)));
+    }
+    expect(requests, isEmpty); // 打开页面不发请求：只在用户操作时读
+  });
+
+  /// 从一个按钮打开 Tailscale 设置页，记下它返回的结果（设置页保存后会自己关掉）。
+  Future<List<TailscaleSettingsResult?>> openSettings(
+      WidgetTester tester, String? catalogId) async {
+    final results = <TailscaleSettingsResult?>[];
+    await open(
+      tester,
+      Builder(
+        builder: (context) => Scaffold(
+          body: TextButton(
+            onPressed: () async => results.add(
+                await openTailscaleSettings(context, catalogId: catalogId)),
+            child: const Text('open'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    return results;
+  }
+
+  testWidgets('TSC09/R26：设置页的 key 框一直遮着、关联想；tskey-api 读一次不保存', (tester) async {
+    repo.caches['ts-home'] =
+        const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
+    final results = await openSettings(tester, 'ts-home');
+    final field =
+        tester.widget<TextField>(find.byKey(const ValueKey('ts-settings-key')));
+    expect(field.obscureText, isTrue);
+    expect(field.enableSuggestions, isFalse);
+    expect(field.autocorrect, isFalse);
+    expect(field.enableIMEPersonalizedLearning, isFalse);
+    expect(field.decoration?.suffixIcon, isNull, reason: '没有「显示」按钮');
+    await tester.enterText(
+        find.byKey(const ValueKey('ts-settings-key')), 'tskey-api-CANARY');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+
+    expect(requests.single.headers['authorization'], 'Bearer tskey-api-CANARY');
+    expect(results.single?.catalogId, 'ts-home');
+    expect(find.textContaining('读取成功，设备数：2'), findsOneWidget);
+    expect(find.textContaining('无法确认它只能读设备'), findsOneWidget);
+    expect(secrets.values, isEmpty);
+    expect(repo.caches['ts-home']!.devices, hasLength(2));
+    expect(jsonEncode(repo.caches['ts-home']!.toJson()),
+        isNot(contains('CANARY')));
+  });
+
+  testWidgets(
+      'R26：tskey-client 当 OAuth client 用，client ID 从 secret 里取，确认只读设备后存在本机',
+      (tester) async {
+    repo.caches['ts-home'] =
+        const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
+    await openSettings(tester, 'ts-home');
+    await tester.enterText(find.byKey(const ValueKey('ts-settings-key')),
+        ' tskey-client-kABC123CNTRL-s3cr3t ');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+
+    final token = requests.first;
+    expect(token.url.path, '/api/v2/oauth/token');
+    expect(token.bodyFields['client_id'], 'kABC123CNTRL');
+    expect(
+        token.bodyFields['client_secret'], 'tskey-client-kABC123CNTRL-s3cr3t');
+    expect(secrets.values.values,
+        containsAll(['kABC123CNTRL', 'tskey-client-kABC123CNTRL-s3cr3t']));
+    expect(repo.caches['ts-home']!.devices, hasLength(2));
+  });
+
+  testWidgets('R26：填错了种类的 key（auth key）直接说，不发请求、不关页面', (tester) async {
+    repo.caches['ts-home'] =
+        const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
+    final results = await openSettings(tester, 'ts-home');
+    await tester.enterText(
+        find.byKey(const ValueKey('ts-settings-key')), 'tskey-auth-k1-xyz');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('auth key'), findsOneWidget);
+    expect(requests, isEmpty);
+    expect(results, isEmpty);
+    expect(find.byKey(const ValueKey('ts-settings-key')), findsOneWidget);
+  });
+
+  testWidgets('读取失败：写明失败、留在设置页、缓存里的设备不动', (tester) async {
+    seedIncomplete();
+    replies = [http.Response('{"message":"boom"}', 500)];
+    final results = await openSettings(tester, 'ts-home');
+    await tester.enterText(
+        find.byKey(const ValueKey('ts-settings-key')), 'tok');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('读取失败，缓存里的设备和主机都没动'), findsOneWidget);
+    expect(results, isEmpty);
+    expect(find.byKey(const ValueKey('ts-settings-key')), findsOneWidget);
+    expect(repo.caches['ts-home']!.devices, hasLength(2));
+  });
+
+  testWidgets('R26：导入默认值存进来源、再打开时原样显示；只存设置不发请求', (tester) async {
+    repo.caches['ts-home'] =
+        const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
+    var results = await openSettings(tester, 'ts-home');
+    await tester.enterText(
+        find.byKey(const ValueKey('ts-settings-username')), ' ubuntu ');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-advanced')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+        find.byKey(const ValueKey('ts-settings-port')), '2222');
+    await tester.tap(find.text('MagicDNS 名称'));
+    await tester.enterText(
+        find.byKey(const ValueKey('ts-settings-group')), 'lab');
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+    expect(results.single?.removed, isFalse);
+    expect(repo.caches['ts-home']!.importDefaults, {
+      'username': 'ubuntu',
+      'port': 2222,
+      'address': 'fqdn',
+      'group': 'lab',
+    });
+    expect(requests, isEmpty);
+
+    results = await openSettings(tester, 'ts-home');
+    expect(
+        tester
+            .widget<TextField>(
+                find.byKey(const ValueKey('ts-settings-username')))
+            .controller!
+            .text,
+        'ubuntu');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-advanced')));
+    await tester.pumpAndSettle();
+    expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('ts-settings-port')))
+            .controller!
+            .text,
+        '2222');
+  });
+
+  testWidgets('R26：设置页里删除保存的 OAuth client、移除来源（主机都留着）', (tester) async {
+    seedIncomplete();
+    secrets.values['tailscale.catalog.ts-home.oauth.clientId'] = 'cid';
+    secrets.values['tailscale.catalog.ts-home.oauth.clientSecret'] = 'cs';
+    await saveHosts(
+        [boundHost('h1', 'nas', 'ts-home', '1', applied: '100.64.0.1')]);
+    final results = await openSettings(tester, 'ts-home');
+    expect(find.text('本机已保存 OAuth client，不填就用它刷新'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('ts-settings-forget-key')));
+    await tester.pumpAndSettle();
+    expect(secrets.values, isEmpty);
+    expect(find.byKey(const ValueKey('ts-settings-forget-key')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('ts-settings-remove')));
+    await tester.pumpAndSettle();
+    expect(find.text('关联它的主机：1'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('ts-settings-remove-confirm')));
+    await tester.pumpAndSettle();
+    expect(results.single?.removed, isTrue);
+    expect(repo.caches, isEmpty);
+    expect((await vault.loadVault()).hosts.single.label, 'nas');
+    expect(requests, isEmpty);
+  });
+
+  testWidgets('R26：点一台设备按默认值导入，连接前先问登录；取消就只留下主机、不连接', (tester) async {
+    seedIncomplete();
+    repo.caches['ts-home'] = repo.caches['ts-home']!
+        .copyWith(importDefaults: {'username': 'ubuntu'});
+    await saveHosts([
+      HostProfile.create(
+              id: 'manual', label: 'manual', hostname: 'x', username: 'me')
+          .toJson(),
+    ]);
+    await open(tester, const CatalogSourceScreen(catalogId: 'ts-home'));
+    expect(find.text('还没导入：点一下导入并连接'), findsNWidgets(2));
+    await tester.tap(find.byKey(const ValueKey('catalog-device-1')));
+    await tester.pumpAndSettle();
+
+    // 不再弹批量设置页；第一次连之前问这一台的用户名和密码，默认值先填好。
+    expect(find.byKey(const ValueKey('catalog-import-confirm')), findsNothing);
+    expect(find.byKey(const ValueKey('first-login-dialog')), findsOneWidget);
+    expect(
+        tester
+            .widget<TextField>(
+                find.byKey(const ValueKey('first-login-username')))
+            .controller!
+            .text,
+        'ubuntu');
+    await tester.tap(find.text('取消'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('已导入为主机：nas'), findsOneWidget);
+    expect(find.byKey(const ValueKey('catalog-device-menu-1')), findsNothing);
+    final hosts = (await vault.loadVault()).hosts;
+    expect(hosts.map((h) => h.label), ['manual', 'nas']);
+    final added = hosts.last;
+    expect(added.username, 'ubuntu');
+    expect(added.distro, 'linux');
+    expect(CatalogBinding.of(added)!.deviceId, '1');
+    expect(added.lastConnectedAt, 0);
+    expect(requests, isEmpty); // 导入不发任何网络请求
+  });
+
+  testWidgets('R26：「只导入，不连接」和「全部导入」：不弹窗、不连接，已导入的不再算', (tester) async {
+    seedIncomplete();
+    await open(tester, const CatalogSourceScreen(catalogId: 'ts-home'));
+    expect(find.text('全部导入：2'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('catalog-device-menu-2')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('catalog-import-only-2')));
+    await tester.pumpAndSettle();
+    expect(find.text('已导入主机：laptop'), findsOneWidget);
+    expect(find.byKey(const ValueKey('first-login-dialog')), findsNothing);
+    expect(find.text('全部导入：1'), findsOneWidget);
+    // 提示条排队显示：先把上一条清掉，才看得到「全部导入」的那条。
+    ScaffoldMessenger.of(tester.element(find.byType(ListView)))
+        .clearSnackBars();
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('catalog-import-all')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('已导入主机：1'), findsOneWidget);
+    expect(find.byKey(const ValueKey('catalog-import-all')), findsNothing);
+    final hosts = (await vault.loadVault()).hosts;
+    expect(hosts.map((h) => h.label).toSet(), {'laptop', 'nas'});
+    expect(hosts.every((h) => h.username.isEmpty), isTrue,
+        reason: '没设默认用户名：空着，第一次连接时问，不默认 root');
+    expect(requests, isEmpty);
+  });
+
+  testWidgets('R26：登录成功过的主机在设备页标「登录过」', (tester) async {
+    seedIncomplete();
+    await saveHosts([
+      {
+        ...boundHost('h1', 'nas', 'ts-home', '1', applied: '100.64.0.1'),
+        'lastConnectedAt': 1,
+      },
+      boundHost('h2', 'laptop', 'ts-home', '2', applied: '100.64.0.2'),
+    ]);
+    await open(tester, const CatalogSourceScreen(catalogId: 'ts-home'));
+    expect(
+        find.descendant(
+            of: find.byKey(const ValueKey('catalog-device-1')),
+            matching: find.byKey(const ValueKey('logged-in-mark'))),
+        findsOneWidget);
+    expect(
+        find.descendant(
+            of: find.byKey(const ValueKey('catalog-device-2')),
+            matching: find.byKey(const ValueKey('logged-in-mark'))),
+        findsNothing);
+  });
+
   testWidgets('X05 关联已有主机：只列没关联的主机；只写绑定、不改地址、不发请求', (tester) async {
     seedIncomplete();
     await saveHosts([
@@ -377,6 +533,8 @@ void main() {
       boundHost('bound', 'bound', 'ts-home', '9'),
     ]);
     await open(tester, const CatalogSourceScreen(catalogId: 'ts-home'));
+    await tester.tap(find.byKey(const ValueKey('catalog-device-menu-1')));
+    await tester.pumpAndSettle();
     await tester.tap(find.byKey(const ValueKey('catalog-link-1')));
     await tester.pumpAndSettle();
     expect(find.textContaining('一概不改'), findsOneWidget);
@@ -388,10 +546,7 @@ void main() {
 
     expect(find.text('已关联'), findsOneWidget);
     expect(find.text('已关联主机：my nas'), findsOneWidget);
-    expect(find.byKey(const ValueKey('catalog-link-1')), findsNothing);
-    final checkbox = tester.widget<CheckboxListTile>(
-        find.byKey(const ValueKey('catalog-device-1')));
-    expect(checkbox.onChanged, isNull);
+    expect(find.byKey(const ValueKey('catalog-device-menu-1')), findsNothing);
 
     final manual =
         (await vault.loadVault()).hosts.singleWhere((h) => h.id == 'manual');
@@ -423,12 +578,12 @@ void main() {
     expect(requests, isEmpty);
     expect(jsonEncode((await vault.loadVault()).hosts.single.data), before);
 
-    // 读一次同一个 tailnet：设备 1 对上，列表里显示它就是那台导入的主机。
-    await tester.tap(find.byKey(const ValueKey('catalog-read-token')));
+    // 在 Tailscale 设置里填 key 读一次同一个 tailnet：设备 1 对上，列表里显示它就是那台导入的主机。
+    await tester.tap(find.byKey(const ValueKey('catalog-open-settings')));
     await tester.pumpAndSettle();
     await tester.enterText(
-        find.byKey(const ValueKey('catalog-secret-field')), 'tok');
-    await tester.tap(find.text('读取'));
+        find.byKey(const ValueKey('ts-settings-key')), 'tok');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
     await tester.pumpAndSettle();
     expect(find.text('已导入为主机：nas'), findsOneWidget);
 
@@ -437,7 +592,7 @@ void main() {
     expect(find.byKey(const ValueKey('catalog-missing-ts-gone')), findsNothing);
   });
 
-  testWidgets('英文界面：来源页和导入页渲染出来的文字里没有汉字', (tester) async {
+  testWidgets('英文界面：来源页、设置页、导入页和首次登录渲染出来的文字里没有汉字', (tester) async {
     ShunLocalizations.use('en');
     addTearDown(() => ShunLocalizations.use('zh'));
     seedIncomplete();
@@ -463,26 +618,45 @@ void main() {
     await tester.pumpAndSettle();
     expect(han.allMatches(allText(tester)).map((m) => m.group(0)), isEmpty,
         reason: allText(tester));
-    expect(find.text('Tailscale control plane: unknown'), findsOneWidget);
+    expect(find.text('Online status unknown'), findsOneWidget);
     expect(find.textContaining('This list was incomplete'), findsOneWidget);
     // 设备列表的 ⓘ 是几段逐句本地化后拼的，其中一段是按片段翻的多行句子。
-    await tester.tap(find.byTooltip('About “Tick devices to import”'));
+    await tester.tap(find.byTooltip('About “Devices”'));
     await tester.pumpAndSettle();
     expect(find.textContaining('tailscale#16911'), findsOneWidget);
     expect(han.hasMatch(allText(tester)), isFalse, reason: allText(tester));
     await tester.tap(find.text('Got it'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('catalog-device-menu-2')));
+    await tester.pumpAndSettle();
+    expect(han.hasMatch(allText(tester)), isFalse, reason: allText(tester));
     await tester.tap(find.byKey(const ValueKey('catalog-link-2')));
     await tester.pumpAndSettle();
     expect(han.hasMatch(allText(tester)), isFalse, reason: allText(tester));
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('catalog-device-1')));
+    // Tailscale 设置页（展开「高级」）。
+    await tester.tap(find.byKey(const ValueKey('catalog-settings')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('catalog-import-selected')));
+    await tester.tap(find.byKey(const ValueKey('ts-settings-advanced')));
+    await tester.pumpAndSettle();
+    expect(han.hasMatch(allText(tester)), isFalse, reason: allText(tester));
+    await tester.tap(find.byKey(const ValueKey('ts-settings-cancel')));
+    await tester.pumpAndSettle();
+    // ⋮ →「用自定义设置导入」那一页。
+    await tester.tap(find.byKey(const ValueKey('catalog-more')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('catalog-import-custom')));
     await tester.pumpAndSettle();
     expect(han.hasMatch(allText(tester)), isFalse, reason: allText(tester));
     expect(find.textContaining('root is never assumed'), findsWidgets);
+    await tester.tap(find.byType(CloseButton));
+    await tester.pumpAndSettle();
+    // 点设备：首次登录的对话框。
+    await tester.tap(find.byKey(const ValueKey('catalog-device-1')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('first-login-dialog')), findsOneWidget);
+    expect(han.hasMatch(allText(tester)), isFalse, reason: allText(tester));
   });
 
   test('真实仓库：缓存目录还不存在时返回不可修改的空列表（界面必须先复制再排序）', () async {
@@ -516,15 +690,20 @@ void main() {
         findsOneWidget);
   });
 
-  testWidgets('添加来源：名称预先填「Tailscale」，被占了填「Tailscale 2」；建好后就叫它', (tester) async {
+  testWidgets('添加来源：走 Tailscale 设置页，名称预先填「Tailscale」，被占了填「Tailscale 2」；建好后就叫它',
+      (tester) async {
     repo.caches['ts-home'] = const CatalogCache(
         catalogId: 'ts-home', tailnet: '-', label: 'Tailscale');
     await open(tester, const TailscaleCatalogScreen());
     await tester.tap(find.byKey(const ValueKey('catalog-add-source')));
     await tester.pumpAndSettle();
-    expect(find.text('Tailscale 2'), findsOneWidget);
-    await tester.tap(find.text('添加'));
+    // 新建走 Tailscale 设置页，名称在「高级」里。
+    await tester.tap(find.byKey(const ValueKey('ts-settings-advanced')));
     await tester.pumpAndSettle();
+    expect(find.text('Tailscale 2'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+    expect(requests, isEmpty, reason: '没填 key 就只建来源，不读');
     final added = repo.caches.values.where((c) => c.catalogId != 'ts-home');
     expect(added.single.label, 'Tailscale 2');
     expect(

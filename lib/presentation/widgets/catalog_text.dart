@@ -69,13 +69,108 @@ String catalogRefreshReport(CatalogRefreshOutcome outcome) {
 Widget catalogLine(String label, String value, {TextStyle? style, Key? key}) =>
     Text('${localized(label)}$value', style: style, key: key);
 
-/// Tailscale 报告的控制面连接状态。故意不说「在线」：这只是设备连没连 Tailscale 的协调服务器，
-/// 不代表手机能连到它，更不代表 SSH 开着（TSC03、TSC06）。
-String controlPlaneText(bool? connected) => switch (connected) {
-      true => 'Tailscale 控制面：已连接',
-      false => 'Tailscale 控制面：未连接',
-      null => 'Tailscale 控制面：不知道',
+/// 设备在 Tailscale 里在不在线（R26：所有者要像 Tailscale App 那样看在线状态）。
+///
+/// 和 Tailscale App、后台显示的是同一回事：设备连没连着 Tailscale 的协调服务器。它不说明手机连得到、
+/// SSH 开着——那要真连一次才知道。状态截至缓存时间，组头写着。
+enum DeviceOnline { online, offline, unknown, gone }
+
+DeviceOnline deviceOnline(CatalogDeviceRecord? record) {
+  if (record == null || record.missing) return DeviceOnline.gone;
+  return switch (record.device.connectedToControl) {
+    true => DeviceOnline.online,
+    false => DeviceOnline.offline,
+    null => DeviceOnline.unknown,
+  };
+}
+
+/// 「在线」「离线 · 3 小时前在线」「列表里没有它了」。
+String deviceOnlineText(CatalogDeviceRecord? record, DateTime now) {
+  if (record == null) return localized('缓存里没有这台设备');
+  if (record.missing) return localized('最近的设备列表里没有它了');
+  final lastSeen = record.device.lastSeen;
+  return switch (record.device.connectedToControl) {
+    true => localized('在线'),
+    false when lastSeen != null =>
+      '${localized('离线 · 上次在线：')}${catalogAge(lastSeen, now) ?? catalogTime(lastSeen)}',
+    false => localized('离线'),
+    null => localized('在线状态不明'),
+  };
+}
+
+/// 在线绿点、离线灰点；不明和不见了的不画点，免得被当成离线。
+Color? deviceOnlineColor(DeviceOnline presence) => switch (presence) {
+      DeviceOnline.online => const Color(0xff22c55e),
+      DeviceOnline.offline => const Color(0xff9ca3af),
+      _ => null,
     };
+
+/// 图标右上角压一个在线点（右下角是协议角标）。
+class PresenceDot extends StatelessWidget {
+  const PresenceDot({
+    super.key,
+    required this.presence,
+    required this.size,
+    required this.child,
+  });
+
+  final DeviceOnline presence;
+  final double size;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = deviceOnlineColor(presence);
+    if (color == null) return child;
+    final dot = (size * 0.3).clamp(10.0, 14.0);
+    return SizedBox.square(
+      dimension: size,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          child,
+          Positioned(
+            right: -dot * 0.2,
+            top: -dot * 0.2,
+            child: Container(
+              key: ValueKey('presence-${presence.name}'),
+              width: dot,
+              height: dot,
+              decoration: BoxDecoration(
+                color: color,
+                shape: BoxShape.circle,
+                border: Border.all(
+                    color: Theme.of(context).colorScheme.surface, width: 2),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// 「✓ 登录过」：这台主机在本机成功登录过（R26）。只看本机记录，不同步、不代表现在还登得上。
+class LoggedInMark extends StatelessWidget {
+  const LoggedInMark({super.key, this.style});
+
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    const color = Color(0xff16a34a);
+    return Row(
+      key: const ValueKey('logged-in-mark'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(Icons.check_circle,
+            size: (style?.fontSize ?? 12) + 2, color: color),
+        const SizedBox(width: 3),
+        LText('登录过', style: style?.copyWith(color: color)),
+      ],
+    );
+  }
+}
 
 /// 64 位十六进制按 4 位一组，方便和别处的证书对着看。
 String formatDigest(String hex) => [

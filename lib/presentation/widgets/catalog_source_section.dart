@@ -96,8 +96,8 @@ class _CatalogSourceSectionState extends ConsumerState<CatalogSourceSection> {
                   LText(_presenceText(status.presence), style: small),
                   if (cache?.lastSuccess case final success?)
                     catalogLine('缓存时间：', catalogTime(success.at), style: small),
-                  if (record != null)
-                    LText(controlPlaneText(record.device.connectedToControl),
+                  if (record != null && !record.missing)
+                    Text(deviceOnlineText(record, DateTime.now()),
                         style: small),
                 ],
                 LText(

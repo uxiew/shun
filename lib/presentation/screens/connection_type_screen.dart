@@ -18,13 +18,23 @@ enum RemoteConnectionType { rustdesk, uu }
 
 class ConnectionTypeChoice {
   const ConnectionTypeChoice.terminal(this.protocol, {this.pluginId})
-      : remote = null;
+      : remote = null,
+        tailscale = false;
   const ConnectionTypeChoice.remote(this.remote)
       : protocol = null,
-        pluginId = null;
+        pluginId = null,
+        tailscale = false;
+
+  /// 从 Tailscale 导入（R26）：打开 Tailscale 设置，不建主机。
+  const ConnectionTypeChoice.tailscale()
+      : protocol = null,
+        pluginId = null,
+        remote = null,
+        tailscale = true;
   final HostProtocol? protocol;
   final String? pluginId;
   final RemoteConnectionType? remote;
+  final bool tailscale;
 }
 
 /// Selection only: probes installed clients, never authorizes, installs or launches.
@@ -161,6 +171,18 @@ class _ConnectionTypeScreenState extends ConsumerState<ConnectionTypeScreen> {
             hostProtocolIcon(HostProtocol.telnet)!,
             '明文，仅直连',
             const ConnectionTypeChoice.terminal(HostProtocol.telnet),
+          ),
+          const SizedBox(height: 8),
+          section(
+            '批量导入',
+            hint:
+                '填一个 Tailscale 的 key，自动列出 tailnet 里的设备，点一下就导入并连接。只读设备列表，不开 VPN。',
+          ),
+          choice(
+            'Tailscale',
+            Icons.hub_outlined,
+            null,
+            const ConnectionTypeChoice.tailscale(),
           ),
           const SizedBox(height: 8),
           section(
