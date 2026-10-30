@@ -1263,7 +1263,7 @@
       "id": "R28",
       "phase": "P5",
       "title": "凭据、外连与继承功能对抗审查",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [
         "R15",
         "R23",
@@ -1306,7 +1306,9 @@
       ],
       "stop_condition": "不能以框架secure_storage名称替代实际检查；安全硬项失败不豁免。",
       "owner_role": "独立审查代理",
-      "evidence": [],
+      "evidence": [
+        "evidence/R28.md"
+      ],
       "commit": null
     },
     {
