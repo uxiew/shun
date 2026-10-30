@@ -373,6 +373,12 @@ class ActiveTerminalSession {
   Future<void> get done =>
       sshSession?.done ?? telnetSocket?.done ?? plugin?.ended ?? Future.value();
 
+  /// 远端的 shell 自己退出了：服务器先发了退出状态或信号再关的通道（`exit`、Ctrl-D、shell 被结束）。
+  /// 这是会话结束，不是断线；断线时通道是跟着传输层一起没的，收不到这两样。
+  bool get remoteExited =>
+      sshSession != null &&
+      (sshSession!.exitCode != null || sshSession!.exitSignal != null);
+
   Future<void> ping({Duration timeout = const Duration(seconds: 8)}) async {
     if (!connected) throw StateError('SSH session is disconnected');
     // Mosh 自己管 UDP 上的保活和重传，宿主这边只能看插件会话还在不在。

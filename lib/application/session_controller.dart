@@ -1758,7 +1758,6 @@ class SessionController extends StateNotifier<SessionState> {
       session.abort();
       return;
     }
-    final shell = session.sshSession;
     _logEvent(ConnectionEvent(
       hostId: sourceHostIdOf(session.host),
       at: _now(),
@@ -1767,8 +1766,7 @@ class SessionController extends StateNotifier<SessionState> {
       connectedFor: _connectedClocks[session]?.elapsed,
       dropReason: session.plugin != null
           ? ConnectionDropReason.ended
-          : shell != null &&
-                  (shell.exitCode != null || shell.exitSignal != null)
+          : session.remoteExited
               ? ConnectionDropReason.exited
               : reason,
     ));
@@ -1796,7 +1794,6 @@ class SessionController extends StateNotifier<SessionState> {
       return;
     }
     final tmux = session.tmux;
-    final ssh = session.sshSession;
     if (session.aiTmuxRun != null) {
       session.restoreHold =
           const RestoreHold.untilUser('AI tmux 标签已断开；请从最近工作入口核对原窗格后返回。');
@@ -1804,9 +1801,7 @@ class SessionController extends StateNotifier<SessionState> {
       if (mounted) state = state.copyWith(sessions: [...state.sessions]);
       return;
     }
-    if (session.aiLaunch != null &&
-        ssh != null &&
-        (ssh.exitCode != null || ssh.exitSignal != null)) {
+    if (session.aiLaunch != null && session.remoteExited) {
       session.restoreHold = const RestoreHold.untilUser(
         'AI 工具已退出。此标签不会自动重启工具；可从工具列表显式新建。',
       );
@@ -1814,9 +1809,7 @@ class SessionController extends StateNotifier<SessionState> {
       if (mounted) state = state.copyWith(sessions: [...state.sessions]);
       return;
     }
-    if (tmux != null &&
-        ssh != null &&
-        (ssh.exitCode != null || ssh.exitSignal != null)) {
+    if (tmux != null && session.remoteExited) {
       // tmux 客户端自己退出了（分离、会话结束、server 退出）：这不是断线，不自动重新附着。
       // tmux 会话本身（如果还在）不受影响；要回去由用户在面板里明确再附着一次。
       session.restoreHold = RestoreHold.untilUser(
@@ -1831,7 +1824,23 @@ class SessionController extends StateNotifier<SessionState> {
       state = state.copyWith(sessions: [...state.sessions]);
       return;
     }
-    // 断了就把这一代的网络资源全部释放。shell 通道结束（比如输入了 exit）时，
+    if (session.remoteExited) {
+      // 远端 shell 自己退出了（输入了 exit、Ctrl-D，或 shell 被结束）：会话就是结束了，不自动恢复。
+      // 以前这里也走断线恢复，R26 所有者真机上 exit 之后标签又自己连回去，等于关不掉。
+      // 输入的结果也不算「未知」：最后一条就是让 shell 退出的那条。
+      // 跳板和目标的 SSH 连接这时可能还开着，abort 一并关掉（LIFE06）。
+      session.restoreHold = const RestoreHold.untilUser(
+        '会话已结束：远端的 shell 退出了（比如输入了 exit）。不会自动重连；要再用就点「重新连接」开一个新的 shell。',
+      );
+      session.abort();
+      session.terminal.showNotice(
+        '\r\n\x1b[33m会话已结束：远端的 shell 退出了，不会自动重连。\x1b[0m\r\n',
+      );
+      if (!mounted) return;
+      state = state.copyWith(sessions: [...state.sessions]);
+      return;
+    }
+    // 断了就把这一代的网络资源全部释放。shell 通道没收到退出状态就结束时，
     // 目标和各跳板的 SSH 连接可能还开着；不关的话每次断线恢复都会多留一整条链路（LIFE06）。
     // 借用这条连接的 SFTP、转发随之失效，不会被悄悄改走别的路线（docs/03）。
     if (session.sentInputOnThisConnection) session.inputResultUnknown = true;

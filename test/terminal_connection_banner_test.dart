@@ -68,6 +68,11 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('terminal-reconnect')));
     await tester.pump();
     expect(controller.reconnected, ['held']);
+    // 断开的标签顶上直接给「关闭」，不再确认（R26：输了 exit 要的是关掉）。
+    await tester.tap(find.byKey(const ValueKey('terminal-close-tab')));
+    await tester.pump();
+    expect(controller.closed, [0]);
+    expect(find.byType(AlertDialog), findsNothing);
 
     // 正在自动恢复：换成「正在恢复」，没网时说明在等网络。
     controller.publish(controller.state.copyWith(
@@ -108,6 +113,10 @@ class _RecordingController extends SessionController {
   }
 
   final reconnected = <String>[];
+  final closed = <int>[];
+
+  @override
+  Future<void> close(int index) async => closed.add(index);
 
   void publish(SessionState value) => state = value;
 

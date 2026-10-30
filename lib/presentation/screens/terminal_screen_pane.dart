@@ -506,6 +506,7 @@ class _ConnectionBanner extends StatelessWidget {
     this.onReconnect,
     this.onAcknowledge,
     this.onCancel,
+    this.onClose,
   });
 
   final String message;
@@ -516,6 +517,7 @@ class _ConnectionBanner extends StatelessWidget {
   final VoidCallback? onReconnect;
   final VoidCallback? onAcknowledge;
   final VoidCallback? onCancel;
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -565,6 +567,12 @@ class _ConnectionBanner extends StatelessWidget {
                 key: const ValueKey('terminal-switch-cancel'),
                 onPressed: onCancel,
                 child: const LText('取消'),
+              ),
+            if (onClose != null)
+              TextButton(
+                key: const ValueKey('terminal-close-tab'),
+                onPressed: onClose,
+                child: const LText('关闭'),
               ),
           ],
         ),

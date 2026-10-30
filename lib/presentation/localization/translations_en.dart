@@ -257,6 +257,8 @@ const englishTranslations = <String, String>{
       'This host needs a Tailscale check in the browser, and automatic recovery does not open the link for you. Close this tab and connect again from the host list to see the confirmation link.',
   '会话已结束。点「重新连接」会新开一个会话（新的 shell），不是接回原来那个。':
       'The session has ended. “Reconnect” opens a new session (a new shell); it does not resume the old one.',
+  '会话已结束：远端的 shell 退出了（比如输入了 exit）。不会自动重连；要再用就点「重新连接」开一个新的 shell。':
+      'The session has ended: the remote shell exited (for example, after exit). It will not reconnect automatically; tap “Reconnect” to open a new shell.',
   '已从通知「全部断开」。不会自动重连；要继续就点「重新连接」。':
       'Disconnected with “Disconnect all” in the notification. It will not reconnect automatically; tap “Reconnect” to continue.',
   '已从通知「全部断开」，这个会话断开了。':
@@ -2544,6 +2546,10 @@ const englishReplacements = <(String, String)>[
   (
     ' 如果还在，点「重新连接」会核对后附着它。',
     ': if it still exists, “Reconnect” verifies it and attaches.',
+  ),
+  (
+    '会话已结束：远端的 shell 退出了，不会自动重连。',
+    'Session ended: the remote shell exited. It will not reconnect automatically.',
   ),
   ('连接已断开，正在自动恢复（最多 ', 'Connection lost; restoring automatically (up to '),
   (' 分钟）…', ' minutes)…'),

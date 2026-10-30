@@ -155,6 +155,34 @@ void main() {
       expect(controller.state.recovering, isEmpty);
     });
 
+    test('远端 shell 自己退出（exit）：会话结束，不自动恢复（R26 真机 exit 后又自己连回去）', () async {
+      final host = hostWith();
+      await start(hosts: [host]);
+      final old = await connected(host);
+      final calls = service.calls.length;
+      old
+        ..inputSent = true
+        ..exited = true
+        ..drop();
+      await settle();
+      expect(service.calls.length, calls, reason: 'exit 不是断线，不去重连');
+      expect(controller.state.recovering, isEmpty);
+      expect(old.aborted, isTrue, reason: '目标和跳板的连接一并释放');
+      final hold = tab(old.id).restoreHold!;
+      expect(hold.kind, RestoreHoldKind.untilUser);
+      expect(hold.message, contains('shell 退出了'));
+      expect(tab(old.id).inputResultUnknown, isFalse,
+          reason: '最后一条输入就是让 shell 退出的那条，结果是知道的');
+      expect(old.terminal.allText(), contains('不会自动重连'));
+
+      clock = clock.add(const Duration(minutes: 1));
+      await controller.runRecoveryPass();
+      controller.setBackgrounded(true);
+      controller.setBackgrounded(false);
+      await settle();
+      expect(service.calls.length, calls, reason: '回前台也不自己连');
+    });
+
     test('密码错、指纹被拒、路线配置错：一次都不重试，写明原因等用户', () async {
       final host = hostWith();
       await start(hosts: [host]);
@@ -445,14 +473,17 @@ void main() {
       final opening = controller.openTmuxTerminal(parent, target);
       await settle();
       final call = service.calls.last;
-      final copy = _Session(call.sessionId, call.host, routePlan: call.routePlan);
+      final copy =
+          _Session(call.sessionId, call.host, routePlan: call.routePlan);
       call.result.complete(copy);
       expect(await opening, isTrue);
       await settle();
       expect(tab(copy.id).host.data['_ephemeralTerminal'], isTrue);
       // 对照：租期之前这份拷贝里三样都在。
-      expect(jsonEncode(tab(copy.id).host.data),
-          allOf(contains('r28-login'), contains('r28-telnet'), contains('r28-proxy')));
+      expect(
+          jsonEncode(tab(copy.id).host.data),
+          allOf(contains('r28-login'), contains('r28-telnet'),
+              contains('r28-proxy')));
 
       controller.setBackgrounded(true);
       await Future<void>.delayed(const Duration(milliseconds: 80));
@@ -779,7 +810,15 @@ class _Session extends ActiveTerminalSession {
   final _done = Completer<void>();
   bool aborted = false;
   bool failPing = false;
+  bool exited = false;
+  bool inputSent = false;
   final pingTimeouts = <Duration>[];
+
+  @override
+  bool get remoteExited => exited;
+
+  @override
+  bool get sentInputOnThisConnection => inputSent;
 
   void drop() {
     if (!_done.isCompleted) _done.complete();
