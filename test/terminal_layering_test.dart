@@ -71,17 +71,29 @@ void main() {
   });
 
   test('终端适配层拿不到网络、凭据和存储：不能拨号、读不到 secret（SEC09）', () {
-    final forbidden = RegExp(
-      r"import '(dart:io|package:dartssh2/|package:flutter_secure_storage/|"
-      r'package:shared_preferences/|\.\./ssh/|\.\./transport/|\.\./storage/|'
-      r'\.\./tailscale/|\.\./plugins/|\.\./\.\./domain/|\.\./\.\./application/)',
+    // 白名单，不是黑名单。R28 之前按「不许 import '../ssh/…'」这类写法拦，
+    // 换成 package:shun/infrastructure/ssh/… 或双引号就拦不住（实测过）。
+    // 要加依赖先想清楚：终端信任的是远端发来的字节，它能碰到的东西远端就可能碰到。
+    final allowed = RegExp(
+      r'^(dart:(async|collection|convert|math|typed_data)'
+      r'|package:flutter/(foundation|scheduler)\.dart'
+      r'|package:flterm/flterm\.dart|package:libghostty/libghostty\.dart'
+      r'|[a-z_]+\.dart)$', // 同目录的文件
     );
-    final offenders = [
+    final directive = RegExp(
+      r'''^\s*(import|export|part)\s+['"]([^'"]+)['"]''',
+      multiLine: true,
+    );
+    final directives = [
       for (final file in _dartFiles('lib/infrastructure/terminal'))
-        for (final line in _read(file).split('\n'))
-          if (forbidden.hasMatch(line)) '${_relative(file)}: $line',
+        for (final match in directive.allMatches(_read(file)))
+          (file: _relative(file), uri: match.group(2)!, text: match.group(0)),
     ];
-    expect(offenders, isEmpty);
+    expect(directives, isNotEmpty, reason: '对照：要真扫到 import');
+    expect([
+      for (final d in directives)
+        if (!allowed.hasMatch(d.uri)) '${d.file}: ${d.text}',
+    ], isEmpty);
   });
 
   test('连接层把远端字节原样交给终端，不在网络分包处转字符串（TER01）', () {
