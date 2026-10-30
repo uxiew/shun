@@ -1263,7 +1263,7 @@
       "id": "R28",
       "phase": "P5",
       "title": "凭据、外连与继承功能对抗审查",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "depends_on": [
         "R15",
         "R23",
@@ -1309,7 +1309,7 @@
       "evidence": [
         "evidence/R28.md"
       ],
-      "commit": null
+      "commit": "4e81701"
     },
     {
       "id": "R29",

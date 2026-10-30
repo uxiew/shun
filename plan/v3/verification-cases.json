@@ -153,7 +153,8 @@
       "evidence": [
         "evidence/R07.md",
         "evidence/R09.md",
-        "evidence/R14.md"
+        "evidence/R14.md",
+        "evidence/R28.md"
       ]
     },
     {
@@ -166,7 +167,8 @@
       "evidence": [
         "evidence/R07.md",
         "evidence/R09.md",
-        "evidence/R14.md"
+        "evidence/R14.md",
+        "evidence/R28.md"
       ]
     },
     {
@@ -178,7 +180,8 @@
       "inherited_from": "2026-09-28",
       "evidence": [
         "evidence/R07.md",
-        "evidence/R09.md"
+        "evidence/R09.md",
+        "evidence/R28.md"
       ]
     },
     {
@@ -189,7 +192,8 @@
       "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R09.md"
+        "evidence/R09.md",
+        "evidence/R28.md"
       ]
     },
     {
@@ -201,7 +205,8 @@
       "inherited_from": "2026-09-28",
       "evidence": [
         "evidence/R09.md",
-        "evidence/R11.md"
+        "evidence/R11.md",
+        "evidence/R28.md"
       ]
     },
     {
@@ -212,7 +217,8 @@
       "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R09.md"
+        "evidence/R09.md",
+        "evidence/R28.md"
       ]
     },
     {
@@ -224,7 +230,8 @@
       "inherited_from": "2026-09-28",
       "evidence": [
         "evidence/R09.md",
-        "evidence/R22.md"
+        "evidence/R22.md",
+        "evidence/R28.md"
       ]
     },
     {
@@ -235,7 +242,8 @@
       "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R19.md"
+        "evidence/R19.md",
+        "evidence/R28.md"
       ]
     },
     {
@@ -248,7 +256,8 @@
       "evidence": [
         "evidence/R16.md",
         "evidence/R17.md",
-        "evidence/R19.md"
+        "evidence/R19.md",
+        "evidence/R28.md"
       ]
     },
     {
@@ -259,7 +268,8 @@
       "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R19.md"
+        "evidence/R19.md",
+        "evidence/R28.md"
       ]
     },
     {
@@ -270,7 +280,8 @@
       "result": "PASS",
       "inherited_from": "2026-09-28",
       "evidence": [
-        "evidence/R21.md"
+        "evidence/R21.md",
+        "evidence/R28.md"
       ]
     },
     {
@@ -284,7 +295,8 @@
         "evidence/R11.md",
         "evidence/R14.md",
         "evidence/R24.md",
-        "evidence/R25.md"
+        "evidence/R25.md",
+        "evidence/R28.md"
       ]
     },
     {
@@ -724,7 +736,8 @@
       "level": "硬门禁",
       "result": "PASS",
       "evidence": [
-        "evidence/R01.md"
+        "evidence/R01.md",
+        "evidence/R28.md"
       ],
       "inherited_from": null
     },
@@ -1010,7 +1023,8 @@
       "evidence": [
         "evidence/R11.md",
         "evidence/R13.md",
-        "evidence/R15.md"
+        "evidence/R15.md",
+        "evidence/R28.md"
       ],
       "inherited_from": null
     },
@@ -1114,7 +1128,8 @@
       "level": "硬门禁",
       "result": "PASS",
       "evidence": [
-        "evidence/R09.md"
+        "evidence/R09.md",
+        "evidence/R28.md"
       ],
       "inherited_from": null
     },
