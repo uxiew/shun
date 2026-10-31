@@ -139,7 +139,7 @@ class _TerminalKeySettingsSheetState extends State<_TerminalKeySettingsSheet> {
       children: [
         ListTile(
           title: const LText('快捷键设置'),
-          subtitle: const LText('拖动排序；按键会根据屏幕宽度自动换行'),
+          subtitle: const LText('拖动排序，放不下自动换行'),
           trailing: TextButton(
             onPressed: () => setState(() {
               _working

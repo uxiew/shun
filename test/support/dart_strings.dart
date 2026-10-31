@@ -4,11 +4,14 @@
 /// `${…}` 里嵌的引号不会把一句切成两段；嵌在里面的字面量也单独返回。
 /// 只认引号、原始串、三引号、注释这些足够分辨字面量的语法，不是完整的 Dart 词法分析。
 class DartString {
-  DartString(
-      this.line, this.template, this.sample, this.interpolated, this.pieces);
+  DartString(this.line, this.offset, this.template, this.sample,
+      this.interpolated, this.pieces);
 
   /// 第一段所在的行号，从 1 起。
   final int line;
+
+  /// 第一段在源码里的位置。
+  final int offset;
 
   /// 运行时的文字，变量保留源码原样（`${entry.name}`），转义已展开。用来对英文表的键。
   final String template;
@@ -110,8 +113,8 @@ class _Scanner {
       i = save;
       break;
     }
-    out.add(DartString(lineAt(start), template.toString(), sample.toString(),
-        interpolated, pieces));
+    out.add(DartString(lineAt(start), start, template.toString(),
+        sample.toString(), interpolated, pieces));
   }
 
   /// 读一个字面量，返回 (模板, 样例, 有没有变量)。

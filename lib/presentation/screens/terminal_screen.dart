@@ -805,7 +805,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
       if (session.inputResultUnknown) {
         return _ConnectionBanner(
           key: const ValueKey('terminal-connection-banner'),
-          message: '断线前输入的结果未知。请先核查远端，再决定是否重试；应用不会自动重发。',
+          message: '断线前输入的结果未知。先核查远端再决定是否重试，应用不会自动重发。',
           warning: true,
           onAcknowledge: () => ref
               .read(sessionControllerProvider.notifier)

@@ -227,7 +227,7 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
       ),
       if (signers.any((s) => s.androidDebug))
         LText(
-          '这是 Android 调试证书：换一台电脑构建的本 App 证书就不同，插件要按新证书重新构建。',
+          '这是 Android 调试证书：换一台电脑构建，插件要按新证书重建。',
           style: small,
         ),
     ];

@@ -272,7 +272,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                     '保存的凭据中有 ${state.unreadableSecrets.length} 条无法解密',
                     hint: '设备密钥可能已失效，或数据被改动过。主机配置都还在；用到这些凭据的连接会被拒绝。',
                   ),
-                  subtitle: const LText('在编辑器里重新填写对应的密码或私钥'),
+                  subtitle: const LText('到编辑器里重填密码或私钥'),
                 ),
               ),
             ),

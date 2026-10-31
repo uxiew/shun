@@ -46,10 +46,9 @@ class _ServerMonitorSheetState extends State<ServerMonitorSheet> {
   /// 连接断了时顶上那一句。有旧数据就写明是几点读的，免得被当成现在的。
   String _offlineText(ServerStats? value) {
     if (value == null) {
-      return localized('这个标签的 SSH 连接已断开，读不到性能数据。重新连接后，从新连接打开性能监控。');
+      return localized('连接已断开，读不到数据。重新连接后再从新连接打开。');
     }
-    final note =
-        localized('这个标签的 SSH 连接已断开：下面是断开前最后一次读到的数据，不再刷新。重新连接后，从新连接打开性能监控。');
+    final note = localized('连接已断开，下面是断开前读到的数据。重新连接后再从新连接打开。');
     final at = value.sampledAt;
     return at == null
         ? note

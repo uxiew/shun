@@ -163,7 +163,7 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
-          const LText('选中的设备按同一套设置建成新主机。只写进保险库：不连接、不启动 VPN，第一次连接时照常核对指纹。'),
+          const LText('选中的设备建成新主机，只存不连，第一次连接时照常核对指纹。'),
           const FormGap(),
           TextField(
             key: const ValueKey('catalog-import-username'),
@@ -210,7 +210,7 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
           ),
           const SizedBox(height: 4),
           LText(
-            '地址跟随目录：以后刷新时设备地址变了，这些主机的地址会跟着改；你手动改过的就不再跟随。',
+            '以后刷新时地址跟着目录变，手动改过的不再跟。',
             style: small,
           ),
           const SizedBox(height: 16),

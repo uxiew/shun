@@ -442,7 +442,7 @@ void main() {
         );
     expect(describeProbeTmux(const ProbeOutcome(tty: null)), isNull);
     expect(describeProbeTmux(with_(TmuxAvailability.missing)),
-        contains('本 App 不会替你安装'));
+        contains('App 不会替你装'));
     expect(describeProbeTmux(with_(TmuxAvailability.unsupported)),
         contains('tmux 3.5a 不在本 App 实测过的版本里'));
     expect(

@@ -71,7 +71,7 @@ class KeychainSheet extends ConsumerWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
               child: LText(
-                '用户名 + 登录方式，多台主机共用一份：改一次密码，所有用它的主机都跟着变。在主机编辑器的「认证」里选。',
+                '多台主机共用一份登录方式，改一次全跟着变。在主机编辑器里选。',
                 style: small,
               ),
             ),

@@ -98,9 +98,8 @@ class _TailscaleCheckCardState extends ConsumerState<TailscaleCheckCard> {
             const SizedBox(height: 6),
             LText(
               link != null
-                  ? '在浏览器里确认后回到这里，这里会自己继续。回到 App 不代表已经通过，以这边的登录结果为准。'
-                  : '只打开 https://$tailscaleCheckHost/a/… 这种链接。可以终止连接；'
-                      '确认这是你自己的认证服务，也可以用别的方式（比如自建控制面的命令行）批准，这里会继续等到截止时间。',
+                  ? '在浏览器确认后回到这里会自动继续。回到 App 不代表已经通过。'
+                  : '只打开 https://$tailscaleCheckHost/a/… 这种链接。可以终止连接，或用别的方式批准后等它继续。',
               style: small,
             ),
             if (prompt.banner.text.isNotEmpty) ...[

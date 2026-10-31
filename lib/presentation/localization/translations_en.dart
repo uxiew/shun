@@ -172,8 +172,6 @@ const englishTranslations = <String, String>{
       r'You can launch in a new terminal. Native resume has not been verified; you can also use the executable path manually in a regular terminal.',
   // R23: uncertain input after a transport break.
   r'已核查': r'Checked',
-  r'断线前输入的结果未知。请先核查远端，再决定是否重试；应用不会自动重发。':
-      r'The result of input sent before disconnection is unknown. Check the remote state before retrying; the app will not resend it.',
   r'断线前输入的结果未知，请核查远端。':
       r'The result of input sent before disconnection is unknown; check the remote state.',
   r'这是恢复后的连接。断线前输入的最终执行结果未知；请先核查远端，不会自动重发。':
@@ -851,15 +849,7 @@ const englishTranslations = <String, String>{
   '停止': 'Stop',
   '重启': 'Restart',
   // R24：端口转发跟着借来的 SSH 连接走。
-  '这个标签的 SSH 连接已断开，不能在这里开新转发。重新连接后，从新连接打开端口转发。':
-      'This tab’s SSH connection is gone, so no new forward can start here. Reconnect, then open port forwarding from the new connection.',
   '已停止': 'Stopped',
-  '这个标签的 SSH 连接已断开，读不到性能数据。重新连接后，从新连接打开性能监控。':
-      'This tab’s SSH connection is gone, so no performance data can be read. Reconnect, then open monitoring from the new connection.',
-  '这个标签的 SSH 连接已断开：下面是断开前最后一次读到的数据，不再刷新。重新连接后，从新连接打开性能监控。':
-      'This tab’s SSH connection is gone: below is the last data read before it dropped, and it no longer refreshes. Reconnect, then open monitoring from the new connection.',
-  '这个标签的 SSH 连接已断开：这里的操作都不会执行。重新连接后，从新连接打开系统管理。':
-      'This tab’s SSH connection is gone: nothing here will run. Reconnect, then open system management from the new connection.',
   '从列表里去掉': 'Remove from the list',
   '标签已关闭，转发已停止': 'The tab was closed, so the forward stopped',
   'SSH 连接断开了，转发已停止；不会自动重开':
@@ -960,8 +950,6 @@ const englishTranslations = <String, String>{
   '是这台手机上的终端引擎没能启动，还没开始连服务器。这个版本只带 Ghostty，没有别的引擎可换；「设置 → 终端」的「终端引擎」里能看到原话，「检查」可以再试一次。':
       'The terminal engine on this phone failed to start; no connection to the server was attempted. This version ships only Ghostty, so there is no other engine to switch to. Settings → Terminal → Terminal engine shows the exact error, and Check tries again.',
   '无法启动：': 'Failed to start: ',
-  '这个版本只带 Ghostty，没有别的引擎可换：连接会直接失败，不会悄悄换成别的引擎。':
-      'This version ships only Ghostty and has no other engine: connections fail outright instead of silently switching to another engine.',
   '正常，这次运行建过的终端：': 'Working. Terminals created this run: ',
   '这次运行还没开过终端': 'No terminal opened yet this run',
   '正在等待 GitHub 授权…': 'Waiting for GitHub authorization…',
@@ -1105,6 +1093,82 @@ const englishTranslations = <String, String>{
   '最近备份 \$hour:\$minute': 'Last backup \$hour:\$minute',
   r'将从保险库中删除“${host.label}”，此操作可通过云端备份传播到其他设备。':
       r'Delete “${host.label}” from the vault? This can reach other devices through cloud backup.',
+  '到编辑器里重填密码或私钥': 'Re-enter the password or key in the editor',
+  '关着也会用提示词要结构化命令':
+      'Structured commands are still requested through the prompt',
+  '拖动排序，放不下自动换行': 'Drag to reorder; keys wrap when they run out of room',
+  '这是 Android 调试证书：换一台电脑构建，插件要按新证书重建。':
+      'This is an Android debug certificate. Build on another computer and plugins must be rebuilt for the new certificate.',
+  '这张证书没核对过，分不出是重签、自编译还是冒牌。确定来源才批准。':
+      'This certificate hasn\'t been verified, and a re-signed, self-built or fake app can\'t be told apart. Approve only if you trust the source.',
+  'RustDesk 换了签名证书，可能是重装，也可能是冒牌。核对前不发请求。':
+      'RustDesk changed its signing certificate. It may be a reinstall or a fake. Nothing is sent until you check.',
+  '看不懂这个版本号，连接链接按核对过的写法发。':
+      'This version number can\'t be read. Connection links use the verified format.',
+  '这个版本会执行外来的改密码、改服务器链接。建议至少更新到：':
+      'This version obeys outside links that change the password or server. Update to at least: ',
+  '这个版本比核对过的新，出问题先怀疑这里。核对过的最高版本：':
+      'This version is newer than the verified ones, so suspect this first if something goes wrong. Newest verified: ',
+  '这张证书没核对过。确定是官方渠道（uuyc.163.com、应用商店）装的才批准。':
+      'This certificate hasn\'t been verified. Approve only if it came from an official source (uuyc.163.com or an app store).',
+  'UU 远程换了签名证书，可能是重装，也可能是冒牌。核对前不发请求。':
+      'UU Remote changed its signing certificate. It may be a reinstall or a fake. Nothing is sent until you check.',
+  'UU 的回报可能被它截走，绑定和小窗远控先不发。卸载它再回来。':
+      'It could intercept UU\'s replies, so binding and small-window control are held back. Uninstall it, then come back.',
+  '选中的设备建成新主机，只存不连，第一次连接时照常核对指纹。':
+      'Selected devices become new hosts. Nothing connects now; the fingerprint is checked on first connection as usual.',
+  '以后刷新时地址跟着目录变，手动改过的不再跟。':
+      'Addresses follow the catalog on refresh, unless you edit them by hand.',
+  '核对指纹、登录、只读检查一遍。不打开 shell，不跑启动命令。':
+      'Checks the fingerprint and login, then read-only checks. No shell, no startup command.',
+  'tmux：远端没有 tmux，只能开普通 shell，App 不会替你装。':
+      'tmux: not on the remote. Only a plain shell is available, and the app will not install it for you.',
+  '选了「私钥」，登录时不发密码。已存的密码留着，改回来还能用。':
+      'Private key selected: no password is sent at login. The saved password stays and works again if you switch back.',
+  '选了「密码」，登录时不发私钥。已选的私钥留着，改回来还能用。':
+      'Password selected: no private key is sent at login. The chosen key stays and works again if you switch back.',
+  '不发密码和私钥，由 Tailscale 按策略放行。要 check 时在浏览器里确认。':
+      'No password or key is sent; Tailscale allows it by policy. If check is required, confirm in the browser.',
+  '已存的密码、私钥留着不用，改回普通 SSH 还能用。':
+      'Saved passwords and keys stay unused and work again if you switch back to plain SSH.',
+  '多台主机共用一份登录方式，改一次全跟着变。在主机编辑器里选。':
+      'One sign-in shared by many hosts: change it once and they all follow. Pick it in the host editor.',
+  '连接已断开，开不了新转发。重新连接后再从新连接打开。':
+      'Disconnected, so new forwards can\'t start. Reconnect, then open this from the new connection.',
+  '连接已断开，这里的操作都不会执行。重新连接后再从新连接打开。':
+      'Disconnected, so nothing here will run. Reconnect, then open this from the new connection.',
+  '连接已断开，读不到数据。重新连接后再从新连接打开。':
+      'Disconnected, so no data can be read. Reconnect, then open this from the new connection.',
+  '连接已断开，下面是断开前读到的数据。重新连接后再从新连接打开。':
+      'Disconnected. This is the last data read before that. Reconnect, then open this from the new connection.',
+  '支持 OpenAI Chat Completions 兼容接口。密钥只存在本机安全存储。':
+      'Works with OpenAI Chat Completions compatible APIs. Keys stay in secure storage on this device.',
+  '目录状态：最近完整列表里没有它': 'Catalog: not in the latest full list',
+  '这个版本只带 Ghostty，没有别的引擎可换，连接会直接失败。':
+      'This build only has Ghostty, with no other engine to fall back on, so connections fail outright.',
+  '断线前输入的结果未知。先核查远端再决定是否重试，应用不会自动重发。':
+      'The result of input sent before the disconnect is unknown. Check the remote before retrying; nothing is resent automatically.',
+  '目录状态：本机没有这个来源，可在设备目录里恢复':
+      'Catalog: this source is not on this device. Restore it from the device catalog',
+  '要先有一个连着的 SSH 标签': 'An SSH tab must be connected first',
+  '选一个会话，在新标签里附着': 'Pick a session to attach in a new tab',
+  '在浏览器确认后回到这里会自动继续。回到 App 不代表已经通过。':
+      'After confirming in the browser, come back here and it continues by itself. Coming back does not mean the check passed.',
+  '还没有能用的插件。装好后到「设置 → 插件（实验）」批准；Mosh 请选 Mosh 协议。':
+      'No usable plugin yet. Install one, then approve it in Settings → Plugins (experimental). For Mosh, choose the Mosh protocol.',
+  '插件自己联网，不走代理和跳板，也拿不到这台主机的地址和凭据。':
+      'The plugin uses its own network, without proxies or jump hosts, and never gets this host\'s address or credentials.',
+  '等了 10 分钟 UU 没有回报，这次绑定结果未确认。可以重新发起。':
+      'UU did not reply within 10 minutes, so this binding is unconfirmed. You can start again.',
+  '等了 10 分钟 UU 没有回报，这次小窗结果未确认。可以重新发起。':
+      'UU did not reply within 10 minutes, so this small-window result is unconfirmed. You can start again.',
+  '已打开 UU 的设备授权页。它停在登录页就不会回报：点「结束等待」，登录好再来。':
+      'Opened UU\'s device authorization page. It won\'t reply from its login page: tap "Stop waiting", log in, then come back.',
+  r'以后从主机列表连这台都用 ${option.transport.label}':
+      r'From now on the host list connects with ${option.transport.label}',
+  r'附着同一个 tmux 会话 ${tmux!.displayName}，核对过才换过去，不重发输入':
+      r'Attaches the same tmux session ${tmux!.displayName}, moves over only after verifying, and resends nothing',
+  r'另开一个 $to 标签，这个标签不动': r'Opens another $to tab; this one stays as it is',
   '合并': 'Merge',
   '替换': 'Replace',
   // R13：Tailscale 设备目录（tailscale_catalog_screen.dart、catalog_import_sheet.dart、
@@ -1143,15 +1207,11 @@ const englishTranslations = <String, String>{
   '已导入为主机：': 'Imported as host: ',
   '导入为主机': 'Import as hosts',
   '导入': 'Import',
-  '选中的设备按同一套设置建成新主机。只写进保险库：不连接、不启动 VPN，第一次连接时照常核对指纹。':
-      'The selected devices become new hosts with the same settings. Only the vault is written: nothing connects, no VPN starts, and fingerprints are verified on first connection as usual.',
   '登录用户名': 'Login username',
   '服务器上的 Unix 用户，比如 ubuntu。必须填，不会默认用 root。':
       'The Unix user on the server, such as ubuntu. Required; root is never assumed.',
   '用设备的哪个地址': 'Which device address to use',
   'MagicDNS 名称': 'MagicDNS name',
-  '地址跟随目录：以后刷新时设备地址变了，这些主机的地址会跟着改；你手动改过的就不再跟随。':
-      'Addresses follow the directory: when a device address changes on refresh, these hosts follow it, unless you edit the address yourself.',
   '手机直接连设备地址。连 100.x 这类 Tailscale 地址，手机上要开着官方 Tailscale App——本 App 不会替你开。':
       'The phone connects to the device address directly. For 100.x Tailscale addresses the official Tailscale app must be running on the phone; this app will not start it.',
   '自动': 'Auto',
@@ -1183,11 +1243,7 @@ const englishTranslations = <String, String>{
       'Unlinks on save: the host and its settings stay, and refreshes stop changing it.',
   '断开和目录的关联': 'Unlink from the directory',
   '目录状态：最近一次列表里有它': 'Directory status: in the latest list',
-  '目录状态：最近完整列表里没有它（设备可能被删、换了 tailnet，或是看不到的共享设备）':
-      'Directory status: not in the latest complete list (the device may be deleted, moved to another tailnet, or be a shared device that is not visible)',
   '目录状态：缓存里没有这台设备': 'Directory status: this device is not in the cache',
-  '目录状态：本机没有这个来源（来源被移除，或主机是从别的手机导入的）。可以在「Tailscale 设备目录」里恢复它。':
-      'Directory status: this source is not on this device (it was removed, or the host was imported from another phone). You can restore it under "Tailscale device directory".',
   '要填登录用户名：目录不知道服务器上的 Unix 用户，不会默认用 root。':
       'Enter a login username: the directory does not know the Unix user on the server, and root is never assumed.',
   '用户名里不能有空格或控制字符。':
@@ -1251,8 +1307,6 @@ const englishTranslations = <String, String>{
   '本 App 的签名证书 SHA-256（插件里要写信任这一张）：':
       'Signing certificate SHA-256 of this app (your plugin must trust this one):',
   '读不出来': 'Could not read it',
-  '这是 Android 调试证书：换一台电脑构建的本 App 证书就不同，插件要按新证书重新构建。':
-      'This is an Android debug certificate: a build of this app from another computer has a different one, and the plugin must be rebuilt for it.',
   '会话测试': 'Session test',
   '给插件作者核对插件用：连接、打开一个 80×24 的终端会话、看插件写回来什么、发一行字、改尺寸、关闭，每一步写在下面。本 App 不替插件发任何东西，只发你在下面敲的那一行。':
       'For plugin authors to check a plugin: connect, open an 80×24 terminal session, see what the plugin writes back, send a line, resize and close; each step is listed below. This app sends nothing on its own, only the line you type below.',
@@ -1434,22 +1488,14 @@ const englishTranslations = <String, String>{
   'UU 远程联动目前只支持 Android。': 'UU Remote integration is Android only for now.',
   '这个 UU 远程由多张证书签名，暂不支持。':
       'This UU Remote is signed by several certificates, which is not supported yet.',
-  '手机上的 UU 远程换了签名证书：可能是换了渠道重装，也可能是冒牌的。核对之前不会再发任何请求。':
-      'UU Remote on this phone has a different signing certificate: it may have been reinstalled from another source, or it may be fake. No request is sent until you check it.',
   '签名证书和从官方下载的一致。':
       'The signing certificate matches the one from the official download.',
   '签名证书是你批准过的那张（还没和官方 APK 核对）。':
       'The signing certificate is the one you approved (not yet checked against the official APK).',
-  '已打开 UU 远程的设备授权页，等它回报。UU 要是停在登录页或用户须知上，它不会回报：回来点「结束等待」，在 UU 里登录好再重新发起。':
-      'Opened the device authorization page of UU Remote; waiting for its reply. If UU stays on its login page or user agreement, it sends no reply: come back, tap "Stop waiting", log in to UU, then start again.',
   '你结束了等待：这次绑定结果未确认，UU 之后的回报会被忽略。':
       'You stopped waiting: this binding result is unconfirmed, and any later reply from UU will be ignored.',
   '你结束了等待：这次小窗结果未确认，UU 之后的回报会被忽略。':
       'You stopped waiting: this picture-in-picture result is unconfirmed, and any later reply from UU will be ignored.',
-  '等了 10 分钟 UU 没有回报：这次绑定结果未确认，UU 之后的回报会被忽略。可以重新发起。':
-      'UU did not reply within 10 minutes: this binding result is unconfirmed, and any later reply from UU will be ignored. You can start again.',
-  '等了 10 分钟 UU 没有回报：这次小窗结果未确认，UU 之后的回报会被忽略。可以重新发起。':
-      'UU did not reply within 10 minutes: this picture-in-picture result is unconfirmed, and any later reply from UU will be ignored. You can start again.',
   '正在打开 UU 远程…': 'Opening UU Remote…',
   '如果你没有刚在 UU 里选过设备，点「不要」：这条回调可能不是你发起的。':
       'If you did not just pick a device in UU, tap "No": this callback may not come from you.',
@@ -1494,8 +1540,6 @@ const englishTranslations = <String, String>{
       "Another app also claims this app's UU callback address, so the returned device cannot be trusted and was not used",
   '另有 App 也声明了本 App 的 UU 回调地址：':
       "Another app also claims this app's UU callback address: ",
-  'UU 的回报可能被它截走或冒充，所以绑定和小窗远控现在不发；全屏远控不受影响。卸载它之后回到这里。':
-      "It could intercept or fake UU's replies, so binding and picture-in-picture are not sent for now; full-screen remote control is unaffected. Uninstall it, then come back here.",
   'UU 正在远控别的设备，或在做不能同时进行的事':
       'UU is controlling another device or doing something that cannot run at the same time',
   '目标电脑离线': 'The target computer is offline',
@@ -1605,8 +1649,6 @@ const englishTranslations = <String, String>{
   '装着的 RustDesk 版本太旧：': 'The installed RustDesk is too old: ',
   '从这个版本起 RustDesk 才接受别的 App 发来的连接请求，请先更新：':
       'RustDesk accepts connection requests from other apps only from this version on; update first: ',
-  '你信任的那个 RustDesk 换了签名证书：可能是换了渠道重装，也可能是冒牌的。核对之前不会再发任何请求。':
-      'The RustDesk you trusted has a different signing certificate: it may have been reinstalled from another source, or it may be fake. No request is sent until you check it.',
   '撤销信任': 'Revoke trust',
   '签名证书和 GitHub 官方发行版的一致。':
       'The signing certificate matches the official GitHub release.',
@@ -1615,8 +1657,6 @@ const englishTranslations = <String, String>{
       'This is a client you explicitly trusted. This app has not checked where it came from.',
   '这个版本的连接链接按源码核对过。':
       'The connection link for this version was checked against its source code.',
-  '看不懂这个版本号，没法和核对过的版本对照。连接链接按核对过的写法发。':
-      'The version number cannot be read, so it cannot be compared with the checked versions. The connection link is sent in the checked form.',
   '另有 App 也声明能打开 rustdesk://：': 'Another app also claims rustdesk://: ',
   '本 App 不会把请求发给它，除非你明确信任它。':
       'This app never sends requests to it unless you explicitly trust it.',
@@ -1781,8 +1821,6 @@ const englishTranslations = <String, String>{
   '在浏览器中打开': 'Open in browser',
   '在浏览器里用你的 Tailscale 账号确认这次 SSH 登录':
       'Confirm this SSH login with your Tailscale account in the browser',
-  '在浏览器里确认后回到这里，这里会自己继续。回到 App 不代表已经通过，以这边的登录结果为准。':
-      'After confirming in the browser, come back here; this screen continues by itself. Coming back to the app does not mean the check passed: only the SSH login result here counts.',
   '已交给浏览器，还在等 Tailscale 回话。':
       'Handed to the browser; still waiting for Tailscale to answer.',
   '没有能打开这个链接的浏览器。装一个浏览器后再点，或者终止连接。':
@@ -1964,8 +2002,6 @@ const englishTranslations = <String, String>{
       'Connecting with Mosh from the host list opens a plain shell inside mosh-server. Closing the tab or rebooting the server ends mosh-server and its programs; Reconnect starts a new mosh-server and cannot get the old one back.',
   '想断开后程序还在：先用 SSH 连上，在「系统管理 → tmux」里附着一个 tmux 会话，再点终端顶上的徽标切到 Mosh——还是同一个 tmux 会话。这样的 Mosh 标签断了，点「重新连接」会核对后附着回那个会话。':
       'To keep programs running after a disconnect: connect with SSH, attach a tmux session in System management → tmux, then tap the badge at the top of the terminal to switch to Mosh — it stays the same tmux session. If such a Mosh tab drops, Reconnect verifies that session and attaches it again.',
-  'tmux：远端没有 tmux。这台机器只能开普通 shell，断开后里面的程序随之结束。本 App 不会替你安装。':
-      'tmux: the server has no tmux. This machine can only open a plain shell, and its programs end when you disconnect. This app does not install it for you.',
   '会话密钥已清除': 'The session key has been wiped',
   r'MoshBootstrapResult(port: $port, serverPid: $serverPid, key: <已隐藏>)':
       r'MoshBootstrapResult(port: $port, serverPid: $serverPid, key: <hidden>)',
@@ -2008,20 +2044,12 @@ const englishTranslations = <String, String>{
   '切完之前这个标签照常能用。': 'This tab keeps working until the switch completes.',
   r'切换到 $to（同一个 tmux 会话）': r'Switch to $to (same tmux session)',
   r'用 $to 另开一个': r'Open another tab with $to',
-  r'另开一个 $to 标签（新的 shell），这个标签和里面的 shell 不动。':
-      r'Opens another $to tab (a new shell); this tab and its shell stay as they are.',
   r'把 ${option.transport.label} 设为这台主机的默认':
       r'Make ${option.transport.label} the default for this host',
-  r'以后从主机列表连这台都用 ${option.transport.label}。开着的标签不变，Mosh 的端口、路径设置照旧留着。':
-      r'Connecting this host from the host list will use ${option.transport.label}. Open tabs do not change, and Mosh port and path settings are kept.',
   r'已把 ${option.transport.label} 设为这台主机的默认':
       r'${option.transport.label} is now the default for this host',
   '选 tmux 会话…': 'Pick a tmux session…',
   '选 tmux 会话': 'Pick a tmux session',
-  '要先有一个连着的 SSH 标签才能列出这台主机上的 tmux 会话（Mosh 标签自己查不了）。':
-      'Listing tmux sessions on this host needs a connected SSH tab (a Mosh tab cannot query them itself).',
-  '只读列出会话，选了在新标签里附着；按完整身份核对，不按名字、不新建。':
-      'Lists sessions read-only; the one you pick is attached in a new tab, verified by its full identity, never by name, and nothing is created.',
   '这些端口转发会停掉': 'These port forwards will stop',
   r'切到 Mosh 后这条 SSH 会关掉，上面的 ${forwards.length} 条转发跟着停：':
       r'Switching to Mosh closes this SSH, and these ${forwards.length} forwards stop with it:',
@@ -2254,8 +2282,6 @@ const englishTranslations = <String, String>{
   '登录身份': 'Login identities',
   '登录身份（用户名 + 密码或密钥）、SSH 密钥':
       'Login identities (username + password or key), SSH keys',
-  '用户名 + 登录方式，多台主机共用一份：改一次密码，所有用它的主机都跟着变。在主机编辑器的「认证」里选。':
-      'A username plus a sign-in method, shared by several hosts: change the password once and every host using it follows. Pick one under “Authentication” in the host editor.',
   '新建登录身份': 'New login identity',
   '编辑登录身份': 'Edit login identity',
   '删除登录身份': 'Delete login identity',
@@ -2393,10 +2419,6 @@ const englishTranslations = <String, String>{
   // R25 第四部分：主机详情的认证一行（host_summary.dart 的 describeLogin）。带私钥名字的几句在片段表。
   '密码（没保存，登录时问你）': 'Password (not saved; you are asked when logging in)',
   '保存的密码': 'the saved password',
-  '选了「私钥」：登录时不发密码。已保存的密码留着，改回「自动」或「密码」时照常使用。':
-      'With “Private key”, no password is sent when logging in. The saved password is kept and used again if you switch back to “Automatic” or “Password”.',
-  '选了「密码」：登录时不发私钥。已选的私钥留着，改回「自动」或「私钥」时照常使用。':
-      'With “Password”, no private key is sent when logging in. The chosen key is kept and used again if you switch back to “Automatic” or “Private key”.',
   '私钥（引用的私钥已不存在，连接会被拒绝）':
       'Private key (the referenced key no longer exists, so connecting is refused)',
   '自动（没保存私钥和密码，登录时问你）':
@@ -2450,7 +2472,6 @@ const englishTranslations = <String, String>{
   '没有插件': 'No plugins',
   '设备密钥可能已失效，或数据被改动过。主机配置都还在；用到这些凭据的连接会被拒绝。':
       'The device key may have been invalidated, or the data was altered. Host settings are intact; connections that need these credentials are refused.',
-  '在编辑器里重新填写对应的密码或私钥': 'Re-enter the password or private key in the editor',
   '原终端仍连接': 'Original terminal still connected',
   'Telnet 只能直连；保存时会去掉这台主机的代理和跳板。':
       'Telnet is direct only; saving removes this host’s proxy and jump hosts.',
@@ -2501,20 +2522,12 @@ const englishTranslations = <String, String>{
       'UU reports this binding is no longer valid; bind again',
   'UU 不走这台主机的代理或跳板，用它自己的网络':
       'UU does not use this host’s proxy or jump host; it uses its own network',
-  '这张证书还不在本 App 核对过的官方证书里。确定是从官方渠道（uuyc.163.com 或正规应用商店）装的才批准。':
-      'This certificate is not among the official ones this app has checked. Approve it only if you are sure UU Remote came from an official source (uuyc.163.com or a reputable app store).',
   '只删本 App 里的这条关联，RustDesk 里的设备、密码和服务器设置不受影响。':
       'Only this link in this app is deleted; devices, passwords and server settings in RustDesk are not affected.',
   '在被控电脑的 RustDesk 主界面上看「ID」，照着填。只填 ID：密码到 RustDesk 里输，本 App 不保存、也不传密码。保存只是记下 ID，不会打开 RustDesk，也不会连接。':
       'Copy the “ID” from the RustDesk main screen on the computer you want to control. Enter only the ID: type the password in RustDesk; this app never stores or passes it. Saving only records the ID; it does not open RustDesk or connect.',
   'RustDesk 不走这台主机的代理或跳板，用它自己的网络':
       'RustDesk does not use this host’s proxy or jump host; it uses its own network',
-  '这张证书不是本 App 核对过的发行渠道证书（GitHub 发行版、F-Droid），本 App 分不出是重签、自己编译还是冒牌。确定来源才批准。':
-      'This certificate is not one of the release channels this app has checked (GitHub releases, F-Droid); this app cannot tell a re-signed, self-built or fake copy apart. Approve only if you are sure of its source.',
-  '这个版本能用，但它会执行任何 App 或网页发来的改密码、改服务器链接。建议至少更新到：':
-      'This version works, but it executes password- and server-changing links sent by any app or web page. Update to at least: ',
-  '这个版本比本 App 核对过的新，没有核对过；打不开或连错了先怀疑这里。核对过的最高版本：':
-      'This version is newer than any this app has checked; if it fails to open or connects to the wrong place, suspect this first. Highest checked version: ',
   '已交给 RustDesk。它不向本 App 回报结果，连没连上请看 RustDesk。':
       'Handed to RustDesk. It does not report back to this app; check RustDesk to see whether it connected.',
   '这些主机在用它。删了以后它们会连不上，要重新选代理；不会自动改成直连：':
@@ -2545,20 +2558,12 @@ const englishTranslations = <String, String>{
       r'Only this tab’s tmux client is detached: once the Mosh session closes, the tmux client inside it exits, and tmux session ${session.tmux!.target.displayName} (${session.tmux!.target.sessionId}) and its programs stay on the remote; no Ctrl-C is sent and the session is not terminated.',
   r'将断开 ${session.host.label} 的 Mosh 会话：服务器上这次的 mosh-server 和里面的 shell 会一起退出，没在 tmux 之类工具里运行的程序也会结束。':
       r'This disconnects the Mosh session to ${session.host.label}: this mosh-server on the server exits together with its shell, and programs not running inside something like tmux end too.',
-  r'在这条 SSH 上起 mosh-server，附着同一个 tmux 会话 ${tmux!.displayName}（${tmux.sessionId}），核对过才换过去，然后关掉这条 SSH。不重发任何输入。':
-      r'Starts mosh-server over this SSH and attaches the same tmux session ${tmux!.displayName} (${tmux.sessionId}); the tab moves over only after that is verified, then this SSH is closed. No input is resent.',
-  r'重新登录 SSH，附着同一个 tmux 会话 ${tmux!.displayName}（${tmux.sessionId}），核对过才换过去，然后关掉 Mosh。不重发任何输入。':
-      r'Logs in over SSH again and attaches the same tmux session ${tmux!.displayName} (${tmux.sessionId}); the tab moves over only after that is verified, then Mosh is closed. No input is resent.',
   r'${widget.session.host.username}@${tmuxHostKeyOf(widget.session)} · ${_socket.describe()}。只读列出；要新建、结束或换 socket，用「系统管理 → tmux」。':
       r'${widget.session.host.username}@${tmuxHostKeyOf(widget.session)} · ${_socket.describe()}. Read-only list. To create, end or change socket, use System management → tmux.',
   '要管理员权限：sudo 会在那个终端里问你的密码，你自己输。App 看不到、也不保存这个密码。服务器上没有 sudo 的，会报「sudo: not found」：用 root 登录再装，或者自己换成 doas。':
       'This needs administrator rights: sudo will ask for your password in that terminal and you type it yourself. The app neither sees nor stores it. If the server has no sudo you will see “sudo: not found”: sign in as root and install again, or use doas yourself.',
   'mosh 从这台服务器自己配的软件源下载，服务器要能上网。包管理器问「要不要继续」时，也在那个终端里回答。标签断线恢复时不会再执行一次。':
       'mosh is downloaded from the package sources configured on this server, so the server needs network access. If the package manager asks whether to continue, answer in that terminal. It is not run again when the tab recovers from a disconnect.',
-  '这个插件自己联网，不经过本 App 的代理和跳板。连哪里、用什么账号，由插件自己的设置页决定；本 App 不把这台主机的地址、密码、私钥交给它。':
-      'This plugin uses its own network, not this app\'s proxies or jump hosts. Where it connects and with which account is set on the plugin\'s own settings page; this app never gives it this host\'s address, password or private key.',
-  '还没有能用来连接的插件：装好终端插件后到「设置 → 插件（实验）」核对证书、批准。Mosh 插件不在这里，Mosh 主机请选 Mosh 协议。':
-      'No plugin can be used to connect yet: install a terminal plugin, then check its certificate and approve it in Settings → Plugins (experimental). The Mosh plugin is not listed here; choose the Mosh protocol for Mosh hosts.',
   '默认是 tmux 不带参数时用的那个（/tmp/tmux-你的 uid/default）。如果你在 shell 配置里改了 TMUX_TMPDIR，这里看不到，请填 -S 路径。':
       'Default is the one tmux uses without arguments (/tmp/tmux-<your uid>/default). If your shell config changes TMUX_TMPDIR, it is not visible here; enter the -S path instead.',
   'UDP 端口范围无效': 'Invalid UDP port range',
@@ -3044,27 +3049,6 @@ const englishReplacements = <(String, String)>[
   ('”所在的节点：这一跳是从它转发出去的', '”\'s node: this hop is forwarded from it'),
   ('域名不是 ', 'The domain is not '),
   ('只打开 https://', 'Only links like https://'),
-  (' 这种链接。可以终止连接；', ' are opened. You can stop the connection; '),
-  (
-    '确认这是你自己的认证服务，也可以用别的方式（比如自建控制面的命令行）批准，这里会继续等到截止时间。',
-    'if you are sure this is your own authentication service, approve it another way (such as the command line of a self-hosted control server) and this screen keeps waiting until the deadline.'
-  ),
-  (
-    '连接时不发密码和私钥，由目标上的 Tailscale 按 tailnet 策略决定放不放行；',
-    'No password or private key is sent when connecting; Tailscale on the target decides by tailnet policy whether to let you in. '
-  ),
-  (
-    '策略要求 check 时，会让你在浏览器里确认。',
-    'If the policy requires a check, you will be asked to confirm in a browser.'
-  ),
-  (
-    '已保存的密码、私钥留着不用，改回普通 SSH 时照常使用。',
-    'Saved passwords and private keys are kept but not used; they are used again if you switch back to standard SSH. '
-  ),
-  (
-    '桌面端 Netcatty 不认这个设置：同步过去后在桌面端仍按普通 SSH 连接。',
-    'Desktop Netcatty does not know this setting: after syncing, the desktop app still connects with standard SSH.'
-  ),
   // X07：带插值的 RustDesk 提示，按片段翻。放最前，免得先被「版本」「关联」这类通用词拆碎。
   ('读取 RustDesk 关联失败：', 'Failed to read RustDesk links: '),
   (
@@ -3161,6 +3145,10 @@ const englishReplacements = <(String, String)>[
   (
     '云端备份请求超时，请检查网络后重试',
     'Cloud backup timed out. Check the network and try again'
+  ),
+  (
+    ' 这种链接。可以终止连接，或用别的方式批准后等它继续。',
+    ' are opened. You can stop the connection, or approve another way and let it continue.'
   ),
   ('读取来源失败：', 'Failed to read sources: '),
   ('已导入为“', 'Already imported as “'),
@@ -3492,10 +3480,6 @@ const englishReplacements = <(String, String)>[
     'The phone connects to the target directly without an app proxy; any VPN you have on still applies.'
   ),
   (
-    '按当前填写的配置走一遍：会核对指纹、登录，然后只检查远端终端、只读查一次有没有 tmux；不打开 shell，不执行启动命令，不建 tmux 会话。',
-    'Runs through the current settings: verifies the host key and logs in, then only checks the remote terminal and, read-only, whether tmux is there. It opens no shell, runs no startup command and creates no tmux session.'
-  ),
-  (
     '服务器拒绝了登录：确认用户名；用密码的检查密码，用私钥的确认服务器上 authorized_keys 里有这把公钥。',
     'The server rejected the login: check the username; for passwords check the password, for keys make sure the public key is in authorized_keys on the server.'
   ),
@@ -3799,10 +3783,6 @@ const englishReplacements = <(String, String)>[
   ('终端输出上传', 'Terminal sharing'),
   ('上传：开', 'Share: on'),
   ('上传：关', 'Share: off'),
-  (
-    '支持 OpenAI Chat Completions 兼容接口。服务商及密钥仅保存在本机安全存储中，不修改或同步 PC 的 Agent 配置。',
-    'Supports OpenAI Chat Completions compatible APIs. Providers and keys stay in local secure storage and do not change or sync desktop Agent configuration.'
-  ),
   ('管理多个 AI 服务商', 'Manage AI providers'),
   (
     '独立地址、密钥、模型与兼容参数，仅保存在本机',
@@ -3912,10 +3892,6 @@ const englishReplacements = <(String, String)>[
   ('API Key（无鉴权接口可留空）', 'API key (optional for unauthenticated endpoints)'),
   ('模型列表（每行一个）', 'Models (one per line)'),
   ('发送 JSON 模式参数', 'Send JSON mode parameter'),
-  (
-    '默认关闭；仍会通过提示词请求结构化命令',
-    'Off by default; the prompt still requests structured commands'
-  ),
   ('发送思考强度参数', 'Send reasoning effort parameter'),
   (
     '不支持 reasoning_effort 的模型请关闭',
@@ -3976,10 +3952,6 @@ const englishReplacements = <(String, String)>[
   (
     '使用系统密码键盘并关闭联想学习',
     'Use the system password keyboard with suggestions and learning disabled'
-  ),
-  (
-    '拖动排序；按键会根据屏幕宽度自动换行',
-    'Drag to reorder; keys wrap automatically for the screen width'
   ),
   (
     '私钥、跳板机、代理、环境变量和高级算法参数可由桌面端同步导入，移动端会完整保留',

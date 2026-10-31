@@ -124,7 +124,7 @@ void main() {
     expect(find.textContaining('普通 shell：跟着这条连接走'), findsOneWidget);
     expect(find.text('状态：已连接'), findsOneWidget);
     expect(find.text('用 Mosh 另开一个'), findsOneWidget);
-    expect(find.textContaining('这个标签和里面的 shell 不动'), findsOneWidget);
+    expect(find.textContaining('这个标签不动'), findsOneWidget);
     expect(key('transport-set-default'), findsNothing, reason: '和主机默认一样就不显示');
     expect(find.textContaining('漫游'), findsNothing);
     expect(find.textContaining('切网不断'), findsNothing);
@@ -164,7 +164,8 @@ void main() {
     expect(find.text('已把 Mosh 设为这台主机的默认'), findsOneWidget);
   });
 
-  testWidgets('X10：Mosh 标签连着时不说「已连接」，只说运行中，网络情况指到 mosh 自己写的第一行', (tester) async {
+  testWidgets('X10：Mosh 标签连着时不说「已连接」，只说运行中，网络情况指到 mosh 自己写的第一行',
+      (tester) async {
     await open(tester, [tab('m', protocol: 'mosh')]);
     controller.menu = const TransportMenu(
       current: TabTransport.mosh,
@@ -173,8 +174,7 @@ void main() {
     );
     await openMenu(tester);
     // 宿主只知道 mosh-client 还活着，断网时也是「连着」，所以不能说已连接。
-    expect(
-        find.text('状态：Mosh 运行中（网络断了，终端最上面一行会出现「mosh: …」，写着多久没联系上）'),
+    expect(find.text('状态：Mosh 运行中（网络断了，终端最上面一行会出现「mosh: …」，写着多久没联系上）'),
         findsOneWidget);
     expect(find.textContaining('已连接'), findsNothing);
   });
@@ -187,8 +187,7 @@ void main() {
     expect(localized('状态：正在重新附着…'), 'Status: Re-attaching…');
     expect(localized('状态：已断开 · 终端里是断开前的画面（历史）'),
         'Status: Disconnected · the terminal shows the screen from before the disconnect (history)');
-    expect(
-        localized('状态：Mosh 运行中（网络断了，终端最上面一行会出现「mosh: …」，写着多久没联系上）'),
+    expect(localized('状态：Mosh 运行中（网络断了，终端最上面一行会出现「mosh: …」，写着多久没联系上）'),
         'Status: Mosh running (if the network drops, the top line of the terminal shows “mosh: …” with how long since last contact)');
   });
 
@@ -216,7 +215,7 @@ void main() {
     expect(find.textContaining(r'tmux 会话 work（$3）· ops@box.example.com:22'),
         findsOneWidget);
     expect(find.text('切换到 Mosh（同一个 tmux 会话）'), findsOneWidget);
-    expect(find.textContaining('不重发任何输入'), findsOneWidget);
+    expect(find.textContaining('不重发输入'), findsOneWidget);
 
     await tester.tap(key('transport-switch'));
     await tester.pumpAndSettle();

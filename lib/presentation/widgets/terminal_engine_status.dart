@@ -19,7 +19,7 @@ class TerminalEngineStatusTile extends ConsumerWidget {
     final version = status.nativeVersion;
     // 一句一个变量：本地化覆盖测试按「引号里有中文」逐行找原文，字符串里再套 localized('…') 会把它搞糊涂。
     final failedPrefix = localized('无法启动：');
-    final noFallback = localized('这个版本只带 Ghostty，没有别的引擎可换：连接会直接失败，不会悄悄换成别的引擎。');
+    final noFallback = localized('这个版本只带 Ghostty，没有别的引擎可换，连接会直接失败。');
     final workingPrefix = localized('正常，这次运行建过的终端：');
     return Column(
       key: const ValueKey('terminal-engine-status'),

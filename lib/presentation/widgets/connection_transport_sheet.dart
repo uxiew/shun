@@ -187,12 +187,8 @@ class _TransportSheetState extends ConsumerState<TransportSheet> {
         ? progress.describe()
         : option.blocked ??
             (option.inPlace
-                ? option.to == TabTransport.mosh
-                    ? '在这条 SSH 上起 mosh-server，附着同一个 tmux 会话 ${tmux!.displayName}（${tmux.sessionId}），'
-                        '核对过才换过去，然后关掉这条 SSH。不重发任何输入。'
-                    : '重新登录 SSH，附着同一个 tmux 会话 ${tmux!.displayName}（${tmux.sessionId}），'
-                        '核对过才换过去，然后关掉 Mosh。不重发任何输入。'
-                : '另开一个 $to 标签（新的 shell），这个标签和里面的 shell 不动。');
+                ? '附着同一个 tmux 会话 ${tmux!.displayName}，核对过才换过去，不重发输入'
+                : '另开一个 $to 标签，这个标签不动');
     return ListTile(
       key: const ValueKey('transport-switch'),
       contentPadding: EdgeInsets.zero,
@@ -228,8 +224,7 @@ class _TransportSheetState extends ConsumerState<TransportSheet> {
         leading: const Icon(Icons.push_pin_outlined),
         title: LText('把 ${option.transport.label} 设为这台主机的默认'),
         subtitle: LText(
-          option.blocked ??
-              '以后从主机列表连这台都用 ${option.transport.label}。开着的标签不变，Mosh 的端口、路径设置照旧留着。',
+          option.blocked ?? '以后从主机列表连这台都用 ${option.transport.label}',
         ),
         onTap: () async {
           final messenger = ScaffoldMessenger.of(context);
@@ -259,9 +254,7 @@ class _TransportSheetState extends ConsumerState<TransportSheet> {
       leading: const Icon(Icons.view_quilt_outlined),
       title: const LText('选 tmux 会话…'),
       subtitle: LText(
-        via == null
-            ? '要先有一个连着的 SSH 标签才能列出这台主机上的 tmux 会话（Mosh 标签自己查不了）。'
-            : '只读列出会话，选了在新标签里附着；按完整身份核对，不按名字、不新建。',
+        via == null ? '要先有一个连着的 SSH 标签' : '选一个会话，在新标签里附着',
       ),
       onTap: via == null
           ? null

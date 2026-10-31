@@ -494,7 +494,7 @@ class RustDeskAppStatusCard extends ConsumerWidget {
             catalogLine('签名证书 SHA-256：', formatDigest(signer), style: small),
             const SizedBox(height: 4),
             const LText(
-              '这张证书不是本 App 核对过的发行渠道证书（GitHub 发行版、F-Droid），本 App 分不出是重签、自己编译还是冒牌。确定来源才批准。',
+              '这张证书没核对过，分不出是重签、自编译还是冒牌。确定来源才批准。',
               key: ValueKey('rd-needs-approval'),
             ),
             Align(
@@ -513,7 +513,7 @@ class RustDeskAppStatusCard extends ConsumerWidget {
         ) =>
           [
             const LText(
-              '你信任的那个 RustDesk 换了签名证书：可能是换了渠道重装，也可能是冒牌的。核对之前不会再发任何请求。',
+              'RustDesk 换了签名证书，可能是重装，也可能是冒牌。核对前不发请求。',
               key: ValueKey('rd-signer-changed'),
             ),
             ...client(c),
@@ -551,7 +551,7 @@ class RustDeskAppStatusCard extends ConsumerWidget {
                 ],
               RustDeskVersionSupport.deepLinksUngated => [
                   catalogLine(
-                    '这个版本能用，但它会执行任何 App 或网页发来的改密码、改服务器链接。建议至少更新到：',
+                    '这个版本会执行外来的改密码、改服务器链接。建议至少更新到：',
                     RustDeskProtocol.gatedSinceText,
                     key: const ValueKey('rd-version-ungated'),
                     style: small,
@@ -559,7 +559,7 @@ class RustDeskAppStatusCard extends ConsumerWidget {
                 ],
               RustDeskVersionSupport.newerUnverified => [
                   catalogLine(
-                    '这个版本比本 App 核对过的新，没有核对过；打不开或连错了先怀疑这里。核对过的最高版本：',
+                    '这个版本比核对过的新，出问题先怀疑这里。核对过的最高版本：',
                     RustDeskProtocol.verifiedUpToText,
                     key: const ValueKey('rd-version-unverified'),
                     style: small,
@@ -570,7 +570,7 @@ class RustDeskAppStatusCard extends ConsumerWidget {
               RustDeskVersionSupport.tooOld =>
                 [
                   LText(
-                    '看不懂这个版本号，没法和核对过的版本对照。连接链接按核对过的写法发。',
+                    '看不懂这个版本号，连接链接按核对过的写法发。',
                     key: const ValueKey('rd-version-unreadable'),
                     style: small,
                   ),

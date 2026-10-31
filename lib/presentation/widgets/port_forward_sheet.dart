@@ -51,7 +51,7 @@ class _PortForwardSheetState extends ConsumerState<PortForwardSheet> {
               const SizedBox(height: 10),
               LText(
                 key: const ValueKey('port-forward-disconnected'),
-                '这个标签的 SSH 连接已断开，不能在这里开新转发。重新连接后，从新连接打开端口转发。',
+                '连接已断开，开不了新转发。重新连接后再从新连接打开。',
                 style: TextStyle(color: Theme.of(context).colorScheme.error),
               ),
             ],

@@ -527,7 +527,7 @@ class UuAppStatusCard extends ConsumerWidget {
             catalogLine('签名证书 SHA-256：', formatDigest(signer), style: small),
             const SizedBox(height: 4),
             const LText(
-              '这张证书还不在本 App 核对过的官方证书里。确定是从官方渠道（uuyc.163.com 或正规应用商店）装的才批准。',
+              '这张证书没核对过。确定是官方渠道（uuyc.163.com、应用商店）装的才批准。',
               key: ValueKey('uu-needs-approval'),
             ),
             Align(
@@ -541,7 +541,7 @@ class UuAppStatusCard extends ConsumerWidget {
           ],
         UuSignerChanged(:final approved, :final current) => [
             const LText(
-              '手机上的 UU 远程换了签名证书：可能是换了渠道重装，也可能是冒牌的。核对之前不会再发任何请求。',
+              'UU 远程换了签名证书，可能是重装，也可能是冒牌。核对前不发请求。',
               key: ValueKey('uu-signer-changed'),
             ),
             catalogLine('批准时：', formatDigest(approved), style: small),
@@ -604,7 +604,7 @@ class UuCallbackRivalsNote extends StatelessWidget {
             catalogLine('另有 App 也声明了本 App 的 UU 回调地址：', rivals.join(', ')),
             const SizedBox(height: 4),
             LText(
-              'UU 的回报可能被它截走或冒充，所以绑定和小窗远控现在不发；全屏远控不受影响。卸载它之后回到这里。',
+              'UU 的回报可能被它截走，绑定和小窗远控先不发。卸载它再回来。',
               style: Theme.of(context).textTheme.bodySmall,
             ),
           ],
@@ -658,8 +658,8 @@ String uuAttemptText(UuAttempt attempt, {required bool waiting}) {
     // 「10 分钟」是 uuPendingLifetime。
     if (code == uuWaitExpired) {
       return t(bind
-          ? '等了 10 分钟 UU 没有回报：这次绑定结果未确认，UU 之后的回报会被忽略。可以重新发起。'
-          : '等了 10 分钟 UU 没有回报：这次小窗结果未确认，UU 之后的回报会被忽略。可以重新发起。');
+          ? '等了 10 分钟 UU 没有回报，这次绑定结果未确认。可以重新发起。'
+          : '等了 10 分钟 UU 没有回报，这次小窗结果未确认。可以重新发起。');
     }
     return t(bind
         ? '你结束了等待：这次绑定结果未确认，UU 之后的回报会被忽略。'
@@ -680,7 +680,7 @@ String uuAttemptText(UuAttempt attempt, {required bool waiting}) {
     (true, ExternalLaunchPhase.launchedUnverified) => waiting
         // 官方文档说没登录时 UU 等 180 秒后回报 timeout；真实 UU 4.42.0 实测停在登录页、6 分钟没有任何回报，
         // 所以这里不承诺「最长 3 分钟」，直接告诉用户怎么脱身。
-        ? t('已打开 UU 远程的设备授权页，等它回报。UU 要是停在登录页或用户须知上，它不会回报：回来点「结束等待」，在 UU 里登录好再重新发起。')
+        ? t('已打开 UU 的设备授权页。它停在登录页就不会回报：点「结束等待」，登录好再来。')
         : line('已打开 UU 远程的设备授权页。'),
     (true, ExternalLaunchPhase.providerReportedSuccess) =>
       discarded ? line('UU 返回了一台设备，你没有保存。') : line('UU 返回了一台设备。'),

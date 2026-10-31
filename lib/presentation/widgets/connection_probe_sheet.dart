@@ -142,7 +142,7 @@ class _ConnectionProbeSheetState extends ConsumerState<ConnectionProbeSheet> {
             LText('测试连接', style: theme.textTheme.titleLarge),
             const SizedBox(height: 4),
             LText(
-              '按当前填写的配置走一遍：会核对指纹、登录，然后只检查远端终端、只读查一次有没有 tmux；不打开 shell，不执行启动命令，不建 tmux 会话。',
+              '核对指纹、登录、只读检查一遍。不打开 shell，不跑启动命令。',
               style: theme.textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
@@ -241,8 +241,7 @@ String? describeProbeTmux(ProbeOutcome outcome) {
   final version = tmux.versionLine.isEmpty ? 'tmux' : tmux.versionLine;
   final problem = tmux.problem ?? '?';
   return switch (tmux.availability) {
-    TmuxAvailability.missing =>
-      'tmux：远端没有 tmux。这台机器只能开普通 shell，断开后里面的程序随之结束。本 App 不会替你安装。',
+    TmuxAvailability.missing => 'tmux：远端没有 tmux，只能开普通 shell，App 不会替你装。',
     TmuxAvailability.unsupported =>
       'tmux：远端的 $version 不在本 App 实测过的版本里，只能当普通 shell 用。',
     TmuxAvailability.noServer =>

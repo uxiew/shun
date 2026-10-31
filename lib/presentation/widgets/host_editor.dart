@@ -466,7 +466,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         if (authMethod == HostAuthMethod.key)
           if (password.text.isNotEmpty)
             const LText(
-              '选了「私钥」：登录时不发密码。已保存的密码留着，改回「自动」或「密码」时照常使用。',
+              '选了「私钥」，登录时不发密码。已存的密码留着，改回来还能用。',
               key: ValueKey('auth-password-unused'),
             )
           else
@@ -495,7 +495,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         if (authMethod == HostAuthMethod.password)
           if (identityFileId != null)
             const LText(
-              '选了「密码」：登录时不发私钥。已选的私钥留着，改回「自动」或「私钥」时照常使用。',
+              '选了「密码」，登录时不发私钥。已选的私钥留着，改回来还能用。',
               key: ValueKey('auth-key-unused'),
             )
           else
@@ -982,8 +982,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           LText(
-            '连接时不发密码和私钥，由目标上的 Tailscale 按 tailnet 策略决定放不放行；'
-            '策略要求 check 时，会让你在浏览器里确认。',
+            '不发密码和私钥，由 Tailscale 按策略放行。要 check 时在浏览器里确认。',
             style: style,
           ),
           const SizedBox(height: 6),
@@ -998,8 +997,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
           const SizedBox(height: 6),
           LText(tailscaleCatalogIsNotIdentity, style: style),
           LText(
-            '已保存的密码、私钥留着不用，改回普通 SSH 时照常使用。'
-            '桌面端 Netcatty 不认这个设置：同步过去后在桌面端仍按普通 SSH 连接。',
+            '已存的密码、私钥留着不用，改回普通 SSH 还能用。',
             style: style,
           ),
         ],
@@ -1051,8 +1049,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         Padding(
           padding: const EdgeInsets.only(top: 6),
           child: LText(
-            '还没有能用来连接的插件：装好终端插件后到「设置 → 插件（实验）」核对证书、批准。'
-            'Mosh 插件不在这里，Mosh 主机请选 Mosh 协议。',
+            '还没有能用的插件。装好后到「设置 → 插件（实验）」批准；Mosh 请选 Mosh 协议。',
             key: const ValueKey('plugin-none-usable'),
             style: small,
           ),
@@ -1068,8 +1065,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         ),
       const SizedBox(height: 8),
       LText(
-        '这个插件自己联网，不经过本 App 的代理和跳板。连哪里、用什么账号，由插件自己的设置页决定；'
-        '本 App 不把这台主机的地址、密码、私钥交给它。',
+        '插件自己联网，不走代理和跳板，也拿不到这台主机的地址和凭据。',
         key: const ValueKey('plugin-network-note'),
         style: small,
       ),

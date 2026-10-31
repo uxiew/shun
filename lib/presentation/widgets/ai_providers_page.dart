@@ -85,8 +85,7 @@ class _AiProvidersPageState extends State<AiProvidersPage> {
             icon: const Icon(Icons.add))
       ]),
       body: ListView(padding: const EdgeInsets.all(16), children: [
-        const LText(
-            '支持 OpenAI Chat Completions 兼容接口。服务商及密钥仅保存在本机安全存储中，不修改或同步 PC 的 Agent 配置。'),
+        const LText('支持 OpenAI Chat Completions 兼容接口。密钥只存在本机安全存储。'),
         if (_error != null)
           LText(_error!,
               style: TextStyle(color: Theme.of(context).colorScheme.error)),
@@ -228,7 +227,7 @@ class _ProviderEditorState extends State<_ProviderEditor> {
         const SizedBox(height: 20),
         SwitchListTile(
             title: const LText('发送 JSON 模式参数'),
-            subtitle: const LText('默认关闭；仍会通过提示词请求结构化命令'),
+            subtitle: const LText('关着也会用提示词要结构化命令'),
             value: _json,
             onChanged: (v) => setState(() => _json = v)),
         SwitchListTile(

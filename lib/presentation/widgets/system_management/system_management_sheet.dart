@@ -135,7 +135,7 @@ class _SystemManagementSheetState extends ConsumerState<SystemManagementSheet>
                 padding: const EdgeInsets.fromLTRB(16, 10, 16, 6),
                 child: LText(
                   key: const ValueKey('system-management-disconnected'),
-                  '这个标签的 SSH 连接已断开：这里的操作都不会执行。重新连接后，从新连接打开系统管理。',
+                  '连接已断开，这里的操作都不会执行。重新连接后再从新连接打开。',
                   style: TextStyle(color: colors.error),
                 ),
               ),
