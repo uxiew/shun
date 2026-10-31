@@ -22,6 +22,7 @@ import '../tmux/tmux_service.dart';
 import '../transport/proxy_transport.dart';
 import 'ai_cli_launch_handshake.dart';
 import 'server_monitor_service.dart';
+import 'ssh_client_defaults.dart';
 import 'ssh_identity.dart';
 import 'ssh_login_watch.dart';
 
@@ -423,28 +424,15 @@ class ActiveTerminalSession {
         // 一个借用者放不掉，不能挡住后面关连接。
       }
     }
-    // 传输层已经断了时，PTY 通道什么也发不出去；dartssh2 的 SSHSession.close() 会在一个它自己丢掉的
-    // Future 里抛 SSHStateError（没人接得住）。这时直接交给下面关 client，通道由它一并销毁。
+    // 传输层已经断了时，PTY 通道什么也发不出去；2.22.5 的 SSHSession.close() 会在一个它自己丢掉的
+    // Future 里抛 SSHStateError（没人接得住）。4.1.0 接住了，这里继续先判断：直接交给下面关 client 更省事。
     if (sshClient?.isClosed != true) sshSession?.close();
     for (final client in sshClients.reversed) {
-      _closeClient(client);
+      client.closeQuietly();
     }
     telnetSocket?.destroy();
     // Mosh：插件给 mosh-client 发 SIGHUP，它按协议通知服务器关闭；会话已经结束时什么都不做。
     if (plugin != null) unawaited(plugin!.close());
-  }
-
-  /// dartssh2 2.22.5 在传输层已经断了的时候关 client：逐个销毁通道，每个还没发过 EOF 的通道
-  /// 发 EOF 都同步抛 SSHStateError，后面的通道和 transport 都轮不到。R24 实测：标签上开着终端和文件页
-  /// （两个通道）时断线，abort 直接抛出，会话控制器的断线处理半途而止、不进入自动恢复；跳板也没关。
-  /// 每抛一次就有一个通道记成已发过 EOF，下一次能往后走一个，所以重试到不抛为止（通道数远小于上限）。
-  static void _closeClient(SSHClient client) {
-    for (var attempt = 0; attempt < 256; attempt++) {
-      try {
-        client.close();
-        return;
-      } catch (_) {}
-    }
   }
 
   /// 不再把这条连接的远端输出送进 [terminal]，也不再把终端输入交给它。可以重复调用。
@@ -1611,6 +1599,9 @@ class SshService {
         SSHAuthAbortError(reason: SSHHostkeyError()) =>
           '主机指纹没有通过校验，已在发送任何登录信息之前断开',
         SSHAuthFailError() => '登录被拒绝：用户名、密码或私钥不对',
+        _ when isAlgorithmMismatch(error) => '这台服务器只支持已淘汰的加密算法，连不上',
+        SSHAuthAbortError(reason: SSHDisconnectError(:final message)) =>
+          '登录完成前服务器断开了连接：$message',
         SSHAuthAbortError() => '登录完成前连接被对方关闭：对方可能不是 SSH 服务，或者中途断开了',
         SSHChannelOpenError(:final description) => '对方拒绝打开转发通道（$description）',
         SshIdentityException(:final message) => message,
@@ -1638,11 +1629,12 @@ class SshService {
 
     if (watch.mode == SshLoginMode.tailscale) {
       // Tailscale SSH：不给 dartssh2 任何私钥、密码、键盘交互回调，它就只剩 none 一种方法可发
-      // （dartssh2 2.22.5 `_startAuthentication`）。密码和私钥哪怕存着也不发：
+      // （dartssh2 `_startAuthentication`）。密码和私钥哪怕存着也不发：
       // tailssh 收到密码或公钥时根本不看内容，照样按 tailnet 策略放行（tailssh.go ServerConfig）。
       return SSHClient(
         socket,
         username: host.username,
+        algorithms: shunSshAlgorithms,
         printDebug: watch.debug,
         onUserauthBanner: watch.banner,
         keepAliveInterval: Duration(
@@ -1655,6 +1647,7 @@ class SshService {
     return SSHClient(
       socket,
       username: host.username,
+      algorithms: shunSshAlgorithms,
       identities: identities,
       onPasswordRequest: host.authMethod == HostAuthMethod.key
           ? null
@@ -1664,8 +1657,9 @@ class SshService {
                   ? null
                   // 没存密码：像 ssh 命令一样当场问一次，取消就接着试别的方式。以前服务器只收密码时
                   // 直接报「登录被拒绝」，Tailscale 导入的主机没法在连接时自己填（R26）。
-                  // dartssh2 按公钥 → 密码 → keyboard-interactive 的顺序试，不看服务器开了哪几种：
-                  // 私钥先登上就不会问；只开 keyboard-interactive 的服务器会先问这一次。
+                  // dartssh2 按公钥 → 密码 → keyboard-interactive 的顺序试，第一步还不知道服务器开了哪几种：
+                  // 私钥先登上就不会问；私钥被拒后按服务器回的列表走，它没开密码也不会问。
+                  // 没有私钥时第一步就是密码，所以只开 keyboard-interactive 的服务器仍会先问这一次。
                   : () async {
                       final answers = await pending.waitingForUser(
                         () => keyboardInteractive(
@@ -1989,7 +1983,7 @@ class ConnectionAttempt {
     if (_handedOver) return;
     shell?.close();
     for (final client in clients.reversed) {
-      client.close();
+      client.closeQuietly();
     }
     transport?.destroy();
     handshakeSocket?.destroy();

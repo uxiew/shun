@@ -227,7 +227,9 @@ Tailscale SSH 是**一跳的登录方式**：主机 data 里写着 `shunSshLogin
 
 释放顺序在 `abort()`：停监控采样 → 放掉输入绑定 → 按登记顺序调借用者的释放钩子（下一节）→ 关 PTY 通道（传输层已断就跳过）→ 逆序关各跳 client（每个 client 关掉自己脚下的 socket）→ 关 Telnet socket → 通知插件关会话。一个钩子抛错不挡后面的；`abort()` 本身不抛。这时**不断**输出订阅：dartssh2 的 `done` 先于 stdout 结束，立刻断会吞掉断线前最后一屏；换上新连接或关标签时才 `detachOutput()`。
 
-两个 dartssh2 2.22.5 的坑在这里绕开，改了会重新掉进去：传输层已断时 `SSHSession.close()` 在一个它自己丢掉的 Future 里抛错（没人接）；`client.close()` 对每个还没发过 EOF 的通道同步抛一次 `SSHStateError`，所以 `_closeClient` 重试到不抛为止。不重试的话，终端 + 文件页开着时断线，`abort()` 抛出去，跳板不关、标签不进自动恢复（「REG01 经跳板」那条会报「等待超时：标签自动恢复成新连接」）。
+关连接有两个规矩，改了会出事。一：`client.close()` 返回 Future，一律走 `closeQuietly`（`ssh_client_defaults.dart`），丢掉不接的话，关 socket 的报错会变成没人接的全局异常。二：我们的 socket 包装（`proxy_transport.dart`）`close()` 是立刻销毁，不是优雅关闭：dartssh2 4.1.0 收到对端断开时调 `close()` 但不接返回的 Future，优雅关闭碰到 RST 就是全局 `Connection reset by peer`（升级时 NET01、JMP04 实测失败过），手机切网后还会挂到 TCP 超时。
+
+2.22.5 的 `_closeClient` 重试循环已经删了：4.1.0 关连接不再同步抛错。
 
 ### 借用标签连接的功能（R24）
 
@@ -236,7 +238,7 @@ Tailscale SSH 是**一跳的登录方式**：主机 data 里写着 `shunSshLogin
 - 借不到（已断开、不是 SSH）就报 `ConnectionGone`。借到以后每个操作都和「连接断了」赛跑：`client.done`，加上 `session.onRelease` 登记的释放钩子（`abort()` 里在关 client 之前调）。要赛跑是因为 dartssh2 的 SFTP 在连接断掉后不再回复还在等的请求，不赛跑的话上传、列目录会一直等（实测断线后 15 秒仍不返回）。
 - `lease.read`：只读，断了报 `ConnectionGone`（没做什么）。`lease.write(动作, …)`：会改服务器的，发出去以后断了报 `OutcomeUnknown(动作)`，不重发。系统管理里会改服务器的命令包在 `_changing` 里，`_executeSession` 从 Zone 读这个标记选 read / write，新加一个会改服务器的操作忘了包，断线时就会误报成「没有执行」。
 - 传文件先写临时文件再改名（`writeStreamAtomically`、`transferEntry`）：写临时文件时断了是 `TransferInterrupted`（目标没动），只有改名那一步是「结果未知」。改名前再查一次目标在不在，因为 dartssh2 的 `rename` 优先走 posix-rename，会悝悝替换已有文件；查完到改名之间仍有一次来回的空当。
-- dartssh2 的 `SftpFileWriter` 订阅数据流不挂 onError：数据流报错（用户取消、本机文件读失败）会变成没人接的全局错误，`done` 永远不完成。`_writeSftpStream` 先把错误截下、停掉 writer 再抛。直接调 `file.write(stream)` 就会把这个问题带回来。
+- 数据流报错（用户取消、本机文件读失败）时，`_writeSftpStream` 先把错误截下、停掉 writer 再抛。这是给 2.22.5 打的补丁（那时 `SftpFileWriter` 不挂 onError，`done` 永远不完成）；4.1.0 自己也会停了，但取消、续传的回归测试都是按这层跑通的，留着没坏处，要删就重跑 R24 那组。
 - 长期开着的（监控采样、系统管理）用 `SshLease.reuse(Expando, session)`，每个会话只借一次。每次操作都 `SshLease.of` 的话，每 3 秒一次的采样会在标签上越攒越多释放钩子。
 - 同理，借用里的赛跑不能写成在 `lease.lost` 上挂 `.then`：连接不断那个 future 就不完成，每一步挂的回调连同那一步的结果要留到断线（复用的借用上就是每 3 秒留一份采样输出，10-25 LIFE06 查到、e40534d 修了）。现在是 `_watchLoss` 登记、做完就撤；`lease.lost` 只给「每个借用者只挂一次」的场合用（端口转发一条一个、SFTP 一个客户端一个）。
 - 端口转发在 `lease.lost` 时关本机端口和已接进来的 socket，条目留在列表里、带 `endedReason`；`forwardsOn` 只算还在跑的（R42 切 Mosh 前用它列会停掉哪几条）。
@@ -396,7 +398,7 @@ flowchart TD
 
 | 功能 | 入口 | 代码 | 数据流和约束 |
 |---|---|---|---|
-| SFTP | 底部「文件」页 `SftpScreen`，只列 `isSsh && connected` 的标签 | `infrastructure/ssh/sftp_service.dart`、`screens/sftp_screen*.dart` | `sshClient.sftp()` 开子系统，握手限 10 秒（dartssh2 2.22.5 不看服务器回复，服务器没开 SFTP 时会一直转圈）。读写都是 `Stream<Uint8List>`，不整份读进内存；先写 `<文件>.shun-part` 再改名，可续传；进度至少隔 200ms 或 256 KiB 才刷新；超过 1 MiB 的文件不进编辑器。`SftpServiceCache` 按标签缓存，关掉的标签必须 `retainOnly` 删掉（R20 实测开关 500 次后 504 个会话全被这张表拿住）。手机这一侧在 Android 上走 SAF 目录授权（`android_document_tree_service.dart` ↔ `DocumentTreeChannel.kt`） |
+| SFTP | 底部「文件」页 `SftpScreen`，只列 `isSsh && connected` 的标签 | `infrastructure/ssh/sftp_service.dart`、`screens/sftp_screen*.dart` | `sshClient.sftp()` 开子系统，握手限 10 秒（dartssh2 不看服务器回复，服务器没开 SFTP 时会一直转圈）。读写都是 `Stream<Uint8List>`，不整份读进内存；先写 `<文件>.shun-part` 再改名，可续传；进度至少隔 200ms 或 256 KiB 才刷新；超过 1 MiB 的文件不进编辑器。`SftpServiceCache` 按标签缓存，关掉的标签必须 `retainOnly` 删掉（R20 实测开关 500 次后 504 个会话全被这张表拿住）。手机这一侧在 Android 上走 SAF 目录授权（`android_document_tree_service.dart` ↔ `DocumentTreeChannel.kt`） |
 | 跨服务器传输 | 「文件」页 | `infrastructure/ssh/file_selection.dart` 的 `TransferRoute` | 默认经手机中转；同一台服务器内用 `cp`/`mv`；「源服务器直传」要用户明确同意（这条连接不走手机为目标选的路线），目标带代理或跳板时拒绝，命令带 `BatchMode=yes`、`StrictHostKeyChecking=yes`（`server_transfer_commands.dart`） |
 | 端口转发 | 快捷键栏 → `PortForwardSheet` | `application/port_forward_controller.dart` | 只有本地转发（`ServerSocket.bind(127.0.0.1)` + `forwardLocal`）和动态 SOCKS（`forwardDynamic`），没有远程转发。每条记下当时的 `client`，按连接对象认 |
 | 系统管理 | 快捷键栏 → `SystemManagementSheet`：进程、Docker（含 Compose）、服务、Caddy、tmux | `infrastructure/ssh/system_management_service.dart`、`widgets/system_management/` | 每条命令 `sshClient.execute`（exec 通道），默认 15 秒。服务对象每次打开面板新建，关面板就丢。「在终端里执行」开的是一次性标签（`openManagedTerminal`）。参数怎么过滤、哪些操作有确认框、sudo 怎么试，见[安全文档第 8 节](security.md#8-会在服务器上执行命令的功能) |

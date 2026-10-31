@@ -377,6 +377,13 @@ const englishTranslations = <String, String>{
   '上一个匹配': 'Previous match',
   '下一个匹配': 'Next match',
   '服务器内部操作中…': 'Working on the server…',
+  '服务器只支持旧算法': 'Server only supports old algorithms',
+  '这台服务器只认已淘汰的算法（CBC 加密、SHA-1 密钥交换、ssh-rsa 主机密钥），本 App 不再使用，重试也没用。升级服务器上的 SSH 才能连。':
+      'This server only accepts retired algorithms (CBC encryption, SHA-1 key exchange, ssh-rsa host keys). This app no longer uses them, so retrying won\'t help. Upgrade SSH on the server to connect.',
+  '这台服务器只支持已淘汰的加密算法，连不上':
+      'This server only supports retired encryption algorithms, so it can\'t be reached',
+  r'登录完成前服务器断开了连接：$message':
+      r'The server disconnected before sign-in finished: $message',
   '服务器间直传中…': 'Transferring directly between servers…',
   '正在校验服务器文件…': 'Verifying server files…',
   '正在检查服务器传输条件…': 'Checking server transfer capabilities…',

@@ -3,7 +3,7 @@ import 'dart:typed_data';
 
 import 'package:dartssh2/dartssh2.dart';
 // 自签自验要用各类型公钥的 verify，dartssh2 没有公开导出这几个类。
-// dartssh2 锁在 2.22.5，升级时按 plan/v3/docs/12 重跑 test/ssh_identity_test.dart。
+// 这些是 dartssh2 的内部路径，升级时按 plan/v3/docs/12 重跑 test/ssh_identity_test.dart。
 // ignore: implementation_imports
 import 'package:dartssh2/src/hostkey/hostkey_ecdsa.dart';
 // ignore: implementation_imports

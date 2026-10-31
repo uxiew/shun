@@ -143,7 +143,7 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 
 指纹是服务器公钥的摘要，用来确认「这次连的还是上次那台」。规则全在 `lib/application/host_trust.dart`，弹框在 `lib/presentation/widgets/host_key_dialogs.dart`，两者由 `hostKeyVerifier`（`lib/presentation/widgets/connection_prompts.dart`）接起来。用户怎么核对见[使用手册第 5 节](../user/README.md#5-服务器指纹)。
 
-- **什么时候查**：dartssh2 2.22.5 在握手阶段拿到服务器公钥后调 `onVerifyHostKey`，给的是 OpenSSH 写法的 SHA256 指纹；没通过就在发任何登录信息之前断开。每一跳（包括跳板）各查各的，Mosh 的那段 SSH 也一样。
+- **什么时候查**：dartssh2 在握手阶段拿到服务器公钥后调 `onVerifyHostKey`，给的是 OpenSSH 写法的 SHA256 指纹；没通过就在发任何登录信息之前断开。每一跳（包括跳板）各查各的，Mosh 的那段 SSH 也一样。
 - **三种结果**（`verifyHostKeyWithKnownHosts`）：已信任且一致，直接放行；第一次见，弹框让用户核对，点「接受并记住」才写记录；变了，弹「服务器指纹已变化，已阻止连接」，只有「删除旧指纹」和「关闭」两个按钮，**无论点哪个这次都返回 false**，删了旧的也要重连、重新核对。
 - **记在哪、按什么比**：保险库 `extras.knownHosts`，按**逻辑主机名 + 端口**记，不按实际拨出去的地址：经代理或跳板时拨的是代理端口或 127.0.0.1，按那个记就张冠李戴。名字比之前过 `trustHostName`：去首尾空白、IPv6 方括号、结尾的点，IP 按标准写法，域名转小写。只做写法上的等价，**不做 DNS 解析**：两个名字指向同一个 IP 也各自核对。
 - **弹框所在页面没了**（`context.mounted` 为 false）一律按拒绝处理。
@@ -301,6 +301,7 @@ AI 命令行的「按会话 ID 继续」「同项目新建」点一下就启动�
 - **一条路线**：每次连接前由 `resolveRoutePlan`（`lib/domain/connection_route.dart`）算出一份 `RoutePlan`，配置有问题就在拨号前抛 `RouteConfigException`，不退回直连；规则逐条见[架构 2.4](architecture.md#24-routeplan拨号前一次算好的路线)，用户侧见[手册第 3 节](../user/README.md#3-连接路径直连经代理经跳板机)。安全上要记的是：终端、SFTP、监控、系统管理、端口转发都借这一条已核过指纹的连接，不另拨。测试 `test/route_plan_test.dart`、`test/route_fail_closed_test.dart`。
 - **谁拨号**：只有第一跳由手机拨（`Socket.connect`，走系统网络和用户自己开的 VPN）；后面每一跳是上一跳 SSH 的 `forwardLocal(next.host, next.port)`。
 - **DNS**：`Endpoint` 只做语法检查，不解析。经 SOCKS5 时域名按地址类型 3 原样交给代理解析，经 HTTP 代理时把 `主机:端口` 交给代理，经跳板时由上一跳解析下一跳——这些情况手机都不查目标名。手机自己解析的只有：直连的目标名、代理本身的地址；Mosh 的 UDP 直接用 SSH 连上的 IP，不再解析。中文域名不自动转 Punycode：转换规则有多个版本，转错就连到另一台，所以直接拒绝，让用户填 `xn--` 写法。
+- **加密算法**：每条连接都用 `shunSshAlgorithms`（`lib/infrastructure/ssh/ssh_client_defaults.dart`），顺序 chacha20-poly1305、aes128-ctr、aes256-ctr、aes-gcm。CBC、SHA-1 密钥交换、ssh-rsa 主机密钥不提供，只认这些的老设备报「只支持已淘汰的加密算法」。严格密钥交换（防 Terrapin）由 dartssh2 3.1.0 起自动协商：服务器没打补丁（OpenSSH < 9.6）时 chacha20-poly1305 仍可被中间人删掉握手后的个别消息，影响有限，数字和取舍见 `plan/v3/evidence/R58.md`。
 - **SOCKS5 不降级**：配了用户名就只提供「用户名密码」一种认证方式，代理回「无认证」就拒绝（`_socks5`，`lib/infrastructure/transport/proxy_transport.dart`）；没配就只提供无认证。代理口令在网络上是明文，SSH 保护不了它（手册第 3 节写了）。测试 `test/socks5_hardening_test.dart`。
 - **Tailscale API**：`tailscaleApiOrigin` 写死 `https://api.tailscale.com`，不从设置或导入文件读；请求 `followRedirects = false`，跟了重定向就会把 Authorization 头或 client secret 带到对方指定的任何地方。
 - **管不住的**：插件、UU 远程、RustDesk 自己联网，不走宿主的路线（contract.md 第 7 节，手册第 15、16 节）。

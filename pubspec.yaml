@@ -12,7 +12,8 @@ dependencies:
   flutter_localizations:
     sdk: flutter
   cupertino_icons: ^1.0.8
-  dartssh2: ^2.22.3
+  # 升级要跑 plan/v3/docs/12 的矩阵；加密算法顺序自己定，见 ssh_client_defaults.dart。
+  dartssh2: ^4.1.0
   # Ghostty 终端引擎：自己维护的 fork（上游 main + 我们的补丁），说明见 third_party/README.md。
   # R20 起它是唯一的终端引擎，原来的 xterm2 只留在 dev_dependencies 给对照测试用。
   flterm:

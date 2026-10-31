@@ -210,8 +210,12 @@ String socks5ReplyMessage(int code) => switch (code) {
       _ => 'SOCKS5 代理返回了未知状态码（$code）',
     };
 
-/// 直连 socket 的 SSHSocket 包装，和 dartssh2 自带的等价；
-/// 自己包是为了让直连也走可注入的拨号器，所有拨号都能被记录。
+/// 直连 socket 的 SSHSocket 包装；自己包是为了让直连也走可注入的拨号器，所有拨号都能被记录。
+///
+/// [close] 是立刻销毁，和 dartssh2 自带的不一样（[_ProxiedSshSocket] 同理）。4.1.0 的传输层关连接时
+/// `await socket.close()`，收到对端断开时又不接这个 Future：对端发 RST 就变成没人接的全局异常
+/// （集成测试 NET01、JMP04 实测 `Connection reset by peer`）。优雅关闭还要等对端回 FIN，手机切网后
+/// 对端已经没了，socket 会挂到 TCP 超时。2.22.5 就是直接销毁，这里保持原样。
 class DirectSshSocket implements SSHSocket {
   DirectSshSocket(this._socket);
 
@@ -227,7 +231,7 @@ class DirectSshSocket implements SSHSocket {
   Future<void> get done => _socket.done;
 
   @override
-  Future<void> close() async => _socket.close();
+  Future<void> close() async => _socket.destroy();
 
   @override
   void destroy() => _socket.destroy();
@@ -241,7 +245,8 @@ class DirectSshSocket implements SSHSocket {
 /// 1. **攒齐再交**：第一个换行之前的字节先攒着，凑成完整一行再一次交给 dartssh2。
 ///    dartssh2 2.22.5 只要某次收到的数据里没有换行就直接报 `Version exchange not terminated` 断开，
 ///    不等下一个包。版本行被网络拆成两个 TCP 包（经代理时代理回复和半截版本行粘在一起很常见）
-///    就会连不上——实测把版本行分两次、隔 100 ms 发，13 ms 后连接就被断了。
+///    就会连不上——实测把版本行分两次、隔 100 ms 发，13 ms 后连接就被断了。4.1.0 会等了；
+///    下面的期限反正要找换行，这段留着不费事，也不用赌以后的版本。
 /// 2. **期限**：[deadline] 内没等到换行就断开（NET07）。只管这一段，收到换行就停表：
 ///    不用 dartssh2 自带的 handshakeTimeout，它把主机指纹确认弹窗的时间也算进去，
 ///    用户看指纹慢一点就会被判超时（docs/04 要求两者分开）。
@@ -323,7 +328,7 @@ class _ProxiedSshSocket implements SSHSocket {
   Future<void> get done => _socket.done;
 
   @override
-  Future<void> close() async => _socket.close();
+  Future<void> close() async => _socket.destroy();
 
   @override
   void destroy() => _socket.destroy();

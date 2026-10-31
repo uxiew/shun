@@ -37,6 +37,7 @@ class OutcomeUnknown implements Exception {
 ///
 /// 每个操作都和「连接断了」赛跑：dartssh2 2.22.5 的 SFTP 在连接断掉后不再回复还在等的请求，
 /// 不赛跑的话上传、列目录会永远等下去（R24 实测：断线后 15 秒仍不返回，进度条一直挡着别的传输）。
+/// 3.1.0 起库里自己会让它们失败，这里留着：借用者要的是统一的 [ConnectionGone] / [OutcomeUnknown]。
 class SshLease {
   SshLease._(this.session, this.client) {
     _forget = session.onRelease(_markLost);

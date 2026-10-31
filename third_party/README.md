@@ -128,6 +128,7 @@ git apply --3way /tmp/shun-ours.patch     # 返回非 0 会列出合不进的文
 
 | 依赖 | 问题 | 现在怎么处理 |
 |---|---|---|
-| dartssh2 2.22.5 | SSH 版本行被拆包就断开 | App 里用 `SshBannerDeadlineSocket` 绕过（R06） |
+| dartssh2 4.1.0 | 默认把纯 Dart 的 AES-GCM 排第一，吞吐只有 1 MB/s | `shunSshAlgorithms` 自己定顺序（R58） |
+| dartssh2 4.1.0 | 版本行阶段没有超时（拆包断开的问题 4.x 已修） | App 里用 `SshBannerDeadlineSocket` 加期限（R06） |
 | flutter_secure_storage 9.2.4 | Android 端切了存储文件名不切回来；Keystore 失效时静默换一份存储 | App 里显式写默认文件名（R14）、能识别并提示（R09）；升级到 10.x 要所有者同意 |
 | xterm2 5.2.0 | 只作迁移期对照，Ghostty 成为默认后退出生产路径 | 不 fork |

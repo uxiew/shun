@@ -6,6 +6,7 @@ import 'package:dartssh2/dartssh2.dart';
 import '../domain/connection_route.dart';
 import '../domain/plugins/mosh_bootstrap.dart';
 import '../domain/plugins/mosh_route.dart';
+import '../infrastructure/ssh/ssh_client_defaults.dart';
 import '../infrastructure/ssh/ssh_identity.dart';
 import '../infrastructure/ssh/ssh_login_watch.dart';
 import '../infrastructure/ssh/ssh_service.dart';
@@ -48,6 +49,7 @@ enum ConnectionFailureKind {
   moshLocale,
   moshBootstrap,
   pluginUnavailable,
+  noCommonAlgorithm,
   other,
 }
 
@@ -88,6 +90,8 @@ ConnectionFailureKind classifyConnectionFailure(Object error) {
     SSHAuthAbortError(reason: SSHHostkeyError()) =>
       ConnectionFailureKind.hostKey,
     SSHAuthFailError() => ConnectionFailureKind.authFailed,
+    _ when isAlgorithmMismatch(cause) =>
+      ConnectionFailureKind.noCommonAlgorithm,
     SSHAuthAbortError() when error is RouteHopException && error.relayed =>
       ConnectionFailureKind.authAbortedRelayed,
     SSHAuthAbortError() => ConnectionFailureKind.authAborted,
@@ -161,6 +165,7 @@ String failureLabel(ConnectionFailureKind kind) => switch (kind) {
       ConnectionFailureKind.moshLocale => '服务器缺 UTF-8 locale',
       ConnectionFailureKind.moshBootstrap => 'mosh-server 的回应不可信',
       ConnectionFailureKind.pluginUnavailable => '插件不可用',
+      ConnectionFailureKind.noCommonAlgorithm => '服务器只支持旧算法',
       ConnectionFailureKind.other => '其他错误',
     };
 
@@ -204,6 +209,8 @@ String? _hint(ConnectionFailureKind kind) => switch (kind) {
             '也可能代理或跳板机之后的那一段断了，App 看不到那一段。先确认 SSH 端口，再看代理或跳板机那边能不能连到目标。',
       ConnectionFailureKind.authAborted =>
         '对方在登录完成前断开了：确认这个端口上是 SSH 服务——常见原因是把代理端口或别的服务端口填成了 SSH 端口。',
+      ConnectionFailureKind.noCommonAlgorithm =>
+        '这台服务器只认已淘汰的算法（CBC 加密、SHA-1 密钥交换、ssh-rsa 主机密钥），本 App 不再使用，重试也没用。升级服务器上的 SSH 才能连。',
       ConnectionFailureKind.channelOpen =>
         '跳板机拒绝转发：确认跳板机允许 TCP 转发（sshd 的 AllowTcpForwarding），且下一跳地址从跳板机那边能到达。',
       _ => null,

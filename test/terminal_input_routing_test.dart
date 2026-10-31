@@ -430,7 +430,7 @@ class _Page {
 
 class _FakeSsh extends Fake implements SSHClient {
   @override
-  void close() {}
+  Future<void> close() async {}
   @override
   bool get isClosed => false;
 }

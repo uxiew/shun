@@ -21,6 +21,7 @@ import '../domain/connection_route.dart';
 import '../domain/models/host.dart';
 import '../domain/restore_hold.dart';
 import '../domain/tmux/tmux_target.dart';
+import '../infrastructure/ssh/ssh_client_defaults.dart';
 import '../infrastructure/ssh/ssh_service.dart';
 import '../infrastructure/transport/proxy_transport.dart';
 
@@ -62,6 +63,8 @@ bool isTransientConnectionError(Object error) {
     ProxyHandshakeException(:final transient) => transient,
     // 指纹不对时 dartssh2 也报成 SSHAuthAbortError，原因里带着 SSHHostkeyError：那是要人看的。
     SSHAuthAbortError(reason: SSHHostkeyError()) => false,
+    // 和服务器谈不拢算法：再试多少次都一样。
+    _ when isAlgorithmMismatch(cause) => false,
     // 登录前被对端关掉：sshd 正在重启、并发握手满了（MaxStartups）时都会这样（LIFE04「远端 SSH 重启」）。
     SSHAuthAbortError() => true,
     // 跳板机转发不过去：下一跳正在重启时也是这样。

@@ -434,7 +434,7 @@ class _CommandClient extends Fake implements SSHClient {
           SSHX11Config? x11}) async =>
       this.command;
   @override
-  void close() {
+  Future<void> close() async {
     closed = true;
   }
 }

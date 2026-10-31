@@ -531,7 +531,7 @@ class SftpService extends FileTransferService {
 
   static const _sftpHandshakeTimeout = Duration(seconds: 10);
 
-  /// dartssh2 2.22.5 发出 SFTP 子系统请求后不看服务器的回复：服务器没开 SFTP（没装 sftp-server、
+  /// dartssh2（到 4.1.0 都是）发出 SFTP 子系统请求后不看服务器的回复：服务器没开 SFTP（没装 sftp-server、
   /// sshd 没配 Subsystem）时，它会一直等 SFTP 版本回应，界面就无限转圈。
   /// 这里给握手加期限，到期关掉这个通道并说清原因；失败的客户端不缓存，下次重新打开。
   Future<SftpClient> _openSftp(SSHClient ssh) async {
@@ -1215,9 +1215,10 @@ Stream<Uint8List> trackTransferProgress(
   }
 }
 
-/// dartssh2 2.22.5 的 [SftpFileWriter] 订阅数据流时没挂 onError：数据流报错（用户点取消、
-/// 本机文件读失败）会变成没人接的全局错误，`done` 也永远不完成，远端句柄关不掉（R24 实测）。
-/// 这里先把错误截下：停掉 writer，等它结束，再把原来的错误抛给调用方。
+/// 数据流报错（用户点取消、本机文件读失败）时先把错误截下：停掉 writer，等它结束，再把原来的错误抛给调用方。
+///
+/// 2.22.5 的 [SftpFileWriter] 不挂 onError，错误会变成没人接的全局错误，`done` 也永远不完成（R24 实测）。
+/// 4.1.0 自己也会停了；留着是因为取消、续传的回归都是按这层跑通的，要删就重跑 R24 那组。
 Future<void> _writeSftpStream(
   SftpFile file,
   Stream<Uint8List> stream, {

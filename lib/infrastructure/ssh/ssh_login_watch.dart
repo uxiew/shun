@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dartssh2/dartssh2.dart';
 
 import '../../domain/tailscale_ssh.dart';
+import 'ssh_client_defaults.dart';
 
 /// Tailscale SSH 登录时要你处理的一件事：打开 check 链接，或者知道链接被拒了。
 ///
@@ -72,7 +73,7 @@ class SshLoginTimeout implements Exception {
 
 /// 普通 SSH 模式下，服务器没要任何凭据就放行了（none 认证）。
 ///
-/// dartssh2 2.22.5 会在所有方法都失败后自动再试一次 none（ssh_client.dart `_startAuthentication`），
+/// dartssh2 会在所有方法都失败后自动再试一次 none（ssh_client.dart `_startAuthentication`），
 /// 没有开关能关掉。对 Tailscale SSH 来说这等于用 tailnet 身份登录了——用户选的却是普通 SSH。
 /// 所以登录成功后再核对一次，是 none 就关掉（docs/05「可检测的策略保证」）。
 class StandardLoginFellBackToNone implements Exception {
@@ -159,7 +160,7 @@ class SshLoginWatch {
   /// 接 dartssh2 的 printDebug。只认一句话：它要发 none 认证了；其余一概丢掉，不打印、不留存
   /// （有些调试信息里带 banner 原文，也就是 check 链接）。
   ///
-  /// 依赖 dartssh2 2.22.5 的调试文字 `SSHClient._authWithNone`。升级 dartssh2 时
+  /// 依赖 dartssh2 的调试文字 `SSHClient._authWithNone`（4.1.0 还在）。升级 dartssh2 时
   /// test/tailscale_ssh_login_test.dart 的「普通模式拒绝 none」会在这里失效时报错（plan/v3/docs/12）。
   void debug(String? message) {
     if (message == 'SSHClient._authWithNone') _noneAttempted = true;
@@ -194,7 +195,7 @@ class SshLoginWatch {
     final result = _result = Completer<void>();
     final abort = _abort;
     if (abort != null) {
-      client.close();
+      client.closeQuietly();
       return Future.error(abort);
     }
     // 普通模式的期限仍由 dartssh2 的 authTimeout 管（键盘交互要等人输验证码，原来就是这样）；
@@ -205,7 +206,7 @@ class SshLoginWatch {
         if (result.isCompleted) return;
         _finish();
         if (mode == SshLoginMode.standard && _noneAttempted) {
-          client.close();
+          client.closeQuietly();
           result.completeError(const StandardLoginFellBackToNone());
           return;
         }
@@ -235,7 +236,7 @@ class SshLoginWatch {
       if (result == null || result.isCompleted) return;
       final checkPending = _checkPending;
       _finish();
-      _client?.close();
+      _client?.closeQuietly();
       result.completeError(SshLoginTimeout(wait, checkPending: checkPending));
     });
   }
@@ -249,7 +250,7 @@ class SshLoginWatch {
     }
     if (result.isCompleted) return;
     _finish();
-    _client?.close();
+    _client?.closeQuietly();
     result.completeError(error);
   }
 
