@@ -103,4 +103,8 @@ flutter {
 
 dependencies {
     implementation(project(":provider-sdk"))
+    // 安全密钥（R59）：CTAP2、NFC、USB 都由它走，SecurityKeyChannel 只做桥。
+    implementation("com.yubico.yubikit:android:3.1.0")
+    implementation("com.yubico.yubikit:fido:3.1.0")
+    testImplementation("junit:junit:4.13.2")
 }

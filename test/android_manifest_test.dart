@@ -18,7 +18,17 @@ void main() {
       'android.permission.POST_NOTIFICATIONS',
       'android.permission.FOREGROUND_SERVICE',
       'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',
+      'android.permission.NFC',
     });
+  });
+
+  test('NFC、USB 不是必需的：没有它们的手机也能装', () {
+    for (final feature in ['android.hardware.nfc', 'android.hardware.usb.host']) {
+      expect(
+        manifest,
+        contains('<uses-feature android:name="$feature" android:required="false" />'),
+      );
+    }
   });
 
   test('MainActivity 不接外部链接（没有 ssh:// 这类 VIEW 入口）', () {

@@ -44,6 +44,11 @@ class MainActivity : FlutterActivity() {
         super.onNewIntent(clean)
     }
 
+    override fun onResume() {
+        super.onResume()
+        ProcessEngine.onActivityResumed()
+    }
+
     private fun withoutPayload(source: Intent?): Intent =
         Intent(Intent.ACTION_MAIN).apply {
             component = ComponentName(this@MainActivity, MainActivity::class.java)

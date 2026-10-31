@@ -25,6 +25,7 @@ object ProcessEngine {
     private var plugins: PluginBridge? = null
     private var windowSecurity: WindowSecurityChannel? = null
     private var diagnostics: DiagnosticsChannel? = null
+    private var securityKey: SecurityKeyChannel? = null
     private var activity: WeakReference<Activity>? = null
 
     fun obtain(context: Context): FlutterEngine {
@@ -38,6 +39,7 @@ object ProcessEngine {
         plugins = PluginBridge(app, messenger)
         windowSecurity = WindowSecurityChannel(messenger)
         diagnostics = DiagnosticsChannel(app, messenger)
+        securityKey = SecurityKeyChannel(app, messenger)
         created.addEngineLifecycleListener(object : FlutterEngine.EngineLifecycleListener {
             override fun onPreEngineRestart() = Unit
 
@@ -50,6 +52,11 @@ object ProcessEngine {
     /** Activity 走了引擎还留不留：有会话（保活服务开着或正在开）就留。 */
     val keepWithoutActivity: Boolean
         get() = SshKeepAliveService.requested
+
+    /** 界面回到前台：正在等安全密钥的话要重新开 NFC，见 [SecurityKeyChannel]。 */
+    fun onActivityResumed() {
+        securityKey?.onActivityResumed()
+    }
 
     /** 新接上引擎的界面按 Dart 上次说的加上或去掉 FLAG_SECURE。 */
     fun applyWindowSecurity(activity: Activity) {
@@ -74,6 +81,8 @@ object ProcessEngine {
         windowSecurity = null
         diagnostics?.dispose()
         diagnostics = null
+        securityKey?.dispose()
+        securityKey = null
         engine = null
     }
 }
