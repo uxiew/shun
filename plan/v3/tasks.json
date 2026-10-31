@@ -3019,7 +3019,7 @@
       "id": "R58",
       "phase": "P5",
       "title": "dartssh2 升到 4.1.0，不降终端表现",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "depends_on": [
         "R28"
       ],
@@ -3044,8 +3044,10 @@
       ],
       "stop_condition": "吞吐或回显比旧版差就不升；模拟器和真机都没跑过的写 NOT_RUN，不拿 Mac 上的数字冒充手机。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R58.md"
+      ],
+      "commit": "38fc375"
     },
     {
       "id": "R59",
@@ -3082,14 +3084,16 @@
       ],
       "stop_condition": "没有真钥匙时 SKY02–SKY04 写 NOT_RUN，任务不记 DONE；不做 agent forwarding；首版不支持老 U2F 钥匙。",
       "owner_role": "安全/实施代理",
-      "evidence": [],
+      "evidence": [
+        "evidence/R59.md"
+      ],
       "commit": null
     },
     {
       "id": "R60",
       "phase": "P6",
       "title": "加密文件导出导入",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R28"
       ],
@@ -3114,8 +3118,10 @@
       ],
       "stop_condition": "不把口令存下来；不新造加密格式。",
       "owner_role": "安全/实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R60.md"
+      ],
+      "commit": "f4b1cf6"
     },
     {
       "id": "R61",

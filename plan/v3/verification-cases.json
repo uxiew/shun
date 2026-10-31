@@ -1899,18 +1899,22 @@
       "action": "同一份 33 MB 终端文本（走 PTY）和 33 MB 随机字节（不走 PTY）经真 OpenSSH，分别用旧版和新版 dartssh2 接收；再量 2000 次回显、8 MB 上行和 15 次握手。",
       "expected": "字节哈希完全相同；吞吐不低于旧版；回显 p50、p99 不变差。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R58.md"
+      ]
     },
     {
       "id": "SKY01",
       "action": "软件认证器按 CTAP2 算法签名，经真 OpenSSH 登录两种 sk 类型；分别改 flags、counter、application、多一个字节。",
       "expected": "正常的登录成功，改过的都被 sshd 拒绝。只证明格式，不证明钥匙行为。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R59.md"
+      ]
     },
     {
       "id": "SKY02",
@@ -1953,9 +1957,11 @@
       "action": "导出加密文件再导入：对的口令、错的口令、改过一个字节、截断；同名长文件被短内容覆盖。",
       "expected": "对的恢复全部凭据并进安全存储；其余都拒绝且不动现有数据；覆盖后能解密。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R60.md"
+      ]
     },
     {
       "id": "SYN02",

@@ -29,13 +29,13 @@
 
 ## 2. 阶段 0：先升 dartssh2
 
-**怎么做**：`pubspec.yaml` 改成 `dartssh2: ^4.1.0`，修测试里的假客户端，跑全量单测和 Docker 集成测试，把 `docs/` 里写死的版本号改掉。
+已做完，实测数字和取舍见 [R58](../evidence/R58.md)。下面是当时的理由和风险，留着对照。
 
 **为什么排第一**：
 
 - 安全密钥要异步签名：钥匙碰上才出结果，而 2.22.5 的 `sign()` 是同步的（`ssh_key_pair.dart:66`、`ssh_client.dart:1294`）。3.0.0 加了 `SSHIdentity`，`sign()` 可以返回 `Future`，还带 `shouldProbe`（先问服务器收不收这把钥匙，收才让用户碰）。**不用 fork**。
 - 3.1.0 才有严格密钥交换（`kex-strict-c-v00@openssh.com`，防 Terrapin 攻击），4.0.0 修了一批安全问题（MAC 常量时间比较、先验 MAC 再解析等）。不做安全密钥也该升。
-- 所有者还没开始跑 R26 清单。REL04 要求每条结果对应同一个包，等跑完再升，SSH 相关的结果都要重来。
+- 所有者还没开始跑 R26 清单。REL04 要求每条结果对应同一个包，升级后 SSH 相关的结果都要对新包重来。
 
 **代价**：
 
@@ -56,7 +56,7 @@
 | 层 | 选 | 依据 |
 |---|---|---|
 | SSH 登录 | dartssh2 4.1.0 的 `SSHIdentity.custom` + `SSHRawHostKey` / `SSHRawSignature` | 源码：两个 Raw 类原样输出字节，可以塞 sk 格式 |
-| 跟钥匙通信 | Kotlin 桥 + [yubikit-android](https://github.com/Yubico/yubikit-android) 的 `Ctap2Session`（Apache-2.0） | 文档：`enable` 只要普通 `Activity`，不用改 `MainActivity` 的基类。子代理读源码：3.3.0（2026-10-29），rpId 是普通字符串，NFC、USB 共用，USB 放开设备过滤后能用非 Yubico 钥匙 |
+| 跟钥匙通信 | Kotlin 桥 + [yubikit-android](https://github.com/Yubico/yubikit-android) 3.1.0 的 `Ctap2Session`（Apache-2.0；3.2 起要 compileSdk 37，见 [R59](../evidence/R59.md)） | 文档：`enable` 只要普通 `Activity`，不用改 `MainActivity` 的基类。子代理读源码：3.3.0（2026-10-29），rpId 是普通字符串，NFC、USB 共用，USB 放开设备过滤后能用非 Yubico 钥匙 |
 | 句柄文件解析、签名打包 | 自己写 Dart | 算法在 [PROTOCOL.u2f](https://raw.githubusercontent.com/openssh/openssh-portable/master/PROTOCOL.u2f)；可对照 [cbssh #146](https://github.com/connectbot/cbssh/pull/146) |
 
 同路线的先例：[ConnectBot #1821](https://github.com/connectbot/connectbot/pull/1821)（YubiKit，NFC + USB，还是草稿）、[BisonHerdr #43](https://github.com/ToxicBakery/BisonHerdr/pull/43)（yubikit 3.2.1，已合并，开关默认关，作者没上过真机）。两个都还没正式发布，别当成熟方案看。
