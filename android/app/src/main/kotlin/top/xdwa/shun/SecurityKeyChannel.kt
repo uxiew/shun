@@ -136,7 +136,7 @@ class SecurityKeyChannel(private val app: Context, messenger: BinaryMessenger) {
 
         /** USB、NFC 都还开着，先到的那把钥匙生效，另一边来了不理。 */
         fun onDevice(device: YubiKeyDevice) {
-            if (finished.get() || !started.compareAndSet(false, true)) return
+            if (!started.compareAndSet(false, true)) return
             stage("communicating")
             val commandState = object : CommandState() {
                 override fun onKeepAliveStatus(status: Byte) {
@@ -146,16 +146,23 @@ class SecurityKeyChannel(private val app: Context, messenger: BinaryMessenger) {
             state = commandState
             if (finished.get()) commandState.cancel()
             // 连接由 yubikit 在回调结束后关，这里不用管。
-            if (device.supportsConnection(FidoConnection::class.java)) {
-                device.requestConnection(FidoConnection::class.java) { connection ->
-                    run { SecurityKeyOperations.run(operation, connection.value, commandState) }
+            try {
+                if (device.supportsConnection(FidoConnection::class.java)) {
+                    device.requestConnection(FidoConnection::class.java) { connection ->
+                        run { SecurityKeyOperations.run(operation, connection.value, commandState) }
+                    }
+                } else if (device.supportsConnection(SmartCardConnection::class.java)) {
+                    device.requestConnection(SmartCardConnection::class.java) { connection ->
+                        run { SecurityKeyOperations.run(operation, connection.value, commandState) }
+                    }
+                } else {
+                    operation.wipe()
+                    finishWithError(SecurityKeyOperations.UNSUPPORTED)
                 }
-            } else if (device.supportsConnection(SmartCardConnection::class.java)) {
-                device.requestConnection(SmartCardConnection::class.java) { connection ->
-                    run { SecurityKeyOperations.run(operation, connection.value, commandState) }
-                }
-            } else {
-                finishWithError(SecurityKeyOperations.UNSUPPORTED)
+            } catch (_: RuntimeException) {
+                // 拔掉的 USB 设备线程池已关，`requestConnection` 直接抛，回调不会来。
+                operation.wipe()
+                finishWithError(SecurityKeyOperations.TRANSPORT)
             }
         }
 
@@ -174,6 +181,8 @@ class SecurityKeyChannel(private val app: Context, messenger: BinaryMessenger) {
             } catch (_: Exception) {
                 // yubikit 报的其他错（不支持的钥匙等）全收在这，它在后台线程，漏出去整个进程就没了。
                 finishWithError(SecurityKeyOperations.UNSUPPORTED)
+            } finally {
+                operation.wipe()
             }
         }
 
@@ -191,7 +200,9 @@ class SecurityKeyChannel(private val app: Context, messenger: BinaryMessenger) {
 
         private fun complete(deliver: () -> Unit) {
             if (!finished.compareAndSet(false, true)) return
-            operation.wipe()
+            // 操作已经开始的话 PIN 留给它自己在 run 结束时清：后台线程可能正要发，这里清零就是把一串 0
+            // 当 PIN 发给钥匙，白白消耗一次机会。抢到 started 就是不会再有操作。
+            if (started.compareAndSet(false, true)) operation.wipe()
             state?.cancel()
             main.post {
                 if (pending === this) pending = null
