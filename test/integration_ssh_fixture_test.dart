@@ -1805,6 +1805,53 @@ void main() {
       expect(dialer.dials, hasLength(1), reason: '口令错、密文被改时一次都没拨');
     }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
 
+    test('R26 F25 凭据「SSH 密钥 + 密码」：服务器要先公钥再密码时登得进；只给一样登不进', () async {
+      final f = fixture!;
+      final key = SshKeyProfile(
+          {'id': 'k', 'label': 'k', 'privateKey': f.privateKeyPem});
+      // 主机自己的用户名、密码、私钥都不对或没有：能登进去只能是用了身份里的。
+      Future<Object?> login(Map<String, dynamic> identity) async {
+        final host = edgeHost({
+          'id': 'f25',
+          'username': 'nobody-here',
+          'authMethod': 'auto',
+          'password': null,
+          'identityId': 'i',
+        });
+        try {
+          final session = await SshService().connect(
+            terminal: GhosttyTerminalAdapter(),
+            sessionId: 'f25',
+            host: host,
+            hosts: [host],
+            keys: [key],
+            identities: [
+              {'id': 'i', 'label': 'i', 'username': 'twostep', ...identity},
+            ],
+            verifyHostKey: verifyByLogicalName,
+          );
+          final name = await runInSession(session, 'whoami');
+          await session.close();
+          return name;
+        } catch (error) {
+          return error;
+        }
+      }
+
+      expect(
+        await login(
+            {'authMethod': 'key', 'keyId': 'k', 'password': f.password}),
+        'twostep',
+      );
+      expect('${await login({'authMethod': 'key', 'keyId': 'k'})}',
+          contains('登录被拒绝'),
+          reason: '只有公钥：第二步没有密码可发');
+      expect(
+          '${await login({'authMethod': 'password', 'password': f.password})}',
+          contains('登录被拒绝'),
+          reason: '只有密码：服务器要先过公钥');
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
     test('SEC04 信任按逻辑名：同一台机器换个名字要重新核对；只改大小写或用户名不用', () async {
       final f = fixture!;
       var knownHosts = <Map<String, dynamic>>[];
@@ -2636,8 +2683,7 @@ void main() {
       final tab = controller.state.sessions.single;
       await Future<void>.delayed(const Duration(milliseconds: 300));
       controller.typeInto(tab.id, 'exit\r');
-      await eventually(
-          () => controller.state.sessions.isEmpty, 'exit 后标签关掉');
+      await eventually(() => controller.state.sessions.isEmpty, 'exit 后标签关掉');
       // 真机上是断开当场就重拨；等过第一次退避（1 秒）再看。
       await Future<void>.delayed(const Duration(seconds: 2));
       expect(dialer.dials, hasLength(1), reason: 'exit 不是断线，不去重连');

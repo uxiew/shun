@@ -20,6 +20,9 @@
 | ssh-hop2 | 不能，名字 `hop2.fixture.internal` | 多跳的第二跳 |
 | ssh-hop3 | 不能，名字 `hop3.fixture.internal` | 多跳的第三跳（测"三个跳板 + 目标"） |
 
+另有用户 `twostep`：密码和公钥与 `fixture` 相同，但 sshd 要求**先公钥、再密码**两步都过（`AuthenticationMethods publickey,password`），
+测「SSH 密钥 + 密码」凭据（R26 F25）；只给其中一样都登不进。
+
 SSH 用户 `fixture`，登录 shell 是 busybox 的 `sh`（不支持 bracketed paste）；镜像里另装了 bash、vim、less、htop、tmux，
 要测真 readline 的粘贴行为（R19，`test/integration_ssh_fixture_test.dart` 的「R19 粘贴到真 bash」）时在会话里 `exec bash`。改了 `Dockerfile` 后 `up.sh` 会重新构建。
 

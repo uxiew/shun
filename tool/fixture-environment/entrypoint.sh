@@ -9,6 +9,12 @@ case "$ROLE" in
     echo "fixture:$(cat /run-secrets/ssh_password)" | chpasswd
     install -d -m 700 -o fixture -g fixture /home/fixture/.ssh
     install -m 600 -o fixture -g fixture /run-secrets/id_ed25519.pub /home/fixture/.ssh/authorized_keys
+    # twostep：同一个密码、同一把公钥，但必须先过公钥、再输密码（R26 F25 的「SSH 密钥 + 密码」凭据）。
+    # 只给其中一样都登不进；fixture 用户不受影响。
+    id -u twostep >/dev/null 2>&1 || adduser -D -s /bin/sh twostep
+    echo "twostep:$(cat /run-secrets/ssh_password)" | chpasswd
+    install -d -m 700 -o twostep -g twostep /home/twostep/.ssh
+    install -m 600 -o twostep -g twostep /run-secrets/id_ed25519.pub /home/twostep/.ssh/authorized_keys
     # 每个新容器重新生成主机密钥：up 一次指纹就变一次，正好用来测"指纹改变必须阻断"。
     # 同一个容器重启（docker restart）沿用原来的密钥，像真服务器的 sshd 重启（R22 LIFE04）；
     # 要测"重启后换了密钥"，进容器删掉 .shun-hostkey 标记再重启。
@@ -26,7 +32,7 @@ case "$ROLE" in
     cat > /etc/ssh/sshd_config <<'EOF'
 Port 22
 HostKey /etc/ssh/ssh_host_ed25519_key
-AllowUsers fixture
+AllowUsers fixture twostep
 PermitRootLogin no
 PasswordAuthentication yes
 KbdInteractiveAuthentication yes
@@ -41,6 +47,8 @@ EOF
     if [ "${SFTP:-on}" = on ]; then
       echo 'Subsystem sftp internal-sftp' >> /etc/ssh/sshd_config
     fi
+    # Match 必须放在最后：它后面的所有设置都只对匹配的用户生效。
+    printf 'Match User twostep\n    AuthenticationMethods publickey,password\n' >> /etc/ssh/sshd_config
     exec /usr/sbin/sshd -D -e
     ;;
   socks)
