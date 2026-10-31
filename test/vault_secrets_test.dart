@@ -23,6 +23,9 @@ const profileProxyPw = 'PROFILE-PROXY-PW-5d04';
 const privateKey = '-----BEGIN OPENSSH PRIVATE KEY-----\nKEY-MATERIAL-0e8f\n'
     '-----END OPENSSH PRIVATE KEY-----';
 const passphrase = 'KEY-PASS-a61c';
+// 桌面端的字段（R26 F25 补上）：身份里的密码、主机的 TOTP 种子（otpauth 链接里的 secret）。
+const identityPw = 'IDENTITY-PW-3b9d';
+const totpUri = 'otpauth://totp/web?secret=TOTPSEED4K2Q';
 const allSecrets = [
   hostPw,
   telnetPw,
@@ -30,6 +33,8 @@ const allSecrets = [
   profileProxyPw,
   'KEY-MATERIAL-0e8f',
   passphrase,
+  identityPw,
+  'TOTPSEED4K2Q',
 ];
 
 VaultData sampleVault() => VaultData.fromJson({
@@ -53,6 +58,8 @@ VaultData sampleVault() => VaultData.fromJson({
           },
           'managedSource': {'provider': 'tailscale', 'deviceId': 'n1'},
           'x-desktop-only': {'keep': true},
+          'identityId': 'i1',
+          'totp': {'uri': totpUri, 'label': 'web'},
         },
       ],
       'keys': [
@@ -83,6 +90,16 @@ VaultData sampleVault() => VaultData.fromJson({
         {'hostname': 'web.example.com', 'port': 22, 'fingerprint': 'SHA256:x'},
       ],
       'desktopPluginData': {'preserved': true},
+      'identities': [
+        {
+          'id': 'i1',
+          'label': 'ops',
+          'username': 'ops',
+          'authMethod': 'password',
+          'password': identityPw,
+          'created': 1,
+        },
+      ],
     });
 
 void expectNoSecrets(String text, {String? where}) {
@@ -160,11 +177,21 @@ void main() {
       expect(clean.keys.single.data['x-key-extra'], 'keep');
       expect(clean.extras['knownHosts'], isNotEmpty);
       expect(clean.extras['desktopPluginData'], {'preserved': true});
+      expect((clean.extras['identities'] as List).single, {
+        'id': 'i1',
+        'label': 'ops',
+        'username': 'ops',
+        'authMethod': 'password',
+        'created': 1
+      });
+      expect(host['totp'], {'label': 'web'});
       // 原对象还带着凭据（它是内存里正在用的保险库）。
       expect(vault.hosts.single.password, hostPw);
       expect((vault.hosts.single.data['proxyConfig'] as Map)['password'],
           inlineProxyPw);
       expect(vault.keys.single.privateKey, privateKey);
+      expect(((vault.extras['identities'] as List).single as Map)['password'],
+          identityPw);
     });
 
     test('导出文件里没有任何凭据', () async {
@@ -200,6 +227,9 @@ void main() {
       expect(merged.keys.single.passphrase, passphrase);
       expect((merged.proxyProfiles.single.data['config'] as Map)['password'],
           profileProxyPw);
+      expect(((merged.extras['identities'] as List).single as Map)['password'],
+          identityPw);
+      expect((host.data['totp'] as Map)['uri'], totpUri);
 
       final withOwn = VaultData.fromJson(
           jsonDecode(jsonEncode(vaultWithoutSecrets(local).toJson()))
@@ -239,6 +269,20 @@ void main() {
       expect((merged.proxyProfiles.single.data['config'] as Map)['password'],
           isNull);
       expect(merged.hosts.single.password, hostPw, reason: '主机本身没变，主机密码照样沿用');
+
+      // 身份换了用户名或登录方式：不是同一个身份了，不沿用。
+      for (final change in <Map<String, Object>>[
+        {'username': 'root'},
+        {'authMethod': 'key'},
+      ]) {
+        final incoming = vaultWithoutSecrets(local);
+        ((incoming.extras['identities'] as List).single as Map).addAll(change);
+        final merged = keepLocalSecrets(incoming, local);
+        expect(
+            ((merged.extras['identities'] as List).single as Map)['password'],
+            isNull,
+            reason: '$change');
+      }
     });
 
     test('真实存储往返：保存 → 导出 → 导入同一文件 → 重新加载，凭据都还在', () async {
@@ -281,10 +325,64 @@ void main() {
       expect(reloaded.keys.single.privateKey, privateKey);
       expect((reloaded.proxyProfiles.single.data['config'] as Map)['password'],
           profileProxyPw);
+      expect(
+          ((reloaded.extras['identities'] as List).single as Map)['password'],
+          identityPw);
+      expect((reloaded.hosts.single.data['totp'] as Map)['uri'], totpUri);
       final prefs = await SharedPreferences.getInstance();
       for (final key in prefs.getKeys()) {
         expectNoSecrets('${prefs.get(key)}', where: '偏好 $key');
       }
+
+      // 删掉身份：安全存储里它的密码跟着删。
+      final withoutIdentity = await controller.ready();
+      withoutIdentity.extras['identities'] = <Object>[];
+      await controller.replace(withoutIdentity);
+      expect(secrets.keys, isNot(contains('identity.i1.password')));
+    });
+
+    test('老版本明文存进普通存储的身份密码、TOTP 种子：打开时搬进安全存储，普通存储里抹掉', () async {
+      final secrets = <String, String>{};
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(
+              const MethodChannel(
+                  'plugins.it_nomads.com/flutter_secure_storage'),
+              (call) async {
+        final args = (call.arguments as Map?) ?? const {};
+        final key = args['key'] as String?;
+        switch (call.method) {
+          case 'write':
+            secrets[key!] = args['value'] as String;
+          case 'read':
+            return secrets[key];
+          case 'delete':
+            secrets.remove(key);
+        }
+        return null;
+      });
+      // R26 F25 之前的版本：去凭据时不认这两样，导入桌面端文件后原样写进了偏好。
+      final old = vaultWithoutSecrets(sampleVault()).toJson();
+      ((old['identities'] as List).single as Map)['password'] = identityPw;
+      ((old['hosts'] as List).single as Map)['totp'] = {
+        'uri': totpUri,
+        'label': 'web'
+      };
+      SharedPreferences.setMockInitialValues(
+          {'shun_vault_v1': jsonEncode(old)});
+      final repository = await VaultRepository.open();
+      final loaded = await repository.loadVault();
+      expect(((loaded.extras['identities'] as List).single as Map)['password'],
+          identityPw);
+      expect((loaded.hosts.single.data['totp'] as Map)['uri'], totpUri);
+      expect(secrets['identity.i1.password'], identityPw);
+      expect(secrets['host.h1.totpUri'], totpUri);
+      final prefs = await SharedPreferences.getInstance();
+      for (final key in prefs.getKeys()) {
+        expectNoSecrets('${prefs.get(key)}', where: '偏好 $key');
+      }
+      final again = await (await VaultRepository.open()).loadVault();
+      expect(((again.extras['identities'] as List).single as Map)['password'],
+          identityPw);
     });
   });
 }

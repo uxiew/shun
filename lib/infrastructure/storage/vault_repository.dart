@@ -134,10 +134,13 @@ class VaultRepository {
     _onSecretRead = (key, value) {
       if (value != null && value.isNotEmpty) seen.add(key);
     };
+    // 这些是从普通存储里直接读出来的明文（见 [_moveSecretsOutOfPreferences]），要在补安全存储之前认。
+    final plainSecrets = _hasPlainSecrets(vault);
     await Future.wait([
       ...vault.hosts.map(_loadHostSecrets),
       ...vault.keys.map(_loadKeySecrets),
       ...vault.proxyProfiles.map(_loadProxySecrets),
+      ...vaultIdentityMaps(vault).map(_loadIdentitySecrets),
     ]);
     _onSecretRead = null;
     if (legacyInstall) {
@@ -145,6 +148,7 @@ class VaultRepository {
       _savedSecretKeys = seen;
       await _persistSecretIndex();
     }
+    if (plainSecrets) await _moveSecretsOutOfPreferences(vault);
     // A metadata-only edit (for example a snippet mutation) may complete while
     // platform keychain reads are still in flight. Keep that newer snapshot;
     // its host/key objects already received the hydrated secrets above.
@@ -201,14 +205,18 @@ class VaultRepository {
   }
 
   Future<void> _loadHostSecrets(HostProfile host) async {
+    final hasTotp = host.data['totp'] is Map;
     final values = await Future.wait([
       _readSecret('host.${host.id}.password'),
       _readSecret('host.${host.id}.telnetPassword'),
       _readSecret('host.${host.id}.proxyPassword'),
+      // 只有桌面端设过 TOTP 的主机才有这一条；本 App 的主机不多读一次安全存储。
+      if (hasTotp) _readSecret('host.${host.id}.totpUri'),
     ]);
     final password = values[0];
     final telnet = values[1];
     final proxyPassword = values[2];
+    final totpUri = hasTotp ? values[3] : null;
     if (password != null) host.data['password'] = password;
     if (telnet != null) host.data['telnetPassword'] = telnet;
     if (proxyPassword != null && host.data['proxyConfig'] is Map) {
@@ -217,6 +225,53 @@ class VaultRepository {
         'password': proxyPassword,
       };
     }
+    if (totpUri != null && host.data['totp'] is Map) {
+      host.data['totp'] = {
+        ...Map<String, dynamic>.from(host.data['totp'] as Map),
+        'uri': totpUri,
+      };
+    }
+  }
+
+  Future<void> _loadIdentitySecrets(Map<String, dynamic> identity) async {
+    final password = await _readSecret('identity.${identity['id']}.password');
+    if (password != null) identity['password'] = password;
+  }
+
+  static String? _totpUri(HostProfile host) {
+    final totp = host.data['totp'];
+    return totp is Map ? totp['uri']?.toString() : null;
+  }
+
+  /// 没设 TOTP 的主机不碰安全存储；以前存过、现在去掉了的才删。
+  Future<void> _writeTotpSecret(HostProfile host) async {
+    final key = 'host.${host.id}.totpUri';
+    if (host.data['totp'] is Map ||
+        (_savedSecretKeys?.contains(key) ?? false)) {
+      await _writeSecret(key, _totpUri(host));
+    }
+  }
+
+  /// 普通存储里留着的明文凭据：身份密码、TOTP 种子。R26 F25 之前 [vaultWithoutSecrets] 不认这两样，
+  /// 导入桌面端文件后它们会原样写进 SharedPreferences。
+  static bool _hasPlainSecrets(VaultData vault) =>
+      vault.hosts.any((host) => (_totpUri(host) ?? '').isNotEmpty) ||
+      vaultIdentityMaps(vault)
+          .any((identity) => '${identity['password'] ?? ''}'.isNotEmpty);
+
+  /// 把 [_hasPlainSecrets] 认出的明文搬进安全存储，再把普通存储里那份重写成不带凭据的。
+  /// 不发变更通知：内容没变，只是换了存放位置，不该触发同步。
+  Future<void> _moveSecretsOutOfPreferences(VaultData vault) async {
+    for (final host in vault.hosts) {
+      await _writeTotpSecret(host);
+    }
+    for (final identity in vaultIdentityMaps(vault)) {
+      await _writeSecret('identity.${identity['id']}.password',
+          identity['password']?.toString());
+    }
+    await _persistSecretIndex();
+    await _preferences.setString(
+        _vaultKey, jsonEncode(vaultWithoutSecrets(vault).toJson()));
   }
 
   Future<void> _loadKeySecrets(SshKeyProfile key) async {
@@ -251,12 +306,20 @@ class VaultRepository {
       final hostIds = vault.hosts.map((value) => value.id).toSet();
       final keyIds = vault.keys.map((value) => value.id).toSet();
       final proxyIds = vault.proxyProfiles.map((value) => value.id).toSet();
+      final identityIds =
+          vaultIdentityMaps(vault).map((value) => '${value['id']}').toSet();
       for (final host in previous.hosts.where(
         (value) => !hostIds.contains(value.id),
       )) {
         await _deleteSecret('host.${host.id}.password');
         await _deleteSecret('host.${host.id}.telnetPassword');
         await _deleteSecret('host.${host.id}.proxyPassword');
+        await _deleteSecret('host.${host.id}.totpUri');
+      }
+      for (final identity in vaultIdentityMaps(previous).where(
+        (value) => !identityIds.contains('${value['id']}'),
+      )) {
+        await _deleteSecret('identity.${identity['id']}.password');
       }
       for (final proxy in previous.proxyProfiles.where(
         (value) => !proxyIds.contains(value.id),
@@ -278,6 +341,11 @@ class VaultRepository {
       );
       final proxy = host.proxyConfig;
       await _writeSecret('host.${host.id}.proxyPassword', proxy?.password);
+      await _writeTotpSecret(host);
+    }
+    for (final identity in vaultIdentityMaps(vault)) {
+      await _writeSecret('identity.${identity['id']}.password',
+          identity['password']?.toString());
     }
     for (final key in vault.keys) {
       await _writeSecret('key.${key.id}.private', key.privateKey);
