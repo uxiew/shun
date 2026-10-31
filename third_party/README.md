@@ -126,7 +126,7 @@ git apply --3way /tmp/shun-ours.patch     # 返回非 0 会列出合不进的文
 照上面的做法：bug 卡住我们时 fork 进 `third_party/<名字>/`，记起点提交、差异表、同步办法，改动标 `shun:`；不顺手升级版本。
 现在只有 libghostty 一份。
 
-安全密钥用 [yubikit-android](https://github.com/Yubico/yubikit-android) 3.1.0（Apache-2.0，`com.yubico.yubikit:android`、`fido`），没 fork。它默认只认 Yubico 的 USB 厂商号，我们在 `SecurityKeyChannel.kt` 的 `FidoDeviceFilter` 放开到带通用 HID 接口的设备。
+安全密钥用 [yubikit-android](https://github.com/Yubico/yubikit-android) 3.1.0（Apache-2.0，`com.yubico.yubikit:android`、`fido`），没 fork。停在 3.1.0 是因为 3.2.0 起它声明 `minCompileSdk=37`，我们现在是 36，先升 compileSdk 才能升它。它默认只认 Yubico 的 USB 厂商号，我们在 `SecurityKeyChannel.kt` 的 `FidoDeviceFilter` 放开到带通用 HID 接口的设备。
 
 已知可能要 fork 的：
 
