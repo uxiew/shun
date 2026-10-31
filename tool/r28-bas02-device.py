@@ -6,7 +6,8 @@
 
   python3 tool/r28-bas02-device.py <输出目录> measure   # 被测的那些动作
   python3 tool/r28-bas02-device.py <输出目录> control   # 对照：用户自己点「测试连接」，要先起 tool/fixture-environment
-  python3 tool/r28-bas02-device.py <输出目录> pcap <pcap 文件>   # 两段都跑完后按时间窗整理抓包
+  python3 tool/r28-bas02-device.py <输出目录> sync      # SYN03：在设置页配好 S3（电脑上的假服务器），点「立即同步」，只该连填的地址
+  python3 tool/r28-bas02-device.py <输出目录> pcap <pcap 文件>   # 都跑完后按时间窗整理抓包
 
 三路互相独立的观察，前两路按 App 的 uid：
   1. 内核按 uid 记的流量：`dumpsys netstats --poll` 后读 `detail`（DNS 也记在发起的 App 名下，见 R01）。回环不计。
@@ -24,6 +25,7 @@ import sys
 import threading
 import time
 import xml.etree.ElementTree as ET
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 
 SERIAL = 'emulator-5580'
@@ -223,6 +225,112 @@ def control(out, log):
     shot(out, 'control-end')
 
 
+SYNC_PORT = 22411
+
+
+class _FakeS3(BaseHTTPRequestHandler):
+    """电脑上的假 S3：GET、PUT 语义对就行，不验签名。只记方法和路径，请求头里有签名。"""
+    files = {}
+    requests = []
+
+    def log_message(self, *args):
+        pass
+
+    def _answer(self, code, body=b''):
+        self.send_response(code)
+        self.send_header('ETag', f'"{len(body)}"')
+        self.send_header('Content-Length', str(len(body)))
+        self.end_headers()
+        if self.command != 'HEAD':
+            self.wfile.write(body)
+
+    def do_GET(self):
+        _FakeS3.requests.append(f'GET {self.path}')
+        body = _FakeS3.files.get(self.path.split('?')[0])
+        self._answer(404) if body is None else self._answer(200, body)
+
+    do_HEAD = do_GET
+
+    def do_PUT(self):
+        _FakeS3.requests.append(f'PUT {self.path}')
+        body = self.rfile.read(int(self.headers.get('Content-Length', 0)))
+        _FakeS3.files[self.path.split('?')[0]] = body
+        self._answer(200)
+
+
+def fill_next_empty(text):
+    """填这一屏最上面的空输入框。Flutter 的输入框在无障碍树里没有标签，只能按顺序填。"""
+    for _ in range(8):
+        empty = [n for n in ui_nodes()
+                 if n['cls'].endswith('EditText') and n['label'] == '|' and n['at'][1] < 1900]
+        if empty:
+            adb('shell', 'input', 'tap', *map(str, empty[0]['at']))
+            time.sleep(0.5)
+            adb('shell', 'input', 'text', text)
+            time.sleep(0.5)
+            # 键盘没起来时按返回会退到后台，所以先看一眼。
+            if 'mInputShown=true' in adb('shell', 'dumpsys', 'input_method'):
+                adb('shell', 'input', 'keyevent', 'KEYCODE_BACK')
+                time.sleep(0.5)
+            return
+        adb('shell', 'input', 'swipe', '540', '1500', '540', '1000', '300')
+        time.sleep(1)
+    raise SystemExit(f'找不到空输入框来填 {text[:8]}')
+
+
+def scroll_to(label):
+    for _ in range(20):
+        nodes = ui_nodes()
+        if any(label in n['label'] and n['at'][1] < 1950 for n in nodes):
+            return nodes
+        adb('shell', 'input', 'swipe', '540', '1500', '540', '1000', '300')
+        time.sleep(1)
+    raise SystemExit(f'滑不到「{label}」')
+
+
+def sync(out, log):
+    """SYN03 后半段。S3 走 http（「允许不安全连接」），经 adb reverse 到电脑：模拟器里凭空起不了 https 假服务器。
+    在用户这条路上走一遍真的设置页。"""
+    server = ThreadingHTTPServer(('127.0.0.1', SYNC_PORT), _FakeS3)
+    threading.Thread(target=server.serve_forever, daemon=True).start()
+    adb('reverse', f'tcp:{SYNC_PORT}', f'tcp:{SYNC_PORT}')
+    try:
+        adb('shell', 'am', 'force-stop', PKG)
+        log('sync-start', adb('shell', 'am', 'start', '-W', '-n', ACTIVITY))
+        time.sleep(6)
+        tap('设置\n')
+        time.sleep(2)
+        tap('|S3', scroll_to('|S3'))
+        time.sleep(1)
+        adb('shell', 'input', 'swipe', '540', '1500', '540', '1000', '300')
+        time.sleep(1)
+        # Region 自带 us-east-1，不是空的，所以不在这个列表里；多填一个后面全错位，prefix 的值会跑进主密码框。
+        for text in [f'http://127.0.0.1:{SYNC_PORT}', 'r61bucket', 'R61ACCESS', 'R61SECRET',
+                     'R61TOKEN', 'shun']:
+            fill_next_empty(text)
+        # 带竖线才是开关本身；不带的话先匹配到旁边的「说明」按钮，弹窗会挡住后面的输入框。
+        tap('|允许不安全连接', scroll_to('|允许不安全连接'))
+        time.sleep(1)
+        fill_next_empty('r61-master-password')
+        log('sync-filled', '填好 S3 和主密码')
+        tap('立即同步', scroll_to('立即同步'))
+        log('sync-tapped', '点了立即同步')
+        for _ in range(60):
+            time.sleep(1)
+            if any(r.startswith('PUT') for r in _FakeS3.requests):
+                break
+        time.sleep(4)
+        log('sync-server', ' ; '.join(_FakeS3.requests) or '服务器没收到请求')
+        stored = b''.join(_FakeS3.files.values())
+        log('sync-stored', f'{len(stored)} bytes, secret-in-body={b"R61SECRET" in stored}, '
+                           f'master-in-body={b"r61-master-password" in stored}')
+        if not any(r.startswith('PUT') for r in _FakeS3.requests):
+            raise SystemExit('服务器没收到 PUT：没同步上去')
+    finally:
+        server.shutdown()
+        adb('reverse', '--remove', f'tcp:{SYNC_PORT}')
+
+
 def pcap(out, path):
     """按时间窗列出抓包里的 DNS 查询、TLS SNI、去 10.0.2.2 的 TCP。Ethernet，IPv4 和 IPv6 都看。
 
@@ -301,7 +409,7 @@ def main():
 
     start = time.time()
     try:
-        {'measure': measure, 'control': control}[phase](out, log)
+        {'measure': measure, 'control': control, 'sync': sync}[phase](out, log)
         time.sleep(3)
     finally:
         sampler.stop.set()
