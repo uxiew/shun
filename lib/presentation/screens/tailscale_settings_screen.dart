@@ -227,7 +227,7 @@ class _TailscaleSettingsScreenState
         TailscaleOAuthClientKey(:final credential) =>
           await _catalog.refreshWithOAuthClient(id, credential, persist: true),
         TailscaleAccessTokenKey(:final token) =>
-          await _catalog.refreshWithToken(id, token),
+          await _catalog.refreshWithToken(id, token, persist: true),
         _ when _hasSaved => await _catalog.refreshSaved(id),
         _ => null,
       };
@@ -256,8 +256,7 @@ class _TailscaleSettingsScreenState
     await _catalog.forgetCredentials(id);
     if (!mounted) return;
     setState(() => _hasSaved = false);
-    _message(
-        '已删除本机保存的 OAuth client。它在 Tailscale 那边仍然有效，要彻底作废请到 Tailscale 后台撤销。');
+    _message('已删除本机保存的 key。它在 Tailscale 那边仍然有效，要彻底作废请到 Tailscale 后台撤销。');
   }
 
   Future<void> _remove() async {
@@ -276,7 +275,7 @@ class _TailscaleSettingsScreenState
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const LText('会删除本机的设备缓存和保存的 OAuth client。'),
+            const LText('会删除本机的设备缓存和保存的 key。'),
             const SizedBox(height: 8),
             catalogLine('关联它的主机：', '${bound.length}'),
             if (bound.isNotEmpty) const LText('这些主机都保留，照常能连。'),
@@ -322,7 +321,16 @@ class _TailscaleSettingsScreenState
     // API key 框在页面上：整页防截屏（R44）。
     return SecretContent(
       child: Scaffold(
-        appBar: AppBar(title: const LText('Tailscale 设置')),
+        appBar: AppBar(
+          title: const LText('Tailscale 设置'),
+          actions: const [
+            HintButton(
+              title: 'Tailscale 设置',
+              message:
+                  '自动列出 tailnet 里的设备，点一下就导入并连接。只读设备列表：不开 VPN，手机要能到达设备（比如开着 Tailscale App）。',
+            ),
+          ],
+        ),
         bottomNavigationBar: !_loaded
             ? null
             : SafeArea(
@@ -370,9 +378,6 @@ class _TailscaleSettingsScreenState
                         const LinearProgressIndicator(),
                         const SizedBox(height: 8),
                       ],
-                      const LText(
-                          '自动列出 tailnet 里的设备，点一下就导入并连接。只读设备列表：不开 VPN，手机要能到达设备（比如开着 Tailscale App）。'),
-                      const FormGap(),
                       TextField(
                         key: const ValueKey('ts-settings-key'),
                         controller: _key,
@@ -384,16 +389,15 @@ class _TailscaleSettingsScreenState
                         onChanged: (_) => setState(() {}),
                         decoration: LInputDecoration(
                           labelText: 'API key',
-                          hintText: 'tskey-client-…',
-                          helperText: _hasSaved
-                              ? '本机已保存 OAuth client，不填就用它刷新'
-                              : 'tskey-client-…：OAuth client，只勾 devices:core:read，存在本机、以后自动刷新（推荐）。tskey-api-…：访问令牌，只读这一次、不保存。',
-                          helperMaxLines: 4,
+                          hintText: 'tskey-…',
+                          helperText: _hasSaved ? '已加密保存，不填就用它' : null,
+                          suffixIcon: const HintButton(
+                            title: 'API key',
+                            message:
+                                '推荐 OAuth client（tskey-client-…）：在 Tailscale 后台 Settings → OAuth clients 创建，只勾 devices:core:read。访问令牌（tskey-api-…）也能用，但它带着你账号的全部权限。\n\n读成功就加密存在这台手机上：只有 shun 能解开，不进备份和同步。',
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 4),
-                      LText('在 Tailscale 后台的 Settings → OAuth clients 里创建。',
-                          style: small),
                       if (_hasSaved)
                         Align(
                           alignment: Alignment.centerLeft,
@@ -401,7 +405,7 @@ class _TailscaleSettingsScreenState
                             key: const ValueKey('ts-settings-forget-key'),
                             onPressed: _busy ? null : _forgetKey,
                             icon: const Icon(Icons.key_off_outlined),
-                            label: const LText('删除本机保存的 OAuth client'),
+                            label: const LText('删除保存的 key'),
                           ),
                         ),
                       const FormGap(),
@@ -411,22 +415,19 @@ class _TailscaleSettingsScreenState
                         autocorrect: false,
                         enableSuggestions: false,
                         onChanged: (_) => setState(() {}),
-                        decoration: LInputDecoration(
-                          labelText: 'SSH 用户名（可选）',
-                          helperText:
-                              '导入的主机默认用它登录。空着就每台第一次连接时问；以后可以在主机的「编辑」里单独改。',
-                          helperMaxLines: 3,
-                        ),
+                        decoration: LInputDecoration(labelText: 'SSH 用户名（可选）'),
                       ),
                       const SizedBox(height: 8),
                       ExpansionTile(
                         key: const ValueKey('ts-settings-advanced'),
                         tilePadding: EdgeInsets.zero,
-                        childrenPadding: const EdgeInsets.only(bottom: 8),
+                        childrenPadding:
+                            const EdgeInsets.only(top: 8, bottom: 8),
                         expandedCrossAxisAlignment: CrossAxisAlignment.start,
-                        title: const LText('高级'),
-                        subtitle:
-                            LText('端口、地址、连接路径、私钥、分组、tailnet', style: small),
+                        title: const HintTitle(
+                          '高级',
+                          hint: '这些只用于以后导入的主机，已经导入的不动。密码不在这里填：每台第一次连接时问。',
+                        ),
                         children: [
                           TextField(
                             key: const ValueKey('ts-settings-port'),
@@ -513,7 +514,7 @@ class _TailscaleSettingsScreenState
                             controller: _group,
                             decoration: LInputDecoration(labelText: '分组（可选）'),
                           ),
-                          const SizedBox(height: 12),
+                          const FormGap(),
                           if (existing)
                             catalogLine('tailnet：', _tailnet.text, style: small)
                           else ...[
@@ -524,7 +525,7 @@ class _TailscaleSettingsScreenState
                               enableSuggestions: false,
                               decoration: LInputDecoration(
                                 labelText: 'tailnet',
-                                helperText: '填 - 表示「凭据所属的 tailnet」，一般不用改',
+                                helperText: '- 表示凭据所属的 tailnet',
                               ),
                             ),
                             const FormGap(),
@@ -534,9 +535,6 @@ class _TailscaleSettingsScreenState
                               decoration: LInputDecoration(labelText: '名称（可选）'),
                             ),
                           ],
-                          const SizedBox(height: 8),
-                          LText('这些只用于以后导入的主机，已经导入的不动。密码不在这里填：每台第一次连接时问。',
-                              style: small),
                         ],
                       ),
                     ],

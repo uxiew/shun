@@ -4,33 +4,18 @@ import '../infrastructure/http_client_provider.dart';
 import '../infrastructure/tailscale/catalog_secret_store.dart';
 import '../infrastructure/tailscale/tailscale_api.dart';
 
-/// 为什么这次读取之后没有保存 OAuth client。
-enum PersistRefusal {
-  /// 用户没开「持续刷新」。默认就是这样：导入完就丢掉 secret（docs/05）。
-  notRequested,
-
-  /// 服务器没有回报 token 范围，无法确认是只读。
-  scopeUnverified,
-
-  /// 只读但不止设备（比如 all:read）：比需要的大，不长期保存。
-  scopeBroaderThanDevices,
-}
-
 class CatalogReadResult {
-  const CatalogReadResult(this.listing, {this.refusal});
+  const CatalogReadResult(this.listing, {required this.persisted});
   final TailscaleDeviceListing listing;
-
-  /// null 表示已保存。
-  final PersistRefusal? refusal;
-  bool get persisted => refusal == null;
+  final bool persisted;
 }
 
-/// 目录读取的三个入口（R11）。界面是 presentation/screens/tailscale_catalog_screen.dart（R13）。
+/// 目录读取的四个入口（R11）。界面是 presentation/screens/tailscale_catalog_screen.dart（R13）。
 ///
-/// 1. 粘贴短期 token 读一次：token 只在内存里，读完即丢。
-/// 2. 用自己的 OAuth client 读：默认读完即丢；用户显式要求持续刷新、且换来的 token
-///    经服务器确认只有设备读取时，才把 client 存进独立安全存储。
-/// 3. 用已保存的 client 刷新：401 时受控刷新一次；还不行就要求重新授权，**不删**已保存的 client、
+/// 1. 访问令牌读一次：只在内存里，读完即丢。
+/// 2. 访问令牌读成功后存下来（[readWithToken]）。读失败不存：不留一个读不了的 key。
+/// 3. 用自己的 OAuth client 读，[readWithOAuthClient] 的 persist 决定存不存，同样读成功才存。
+/// 4. 用已保存的 key 刷新：OAuth 的 401 时受控刷新一次；还不行就要求重新授权，**不删**已保存的 key、
 ///    也不碰已导入的设备和主机——删不删由用户决定。
 ///
 /// 没有定时刷新、没有后台保活：只在用户操作时发请求。
@@ -55,6 +40,25 @@ class TailscaleCatalogAccess {
     }
   }
 
+  Future<TailscaleDeviceListing> readWithToken({
+    required String catalogId,
+    required String token,
+    String tailnet = '-',
+  }) async {
+    final client = _clientFor(PastedAccessToken(token));
+    final TailscaleDeviceListing listing;
+    try {
+      listing = await client.listDevices(tailnet: tailnet);
+    } on Object {
+      client.forgetToken();
+      rethrow;
+    }
+    await _store.saveAccessToken(catalogId, token);
+    _saved.remove(catalogId)?.forgetToken();
+    _saved[catalogId] = client;
+    return listing;
+  }
+
   Future<CatalogReadResult> readWithOAuthClient({
     required String catalogId,
     required OAuthClientCredential credential,
@@ -69,22 +73,14 @@ class TailscaleCatalogAccess {
       client.forgetToken();
       rethrow;
     }
-    final refusal = !persist
-        ? PersistRefusal.notRequested
-        : switch (listing.scopeStatus) {
-            TokenScopeStatus.deviceReadOnly => null,
-            TokenScopeStatus.unverified => PersistRefusal.scopeUnverified,
-            TokenScopeStatus.readOnlyBroader =>
-              PersistRefusal.scopeBroaderThanDevices,
-          };
-    if (refusal != null) {
+    if (!persist) {
       client.forgetToken();
-      return CatalogReadResult(listing, refusal: refusal);
+      return CatalogReadResult(listing, persisted: false);
     }
     await _store.saveOAuthClient(catalogId, credential);
     _saved.remove(catalogId)?.forgetToken();
     _saved[catalogId] = client;
-    return CatalogReadResult(listing);
+    return CatalogReadResult(listing, persisted: true);
   }
 
   Future<TailscaleDeviceListing> refreshSaved({
@@ -93,10 +89,10 @@ class TailscaleCatalogAccess {
   }) async {
     var client = _saved[catalogId];
     if (client == null) {
-      final credential = await _store.readOAuthClient(catalogId);
+      final credential = await _savedCredential(catalogId);
       if (credential == null) {
         throw const TailscaleReauthorizationRequired(
-          '这个目录来源没有保存的 OAuth client，请重新授权。本地已导入的设备和主机不受影响。',
+          '这个来源没有保存的 key，到 Tailscale 设置里填一个。已导入的设备和主机不受影响。',
         );
       }
       client = _saved[catalogId] = _clientFor(credential);
@@ -104,12 +100,19 @@ class TailscaleCatalogAccess {
     return client.listDevices(tailnet: tailnet);
   }
 
-  /// 本机有没有保存这个来源的 OAuth client（界面据此决定显示「刷新」还是「重新授权」）。
+  Future<TailscaleCredential?> _savedCredential(String catalogId) async {
+    final client = await _store.readOAuthClient(catalogId);
+    if (client != null) return client;
+    final token = await _store.readAccessToken(catalogId);
+    return token == null ? null : PastedAccessToken(token);
+  }
+
+  /// 本机有没有保存这个来源的 key（界面据此决定显示「刷新」还是去设置里填）。
   Future<bool> hasSaved(String catalogId) async =>
       _saved.containsKey(catalogId) ||
-      await _store.readOAuthClient(catalogId) != null;
+      await _savedCredential(catalogId) != null;
 
-  /// 删除本机保存的 client。只是删副本：要让它彻底失效，得在 Tailscale 后台撤销。
+  /// 删除本机保存的 key。只是删副本：要让它彻底失效，得在 Tailscale 后台撤销。
   Future<void> forgetSaved(String catalogId) async {
     _saved.remove(catalogId)?.forgetToken();
     await _store.forget(catalogId);

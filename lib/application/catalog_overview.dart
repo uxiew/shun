@@ -17,7 +17,7 @@ class CatalogSourceView {
 
   final CatalogCache cache;
 
-  /// 本机存了这个来源的 OAuth client，点「刷新」能直接读；没存就要到来源页粘 token。
+  /// 本机存了这个来源的 key，点「刷新」能直接读；没存就要到 Tailscale 设置里填。
   final bool hasSavedCredentials;
 
   /// 正在向 Tailscale 要新列表。

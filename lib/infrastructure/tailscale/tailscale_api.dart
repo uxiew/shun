@@ -39,11 +39,11 @@ sealed class TailscaleCredential {
   const TailscaleCredential();
 }
 
-/// 用户粘贴的短期 access token。
+/// 用户填的 access token。
 ///
 /// 官方的 API access token（`tskey-api-`）拥有创建者的全部 API 权限，不是只读；
-/// App 也没有官方途径查询一个 token 的范围。所以这类 token 一律「范围未验证」，
-/// 只用于这一次读取，不保存（docs/05：首版不提供长期保存这类 token 的入口）。
+/// App 也没有官方途径查询一个 token 的范围。所以这类 token 一律「范围未验证」。
+/// 存不存见 [TailscaleCatalogSecretStore]（docs/05）。
 class PastedAccessToken extends TailscaleCredential {
   const PastedAccessToken(this.token);
   final String token;

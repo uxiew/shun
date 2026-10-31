@@ -168,8 +168,7 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
                 if (failedLast)
                   catalogLine('最近一次读取失败：', catalogTime(attempt.at),
                       style: small),
-                if (!source.hasSavedCredentials)
-                  LText('本机没保存 key：点刷新会打开 Tailscale 设置，在那里填', style: small),
+                if (!source.hasSavedCredentials) LText('未保存 key', style: small),
               ],
             ),
             trailing: Row(

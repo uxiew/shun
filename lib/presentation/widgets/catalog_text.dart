@@ -2,11 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import '../../application/catalog_overview.dart';
-import '../../application/tailscale_catalog_access.dart';
 import '../../application/tailscale_catalog_refresh.dart';
 import '../../infrastructure/tailscale/catalog_cache.dart';
 import '../../domain/models/host.dart';
-import '../../infrastructure/tailscale/tailscale_api.dart';
 import '../localization/localized_widgets.dart';
 
 /// 来源在界面上叫什么。没起名字时不拿本机 ID（`ts-ozz7e7tmue`）当标题，那串字对人没有意义：
@@ -41,8 +39,8 @@ String? catalogAge(DateTime at, DateTime now) {
   return '$count $unit';
 }
 
-/// 读完一次设备列表给用户看的那几句：成了几台、改了几台主机的地址、权限范围确认不了，
-/// 失败了是什么原因。来源页和主机列表的「刷新」都用它。
+/// 读完一次设备列表给用户看的那几句：成了几台、改了几台主机的地址，失败了是什么原因。
+/// 来源页和主机列表的「刷新」都用它。
 String catalogRefreshReport(CatalogRefreshOutcome outcome) {
   final error = outcome.error;
   if (error != null) {
@@ -54,16 +52,6 @@ String catalogRefreshReport(CatalogRefreshOutcome outcome) {
   return [
     '$read${outcome.cache.lastSuccess?.deviceCount ?? 0}',
     if (outcome.hostsReaddressed > 0) '$moved${outcome.hostsReaddressed}',
-    if (outcome.scope == TokenScopeStatus.unverified)
-      localized('服务器没有回报 token 的权限范围，无法确认它只能读设备。'),
-    if (outcome.persistRefusal case final refusal?)
-      localized(switch (refusal) {
-        PersistRefusal.notRequested => '没有保存 OAuth client。',
-        PersistRefusal.scopeUnverified =>
-          '没有保存 OAuth client：服务器没有回报权限范围，无法确认它只能读设备。',
-        PersistRefusal.scopeBroaderThanDevices =>
-          '没有保存 OAuth client：它能读的不止设备。请在 Tailscale 后台新建一个只有 devices:core:read 的 client。',
-      }),
   ].join('\n');
 }
 

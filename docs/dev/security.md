@@ -34,7 +34,7 @@
 | 保险库其余内容：主机、分组、路线、片段、主机指纹 | 普通偏好 | `shun_vault_v1` | 写之前过 `vaultWithoutSecrets`（`lib/domain/vault_secrets.dart`） |
 | 存过哪些凭据（只有键名，没有值） | 普通偏好 | `shun_secret_index_v1` | 见 1.2 |
 | 云同步的地址、用户名、bucket，版本检查点，没传完的恢复副本 | 普通偏好 | `shun_sync_v1`、`shun_sync_version_v1`、`shun_pending_sync_v2` | 恢复副本是用主密码加密过的整份，见第 2 节 |
-| Tailscale 的 OAuth client | 安全存储，文件名 `shun_tailscale_catalog` | `tailscale.catalog.<来源ID>.oauth.clientId` / `.clientSecret` | `TailscaleCatalogSecretStore`；粘贴的 token 读完就丢，不存 |
+| Tailscale 的 key（OAuth client 或访问令牌，二选一） | 安全存储，文件名 `shun_tailscale_catalog` | `tailscale.catalog.<来源ID>.oauth.clientId` / `.clientSecret`，或 `tailscale.catalog.<来源ID>.accessToken` | `TailscaleCatalogSecretStore`；读成功才存。不进保险库，所以不进导出、同步、互传。`tskey-api` 带全部权限也存，所有者 10-31 定的 |
 | UU 的加密设备标识、RustDesk ID | 安全存储，文件名 `shun_uuremote`、`shun_rustdesk` | — | `SecureProviderBackend`（`lib/application/external_remote.dart`） |
 | AI 命令行的检测设置、最近工作 | 安全存储，文件名 `shun_ai_cli` | `discovery.<scope>`、`recent.<scope>` | `lib/infrastructure/storage/ai_cli_*.dart` |
 | 插件批准记录 | 普通偏好 | `shun.plugins.approvals.v1`、`shun.plugins.disabled.v1` | `PluginApprovalStore`，只有公开的证书摘要 |

@@ -286,21 +286,25 @@ const englishTranslations = <String, String>{
   '只导入，不连接': 'Import only, don’t connect',
   '自动列出 tailnet 里的设备，点一下就导入并连接。只读设备列表：不开 VPN，手机要能到达设备（比如开着 Tailscale App）。':
       'Lists the devices in your tailnet; tap one to import and connect. Only reads the device list: no VPN is started, and the phone must be able to reach the device (for example with the Tailscale app on).',
-  '本机已保存 OAuth client，不填就用它刷新':
-      'An OAuth client is saved on this phone; leave blank to refresh with it',
-  'tskey-client-…：OAuth client，只勾 devices:core:read，存在本机、以后自动刷新（推荐）。tskey-api-…：访问令牌，只读这一次、不保存。':
-      'tskey-client-…: OAuth client with only devices:core:read; saved on this phone and refreshes automatically (recommended). tskey-api-…: access token; read once, not saved.',
-  '在 Tailscale 后台的 Settings → OAuth clients 里创建。':
-      'Create one in the Tailscale admin console under Settings → OAuth clients.',
+  '已加密保存，不填就用它':
+      'Saved encrypted; leave blank to use it',
+  '推荐 OAuth client（tskey-client-…）：在 Tailscale 后台 Settings → OAuth clients 创建，只勾 devices:core:read。访问令牌（tskey-api-…）也能用，但它带着你账号的全部权限。\n\n读成功就加密存在这台手机上：只有 shun 能解开，不进备份和同步。':
+      'Recommended: an OAuth client (tskey-client-…), created in the Tailscale admin console under Settings → OAuth clients with only devices:core:read. An access token (tskey-api-…) works too, but it carries your account\'s full permissions.\n\nOnce a read succeeds it is saved encrypted on this phone: only shun can decrypt it, and it stays out of backups and sync.',
+  '删除保存的 key':
+      'Delete the saved key',
+  '已删除本机保存的 key。它在 Tailscale 那边仍然有效，要彻底作废请到 Tailscale 后台撤销。':
+      'Deleted the key saved on this phone. It is still valid at Tailscale; revoke it in the Tailscale admin console to disable it.',
+  '会删除本机的设备缓存和保存的 key。':
+      'This deletes the cached devices and the saved key on this phone.',
+  '- 表示凭据所属的 tailnet':
+      '- means the credential\'s own tailnet',
+  '已保存 key':
+      'Key saved',
+  '未保存 key':
+      'No key saved',
   'SSH 用户名（可选）': 'SSH username (optional)',
-  '导入的主机默认用它登录。空着就每台第一次连接时问；以后可以在主机的「编辑」里单独改。':
-      'Imported hosts log in with it by default. Leave blank to be asked on each host’s first connection; change it per host later in “Edit”.',
-  '端口、地址、连接路径、私钥、分组、tailnet':
-      'Port, address, route, private key, group, tailnet',
   '这些只用于以后导入的主机，已经导入的不动。密码不在这里填：每台第一次连接时问。':
       'These apply only to hosts imported from now on; already imported hosts are unchanged. Passwords aren’t entered here: each host asks on its first connection.',
-  '本机没保存 key：点刷新会打开 Tailscale 设置，在那里填':
-      'No key saved on this phone: refresh opens Tailscale settings to enter one',
   '去 Tailscale 设置填 key': 'Enter a key in Tailscale settings',
   '导入并连接': 'Import and connect',
   '登录过': 'Logged in before',
@@ -1127,8 +1131,6 @@ const englishTranslations = <String, String>{
       'Read the device list from Tailscale and import devices as hosts',
   'Tailscale 设备目录': 'Tailscale device directory',
   '名称（可选）': 'Name (optional)',
-  '填 - 表示「凭据所属的 tailnet」，一般不用改':
-      'Use - for "the tailnet the credential belongs to"; usually leave it',
   'tailnet 不能为空，也不能有空格或斜杠':
       'tailnet cannot be empty or contain spaces or slashes',
   '添加来源': 'Add source',
@@ -1140,25 +1142,13 @@ const englishTranslations = <String, String>{
       'Read failed; cached devices and hosts were not changed: ',
   '读取成功，设备数：': 'Read succeeded. Devices: ',
   '跟着目录改了地址的主机：': 'Hosts whose address followed the directory: ',
-  '服务器没有回报 token 的权限范围，无法确认它只能读设备。':
-      'The server did not report the token scope, so it cannot be confirmed as device read-only.',
-  '没有保存 OAuth client。': 'The OAuth client was not saved.',
-  '没有保存 OAuth client：服务器没有回报权限范围，无法确认它只能读设备。':
-      'The OAuth client was not saved: the server did not report its scope, so it cannot be confirmed as device read-only.',
-  '没有保存 OAuth client：它能读的不止设备。请在 Tailscale 后台新建一个只有 devices:core:read 的 client。':
-      'The OAuth client was not saved: it can read more than devices. Create a client with only devices:core:read in the Tailscale admin console.',
   '读取': 'Read',
-  '已删除本机保存的 OAuth client。它在 Tailscale 那边仍然有效，要彻底作废请到 Tailscale 后台撤销。':
-      'Deleted the OAuth client saved on this device. It is still valid at Tailscale; revoke it in the Tailscale admin console to invalidate it.',
   '移除这个来源？': 'Remove this source?',
-  '会删除本机的设备缓存和保存的 OAuth client。':
-      'This deletes the cached devices and the saved OAuth client on this device.',
   '关联它的主机：': 'Hosts linked to it: ',
   '移除来源': 'Remove source',
   '已导入主机：': 'Hosts imported: ',
   '。还没有连接过：第一次连接时照常核对服务器指纹。':
       '. Not connected yet: you will verify the server fingerprint on first connection as usual.',
-  '删除本机保存的 OAuth client': 'Delete the OAuth client saved on this device',
   '缓存里还没有设备。读一次设备列表后会出现在这里。':
       'No cached devices yet. They appear here after you read the device list.',
   '上次读到的列表不完整：没有据此把任何设备标成不见了。':
@@ -2528,7 +2518,6 @@ const englishTranslations = <String, String>{
   '已关联': 'Linked',
   '列表里没有设备': 'The list has no devices',
   '还没读过设备列表': 'Device list not read yet',
-  '本机保存了 OAuth client': 'OAuth client saved on this device',
   '只记下对应关系：主机的地址、用户名、端口、路线、指纹一概不改，刷新也不改它的地址，也不会去连。':
       'This only records the match: the host address, username, port, route and fingerprints stay unchanged, refreshing never changes its address, and nothing connects to it.',
   'UU 只给了一个加密的设备标识，本 App 看不到设备名。保存后要从这条连接手动发起远控。':
@@ -3398,8 +3387,8 @@ const englishReplacements = <(String, String)>[
   // R11：Tailscale 目录读取的报错（tailscale_api.dart、tailscale_device.dart、tailscale_catalog_access.dart）。
   // 带 $context / $detail / $granted 的句子按插值处拆开，运行时拼出来的整句也能逐段译完。
   (
-    '这个目录来源没有保存的 OAuth client，请重新授权。本地已导入的设备和主机不受影响。',
-    'This directory source has no saved OAuth client; authorize again. Devices and hosts already imported are not affected.'
+    '这个来源没有保存的 key，到 Tailscale 设置里填一个。已导入的设备和主机不受影响。',
+    'This source has no saved key; enter one in Tailscale settings. Devices and hosts already imported are not affected.',
   ),
   (
     'Tailscale 不接受这个 access token（无效、已过期或已被撤销）。请重新生成一个再导入；本地已导入的设备和主机不受影响。',

@@ -435,12 +435,13 @@ void main() {
         credential: oauth,
         persist: true,
       );
+      final deletes = backend.deletes;
       fake.scripts[devicesPath] = [const Reply(401, '{}')];
       await expectLater(
         access.refreshSaved(catalogId: 'cat-1'),
         throwsA(isA<TailscaleReauthorizationRequired>()),
       );
-      expect(backend.deletes, 0);
+      expect(backend.deletes, deletes);
       expect(backend.values.values, contains(clientSecret));
     });
 
@@ -456,13 +457,13 @@ void main() {
         credential: oauth,
         persist: false,
       );
-      expect(result.refusal, PersistRefusal.notRequested);
+      expect(result.persisted, isFalse);
       expect(backend.writes, 0);
     });
   });
 
   group('TSC09 secret 只在受控存储/内存和官方请求里', () {
-    test('要求持续刷新、token 经确认只读设备：只存 client 两项，不存 access token', () async {
+    test('要求持续刷新：只存 client 两项，不存换来的临时 token', () async {
       final backend = MemoryBackend();
       final access = TailscaleCatalogAccess(
         TailscaleCatalogSecretStore(backend),
@@ -488,11 +489,8 @@ void main() {
       expect(backend.values, isEmpty);
     });
 
-    test('要求持续刷新但范围未验证或偏大：不保存', () async {
-      for (final (scope, refusal) in [
-        (null, PersistRefusal.scopeUnverified),
-        ('all:read', PersistRefusal.scopeBroaderThanDevices),
-      ]) {
+    test('所有者 10-31：范围未验证或偏大的 OAuth client 读成功也存', () async {
+      for (final scope in [null, 'all:read']) {
         fake.scripts[tokenPath] = [
           Reply(200, FakeTailscale.tokenBody(token: 't', scope: scope)),
         ];
@@ -505,9 +503,64 @@ void main() {
           credential: oauth,
           persist: true,
         );
-        expect(result.refusal, refusal);
-        expect(backend.writes, 0);
+        expect(result.persisted, isTrue);
+        expect(backend.values['tailscale.catalog.cat-1.oauth.clientSecret'],
+            clientSecret);
       }
+    });
+
+    test('所有者 10-31：访问令牌读成功就存，重启后能直接刷新', () async {
+      final backend = MemoryBackend();
+      final store = TailscaleCatalogSecretStore(backend);
+      await TailscaleCatalogAccess(store, client)
+          .readWithToken(catalogId: 'cat-1', token: pastedToken);
+      expect(backend.values, {
+        'tailscale.catalog.cat-1.accessToken': pastedToken,
+      });
+
+      // 新对象没有内存里的 client，等于 App 重启过。
+      final restarted = TailscaleCatalogAccess(store, client);
+      expect(await restarted.hasSaved('cat-1'), isTrue);
+      final listing = await restarted.refreshSaved(catalogId: 'cat-1');
+      expect(listing.scopeStatus, TokenScopeStatus.unverified);
+      expect(fake.at(devicesPath).last.headers['authorization'],
+          'Bearer $pastedToken');
+
+      await restarted.forgetSaved('cat-1');
+      expect(backend.values, isEmpty);
+      expect(await restarted.hasSaved('cat-1'), isFalse);
+    });
+
+    test('访问令牌读失败：不存，也不动已经存着的', () async {
+      final backend = MemoryBackend();
+      final store = TailscaleCatalogSecretStore(backend);
+      await store.saveOAuthClient('cat-1', oauth);
+      final before = {...backend.values};
+      fake.scripts[devicesPath] = [const Reply(401, '{}')];
+      await expectLater(
+        TailscaleCatalogAccess(store, client)
+            .readWithToken(catalogId: 'cat-1', token: pastedToken),
+        throwsA(isA<TailscaleReauthorizationRequired>()),
+      );
+      expect(backend.values, before);
+    });
+
+    test('一个来源只留一个 key：填新的就替换旧的', () async {
+      final backend = MemoryBackend();
+      final access =
+          TailscaleCatalogAccess(TailscaleCatalogSecretStore(backend), client);
+      await access.readWithToken(catalogId: 'cat-1', token: pastedToken);
+      await access.readWithOAuthClient(
+        catalogId: 'cat-1',
+        credential: oauth,
+        persist: true,
+      );
+      expect(backend.values.keys, {
+        'tailscale.catalog.cat-1.oauth.clientId',
+        'tailscale.catalog.cat-1.oauth.clientSecret',
+      });
+      await access.readWithToken(catalogId: 'cat-1', token: pastedToken);
+      expect(backend.values.keys, {'tailscale.catalog.cat-1.accessToken'});
     });
 
     test('错误对象、凭据对象的文本里没有 secret；服务器回显凭据也被抹掉', () async {

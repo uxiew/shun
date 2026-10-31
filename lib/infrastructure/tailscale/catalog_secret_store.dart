@@ -42,9 +42,11 @@ class FlutterSecureCatalogBackend implements CatalogSecretBackend {
   Future<void> delete(String key) => storage.delete(key: key);
 }
 
-/// 用户显式开启「持续刷新」后，保存他自己的 OAuth client。只存这两项，不存 access token。
+/// 读成功后保存用户填的 key：OAuth client 两项，或者一个访问令牌（tskey-api）。每个来源只留一个，填新的就替换旧的。
+/// OAuth 换来的临时 token 不存。
 ///
-/// 从这里删除只是删掉本机副本，**不等于在 Tailscale 那边撤销**；泄露时要去 Tailscale 后台撤销原 client（docs/05）。
+/// 密文在 App 私有目录，密钥在 Android Keystore：别的 App 和系统备份拿不到（所有者 10-31 定的，访问令牌也存）。
+/// 从这里删除只是删掉本机副本，**不等于在 Tailscale 那边撤销**；泄露时要去 Tailscale 后台撤销（docs/05）。
 class TailscaleCatalogSecretStore {
   const TailscaleCatalogSecretStore(this._backend);
 
@@ -58,6 +60,13 @@ class TailscaleCatalogSecretStore {
     return 'tailscale.catalog.$catalogId.oauth.$field';
   }
 
+  static String _tokenKey(String catalogId) {
+    if (!isValidCatalogId(catalogId)) {
+      throw ArgumentError('catalogId 无效');
+    }
+    return 'tailscale.catalog.$catalogId.accessToken';
+  }
+
   Future<void> saveOAuthClient(
     String catalogId,
     OAuthClientCredential client,
@@ -67,6 +76,18 @@ class TailscaleCatalogSecretStore {
       _key(catalogId, 'clientSecret'),
       client.clientSecret.trim(),
     );
+    await _backend.delete(_tokenKey(catalogId));
+  }
+
+  Future<void> saveAccessToken(String catalogId, String token) async {
+    await _backend.write(_tokenKey(catalogId), token.trim());
+    await _backend.delete(_key(catalogId, 'clientId'));
+    await _backend.delete(_key(catalogId, 'clientSecret'));
+  }
+
+  Future<String?> readAccessToken(String catalogId) async {
+    final token = await _backend.read(_tokenKey(catalogId));
+    return token == null || token.isEmpty ? null : token;
   }
 
   /// 两项都在才算有；只剩一项（写到一半被杀）当作没有，不拿半份凭据去试。
@@ -82,5 +103,6 @@ class TailscaleCatalogSecretStore {
   Future<void> forget(String catalogId) async {
     await _backend.delete(_key(catalogId, 'clientId'));
     await _backend.delete(_key(catalogId, 'clientSecret'));
+    await _backend.delete(_tokenKey(catalogId));
   }
 }

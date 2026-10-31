@@ -291,7 +291,8 @@ void main() {
     return results;
   }
 
-  testWidgets('TSC09/R26：设置页的 key 框一直遮着、关联想；tskey-api 读一次不保存', (tester) async {
+  testWidgets('TSC09：设置页的 key 框一直遮着、关联想；tskey-api 读成功存进安全存储，不进缓存',
+      (tester) async {
     repo.caches['ts-home'] =
         const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
     final results = await openSettings(tester, 'ts-home');
@@ -301,7 +302,8 @@ void main() {
     expect(field.enableSuggestions, isFalse);
     expect(field.autocorrect, isFalse);
     expect(field.enableIMEPersonalizedLearning, isFalse);
-    expect(field.decoration?.suffixIcon, isNull, reason: '没有「显示」按钮');
+    expect(find.byIcon(Icons.visibility), findsNothing, reason: '没有「显示」按钮');
+    expect(find.byIcon(Icons.visibility_off), findsNothing);
     await tester.enterText(
         find.byKey(const ValueKey('ts-settings-key')), 'tskey-api-CANARY');
     await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
@@ -310,15 +312,15 @@ void main() {
     expect(requests.single.headers['authorization'], 'Bearer tskey-api-CANARY');
     expect(results.single?.catalogId, 'ts-home');
     expect(find.textContaining('读取成功，设备数：2'), findsOneWidget);
-    expect(find.textContaining('无法确认它只能读设备'), findsOneWidget);
-    expect(secrets.values, isEmpty);
+    expect(secrets.values,
+        {'tailscale.catalog.ts-home.accessToken': 'tskey-api-CANARY'});
     expect(repo.caches['ts-home']!.devices, hasLength(2));
     expect(jsonEncode(repo.caches['ts-home']!.toJson()),
         isNot(contains('CANARY')));
   });
 
   testWidgets(
-      'R26：tskey-client 当 OAuth client 用，client ID 从 secret 里取，确认只读设备后存在本机',
+      'R26：tskey-client 当 OAuth client 用，client ID 从 secret 里取，读成功后存在本机',
       (tester) async {
     repo.caches['ts-home'] =
         const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
@@ -416,7 +418,7 @@ void main() {
     await saveHosts(
         [boundHost('h1', 'nas', 'ts-home', '1', applied: '100.64.0.1')]);
     final results = await openSettings(tester, 'ts-home');
-    expect(find.text('本机已保存 OAuth client，不填就用它刷新'), findsOneWidget);
+    expect(find.text('已加密保存，不填就用它'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('ts-settings-forget-key')));
     await tester.pumpAndSettle();
     expect(secrets.values, isEmpty);

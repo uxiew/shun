@@ -257,7 +257,6 @@ class CatalogRefreshOutcome {
     this.hostsReaddressed = 0,
     this.error,
     this.scope,
-    this.persistRefusal,
   });
   final CatalogCache cache;
 
@@ -269,9 +268,6 @@ class CatalogRefreshOutcome {
 
   /// 这次 token 的范围核对结果；失败时为 null。
   final TokenScopeStatus? scope;
-
-  /// 用 OAuth client 读取并要求持续刷新、却没保存时的原因；其余情况为 null。
-  final PersistRefusal? persistRefusal;
 }
 
 /// 目录来源的增删与刷新（R12）。界面是 presentation/screens/tailscale_catalog_screen.dart（R13）。
@@ -311,59 +307,55 @@ class CatalogRefresher {
     return cache;
   }
 
-  /// 用已保存的 OAuth client 刷新（受控刷新一次 401 在 R11 里）。
+  /// 用已保存的 key 刷新（受控刷新一次 401 在 R11 里）。
   Future<CatalogRefreshOutcome> refreshSaved(String catalogId) => _refresh(
         catalogId,
         (tailnet) =>
             _access.refreshSaved(catalogId: catalogId, tailnet: tailnet),
       );
 
-  /// 用粘贴的短期 token 刷新一次，token 不保存。
+  /// 用访问令牌读。[persist] 为 true 时读成功就存进独立安全存储。
   Future<CatalogRefreshOutcome> refreshWithToken(
     String catalogId,
-    String token,
-  ) =>
+    String token, {
+    bool persist = false,
+  }) =>
       _refresh(
         catalogId,
-        (tailnet) => _access.readOnceWithToken(token, tailnet: tailnet),
+        (tailnet) => persist
+            ? _access.readWithToken(
+                catalogId: catalogId,
+                token: token,
+                tailnet: tailnet,
+              )
+            : _access.readOnceWithToken(token, tailnet: tailnet),
       );
 
-  /// 用自己的 OAuth client 读一次。[persist] 为 true、且服务器确认 token 只能读设备时，
-  /// 才把 client 存进独立安全存储（R11）；没存的原因放在 [CatalogRefreshOutcome.persistRefusal]。
+  /// 用自己的 OAuth client 读。[persist] 为 true 时读成功就存进独立安全存储（R11）。
   Future<CatalogRefreshOutcome> refreshWithOAuthClient(
     String catalogId,
     OAuthClientCredential credential, {
     required bool persist,
-  }) async {
-    PersistRefusal? refusal;
-    final outcome = await _refresh(catalogId, (tailnet) async {
-      final result = await _access.readWithOAuthClient(
-        catalogId: catalogId,
-        credential: credential,
-        persist: persist,
-        tailnet: tailnet,
-      );
-      refusal = result.refusal;
-      return result.listing;
-    });
-    if (outcome.error != null || !persist) return outcome;
-    return CatalogRefreshOutcome(
-      outcome.cache,
-      hostsReaddressed: outcome.hostsReaddressed,
-      scope: outcome.scope,
-      persistRefusal: refusal,
-    );
-  }
+  }) =>
+      _refresh(catalogId, (tailnet) async {
+        final result = await _access.readWithOAuthClient(
+          catalogId: catalogId,
+          credential: credential,
+          persist: persist,
+          tailnet: tailnet,
+        );
+        return result.listing;
+      });
 
   Future<bool> hasSavedCredentials(String catalogId) =>
       _access.hasSaved(catalogId);
 
-  /// 只删本机保存的 OAuth client（来源、缓存、主机都留着）。之后刷新会要求重新授权。
+  /// 只删本机保存的 key（来源、缓存、主机都留着）。之后刷新会要求重新授权。
   /// 这只是删副本：要让它彻底失效，得在 Tailscale 后台撤销。
   Future<void> forgetCredentials(String catalogId) =>
       _access.forgetSaved(catalogId);
 
-  /// 移除来源：删缓存和本机保存的 client。关联它的主机原样保留（显示「来源不在本机」），
+  /// 移除来源：删缓存和本机保存的 key。关联它的主机原样保留（显示「来源不在本机」），
   /// 由用户决定断开关联还是删除主机（TSC10、DEV02）。
   Future<void> removeSource(String catalogId) async {
     await _access.forgetSaved(catalogId);

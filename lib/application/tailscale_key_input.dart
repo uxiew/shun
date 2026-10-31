@@ -6,13 +6,13 @@ sealed class TailscaleKeyInput {
   const TailscaleKeyInput();
 }
 
-/// `tskey-client-…`：OAuth client。能限制成只读设备，确认了才存在本机、以后自动刷新。
+/// `tskey-client-…`：OAuth client。能限制成只读设备，所以推荐它。
 class TailscaleOAuthClientKey extends TailscaleKeyInput {
   const TailscaleOAuthClientKey(this.credential);
   final OAuthClientCredential credential;
 }
 
-/// `tskey-api-…` 或没前缀的：访问令牌。它的权限就是建它的人的整个账号，限不住，所以只用这一次、不保存。
+/// `tskey-api-…` 或没前缀的：访问令牌。它的权限就是建它的人的整个账号，限不住。
 class TailscaleAccessTokenKey extends TailscaleKeyInput {
   const TailscaleAccessTokenKey(this.token);
   final String token;

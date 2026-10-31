@@ -94,7 +94,7 @@ class _TailscaleCatalogScreenState
           _Field(
             label: 'tailnet',
             initial: '-',
-            helper: localized('填 - 表示「凭据所属的 tailnet」，一般不用改'),
+            helper: localized('- 表示凭据所属的 tailnet'),
           ),
         ],
       ),
@@ -561,7 +561,7 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
               catalogLine('最近一次读取失败：', catalogTime(attempt.at)),
               if (attempt.note case final note?) LText(note, style: small),
             ],
-            if (_hasSaved) const LText('本机保存了 OAuth client'),
+            if (_hasSaved) const LText('已保存 key'),
           ],
         ),
       ),

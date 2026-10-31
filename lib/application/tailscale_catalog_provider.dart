@@ -75,10 +75,11 @@ class TailscaleCatalogProvider {
 
   Future<CatalogRefreshOutcome> refreshWithToken(
     String catalogId,
-    String token,
-  ) async {
+    String token, {
+    bool persist = false,
+  }) async {
     _require();
-    return _refresher.refreshWithToken(catalogId, token);
+    return _refresher.refreshWithToken(catalogId, token, persist: persist);
   }
 
   Future<CatalogRefreshOutcome> refreshWithOAuthClient(
@@ -117,7 +118,7 @@ class TailscaleCatalogProvider {
     await _refresher.forgetCredentials(catalogId);
   }
 
-  /// 移除来源：删缓存和本机保存的 client。关联它的主机和主机上的绑定都留着（DEV02），
+  /// 移除来源：删缓存和本机保存的 key。关联它的主机和主机上的绑定都留着（DEV02），
   /// 之后可以用 [restoreSource] 在本机恢复同一个来源。
   Future<void> removeSource(String catalogId) async {
     _require();
