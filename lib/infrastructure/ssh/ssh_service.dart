@@ -13,6 +13,7 @@ import '../../domain/models/server_stats.dart';
 import '../../domain/plugins/mosh_bootstrap.dart';
 import '../../domain/plugins/mosh_install_hint.dart';
 import '../../domain/restore_hold.dart';
+import '../../domain/security_key.dart';
 import '../../domain/tailscale_ssh.dart';
 import '../../domain/tmux/tmux_target.dart';
 import '../terminal/terminal_input_controller.dart';
@@ -467,6 +468,10 @@ class SshService {
   }) : _dial = dialer ?? _systemDial;
 
   final TcpDialer _dial;
+
+  /// 让钥匙签名：弹框、等人碰钥匙都在这里面（界面启动时装上，见 app.dart）。测试里换成软件认证器。
+  /// 为 null 时用不了安全密钥，登录到签名那一步报 [SecurityKeyNeedsUser]。
+  SecurityKeySigner? securityKeySigner;
 
   /// 收到 Tailscale check 链接后最多等多久。Tailscale 自己最多挂 30 分钟（tailssh v1.104.0），
   /// 这里取 10 分钟：够开浏览器、登录、确认，又不让一个忘了的连接一直占着。
@@ -1178,13 +1183,15 @@ class SshService {
         );
     // 每一跳的登录私钥在任何拨号之前解析好（SEC06）：口令不对、私钥被删、内容坏了，
     // 此时一个连接都还没开，报错也指明是哪一跳，不用先连上服务器再被拒。
-    final identities = <List<SSHKeyPair>?>[];
+    final identities = <List<SSHIdentity>?>[];
+    final signer = _securityKeySignerFor(purpose, pending);
     for (var index = 0; index < hops.length; index++) {
       identities.add(await _atHop(
         plan,
         index,
         '读取登录私钥失败',
-        () async => loadHopIdentities(hops[index]),
+        () async =>
+            loadHopIdentities(hops[index], securityKeySigner: signer),
       ));
     }
     for (var index = 0; index < hops.length; index++) {
@@ -1211,7 +1218,7 @@ class SshService {
         mode: sshLoginModeOf(hop.host),
         // 自动恢复不替用户做 check（docs/07）；新开连接和测试连接时用户就在跟前。
         allowCheck: purpose != ConnectionPurpose.restore,
-        authWait: _authTimeout(hop.host),
+        authWait: _authTimeout(hop),
         checkWait: tailscaleCheckWait,
         describePrompt: (banner, deadline) => TailscaleCheckPrompt(
           hop: index,
@@ -1600,6 +1607,8 @@ class SshService {
           '主机指纹没有通过校验，已在发送任何登录信息之前断开',
         SSHAuthFailError() => '登录被拒绝：用户名、密码或私钥不对',
         _ when isAlgorithmMismatch(error) => '这台服务器只支持已淘汰的加密算法，连不上',
+        _ when securityKeyCauseOf(error) != null =>
+          '${securityKeyCauseOf(error)}',
         SSHAuthAbortError(reason: SSHDisconnectError(:final message)) =>
           '登录完成前服务器断开了连接：$message',
         SSHAuthAbortError() => '登录完成前连接被对方关闭：对方可能不是 SSH 服务，或者中途断开了',
@@ -1611,7 +1620,7 @@ class SshService {
   SSHClient _createClient(
     SSHSocket socket,
     RouteHop hop,
-    List<SSHKeyPair>? identities,
+    List<SSHIdentity>? identities,
     HostKeyVerifier verifyHostKey,
     KeyboardInteractiveHandler? keyboardInteractive,
     SshLoginWatch watch,
@@ -1702,15 +1711,45 @@ class SshService {
       keepAliveInterval: Duration(
         seconds: (host.data['keepaliveInterval'] as num?)?.toInt() ?? 10,
       ),
-      authTimeout: _authTimeout(host),
+      authTimeout: _authTimeout(hop),
       onVerifyHostKey: verify,
     );
   }
 
-  Duration _authTimeout(HostProfile host) => Duration(
+  /// 等登录结果最多多久。这个计时不能暂停，用安全密钥时要把等人碰钥匙、输 PIN 的时间算进去：
+  /// 不加的话，默认 30 秒一到连接就断，而钥匙弹框最多要等 60 秒，用户还没碰就报登录超时。
+  Duration _authTimeout(RouteHop hop) =>
+      Duration(
         seconds:
-            (host.data['sshAuthReadyTimeoutSeconds'] as num?)?.toInt() ?? 30,
-      );
+            (hop.host.data['sshAuthReadyTimeoutSeconds'] as num?)?.toInt() ??
+                30,
+      ) +
+      (SecurityKeyStub.isStubPem(hop.key?.privateKey ?? '')
+          ? _securityKeyAuthGrace
+          : Duration.zero);
+
+  static const _securityKeyAuthGrace = Duration(minutes: 3);
+
+  /// 自动恢复不替用户碰钥匙（SKY05）：没有人在跟前，弹框也不该出现在锁屏上。给 null，签名那一步就报要人来。
+  /// 等钥匙的时间记成「等你」，不算进握手用时（R25）。
+  SecurityKeySigner? _securityKeySignerFor(
+    ConnectionPurpose purpose,
+    ConnectionAttempt pending,
+  ) {
+    final signer = securityKeySigner;
+    if (signer == null || purpose == ConnectionPurpose.restore) return null;
+    return (request) => pending.waitingForUser(
+          () => signer(
+            SecurityKeySignRequest(
+              key: request.key,
+              data: request.data,
+              hostLabel: request.hostLabel,
+              username: request.username,
+              cancelled: pending.cancelled.future,
+            ),
+          ),
+        );
+  }
 
   Duration _connectTimeout(HostProfile host) => Duration(
         seconds:

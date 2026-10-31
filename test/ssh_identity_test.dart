@@ -98,7 +98,8 @@ void main() {
         final pairs = loadHopIdentities(
             hopWith(privateKey: keys[name], passphrase: pass));
         expect(pairs, isNotEmpty, reason: name);
-        expect(pairs!.every(keyPairSelfCheck), isTrue, reason: name);
+        expect(pairs!.cast<SSHKeyPair>().every(keyPairSelfCheck), isTrue,
+            reason: name);
       }
     }, skip: hasKeygen ? false : '没有 ssh-keygen');
 

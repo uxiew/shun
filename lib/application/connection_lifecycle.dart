@@ -65,6 +65,8 @@ bool isTransientConnectionError(Object error) {
     SSHAuthAbortError(reason: SSHHostkeyError()) => false,
     // 和服务器谈不拢算法：再试多少次都一样。
     _ when isAlgorithmMismatch(cause) => false,
+    // 钥匙要人碰：再试多少次也等不来人（还可能耗掉 PIN 机会）。
+    _ when securityKeyCauseOf(cause) != null => false,
     // 登录前被对端关掉：sshd 正在重启、并发握手满了（MaxStartups）时都会这样（LIFE04「远端 SSH 重启」）。
     SSHAuthAbortError() => true,
     // 跳板机转发不过去：下一跳正在重启时也是这样。

@@ -10,9 +10,13 @@ import 'package:dartssh2/src/hostkey/hostkey_ecdsa.dart';
 import 'package:dartssh2/src/hostkey/hostkey_ed25519.dart';
 // ignore: implementation_imports
 import 'package:dartssh2/src/hostkey/hostkey_rsa.dart';
+// 解带口令的安全密钥文件要用：dartssh2 的解密和解析绑在一起，解完遇到 sk 类型就抛错。
+// ignore: implementation_imports
+import 'package:dartssh2/src/utils/bcrypt.dart';
 
 import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
+import '../../domain/security_key.dart';
 import '../../domain/tailscale_ssh.dart';
 
 /// 私钥读不出来、口令不对、被删了或内容坏了。[message] 是给人看的一句话，不含任何私钥内容。
@@ -30,7 +34,12 @@ class SshIdentityException implements Exception {
 /// 返回 null 表示这一跳不用私钥（没配、或主机设成只用密码）。出错一律抛 [SshIdentityException]，
 /// 调用方此时还没有连任何网络：口令错、私钥被删、内容坏了都不该先去连服务器、
 /// 再拿一句「登录被拒绝」糊弄过去（SEC06）。
-List<SSHKeyPair>? loadHopIdentities(RouteHop hop) {
+///
+/// 安全密钥要 [securityKeySigner] 才能签名；没给（自动恢复时）就在签名那一步报 [SecurityKeyNeedsUser]。
+List<SSHIdentity>? loadHopIdentities(
+  RouteHop hop, {
+  SecurityKeySigner? securityKeySigner,
+}) {
   final host = hop.host;
   // Tailscale SSH 不发私钥，也就不解密它：口令错了、私钥删了都和这次登录无关。
   if (sshLoginModeOf(host) == SshLoginMode.tailscale) return null;
@@ -42,6 +51,9 @@ List<SSHKeyPair>? loadHopIdentities(RouteHop hop) {
       throw const SshIdentityException('设置为用私钥登录，但引用的私钥不存在（可能已被删除）');
     }
     return null;
+  }
+  if (SecurityKeyStub.isStubPem(key.privateKey)) {
+    return [_securityKeyIdentity(hop, key, securityKeySigner)];
   }
   final List<SSHKeyPair> pairs;
   try {
@@ -70,6 +82,86 @@ List<SSHKeyPair>? loadHopIdentities(RouteHop hop) {
     }
   }
   return pairs;
+}
+
+/// 安全密钥的登录身份。私钥在钥匙里，所以没有自签自验：签一次就要人碰一次钥匙。
+///
+/// `shouldProbe` 是先问服务器认不认这把公钥，认了才来签。不探测的话，每连一台不认这把钥匙的服务器都要白碰一次。
+SSHIdentity _securityKeyIdentity(
+  RouteHop hop,
+  SshKeyProfile key,
+  SecurityKeySigner? signer,
+) {
+  final passphrase = key.passphrase;
+  final SecurityKeyStub stub;
+  try {
+    stub = SecurityKeyStub.parse(
+      key.privateKey,
+      passphrase: passphrase,
+      decrypt: _decryptStub,
+    );
+  } on SecurityKeyStubException catch (error) {
+    throw SshIdentityException(error.message);
+  }
+  return SSHIdentity.custom(
+    type: stub.type,
+    publicKey: SSHRawHostKey(stub.publicKey),
+    comment: stub.comment,
+    shouldProbe: true,
+    signer: (data) async {
+      if (signer == null) throw const SecurityKeyNeedsUser();
+      final assertion = await signer(
+        SecurityKeySignRequest(
+          key: stub,
+          data: data,
+          hostLabel: hop.host.label,
+          username: hop.host.username,
+        ),
+      );
+      return SSHRawSignature(encodeSecurityKeySignature(stub, assertion));
+    },
+  );
+}
+
+/// 和 dartssh2 解普通 OpenSSH 私钥同一个算法（`OpenSSHKeyPairs._decryptPrivateKeyBlob`）。
+Uint8List _decryptStub({
+  required String cipher,
+  required String kdf,
+  required Uint8List kdfOptions,
+  required Uint8List blob,
+  required String passphrase,
+}) {
+  final type = SSHCipherType.fromName(cipher);
+  if (type == null || kdf != 'bcrypt') {
+    throw const SecurityKeyStubException('不支持这个文件的口令加密方式');
+  }
+  // kdfOptions：string salt + uint32 rounds。
+  final options = ByteData.sublistView(kdfOptions);
+  final saltLength = options.getUint32(0);
+  final salt = Uint8List.sublistView(kdfOptions, 4, 4 + saltLength);
+  final rounds = options.getUint32(4 + saltLength);
+  final derived = Uint8List(type.keySize + type.ivSize);
+  final secret = Uint8List.fromList(utf8.encode(passphrase));
+  final status = bcrypt_pbkdf(
+    secret,
+    secret.lengthInBytes,
+    salt,
+    salt.lengthInBytes,
+    derived,
+    derived.lengthInBytes,
+    rounds,
+  );
+  if (status != 0) throw const SecurityKeyStubException('安全密钥文件的口令不对');
+  final block = type.createCipher(
+    Uint8List.sublistView(derived, 0, type.keySize),
+    Uint8List.sublistView(derived, type.keySize),
+    forEncryption: false,
+  );
+  final plain = Uint8List(blob.length);
+  for (var offset = 0; offset < blob.length; offset += block.blockSize) {
+    block.processBlock(blob, offset, plain, offset);
+  }
+  return plain;
 }
 
 /// 用这把私钥签一段固定数据，再用它自己的公钥验签。

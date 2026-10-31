@@ -377,6 +377,92 @@ const englishTranslations = <String, String>{
   '上一个匹配': 'Previous match',
   '下一个匹配': 'Next match',
   '服务器内部操作中…': 'Working on the server…',
+  '安全密钥':
+      'Security key',
+  '点「重新连接」，再按提示贴上或插上钥匙。这一步要你本人碰钥匙，App 不会自动重试。':
+      'Tap “Reconnect”, then tap or plug in the key when asked. This step needs you to touch the key, so the app won\'t retry on its own.',
+  r'安全密钥“${key.label}”':
+      r'Security key “${key.label}”',
+  '不是 OpenSSH 格式的文件':
+      'Not an OpenSSH format file',
+  '安全密钥文件有口令保护，但没有保存口令':
+      'The security key file is passphrase-protected, but no passphrase is saved',
+  '这里解不开带口令的安全密钥文件':
+      'Can\'t open a passphrase-protected security key file here',
+  '安全密钥文件内容已损坏':
+      'The security key file is corrupted',
+  '安全密钥文件的口令不对':
+      'Wrong passphrase for the security key file',
+  '不是安全密钥的文件':
+      'Not a security key file',
+  '取消了安全密钥签名':
+      'Security key signing was cancelled',
+  '没有等到安全密钥':
+      'Timed out waiting for the security key',
+  '安全密钥要求输入 PIN':
+      'The security key requires a PIN',
+  '安全密钥的 PIN 不对':
+      'Wrong security key PIN',
+  r'安全密钥的 PIN 不对，还能试 $pinRetries 次':
+      r'Wrong security key PIN, $pinRetries tries left',
+  '安全密钥的 PIN 错太多次，已锁定':
+      'Too many wrong PINs; the security key is locked',
+  '这把钥匙还没设 PIN，先用钥匙厂商的工具设一个':
+      'This key has no PIN yet. Set one with the vendor\'s tool first',
+  '这把钥匙里没有这把密钥：可能贴错了钥匙':
+      'This key doesn\'t hold that credential. It may be the wrong key',
+  '这把钥匙不支持：需要 FIDO2，老的 U2F 钥匙暂不支持':
+      'This key isn\'t supported: FIDO2 is required, older U2F keys aren\'t supported yet',
+  '和安全密钥通信失败':
+      'Couldn\'t communicate with the security key',
+  '这台机器要碰安全密钥才能登录，自动恢复不会替你碰':
+      'This machine needs a security key touch to sign in. Automatic recovery won\'t do that for you',
+  '不支持这个文件的口令加密方式':
+      'This file\'s passphrase encryption isn\'t supported',
+  '安全密钥登录':
+      'Security key sign-in',
+  '这把钥匙要 PIN':
+      'This key needs a PIN',
+  '这把钥匙可能要 PIN':
+      'This key may need a PIN',
+  'PIN 至少 4 位':
+      'PIN must be at least 4 characters',
+  '插上钥匙。NFC 没打开，要用先到系统设置里开':
+      'Plug in the key. NFC is off; turn it on in system settings to use it',
+  '把钥匙贴到手机背面，或插到 USB 口':
+      'Hold the key to the back of the phone, or plug it into USB',
+  '正在通信，别拿开':
+      'Communicating, keep the key in place',
+  '碰一下钥匙':
+      'Touch the key',
+  '钥匙的 PIN':
+      'Key PIN',
+  '添加安全密钥':
+      'Add security key',
+  '在钥匙上生成新密钥':
+      'Generate a new key on the security key',
+  '读取钥匙里已有的密钥':
+      'Read keys already on the security key',
+  '在钥匙上生成密钥':
+      'Generate key on the security key',
+  '读取钥匙里的密钥':
+      'Read keys from the security key',
+  r'安全密钥 $index':
+      r'Security key $index',
+  r'找到 $total 把，新增 $added 把':
+      r'Found $total, added $added',
+  '公钥':
+      'Public key',
+  '把这一行加到服务器的 ~/.ssh/authorized_keys':
+      'Add this line to ~/.ssh/authorized_keys on the server',
+  '存进钥匙里':
+      'Store on the key',
+  '换手机后能从钥匙读回来':
+      'Can be read back from the key on a new phone',
+  '每次登录都要 PIN':
+      'Require PIN for every sign-in',
+  '生成':
+      'Generate',
   '服务器只支持旧算法': 'Server only supports old algorithms',
   '这台服务器只认已淘汰的算法（CBC 加密、SHA-1 密钥交换、ssh-rsa 主机密钥），本 App 不再使用，重试也没用。升级服务器上的 SSH 才能连。':
       'This server only accepts retired algorithms (CBC encryption, SHA-1 key exchange, ssh-rsa host keys). This app no longer uses them, so retrying won\'t help. Upgrade SSH on the server to connect.',

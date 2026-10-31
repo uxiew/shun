@@ -1,7 +1,10 @@
 import 'dart:convert';
 import 'dart:typed_data';
 
-/// 从私钥文件读出密钥类型：`RSA`、`ECDSA`、`ED25519`（和桌面端 Netcatty 的 `type` 字段同一套写法），认不出返回 null。
+import 'security_key.dart';
+
+/// 从私钥文件读出密钥类型：`RSA`、`ECDSA`、`ED25519`、`ED25519-SK`、`ECDSA-SK`（和桌面端 Netcatty 的 `type` 字段
+/// 同一套写法），认不出返回 null。
 ///
 /// 不解密、不要口令：OpenSSH 新格式里公钥那一段是明文的，类型就写在它开头；传统 PEM 看头一行。
 /// 以前导入时一律写 `ED25519`，RSA、ECDSA 私钥在列表里也显示成 ED25519。只用来显示，连接时不看它。
@@ -45,12 +48,11 @@ String? sshKeyTypeOf(String pem) {
   final typeLength = ByteData.sublistView(publicKey, 0, 4).getUint32(0);
   if (4 + typeLength > publicKey.length) return null;
   final type = latin1.decode(publicKey.sublist(4, 4 + typeLength));
-  if (type == 'ssh-ed25519' || type == 'sk-ssh-ed25519@openssh.com') {
-    return 'ED25519';
+  if (type == skEd25519Type || type == skEcdsaType) {
+    return securityKeyVaultType(type);
   }
+  if (type == 'ssh-ed25519') return 'ED25519';
   if (type == 'ssh-rsa') return 'RSA';
-  if (type.startsWith('ecdsa-sha2-') || type.startsWith('sk-ecdsa-sha2-')) {
-    return 'ECDSA';
-  }
+  if (type.startsWith('ecdsa-sha2-')) return 'ECDSA';
   return null;
 }

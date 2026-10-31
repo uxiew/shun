@@ -1,6 +1,7 @@
 import 'connection_route.dart';
 import 'models/host.dart';
 import 'plugins/mosh_route.dart';
+import 'security_key.dart';
 import 'tailscale_ssh.dart';
 import 'credential_identity.dart';
 
@@ -53,6 +54,10 @@ String? describeLogin(
   return '凭据“${identity.label}”：$login';
 }
 
+String _keyText(SshKeyProfile key) => SecurityKeyStub.isStubPem(key.privateKey)
+    ? '安全密钥“${key.label}”'
+    : '私钥“${key.label}”';
+
 String? _describeLogin(HostProfile host, SshKeyProfile? key) {
   if (host.protocol != HostProtocol.ssh && host.protocol != HostProtocol.mosh) {
     return null;
@@ -67,10 +72,10 @@ String? _describeLogin(HostProfile host, SshKeyProfile? key) {
       return hasPassword ? '密码' : '密码（没保存，登录时问你）';
     case HostAuthMethod.key:
       // 私钥被删了：连接在拨号前就被拒绝（SEC06），不会改用密码。
-      return hasKey ? '私钥“${key.label}”' : '私钥（引用的私钥已不存在，连接会被拒绝）';
+      return hasKey ? _keyText(key) : '私钥（引用的私钥已不存在，连接会被拒绝）';
     case HostAuthMethod.auto:
       final tries = [
-        if (hasKey) '私钥“${key.label}”',
+        if (hasKey) _keyText(key),
         if (hasPassword) '保存的密码',
       ];
       return tries.isEmpty

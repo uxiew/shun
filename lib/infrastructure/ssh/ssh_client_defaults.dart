@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:dartssh2/dartssh2.dart';
 
+import '../../domain/security_key.dart';
+
 /// 每条 SSH 连接用的算法偏好。只改加密算法的顺序，其余用 dartssh2 的默认。
 ///
 /// dartssh2 4.1.0 默认把 AES-GCM 排第一，但它是纯 Dart 实现，很慢。实测（R58，Mac arm64 原生编译，
@@ -27,6 +29,17 @@ bool isAlgorithmMismatch(Object? error) {
   final cause = error is SSHAuthAbortError ? error.reason : error;
   return cause is SSHInternalError &&
       '${cause.error}'.contains('No matching ');
+}
+
+/// 这次失败是不是钥匙那边的事（取消、超时、PIN、自动恢复碰不了钥匙）。dartssh2 把签名时抛的错包了两层：
+/// `SSHAuthAbortError(reason: SSHInternalError(错误本身))`。不单独认出来会被当成「登录前被对方关掉」，
+/// 提示指向网络，自动恢复还会一直重试。
+Exception? securityKeyCauseOf(Object? error) {
+  final reason = error is SSHAuthAbortError ? error.reason : error;
+  final cause = reason is SSHInternalError ? reason.error : reason;
+  return cause is SecurityKeyException || cause is SecurityKeyNeedsUser
+      ? cause as Exception
+      : null;
 }
 
 extension SshClientClose on SSHClient {
