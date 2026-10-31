@@ -101,7 +101,13 @@ for _ in $(seq 1 10); do
   swipe 500 1600 500 700 300
   sleep 0.6
 done
-swipe 500 1300 500 1000 300   # 再往上带一点，让「检查」整个露出来
+# 「检查」在下面一行，设置页是懒加载，没翻到的行界面树里没有。多带一下让它整个露出来，别压在底部导航边上。
+for _ in $(seq 1 4); do
+  swipe 500 1300 500 1000 300
+  sleep 0.6
+  find_text '检查' >/dev/null && break
+done
+swipe 500 1300 500 1000 300
 sleep 0.6
 tap_text '检查'
 sleep 2
