@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
@@ -18,6 +17,7 @@ import '../../domain/models/settings.dart';
 import '../../domain/models/vault.dart';
 import '../../infrastructure/storage/background_image_service.dart';
 import '../../infrastructure/storage/picked_files.dart';
+import '../../infrastructure/storage/encrypted_vault_file.dart';
 import '../../infrastructure/storage/vault_repository.dart';
 import '../../infrastructure/storage/vault_export_service.dart';
 import '../../infrastructure/http_client_provider.dart';
@@ -36,6 +36,7 @@ import '../widgets/github_manual_config.dart';
 import '../widgets/hint.dart';
 import '../widgets/secret_content.dart';
 import '../widgets/vault_import_dialog.dart';
+import '../widgets/vault_passphrase_dialog.dart';
 import 'app_log_screen.dart';
 import 'connection_log_screen.dart';
 import 'plugins_screen.dart';
@@ -610,21 +611,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               _header(
                 '数据',
-                hint:
-                    '导入的是 Netcatty 桌面端解密后导出的保险库 JSON。导出的文件不带密码、私钥和代理口令，换手机导入后要重新填。',
+                hint: '换手机用加密备份。不含密码的 JSON 只有配置，导入后要重新填。',
               ),
               Card(
                 child: Column(
                   children: [
                     ListTile(
                       leading: const Icon(Icons.file_upload_outlined),
-                      title: const LText('导入 Netcatty JSON'),
+                      title: const LText('导入保险库文件'),
                       onTap: _import,
                     ),
                     const Divider(height: 1),
                     ListTile(
+                      key: const ValueKey('export-encrypted-backup'),
+                      leading: const Icon(Icons.enhanced_encryption_outlined),
+                      title: const LText('导出加密备份（含密码）'),
+                      onTap: _exportEncrypted,
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
                       leading: const Icon(Icons.file_download_outlined),
-                      title: const LText('导出保险库 JSON'),
+                      title: const LText('导出 JSON（不含密码）'),
                       onTap: _export,
                     ),
                   ],
@@ -1645,9 +1652,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         // 导入的 JSON 里可能带密码（桌面端导出的）：选择器在缓存里那份读完就删。
         await discardPickedCopy(file);
       }
-      final imported = VaultData.fromJson(
-        jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>,
-      );
+      final backup = EncryptedVaultFile.tryParse(bytes);
+      final VaultData imported;
+      if (backup == null) {
+        imported = EncryptedVaultFile.parsePlain(bytes);
+      } else {
+        if (!mounted) return;
+        final decoded = await askAndDecodeBackup(context, backup);
+        if (decoded == null) return;
+        imported = decoded;
+      }
       final controller = ref.read(vaultControllerProvider.notifier);
       // 先让用户看清会新增、更新、删除什么再写。以前直接整库替换，文件里没有的主机连同凭据被删。
       final shown = planVaultImport(imported, await controller.ready());
@@ -1661,8 +1675,30 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       _message(mode == VaultImportMode.merge
           ? '导入完成（合并）：新增主机 $added 台，更新主机 $updated 台，本机独有的主机保留：$localOnly'
           : '导入完成（替换）：现在共有主机 ${added + updated} 台，删除了本机独有的主机：$localOnly');
+    } on FormatException catch (error) {
+      _message('导入失败：${error.message}');
     } catch (error) {
       _message('导入失败：$error');
+    }
+  }
+
+  Future<void> _exportEncrypted() async {
+    try {
+      final controller = ref.read(vaultControllerProvider.notifier);
+      final vault = await controller.ready();
+      final version = (await PackageInfo.fromPlatform()).version;
+      if (!mounted) return;
+      final bytes = await askAndEncodeBackup(context, vault, version);
+      if (bytes == null) return;
+      final result = await VaultExportService().exportEncrypted(bytes);
+      if (result != VaultExportResult.saved) return;
+      // 解不开的凭据没法放进备份。不说的话，用户换完手机才发现少了密码。
+      final missing = controller.repository.unreadableSecrets.length;
+      _message(missing == 0
+          ? '加密备份已导出'
+          : '加密备份已导出，但有 $missing 条凭据解不开，没有带上');
+    } catch (error) {
+      _message('导出失败：$error');
     }
   }
 

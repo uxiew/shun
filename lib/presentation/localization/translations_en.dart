@@ -694,9 +694,7 @@ const englishTranslations = <String, String>{
   'shu 正在思考…': 'shu is thinking…',
   '数据管理': 'Data management',
   'SSH 密钥库': 'SSH keychain',
-  '导入 Netcatty JSON': 'Import Netcatty JSON',
   '基于 Netcatty Mobile 修改': 'Modified from Netcatty Mobile',
-  '导出保险库 JSON': 'Export vault JSON',
   '安全': 'Security',
   '关于与更新': 'About & updates',
   '语言': 'Language',
@@ -1088,6 +1086,25 @@ const englishTranslations = <String, String>{
       'Handshake succeeded (the plugin verified the host certificate); ping round trip OK',
   // 导入确认框（vault_import_dialog.dart）。
   '导入保险库文件': 'Import vault file',
+  '换手机用加密备份。不含密码的 JSON 只有配置，导入后要重新填。':
+      'Use an encrypted backup to move phones. The JSON without passwords only has settings; you re-enter passwords after importing.',
+  '导出加密备份（含密码）': 'Export encrypted backup (with passwords)',
+  '导出加密备份': 'Export encrypted backup',
+  '导出 JSON（不含密码）': 'Export JSON (no passwords)',
+  '备份口令': 'Backup passphrase',
+  '备份里有密码和私钥，靠这个口令保护。忘了就解不开，App 不存它。':
+      'The backup holds passwords and private keys, protected by this passphrase. Forget it and the backup can\'t be opened; the app doesn\'t store it.',
+  '口令': 'Passphrase',
+  '再输一遍': 'Enter it again',
+  '至少 12 位': 'At least 12 characters',
+  '两次输入不一样': 'The two entries don\'t match',
+  '解密': 'Decrypt',
+  '正在计算…': 'Working…',
+  '口令不对，或者文件被改过': 'Wrong passphrase, or the file was changed',
+  '不是保险库文件，或者文件已损坏': 'Not a vault file, or the file is damaged',
+  '文件的密钥派生次数超出范围，没有解密：可能被改过，也可能是更新版本导出的':
+      'The file\'s key derivation count is out of range, so it wasn\'t decrypted. It may have been changed, or exported by a newer version.',
+  '加密备份已导出': 'Encrypted backup exported',
   '本机有、文件里没有的：': 'On this device but not in the file:',
   '文件里的服务器指纹不导入：本机没核对过的服务器，第一次连接时会请你重新核对。':
       'Server fingerprints in the file are not imported. Servers not yet verified on this device will ask you to verify them on first connection.',
@@ -2367,8 +2384,6 @@ const englishTranslations = <String, String>{
       'Passwords and private keys are kept only in the system secure storage. The first connection to a server asks you to check its fingerprint; if it changes later, the connection is stopped before any login is sent.',
   '关着时，编辑连接、编辑代理和输密码的对话框截屏、录屏都是黑的，最近任务里也看不到。终端页不受影响。只对 Android 有效。':
       'When off, screenshots and recordings of the connection and proxy editors and password dialogs are black, and Recents hides them. Terminal pages are not affected. Android only.',
-  '导入的是 Netcatty 桌面端解密后导出的保险库 JSON。导出的文件不带密码、私钥和代理口令，换手机导入后要重新填。':
-      'Import takes the decrypted vault JSON exported by Netcatty desktop. Exported files contain no passwords, private keys or proxy passwords; fill them in again after importing on another phone.',
   '和桌面端用同一个加密文件 netcatty-vault.json，两边能互相同步。':
       'Uses the same encrypted netcatty-vault.json as the desktop app, so both can sync with each other.',
   'MinIO 这类自建 S3 要开着。默认开。':
@@ -3089,6 +3104,8 @@ const englishReplacements = <(String, String)>[
   ('已导入为“', 'Already imported as “'),
   // 导入保险库：带数字的句子（vault_import_dialog.dart、settings_screen.dart 的 _import）。
   // 放最前：后面的通用片段会把「导入」「失败」「台」拆开逐个翻。
+  ('加密备份已导出，但有 ', 'Encrypted backup exported, but '),
+  (' 条凭据解不开，没有带上', ' credentials could not be read and are not in it'),
   ('文件里有 ', 'The file has '),
   (' 台主机：本机没有的 ', ' hosts: '),
   (' 台会新增，本机已有的 ', ' will be added and '),

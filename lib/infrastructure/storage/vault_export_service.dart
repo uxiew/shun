@@ -32,14 +32,30 @@ class VaultExportService {
   ///
   /// 以前导出的是解锁后的完整保险库，JSON 文件里是明文密码和私钥，存到哪、同步到哪都跟着走。
   /// 在同一台设备上再导入时，[keepLocalSecrets] 会沿用本机已有的凭据；换设备要重新填。
-  Future<VaultExportResult> export(VaultData vault) async {
-    final bytes = Uint8List.fromList(
-      utf8.encode(const JsonEncoder.withIndent('  ')
-          .convert(vaultWithoutSecrets(vault).toJson())),
-    );
+  Future<VaultExportResult> export(VaultData vault) => _save(
+        Uint8List.fromList(
+          utf8.encode(const JsonEncoder.withIndent('  ')
+              .convert(vaultWithoutSecrets(vault).toJson())),
+        ),
+        dialogTitle: '导出 shun 保险库',
+        fileName: 'shun-export.json',
+      );
+
+  /// 存带凭据的加密备份（R60）。[bytes] 是 [EncryptedVaultFile.encode] 算好的密文。
+  Future<VaultExportResult> exportEncrypted(Uint8List bytes) => _save(
+        bytes,
+        dialogTitle: '导出加密备份',
+        fileName: 'shun-backup-encrypted.json',
+      );
+
+  Future<VaultExportResult> _save(
+    Uint8List bytes, {
+    required String dialogTitle,
+    required String fileName,
+  }) async {
     final path = await _saveFile(
-      dialogTitle: '导出 shun 保险库',
-      fileName: 'shun-export.json',
+      dialogTitle: dialogTitle,
+      fileName: fileName,
       type: FileType.custom,
       allowedExtensions: const ['json'],
       // Android and iOS document pickers own the selected URI. file_picker
