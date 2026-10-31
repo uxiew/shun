@@ -1999,9 +1999,11 @@
       "action": "在可信主机密钥页删一条记录后重连；查看列表。",
       "expected": "重连按第一次见重新核对；页面不能改指纹、不能加记录。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R65.md"
+      ]
     },
     {
       "id": "SEC15",

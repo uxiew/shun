@@ -3243,7 +3243,7 @@
       "id": "R65",
       "phase": "P6",
       "title": "可信主机密钥页",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R28"
       ],
@@ -3265,8 +3265,10 @@
       ],
       "stop_condition": "不做粘贴导入和 @cert-authority。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R65.md"
+      ],
+      "commit": "0c31899"
     },
     {
       "id": "R66",
