@@ -193,12 +193,12 @@ class AppLockController extends StateNotifier<AppLockState> {
   ///
   /// 系统 PIN 页会把 App 顶到后台。直接调的话，设成「立即」时回来又锁一次、再弹一次框。这里把那次离开算成
   /// 从自己拉起的页面回来：[appLockOwnActivityGrace] 内不锁，超过了照样锁（验证开着时按 HOME 走开的情况）。
-  Future<DeviceAuthOutcome> confirm(String title) async {
+  Future<DeviceAuthOutcome> confirm(String title, {String? description}) async {
     if (_unlocking || _confirming) {
       return const DeviceAuthOutcome(DeviceAuthResult.canceled);
     }
     _confirming = true;
-    final outcome = await _authenticate(title);
+    final outcome = await _authenticate(title, description: description);
     _confirming = false;
     if (mounted && outcome.result == DeviceAuthResult.success) {
       _leftAt = null;
@@ -208,10 +208,14 @@ class AppLockController extends StateNotifier<AppLockState> {
     return outcome;
   }
 
-  Future<DeviceAuthOutcome> _authenticate(String title) async {
+  Future<DeviceAuthOutcome> _authenticate(
+    String title, {
+    String? description,
+  }) async {
     try {
       return await _auth.authenticate(
         title: title,
+        description: description,
         pinOnly: _settings.appLockPinOnly,
         allowWeak: _settings.appLockAllowWeakBiometrics,
       );

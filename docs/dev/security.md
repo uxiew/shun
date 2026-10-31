@@ -116,6 +116,17 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 - **第一帧之前就要知道开没开**，所以 `VaultRepository.loadSettingsPreview` 是同步读。改成等 `SettingsController` 异步加载，就会露一帧内容。
 - **不换 `FragmentActivity`。** `local_auth` 和 `androidx.biometric` 都要它，换基类要重测 R22。
 
+### 1.7 sudo 键（R66）
+
+入口是 `SessionController.sendStoredPassword`。终端适配器只收到一段文字，不知道那是密码，SEC09 的边界没变。用户怎么用见手册第 9 节。改这里要守住：
+
+- **按 `sourceHostIdOf` 回保险库查，只查这一台**（`storedHostPassword`）。标签上那份可能是临时拷贝，凭据还可能已经清了。经跳板时标签的主机就是目标主机，跳板的密码没有路能走到这里。
+- **走 `sendText`，不走 `paste`。** sudo、ssh 的提示符不认 bracketed paste，远端开着 2004 时标记会被当成密码的一部分。先清修饰键，不然亮着的 Ctrl 会吃掉第一个字符。
+- **不加回车、不判断提示符**，这是任务的停止条件。存的密码里有控制字符就不发，换行等于回车。
+- **界面先过 `AppLockController.confirm` 才调它**。这个方法自己不验证，别从别的地方调。
+- **验证通过后要再看 `targetProblem`**：验证期间标签可能关了、断了、换成恢复后的新连接，这时不发，也不改发给别的标签。
+- **不写日志、不留副本。** 设备测试用记号查过 App 日志和整段 logcat。
+
 ## 2. 导出、导入、云同步
 
 ### 2.1 导出

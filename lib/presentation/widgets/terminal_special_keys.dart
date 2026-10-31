@@ -27,6 +27,7 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
     this.onAiCli,
     this.onCopyScreen,
     this.onPerformanceMonitor,
+    this.onHostPassword,
     required this.pictureInPicture,
     required this.onPictureInPicture,
     required this.fullscreen,
@@ -68,6 +69,9 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
   /// 「性能监控」：和「复制屏幕文字」一样平时在标签条上，这里只在「更多」里。为 null 时不显示
   /// （不是 SSH、或者断开了）。
   final VoidCallback? onPerformanceMonitor;
+
+  /// sudo 键：发这台主机存的密码（R66）。这台主机没存密码、没连着时是 null，不显示。
+  final VoidCallback? onHostPassword;
   final bool pictureInPicture;
   final VoidCallback? onPictureInPicture;
   final bool fullscreen;
@@ -158,6 +162,13 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                         Icons.auto_awesome,
                         color: Theme.of(context).colorScheme.primary,
                       ),
+                    ),
+                  if (widget.onHostPassword != null)
+                    IconButton(
+                      key: const ValueKey('terminal-action-host-password'),
+                      tooltip: localized('发送这台主机的密码'),
+                      onPressed: widget.onHostPassword,
+                      icon: const Icon(Icons.key_outlined),
                     ),
                   IconButton(
                     key: const ValueKey('terminal-action-port-forward'),
@@ -328,6 +339,13 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
         ('ai-cli', aiCliLabel, Icons.terminal, widget.onAiCli),
       if (widget.onAi != null)
         ('ai', localized('shu Agent'), Icons.auto_awesome, widget.onAi),
+      if (widget.onHostPassword != null)
+        (
+          'host-password',
+          localized('发送这台主机的密码'),
+          Icons.key_outlined,
+          widget.onHostPassword,
+        ),
       if (widget.onCopyScreen != null)
         (
           'copy-screen',

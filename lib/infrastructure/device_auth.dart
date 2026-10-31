@@ -27,8 +27,10 @@ abstract class DeviceAuth {
   /// 手机有没有设屏幕锁。
   Future<bool> isDeviceSecure();
 
+  /// [description] 显示在系统验证框上，写清按下去会发生什么。
   Future<DeviceAuthOutcome> authenticate({
     required String title,
+    String? description,
     required bool pinOnly,
     required bool allowWeak,
   });
@@ -66,12 +68,18 @@ class PlatformDeviceAuth implements DeviceAuth {
   @override
   Future<DeviceAuthOutcome> authenticate({
     required String title,
+    String? description,
     required bool pinOnly,
     required bool allowWeak,
   }) async {
     final reply = await _channel.invokeMapMethod<String, Object?>(
       'authenticate',
-      {'title': title, 'pinOnly': pinOnly, 'allowWeak': allowWeak},
+      {
+        'title': title,
+        'description': description,
+        'pinOnly': pinOnly,
+        'allowWeak': allowWeak,
+      },
     );
     return DeviceAuthOutcome(
       switch (reply?['result']) {

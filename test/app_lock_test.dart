@@ -38,6 +38,7 @@ class FakeAuth implements DeviceAuth {
   @override
   Future<DeviceAuthOutcome> authenticate({
     required String title,
+    String? description,
     required bool pinOnly,
     required bool allowWeak,
   }) async {
@@ -677,6 +678,7 @@ class _ThrowingAuth extends FakeAuth {
   @override
   Future<DeviceAuthOutcome> authenticate({
     required String title,
+    String? description,
     required bool pinOnly,
     required bool allowWeak,
   }) async {
@@ -688,6 +690,7 @@ class _MissingAuth extends FakeAuth {
   @override
   Future<DeviceAuthOutcome> authenticate({
     required String title,
+    String? description,
     required bool pinOnly,
     required bool allowWeak,
   }) async {

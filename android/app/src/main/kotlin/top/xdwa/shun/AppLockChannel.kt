@@ -47,6 +47,9 @@ internal fun allowedAuthenticators(
     else -> strong or credential
 }
 
+/** 系统验证框上的字。 */
+private class PromptText(val title: String, val description: String?)
+
 /**
  * 应用锁（R46）和 sudo 键（R66）的系统验证。只用手机自己的生物识别和 PIN，不自建密码体系。
  *
@@ -94,18 +97,18 @@ class AppLockChannel(
             return
         }
         pending = result
-        val title = call.argument<String>("title") ?: "shun"
+        val text = PromptText(call.argument<String>("title") ?: "shun", call.argument<String>("description"))
         val pinOnly = call.argument<Boolean>("pinOnly") == true
         val allowWeak = call.argument<Boolean>("allowWeak") == true
         when (authRoute(Build.VERSION.SDK_INT, pinOnly)) {
-            AuthRoute.PROMPT_AUTHENTICATORS -> promptWithAuthenticators(title, pinOnly, allowWeak)
-            AuthRoute.PROMPT_CREDENTIAL_ALLOWED -> promptCredentialAllowed(title)
-            AuthRoute.PROMPT_THEN_CONFIRM -> promptThenConfirm(title)
-            AuthRoute.CONFIRM_CREDENTIAL -> confirmCredential(title)
+            AuthRoute.PROMPT_AUTHENTICATORS -> promptWithAuthenticators(text, pinOnly, allowWeak)
+            AuthRoute.PROMPT_CREDENTIAL_ALLOWED -> promptCredentialAllowed(text)
+            AuthRoute.PROMPT_THEN_CONFIRM -> promptThenConfirm(text)
+            AuthRoute.CONFIRM_CREDENTIAL -> confirmCredential(text)
         }
     }
 
-    private fun promptWithAuthenticators(title: String, pinOnly: Boolean, allowWeak: Boolean) {
+    private fun promptWithAuthenticators(text: PromptText, pinOnly: Boolean, allowWeak: Boolean) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R) return
         val allowed = allowedAuthenticators(
             pinOnly,
@@ -116,40 +119,43 @@ class AppLockChannel(
         )
         // 允许 PIN 时不能设负按钮，设了直接抛 IllegalArgumentException。
         show(
-            BiometricPrompt.Builder(activity)
-                .setTitle(title)
+            builder(text)
                 .setConfirmationRequired(false)
                 .setAllowedAuthenticators(allowed)
                 .build(),
-            title,
+            text,
         )
     }
 
     @Suppress("DEPRECATION")
-    private fun promptCredentialAllowed(title: String) {
+    private fun promptCredentialAllowed(text: PromptText) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return
         show(
-            BiometricPrompt.Builder(activity)
-                .setTitle(title)
+            builder(text)
                 .setConfirmationRequired(false)
                 .setDeviceCredentialAllowed(true)
                 .build(),
-            title,
+            text,
         )
     }
 
-    private fun promptThenConfirm(title: String) {
+    private fun promptThenConfirm(text: PromptText) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
         show(
-            BiometricPrompt.Builder(activity)
-                .setTitle(title)
-                .setNegativeButton("用 PIN", activity.mainExecutor) { _, _ -> confirmCredential(title) }
+            builder(text)
+                .setNegativeButton("用 PIN", activity.mainExecutor) { _, _ -> confirmCredential(text) }
                 .build(),
-            title,
+            text,
         )
     }
 
-    private fun show(prompt: BiometricPrompt, title: String) {
+    @android.annotation.TargetApi(Build.VERSION_CODES.P)
+    private fun builder(text: PromptText): BiometricPrompt.Builder =
+        BiometricPrompt.Builder(activity).setTitle(text.title).apply {
+            text.description?.let { setDescription(it) }
+        }
+
+    private fun show(prompt: BiometricPrompt, text: PromptText) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.P) return
         val signal = CancellationSignal()
         cancellation = signal
@@ -173,7 +179,7 @@ class AppLockChannel(
                         BiometricPrompt.BIOMETRIC_ERROR_HW_UNAVAILABLE,
                         BiometricPrompt.BIOMETRIC_ERROR_LOCKOUT,
                         BiometricPrompt.BIOMETRIC_ERROR_LOCKOUT_PERMANENT,
-                        -> confirmCredential(title)
+                        -> confirmCredential(text)
                         BiometricPrompt.BIOMETRIC_ERROR_NO_DEVICE_CREDENTIAL -> finish("unavailable")
                         else -> finish("failed", errString.toString())
                     }
@@ -183,9 +189,9 @@ class AppLockChannel(
     }
 
     @Suppress("DEPRECATION")
-    private fun confirmCredential(title: String) {
+    private fun confirmCredential(text: PromptText) {
         // 废弃了但没别的换：API 24–28 只有它能验 PIN。没设屏幕锁时返回 null。
-        val intent = keyguard.createConfirmDeviceCredentialIntent(title, null)
+        val intent = keyguard.createConfirmDeviceCredentialIntent(text.title, text.description)
         if (intent == null) {
             finish("unavailable")
             return

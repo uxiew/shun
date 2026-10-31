@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 
 import '../domain/connection_route.dart';
+import '../domain/credential_identity.dart';
 import '../domain/ai_cli_launch.dart';
 import '../domain/models/host.dart';
 import '../domain/models/vault.dart';
@@ -2382,6 +2383,31 @@ class SessionController extends StateNotifier<SessionState> {
     if (enter) target.terminal.sendText('\r');
   }
 
+  /// sudo 键（R66）：把 [target] 这台主机存的密码按打字发过去。验证由界面先过（AppLockController.confirm）。
+  ///
+  /// 走 sendText 不走 paste：sudo、ssh 的密码提示符不认 bracketed paste，标记会被当成密码的一部分。
+  /// 不加回车（停止条件）：是不是在提示符上只有用户知道。修饰键先清掉，不然亮着的 Ctrl 会吃掉第一个字符。
+  /// 目标变了就不发，理由同 [pasteInto]。密码不进日志，这里也不留副本。
+  Future<void> sendStoredPassword(ActiveTerminalSession target) async {
+    final vault = await vaultController.ready();
+    final problem = targetProblem(target);
+    if (problem != null) throw TerminalTargetChangedException(problem);
+    final password = storedHostPassword(
+      target.host,
+      hosts: vault.hosts,
+      identities: vaultIdentityMaps(vault),
+    );
+    if (password == null) {
+      throw const StoredPasswordException('这台主机没存密码。');
+    }
+    // 里面有换行就等于自动回车了。
+    if (password.contains(RegExp(r'[\x00-\x1f\x7f]'))) {
+      throw const StoredPasswordException('存的密码里有换行或控制字符，没有发送。');
+    }
+    target.terminal.input.clearModifiers();
+    target.terminal.sendText(password);
+  }
+
   /// controller 销毁（应用退出、测试结束）时：所有进行中的尝试失效并关掉半成品，
   /// 已建立的连接全部释放。以前只停监控，SSH 连接和跳板连接会一直留着没人管（LIFE06）。
   @override
@@ -2417,6 +2443,15 @@ enum TerminalTargetProblem {
 
   /// 断线后恢复成了一条新连接：同一个标签，但已经是新的 shell，原来那条收不到了。
   replaced,
+}
+
+class StoredPasswordException implements Exception {
+  const StoredPasswordException(this.message);
+
+  final String message;
+
+  @override
+  String toString() => message;
 }
 
 class TerminalTargetChangedException implements Exception {

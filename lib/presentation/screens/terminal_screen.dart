@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:math' as math;
 
 import 'package:flutter/gestures.dart';
@@ -16,7 +17,11 @@ import '../../application/home_navigation.dart';
 import '../../application/settings_controller.dart';
 import '../../application/terminal_compose.dart';
 import '../../application/terminal_engine.dart';
+import '../../application/app_lock.dart';
 import '../../application/vault_controller.dart';
+import '../../domain/credential_identity.dart';
+import '../../domain/vault_secrets.dart';
+import '../../infrastructure/device_auth.dart';
 import '../../domain/host_identity.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/settings.dart';
@@ -576,6 +581,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                       showTerminalPasteSheet(context, target: inputSession),
                   onCopyScreen: () => _copyScreen(inputSession),
                   onPerformanceMonitor: _performanceMonitorFor(inputSession),
+                  onHostPassword: _hostPasswordFor(inputSession),
                   compact: layout.compact,
                   showQuickKeys: layout.showQuickKeys,
                   inputPanel: panelVisible,
@@ -861,6 +867,58 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
       session.isSsh && session.connected
           ? () => _openPerformanceMonitor(session)
           : null;
+
+  /// sudo 键（R66）：连着的 SSH 标签，这台主机存了密码才有。只有 Android 有系统验证的通道。
+  VoidCallback? _hostPasswordFor(ActiveTerminalSession session) {
+    if (!Platform.isAndroid || !session.isSsh || !session.connected) {
+      return null;
+    }
+    final vault = ref.read(vaultControllerProvider).data;
+    if (vault == null) return null;
+    final stored = storedHostPassword(
+      session.host,
+      hosts: vault.hosts,
+      identities: vaultIdentityMaps(vault),
+    );
+    return stored == null ? null : () => unawaited(_sendHostPassword(session));
+  }
+
+  /// 每次都要过验证，刚解过应用锁也一样：按错了密码会明文显示在屏幕上，所以框上写清楚。
+  Future<void> _sendHostPassword(ActiveTerminalSession target) async {
+    final title = localized('发送密码');
+    final outcome = await ref.read(appLockControllerProvider.notifier).confirm(
+          '$title：${target.host.label}',
+          description: localized('把这台主机存的密码打进终端，不回车。不在密码提示符时按，密码会明文显示在屏幕上。'),
+        );
+    if (!mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    switch (outcome.result) {
+      case DeviceAuthResult.success:
+        break;
+      case DeviceAuthResult.canceled:
+        return;
+      case DeviceAuthResult.unavailable:
+        messenger.showSnackBar(
+          const SnackBar(content: LText('手机没设屏幕锁，不能发密码。先到系统设置里设一个。')),
+        );
+        return;
+      case DeviceAuthResult.failed:
+        final message = outcome.message;
+        if (message != null) {
+          messenger.showSnackBar(SnackBar(content: Text(message)));
+        }
+        return;
+    }
+    try {
+      await ref
+          .read(sessionControllerProvider.notifier)
+          .sendStoredPassword(target);
+    } on TerminalTargetChangedException catch (error) {
+      messenger.showSnackBar(SnackBar(content: LText(error.toString())));
+    } on StoredPasswordException catch (error) {
+      messenger.showSnackBar(SnackBar(content: LText(error.message)));
+    }
+  }
 
   void _openPerformanceMonitor(ActiveTerminalSession session) {
     showModalBottomSheet<void>(

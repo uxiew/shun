@@ -1,3 +1,4 @@
+import 'host_identity.dart';
 import 'models/host.dart';
 import 'models/vault.dart';
 import 'vault_secrets.dart';
@@ -90,6 +91,27 @@ void applyHostIdentity(
       if (identity.keyId != null) data['identityFileId'] = identity.keyId;
       data['password'] = password;
   }
+}
+
+/// sudo 键（R66）要发的密码：[tabHost] 这个标签对应的那台主机现在存的密码，身份展开后。
+///
+/// 按 id 回保险库查，不用标签上那份：那份可能是临时拷贝（tmux、AI 工具），后台满 10 分钟凭据还会被清掉。
+/// 只查这一台。经跳板的标签 [tabHost] 是最后那台目标主机，跳板的密码不会被拿来发。
+/// 没存、主机删了、是没进保险库的临时连接，都返回 null。
+String? storedHostPassword(
+  HostProfile tabHost, {
+  required List<HostProfile> hosts,
+  required List<Map<String, dynamic>> identities,
+}) {
+  final id = sourceHostIdOf(tabHost);
+  for (final host in hosts) {
+    if (host.id != id) continue;
+    final data = Map<String, dynamic>.of(host.data);
+    applyHostIdentity(data, identities);
+    final password = data['password']?.toString() ?? '';
+    return password.isEmpty ? null : password;
+  }
+  return null;
 }
 
 /// 登录方式一句话：凭据列表、主机编辑器的选择框里用。不带密码内容。

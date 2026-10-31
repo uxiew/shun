@@ -2339,6 +2339,15 @@ const englishTranslations = <String, String>{
       'This deletes {n} entries and they cannot be recovered. Hosts, connected tabs and the vault are not touched.',
   '清除': 'Clear',
   '已清除': 'Cleared',
+  '发送这台主机的密码': "Send this host's password",
+  '发送密码': 'Send password',
+  '把这台主机存的密码打进终端，不回车。不在密码提示符时按，密码会明文显示在屏幕上。':
+      "Types this host's saved password into the terminal, without Enter. If no password prompt is waiting, the password shows on screen in plain text.",
+  '手机没设屏幕锁，不能发密码。先到系统设置里设一个。':
+      'This phone has no screen lock, so the password was not sent. Set one in system settings first.',
+  '这台主机没存密码。': 'This host has no saved password.',
+  '存的密码里有换行或控制字符，没有发送。':
+      'Not sent: the saved password contains a line break or control character.',
   '应用锁': 'App lock',
   '关': 'Off',
   '解锁': 'Unlock',
