@@ -3127,7 +3127,7 @@
       "id": "R61",
       "phase": "P6",
       "title": "打开云同步：WebDAV、S3",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R60"
       ],
@@ -3152,8 +3152,10 @@
       ],
       "stop_condition": "没有所有者的真账号时只用本机假服务器，写清不算真机通过。",
       "owner_role": "安全/实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R61.md"
+      ],
+      "commit": "a45e815"
     },
     {
       "id": "R62",

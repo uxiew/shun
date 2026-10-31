@@ -1968,18 +1968,22 @@
       "action": "打开云同步，经本机 WebDAV、S3 假服务器在两份保险库之间同步，含身份密码和 TOTP 种子。",
       "expected": "往返一致；凭据回来进安全存储，普通偏好里搜不到；非 https 的 WebDAV 被拒。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R61.md"
+      ]
     },
     {
       "id": "SYN03",
       "action": "全新安装不配同步，抓外连；配好后再抓。",
       "expected": "没配置时没有任何同步外连；配好后只连用户填的地址。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R61.md"
+      ]
     },
     {
       "id": "SYN04",
