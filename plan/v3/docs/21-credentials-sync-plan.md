@@ -1,6 +1,6 @@
 # 21 安全密钥、加密同步导出、安全设置：实施计划（F25、F23、F22）
 
-2026-10-31 写，来源是 R26 第三批反馈。**这是方案，还没批准**：任务没进 `tasks.json`，所有者定了第 7 节再登记（R36 现在依赖 R31，要跟着改）。
+2026-10-31 写，来源是 R26 第三批反馈。所有者当天定了第 7 节的前四条，任务已进 `tasks.json`（R58–R66）；进度看 [STATUS](../STATUS.md)。
 
 证据分三档，读的时候注意：
 
@@ -10,21 +10,22 @@
 
 ## 1. 结论
 
-| # | 做什么 | 依赖谁 | 规模 |
-|---|---|---|---|
-| 0 | dartssh2 从 2.22.5 升到 4.1.0 | 无 | 中：代码改动小，回归大 |
-| 1 | 可信主机密钥页、加密文件导出导入 | 无 | 小 |
-| 2 | 应用锁（R46）、sudo 密码键、按主机按键布局（R45） | 无 | 中 |
-| 3 | 安全密钥（F25 第二阶段） | **所有者的钥匙** | 大 |
-| 4 | 打开云同步：WebDAV、S3、Gist | 无（代码已有，要重新审查） | 中 |
-| 5 | 局域网 P2P | 无 | 中 |
-| 6 | Google Drive、OneDrive | **所有者去两家注册应用** | 中，每家一批 |
+| # | 做什么 | 任务 | 依赖谁 | 规模 |
+|---|---|---|---|---|
+| 0 | dartssh2 从 2.22.5 升到 4.1.0 | R58 | 无 | 中：代码改动小，回归大 |
+| 1 | 安全密钥（F25 第二阶段） | R59 | 实现不依赖；真机验证要**所有者的钥匙** | 大 |
+| 2 | 加密文件导出导入 | R60 | 无 | 小 |
+| 3 | 打开云同步：WebDAV、S3 | R61 | 无（代码已有，要重新审查） | 中 |
+| 4 | 可信主机密钥页 | R65 | 无 | 小 |
+| 5 | 手机之间局域网互传 | R62 | 无 | 中 |
+| 6 | 应用锁、sudo 密码键、按主机按键布局 | R46、R66、R45 | 无 | 中 |
+| 7 | Google Drive、OneDrive（**低优先级，未来可做**） | R63、R64 | **所有者去两家注册应用** | 中，每家一批 |
 
 规模：小 = 一次会话；中 = 几次；大 = 要分多批。都是粗估。
 
 **语言怎么选**：Flutter + Kotlin，不用 Rust。原因不是偏好：Android 上碰 NFC 只能走系统的 `IsoDep`，USB 只能走 USB Host API，用 Rust 也还得写一层 Kotlin。而且 `AGENTS.md` 写明了不引入全局 Rust。
 
-**先说坏消息**：Google Drive、OneDrive 和官方桌面 Netcatty 互通不了（第 4 节）。手机和桌面同步要走 WebDAV、S3 或 Gist。
+**和桌面的关系**：所有者不用桌面 Netcatty，同步只管手机之间，不用为互通让步。格式还沿用现有的 `{meta, payload}`，因为代码已经有了，再造一种没有好处。
 
 ## 2. 阶段 0：先升 dartssh2
 
@@ -106,26 +107,23 @@
 
 ## 4. 加密同步和导出（F23）
 
-### 和桌面能不能通
+### 每个后端怎么做
 
-桌面内置 `github`、`google`、`onedrive`、`webdav`、`s3`，没有 P2P，也没有加密文件导入（源码：[cloudProviderIds.ts](https://raw.githubusercontent.com/binaricat/Netcatty/main/domain/cloudProviderIds.ts)、[vaultImport.ts](https://raw.githubusercontent.com/binaricat/Netcatty/main/domain/vaultImport.ts)）。
+| 后端 | 手机上怎么做 | 所有者要准备 |
+|---|---|---|
+| 文件导出导入（R60） | 现有导出加密码，走现有 `saveFile` | 无 |
+| WebDAV、S3（R61） | 代码已有，打开开关，直连 `http` | 一个 HTTPS 的 WebDAV，或桶和密钥 |
+| 局域网互传（R62） | 扫码传地址和一次性密钥 | 无 |
+| Google Drive（R63，低优先级） | `google_sign_in` 7.x 拿令牌，`http` 调 Drive v3，放 `appDataFolder` | Cloud 项目、Android 客户端（包名 + SHA-1）、Web 客户端 |
+| OneDrive（R64，低优先级） | `flutter_appauth` + PKCE，放 `approot` | Azure 账号、Entra 租户、应用注册 |
 
-| 后端 | 手机上怎么做 | 所有者要准备 | 和官方桌面通吗 |
-|---|---|---|---|
-| WebDAV | 代码已有，打开开关，直连 `http` | 一个 HTTPS 的 WebDAV | **通**，同文件同格式 |
-| S3 / Gist | 代码已有 | 桶和密钥 / GitHub 账号 | **通**（Gist 的 client ID 要确认，见下） |
-| 文件导出导入 | 现有导出加密码，走现有 `saveFile` | 无 | 不能直接导入；把文件放到 WebDAV 根目录，桌面才读得到 |
-| 局域网 P2P | 扫码传地址和一次性密钥 | 无 | 手机开临时 WebDAV，桌面填地址（见下） |
-| Google Drive | `google_sign_in` 7.x 拿令牌，`http` 调 Drive v3，放 `appDataFolder` | Cloud 项目、Android 客户端（包名 + SHA-1）、Web 客户端 | **不通** |
-| OneDrive | `flutter_appauth` + PKCE，放 `approot` | Azure 账号、Entra 租户、应用注册 | **默认不通**，有个变通（见下） |
+Gist 代码也在，但它的 `clientId` 默认值是上游的，要用得换成所有者自己的 GitHub OAuth App，先不开。
 
-**为什么 Drive 不通**：`appDataFolder` 按第三方应用隔离，只有写入它的应用能读（[官方](https://developers.google.com/workspace/drive/api/guides/appdata)）。桌面用的是维护者自己的 Cloud 项目（构建时注入），手机拿不到。同一项目下不同客户端能否共享，官方这页没写（**未核实**）；要试只能所有者自编译桌面、注入同一项目的 client ID。
-
-**OneDrive 的变通**：App Folder 就是用户 OneDrive 里 `Apps/` 下的普通文件夹（[官方](https://learn.microsoft.com/en-us/onedrive/developer/rest-api/concepts/special-folders-appfolder)）。手机申请 `Files.ReadWrite` 就能按路径读写桌面那个文件，代价是拿到**整个 OneDrive** 的读写权限。桌面的文件夹名和实际可行性**未核实**。不推荐默认这么做。
+桌面版内置 `github`、`google`、`onedrive`、`webdav`、`s3`，没有 P2P，也没有加密文件导入（源码：[cloudProviderIds.ts](https://raw.githubusercontent.com/binaricat/Netcatty/main/domain/cloudProviderIds.ts)、[vaultImport.ts](https://raw.githubusercontent.com/binaricat/Netcatty/main/domain/vaultImport.ts)）。Drive 和 OneDrive 的应用目录按应用隔离（[Drive](https://developers.google.com/workspace/drive/api/guides/appdata)、[OneDrive](https://learn.microsoft.com/en-us/onedrive/developer/rest-api/concepts/special-folders-appfolder)），手机和官方桌面读不到对方的文件。所有者不用桌面，这条只是留个记录，以后要接桌面时别以为填个账号就通了。
 
 ### 分步
 
-**F23a 加密文件导出导入（阶段 1）**
+**F23a 加密文件导出导入（R60）**
 
 - 格式直接用 `netcatty_crypto.dart` 的 `{meta, payload}`（PBKDF2-SHA256 60 万次 + AES-256-GCM），**带凭据**。不再造一种格式。
 - 导出前要口令输两遍，少于 12 位不让过：文件离开手机后可以离线暴力破解。口令框防截屏（R44）。
@@ -133,18 +131,15 @@
 - 现有的明文导出留着，名字改清楚：不带凭据。
 - 要测：同名长文件被短内容覆盖后不留尾巴。子代理提到 SAF 写入要用 `"wt"` 模式才截断，**未核实** `file_picker` 的行为；不行就加个小 Kotlin 桥。
 
-**F23b 打开云同步（阶段 4）**
+**F23b 打开云同步（R61）**
 
 - 把 `ForkFeatures.cloudSync` 打开，但默认不连任何后端，用户配了才外连（BAS02）。
 - **要重新过 R28**：R28 审查时身份、TOTP 还没搬进安全存储（`e75bc98`），要确认它们照样进加密 payload、同步回来照样进安全存储、不落明文。
-- Gist 的 `clientId` 默认值是上游的，要决定换不换。
-- 桌面四家都不发 `If-Match`，是后写覆盖（子代理读源码，WebDAV 那家我复核过）。手机的 ETag 检查是先读再比，也不是原子的。文档照实写，别说「防并发」。
+- 手机的 ETag 检查是先读再比，不是原子的，两台手机同时写可能后写覆盖。文档照实写，别说「防并发」。
 
-**F23c 局域网 P2P（阶段 5）**
+**F23c 手机之间局域网互传（R62）**
 
-手机和手机：一台出二维码（IP、端口、一次性 256 位密钥），另一台扫。用这个密钥加密传输，走现有 `planVaultImport`，用完关服务。密钥熵够，不需要 PAKE（配对口令协议）。
-
-手机和桌面：手机开临时 WebDAV，桌面填地址。桌面零改动的依据是它的适配器接受 `http://`、用 Basic 认证、只用 exists / GET / PUT / MOVE / DELETE（[源码](https://raw.githubusercontent.com/binaricat/Netcatty/main/infrastructure/services/adapters/WebDAVAdapter.ts)）。**没实测**，走 bridge 那条路径没看到。文件本身是加密的，但一次性口令在局域网里是明文，能抓包的人可以改写或删除这份文件（改了解不开，不会泄露内容）。
+一台出二维码（IP、端口、一次性 256 位密钥），另一台扫。用这个密钥加密传输，走现有 `planVaultImport`，用完关服务。密钥熵够，不需要 PAKE（配对口令协议）。
 
 会撞的墙：
 
@@ -162,14 +157,14 @@
 | [OpenDAL](https://github.com/apache/opendal) | Dart 绑定才 0.0.1，Android 支持没查到。两家也就几个 REST 调用，不值得带 Rust |
 | 系统文件选择器直连 Drive / OneDrive App（SAF，不用 OAuth） | 不用注册，很诱人。但 [KeePassDX 的 issue](https://github.com/Kunzisoft/KeePassDX/issues/1096) 和[讨论](https://www.github.com/Kunzisoft/KeePassDX/discussions/1089)里有授权被收回、写 0 字节的报告（多是 2019–2021 年的）。用来手动导出可以，当同步后端不行 |
 
-**F23d Google Drive（阶段 6）**
+**F23d Google Drive（R63，低优先级）**
 
 - `google_sign_in` 7.x 底层是 Credential Manager，要 Play 服务。Google 已不支持 Android 上的自定义 scheme，回环地址也弃用了（[官方](https://developers.google.com/identity/protocols/oauth2/native-app)），`flutter_appauth` 走不了。
 - 配错 SHA-1 时可能只报 `canceled`，看着像用户取消，实际是配置错（子代理读文档）。
 - 设备上拿不到 refresh token，access token 1 小时过期，再次 `authorize()` 静默续（[官方](https://developer.android.com/identity/authorization)）。接口要 `Activity`，**后台自动同步不一定行**（未核实），首版只做前台同步。
 - Play 服务是闭源库。R36 要求不忽略 GPL 条件，单独做一个 flavor（构建变体），现在的包不带它。
 
-**F23e OneDrive（阶段 6）**
+**F23e OneDrive（R64，低优先级）**
 
 - `flutter_appauth`（BSD-3）+ PKCE，重定向 `msauth://top.xdwa.shun/<签名哈希>`，scope `Files.ReadWrite.AppFolder offline_access`。它的文档没提 `msauth://`，**未核实**，跑不通换 `msal_auth`。
 - 注册应用要 Azure 账号和租户，账号类型选「仅个人账号」（[官方](https://learn.microsoft.com/en-us/entra/identity-platform/quickstart-register-app)）。
@@ -204,13 +199,17 @@
 - 每次装包、每次正式签名都要所有者当次同意。
 - 盘只剩 6.5 GiB（10-31），R39 的脚本要求至少 12 GiB，设备测试前要清理。
 
-## 7. 要所有者定的
+## 7. 决定
 
-1. **现在升 dartssh2 吗？** 建议现在，赶在跑 R26 清单之前。有只支持旧算法的老设备要说一声。
-2. **有安全密钥吗？什么型号？** NFC、USB 还是都用？服务器上已经有 sk 公钥了吗？没钥匙，第 3 节最多做到 SK3，SK4 是 BLOCKED。
-3. **所有者在用官方桌面 Netcatty 吗？要和手机同步吗？** 要的话 WebDAV 或 S3 优先，Drive、OneDrive 可以不做。
-4. **愿意注册 Google Cloud 和 Azure 应用吗？** 不愿意就砍掉阶段 6。OneDrive 要不要为了和桌面互通给整盘权限？建议不给。
-5. **P2P 要接桌面吗？** 接受局域网里一次性口令明文的话就做临时 WebDAV，不接受就只做手机到手机。
-6. **粘贴 known_hosts 要不要做？** 建议做，预览确认算核对，同时改 `security.md`。
-7. **F22 的可选项**：大输入框无痕开关、允许截图、bracketed paste 开关，建议都不做。
-8. **顺序**：第 1 节那样行吗？不行就说先要哪个。
+**所有者 10-31 定的**：
+
+1. dartssh2：没影响终端表现就升（对比结果见 [R58](../evidence/R58.md)）。
+2. 安全密钥：先实现，后续真机测。
+3. 不需要桌面 Netcatty；能做的先做，其余留在计划里。
+4. Google Drive、OneDrive：落实到计划，优先级低，未来可做。
+
+**所有者还没定的，先不做**：
+
+- **粘贴 known_hosts**：要改 `security.md` 第 3 节「指纹只从手机上的核对框来」。我建议做，预览确认算核对。
+- **F22 的三个开关**（大输入框无痕、允许截图、bracketed paste）：我建议都不做。
+- **按主机的「旧算法」开关**：升级后只认 CBC、SHA-1 的老设备连不上。没人碰到就不做。

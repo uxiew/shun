@@ -1893,8 +1893,116 @@
         "evidence/R56-R57-fault-matrix.md",
         "evidence/R56-R57-real-cli.md"
       ]
+    },
+    {
+      "id": "DEP01",
+      "action": "同一份 33 MB 终端文本（走 PTY）和 33 MB 随机字节（不走 PTY）经真 OpenSSH，分别用旧版和新版 dartssh2 接收；再量 2000 次回显、8 MB 上行和 15 次握手。",
+      "expected": "字节哈希完全相同；吞吐不低于旧版；回显 p50、p99 不变差。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "SKY01",
+      "action": "软件认证器按 CTAP2 算法签名，经真 OpenSSH 登录两种 sk 类型；分别改 flags、counter、application、多一个字节。",
+      "expected": "正常的登录成功，改过的都被 sshd 拒绝。只证明格式，不证明钥匙行为。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "SKY02",
+      "action": "所有者的真钥匙经 NFC 贴手机登录，含导入、手机生成、resident 三种来源。",
+      "expected": "贴上并触摸后登录成功；页面写清哪台主机、哪个用户。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "SKY03",
+      "action": "所有者的真钥匙经 USB-C 登录，首次弹系统授权，拔插后再登录。",
+      "expected": "授权后能用；拔插不卡死；拒绝授权有提示。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "SKY04",
+      "action": "真钥匙上取消、超时、中途拔走、PIN 输错、要 PIN 的钥匙（verify-required）。",
+      "expected": "都报得清；PIN 不存、不进日志；显示剩余次数；不自动重试。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "SKY05",
+      "action": "用安全密钥登录的标签断线后自动恢复，经跳板连接，锁屏时断线。",
+      "expected": "不静默碰钥匙，停下说要碰钥匙；每一跳分别碰；锁屏不弹。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "SYN01",
+      "action": "导出加密文件再导入：对的口令、错的口令、改过一个字节、截断；同名长文件被短内容覆盖。",
+      "expected": "对的恢复全部凭据并进安全存储；其余都拒绝且不动现有数据；覆盖后能解密。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "SYN02",
+      "action": "打开云同步，经本机 WebDAV、S3 假服务器在两份保险库之间同步，含身份密码和 TOTP 种子。",
+      "expected": "往返一致；凭据回来进安全存储，普通偏好里搜不到；非 https 的 WebDAV 被拒。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "SYN03",
+      "action": "全新安装不配同步，抓外连；配好后再抓。",
+      "expected": "没配置时没有任何同步外连；配好后只连用户填的地址。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "SYN04",
+      "action": "两台手机扫码互传；错误密钥、过期二维码、VPN 开着、离开页面。",
+      "expected": "只有扫了码的能解开；密钥只用一次；连不上报得清；离开页面服务关闭。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "SEC14",
+      "action": "在可信主机密钥页删一条记录后重连；查看列表。",
+      "expected": "重连按第一次见重新核对；页面不能改指纹、不能加记录。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "SEC15",
+      "action": "按 sudo 键：通过验证、取消验证、切到别的标签、经跳板的标签；查日志。",
+      "expected": "只发当前主机的密码；取消不发；不走 bracketed paste；日志里没有密码。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
     }
   ],
   "plan_revision": "3.0",
-  "count": 160
+  "count": 172
 }

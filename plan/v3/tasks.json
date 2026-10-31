@@ -4,8 +4,8 @@
   "base_repository": "kmh1145/Netcatty-mobile",
   "base_status": "PINNED_495f5d31",
   "implementation_started": true,
-  "core_count": 55,
-  "deferred_count": 17,
+  "core_count": 56,
+  "deferred_count": 25,
   "phase_gates": {
     "P0": {
       "title": "基线与高风险排除",
@@ -1703,7 +1703,7 @@
       "depends_on": [
         "R31"
       ],
-      "scope": "按真实用户需求单独评估硬件签名、授权转发与跨设备加密备份；继续不默认同步管理token。 参考 OSH 时分别评估审批签名、SSH 用户签名与短期证书认证；前两者不是同一种签名权限，网关证书接入归 R51。来源见 docs/20。",
+      "scope": "按真实用户需求单独评估硬件签名、授权转发与跨设备加密备份；继续不默认同步管理token。 参考 OSH 时分别评估审批签名、SSH 用户签名与短期证书认证；前两者不是同一种签名权限，网关证书接入归 R51。来源见 docs/20。 10-31 拆分：FIDO2 硬件钥匙归 R59，加密备份和同步归 R60–R64；这里只剩 agent forwarding 和 Android Keystore 硬件内签名。",
       "code_targets": [
         "后续独立ADR与任务"
       ],
@@ -3014,6 +3014,281 @@
         "evidence/R56-R57-real-cli.md"
       ],
       "commit": "93a011e"
+    },
+    {
+      "id": "R58",
+      "phase": "P5",
+      "title": "dartssh2 升到 4.1.0，不降终端表现",
+      "status": "IN_PROGRESS",
+      "depends_on": [
+        "R28"
+      ],
+      "scope": "安全密钥要异步签名，只有 dartssh2 3.0.0 起才有；3.1.0 起才有严格密钥交换（防 Terrapin）。所有者 10-31 定：没影响终端表现就升。算法顺序自己定，不用库的默认（默认的 AES-GCM 只有 1 MB/s）。来源见 docs/21。",
+      "code_targets": [
+        "pubspec.yaml",
+        "lib/infrastructure/ssh/ssh_client_defaults.dart",
+        "lib/infrastructure/transport/proxy_transport.dart"
+      ],
+      "deliverables": [
+        "evidence/R58.md",
+        "新旧版对比数字、全量测试、release 包"
+      ],
+      "acceptance": [
+        "同一份数据经真 OpenSSH，新旧版收到的字节哈希相同",
+        "吞吐不低于旧版，回显延迟不变差",
+        "路由负向、每跳 host key、TUI、资源释放回归通过（docs/12）",
+        "只认旧算法的服务器报得清原因，自动恢复不重试"
+      ],
+      "test_ids": [
+        "DEP01"
+      ],
+      "stop_condition": "吞吐或回显比旧版差就不升；模拟器和真机都没跑过的写 NOT_RUN，不拿 Mac 上的数字冒充手机。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R59",
+      "phase": "P6",
+      "title": "安全密钥（FIDO2）登录：NFC、USB",
+      "status": "IN_PROGRESS",
+      "depends_on": [
+        "R58"
+      ],
+      "scope": "支持 OpenSSH 的 sk-ssh-ed25519@openssh.com、sk-ecdsa-sha2-nistp256@openssh.com。私钥留在钥匙里，手机只存句柄。三种来源按顺序做：导入 ssh-keygen 生成的文件、手机上生成、从钥匙读 resident。所有者 10-31 定：先实现，真机后测。方案见 docs/21 第 3 节。",
+      "code_targets": [
+        "lib/domain/security_key.dart",
+        "lib/infrastructure/ssh/ssh_identity.dart",
+        "android SecurityKeyChannel（yubikit-android）",
+        "凭据页与连接提示"
+      ],
+      "deliverables": [
+        "evidence/R59.md",
+        "实现、测试和使用手册更新；不能只交截图或接口空壳"
+      ],
+      "acceptance": [
+        "真 OpenSSH 接受软件认证器按同一格式打出的签名；改 flags、counter、application 都被拒",
+        "每次签名都要钥匙自己的触摸或 PIN；应用解锁、宽限期不算同意（R36、R46）",
+        "断线恢复不静默碰钥匙，锁屏不弹",
+        "PIN 不存、不进日志；输错显示钥匙报的剩余次数，不自动重试",
+        "只有真钥匙走通才算 SKY02、SKY03 通过；软件认证器只算前期证据"
+      ],
+      "test_ids": [
+        "SKY01",
+        "SKY02",
+        "SKY03",
+        "SKY04",
+        "SKY05"
+      ],
+      "stop_condition": "没有真钥匙时 SKY02–SKY04 写 NOT_RUN，任务不记 DONE；不做 agent forwarding；首版不支持老 U2F 钥匙。",
+      "owner_role": "安全/实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R60",
+      "phase": "P6",
+      "title": "加密文件导出导入",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R28"
+      ],
+      "scope": "导出带凭据的完整保险库，格式就是同步用的 {meta, payload}（PBKDF2-SHA256 60 万次 + AES-256-GCM）；用户选位置保存。导入先解密再走 planVaultImport 预览。明文导出保留，不带凭据。来源 F23，所有者 10-31 定不需要和桌面互通。",
+      "code_targets": [
+        "lib/infrastructure/storage/vault_export_service.dart",
+        "lib/application/vault_import.dart",
+        "设置页"
+      ],
+      "deliverables": [
+        "evidence/R60.md",
+        "实现、测试和使用手册更新"
+      ],
+      "acceptance": [
+        "口令输两遍，少于 12 位不让过；口令框防截屏",
+        "导入错口令、坏文件、被改过的文件都说得清，不动现有数据",
+        "同名长文件被短内容覆盖后能正常解密",
+        "knownHosts 不随文件走"
+      ],
+      "test_ids": [
+        "SYN01"
+      ],
+      "stop_condition": "不把口令存下来；不新造加密格式。",
+      "owner_role": "安全/实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R61",
+      "phase": "P6",
+      "title": "打开云同步：WebDAV、S3",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R60"
+      ],
+      "scope": "代码是上游带来的，fork 里一直关着。打开开关，默认不外连，用户配了才连。要重新审一遍凭据路径：R28 之后身份密码、TOTP 种子才搬进安全存储。Gist 的 client ID 是上游的，要不要留所有者定。所有者 10-31 定不需要和桌面互通。",
+      "code_targets": [
+        "lib/application/fork_features.dart",
+        "lib/infrastructure/sync/",
+        "设置页"
+      ],
+      "deliverables": [
+        "evidence/R61.md",
+        "实现、测试和使用手册更新"
+      ],
+      "acceptance": [
+        "没配置时不发任何外连（BAS02）",
+        "身份密码、TOTP 经加密 payload 往返，回来进安全存储，不落明文",
+        "WebDAV 非 https 拒绝；防误删规则还在"
+      ],
+      "test_ids": [
+        "SYN02",
+        "SYN03"
+      ],
+      "stop_condition": "没有所有者的真账号时只用本机假服务器，写清不算真机通过。",
+      "owner_role": "安全/实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R62",
+      "phase": "P6",
+      "title": "手机之间局域网互传",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R60"
+      ],
+      "scope": "一台出二维码（IP、端口、一次性 256 位密钥），另一台扫。内容用这把密钥加密，走 planVaultImport，传完关服务。不需要注册账号。所有者 10-31 定不需要接桌面。",
+      "code_targets": [
+        "lib/application/",
+        "设置页"
+      ],
+      "deliverables": [
+        "evidence/R62.md",
+        "实现、测试和使用手册更新"
+      ],
+      "acceptance": [
+        "没扫码的人拿不到内容；密钥只用一次",
+        "VPN、AP 隔离导致连不上时报得清",
+        "服务只在页面开着时监听，离开就关"
+      ],
+      "test_ids": [
+        "SYN04"
+      ],
+      "stop_condition": "不做互联网打洞和中继；没两台真机时写 NOT_RUN。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R63",
+      "phase": "P6",
+      "title": "Google Drive 同步（低优先级）",
+      "status": "DEFERRED",
+      "depends_on": [
+        "R61"
+      ],
+      "scope": "所有者 10-31 定：优先级低，未来可做。方案在 docs/21 第 4 节：google_sign_in + Drive v3，scope drive.appdata，文件放 appDataFolder；要 Play 服务，单独做构建变体。要所有者注册 Google Cloud 项目。",
+      "code_targets": [
+        "后续独立任务"
+      ],
+      "deliverables": [
+        "evidence/R63.md（实际执行后填写）"
+      ],
+      "acceptance": [
+        "新增范围须授权",
+        "所有者先准备好 Cloud 项目和客户端",
+        "现在的包不带 Play 服务"
+      ],
+      "test_ids": [],
+      "stop_condition": "本阶段不自动启动。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R64",
+      "phase": "P6",
+      "title": "OneDrive 同步（低优先级）",
+      "status": "DEFERRED",
+      "depends_on": [
+        "R61"
+      ],
+      "scope": "所有者 10-31 定：优先级低，未来可做。方案在 docs/21 第 4 节：flutter_appauth + PKCE，scope Files.ReadWrite.AppFolder，文件放 approot。要所有者注册 Azure 应用。",
+      "code_targets": [
+        "后续独立任务"
+      ],
+      "deliverables": [
+        "evidence/R64.md（实际执行后填写）"
+      ],
+      "acceptance": [
+        "新增范围须授权",
+        "所有者先准备好应用注册",
+        "不申请整盘权限"
+      ],
+      "test_ids": [],
+      "stop_condition": "本阶段不自动启动。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R65",
+      "phase": "P6",
+      "title": "可信主机密钥页",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R28"
+      ],
+      "scope": "列出 extras.knownHosts（主机:端口、类型、指纹、接受时间），能删一条，相当于 ssh-keygen -R。来源 F22。粘贴 known_hosts 改安全规则，所有者没定，不在这条里。",
+      "code_targets": [
+        "设置页",
+        "lib/application/host_trust.dart"
+      ],
+      "deliverables": [
+        "evidence/R65.md",
+        "实现、测试和使用手册更新"
+      ],
+      "acceptance": [
+        "删除后再连按第一次见重新核对",
+        "页面不能改指纹、不能加记录"
+      ],
+      "test_ids": [
+        "SEC14"
+      ],
+      "stop_condition": "不做粘贴导入和 @cert-authority。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": null
+    },
+    {
+      "id": "R66",
+      "phase": "P6",
+      "title": "sudo 密码键",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R46"
+      ],
+      "scope": "快捷键栏加一个键，发当前标签这台主机存的密码，默认每次过生物识别或设备 PIN。来源 F22。放在会话控制器层，终端适配器不碰凭据（SEC09）。",
+      "code_targets": [
+        "lib/application/session_controller.dart",
+        "快捷键栏"
+      ],
+      "deliverables": [
+        "evidence/R66.md",
+        "实现、测试和使用手册更新"
+      ],
+      "acceptance": [
+        "只发当前标签那台主机的密码，跨主机、跨跳板都不发别的",
+        "密码不走 bracketed paste，不进日志",
+        "没通过验证不发"
+      ],
+      "test_ids": [
+        "SEC15"
+      ],
+      "stop_condition": "不自动判断提示符、不自动回车。",
+      "owner_role": "安全代理",
+      "evidence": [],
+      "commit": null
     }
   ],
   "plan_revision": "3.0"
