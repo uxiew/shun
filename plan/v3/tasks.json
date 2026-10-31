@@ -2633,7 +2633,7 @@
       "id": "R46",
       "phase": "P6",
       "title": "应用锁：生物识别、宽限期、终端连着时可不锁",
-      "status": "DEFERRED",
+      "status": "DONE",
       "depends_on": [
         "R22"
       ],
@@ -2656,8 +2656,10 @@
       "test_ids": [],
       "stop_condition": "10-08 所有者定应用锁另开任务，做成什么样、什么时候做由所有者定。",
       "owner_role": "安全代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R46.md"
+      ],
+      "commit": "1b3a81e"
     },
     {
       "id": "R47",
