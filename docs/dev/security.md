@@ -110,6 +110,15 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 
 `VaultExportService.export` 只写 `vaultWithoutSecrets` 之后的 JSON（文件名 `shun-export.json`）：没有密码、私钥、私钥口令、代理口令。主机名、用户名、路线、指纹记录、启动命令、环境变量都在里面，所以导出文件也别进仓库。测试：`test/vault_secrets_test.dart`「导出文件里没有任何凭据」、`test/vault_export_service_test.dart`。
 
+**带凭据的加密备份**（R60，`EncryptedVaultFile`，文件名 `shun-backup-encrypted.json`）。格式和算法就是 2.3 的 `{meta, payload}`，没有再造一种。和云同步的差别：
+
+- `meta.deviceId` 固定写 `file-export`：meta 是明文，文件会被传来传去，不带这台手机的设备 ID。
+- payload 里没有 `knownHosts` 和 `convergentSync`：指纹导入时本来就不收（见 2.2），同步的收敛信息对别的手机没意义。
+- 口令至少 12 位，输两遍，不存：文件离开手机后能被离线猜。
+- 算口令在后台 isolate（`encodeBackupInBackground`）。云同步现在还在主线程算。
+- 读的时候只看第一个完整的 JSON 对象（`tryParse`）。`file_picker` 10.3.10 用 `openOutputStream(uri)` 写（`FileUtils.kt:117`），没传 `"wt"`；子代理查到有的存储服务这样覆盖长文件不截断（**我没复现**）。留下尾巴也能解开，内容有 GCM 校验，尾巴影响不到它。
+- `EncryptedVaultFile.tryParse` 认不出就按明文 JSON 处理。加密备份被截断后也走这条路，报「不是保险库文件，或者文件已损坏」。
+
 ### 2.2 导入
 
 逻辑在 `lib/application/vault_import.dart`，用户看到的确认框写在[使用手册第 12 节](../user/README.md#12-导出导入与凭据)。开发上要知道两条：
