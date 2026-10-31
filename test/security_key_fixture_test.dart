@@ -72,7 +72,8 @@ void main() {
     ed25519 = await SoftAuthenticator.create(dir, skEd25519Type);
     ecdsa = await SoftAuthenticator.create(dir, skEcdsaType);
     final lines = [ed25519, ecdsa]
-        .map((key) => '${key.stub.type} ${base64.encode(key.stub.publicKey)} $marker')
+        .map((key) =>
+            '${key.stub.type} ${base64.encode(key.stub.publicKey)} $marker')
         .join(r'\n');
     await editAuthorizedKeys(
       "mkdir -p ~/.ssh && chmod 700 ~/.ssh && printf '$lines\\n' >> ~/.ssh/authorized_keys && chmod 600 ~/.ssh/authorized_keys",
@@ -129,7 +130,8 @@ void main() {
     }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
 
     test('签完改任何一个字节，sshd 都拒绝', () async {
-      final cases = <String, SecurityKeyAssertion Function(SecurityKeyAssertion)>{
+      final cases =
+          <String, SecurityKeyAssertion Function(SecurityKeyAssertion)>{
         'flags': (value) => SecurityKeyAssertion(
               authenticatorData: Uint8List.fromList(value.authenticatorData)
                 ..[32] ^= 0x04,
@@ -231,7 +233,8 @@ void main() {
         attempt: ConnectionAttempt(),
       );
       expect(outcome.tty, isNotNull);
-      expect(ed25519.requests.map((value) => value.hostLabel), ['edge', 'target']);
+      expect(
+          ed25519.requests.map((value) => value.hostLabel), ['edge', 'target']);
     }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
 
     test('服务器不认这把钥匙：不碰钥匙，直接换下一种', () async {
@@ -242,7 +245,8 @@ void main() {
 
     test('用户取消：报取消，不算网络问题，不重试', () async {
       ed25519.requests.clear();
-      ed25519.failWith = const SecurityKeyException(SecurityKeyFailure.cancelled);
+      ed25519.failWith =
+          const SecurityKeyException(SecurityKeyFailure.cancelled);
       try {
         final Object error = await probe(ed25519).then<Object>(
           (_) => fail('取消了还能登录'),

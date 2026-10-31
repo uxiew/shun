@@ -46,7 +46,8 @@ class SoftAuthenticator {
         key: CoseKey.parse(coseOf(pair)),
         application: application,
         flags: flags,
-        keyHandle: keyHandle ?? Uint8List.fromList(utf8.encode('handle-$sshType')),
+        keyHandle:
+            keyHandle ?? Uint8List.fromList(utf8.encode('handle-$sshType')),
         comment: comment,
       ),
     );
@@ -146,7 +147,8 @@ class _Reader {
   var _offset = 0;
 
   Uint8List string() {
-    final length = ByteData.sublistView(_bytes, _offset, _offset + 4).getUint32(0);
+    final length =
+        ByteData.sublistView(_bytes, _offset, _offset + 4).getUint32(0);
     _offset += 4;
     final value = _bytes.sublist(_offset, _offset + length);
     _offset += length;

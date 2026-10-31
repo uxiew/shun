@@ -100,7 +100,8 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     secrets.clear();
-    const storage = MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+    const storage =
+        MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
     final messenger =
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
     messenger.setMockMethodCallHandler(storage, (call) async {
@@ -216,7 +217,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('security-key-create-confirm')));
     await tester.pumpAndSettle();
     expect(channel.calls, isEmpty);
-    await tester.enterText(find.byKey(const ValueKey('security-key-pin')), '1234');
+    await tester.enterText(
+        find.byKey(const ValueKey('security-key-pin')), '1234');
     await tester.tap(find.byKey(const ValueKey('security-key-pin-submit')));
     await tester.pumpAndSettle();
     expect(channel.calls.single['pin'], '1234');
@@ -231,7 +233,8 @@ void main() {
 
   testWidgets('钥匙不支持：报一句人话，什么都不存', (tester) async {
     final channel = _FakeChannel();
-    channel.failWith = const SecurityKeyException(SecurityKeyFailure.unsupported);
+    channel.failWith =
+        const SecurityKeyException(SecurityKeyFailure.unsupported);
     final container = await open(tester, channel);
     await openAdd(tester, 'security-key-create');
     await tester.tap(find.byKey(const ValueKey('security-key-create-confirm')));
@@ -272,7 +275,8 @@ void main() {
 
     await openAdd(tester, 'security-key-read');
     expect(channel.calls, isEmpty, reason: '没填 PIN 不碰钥匙');
-    await tester.enterText(find.byKey(const ValueKey('security-key-pin')), '1234');
+    await tester.enterText(
+        find.byKey(const ValueKey('security-key-pin')), '1234');
     await tester.tap(find.byKey(const ValueKey('security-key-pin-submit')));
     await tester.pumpAndSettle();
 
@@ -310,8 +314,10 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('keychain-public-key-sk')), findsOneWidget);
-    expect(find.byKey(const ValueKey('keychain-public-key-plain')), findsNothing);
+    expect(
+        find.byKey(const ValueKey('keychain-public-key-sk')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('keychain-public-key-plain')), findsNothing);
 
     await tester.tap(find.byKey(const ValueKey('keychain-public-key-sk')));
     await tester.pumpAndSettle();

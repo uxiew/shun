@@ -476,8 +476,9 @@ class CoseKey {
   ) {
     const headerLength = 37 + 16;
     try {
-      final length = ByteData.sublistView(authData, headerLength, headerLength + 2)
-          .getUint16(0);
+      final length =
+          ByteData.sublistView(authData, headerLength, headerLength + 2)
+              .getUint16(0);
       final start = headerLength + 2;
       final credentialId = authData.sublist(start, start + length);
       return (
@@ -577,7 +578,8 @@ class _SshReader {
   int readByte() => _bytes[_offset++];
 
   int readUint32() {
-    final value = ByteData.sublistView(_bytes, _offset, _offset + 4).getUint32(0);
+    final value =
+        ByteData.sublistView(_bytes, _offset, _offset + 4).getUint32(0);
     _offset += 4;
     return value;
   }
@@ -600,8 +602,8 @@ class _SshWriter {
 
   void writeByte(int value) => _builder.addByte(value);
 
-  void writeUint32(int value) => _builder
-      .add((ByteData(4)..setUint32(0, value)).buffer.asUint8List());
+  void writeUint32(int value) =>
+      _builder.add((ByteData(4)..setUint32(0, value)).buffer.asUint8List());
 
   void writeString(List<int> bytes) {
     writeUint32(bytes.length);

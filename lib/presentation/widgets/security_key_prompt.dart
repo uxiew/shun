@@ -181,7 +181,8 @@ class _SecurityKeyPromptState<T extends Object>
     final String? note = switch (error.failure) {
       SecurityKeyFailure.pinRequired => '这把钥匙要 PIN',
       SecurityKeyFailure.pinInvalid => '$error',
-      SecurityKeyFailure.noCredential when widget.pinOnNoCredential && !_triedPin =>
+      SecurityKeyFailure.noCredential
+          when widget.pinOnNoCredential && !_triedPin =>
         '这把钥匙可能要 PIN',
       _ => null,
     };

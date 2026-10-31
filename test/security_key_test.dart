@@ -286,7 +286,8 @@ void main() {
     });
 
     test('SSH 用不了的算法（比如 RS256）说不支持', () {
-      final rsa = Uint8List.fromList([0xA2, 0x01, 0x03, 0x03, 0x39, 0x01, 0x00]);
+      final rsa =
+          Uint8List.fromList([0xA2, 0x01, 0x03, 0x03, 0x39, 0x01, 0x00]);
       expect(
         () => CoseKey.parse(rsa),
         throwsA(
