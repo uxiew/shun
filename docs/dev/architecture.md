@@ -174,7 +174,11 @@ dartssh2 握手拿到服务器公钥后调 `HostKeyVerifier`，没通过就在�
 所以 `hostKeyVerifier` 在创建时就取好 `ProviderContainer`，弹框用调用方传进来的、活得更久的那层 context。
 在回调里用菜单自己的 `ref` 会抛 StateError，dartssh2 当成核对失败断开，用户看到「登录完成前连接被对方关闭」（`test/connection_prompts_test.dart`）。
 
-### 2.7 键盘交互认证和 Tailscale SSH
+### 2.7 键盘交互认证、安全密钥和 Tailscale SSH
+
+安全密钥（R59）走 dartssh2 的 `SSHIdentity.custom`：`loadHopIdentities` 认出句柄文件（`domain/security_key.dart`），签名时调 `SshService.securityKeySigner`，它在 `app.dart` 装上，弹 `security_key_prompt.dart`，桥是 `security_key_channel.dart` ↔ `SecurityKeyChannel.kt` → `SecurityKeyOperations.kt` → yubikit。签名格式按 OpenSSH 的 PROTOCOL.u2f 在 `encodeSecurityKeySignature` 拼。
+
+改了会出事的地方：`authTimeout` 不能暂停，`_authTimeout` 给用安全密钥的跳加了 3 分钟，去掉的话默认 30 秒一到连接就断，用户还没碰就报登录超时。NFC 的 reader mode 只在前台有效，`MainActivity.onResume` 要通知桥重新打开，否则 USB 授权框弹过一次 NFC 就没反应了。签名失败会被 dartssh2 包成 `SSHAuthAbortError(reason: SSHInternalError(原错误))`，`securityKeyCauseOf` 负责认出来，不然会被当成「登录前被对方关掉」并自动重试。
 
 `_createClient` 给 dartssh2 的 `onUserInfoRequest`：有界面时交给 `keyboardInteractivePrompt`（同一个文件里的弹窗，逐条问，`echo` 为假的按密码框）；没有界面（测试、后台）时只走 `savedPasswordAnswer`——只在明确问密码时填一次保存的密码，验证码、PIN、改密码一律不答。`authMethod` 是 `key` 或没存密码时不给 `onPasswordRequest`。
 

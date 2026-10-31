@@ -62,6 +62,18 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 
 测试：`test/vault_unreadable_secrets_test.dart`。
 
+### 安全密钥（R59）
+
+私钥在钥匙里，手机只存句柄文件（`keys[].privateKey`，和普通私钥一条路进安全存储）。下面几条改了就等于把安全密钥退化成普通密钥：
+
+- **每次签名都要钥匙确认**：没有缓存、没有宽限期。应用解锁不算同意。
+- **自动恢复不碰钥匙**：`ConnectionPurpose.restore` 时不给 signer，签名那一步报 `SecurityKeyNeedsUser`，`isTransientConnectionError` 返回 false 不重试。弹框也就不会出现在锁屏上。
+- **PIN 不存、不自动重试**：只在弹框（`security_key_prompt.dart`，带 `SecretContent` 防截屏）和这一次桥调用里；Kotlin 那头用 `CharArray`，结束清零。Dart 的 String 清不掉，这是已知边界。错几次钥匙就锁，所以绝不拿同一个 PIN 再试一次。
+- **生成时用随机 `user.id`**：resident 密钥按 rp + user.id 存，固定 ID 会静默覆盖钥匙里已有的密钥。
+- **先探测再签名**（`shouldProbe: true`）：服务器不认这把公钥时不弹框。不探测的话，用户会对每台服务器都碰一次，很快就习惯性乱碰。
+
+测试：`test/security_key_*_test.dart`、`android/app/src/test/.../SecurityKeyOperationsTest.kt`。都不是真钥匙，真钥匙的用例是 SKY02–SKY05，没跑过就是 NOT_RUN。
+
 ### 1.3 内存里的副本
 
 - 保险库启动时整份读进内存，一直在。没有应用锁（使用手册第 12 节写明了）。
