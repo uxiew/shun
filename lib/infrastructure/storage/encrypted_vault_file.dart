@@ -38,8 +38,8 @@ class EncryptedVaultFile {
   }
 
   /// 手机互传（R62）的明文内容：和备份文件带一样的东西，加密交给 LanTransferSender。
-  static Uint8List plainForTransfer(VaultData vault) => Uint8List.fromList(
-      utf8.encode(jsonEncode(_forFile(vault).toJson(legacySyncSnapshot: true))));
+  static Uint8List plainForTransfer(VaultData vault) => Uint8List.fromList(utf8
+      .encode(jsonEncode(_forFile(vault).toJson(legacySyncSnapshot: true))));
 
   /// 指纹记录是这台手机自己核对出来的，不跟文件走；同步的收敛元数据对别的手机没意义。
   static VaultData _forFile(VaultData vault) {
