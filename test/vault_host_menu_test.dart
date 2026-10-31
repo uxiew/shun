@@ -9,7 +9,7 @@ import 'package:shun/application/connection_events.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
-import 'package:shun/presentation/screens/connection_log_screen.dart';
+import 'package:shun/presentation/screens/app_log_screen.dart';
 import 'package:shun/presentation/screens/vault_screen.dart';
 
 // R43：主机列表的 ⋮ 菜单只列这台能用的动作；隐藏只管列表显示、找得回来。
@@ -117,7 +117,7 @@ void main() {
     expect(await menuOf(tester, 'broken'), ['edit', 'hide']);
   });
 
-  testWidgets('R25：有连接记录的主机菜单里才有「连接记录」，点进去是这一台的', (tester) async {
+  testWidgets('R25：有连接记录的主机菜单里才有「连接日志」，点进去是这一台的', (tester) async {
     await open(tester, [
       host('web', 'ssh'),
       host('db', 'ssh'),
@@ -135,7 +135,7 @@ void main() {
         ['aiCli', 'testConnection', 'connectionLog', 'edit', 'hide']);
     await tester.tap(find.byKey(const ValueKey('host-menu-connectionLog')));
     await tester.pumpAndSettle();
-    expect(find.byType(ConnectionLogScreen), findsOneWidget);
+    expect(find.byType(AppLogScreen), findsOneWidget);
     expect(find.textContaining('新开连接 · 连上了'), findsOneWidget);
     await tester.tap(find.byType(BackButton));
     await tester.pumpAndSettle();

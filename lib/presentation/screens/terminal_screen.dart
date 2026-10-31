@@ -53,7 +53,7 @@ import '../widgets/terminal_special_keys.dart';
 import '../widgets/system_management/system_management_sheet.dart';
 import '../widgets/tailscale_check_card.dart';
 import '../terminal/terminal_view.dart';
-import 'connection_log_screen.dart';
+import 'app_log_screen.dart';
 
 part 'terminal_screen_input.dart';
 part 'terminal_screen_pane.dart';

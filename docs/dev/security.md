@@ -39,7 +39,7 @@
 | AI 命令行的检测设置、最近工作 | 安全存储，文件名 `shun_ai_cli` | `discovery.<scope>`、`recent.<scope>` | `lib/infrastructure/storage/ai_cli_*.dart` |
 | 插件批准记录 | 普通偏好 | `shun.plugins.approvals.v1`、`shun.plugins.disabled.v1` | `PluginApprovalStore`，只有公开的证书摘要 |
 | Mosh 会话 key | 只在内存，用完清零 | — | 第 7 节 |
-| 连接记录（主机 ID、阶段、用时、失败分类） | App 私有目录的普通文件，不加密 | `diagnostics/connection_events.json` | `lib/application/connection_events.dart`；不存报错原话、地址、用户名、banner，见[架构 2.10](architecture.md#210-连接记录r25) |
+| 连接日志（主机 ID、阶段、用时、失败分类） | App 私有目录的普通文件，不加密 | `diagnostics/connection_events.json` | `lib/application/connection_events.dart`；不存报错原话、地址、用户名、banner，见[架构 2.10](architecture.md#210-连接日志r25) |
 | 终端画面、大输入框的草稿 | 只在内存 | — | App 被杀就没了 |
 | 剪贴板 | 用户点「粘贴」时才读 | — | `lib/presentation/widgets/terminal_paste_sheet.dart` |
 

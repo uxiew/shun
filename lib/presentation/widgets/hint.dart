@@ -61,7 +61,7 @@ class HintButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) => IconButton(
         tooltip: hintLabel(title),
-        visualDensity: VisualDensity.compact,
+        // 不设 visualDensity.compact：它会把下面的 48 压成 40，放进 AppBar 后读屏框就小于 48dp。
         constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
         iconSize: 18,
         color: Theme.of(context).colorScheme.onSurfaceVariant,

@@ -41,7 +41,7 @@ import '../widgets/route_legs_view.dart';
 import '../widgets/server_monitor_sheet.dart';
 import '../widgets/vault_host_items.dart';
 import 'rustdesk_screen.dart';
-import 'connection_log_screen.dart';
+import 'app_log_screen.dart';
 import 'connection_type_screen.dart';
 import 'tailscale_catalog_screen.dart';
 import 'tailscale_settings_screen.dart';
@@ -667,7 +667,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
         await _showAiCli(host);
       case HostMenuAction.connectionLog:
         await Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (_) => ConnectionLogScreen(hostId: host.id),
+          builder: (_) => AppLogScreen(hostId: host.id),
         ));
       case HostMenuAction.edit:
         await _editHost(host);

@@ -2191,8 +2191,6 @@ const englishTranslations = <String, String>{
   // R25：连接记录页和导出（connection_event_text.dart）。带 {n} 的是模板：整句翻译后再填数。
   '用时是各阶段从开始到下一阶段开始的时间，按手机上不受对时影响的时钟算，不是网络延迟（ping）。经代理时，代理之后那一段 App 看不到，算在「连代理，由代理连过去」里；等你确认指纹、输入验证码的时间单独标出。':
       'Times are how long each stage took until the next one began, measured with a phone clock that clock adjustments do not affect. They are not network latency (ping). Through a proxy, the part after the proxy is invisible to the app and is counted in “Connect to the proxy, which connects onward”; time spent waiting for you to confirm a fingerprint or enter a code is shown separately.',
-  '只记在这台手机上：每次连接走到哪一步、每步多久、失败在哪、断线后自动恢复试了几次。不记地址、用户名、密码、私钥、报错原话，也不记你输入的和屏幕上的内容；不上传。每台最多 200 条、一共最多 1000 条，7 天后自动删掉。':
-      'Kept only on this phone: how far each connection got, how long each step took, where it failed, and how many automatic recovery attempts followed a drop. No addresses, user names, passwords, private keys or error text, and nothing you typed or saw on screen; nothing is uploaded. At most 200 per host and 1000 in total, deleted after 7 days.',
   '新开连接': 'New connection',
   '自动恢复': 'Automatic recovery',
   '自动恢复（第 {n} 次）': 'Automatic recovery (attempt {n})',
@@ -2254,8 +2252,6 @@ const englishTranslations = <String, String>{
   '在这一步取消': 'cancelled here',
   '；': '; ',
   '（{note}）': ' ({note})',
-  'shun 连接记录，导出于 {time}，共 {n} 条。':
-      'shun connection log, exported {time}, {n} entries.',
   '主机名、地址、用户名已去掉，主机按出现顺序编号；不含密码、私钥、报错原话、输入和屏幕内容。':
       'Host names, addresses and user names are removed and hosts are numbered in order of appearance; no passwords, private keys, error text, input or screen content.',
   '主机 {n}': 'Host {n}',
@@ -2269,8 +2265,6 @@ const englishTranslations = <String, String>{
   '最近 7 天：连接 {a} 次（连上 {ok}、失败 {failed}、取消 {cancelled}），断开 {drops} 次，自动恢复试了 {restores} 次、恢复上 {restored} 次。':
       'Last 7 days: {a} connection attempts ({ok} connected, {failed} failed, {cancelled} cancelled), {drops} drops, {restores} automatic recovery attempts, {restored} recovered.',
   '导出前预览': 'Preview before export',
-  '下面就是要复制的全部内容：主机换成了编号，路线上只写「跳板 1」「目标」。只复制到剪贴板，不会上传。':
-      'This is everything that will be copied: hosts are replaced by numbers and routes only say “Jump 1”, “Target”. It only goes to the clipboard; nothing is uploaded.',
   '复制到剪贴板': 'Copy to clipboard',
   // 凭据（R26 F25）
   '凭据': 'Credentials',
@@ -2298,17 +2292,25 @@ const englishTranslations = <String, String>{
   '密码（连接时问）': 'Password (asked when connecting)',
   '（已删除的密钥）': '(deleted key)',
   // 日志页（R26 F24）
+  '连接日志':
+      'Connection log',
+  '清除这台主机的连接日志？':
+      'Clear this host\'s connection log?',
+  'shun 连接日志，导出于 {time}，共 {n} 条。':
+      'shun connection log, exported {time}, {n} entries.',
+  '会删掉崩溃、出错、同步 {a} 条和连接 {b} 条，删了找不回来。主机和连着的标签都不动。':
+      'This deletes {a} crash, error and sync entries and {b} connection entries. They can\'t be recovered. Hosts and open tabs stay as they are.',
+  '这台主机最近 7 天没有记录':
+      'No records for this host in the last 7 days',
   '日志': 'Logs',
   '崩溃': 'Crashes',
   '出错': 'Errors',
-  '连接事件': 'Connections',
   '同步': 'Sync',
   '{n} 次': '{n} times',
   '复制这条': 'Copy this entry',
   '还没有记录': 'No entries yet',
   '清除全部日志？': 'Clear all logs?',
   '崩溃、出错、同步': 'Crashes, errors, sync',
-  '崩溃、出错、连接、同步': 'Crashes, errors, connections, sync',
   '同步完成': 'Sync finished',
   '同步失败': 'Sync failed',
   '内存不够，系统结束了 App': 'The system ended the app: low memory',
@@ -2321,10 +2323,7 @@ const englishTranslations = <String, String>{
   '没接住的错误（Dart）': 'Uncaught error (Dart)',
   '只存在这部手机上，不上传、不进备份和同步。地址、用户名、令牌写进来之前就换成了「<IP>」这类记号。崩溃、出错、同步留 14 天，连接留 7 天。': 'Stored only on this phone: never uploaded, backed up or synced. Addresses, usernames and tokens are replaced with marks like “<IP>” before they are written. Crashes, errors and sync are kept 14 days, connections 7 days.',
   '复制的就是下面这些。地址、用户名、令牌已经换成记号，主机只写编号。发给别人之前再看一眼。': 'This is exactly what gets copied. Addresses, usernames and tokens are already replaced with marks, and hosts appear only as numbers. Check it before sending it to anyone.',
-  '会删掉崩溃、出错、同步 {a} 条和连接记录 {b} 条，删了找不回来。主机和连着的标签都不动。': 'Deletes {a} crash, error and sync entries and {b} connection entries. They cannot be recovered. Hosts and open tabs are not touched.',
   '已复制 {n} 条记录': 'Copied {n} entries',
-  '清除全部连接记录？': 'Clear the whole connection log?',
-  '清除这台主机的连接记录？': 'Clear this host’s connection log?',
   '会删掉 {n} 条，删了找不回来。主机、连着的标签和保险库都不动。':
       'This deletes {n} entries and they cannot be recovered. Hosts, connected tabs and the vault are not touched.',
   '清除': 'Clear',
@@ -2411,14 +2410,7 @@ const englishTranslations = <String, String>{
   '还没有接受过服务器': 'No accepted servers yet',
   r'删除 $name 的指纹？': r'Delete the fingerprint of $name?',
   '下次连这台要重新核对。': 'You will verify it again next time you connect.',
-  '连接记录': 'Connection log',
   '已删除的主机': 'Deleted host',
-  '导出（先预览）': 'Export (preview first)',
-  '清除记录': 'Clear log',
-  '还没有记录。连一次主机，或者断线、恢复以后，这里就会有。':
-      'Nothing recorded yet. Entries appear after you connect to a host, or after a drop and recovery.',
-  '这台主机最近 7 天没有记录。连一次，或者断线、恢复以后，这里就会有。':
-      'Nothing recorded for this host in the last 7 days. Entries appear after you connect, or after a drop and recovery.',
   '一个阶段都没开始就停了：还没拨号。': 'Stopped before any stage began: nothing was dialed.',
   // R25 第四部分：主机详情的认证一行（host_summary.dart 的 describeLogin）。带私钥名字的几句在片段表。
   '密码（没保存，登录时问你）': 'Password (not saved; you are asked when logging in)',

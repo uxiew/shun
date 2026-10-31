@@ -74,7 +74,7 @@ class HostActionsSheet extends StatelessWidget {
         HostMenuAction.monitor => '性能监控',
         HostMenuAction.aiCli => 'AI 工具',
         HostMenuAction.testConnection => '测试连接',
-        HostMenuAction.connectionLog => '连接记录',
+        HostMenuAction.connectionLog => '连接日志',
         HostMenuAction.edit => '编辑',
         HostMenuAction.hide => '在列表里隐藏',
         HostMenuAction.unhide => '取消隐藏',

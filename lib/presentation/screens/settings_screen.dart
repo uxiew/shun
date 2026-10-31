@@ -41,7 +41,6 @@ import '../widgets/vault_passphrase_dialog.dart';
 import '../widgets/terminal_key_feel_tiles.dart';
 import 'app_lock_settings_screen.dart';
 import 'app_log_screen.dart';
-import 'connection_log_screen.dart';
 import 'known_hosts_screen.dart';
 import 'lan_transfer_screen.dart';
 import 'plugins_screen.dart';
@@ -575,22 +574,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                     const Divider(height: 1),
                     ListTile(
-                      key: const ValueKey('settings-connection-log'),
-                      leading: const Icon(Icons.history),
-                      title: const LText('连接记录'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const ConnectionLogScreen(),
-                        ),
-                      ),
-                    ),
-                    const Divider(height: 1),
-                    ListTile(
                       key: const ValueKey('settings-app-log'),
                       leading: const Icon(Icons.receipt_long_outlined),
                       title: const LText('日志'),
-                      subtitle: const LText('崩溃、出错、连接、同步'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(

@@ -4,7 +4,7 @@ import '../../domain/models/host.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import '../localization/localized_widgets.dart';
 
-/// 把连接记录变成给人看的字（R25）：记录页和导出用这一份，两处说法不会对不上。
+/// 把连接日志变成给人看的字（R25）：日志页和导出用这一份，两处说法不会对不上。
 ///
 /// 带数字的句子写成模板（`{n}`），整句翻译以后再填数：英文界面下也是整句，不会被拆碎的片段替换弄乱。
 String _t(String template, [Map<String, Object> values = const {}]) {
@@ -15,12 +15,9 @@ String _t(String template, [Map<String, Object> values = const {}]) {
   return text;
 }
 
-// 两段长说明各写成一个字面量（不拆行）：翻译表按整句查，拆成几段拼起来就查不到了。
+// 写成一个字面量（不拆行）：翻译表按整句查，拆成几段拼起来就查不到了。
 const connectionTimingNote =
     '用时是各阶段从开始到下一阶段开始的时间，按手机上不受对时影响的时钟算，不是网络延迟（ping）。经代理时，代理之后那一段 App 看不到，算在「连代理，由代理连过去」里；等你确认指纹、输入验证码的时间单独标出。';
-
-const connectionLogScope =
-    '只记在这台手机上：每次连接走到哪一步、每步多久、失败在哪、断线后自动恢复试了几次。不记地址、用户名、密码、私钥、报错原话，也不记你输入的和屏幕上的内容；不上传。每台最多 200 条、一共最多 1000 条，7 天后自动删掉。';
 
 String connectionEventTitle(ConnectionEvent event) => switch (event.kind) {
       ConnectionEventKind.open => _t('新开连接'),
@@ -270,7 +267,7 @@ String exportConnectionEvents(
   final local = now.toLocal();
   final buffer = StringBuffer()
     ..writeln(_t(
-      'shun 连接记录，导出于 {time}，共 {n} 条。',
+      'shun 连接日志，导出于 {time}，共 {n} 条。',
       {
         'time': '${local.year}-${formatConnectionEventTime(now)}',
         'n': events.length,

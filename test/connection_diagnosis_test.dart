@@ -22,7 +22,7 @@ import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/transport/proxy_transport.dart';
-import 'package:shun/presentation/screens/connection_log_screen.dart';
+import 'package:shun/presentation/screens/app_log_screen.dart';
 import 'package:shun/presentation/screens/terminal_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -307,7 +307,7 @@ void main() {
     await tester.ensureVisible(log);
     await tester.tap(log);
     await tester.pumpAndSettle();
-    expect(find.byType(ConnectionLogScreen), findsOneWidget);
+    expect(find.byType(AppLogScreen), findsOneWidget);
   });
 
   group('失败页的「重试」', () {

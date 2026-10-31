@@ -23,7 +23,7 @@ import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
-import 'package:shun/presentation/screens/connection_log_screen.dart';
+import 'package:shun/presentation/screens/app_log_screen.dart';
 import 'package:shun/presentation/screens/settings_screen.dart';
 
 const _raw = String.fromEnvironment('R25_SSH');
@@ -166,15 +166,14 @@ void main() {
     await tester.ensureVisible(key('connection-failure-log'));
     await settle(tester, 300);
     await tester.tap(key('connection-failure-log'));
-    await waitFor(
-        tester, () => find.byType(ConnectionLogScreen).evaluate().isNotEmpty,
+    await waitFor(tester, () => find.byType(AppLogScreen).evaluate().isNotEmpty,
         what: '失败页进记录页');
     await settle(tester);
     final failedCard = find.textContaining('失败：服务器拒绝登录');
     expect(failedCard, findsOneWidget);
     await tester.tap(failedCard);
     await settle(tester);
-    report('failure.page', texts(key('connection-log-list')));
+    report('failure.page', texts(key('app-log-list')));
     await shot('02-failure-log');
     await tester.tap(find.byType(BackButton));
     await settle(tester);
@@ -192,7 +191,7 @@ void main() {
     await waitFor(tester, () => restored('r25-direct') && restored('r25-jump'),
         timeout: const Duration(seconds: 60), what: '直连和跳板自动恢复');
 
-    // 从主机 ⋮ 菜单进「连接记录」
+    // 从主机 ⋮ 菜单进「连接日志」
     container.read(homeTabProvider.notifier).state = 0;
     await settle(tester, 1000);
     final menu = key('vault-host-menu-r25-direct');
@@ -201,33 +200,31 @@ void main() {
     await tester.tap(menu);
     await waitFor(
         tester, () => key('host-menu-connectionLog').evaluate().isNotEmpty,
-        what: '⋮ 菜单里有「连接记录」');
+        what: '⋮ 菜单里有「连接日志」');
     await settle(tester);
     await tester.tap(key('host-menu-connectionLog'));
-    await waitFor(
-        tester, () => find.byType(ConnectionLogScreen).evaluate().isNotEmpty,
+    await waitFor(tester, () => find.byType(AppLogScreen).evaluate().isNotEmpty,
         what: '记录页');
     await settle(tester);
     report('direct.summary', texts(key('connection-log-summary')));
     await tester.tap(find.textContaining('自动恢复（第 1 次）').first);
     await settle(tester);
-    report('direct.page', texts(key('connection-log-list')));
+    report('direct.page', texts(key('app-log-list')));
     await shot('03-direct-log');
 
     // 导出：先预览，预览里就是要复制的全部
-    await tester.tap(key('connection-log-export'));
-    await waitFor(tester,
-        () => key('connection-log-export-preview').evaluate().isNotEmpty,
+    await tester.tap(key('app-log-export'));
+    await waitFor(
+        tester, () => key('app-log-export-preview').evaluate().isNotEmpty,
         what: '导出预览');
     await settle(tester);
-    final preview = tester
-        .widget<SelectableText>(key('connection-log-export-preview'))
-        .data!;
+    final preview =
+        tester.widget<SelectableText>(key('app-log-export-preview')).data!;
     report('export.lines', preview.split('\n').length);
     report('export.leaks', leaks(preview));
     expect(leaks(preview), isEmpty);
     await shot('04-export-preview');
-    await tester.tap(key('connection-log-copy'));
+    await tester.tap(key('app-log-copy'));
     await settle(tester, 1000);
     final copied = (await Clipboard.getData(Clipboard.kTextPlain))?.text;
     report('export.copiedMatchesPreview', copied == preview);
@@ -279,7 +276,7 @@ void main() {
     container.read(homeTabProvider.notifier).state = 4;
     await settle(tester, 1000);
     // 设置页是懒加载的列表：安全那一节没滚到时还不在树上，得先滚过去。
-    final entry = key('settings-connection-log');
+    final entry = key('settings-app-log');
     await tester.scrollUntilVisible(
       entry,
       300,
@@ -292,19 +289,19 @@ void main() {
     );
     await settle(tester, 300);
     await tester.tap(entry);
-    await waitFor(
-        tester, () => find.byType(ConnectionLogScreen).evaluate().isNotEmpty,
+    await waitFor(tester, () => find.byType(AppLogScreen).evaluate().isNotEmpty,
         what: '设置进记录页');
+    await settle(tester);
+    await tester.tap(key('app-log-filter-connection'));
     await settle(tester);
     report('all.summary', texts(key('connection-log-summary')));
     await shot('05-all-hosts');
-    await tester.tap(key('connection-log-clear'));
+    await tester.tap(key('app-log-clear'));
     await settle(tester);
     report('clear.dialog', texts(find.byType(AlertDialog)));
     await shot('06-clear-confirm');
-    await tester.tap(key('connection-log-clear-confirm'));
-    await waitFor(
-        tester, () => key('connection-log-empty').evaluate().isNotEmpty,
+    await tester.tap(key('app-log-clear-confirm'));
+    await waitFor(tester, () => key('app-log-empty').evaluate().isNotEmpty,
         what: '清除后空了');
     report('clear.fileExists', logFile.existsSync());
     expect(logFile.existsSync(), isFalse);

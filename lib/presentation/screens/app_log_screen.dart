@@ -9,13 +9,17 @@ import '../../application/connection_events.dart';
 import '../../application/vault_controller.dart';
 import '../localization/localized_widgets.dart';
 import '../widgets/connection_event_text.dart';
-import 'connection_log_screen.dart';
+import '../widgets/connection_event_tile.dart';
+import '../widgets/hint.dart';
 
 /// 日志页（R26 F24）：崩溃、出错、同步（[AppLog]）和连接（[ConnectionEventLog]，R25）合在一起，新的在上。
 ///
-/// 只读本机记录，不连任何东西。连接那几条点进去是那台主机的连接记录（阶段、用时在那里）。
+/// 只读本机记录，不连任何东西：打开它不会去探主机，也不会触发重连。名字按保险库现在的查（记录里只有 ID），导出不查名字。
+/// 给了 [hostId] 只看这一台的连接（主机 ⋮ 菜单、连接失败页进来），不给是整份日志（设置里进来）。
 class AppLogScreen extends ConsumerStatefulWidget {
-  const AppLogScreen({super.key});
+  const AppLogScreen({super.key, this.hostId});
+
+  final String? hostId;
 
   @override
   ConsumerState<AppLogScreen> createState() => _AppLogScreenState();
@@ -23,11 +27,14 @@ class AppLogScreen extends ConsumerStatefulWidget {
 
 enum _Filter { all, crash, error, connection, sync }
 
+const _logHint =
+    '只存在这部手机上，不上传、不进备份和同步。地址、用户名、令牌写进来之前就换成了「<IP>」这类记号。崩溃、出错、同步留 14 天，连接留 7 天。';
+
 String _filterLabel(_Filter filter) => switch (filter) {
       _Filter.all => '全部',
       _Filter.crash => '崩溃',
       _Filter.error => '出错',
-      _Filter.connection => '连接事件',
+      _Filter.connection => '连接',
       _Filter.sync => '同步',
     };
 
@@ -72,8 +79,13 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final entries = ref.watch(appLogProvider);
-    final events = ref.watch(connectionEventLogProvider);
+    final hostId = widget.hostId;
+    final entries =
+        hostId == null ? ref.watch(appLogProvider) : const <AppLogEntry>[];
+    final allEvents = ref.watch(connectionEventLogProvider);
+    final events = hostId == null
+        ? allEvents
+        : allEvents.where((event) => event.hostId == hostId).toList();
     final vaultHosts = ref.watch(vaultControllerProvider).data?.hosts;
     final hosts = <String, String>{
       if (vaultHosts != null)
@@ -83,11 +95,30 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
     final rows = _filter == _Filter.all
         ? all
         : all.where((row) => row.filter == _filter).toList();
-    final small = Theme.of(context).textTheme.bodySmall;
+    final theme = Theme.of(context);
+    final small = theme.textTheme.bodySmall;
     return Scaffold(
       appBar: AppBar(
-        title: const LText('日志'),
+        title: hostId == null
+            ? const LText('日志')
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const LText('连接日志'),
+                  Text(
+                    hosts[hostId] ?? localized('已删除的主机'),
+                    style: small,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
         actions: [
+          HintButton(
+            title: '日志',
+            message:
+                '${localized(_logHint)}\n\n${localized(connectionTimingNote)}',
+          ),
           IconButton(
             key: const ValueKey('app-log-export'),
             tooltip: localized('导出'),
@@ -107,38 +138,46 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: LText(
-              '只存在这部手机上，不上传、不进备份和同步。地址、用户名、令牌写进来之前就换成了「<IP>」这类记号。'
-              '崩溃、出错、同步留 14 天，连接留 7 天。',
-              style: small,
-            ),
-          ),
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
-            child: Row(
-              children: [
-                for (final filter in _Filter.values)
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 4),
-                    child: ChoiceChip(
-                      key: ValueKey('app-log-filter-${filter.name}'),
-                      label: Text(
-                        '${localized(_filterLabel(filter))} '
-                        '${filter == _Filter.all ? all.length : all.where((r) => r.filter == filter).length}',
+          if (hostId == null)
+            SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              padding: const EdgeInsets.fromLTRB(12, 8, 12, 4),
+              child: Row(
+                children: [
+                  for (final filter in _Filter.values)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
+                      child: ChoiceChip(
+                        key: ValueKey('app-log-filter-${filter.name}'),
+                        label: Text(
+                          '${localized(_filterLabel(filter))} '
+                          '${filter == _Filter.all ? all.length : all.where((r) => r.filter == filter).length}',
+                        ),
+                        selected: _filter == filter,
+                        onSelected: (_) => setState(() => _filter = filter),
                       ),
-                      selected: _filter == filter,
-                      onSelected: (_) => setState(() => _filter = filter),
                     ),
-                  ),
-              ],
+                ],
+              ),
             ),
-          ),
+          if (events.isNotEmpty &&
+              (hostId != null || _filter == _Filter.connection))
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
+              child: LText(
+                connectionLogSummary(events),
+                key: const ValueKey('connection-log-summary'),
+                style: small,
+              ),
+            ),
           Expanded(
             child: rows.isEmpty
-                ? const Center(child: LText('还没有记录'))
+                ? Center(
+                    child: LText(
+                      hostId == null ? '还没有记录' : '这台主机最近 7 天没有记录',
+                      key: const ValueKey('app-log-empty'),
+                    ),
+                  )
                 : ListView.separated(
                     key: const ValueKey('app-log-list'),
                     itemCount: rows.length,
@@ -157,20 +196,16 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
     final scheme = Theme.of(context).colorScheme;
     final time = formatConnectionEventTime(row.at);
     if (row.event case final event?) {
-      final host = hosts[event.hostId] ?? localized('已删除的主机');
-      return ListTile(
-        key: ValueKey(
-            'app-log-connection-${event.hostId}-${event.at.millisecondsSinceEpoch}'),
-        leading: Icon(Icons.lan_outlined, color: scheme.primary),
-        title: Text(
-            '${connectionEventTitle(event)} · ${connectionEventOutcome(event)}'),
-        subtitle: Text('$time · $host', style: small),
-        trailing: const Icon(Icons.chevron_right),
-        onTap: hosts.containsKey(event.hostId)
-            ? () => Navigator.of(context).push(MaterialPageRoute<void>(
-                  builder: (_) => ConnectionLogScreen(hostId: event.hostId),
-                ))
+      return ConnectionEventTile(
+        event: event,
+        hostLabel: widget.hostId == null
+            ? hosts[event.hostId] ?? localized('已删除的主机')
             : null,
+        hopName: (hop) => connectionHopName(
+          hop,
+          event.hopCount,
+          hop < event.hopIds.length ? hosts[event.hopIds[hop]] : null,
+        ),
       );
     }
     final entry = row.entry!;
@@ -241,7 +276,11 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
 
   Future<void> _export(
       List<AppLogEntry> entries, List<ConnectionEvent> events) async {
-    final text = exportAppLog(entries, events, now: DateTime.now());
+    final now = DateTime.now();
+    // 只看一台时只导出这一台的连接。
+    final text = widget.hostId == null
+        ? exportAppLog(entries, events, now: now)
+        : exportConnectionEvents(events, now: now);
     final copy = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
@@ -295,14 +334,18 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
   }
 
   Future<void> _clear(int logCount, int connectionCount) async {
+    final hostId = widget.hostId;
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const LText('清除全部日志？'),
+        title: LText(hostId == null ? '清除全部日志？' : '清除这台主机的连接日志？'),
         content: Text(
-          localized('会删掉崩溃、出错、同步 {a} 条和连接记录 {b} 条，删了找不回来。主机和连着的标签都不动。')
-              .replaceAll('{a}', '$logCount')
-              .replaceAll('{b}', '$connectionCount'),
+          hostId == null
+              ? localized('会删掉崩溃、出错、同步 {a} 条和连接 {b} 条，删了找不回来。主机和连着的标签都不动。')
+                  .replaceAll('{a}', '$logCount')
+                  .replaceAll('{b}', '$connectionCount')
+              : localized('会删掉 {n} 条，删了找不回来。主机、连着的标签和保险库都不动。')
+                  .replaceAll('{n}', '$connectionCount'),
         ),
         actions: [
           // 取消在前、是默认；删除不是默认动作（UX03）。
@@ -323,8 +366,13 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
       ),
     );
     if (confirmed != true || !mounted) return;
-    await ref.read(appLogProvider.notifier).clearAll();
-    await ref.read(connectionEventLogProvider.notifier).clearAll();
+    final connections = ref.read(connectionEventLogProvider.notifier);
+    if (hostId == null) {
+      await ref.read(appLogProvider.notifier).clearAll();
+      await connections.clearAll();
+    } else {
+      await connections.clearHost(hostId);
+    }
     if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: LText('已清除')),
@@ -352,7 +400,7 @@ String formatAppLogEntry(AppLogEntry entry) {
   ].join('\n');
 }
 
-/// 导出整份日志：崩溃、出错、同步在前（新的在上），连接记录用连接记录页同一种写法（主机只写编号）。
+/// 导出整份日志：崩溃、出错、同步在前（新的在上），连接用 [exportConnectionEvents] 的写法（主机只写编号）。
 String exportAppLog(
   List<AppLogEntry> entries,
   List<ConnectionEvent> events, {
@@ -364,7 +412,7 @@ String exportAppLog(
     '',
     '== ${localized('崩溃、出错、同步')}（${newest.length}）',
     for (final entry in newest) '${formatAppLogEntry(entry)}\n',
-    '== ${localized('连接事件')}（${events.length}）',
+    '== ${localized('连接')}（${events.length}）',
     if (events.isNotEmpty) exportConnectionEvents(events, now: now),
   ].join('\n');
 }

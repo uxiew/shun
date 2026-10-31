@@ -474,7 +474,8 @@ class _TailscaleSettingsScreenState
                             draft: _route,
                             hosts: vault?.hosts ?? const [],
                             profiles: vault?.proxyProfiles ?? const [],
-                            plan: route.plan,
+                            // 这条路线是拿占位目标算的，只用来查错：拿来画的话，目标会显示 route@route-edit.invalid。
+                            plan: null,
                             error: route.error,
                             targetLabel: localized('Tailscale 设备'),
                             targetDetail: '',

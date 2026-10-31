@@ -164,10 +164,7 @@ void main() {
 
       double keyTop(String key) =>
           tester.getTopLeft(find.byKey(ValueKey(key))).dy;
-      for (final key in [
-        'settings-connection-log',
-        'settings-tailscale-catalog'
-      ]) {
+      for (final key in ['settings-app-log', 'settings-tailscale-catalog']) {
         expect(keyTop(key), inExclusiveRange(top('连接'), top('安全')),
             reason: key);
       }

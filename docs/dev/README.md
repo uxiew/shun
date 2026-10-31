@@ -53,9 +53,9 @@ R24 借用标签连接的功能（文件、转发、监控、系统管理）：�
 
 R59 安全密钥：不连网的 `flutter test test/security_key_test.dart test/security_key_prompt_test.dart test/security_key_actions_test.dart`；对真 OpenSSH 的 `flutter test test/security_key_fixture_test.dart`（先起测试环境）；Kotlin 那头 `(cd android && ./gradlew :app:testDebugUnitTest --tests '*SecurityKeyOperationsTest*')`，是真 yubikit 对假钥匙。真钥匙的走法见 `plan/v3/evidence/R59.md`。
 
-R25 连接记录：值从哪来、存在哪、哪些名字不能改见 [architecture.md 2.10](architecture.md#210-连接记录r25)。不连网的 `flutter test --no-pub test/r25_connection_events_test.dart test/r25_connection_log_screen_test.dart test/r25_probe_record_test.dart`（约 10 秒）；起了 `tool/fixture-environment/up.sh` 再跑 `flutter test --no-pub test/integration_ssh_fixture_test.dart --plain-name 'R25 连接记录'`（约 5 秒，会杀 ssh-edge 里的 sshd 会话）。设备上：模拟器开好、拿了锁以后 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r25-device.py`，约 1.5 分钟，docker 要在 PATH 里；脚本在清除前把 App 的记录文件拷到证据目录、在本机再查一遍有没有登录信息和地址，跑完清掉 App 数据。结果只看 `plan/v3/evidence/R25.md`。
+R25 连接日志：值从哪来、存在哪、哪些名字不能改见 [architecture.md 2.10](architecture.md#210-连接日志r25)。不连网的 `flutter test --no-pub test/r25_connection_events_test.dart test/r25_connection_log_screen_test.dart test/r25_probe_record_test.dart`（约 10 秒）；起了 `tool/fixture-environment/up.sh` 再跑 `flutter test --no-pub test/integration_ssh_fixture_test.dart --plain-name 'R25 连接日志'`（约 5 秒，会杀 ssh-edge 里的 sshd 会话）。设备上：模拟器开好、拿了锁以后 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r25-device.py`，约 1.5 分钟，docker 要在 PATH 里；脚本在清除前把 App 的记录文件拷到证据目录、在本机再查一遍有没有登录信息和地址，跑完清掉 App 数据。结果只看 `plan/v3/evidence/R25.md`。
 
-R25 / UX04（从常见错误进诊断、看实际引擎和路线）：同样先起测试环境、开好模拟器、拿锁，再 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r25-ux04-device.py`，约 2 分钟（不用 docker 命令）。它跑 `integration_test/r25_ux04_test.dart`：直连密码错、经 SOCKS 密码错、代理连不上（模拟器的 1 号端口）、代理配置被删，各看失败页提示、实际路线和连接记录，再看主机详情、「选择连接类型」和设置里的终端引擎。页面上的字以 `UX04 <键>=<值>` 打在输出里，截图和日志在 `../.toolchain/artifacts/r25-ux04-<时间>/`。类型页的状态跟模拟器上装了什么走，`device.txt` 里记了装没装 Mosh 插件、RustDesk、UU。
+R25 / UX04（从常见错误进诊断、看实际引擎和路线）：同样先起测试环境、开好模拟器、拿锁，再 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r25-ux04-device.py`，约 2 分钟（不用 docker 命令）。它跑 `integration_test/r25_ux04_test.dart`：直连密码错、经 SOCKS 密码错、代理连不上（模拟器的 1 号端口）、代理配置被删，各看失败页提示、实际路线和连接日志，再看主机详情、「选择连接类型」和设置里的终端引擎。页面上的字以 `UX04 <键>=<值>` 打在输出里，截图和日志在 `../.toolchain/artifacts/r25-ux04-<时间>/`。类型页的状态跟模拟器上装了什么走，`device.txt` 里记了装没装 Mosh 插件、RustDesk、UU。
 
 SEC12（崩溃、通知、Intent、最近任务、整机日志里有没有密码、私钥、按键、终端原文）：同样先起测试环境、开好模拟器、拿锁，再 `SHUN_R39_AVD=shun-r39-a30 python3 tool/sec12-device.py native`（再跑一遍 `java`），每遍约 1.5 分钟。`native` 用 `run-as … kill -SEGV` 弄崩（项目模拟器是 Play 镜像，没有 root），`java` 用 `am crash`。脚本每轮随机生成标记，跑完在两份 logcat、`dumpsys dropbox`（崩溃记录和 tombstone 全文）、通知、Activity、最近任务、App 私有文件里搜，只打名字和个数；还往 logcat 写一个对照标记，搜不到就算失败（说明搜索本身不灵）。两个坑：不加 `--no-uninstall` 的话 `flutter test` 一结束就卸掉 App，私有目录跟着没了，脚本打包时报 `truncated header`；`app_flutter/flutter_assets/kernel_blob.bin` 是调试包自己的代码，测试经 `--dart-define` 拿到的标记和登录会被编进去，脚本不搜这个目录，否则全是误报。结果只看 `plan/v3/evidence/R25.md` 第六部分。
 
@@ -64,7 +64,7 @@ LIFE06（反复开关标签后原生内存涨不涨）：同样先起测试环�
 - 量之前别调 `getAllocationProfile`（DevTools 内存页、R20 的 `_heapAfterGc` 都会调）：调一次 Native Heap 多出 15–19 MB、不还。R20 / R22 记的「每次约 40 KiB」就是第 100 轮读数在它之前、第 500 轮在它之后量出来的。`--classdiff` 也要调它，那一轮的 Native Heap 读数不算。
 - debug / profile 包里 Dart 时间线的记录器给每个异步事件 ID 存一条、不删，引擎每请求一帧发一个新 ID，所以原生内存按帧涨，和 App 无关；发布版引擎里这一步是空函数。不加 `--timeline-off` 量到的大头是它。
 - debug 包的读数 GC 后也会上下跳约 2 MB（profile 包不跳，多半是 JIT），分不出每次 1 KiB 这个量级，要用 `--profile`。`--profile` 走 `flutter drive --no-dds`（不加 `--no-dds`，测试连自己的 VM service 报 `Connection refused`），包名 `top.xdwa.shun.profile`。
-- 不加 `--same-host` 时每轮是一台新主机，连接记录会一直涨到一共 1000 条的上限，Dart 堆读数跟着涨。
+- 不加 `--same-host` 时每轮是一台新主机，连接日志会一直涨到一共 1000 条的上限，Dart 堆读数跟着涨。
 
 结果只看 `plan/v3/evidence/R22.md`「LIFE06 复查」。
 

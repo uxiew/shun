@@ -9,7 +9,7 @@ import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
-import 'package:shun/presentation/screens/connection_log_screen.dart';
+import 'package:shun/presentation/screens/app_log_screen.dart';
 
 // R25 / UX10、SEC12、UX02：连接记录页。名字按保险库查、导出先预览且不带名字、清除要确认。
 void main() {
@@ -116,7 +116,7 @@ void main() {
     await container.read(connectionEventLogProvider.notifier).ready;
     await tester.pumpWidget(UncontrolledProviderScope(
       container: container,
-      child: MaterialApp(home: ConnectionLogScreen(hostId: hostId)),
+      child: MaterialApp(home: AppLogScreen(hostId: hostId)),
     ));
     await tester.pumpAndSettle();
   }
@@ -156,8 +156,10 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('其中等你 4.1 秒'), findsOneWidget,
         reason: '等人确认指纹的时间单独标出，不当成握手慢');
-    expect(find.textContaining('ping'), findsOneWidget,
-        reason: '只在顶上说明里出现一次：「不是网络延迟（ping）」');
+    expect(find.textContaining('ping'), findsNothing, reason: '说明收进 ⓘ，不常驻');
+    await tester.tap(find.byTooltip('「日志」说明'));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('ping'), findsOneWidget);
   });
 
   testWidgets('没有结果时间的阶段写「未知」，不造一个值', (tester) async {
@@ -179,11 +181,11 @@ void main() {
     addTearDown(() => tester.binding.defaultBinaryMessenger
         .setMockMethodCallHandler(SystemChannels.platform, null));
     await open(tester);
-    await tester.tap(find.byKey(const ValueKey('connection-log-export')));
+    await tester.tap(find.byKey(const ValueKey('app-log-export')));
     await tester.pumpAndSettle();
     final preview = tester
         .widget<SelectableText>(
-            find.byKey(const ValueKey('connection-log-export-preview')))
+            find.byKey(const ValueKey('app-log-export-preview')))
         .data!;
     expect(copied, isNull, reason: '预览时还没复制');
     for (final secret in ['LABEL', 'host-', 'decoy']) {
@@ -192,26 +194,25 @@ void main() {
     expect(preview, contains('主机 1'));
     expect(preview, contains('主机 2'));
     expect(preview, contains('手机 → SOCKS5 代理 → 跳板 1 → 目标'));
-    await tester.tap(find.byKey(const ValueKey('connection-log-copy')));
+    await tester.tap(find.byKey(const ValueKey('app-log-copy')));
     await tester.pumpAndSettle();
     expect(copied, preview);
   });
 
   testWidgets('清除：要确认，取消是默认、不删；确认后只删这一台的、马上写盘', (tester) async {
     await open(tester, hostId: 'host-alpha');
-    await tester.tap(find.byKey(const ValueKey('connection-log-clear')));
+    await tester.tap(find.byKey(const ValueKey('app-log-clear')));
     await tester.pumpAndSettle();
     expect(find.textContaining('会删掉 3 条'), findsOneWidget);
     await tester.tap(find.text('取消'));
     await tester.pumpAndSettle();
     expect(find.byType(ExpansionTile), findsNWidgets(3));
 
-    await tester.tap(find.byKey(const ValueKey('connection-log-clear')));
+    await tester.tap(find.byKey(const ValueKey('app-log-clear')));
     await tester.pumpAndSettle();
-    await tester
-        .tap(find.byKey(const ValueKey('connection-log-clear-confirm')));
+    await tester.tap(find.byKey(const ValueKey('app-log-clear-confirm')));
     await tester.pumpAndSettle();
-    expect(find.byKey(const ValueKey('connection-log-empty')), findsOneWidget);
+    expect(find.byKey(const ValueKey('app-log-empty')), findsOneWidget);
     expect(store.saved, isNot(contains('host-alpha')));
     expect(store.saved, contains('host-beta'), reason: '别的主机的留着');
   });

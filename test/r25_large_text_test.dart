@@ -154,16 +154,16 @@ void main() {
 
           where = '连接记录';
           await tester.scrollUntilVisible(
-            find.byKey(const ValueKey('settings-connection-log')),
+            find.byKey(const ValueKey('settings-app-log')),
             200,
             scrollable: settingsList,
           );
           // scrollUntilVisible 只管建出来，可能还在屏幕外的缓冲区里。
           await tester.ensureVisible(
-              find.byKey(const ValueKey('settings-connection-log')));
+              find.byKey(const ValueKey('settings-app-log')));
           await tester.pump(const Duration(milliseconds: 300));
           await tester
-              .tap(find.byKey(const ValueKey('settings-connection-log')));
+              .tap(find.byKey(const ValueKey('settings-app-log')));
           await settle();
           await tester.binding.handlePopRoute();
           await settle();

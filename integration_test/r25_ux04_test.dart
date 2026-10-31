@@ -18,7 +18,7 @@ import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
-import 'package:shun/presentation/screens/connection_log_screen.dart';
+import 'package:shun/presentation/screens/app_log_screen.dart';
 import 'package:shun/presentation/screens/connection_type_screen.dart';
 import 'package:shun/presentation/screens/settings_screen.dart';
 
@@ -183,10 +183,10 @@ void main() {
       await settle(tester, 300);
       await tester.tap(key('connection-failure-log'));
       await waitFor(
-          tester, () => find.byType(ConnectionLogScreen).evaluate().isNotEmpty,
+          tester, () => find.byType(AppLogScreen).evaluate().isNotEmpty,
           what: '$name 记录页');
       await settle(tester);
-      report('$name.log', texts(key('connection-log-list')));
+      report('$name.log', texts(key('app-log-list')));
       await shot('$name-2-log');
       await tester.tap(find.byType(BackButton));
       await settle(tester);

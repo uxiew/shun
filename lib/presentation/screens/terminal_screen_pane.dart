@@ -169,13 +169,13 @@ class _ConnectionStatusPane extends StatelessWidget {
                           key: const ValueKey('connection-failure-log'),
                           onPressed: () => Navigator.of(context).push(
                             MaterialPageRoute<void>(
-                              builder: (_) => ConnectionLogScreen(
+                              builder: (_) => AppLogScreen(
                                 hostId: sourceHostIdOf(pending.host),
                               ),
                             ),
                           ),
                           icon: const Icon(Icons.history),
-                          label: const LText('连接记录'),
+                          label: const LText('连接日志'),
                         ),
                       ),
                     ],
