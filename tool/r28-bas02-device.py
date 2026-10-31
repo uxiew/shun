@@ -304,8 +304,6 @@ def sync(out, log):
         time.sleep(2)
         tap('|S3', scroll_to('|S3'))
         time.sleep(1)
-        adb('shell', 'input', 'swipe', '540', '1500', '540', '1000', '300')
-        time.sleep(1)
         # Region 自带 us-east-1，不是空的，所以不在这个列表里；多填一个后面全错位，prefix 的值会跑进主密码框。
         for text in [f'http://127.0.0.1:{SYNC_PORT}', 'r61bucket', 'R61ACCESS', 'R61SECRET',
                      'R61TOKEN', 'shun']:
@@ -330,7 +328,10 @@ def sync(out, log):
             raise SystemExit('服务器没收到 PUT：没同步上去')
         # 从云端恢复：真解密、弹确认框。这里点取消，写本机那段单测管；要看的是全程不往云端写。
         puts = sum(r.startswith('PUT') for r in _FakeS3.requests)
-        tap('从云端恢复', scroll_to('从云端恢复'))
+        # 它在页面最底，这时已经滑到底了；scroll_to 只认屏幕上半截，会一直滑。
+        # 先等「备份完成」的提示条消失（4 秒）：它盖在这个按钮上，点下去没反应，看着像按钮坏了。
+        time.sleep(6)
+        tap('从云端恢复')
         log('restore-tapped', '点了从云端恢复')
         for _ in range(30):
             time.sleep(1)
