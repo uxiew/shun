@@ -23,6 +23,41 @@
 - **实现细节不上界面。** Keystore、SHA-256、FLAG_SECURE、UID 这类词写手册和 [security.md](security.md)。
 - **不能操作的卡片不要。** 只是告诉用户「我们很安全」的行，并进分组标题的 ⓘ。
 
+## 硬上限
+
+所有者 2026-10-31 定：UI 不要堆砌文字描述。`test/ui_rules_test.dart` 会查，超了测试失败，报出文件、行号和原文。
+
+| 位置 | 最多 | 例子 |
+|---|---|---|
+| 输入框下面的提示（`helperText`） | 16 个汉字 | 「已加密保存，不填就用它」 |
+| 列表行的副标题（`subtitle`） | 16 个汉字 | 「到编辑器里重填密码或私钥」 |
+| 页面上一段字（`LText`、`Text`、`catalogLine`） | 30 个汉字 | 「代理口令是明文发给代理的，SSH 保护不了。」 |
+
+- 只数汉字，英文、数字、变量不算。
+- 不算的地方：确认框（`AlertDialog`）、`SnackBar`、`Tooltip`、ⓘ 里的字，都是点了才看到或者只闪一下。
+- 测试看不到的：先放进变量、经 `localized()` 拼出来的句子。这些靠自觉，按同样的上限写。
+
+超了别改上限，按顺序问：
+
+1. 用户不看这句会出错吗？不会就删掉，写进手册。
+2. 只在动手那一刻要知道？放确认框。
+3. 想了解才需要？放 ⓘ。
+4. 确实要常驻又短不下来？写进测试文件末尾的 `_longTextAllowed`，注明原因。现在这张单子是空的。
+
+## 表单间隔
+
+上下相邻的输入框之间写 `const FormGap()`（`widgets/form_gap.dart`，20dp），别自己写 `SizedBox`。浮动标签往上占约 8dp，所以 12dp 看着还是挤；以前各页从 0 到 24 都有，所有者说的「不好看」就是这个。写错了 `test/ui_rules_test.dart` 会报出来。
+
+## 改完看一眼
+
+别凭感觉改界面，画成图看：
+
+```bash
+SHUN_UI_GALLERY=/绝对路径/目录 flutter test --no-pub test/ui_gallery_test.dart --plain-name 云端备份
+```
+
+要看的页面没有就在这个测试里加一条。不设 `SHUN_UI_GALLERY` 时它会跳过。字体借的是 macOS 的 Arial Unicode，字距比手机上宽，别为这个调字号。
+
 ## 用哪个组件
 
 都在 `lib/presentation/widgets/hint.dart`：

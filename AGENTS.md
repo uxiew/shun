@@ -6,6 +6,7 @@
 代码来源和许可写在 `NOTICE.md`，那份要留。
 用户看得到的行为改了，同步改使用手册 `docs/user/README.md`（Mosh 相关的改 `docs/user/mosh.md`）。
 界面上的字要少：页面只放名字和状态，解释收进 ⓘ，细节写手册，规矩见 `docs/dev/ui-text.md`（所有者 2026-10-24 定）。
+UI 不要堆砌文字描述，表单上下要有间隔（所有者 2026-10-31 定）：输入框提示和列表副标题不超过 16 个汉字，页面上一段不超过 30 个汉字，相邻输入框之间用 `FormGap`。`test/ui_rules_test.dart` 会查，超了改界面，别改上限。
 
 开始干活前先读 `plan/v3/AGENTS.md`（实施契约），再读 `plan/v3/STATUS.md`（当前进度）。
 任务定义在 `plan/v3/tasks.json`，每批证据写在 `plan/v3/evidence/`。
