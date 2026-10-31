@@ -1519,7 +1519,7 @@
 
 阶段：P6；状态：NOT_STARTED；依赖：R28；角色：安全/实施代理。
 
-**范围**：导出带凭据的完整保险库，格式就是同步用的 {meta, payload}（PBKDF2-SHA256 60 万次 + AES-256-GCM）；用户选位置保存。导入先解密再走 planVaultImport 预览。明文导出保留，不带凭据。来源 F23，所有者 10-31 定不需要和桌面互通。
+**范围**：导出带凭据的完整保险库，格式就是同步用的 {meta, payload}（PBKDF2-SHA256 60 万次 + AES-256-GCM）；用户选位置保存。导入先解密再走 planVaultImport 预览。明文导出 10-31 去掉了（所有者要求）。来源 F23，所有者 10-31 定不需要和桌面互通。
 
 **落点**：lib/infrastructure/storage/vault_export_service.dart；lib/application/vault_import.dart；设置页。
 
