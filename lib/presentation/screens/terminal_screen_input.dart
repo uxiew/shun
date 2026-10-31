@@ -151,7 +151,11 @@ mixin _TerminalInputHost on ConsumerState<TerminalScreen> {
   }
 
   /// 「收起键盘」、返回键：用面板时把面板收起来，系统键盘照旧收起。
+  /// 键都藏起来了：亮着的 Ctrl 看不见了，下一个字会成意外的组合键（R45）。
+  void _clearInputModifiers();
+
   void _hideInput() {
+    _clearInputModifiers();
     if (_inputMode != terminalInputSystem && _panelOpen) {
       setState(() => _panelOpen = false);
       _holdResize();
@@ -188,6 +192,12 @@ mixin _TerminalInputHost on ConsumerState<TerminalScreen> {
       // 键盘收完了：这一次它最高升到多少，就是这个方向上的键盘高度。
       if (_keyboardShowMax > 0) {
         _keyboardHeights[orientation] = _keyboardShowMax;
+        // 从系统键盘换到面板时面板开着，键还在，修饰键要带着走（手册第 9 节）。
+        if (!panelVisible) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) _clearInputModifiers();
+          });
+        }
       }
       _keyboardShowMax = 0;
     }

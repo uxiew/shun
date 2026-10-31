@@ -7,6 +7,7 @@ import '../../domain/models/settings.dart';
 import '../../infrastructure/terminal/terminal_input_controller.dart';
 import '../../infrastructure/terminal/terminal_session_adapter.dart';
 import 'terminal_key_button.dart';
+import 'terminal_key_settings_sheet.dart';
 import 'terminal_keys.dart';
 
 export 'terminal_key_button.dart' show decodeTerminalKeyEscapes;
@@ -15,6 +16,10 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
   const TerminalSpecialKeys({
     super.key,
     required this.order,
+    this.exactOrder = false,
+    this.hostOrder,
+    this.hostLabel,
+    this.onSaveHostOrder,
     required this.customKeys,
     required this.onSend,
     required this.onKey,
@@ -42,7 +47,20 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
     this.onHideKeyboard,
   });
 
+  /// 全局那一套（设置里的 `terminalQuickKeys`）。
   final List<String> order;
+
+  /// 见 `AppSettings.terminalQuickKeysExact`。
+  final bool exactOrder;
+
+  /// 这台主机专用的布局（R45）。不为 null 就用它，不看 [order]。
+  final List<String>? hostOrder;
+
+  /// 这一格对应的保险库主机。null：没进保险库的临时连接，快捷键设置里没有「只给这台主机」。
+  final String? hostLabel;
+
+  /// 存这台主机的布局；null 是去掉，回到全局。
+  final Future<void> Function(List<String>? order)? onSaveHostOrder;
   final List<TerminalCustomKey> customKeys;
   final void Function(String, {bool enter}) onSend;
 
@@ -110,20 +128,34 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
         onPaste: widget.onPaste,
       );
 
-  @override
-  Widget build(BuildContext context) {
-    final definitions = <String, TerminalKeySpec>{
-      ...terminalQuickKeySpecs,
-      for (final key in widget.customKeys)
-        key.id:
-            TerminalKeySpec(key.label, text: key.value, decodeEscapes: true),
-    };
-    final normalized = [
-      ...widget.order.where(definitions.containsKey),
+  Map<String, TerminalKeySpec> get _definitions => {
+        ...terminalQuickKeySpecs,
+        for (final key in widget.customKeys)
+          key.id:
+              TerminalKeySpec(key.label, text: key.value, decodeEscapes: true),
+      };
+
+  List<String> _globalOrder(Map<String, TerminalKeySpec> definitions) {
+    final kept = widget.order.where(definitions.containsKey).toList();
+    if (widget.exactOrder && kept.isNotEmpty) return kept;
+    return [
+      ...kept,
       ...defaultTerminalQuickKeys.where(
         (value) => !widget.order.contains(value),
       ),
     ];
+  }
+
+  /// 专用布局里的键全都不认识（换了台手机，自定义键没带过来）算没有，一个键都不留就没法用了。
+  List<String>? _hostOrder(Map<String, TerminalKeySpec> definitions) {
+    final kept = widget.hostOrder?.where(definitions.containsKey).toList();
+    return kept == null || kept.isEmpty ? null : kept;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final definitions = _definitions;
+    final normalized = _hostOrder(definitions) ?? _globalOrder(definitions);
     if (widget.compact && widget.showQuickKeys) {
       return _compactBar(context, normalized, definitions);
     }
@@ -215,7 +247,7 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                   IconButton(
                     key: const ValueKey('terminal-action-edit'),
                     tooltip: localized('编辑快捷键'),
-                    onPressed: () => _customize(context, normalized),
+                    onPressed: () => _customize(context),
                     icon: const Icon(Icons.tune, size: 20),
                   ),
                   IconButton(
@@ -281,7 +313,7 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
             ? Colors.transparent
             : Theme.of(context).colorScheme.surface,
         child: SizedBox(
-          height: 48,
+          height: TerminalKeyFeel.of(context).height,
           child: Row(
             children: [
               Expanded(
@@ -394,7 +426,7 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
         'edit',
         localized('编辑快捷键'),
         Icons.tune,
-        () => _customize(context, order),
+        () => _customize(context),
       ),
       if (widget.onInputPanel != null)
         (
@@ -444,7 +476,16 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
               ? constraints.maxWidth / columns
               : 56.0;
           final gap = ((cell - 48) / 2).clamp(0.0, 2.0);
-          return _quickKeyRows(order, definitions, columns, gap);
+          final rows = _quickKeyRows(order, definitions, columns, gap);
+          // 键加得多又调高了也不能把终端挤没（小屏上会报溢出）：超过这个高度才在栏里上下滚。
+          final height = (order.length / columns).ceil() *
+              (TerminalKeyFeel.of(context).height + 4);
+          final limit = MediaQuery.sizeOf(context).height * .4;
+          if (height <= limit) return rows;
+          return SizedBox(
+            height: limit,
+            child: SingleChildScrollView(child: rows),
+          );
         },
       );
 
@@ -462,7 +503,7 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
     double gap,
   ) {
     // 48dp：Android 的最小触控目标（UX02）。原来 38dp 高的行里按钮按内容收缩、只有约 20dp 能点到。
-    const rowHeight = 48.0;
+    final rowHeight = TerminalKeyFeel.of(context).height;
     final rowCount = (order.length / columnCount).ceil();
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -505,206 +546,37 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
     );
   }
 
-  Future<void> _customize(
-    BuildContext context,
-    List<String> current,
-  ) async {
-    final working = [...current];
-    final custom = [...widget.customKeys];
-    final result = await showModalBottomSheet<_QuickKeySettingsResult>(
-      context: context,
-      useSafeArea: true,
-      isScrollControlled: true,
-      builder: (context) => StatefulBuilder(
-        builder: (context, setModalState) {
-          String labelFor(String id) {
-            final builtIn = terminalQuickKeySpecs[id];
-            if (builtIn != null) return builtIn.label;
-            for (final key in custom) {
-              if (key.id == id) return key.label;
-            }
-            return id;
-          }
-
-          return SizedBox(
-            height: MediaQuery.sizeOf(context).height * .78,
-            child: Column(
-              children: [
-                ListTile(
-                  title: const LText('快捷键设置'),
-                  subtitle: const LText('拖动排序；按键会根据屏幕宽度自动换行'),
-                  trailing: TextButton(
-                    onPressed: () => setModalState(() {
-                      working
-                        ..clear()
-                        ..addAll(defaultTerminalQuickKeys);
-                      custom.clear();
-                    }),
-                    child: const LText('恢复默认'),
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: OutlinedButton.icon(
-                      onPressed: () async {
-                        final key = await _editCustomKey(context);
-                        if (key == null) return;
-                        setModalState(() {
-                          custom.add(key);
-                          working.add(key.id);
-                        });
-                      },
-                      icon: const Icon(Icons.add),
-                      label: const LText('添加自定义快捷键'),
-                    ),
-                  ),
-                ),
-                const Divider(height: 1),
-                Expanded(
-                  child: ReorderableListView.builder(
-                    itemCount: working.length,
-                    onReorderItem: (oldIndex, newIndex) => setModalState(() {
-                      final value = working.removeAt(oldIndex);
-                      working.insert(newIndex, value);
-                    }),
-                    itemBuilder: (context, index) {
-                      final id = working[index];
-                      final customIndex =
-                          custom.indexWhere((key) => key.id == id);
-                      return ListTile(
-                        key: ValueKey(id),
-                        leading: const Icon(Icons.drag_handle),
-                        title: LText(labelFor(id)),
-                        subtitle: customIndex < 0
-                            ? const LText('内置按键')
-                            : LText('发送：${custom[customIndex].value}'),
-                        trailing: customIndex < 0
-                            ? null
-                            : Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  IconButton(
-                                    tooltip: localized('编辑'),
-                                    onPressed: () async {
-                                      final key = await _editCustomKey(
-                                        context,
-                                        initial: custom[customIndex],
-                                      );
-                                      if (key == null) return;
-                                      setModalState(() {
-                                        custom[customIndex] = key;
-                                      });
-                                    },
-                                    icon: const Icon(Icons.edit_outlined),
-                                  ),
-                                  IconButton(
-                                    tooltip: localized('删除'),
-                                    onPressed: () => setModalState(() {
-                                      custom.removeAt(customIndex);
-                                      working.remove(id);
-                                    }),
-                                    icon: const Icon(Icons.delete_outline),
-                                  ),
-                                ],
-                              ),
-                      );
-                    },
-                  ),
-                ),
-                Padding(
-                  padding: const EdgeInsets.all(16),
-                  child: SizedBox(
-                    width: double.infinity,
-                    child: FilledButton(
-                      onPressed: () => Navigator.pop(
-                        context,
-                        _QuickKeySettingsResult(working, custom),
-                      ),
-                      child: const LText('保存快捷键'),
-                    ),
-                  ),
-                ),
-              ],
-            ),
-          );
-        },
-      ),
+  Future<void> _customize(BuildContext context) async {
+    final definitions = _definitions;
+    final result = await showTerminalKeySettings(
+      context,
+      globalOrder: _globalOrder(definitions),
+      customKeys: widget.customKeys,
+      hostLabel: widget.onSaveHostOrder == null ? null : widget.hostLabel,
+      hostOrder: _hostOrder(definitions),
     );
     if (result == null) return;
-    final settings = ref.read(settingsControllerProvider);
-    await ref.read(settingsControllerProvider.notifier).update(
-          settings.copyWith(
-            terminalQuickKeys: result.order,
-            terminalCustomKeys: result.customKeys,
-          ),
+    if (!context.mounted) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final settings = ref.read(settingsControllerProvider);
+      await ref.read(settingsControllerProvider.notifier).update(
+            settings.copyWith(
+              terminalQuickKeys: result.hostScope ? null : result.order,
+              terminalQuickKeysExact: result.hostScope ? null : true,
+              terminalCustomKeys: result.customKeys,
+            ),
+          );
+      // 这台主机本来就跟全局：不碰保险库，每写一次都要加密落盘。
+      if (result.hostScope || widget.hostOrder != null) {
+        await widget.onSaveHostOrder?.call(
+          result.hostScope ? result.order : null,
         );
+      }
+    } catch (error) {
+      messenger.showSnackBar(
+        SnackBar(content: LText('快捷键没存上：$error')),
+      );
+    }
   }
-
-  Future<TerminalCustomKey?> _editCustomKey(
-    BuildContext context, {
-    TerminalCustomKey? initial,
-  }) async {
-    final label = TextEditingController(text: initial?.label);
-    final value = TextEditingController(text: initial?.value);
-    return showDialog<TerminalCustomKey>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: LText(initial == null ? '添加自定义快捷键' : '编辑自定义快捷键'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              controller: label,
-              autofocus: true,
-              decoration: LInputDecoration(
-                labelText: '显示名称',
-                hintText: '例如：清屏',
-              ),
-            ),
-            const SizedBox(height: 10),
-            TextField(
-              controller: value,
-              decoration: LInputDecoration(
-                labelText: '发送内容',
-                hintText: r'例如：clear\n 或 \x03',
-                helperText: r'支持 \n、\t、\e 和 \xNN 转义',
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const LText('取消'),
-          ),
-          FilledButton(
-            onPressed: () {
-              final keyLabel = label.text.trim();
-              final keyValue = value.text;
-              if (keyLabel.isEmpty || keyValue.isEmpty) return;
-              Navigator.pop(
-                context,
-                TerminalCustomKey(
-                  id: initial?.id ??
-                      'custom-${DateTime.now().microsecondsSinceEpoch}',
-                  label: keyLabel,
-                  value: keyValue,
-                ),
-              );
-            },
-            child: const LText('确定'),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _QuickKeySettingsResult {
-  const _QuickKeySettingsResult(this.order, this.customKeys);
-
-  final List<String> order;
-  final List<TerminalCustomKey> customKeys;
 }

@@ -78,6 +78,13 @@ final ctrlDKey = ctrlLetterKey('D');
 final ctrlZKey = ctrlLetterKey('Z');
 final ctrlLKey = ctrlLetterKey('L');
 
+/// 反向 Tab：Claude Code 切模式、补全往回翻。CSI Z 是标准序列，不看键盘模式。
+const shiftTabKey = TerminalKeySpec(
+  '⇧Tab',
+  text: '\x1b[Z',
+  semanticsLabel: 'Shift+Tab',
+);
+
 const functionKeys = <TerminalKeySpec>[
   TerminalKeySpec('F1', special: TerminalSpecialKey.f1),
   TerminalKeySpec('F2', special: TerminalSpecialKey.f2),
@@ -164,4 +171,16 @@ final terminalQuickKeySpecs = <String, TerminalKeySpec>{
   'pipe': symbolKey('|'),
   'slash': symbolKey('/'),
   'tilde': symbolKey('~'),
+  'ctrlB': ctrlLetterKey('B'),
+  'ctrlR': ctrlLetterKey('R'),
+  'shiftTab': shiftTabKey,
+  'enter': enterKey,
+  'backspace': backspaceKey,
+  'delete': deleteKey,
+  'colon': symbolKey(':'),
+  'at': symbolKey('@'),
+  'bang': symbolKey('!'),
+  'backslash': symbolKey('\\'),
+  'dollar': symbolKey(r'$'),
+  'minus': symbolKey('-'),
 };

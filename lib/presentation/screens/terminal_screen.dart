@@ -20,13 +20,13 @@ import '../../application/terminal_engine.dart';
 import '../../application/app_lock.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/credential_identity.dart';
-import '../../domain/vault_secrets.dart';
-import '../../infrastructure/device_auth.dart';
 import '../../domain/host_identity.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/settings.dart';
 import '../../domain/plugins/mosh_install_hint.dart';
 import '../../domain/route_description.dart';
+import '../../domain/vault_secrets.dart';
+import '../../infrastructure/device_auth.dart';
 import '../../infrastructure/ai/ai_service.dart';
 import '../widgets/ai_panel.dart';
 import '../widgets/ai_cli_tools_sheet.dart';
@@ -117,6 +117,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
     super.dispose();
   }
 
+  /// 现在打字发往的那一格。build 时记下来：键盘收起不走 build 的流程。
+  ActiveTerminalSession? _currentInput;
+
   /// 输入换了一格：上一格快捷键栏挂着的修饰键清掉，免得回去时第一个字成了控制键（TER04）。
   /// 切标签也走这里：新标签的终端一挂上就自动拿焦点。
   void _focusPane(String sessionId) {
@@ -124,6 +127,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
     _sessionById(_inputSessionId)?.terminal.input.clearModifiers();
     setState(() => _inputSessionId = sessionId);
   }
+
+  @override
+  void _clearInputModifiers() => _currentInput?.terminal.input.clearModifiers();
 
   /// 硬件键盘在某一格里按了粘贴快捷键：发给那一格，走和快捷键栏一样的预览（R19）。
   void _pasteInto(ActiveTerminalSession session) =>
@@ -184,6 +190,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                 )
                 .firstOrNull ??
             visibleSession;
+    _currentInput = inputSession;
     // 关掉的标签留下的大输入框草稿挪到一边，不跟着标签丢（R25）。
     ref.listen(sessionControllerProvider, (_, next) {
       _drafts.forgetClosedTabs(next.sessions.map((session) => session.id));
@@ -207,28 +214,40 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
       },
       child: SafeArea(
         child: LayoutBuilder(
-          builder: (context, constraints) => _buildPage(
-            context,
-            state: state,
-            settings: settings,
-            snippets: snippets,
-            selectedPending: selectedPending,
-            visibleSession: visibleSession,
-            inputSession: inputSession,
-            splitShown: splitShown,
-            fullscreen: fullscreen,
-            pictureInPicture: pictureInPicture,
-            customBackground: customBackground,
-            tabHosts: tabHosts,
-            inputMode: mode,
-            panelVisible: panelVisible,
-            layout: _measureInput(
+          builder: (context, constraints) {
+            final layout = _measureInput(
               context,
               constraints,
               panelVisible: panelVisible,
               fullscreen: fullscreen,
-            ),
-          ),
+            );
+            return TerminalKeyFeel(
+              // 横屏弹键盘时终端本来只剩一百多 dp，键再高就没地方了。
+              height: layout.tight
+                  ? defaultTerminalKeyHeight
+                  : settings.terminalKeyHeight,
+              haptics: settings.terminalKeyHaptics,
+              repeatInterval:
+                  Duration(milliseconds: settings.terminalKeyRepeatMs),
+              child: _buildPage(
+                context,
+                state: state,
+                settings: settings,
+                snippets: snippets,
+                selectedPending: selectedPending,
+                visibleSession: visibleSession,
+                inputSession: inputSession,
+                splitShown: splitShown,
+                fullscreen: fullscreen,
+                pictureInPicture: pictureInPicture,
+                customBackground: customBackground,
+                tabHosts: tabHosts,
+                inputMode: mode,
+                panelVisible: panelVisible,
+                layout: layout,
+              ),
+            );
+          },
         ),
       ),
     );
@@ -568,6 +587,12 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                 TerminalSpecialKeys(
                   key: const ValueKey('terminal-quick-keys'),
                   order: settings.terminalQuickKeys,
+                  exactOrder: settings.terminalQuickKeysExact,
+                  hostOrder: _vaultHostOf(inputSession)?.terminalKeys,
+                  hostLabel: _vaultHostOf(inputSession)?.label,
+                  onSaveHostOrder: _vaultHostOf(inputSession) == null
+                      ? null
+                      : (order) => _saveHostKeys(inputSession, order),
                   customKeys: settings.terminalCustomKeys,
                   inputController: inputSession.input,
                   onSend: (text, {bool enter = false}) => ref
@@ -867,6 +892,26 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
       session.isSsh && session.connected
           ? () => _openPerformanceMonitor(session)
           : null;
+
+  /// 这个标签对应的保险库主机（临时标签按来源找）。没进保险库的临时连接是 null。
+  HostProfile? _vaultHostOf(ActiveTerminalSession session) {
+    final id = sourceHostIdOf(session.host);
+    return ref
+        .read(vaultControllerProvider)
+        .data
+        ?.hosts
+        .where((host) => host.id == id)
+        .firstOrNull;
+  }
+
+  Future<void> _saveHostKeys(
+    ActiveTerminalSession session,
+    List<String>? order,
+  ) =>
+      ref.read(vaultControllerProvider.notifier).updateHost(
+            sourceHostIdOf(session.host),
+            (current) => current.withTerminalKeys(order),
+          );
 
   /// sudo 键（R66）：连着的 SSH 标签，这台主机存了密码才有。只有 Android 有系统验证的通道。
   VoidCallback? _hostPasswordFor(ActiveTerminalSession session) {

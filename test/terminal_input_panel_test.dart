@@ -125,6 +125,50 @@ void main() {
         expect(page.first.terminal.input.modifiers, {'ctrl'});
       });
 
+      testWidgets('键收起来就熄灭（R45）：收起面板、系统键盘收起；都不向远端发东西', (
+        tester,
+      ) async {
+        final page = await _Page.open(tester, newTerminal);
+        await tester.tap(toggle);
+        await page.settle();
+        await tester.tap(panelKey('Ctrl'));
+        await page.settle();
+        expect(page.first.terminal.input.modifiers, {'ctrl'});
+        // 换页带着走（R25），也不发东西。
+        await tester
+            .tap(find.byKey(const ValueKey('terminal-key-page-symbols')));
+        await page.settle();
+        expect(page.first.terminal.input.modifiers, {'ctrl'});
+        expect(page.sent['first'], isEmpty);
+
+        await tester
+            .tap(find.byKey(const ValueKey('terminal-action-hide-keyboard')));
+        await page.settle();
+        expect(page.first.terminal.input.modifiers, isEmpty);
+        expect(page.sent['first'], isEmpty);
+      });
+
+      testWidgets('系统键盘收完才算收起（R45）；换到面板时键一直在，修饰键带着走', (
+        tester,
+      ) async {
+        final page = await _Page.open(tester, newTerminal);
+        await page.keyboard(280);
+        page.first.terminal.input.setModifiers(const {'alt'});
+        await page.settle();
+        await page.keyboard(0);
+        expect(page.first.terminal.input.modifiers, isEmpty);
+        expect(page.sent['first'], isEmpty);
+
+        await page.keyboard(280);
+        page.first.terminal.input.setModifiers(const {'ctrl'});
+        await page.settle();
+        await tester.tap(toggle);
+        await page.settle();
+        await page.keyboard(0);
+        expect(page.first.terminal.input.modifiers, {'ctrl'});
+        expect(page.sent['first'], isEmpty);
+      });
+
       testWidgets('方向键按住连发、松手就停；从键上起步左右滑是切页，不连发', (tester) async {
         final page = await _Page.open(tester, newTerminal);
         await tester.tap(toggle);

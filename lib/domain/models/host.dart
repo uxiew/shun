@@ -91,6 +91,8 @@ class ProxyProfile {
 const hiddenHostKey = 'shunHidden';
 
 /// Unknown desktop/plugin fields remain in [data] and survive every save/sync.
+const terminalKeysKey = 'terminalKeys';
+
 class HostProfile {
   HostProfile(Map<String, dynamic> value)
       : data = Map<String, dynamic>.from(value);
@@ -234,6 +236,24 @@ class HostProfile {
     if (protocol != null) set('protocol', protocol.name);
     if (pinned != null) set('pinned', pinned);
     if (lastConnectedAt != null) set('lastConnectedAt', lastConnectedAt);
+    return HostProfile(next);
+  }
+
+  /// 这台主机专用的快捷键布局（R45），只有键的 id，没有键的内容。null 表示跟全局。
+  List<String>? get terminalKeys {
+    final keys = (data[terminalKeysKey] as List?)
+        ?.map((key) => key.toString())
+        .toList(growable: false);
+    return keys == null || keys.isEmpty ? null : keys;
+  }
+
+  HostProfile withTerminalKeys(List<String>? keys) {
+    final next = Map<String, dynamic>.from(data);
+    if (keys == null) {
+      next.remove(terminalKeysKey);
+    } else {
+      next[terminalKeysKey] = keys;
+    }
     return HostProfile(next);
   }
 

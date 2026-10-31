@@ -94,6 +94,10 @@ class AppSettings {
     this.autoSyncEnabled = false,
     this.terminalQuickKeys = defaultTerminalQuickKeys,
     this.terminalCustomKeys = const [],
+    this.terminalQuickKeysExact = false,
+    this.terminalKeyHeight = defaultTerminalKeyHeight,
+    this.terminalKeyRepeatMs = defaultTerminalKeyRepeatMs,
+    this.terminalKeyHaptics = false,
   });
 
   factory AppSettings.fromJson(Map<String, dynamic> json) {
@@ -173,6 +177,12 @@ class AppSettings {
       autoSyncEnabled: json['autoSyncEnabled'] == true,
       terminalQuickKeys: order,
       terminalCustomKeys: customKeys,
+      terminalQuickKeysExact: json['terminalQuickKeysExact'] == true,
+      terminalKeyHeight: (json['terminalKeyHeight'] as num?)?.toDouble() ??
+          defaultTerminalKeyHeight,
+      terminalKeyRepeatMs: (json['terminalKeyRepeatMs'] as num?)?.toInt() ??
+          defaultTerminalKeyRepeatMs,
+      terminalKeyHaptics: json['terminalKeyHaptics'] == true,
     );
   }
 
@@ -223,6 +233,19 @@ class AppSettings {
   final List<String> terminalQuickKeys;
   final List<TerminalCustomKey> terminalCustomKeys;
 
+  /// [terminalQuickKeys] 就是用户要的那一套（在快捷键设置里存过）。没存过时，快捷键栏把默认键里缺的补在最后：
+  /// 老用户自己排过的顺序里没有后来新加的键。存过之后再补，用户拿掉的键就又回来了。
+  final bool terminalQuickKeysExact;
+
+  /// 快捷键栏每行多高（dp），见 [terminalKeyHeightChoices]。
+  final double terminalKeyHeight;
+
+  /// 方向键长按时多久发一次（毫秒），见 [terminalKeyRepeatChoices]。
+  final int terminalKeyRepeatMs;
+
+  /// 按键时轻震一下。手机系统的触感反馈关着时不震。
+  final bool terminalKeyHaptics;
+
   AppSettings copyWith({
     String? themeMode,
     String? uiThemeId,
@@ -252,6 +275,10 @@ class AppSettings {
     bool? autoSyncEnabled,
     List<String>? terminalQuickKeys,
     List<TerminalCustomKey>? terminalCustomKeys,
+    bool? terminalQuickKeysExact,
+    double? terminalKeyHeight,
+    int? terminalKeyRepeatMs,
+    bool? terminalKeyHaptics,
   }) =>
       AppSettings(
         themeMode: themeMode ?? this.themeMode,
@@ -292,6 +319,11 @@ class AppSettings {
         autoSyncEnabled: autoSyncEnabled ?? this.autoSyncEnabled,
         terminalQuickKeys: terminalQuickKeys ?? this.terminalQuickKeys,
         terminalCustomKeys: terminalCustomKeys ?? this.terminalCustomKeys,
+        terminalQuickKeysExact:
+            terminalQuickKeysExact ?? this.terminalQuickKeysExact,
+        terminalKeyHeight: terminalKeyHeight ?? this.terminalKeyHeight,
+        terminalKeyRepeatMs: terminalKeyRepeatMs ?? this.terminalKeyRepeatMs,
+        terminalKeyHaptics: terminalKeyHaptics ?? this.terminalKeyHaptics,
       );
 
   Map<String, dynamic> toJson() => {
@@ -324,6 +356,10 @@ class AppSettings {
         'terminalQuickKeys': terminalQuickKeys,
         'terminalCustomKeys':
             terminalCustomKeys.map((key) => key.toJson()).toList(),
+        'terminalQuickKeysExact': terminalQuickKeysExact,
+        'terminalKeyHeight': terminalKeyHeight,
+        'terminalKeyRepeatMs': terminalKeyRepeatMs,
+        'terminalKeyHaptics': terminalKeyHaptics,
       };
 
   static String _serverViewMode(String? value) =>
@@ -441,7 +477,62 @@ const supportedTerminalQuickKeys = <String>[
   'pipe',
   'slash',
   'tilde',
+  // 下面这些是模板用的（R45），也能在快捷键设置里单独加。
+  'ctrlB',
+  'ctrlR',
+  'shiftTab',
+  'enter',
+  'backspace',
+  'delete',
+  'colon',
+  'at',
+  'bang',
+  'backslash',
+  'dollar',
+  'minus',
 ];
+
+/// 一套起点布局。选了只是把列表换成这些键，还能接着改（R45）。
+class TerminalKeyTemplate {
+  const TerminalKeyTemplate(this.id, this.label, this.keys);
+
+  final String id;
+  final String label;
+  final List<String> keys;
+}
+
+/// 每套 14 个，两行放完。方向键都排成倒 T：↑ 在 ↓ 正上方，这是第 5 列。
+const terminalKeyTemplates = <TerminalKeyTemplate>[
+  TerminalKeyTemplate('tmux-vim', 'tmux / vim', [
+    'escape', 'ctrlB', 'colon', 'slash', 'arrowUp', 'pageUp', 'ctrlC', //
+    'tab', 'ctrl', 'alt', 'arrowLeft', 'arrowDown', 'arrowRight', 'pageDown',
+  ]),
+  TerminalKeyTemplate('ai-cli', 'AI 命令行', [
+    'escape', 'shiftTab', 'slash', 'at', 'arrowUp', 'bang', 'ctrlC', //
+    'tab', 'ctrl', 'ctrlR', 'arrowLeft', 'arrowDown', 'arrowRight', 'enter',
+  ]),
+  TerminalKeyTemplate('windows', 'Windows', [
+    'escape', 'pipe', 'backslash', 'dollar', 'arrowUp', 'home', 'ctrlC', //
+    'tab', 'ctrl', 'minus', 'arrowLeft', 'arrowDown', 'arrowRight', 'end',
+  ]),
+];
+
+const defaultTerminalKeyHeight = 48.0;
+
+/// 不给比 48dp 矮的：那是 Android 的最小触控目标（UX02），矮了手指按不准。
+final terminalKeyHeightChoices = <double, String>{
+  defaultTerminalKeyHeight: '标准',
+  56.0: '高',
+  64.0: '更高',
+};
+
+const defaultTerminalKeyRepeatMs = 70;
+
+const terminalKeyRepeatChoices = <int, String>{
+  120: '慢',
+  defaultTerminalKeyRepeatMs: '标准',
+  40: '快',
+};
 
 const legacyDefaultTerminalQuickKeys = <String>[
   'escape',

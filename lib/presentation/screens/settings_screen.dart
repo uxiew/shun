@@ -37,6 +37,7 @@ import '../widgets/hint.dart';
 import '../widgets/secret_content.dart';
 import '../widgets/vault_import_dialog.dart';
 import '../widgets/vault_passphrase_dialog.dart';
+import '../widgets/terminal_key_feel_tiles.dart';
 import 'app_lock_settings_screen.dart';
 import 'app_log_screen.dart';
 import 'connection_log_screen.dart';
@@ -511,6 +512,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             ? null
                             : _setTerminalFullscreenSwipe,
                       ),
+                      const TerminalKeyFeelTiles(),
                       const SizedBox(height: 8),
                       const TerminalEngineStatusTile(),
                     ],
@@ -656,7 +658,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               _header(
                 '数据',
-                hint: '换手机用加密备份，两台手机在同一个 Wi-Fi 也可以扫码互传。不含密码的 JSON 只有配置，导入后要重新填。',
+                hint:
+                    '换手机用加密备份，两台手机在同一个 Wi-Fi 也可以扫码互传。不含密码的 JSON 只有配置，导入后要重新填。',
               ),
               Card(
                 child: Column(

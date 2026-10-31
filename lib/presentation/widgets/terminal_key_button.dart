@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/gestures.dart' show kTouchSlop;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart' show HapticFeedback;
 
 import '../../infrastructure/terminal/terminal_input_controller.dart';
 import '../../infrastructure/terminal/terminal_session_adapter.dart';
@@ -38,7 +39,7 @@ class TerminalKeySpec {
   final bool paste;
   final IconData? icon;
 
-  /// 按住连发（方向键、PgUp/PgDn、退格）：按住 400ms 后每 70ms 发一次。
+  /// 按住连发（方向键、PgUp/PgDn、退格）：按住 400ms 后按 [TerminalKeyFeel.repeatInterval] 连发。
   final bool repeatable;
 
   /// 读屏软件念的名字。键上只有一个符号（`|`、`↑`）时给它，不然 TalkBack 可能念不出来或念成别的。
@@ -90,6 +91,34 @@ class TerminalKeyActions {
   }
 }
 
+/// 按键手感（R45）。设置页改的，快捷键栏和按键面板都读。外面没有这一层（别的页面、测试）就是默认值。
+class TerminalKeyFeel extends InheritedWidget {
+  const TerminalKeyFeel({
+    super.key,
+    this.height = 48,
+    this.haptics = false,
+    this.repeatInterval = const Duration(milliseconds: 70),
+    required super.child,
+  });
+
+  /// 快捷键栏每行多高。面板里的键不看它：它们按面板高度分，本来就比这高。
+  final double height;
+  final bool haptics;
+  final Duration repeatInterval;
+
+  static const _fallback = TerminalKeyFeel(child: SizedBox.shrink());
+
+  /// 手指还按着时也会调到（连发），不能建依赖，所以用 get。
+  static TerminalKeyFeel of(BuildContext context) =>
+      context.getInheritedWidgetOfExactType<TerminalKeyFeel>() ?? _fallback;
+
+  @override
+  bool updateShouldNotify(TerminalKeyFeel oldWidget) =>
+      height != oldWidget.height ||
+      haptics != oldWidget.haptics ||
+      repeatInterval != oldWidget.repeatInterval;
+}
+
 /// 一个键的样子和手感：至少 48dp（UX02），修饰键亮着时有底色，可连发的键按住连发。
 class TerminalKeyButton extends StatefulWidget {
   const TerminalKeyButton({
@@ -121,9 +150,24 @@ class _TerminalKeyButtonState extends State<TerminalKeyButton> {
   bool _suppressNextTap = false;
 
   @override
+  void didUpdateWidget(covariant TerminalKeyButton oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // 同一个位置换了键（切到有专用布局的主机）：手指还按着也要停，不然连发的就成了新键。
+    if (!identical(oldWidget.spec, widget.spec)) {
+      _stopRepeating(clearTapSuppression: true);
+    }
+  }
+
+  @override
   void dispose() {
     _stopRepeating(clearTapSuppression: true);
     super.dispose();
+  }
+
+  void _pressFeedback() {
+    if (TerminalKeyFeel.of(context).haptics) {
+      unawaited(HapticFeedback.selectionClick());
+    }
   }
 
   @override
@@ -193,6 +237,7 @@ class _TerminalKeyButtonState extends State<TerminalKeyButton> {
       _suppressNextTap = false;
       return;
     }
+    _pressFeedback();
     widget.onPressed(widget.spec);
   }
 
@@ -203,9 +248,10 @@ class _TerminalKeyButtonState extends State<TerminalKeyButton> {
     _repeatDelay = Timer(const Duration(milliseconds: 400), () {
       if (!mounted || _repeatPointer != pointer) return;
       _suppressNextTap = true;
+      _pressFeedback();
       widget.onPressed(widget.spec);
       _repeatTimer = Timer.periodic(
-        const Duration(milliseconds: 70),
+        TerminalKeyFeel.of(context).repeatInterval,
         (_) {
           if (mounted && _repeatPointer == pointer) {
             widget.onPressed(widget.spec);
