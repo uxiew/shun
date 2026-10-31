@@ -12,6 +12,8 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shun/infrastructure/http_client_provider.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/infrastructure/tailscale/catalog_cache.dart';
+import 'package:shun/infrastructure/tailscale/catalog_cache_repository.dart';
 import 'package:shun/presentation/screens/settings_screen.dart';
 import 'package:shun/presentation/screens/tailscale_settings_screen.dart';
 import 'package:shun/presentation/theme.dart';
@@ -89,6 +91,7 @@ void main() {
       child: ProviderScope(
         overrides: [
           vaultRepositoryProvider.overrideWithValue(repository),
+          catalogCacheRepositoryProvider.overrideWithValue(_NoCatalog()),
           httpClientProvider.overrideWithValue(MockClient(
               (_) async => http.Response('{"tag_name":"v1.4.7"}', 200))),
         ],
@@ -127,6 +130,9 @@ void main() {
 
   testWidgets('Tailscale 设置', skip: skip != null, (tester) async {
     await pumpPage(tester, const TailscaleSettingsScreen(), height: 1500);
+    await settle(tester);
+    await tester
+        .ensureVisible(find.byKey(const ValueKey('ts-settings-advanced')));
     await tester.tap(find.byKey(const ValueKey('ts-settings-advanced')));
     await save(tester, 'tailscale-settings');
   });
@@ -135,6 +141,16 @@ void main() {
     await pumpPage(tester, const SettingsScreen(), height: 4200);
     await save(tester, 'settings');
   });
+}
+
+/// 真仓库要读写文件，而测试里的假时钟等不到真文件 IO，页面会停在加载中。
+class _NoCatalog extends CatalogCacheRepository {
+  _NoCatalog() : super(() async => Directory.systemTemp);
+
+  @override
+  Future<CatalogCache?> load(String catalogId) async => null;
+  @override
+  Future<List<CatalogCache>> loadAll() async => const [];
 }
 
 Future<void> settle(WidgetTester tester) async {
