@@ -168,8 +168,14 @@ void main() {
     // 画中画那窗是用户要看的：立即锁也不盖。回到全屏也不锁。入口只在终端页，从别的页进窗口太小会布局溢出。
     container.read(homeTabProvider.notifier).state = 1;
     await settle(tester);
-    await tester
-        .tap(find.byKey(const ValueKey('terminal-action-picture-in-picture')));
+    final pipButton =
+        find.byKey(const ValueKey('terminal-action-picture-in-picture'));
+    // 这台存了密码，多了 sudo 键：窄屏上画中画挤进「…」（手册第 9 节）。
+    if (pipButton.evaluate().isEmpty) {
+      await tester.tap(find.byKey(const ValueKey('terminal-action-more')));
+      await settle(tester, 500);
+    }
+    await tester.tap(pipButton);
     await until(
       tester,
       () => container.read(terminalPictureInPictureProvider),
