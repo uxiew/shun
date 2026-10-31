@@ -164,7 +164,7 @@ flutter test test/integration_ssh_fixture_test.dart
     界面上是「正常，这次运行建过的终端：1」才算这个包的原生库在这台设备上能用；测完卸掉。Android 7.0 没有 `getconf`，页大小那项写「读不到」。
     真机上它不用 monkey 启动、每次点之前查前台是本 App 且没锁屏，手机上已装着同名 App 就不跑（卸掉会清所有者的数据）。
   - 外连抓包（BAS02、SYN03）：模拟器带 `-tcpdump <文件>` 启动、装正式包，依次 `python3 tool/r28-bas02-device.py <目录> measure`（没配置，约 2.5 分钟）、`control`（对照，要先起测试环境）、
-    `sync`（在云端备份页配好 S3 点「立即备份」，假服务器在脚本里，约 1.5 分钟），最后 `pcap <文件>` 按时间段列 DNS 和连接。`sync` 段 netstats 是 0 不代表没连：走的是 `adb reverse`，本机回环不计字节，看脚本打印的服务器日志。
+    `sync`（在云端备份页配好 S3 点「立即备份」，再点「从云端恢复」到确认框，取消，核对没多写一次；假服务器在脚本里，约 2 分钟），最后 `pcap <文件>` 按时间段列 DNS 和连接。`sync` 段 netstats 是 0 不代表没连：走的是 `adb reverse`，本机回环不计字节，看脚本打印的服务器日志。
     云端备份页防截屏（R44），这页 `screencap` 得到 0 字节，不是坏了，用 `uiautomator dump` 看。
   - 加密备份走真文件选择器和真安全存储（SYN01）：`python3 tool/r60-backup.py emulator-5580`，约 2 分钟，最后一行是 `退出码 0` 才算过。改了 `VaultCrypto` 或备份逻辑就要重跑。
   - 只要真 App 加测试环境 ssh-edge 的设备测试（SEC14 等）：`SHUN_R39_AVD=shun-r39-a30 python3 tool/fixture-drive.py integration_test/<x>_test.dart`，脚本转端口、用临时文件传凭据（`SHUN_FIXTURE`）、前后清 App 数据。没设 `SHUN_R39_AVD` 会拒绝跑：默认认的是另一个模拟器。
