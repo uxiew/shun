@@ -6,7 +6,7 @@
 
   python3 tool/r28-bas02-device.py <输出目录> measure   # 被测的那些动作
   python3 tool/r28-bas02-device.py <输出目录> control   # 对照：用户自己点「测试连接」，要先起 tool/fixture-environment
-  python3 tool/r28-bas02-device.py <输出目录> sync      # SYN03：在设置页配好 S3（电脑上的假服务器），点「立即同步」，只该连填的地址
+  python3 tool/r28-bas02-device.py <输出目录> sync      # SYN03：在云端备份页配好 S3（电脑上的假服务器），点「立即备份」，只该连填的地址
   python3 tool/r28-bas02-device.py <输出目录> pcap <pcap 文件>   # 都跑完后按时间窗整理抓包
 
 三路互相独立的观察，前两路按 App 的 uid：
@@ -290,7 +290,7 @@ def scroll_to(label):
 
 def sync(out, log):
     """SYN03 后半段。S3 走 http（「允许不安全连接」），经 adb reverse 到电脑：模拟器里凭空起不了 https 假服务器。
-    在用户这条路上走一遍真的设置页。"""
+    在用户这条路上走一遍真的云端备份页。"""
     server = ThreadingHTTPServer(('127.0.0.1', SYNC_PORT), _FakeS3)
     threading.Thread(target=server.serve_forever, daemon=True).start()
     adb('reverse', f'tcp:{SYNC_PORT}', f'tcp:{SYNC_PORT}')
@@ -299,6 +299,8 @@ def sync(out, log):
         log('sync-start', adb('shell', 'am', 'start', '-W', '-n', ACTIVITY))
         time.sleep(6)
         tap('设置\n')
+        time.sleep(2)
+        tap('云端备份', scroll_to('云端备份'))
         time.sleep(2)
         tap('|S3', scroll_to('|S3'))
         time.sleep(1)
@@ -313,8 +315,8 @@ def sync(out, log):
         time.sleep(1)
         fill_next_empty('r61-master-password')
         log('sync-filled', '填好 S3 和主密码')
-        tap('立即同步', scroll_to('立即同步'))
-        log('sync-tapped', '点了立即同步')
+        tap('立即备份', scroll_to('立即备份'))
+        log('sync-tapped', '点了立即备份')
         for _ in range(60):
             time.sleep(1)
             if any(r.startswith('PUT') for r in _FakeS3.requests):

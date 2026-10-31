@@ -212,30 +212,17 @@ void main() {
       );
     });
 
-    test('不是保险库的文件：报一句人话', () {
-      for (final bad in ['not json', '[1,2]', '{"meta":{},"payload":"x']) {
-        expect(
-          () => EncryptedVaultFile.parsePlain(utf8.encode(bad)),
-          throwsA(
-            isA<FormatException>().having(
-              (error) => error.message,
-              'message',
-              EncryptedVaultFile.notAVaultFile,
-            ),
-          ),
-          reason: bad,
-        );
+    test('明文 JSON 和不是保险库的文件：不是备份，调用方报一句人话', () {
+      for (final bad in [
+        'not json',
+        '[1,2]',
+        '{"meta":{},"payload":"x',
+        // 旧版导出的不含密码的 JSON，10-31 起不收了。
+        '{"hosts":[],"keys":[],"snippets":[],"customGroups":[]}',
+      ]) {
+        expect(EncryptedVaultFile.tryParse(utf8.encode(bad)), isNull,
+            reason: bad);
       }
-    });
-
-    test('明文 JSON 被覆盖后留尾巴：也能读', () {
-      final plain = [
-        ...utf8.encode(
-            '{"hosts":[],"keys":[],"snippets":[],"customGroups":["a}"]}'),
-        ...utf8.encode(' "old tail"}]'),
-        0xE4,
-      ];
-      expect(EncryptedVaultFile.parsePlain(plain).customGroups, ['a}']);
     });
 
     test('加解密在后台 isolate：错误能传回来', () async {

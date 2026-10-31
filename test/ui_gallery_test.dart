@@ -14,6 +14,7 @@ import 'package:shun/infrastructure/http_client_provider.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/tailscale/catalog_cache.dart';
 import 'package:shun/infrastructure/tailscale/catalog_cache_repository.dart';
+import 'package:shun/presentation/screens/cloud_backup_screen.dart';
 import 'package:shun/presentation/screens/settings_screen.dart';
 import 'package:shun/presentation/screens/tailscale_settings_screen.dart';
 import 'package:shun/presentation/theme.dart';
@@ -137,9 +138,24 @@ void main() {
     await save(tester, 'tailscale-settings');
   });
 
-  testWidgets('设置页', skip: skip != null, (tester) async {
-    await pumpPage(tester, const SettingsScreen(), height: 4200);
-    await save(tester, 'settings');
+  testWidgets('云端备份 WebDAV', skip: skip != null, (tester) async {
+    await pumpPage(tester, const CloudBackupScreen(), height: 900);
+    await save(tester, 'cloud-backup-webdav');
+  });
+
+  testWidgets('云端备份 S3', skip: skip != null, (tester) async {
+    await pumpPage(tester, const CloudBackupScreen(), height: 1300);
+    await tester.tap(find.text('S3'));
+    await save(tester, 'cloud-backup-s3');
+  });
+
+  // 设置页很长，整页出图缩小后看不清，所以只出要看的这一段。
+  testWidgets('设置页：数据', skip: skip != null, (tester) async {
+    await pumpPage(tester, const SettingsScreen(), height: 900);
+    final row = find.byKey(const ValueKey('settings-cloud-backup'));
+    await tester.scrollUntilVisible(row, 400,
+        scrollable: find.byType(Scrollable).first);
+    await save(tester, 'settings-data');
   });
 }
 

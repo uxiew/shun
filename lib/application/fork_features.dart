@@ -19,11 +19,11 @@ class ForkFeatures {
   /// shu Agent：终端工具栏的 AI 按钮、设置页的 AI 服务商入口。
   final bool ai;
 
-  /// 设置页的云同步区与自动同步。打开不等于外连：用户填好地址和主密码之前没有任何同步请求（BAS02、SYN03）。
+  /// 云端备份页与自动备份。打开不等于外连：用户填好地址和主密码之前没有任何同步请求（BAS02、SYN03）。
   /// 关着时即使本地 settings 残留 `autoSyncEnabled=true` 也不会启动同步。
   final bool cloudSync;
 
-  /// 云同步里的 GitHub Gist。默认关：登录用的 OAuth clientId 是上游的，换成自己的要所有者在 GitHub 注册。
+  /// 云端备份里的 GitHub Gist。默认关：登录用的 OAuth clientId 是上游的，换成自己的要所有者在 GitHub 注册。
   final bool githubSync;
 
   /// 设置页的"检查更新"。上游实现会在冷启动时请求

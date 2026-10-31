@@ -227,7 +227,7 @@ class SnippetsScreen extends ConsumerWidget {
             content: LText(
               ref.read(forkFeaturesProvider).cloudSync &&
                       ref.read(settingsControllerProvider).autoSyncEnabled
-                  ? '将删除“${snippet.label}”，此操作可通过云同步传播到其他设备。'
+                  ? '将删除“${snippet.label}”，此操作可通过云端备份传播到其他设备。'
                   : '将删除“${snippet.label}”，删了不能撤销。',
             ),
             actions: [

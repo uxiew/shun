@@ -180,7 +180,7 @@ void main() {
     await open(tester);
     await tester.tap(find.byKey(const ValueKey('app-log-clear')));
     await tester.pumpAndSettle();
-    expect(find.textContaining('同步 2 条和连接 1 条'), findsOneWidget);
+    expect(find.textContaining('备份 2 条和连接 1 条'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('app-log-clear-confirm')));
     await tester.pumpAndSettle();
     expect(container.read(appLogProvider), isEmpty);

@@ -453,7 +453,7 @@ class _AiChatSheetState extends State<AiChatSheet> {
                         SwitchListTile(
                             contentPadding: EdgeInsets.zero,
                             title: const LText('在本机保存聊天历史'),
-                            subtitle: const LText('关闭会删除该服务器已保存的历史；不进行云同步'),
+                            subtitle: const LText('关闭会删除该服务器已保存的历史；不进云端备份'),
                             value: _remember,
                             onChanged: (v) async {
                               try {

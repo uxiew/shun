@@ -270,7 +270,7 @@ void main() {
       expect(scanner.calls, 1);
       await tester.tap(find.byKey(const ValueKey('vault-import-merge')));
       await tester.pump();
-      await waitFor(tester, find.textContaining('导入完成'));
+      await waitFor(tester, find.textContaining('恢复完成'));
       expect(
         repository.stored.hosts.map((host) => host.id),
         containsAll(['local', 'incoming']),

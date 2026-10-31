@@ -167,8 +167,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('vault-import-merge')));
     await waitFor(
       tester,
-      () => find.textContaining('导入完成').evaluate().isNotEmpty,
-      what: '导入完成',
+      () => find.textContaining('恢复完成').evaluate().isNotEmpty,
+      what: '恢复完成',
     );
     await settle(tester);
     report('receive.done', true);

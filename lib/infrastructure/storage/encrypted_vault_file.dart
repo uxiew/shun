@@ -4,17 +4,17 @@ import 'dart:typed_data';
 import '../../domain/models/vault.dart';
 import '../sync/vault_crypto.dart';
 
-/// 带凭据的加密备份文件（R60）。格式就是云同步的 `{meta, payload}`（[VaultCrypto]），没有再造一种。
+/// 带凭据的加密备份文件（R60）。格式就是云端备份的 `{meta, payload}`（[VaultCrypto]），没有再造一种。
 ///
-/// 和云同步一样，文件离开手机后就能被离线猜口令，所以口令不能短（[minPassphraseLength]）。
+/// 和云端备份一样，文件离开手机后就能被离线猜口令，所以口令不能短（[minPassphraseLength]）。
 class EncryptedVaultFile {
   const EncryptedVaultFile._();
 
   static const minPassphraseLength = 12;
   static const passphraseTooShort = '至少 12 位';
 
-  /// 文件能打开，但不是加密备份，也不是保险库 JSON。
-  static const notAVaultFile = '不是保险库文件，或者文件已损坏';
+  /// 文件能打开，但不是加密备份。以前能导入的明文 JSON（Netcatty 格式）2026-10-31 起不收了（所有者定的）。
+  static const notABackup = '不是 shun 的加密备份，或者文件已损坏';
 
   static const iterationsRejected = '文件的密钥派生次数超出范围，没有解密：可能被改过，也可能是更新版本导出的';
 
@@ -48,7 +48,7 @@ class EncryptedVaultFile {
         jsonDecode(jsonEncode(json)) as Map<String, dynamic>);
   }
 
-  /// 这些字节是不是加密备份。不是就返回 null，调用方按明文 JSON 处理。
+  /// 这些字节是不是加密备份。不是就返回 null，调用方报 [notABackup]。
   ///
   /// 文件尾部多出来的东西不理：短内容盖长文件可能不截断（file_picker 写的都这样，现在自己写的见
   /// DocumentTreeChannel.saveDocument），直接 `jsonDecode` 会报错，备份就打不开了。内容有 GCM 校验，尾巴影响不到它。
@@ -93,23 +93,6 @@ class EncryptedVaultFile {
       }
     }
     return null;
-  }
-
-  /// 明文 JSON（不含密码的导出、桌面端解密后导出的）。不是保险库或文件坏了抛 [FormatException]。
-  static VaultData parsePlain(List<int> bytes) {
-    try {
-      // 同样可能留着尾巴，见 [tryParse]。
-      final text = utf8.decode(bytes, allowMalformed: true);
-      final end = _endOfFirstObject(text);
-      if (end == null) throw const FormatException(notAVaultFile);
-      return VaultData.fromJson(
-        jsonDecode(text.substring(0, end)) as Map<String, dynamic>,
-      );
-    } on FormatException {
-      throw const FormatException(notAVaultFile);
-    } on TypeError {
-      throw const FormatException(notAVaultFile);
-    }
   }
 
   /// 解密。口令不对、文件被改过都抛 [FormatException]，消息能直接给人看。

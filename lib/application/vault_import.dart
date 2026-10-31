@@ -104,7 +104,7 @@ class VaultImportPlan {
   /// 受信指纹两种方式都只留本机的、文件里的一条不收：指纹记录的意思是「在这台手机上核对过」，
   /// 一个文件担保不了。以前文件里本机没有的指纹直接加进来（替换时整份用文件的），等于让文件替用户
   /// 点了「接受并记住」：改过的文件能先埋下攻击者的指纹，之后的中间人连核对框都不会触发。
-  /// 云同步也是这么对待指纹的（`retainLocalDeviceData`）。
+  /// 云端备份也是这么对待指纹的（`retainLocalDeviceData`）。
   VaultData result(VaultImportMode mode) => keepLocalSecrets(
         _withLocalFingerprints(
           mode == VaultImportMode.merge ? _merge(incoming, local) : incoming,

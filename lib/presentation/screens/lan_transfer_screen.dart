@@ -292,7 +292,7 @@ class _Outcome extends StatelessWidget {
 
 Future<List<int>> _receive(LanPairing pairing) => receiveLanTransfer(pairing);
 
-/// 接收方：打开就扫码，拿到内容走和导入文件一样的确认框。
+/// 接收方：打开就扫码，拿到内容走和从文件恢复一样的确认框。
 class LanReceiveScreen extends ConsumerStatefulWidget {
   const LanReceiveScreen({
     super.key,

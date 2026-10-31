@@ -1,6 +1,5 @@
 import 'dart:convert';
 
-import 'package:file_picker/file_picker.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/application/vault_controller.dart';
@@ -9,7 +8,6 @@ import 'package:shun/domain/models/host.dart';
 import 'package:shun/domain/models/vault.dart';
 import 'package:shun/domain/vault_secrets.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
-import 'package:shun/infrastructure/storage/vault_export_service.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
@@ -192,26 +190,6 @@ void main() {
       expect(vault.keys.single.privateKey, privateKey);
       expect(((vault.extras['identities'] as List).single as Map)['password'],
           identityPw);
-    });
-
-    test('导出文件里没有任何凭据', () async {
-      Uint8List? saved;
-      final service = VaultExportService(
-        pickerWritesBytes: true,
-        saveFile: ({
-          dialogTitle,
-          fileName,
-          type = FileType.any,
-          allowedExtensions,
-          bytes,
-        }) async {
-          saved = bytes;
-          return '/document/export.json';
-        },
-      );
-      await service.export(sampleVault());
-      expectNoSecrets(utf8.decode(saved!), where: '导出文件');
-      expect(utf8.decode(saved!), contains('x-desktop-only'));
     });
   });
 

@@ -3,20 +3,20 @@ import 'package:flutter/material.dart';
 import '../../application/vault_import.dart';
 import '../localization/localized_widgets.dart';
 
-/// 导入完告诉用户的那句话。
+/// 恢复完告诉用户的那句话。
 String vaultImportSummary(VaultImportPlan plan, VaultImportMode mode) {
   final added = plan.addedHosts.length;
   final updated = plan.updatedHosts.length;
   final localOnly = plan.localOnlyHosts.length;
   return mode == VaultImportMode.merge
-      ? '导入完成（合并）：新增主机 $added 台，更新主机 $updated 台，本机独有的主机保留：$localOnly'
-      : '导入完成（替换）：现在共有主机 ${added + updated} 台，删除了本机独有的主机：$localOnly';
+      ? '恢复完成（合并）：新增主机 $added 台，更新主机 $updated 台，本机独有的主机保留：$localOnly'
+      : '恢复完成（替换）：现在共有主机 ${added + updated} 台，删除了本机独有的主机：$localOnly';
 }
 
-/// 导入前的确认框：说清楚会新增、更新、删除什么，哪些凭据要重新填。返回用户选的方式，取消返回 null。
+/// 恢复前的确认框（文件、云端、手机互传都用它）：说清楚会新增、更新、删除什么，哪些凭据要重新填。返回用户选的方式，取消返回 null。
 ///
 /// 本机有独有条目时才出现「替换」，而且不是默认按钮：替换会连同密码和私钥一起删，
-/// 导出文件又不带凭据，删了就找不回来。主机名等用户数据用普通 Text 显示，不走翻译。
+/// 删了就找不回来。主机名等用户数据用普通 Text 显示，不走翻译。
 Future<VaultImportMode?> confirmVaultImport(
   BuildContext context,
   VaultImportPlan plan,
@@ -26,7 +26,7 @@ Future<VaultImportMode?> confirmVaultImport(
   final added = plan.addedHosts.length;
   final updated = plan.updatedHosts.length;
   final summary =
-      '文件里有 $fileHosts 台主机：本机没有的 $added 台会新增，本机已有的 $updated 台以文件为准更新。';
+      '备份里有 $fileHosts 台主机：本机没有的 $added 台会新增，本机已有的 $updated 台以备份为准更新。';
   final localOnly = <(String, List<String>)>[
     ('主机', [for (final value in plan.localOnlyHosts) value.label]),
     ('私钥', [for (final value in plan.localOnlyKeys) value.label]),
@@ -37,8 +37,8 @@ Future<VaultImportMode?> confirmVaultImport(
   return showDialog<VaultImportMode>(
     context: context,
     builder: (context) => AlertDialog(
-      icon: const Icon(Icons.file_download_outlined),
-      title: const LText('导入保险库文件'),
+      icon: const Icon(Icons.settings_backup_restore),
+      title: const LText('恢复备份'),
       content: SingleChildScrollView(
         child: Column(
           mainAxisSize: MainAxisSize.min,
@@ -48,30 +48,30 @@ Future<VaultImportMode?> confirmVaultImport(
             if (plan.hasLocalOnly) ...[
               const SizedBox(height: 12),
               const LText(
-                '本机有、文件里没有的：',
+                '本机有、备份里没有的：',
                 style: TextStyle(fontWeight: FontWeight.w600),
               ),
               for (final (label, names) in localOnly)
                 _NamedCount(label: label, names: names),
               const SizedBox(height: 4),
               LText(
-                '选「合并」会保留它们。选「替换」会把它们连同密码和私钥一起删除，之后再导入不带凭据的备份也找不回来。',
+                '选「合并」会保留它们。选「替换」会把它们连同密码和私钥一起删除，删了找不回来。',
                 style: TextStyle(color: theme.colorScheme.error),
               ),
             ],
             if (plan.credentialsNotCarried.isNotEmpty) ...[
               const SizedBox(height: 12),
-              const LText('这些条目的地址、端口或用户名和本机不同，本机存的密码不会沿用，导入后要重新填：'),
+              const LText('这些条目的地址、端口或用户名和本机不同，本机存的密码不会沿用，恢复后要重新填：'),
               Text(plan.credentialsNotCarried.join('、')),
             ],
             if (keys.isNotEmpty) ...[
               const SizedBox(height: 12),
-              const LText('这些私钥在文件里只有名字、没有内容（本 App 导出的文件不带私钥），导入后要重新导入私钥：'),
+              const LText('这些私钥在备份里只有名字、没有内容，恢复后要重新导入私钥：'),
               Text(keys.join('、')),
             ],
             if (plan.fingerprintsNotImported > 0) ...[
               const SizedBox(height: 12),
-              const LText('文件里的服务器指纹不导入：本机没核对过的服务器，第一次连接时会请你重新核对。'),
+              const LText('服务器指纹不恢复：本机没核对过的服务器，第一次连接时会请你重新核对。'),
             ],
           ],
         ),
@@ -94,7 +94,7 @@ Future<VaultImportMode?> confirmVaultImport(
         FilledButton(
           key: const ValueKey('vault-import-merge'),
           onPressed: () => Navigator.pop(context, VaultImportMode.merge),
-          child: LText(plan.hasLocalOnly ? '合并' : '导入'),
+          child: LText(plan.hasLocalOnly ? '合并' : '确认恢复'),
         ),
       ],
     ),

@@ -330,7 +330,7 @@ void main() {
 
     testWidgets('有本机独有条目：点名列出，替换不是默认按钮，三种选择各自返回', (tester) async {
       await pick(tester, plan, null);
-      expect(find.textContaining('文件里有 3 台主机'), findsOneWidget);
+      expect(find.textContaining('备份里有 3 台主机'), findsOneWidget);
       expect(find.textContaining('hop'), findsOneWidget);
       expect(find.textContaining('old'), findsOneWidget);
       expect(find.textContaining('home'), findsOneWidget);
@@ -351,7 +351,7 @@ void main() {
     testWidgets('没有本机独有条目：只有取消和导入，没有替换', (tester) async {
       final same = planVaultImport(localVault(), localVault());
       await pick(tester, same, null);
-      expect(find.widgetWithText(FilledButton, '导入'), findsOneWidget);
+      expect(find.widgetWithText(FilledButton, '确认恢复'), findsOneWidget);
       expect(find.byKey(const ValueKey('vault-import-replace')), findsNothing);
     });
 
@@ -360,21 +360,21 @@ void main() {
       addTearDown(() => ShunLocalizations.use('zh'));
       await pick(tester, plan, null);
       expect(
-        find.text('The file has 3 hosts: 1 will be added and 2 existing ones '
-            'will be updated from the file.'),
+        find.text('The backup has 3 hosts: 1 will be added and 2 existing ones '
+            'will be updated from the backup.'),
         findsOneWidget,
       );
       expect(find.widgetWithText(FilledButton, 'Merge'), findsOneWidget);
       expect(find.widgetWithText(TextButton, 'Replace'), findsOneWidget);
       expect(find.text('db'), findsOneWidget);
       expect(
-        ShunLocalizations.text('导入完成（合并）：新增主机 1 台，更新主机 2 台，本机独有的主机保留：1'),
-        'Imported (merge): hosts added 1, hosts updated 2, local-only hosts kept 1',
+        ShunLocalizations.text('恢复完成（合并）：新增主机 1 台，更新主机 2 台，本机独有的主机保留：1'),
+        'Restored (merge): hosts added 1, hosts updated 2, local-only hosts kept 1',
       );
       expect(
-        ShunLocalizations.text('导入失败：${const VaultChangedDuringImport()}'),
-        'Import failed: The vault on this device changed while you were '
-        'confirming; nothing was imported. Choose the file again.',
+        ShunLocalizations.text('恢复失败：${const VaultChangedDuringImport()}'),
+        'Restore failed: Data on this device changed while you were '
+        'confirming; nothing was restored. Try again.',
       );
     });
   });

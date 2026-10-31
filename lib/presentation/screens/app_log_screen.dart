@@ -12,7 +12,7 @@ import '../widgets/connection_event_text.dart';
 import '../widgets/connection_event_tile.dart';
 import '../widgets/hint.dart';
 
-/// 日志页（R26 F24）：崩溃、出错、同步（[AppLog]）和连接（[ConnectionEventLog]，R25）合在一起，新的在上。
+/// 日志页（R26 F24）：崩溃、出错、备份（[AppLog]）和连接（[ConnectionEventLog]，R25）合在一起，新的在上。
 ///
 /// 只读本机记录，不连任何东西：打开它不会去探主机，也不会触发重连。名字按保险库现在的查（记录里只有 ID），导出不查名字。
 /// 给了 [hostId] 只看这一台的连接（主机 ⋮ 菜单、连接失败页进来），不给是整份日志（设置里进来）。
@@ -28,14 +28,14 @@ class AppLogScreen extends ConsumerStatefulWidget {
 enum _Filter { all, crash, error, connection, sync }
 
 const _logHint =
-    '只存在这部手机上，不上传、不进备份和同步。地址、用户名、令牌写进来之前就换成了「<IP>」这类记号。崩溃、出错、同步留 14 天，连接留 7 天。';
+    '只存在这部手机上，不上传、不进备份。地址、用户名、令牌写进来之前就换成了「<IP>」这类记号。崩溃、出错、备份留 14 天，连接留 7 天。';
 
 String _filterLabel(_Filter filter) => switch (filter) {
       _Filter.all => '全部',
       _Filter.crash => '崩溃',
       _Filter.error => '出错',
       _Filter.connection => '连接',
-      _Filter.sync => '同步',
+      _Filter.sync => '备份',
     };
 
 _Filter _filterOf(AppLogKind kind) => switch (kind) {
@@ -341,7 +341,7 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
         title: LText(hostId == null ? '清除全部日志？' : '清除这台主机的连接日志？'),
         content: Text(
           hostId == null
-              ? localized('会删掉崩溃、出错、同步 {a} 条和连接 {b} 条，删了找不回来。主机和连着的标签都不动。')
+              ? localized('会删掉崩溃、出错、备份 {a} 条和连接 {b} 条，删了找不回来。主机和连着的标签都不动。')
                   .replaceAll('{a}', '$logCount')
                   .replaceAll('{b}', '$connectionCount')
               : localized('会删掉 {n} 条，删了找不回来。主机、连着的标签和保险库都不动。')
@@ -400,7 +400,7 @@ String formatAppLogEntry(AppLogEntry entry) {
   ].join('\n');
 }
 
-/// 导出整份日志：崩溃、出错、同步在前（新的在上），连接用 [exportConnectionEvents] 的写法（主机只写编号）。
+/// 导出整份日志：崩溃、出错、备份在前（新的在上），连接用 [exportConnectionEvents] 的写法（主机只写编号）。
 String exportAppLog(
   List<AppLogEntry> entries,
   List<ConnectionEvent> events, {
@@ -410,7 +410,7 @@ String exportAppLog(
   return [
     'shun ${localized('日志')} · ${formatConnectionEventTime(now)}',
     '',
-    '== ${localized('崩溃、出错、同步')}（${newest.length}）',
+    '== ${localized('崩溃、出错、备份')}（${newest.length}）',
     for (final entry in newest) '${formatAppLogEntry(entry)}\n',
     '== ${localized('连接')}（${events.length}）',
     if (events.isNotEmpty) exportConnectionEvents(events, now: now),

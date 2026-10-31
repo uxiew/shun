@@ -888,7 +888,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
             // 没开自动同步就不说「会传到其他设备」，那句是上游留下的。
             content: LText(ref.read(forkFeaturesProvider).cloudSync &&
                     ref.read(settingsControllerProvider).autoSyncEnabled
-                ? '将从保险库中删除“${host.label}”，此操作可通过云同步传播到其他设备。'
+                ? '将从保险库中删除“${host.label}”，此操作可通过云端备份传播到其他设备。'
                 : '将从保险库中删除“${host.label}”，删了不能撤销。'),
             actions: [
               TextButton(

@@ -4,26 +4,20 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:flutter/services.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-import '../../application/auto_sync_controller.dart';
 import '../../application/fork_features.dart';
 import '../../application/settings_controller.dart';
 import '../../application/vault_controller.dart';
 import '../../application/vault_import.dart';
 import '../../domain/models/settings.dart';
-import '../../domain/models/vault.dart';
 import '../../infrastructure/storage/background_image_service.dart';
 import '../../infrastructure/storage/picked_files.dart';
 import '../../infrastructure/storage/encrypted_vault_file.dart';
 import '../../infrastructure/storage/vault_repository.dart';
 import '../../infrastructure/storage/vault_export_service.dart';
 import '../../infrastructure/http_client_provider.dart';
-import '../../infrastructure/sync/cloud_sync_service.dart';
-import '../../infrastructure/sync/sync_safety.dart';
-import '../../infrastructure/sync/github_auth_service.dart';
 import '../../infrastructure/update_check_service.dart';
 import '../theme.dart';
 import '../localization/localized_widgets.dart';
@@ -33,14 +27,13 @@ import '../widgets/proxy_profiles_page.dart';
 import '../widgets/terminal_engine_status.dart';
 import '../widgets/custom_background.dart';
 import '../widgets/ai_providers_page.dart';
-import '../widgets/github_manual_config.dart';
 import '../widgets/hint.dart';
-import '../widgets/secret_content.dart';
 import '../widgets/vault_import_dialog.dart';
 import '../widgets/vault_passphrase_dialog.dart';
 import '../widgets/terminal_key_feel_tiles.dart';
 import 'app_lock_settings_screen.dart';
 import 'app_log_screen.dart';
+import 'cloud_backup_screen.dart';
 import 'known_hosts_screen.dart';
 import 'lan_transfer_screen.dart';
 import 'plugins_screen.dart';
@@ -62,19 +55,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   UpdateCheckService? _updateCheckService;
   final _backgroundImageService = BackgroundImageService();
   late Future<UpdateCheckResult> _updateCheck;
-  final endpoint = TextEditingController();
-  final username = TextEditingController();
-  final providerSecret = TextEditingController();
-  final resourceId = TextEditingController();
-  final s3Region = TextEditingController(text: 'us-east-1');
-  final s3Bucket = TextEditingController();
-  final s3AccessKeyId = TextEditingController();
-  final s3SessionToken = TextEditingController();
-  final s3Prefix = TextEditingController();
-  final masterPassword = TextEditingController();
-  var provider = SyncProviderType.webdav;
-  var s3ForcePathStyle = true;
-  var s3AllowInsecure = false;
+  SyncConnection? _backup;
   var themeMode = 'dark';
   var uiThemeId = 'tokyo-night';
   var terminalFontSize = 14.0;
@@ -91,15 +72,8 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   var _savingTerminalFullscreenSwipe = false;
   var allowSensitiveScreenshots = false;
   var _savingAllowSensitiveScreenshots = false;
-  var autoSyncEnabled = false;
-  var _savingAutoSync = false;
   var language = 'zh-CN';
   var _loaded = false;
-  var _busy = false;
-  var _checkingSyncVersions = false;
-  String? _githubUser;
-  CloudSyncVersions? _syncVersions;
-  Object? _syncVersionsError;
 
   @override
   void initState() {
@@ -127,73 +101,50 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   @override
   void dispose() {
     _updateCheckService?.close();
-    endpoint.dispose();
-    username.dispose();
-    providerSecret.dispose();
-    resourceId.dispose();
-    s3Region.dispose();
-    s3Bucket.dispose();
-    s3AccessKeyId.dispose();
-    s3SessionToken.dispose();
-    s3Prefix.dispose();
-    masterPassword.dispose();
     super.dispose();
   }
 
   Future<void> _load() async {
     final repository = ref.read(vaultRepositoryProvider);
-    final sync = await repository.loadSyncConnection();
     final settings = await repository.loadSettings();
-    endpoint.text = sync?.endpoint ?? '';
-    username.text = sync?.username ?? '';
-    providerSecret.text = sync?.secret ?? '';
-    resourceId.text = sync?.resourceId ?? '';
-    s3Region.text =
-        sync?.region?.isNotEmpty == true ? sync!.region! : 'us-east-1';
-    s3Bucket.text = sync?.bucket ?? '';
-    s3AccessKeyId.text = sync?.accessKeyId ?? '';
-    s3SessionToken.text = sync?.sessionToken ?? '';
-    s3Prefix.text = sync?.prefix ?? '';
-    s3ForcePathStyle = sync?.forcePathStyle ?? true;
-    s3AllowInsecure = sync?.allowInsecure ?? false;
-    masterPassword.text = await repository.readMasterPassword() ?? '';
-    autoSyncEnabled = settings.autoSyncEnabled;
     terminalSecureKeyboard = settings.terminalSecureKeyboard;
     terminalFullscreenSwipe = settings.terminalFullscreenSwipe;
     allowSensitiveScreenshots = settings.allowSensitiveScreenshots;
     _showSaved(settings);
-    _githubUser =
-        sync?.type == SyncProviderType.githubGist ? sync?.username : null;
-    if (mounted) {
-      final features = ref.read(forkFeaturesProvider);
-      final github = sync?.type == SyncProviderType.githubGist;
-      setState(() {
-        // 存着 GitHub 配置但这个版本没有那一项：选中一个不存在的分段会触发断言。
-        provider = github && !features.githubSync
-            ? SyncProviderType.webdav
-            : sync?.type ?? SyncProviderType.webdav;
-      });
-      if (features.cloudSync &&
-          ((github && features.githubSync) ||
-              sync?.type == SyncProviderType.s3) &&
-          sync?.secret?.isNotEmpty == true &&
-          masterPassword.text.isNotEmpty) {
-        unawaited(_refreshSyncVersions());
-      }
-    }
+    await _loadBackup();
+  }
+
+  Future<void> _loadBackup() async {
+    final backup = await ref.read(vaultRepositoryProvider).loadSyncConnection();
+    if (mounted) setState(() => _backup = backup);
+  }
+
+  /// 数据分组里「云端备份」那一行的状态。
+  String _backupStatus(AppSettings settings) {
+    final backup = _backup;
+    final name = switch (backup?.type) {
+      SyncProviderType.webdav when backup!.endpoint.isNotEmpty => 'WebDAV',
+      SyncProviderType.s3 when backup!.bucket?.isNotEmpty == true => 'S3',
+      // 这个版本没有 GitHub 那一项时，存着的配置不作数（SYN03）。
+      SyncProviderType.githubGist
+          when ref.read(forkFeaturesProvider).githubSync &&
+              backup!.secret?.isNotEmpty == true =>
+        'GitHub',
+      _ => null,
+    };
+    if (name == null) return localized('未设置');
+    return settings.autoSyncEnabled ? '$name · ${localized('自动')}' : name;
   }
 
   @override
   Widget build(BuildContext context) => _buildSettings(
         context,
-        ref.watch(autoSyncControllerProvider),
         ref.watch(forkFeaturesProvider),
         ref.watch(settingsControllerProvider),
       );
 
   Widget _buildSettings(
     BuildContext context,
-    AutoSyncState autoSyncState,
     ForkFeatures features,
     AppSettings lockSettings,
   ) =>
@@ -646,28 +597,41 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               _header(
                 '数据',
                 hint:
-                    '换手机用加密备份，两台手机在同一个 Wi-Fi 也可以扫码互传。不含密码的 JSON 只有配置，导入后要重新填。',
+                    '备份里有密码和私钥，全程加密，靠你定的密码保护。换手机用备份恢复，两台手机在同一个 Wi-Fi 也可以扫码互传。',
               ),
               Card(
                 child: Column(
                   children: [
-                    ListTile(
-                      leading: const Icon(Icons.file_upload_outlined),
-                      title: const LText('导入保险库文件'),
-                      onTap: _import,
-                    ),
-                    const Divider(height: 1),
+                    if (features.cloudSync) ...[
+                      ListTile(
+                        key: const ValueKey('settings-cloud-backup'),
+                        leading: const Icon(Icons.cloud_outlined),
+                        title: const LText('云端备份'),
+                        subtitle: Text(_backupStatus(lockSettings)),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () async {
+                          await Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const CloudBackupScreen(),
+                            ),
+                          );
+                          await _loadBackup();
+                        },
+                      ),
+                      const Divider(height: 1),
+                    ],
                     ListTile(
                       key: const ValueKey('export-encrypted-backup'),
                       leading: const Icon(Icons.enhanced_encryption_outlined),
-                      title: const LText('导出加密备份（含密码）'),
+                      title: const LText('备份到文件'),
                       onTap: _exportEncrypted,
                     ),
                     const Divider(height: 1),
                     ListTile(
-                      leading: const Icon(Icons.file_download_outlined),
-                      title: const LText('导出 JSON（不含密码）'),
-                      onTap: _export,
+                      key: const ValueKey('restore-from-file'),
+                      leading: const Icon(Icons.settings_backup_restore),
+                      title: const LText('从文件恢复'),
+                      onTap: _import,
                     ),
                     if (Platform.isAndroid) ...[
                       const Divider(height: 1),
@@ -698,256 +662,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ],
                 ),
               ),
-              if (features.cloudSync)
-                _header('云同步', hint: '填好才会外连。密码和私钥也会加密后传上去，靠同步主密码保护。'),
-              // 整张卡片防截屏（R44）：里面有 WebDAV/S3/GitHub 的口令和同步主密码。
-              // 设置页一直挂在首页的 IndexedStack 里，切到别的标签页时不算在屏幕上，见 SecretContent。
-              if (features.cloudSync)
-                SecretContent(
-                    child: Card(
-                  child: Padding(
-                    padding: const EdgeInsets.all(14),
-                    child: Column(
-                      children: [
-                        SegmentedButton<SyncProviderType>(
-                          expandedInsets: EdgeInsets.zero,
-                          segments: [
-                            const ButtonSegment(
-                              value: SyncProviderType.webdav,
-                              label: _AdaptiveSyncProviderLabel('WebDAV'),
-                              icon: Icon(Icons.cloud_outlined),
-                            ),
-                            if (features.githubSync)
-                              const ButtonSegment(
-                                value: SyncProviderType.githubGist,
-                                label: _AdaptiveSyncProviderLabel('GitHub'),
-                                icon: Icon(Icons.code),
-                              ),
-                            const ButtonSegment(
-                              value: SyncProviderType.s3,
-                              label: _AdaptiveSyncProviderLabel('S3'),
-                              icon: Icon(Icons.storage_outlined),
-                            ),
-                          ],
-                          selected: {provider},
-                          onSelectionChanged: (value) => setState(() {
-                            provider = value.first;
-                            _syncVersions = null;
-                            _syncVersionsError = null;
-                          }),
-                        ),
-                        const SizedBox(height: 14),
-                        if (provider == SyncProviderType.webdav) ...[
-                          TextField(
-                            controller: endpoint,
-                            keyboardType: TextInputType.url,
-                            decoration: LInputDecoration(
-                              labelText: 'WebDAV 地址',
-                              hintText: 'https://dav.example.com/shun',
-                            ),
-                          ),
-                          const FormGap(),
-                          TextField(
-                            controller: username,
-                            decoration: LInputDecoration(labelText: '用户名'),
-                          ),
-                          const FormGap(),
-                          TextField(
-                            controller: providerSecret,
-                            obscureText: true,
-                            enableIMEPersonalizedLearning: false,
-                            enableSuggestions: false,
-                            autocorrect: false,
-                            decoration:
-                                LInputDecoration(labelText: '密码 / 应用密码'),
-                          ),
-                        ] else if (provider == SyncProviderType.s3) ...[
-                          TextField(
-                            controller: endpoint,
-                            keyboardType: TextInputType.url,
-                            decoration: LInputDecoration(
-                              labelText: 'S3 Endpoint',
-                              hintText: 'https://s3.example.com',
-                            ),
-                          ),
-                          const FormGap(),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: TextField(
-                                  controller: s3Region,
-                                  decoration: LInputDecoration(
-                                    labelText: 'Region',
-                                    hintText: 'us-east-1',
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 10),
-                              Expanded(
-                                child: TextField(
-                                  controller: s3Bucket,
-                                  decoration: LInputDecoration(
-                                    labelText: 'Bucket',
-                                  ),
-                                ),
-                              ),
-                            ],
-                          ),
-                          const FormGap(),
-                          TextField(
-                            controller: s3AccessKeyId,
-                            decoration: LInputDecoration(
-                              labelText: 'Access Key ID',
-                            ),
-                          ),
-                          const FormGap(),
-                          TextField(
-                            controller: providerSecret,
-                            obscureText: true,
-                            enableIMEPersonalizedLearning: false,
-                            enableSuggestions: false,
-                            autocorrect: false,
-                            onChanged: (_) => setState(() {}),
-                            decoration: LInputDecoration(
-                              labelText: 'Secret Access Key',
-                            ),
-                          ),
-                          const FormGap(),
-                          TextField(
-                            controller: s3SessionToken,
-                            obscureText: true,
-                            enableIMEPersonalizedLearning: false,
-                            enableSuggestions: false,
-                            autocorrect: false,
-                            decoration: LInputDecoration(
-                              labelText: 'Session Token（可选）',
-                            ),
-                          ),
-                          const FormGap(),
-                          TextField(
-                            controller: s3Prefix,
-                            decoration: LInputDecoration(
-                              labelText: '对象前缀（可选）',
-                              hintText: 'shun',
-                            ),
-                          ),
-                          HintSwitchTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: '使用路径式访问',
-                            hint: 'MinIO 这类自建 S3 要开着。默认开。',
-                            value: s3ForcePathStyle,
-                            onChanged: (value) =>
-                                setState(() => s3ForcePathStyle = value),
-                          ),
-                          HintSwitchTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: '允许不安全连接',
-                            hint:
-                                '只给 HTTP 或自签名 HTTPS 的服务用。开着时任何证书都接受，被中间人截走也发现不了。',
-                            value: s3AllowInsecure,
-                            onChanged: (value) =>
-                                setState(() => s3AllowInsecure = value),
-                          ),
-                          SizedBox(
-                            width: double.infinity,
-                            child: OutlinedButton.icon(
-                              onPressed: _busy ? null : _testS3Connection,
-                              icon: const Icon(Icons.wifi_tethering_outlined),
-                              label: const LText('测试 S3 连接'),
-                            ),
-                          ),
-                          const SizedBox(height: 10),
-                          _syncVersionsCard(),
-                        ] else ...[
-                          ListTile(
-                            contentPadding: EdgeInsets.zero,
-                            leading: CircleAvatar(
-                              child: Icon(
-                                providerSecret.text.isEmpty
-                                    ? Icons.login
-                                    : Icons.check,
-                              ),
-                            ),
-                            title: LText(
-                              providerSecret.text.isEmpty
-                                  ? '尚未登录 GitHub'
-                                  : '已连接 GitHub',
-                            ),
-                            subtitle: LText(
-                              _githubUser == null
-                                  ? '登录后自动查找或创建 Gist'
-                                  : '@$_githubUser · 自动同步私有 Gist',
-                            ),
-                          ),
-                          SizedBox(
-                            width: double.infinity,
-                            child: providerSecret.text.isEmpty
-                                ? FilledButton.icon(
-                                    onPressed: _busy ? null : _connectGitHub,
-                                    icon: const Icon(Icons.login),
-                                    label: const LText('登录 GitHub'),
-                                  )
-                                : OutlinedButton.icon(
-                                    onPressed: _busy ? null : _logoutGitHub,
-                                    icon: const Icon(Icons.logout),
-                                    label: const LText('退出 GitHub'),
-                                  ),
-                          ),
-                          const SizedBox(height: 10),
-                          _syncVersionsCard(),
-                          GitHubManualConfig(
-                              resourceId: resourceId,
-                              secret: providerSecret,
-                              onSecretChanged: (_) => setState(() {})),
-                        ],
-                        const FormGap(),
-                        TextField(
-                          controller: masterPassword,
-                          obscureText: true,
-                          enableIMEPersonalizedLearning: false,
-                          enableSuggestions: false,
-                          autocorrect: false,
-                          decoration: LInputDecoration(
-                            labelText: '同步主密码',
-                          ),
-                        ),
-                        const SizedBox(height: 6),
-                        SwitchListTile(
-                          key: const ValueKey('cloud-auto-sync'),
-                          contentPadding: EdgeInsets.zero,
-                          secondary: autoSyncState.syncing
-                              ? const SizedBox.square(
-                                  dimension: 24,
-                                  child: CircularProgressIndicator(
-                                    strokeWidth: 2.5,
-                                  ),
-                                )
-                              : const Icon(Icons.sync_outlined),
-                          title: const LText('自动同步'),
-                          subtitle: LText(_autoSyncStatus(autoSyncState)),
-                          value: autoSyncEnabled,
-                          onChanged:
-                              _busy || _savingAutoSync ? null : _setAutoSync,
-                        ),
-                        const SizedBox(height: 14),
-                        SizedBox(
-                          width: double.infinity,
-                          child: FilledButton.icon(
-                            key: const ValueKey('cloud-sync-now'),
-                            onPressed: _busy ? null : _sync,
-                            icon: const Icon(Icons.sync_outlined),
-                            label: const LText('立即同步'),
-                          ),
-                        ),
-                        if (_busy)
-                          const Padding(
-                            padding: EdgeInsets.only(top: 12),
-                            child: LinearProgressIndicator(),
-                          ),
-                      ],
-                    ),
-                  ),
-                )),
               if (features.ai)
                 _header(
                   'shu Agent',
@@ -1043,140 +757,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         ),
       );
 
-  Widget _syncVersionsCard() {
-    final colors = Theme.of(context).colorScheme;
-    final versions = _syncVersions;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colors.surfaceContainerHighest.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: _syncVersionMetric(
-                  icon: Icons.smartphone_outlined,
-                  label: '本地版本',
-                  version: versions?.localVersion,
-                  pending: versions?.hasLocalChanges == true,
-                ),
-              ),
-              Container(
-                width: 1,
-                height: 42,
-                margin: const EdgeInsets.symmetric(horizontal: 10),
-                color: colors.outlineVariant,
-              ),
-              Expanded(
-                child: _syncVersionMetric(
-                  icon: Icons.cloud_outlined,
-                  label: '云端版本',
-                  version: versions?.cloudVersion,
-                ),
-              ),
-              IconButton(
-                tooltip: localized('刷新同步版本'),
-                onPressed: _busy ||
-                        _checkingSyncVersions ||
-                        providerSecret.text.isEmpty
-                    ? null
-                    : () => _refreshSyncVersions(saveConfiguration: true),
-                icon: _checkingSyncVersions
-                    ? const SizedBox.square(
-                        dimension: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.refresh),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          LText(
-            _syncVersionStatus(),
-            style: TextStyle(
-              color: _syncVersionsError == null
-                  ? colors.onSurfaceVariant
-                  : colors.error,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _syncVersionMetric({
-    required IconData icon,
-    required String label,
-    required int? version,
-    bool pending = false,
-  }) =>
-      Row(
-        children: [
-          Icon(icon, size: 20),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                LText(label, style: const TextStyle(fontSize: 12)),
-                Row(
-                  children: [
-                    Text(
-                      version == null ? '—' : 'v$version',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    if (pending) ...[
-                      const SizedBox(width: 5),
-                      const LText('待同步', style: TextStyle(fontSize: 11)),
-                    ],
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      );
-
-  String _syncVersionStatus() {
-    if (providerSecret.text.isEmpty) {
-      return provider == SyncProviderType.s3
-          ? '填写 S3 凭据后查看同步版本'
-          : '登录 GitHub 后查看同步版本';
-    }
-    if (_checkingSyncVersions) return '正在读取本地与云端版本…';
-    if (_syncVersionsError != null) {
-      return '版本信息读取失败：$_syncVersionsError';
-    }
-    final versions = _syncVersions;
-    if (versions == null) return '点按刷新以确认当前同步版本';
-    final base = versions.baseVersion;
-    if (base == null) {
-      if (versions.cloudVersion > 0 && versions.hasLocalChanges) {
-        return '本地与云端尚无共同版本，请立即同步';
-      }
-      if (versions.cloudVersion > 0) return '云端已有版本，建议立即同步';
-      if (versions.hasLocalChanges) return '本地数据等待同步';
-      return '尚未建立同步版本';
-    }
-    final cloudChanged = versions.cloudVersion != base;
-    if (cloudChanged && versions.hasLocalChanges) {
-      return '本地和云端均有更新，请立即同步';
-    }
-    if (versions.hasLocalChanges) return '本地有待同步的更改';
-    if (versions.cloudVersion > base) return '云端有新版本，建议立即同步';
-    if (versions.cloudVersion < base) {
-      return '云端版本与上次同步记录不一致，请立即同步';
-    }
-    return '本地与云端版本一致';
-  }
-
   Widget _updateCheckTile() => FutureBuilder<UpdateCheckResult>(
         future: _updateCheck,
         builder: (context, snapshot) {
@@ -1250,233 +830,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (!opened) _message('无法打开 GitHub Release 页面');
     } on Object {
       _message('无法打开 GitHub Release 页面');
-    }
-  }
-
-  Future<void> _saveSync() async {
-    final connection = SyncConnection(
-      type: provider,
-      endpoint: endpoint.text.trim(),
-      // GitHub 用户名仅用于展示，不参与 API 认证。
-      username: provider == SyncProviderType.githubGist
-          ? _githubUser
-          : provider == SyncProviderType.webdav
-              ? username.text.trim()
-              : null,
-      secret: providerSecret.text,
-      resourceId: provider == SyncProviderType.githubGist
-          ? resourceId.text.trim()
-          : null,
-      region: provider == SyncProviderType.s3 ? s3Region.text.trim() : null,
-      bucket: provider == SyncProviderType.s3 ? s3Bucket.text.trim() : null,
-      accessKeyId:
-          provider == SyncProviderType.s3 ? s3AccessKeyId.text.trim() : null,
-      sessionToken:
-          provider == SyncProviderType.s3 ? s3SessionToken.text.trim() : null,
-      prefix: provider == SyncProviderType.s3 ? s3Prefix.text.trim() : null,
-      forcePathStyle: s3ForcePathStyle,
-      allowInsecure: s3AllowInsecure,
-    );
-    final repository = ref.read(vaultRepositoryProvider);
-    await repository.saveSyncConnection(connection);
-    await repository.saveMasterPassword(masterPassword.text);
-  }
-
-  String _autoSyncStatus(AutoSyncState syncState) {
-    if (!syncState.enabled) {
-      return '已关闭；开启后会在数据变更、启动和返回前台时自动同步';
-    }
-    if (syncState.syncing) return '正在同步本地与云端数据…';
-    if (syncState.lastError != null) {
-      if (ShunLocalizations.isEnglish) {
-        return 'Last auto-sync failed and will retry: ${syncState.lastError}';
-      }
-      return '上次自动同步失败，将自动重试：${syncState.lastError}';
-    }
-    final syncedAt = syncState.lastSyncedAt;
-    if (syncedAt != null) {
-      final local = syncedAt.toLocal();
-      final hour = local.hour.toString().padLeft(2, '0');
-      final minute = local.minute.toString().padLeft(2, '0');
-      if (ShunLocalizations.isEnglish) {
-        return 'Last synced at $hour:$minute · syncs about 10 seconds after changes';
-      }
-      return '最近同步 $hour:$minute · 数据变更后约 10 秒自动同步';
-    }
-    return '数据变更后自动同步，并在启动、返回前台及每 5 分钟检查云端';
-  }
-
-  /// 云端那份文件泄露后能被离线猜口令，和加密备份一个道理。没到 12 位就不往外传。
-  bool _masterPasswordStrongEnough() {
-    if (masterPassword.text.length >= EncryptedVaultFile.minPassphraseLength) {
-      return true;
-    }
-    _message('同步主密码至少 12 位');
-    return false;
-  }
-
-  Future<void> _setAutoSync(bool enabled) async {
-    if (enabled && !_masterPasswordStrongEnough()) return;
-    setState(() => _savingAutoSync = true);
-    try {
-      if (enabled) await _saveSync();
-      final repository = ref.read(vaultRepositoryProvider);
-      final current = await repository.loadSettings();
-      await ref.read(settingsControllerProvider.notifier).update(
-            current.copyWith(autoSyncEnabled: enabled),
-          );
-      if (mounted) setState(() => autoSyncEnabled = enabled);
-      _message(enabled ? '自动同步已开启' : '自动同步已关闭');
-    } on Object catch (error) {
-      _message('$error');
-    } finally {
-      if (mounted) setState(() => _savingAutoSync = false);
-    }
-  }
-
-  Future<void> _refreshSyncVersions({
-    bool saveConfiguration = false,
-  }) async {
-    if ((provider != SyncProviderType.githubGist &&
-            provider != SyncProviderType.s3) ||
-        providerSecret.text.isEmpty) {
-      return;
-    }
-    if (mounted) {
-      setState(() {
-        _checkingSyncVersions = true;
-        _syncVersionsError = null;
-      });
-    }
-    try {
-      if (saveConfiguration) await _saveSync();
-      final repository = ref.read(vaultRepositoryProvider);
-      final service = CloudSyncService(
-        repository,
-        client: ref.read(httpClientProvider),
-      );
-      final vault = await ref.read(vaultControllerProvider.notifier).ready();
-      final versions = await service.inspectVersions(vault);
-      final updatedConnection = await repository.loadSyncConnection();
-      if (mounted) {
-        setState(() {
-          _syncVersions = versions;
-          resourceId.text = updatedConnection?.resourceId ?? resourceId.text;
-        });
-      }
-    } on Object catch (error) {
-      if (mounted) setState(() => _syncVersionsError = error);
-    } finally {
-      if (mounted) setState(() => _checkingSyncVersions = false);
-    }
-  }
-
-  Future<void> _testS3Connection() async {
-    setState(() => _busy = true);
-    try {
-      await _saveSync();
-      final repository = ref.read(vaultRepositoryProvider);
-      final connection = await repository.loadSyncConnection();
-      if (connection == null) throw StateError('S3 配置未保存');
-      final service = CloudSyncService(
-        repository,
-        client: ref.read(httpClientProvider),
-      );
-      await service.testS3Connection(connection);
-      _message('S3 连接成功');
-      await _refreshSyncVersions();
-    } catch (error) {
-      _message('$error');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _connectGitHub() async {
-    setState(() => _busy = true);
-    try {
-      final auth = GitHubAuthService(client: ref.read(httpClientProvider));
-      final authorization = await auth.start();
-      if (!mounted) return;
-      final token = await showDialog<String>(
-        context: context,
-        barrierDismissible: false,
-        builder: (_) => _GitHubDeviceFlowDialog(
-          authorization: authorization,
-          auth: auth,
-        ),
-      );
-      if (token == null || !mounted) return;
-      providerSecret.text = token;
-      resourceId.clear();
-      await _saveSync();
-      try {
-        final user = await auth.currentUser(token);
-        _githubUser = user['login']?.toString();
-      } on GitHubAuthNetworkException {
-        _githubUser = null;
-      }
-      await _saveSync();
-      if (mounted) setState(() {});
-      await _refreshSyncVersions();
-      _message('GitHub 登录成功，将自动查找 Gist');
-    } catch (error) {
-      _message('$error');
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  Future<void> _logoutGitHub() async {
-    providerSecret.clear();
-    resourceId.clear();
-    _githubUser = null;
-    await _saveSync();
-    if (mounted) {
-      setState(() {
-        _syncVersions = null;
-        _syncVersionsError = null;
-      });
-    }
-    _message('已退出 GitHub');
-  }
-
-  Future<void> _sync({bool confirmShrink = false}) async {
-    if (!_masterPasswordStrongEnough()) return;
-    setState(() => _busy = true);
-    try {
-      await _saveSync();
-      final result = await ref
-          .read(autoSyncControllerProvider.notifier)
-          .synchronizeNow(confirmShrink: confirmShrink);
-      _syncVersions = result.versions;
-      final updatedConnection =
-          await ref.read(vaultRepositoryProvider).loadSyncConnection();
-      resourceId.text = updatedConnection?.resourceId ?? resourceId.text;
-      if (mounted) setState(() {});
-      _message(result.message);
-    } on SyncShrinkException catch (error) {
-      if (!mounted) return;
-      final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: const Text('确认大量删除'),
-          content: Text('$error\n\n仅当你确认这些删除是本人操作时才继续。'),
-          actions: [
-            TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text('取消')),
-            TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text('确认删除并同步')),
-          ],
-        ),
-      );
-      if (confirmed == true && mounted) await _sync(confirmShrink: true);
-    } catch (error) {
-      _message('$error');
-    } finally {
-      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -1721,19 +1074,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       try {
         bytes = file.bytes ?? await File(file.path!).readAsBytes();
       } finally {
-        // 导入的 JSON 里可能带密码（桌面端导出的）：选择器在缓存里那份读完就删。
+        // 选择器在缓存里留了一份，读完就删。
         await discardPickedCopy(file);
       }
       final backup = EncryptedVaultFile.tryParse(bytes);
-      final VaultData imported;
       if (backup == null) {
-        imported = EncryptedVaultFile.parsePlain(bytes);
-      } else {
-        if (!mounted) return;
-        final decoded = await askAndDecodeBackup(context, backup);
-        if (decoded == null) return;
-        imported = decoded;
+        throw const FormatException(EncryptedVaultFile.notABackup);
       }
+      if (!mounted) return;
+      final imported = await askAndDecodeBackup(context, backup);
+      if (imported == null) return;
       final controller = ref.read(vaultControllerProvider.notifier);
       // 先让用户看清会新增、更新、删除什么再写。以前直接整库替换，文件里没有的主机连同凭据被删。
       final shown = planVaultImport(imported, await controller.ready());
@@ -1743,9 +1093,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final plan = await controller.importVault(shown, mode);
       _message(vaultImportSummary(plan, mode));
     } on FormatException catch (error) {
-      _message('导入失败：${error.message}');
+      _message('恢复失败：${error.message}');
     } catch (error) {
-      _message('导入失败：$error');
+      _message('恢复失败：$error');
     }
   }
 
@@ -1761,21 +1111,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (result != VaultExportResult.saved) return;
       // 解不开的凭据没法放进备份。不说的话，用户换完手机才发现少了密码。
       final missing = controller.repository.unreadableSecrets.length;
-      _message(missing == 0 ? '加密备份已导出' : '加密备份已导出，但有 $missing 条凭据解不开，没有带上');
+      _message(missing == 0 ? '备份已保存' : '备份已保存，但有 $missing 条凭据解不开，没有带上');
     } catch (error) {
-      _message('导出失败：$error');
-    }
-  }
-
-  Future<void> _export() async {
-    try {
-      final vault = await ref.read(vaultControllerProvider.notifier).ready();
-      final result = await VaultExportService().export(vault);
-      if (result == VaultExportResult.saved) {
-        _message('导出完成（不含密码、私钥和代理口令）');
-      }
-    } catch (error) {
-      _message('导出失败：$error');
+      _message('备份失败：$error');
     }
   }
 
@@ -1786,25 +1124,4 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       ).showSnackBar(SnackBar(content: LText(value)));
     }
   }
-}
-
-class _AdaptiveSyncProviderLabel extends StatelessWidget {
-  const _AdaptiveSyncProviderLabel(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-        width: 48,
-        height: 24,
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: LText(
-            label,
-            maxLines: 1,
-            softWrap: false,
-            overflow: TextOverflow.visible,
-          ),
-        ),
-      );
 }

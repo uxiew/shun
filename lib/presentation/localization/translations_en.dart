@@ -286,22 +286,17 @@ const englishTranslations = <String, String>{
   '只导入，不连接': 'Import only, don’t connect',
   '自动列出 tailnet 里的设备，点一下就导入并连接。只读设备列表：不开 VPN，手机要能到达设备（比如开着 Tailscale App）。':
       'Lists the devices in your tailnet; tap one to import and connect. Only reads the device list: no VPN is started, and the phone must be able to reach the device (for example with the Tailscale app on).',
-  '已加密保存，不填就用它':
-      'Saved encrypted; leave blank to use it',
+  '已加密保存，不填就用它': 'Saved encrypted; leave blank to use it',
   '推荐 OAuth client（tskey-client-…）：在 Tailscale 后台 Settings → OAuth clients 创建，只勾 devices:core:read。访问令牌（tskey-api-…）也能用，但它带着你账号的全部权限。\n\n读成功就加密存在这台手机上：只有 shun 能解开，不进备份和同步。':
       'Recommended: an OAuth client (tskey-client-…), created in the Tailscale admin console under Settings → OAuth clients with only devices:core:read. An access token (tskey-api-…) works too, but it carries your account\'s full permissions.\n\nOnce a read succeeds it is saved encrypted on this phone: only shun can decrypt it, and it stays out of backups and sync.',
-  '删除保存的 key':
-      'Delete the saved key',
+  '删除保存的 key': 'Delete the saved key',
   '已删除本机保存的 key。它在 Tailscale 那边仍然有效，要彻底作废请到 Tailscale 后台撤销。':
       'Deleted the key saved on this phone. It is still valid at Tailscale; revoke it in the Tailscale admin console to disable it.',
   '会删除本机的设备缓存和保存的 key。':
       'This deletes the cached devices and the saved key on this phone.',
-  '- 表示凭据所属的 tailnet':
-      '- means the credential\'s own tailnet',
-  '已保存 key':
-      'Key saved',
-  '未保存 key':
-      'No key saved',
+  '- 表示凭据所属的 tailnet': '- means the credential\'s own tailnet',
+  '已保存 key': 'Key saved',
+  '未保存 key': 'No key saved',
   'SSH 用户名（可选）': 'SSH username (optional)',
   '这些只用于以后导入的主机，已经导入的不动。密码不在这里填：每台第一次连接时问。':
       'These apply only to hosts imported from now on; already imported hosts are unchanged. Passwords aren’t entered here: each host asks on its first connection.',
@@ -345,24 +340,15 @@ const englishTranslations = <String, String>{
   '打开': 'Open',
   '完成': 'Done',
   '切换': 'Switch',
-  '缺少可信同步基线，无法安全合并本地数据与云端 v2 保险库。请先导出本地备份，并在桌面端确认数据后重试；本次未写入云端':
-      'No trusted sync baseline is available to safely merge local data with this v2 vault. Export a local backup and reconcile on desktop before retrying. Nothing was written to the cloud',
   '确认大量删除': 'Confirm bulk deletion',
-  '确认删除并同步': 'Confirm deletions and sync',
   r'$error\n\n仅当你确认这些删除是本人操作时才继续。':
       r'$error\n\nContinue only if you intentionally made these deletions.',
   '仅当你确认这些删除是本人操作时才继续。':
       'Continue only if you intentionally made these deletions.',
-  '云端同步完成；同步期间的本地修改已保留，待下次同步':
-      'Cloud sync complete; edits made during sync are preserved for the next sync',
   '已同步的云端保险库暂时不可见，已停止写入；请检查存储路径或权限后重试':
       'The previously synced vault is unavailable. Writes stopped; check the storage path and permissions',
-  '云端同步格式已降级，已停止写入以保护删除记录，请先在桌面端确认恢复':
-      'The remote sync format was downgraded. Writes stopped to protect deletion history; confirm recovery on desktop first',
   '同步配置已改变，本次同步已停止，请使用新配置重试':
       'Sync configuration changed. This run stopped; retry with the new configuration',
-  '本地同步基线无法读取，已停止写入以保护数据，请先检查同步密码':
-      'The local sync baseline cannot be read. Writes stopped to protect data; check the sync password',
   r'检测到 $collection 从 $before 项减少到 $after 项，已阻止上传以保护数据。':
       r'$collection decreased from $before to $after items. Upload blocked to protect data.',
   '请确认这些删除是否符合预期，再手动确认同步。':
@@ -380,92 +366,60 @@ const englishTranslations = <String, String>{
   '上一个匹配': 'Previous match',
   '下一个匹配': 'Next match',
   '服务器内部操作中…': 'Working on the server…',
-  '安全密钥':
-      'Security key',
+  '安全密钥': 'Security key',
   '点「重新连接」，再按提示贴上或插上钥匙。这一步要你本人碰钥匙，App 不会自动重试。':
       'Tap “Reconnect”, then tap or plug in the key when asked. This step needs you to touch the key, so the app won\'t retry on its own.',
-  r'安全密钥“${key.label}”':
-      r'Security key “${key.label}”',
-  '不是 OpenSSH 格式的文件':
-      'Not an OpenSSH format file',
+  r'安全密钥“${key.label}”': r'Security key “${key.label}”',
+  '不是 OpenSSH 格式的文件': 'Not an OpenSSH format file',
   '安全密钥文件有口令保护，但没有保存口令':
       'The security key file is passphrase-protected, but no passphrase is saved',
   '这里解不开带口令的安全密钥文件':
       'Can\'t open a passphrase-protected security key file here',
-  '安全密钥文件内容已损坏':
-      'The security key file is corrupted',
-  '安全密钥文件的口令不对':
-      'Wrong passphrase for the security key file',
-  '不是安全密钥的文件':
-      'Not a security key file',
-  '取消了安全密钥签名':
-      'Security key signing was cancelled',
-  '没有等到安全密钥':
-      'Timed out waiting for the security key',
-  '安全密钥要求输入 PIN':
-      'The security key requires a PIN',
-  '安全密钥的 PIN 不对':
-      'Wrong security key PIN',
+  '安全密钥文件内容已损坏': 'The security key file is corrupted',
+  '安全密钥文件的口令不对': 'Wrong passphrase for the security key file',
+  '不是安全密钥的文件': 'Not a security key file',
+  '取消了安全密钥签名': 'Security key signing was cancelled',
+  '没有等到安全密钥': 'Timed out waiting for the security key',
+  '安全密钥要求输入 PIN': 'The security key requires a PIN',
+  '安全密钥的 PIN 不对': 'Wrong security key PIN',
   r'安全密钥的 PIN 不对，还能试 $pinRetries 次':
       r'Wrong security key PIN, $pinRetries tries left',
-  '安全密钥的 PIN 错太多次，已锁定':
-      'Too many wrong PINs; the security key is locked',
+  '安全密钥的 PIN 错太多次，已锁定': 'Too many wrong PINs; the security key is locked',
   '这把钥匙还没设 PIN，先用钥匙厂商的工具设一个':
       'This key has no PIN yet. Set one with the vendor\'s tool first',
   '这把钥匙里没有这把密钥：可能贴错了钥匙':
       'This key doesn\'t hold that credential. It may be the wrong key',
   '这把钥匙不支持：需要 FIDO2，老的 U2F 钥匙暂不支持':
       'This key isn\'t supported: FIDO2 is required, older U2F keys aren\'t supported yet',
-  '和安全密钥通信失败':
-      'Couldn\'t communicate with the security key',
+  '和安全密钥通信失败': 'Couldn\'t communicate with the security key',
   '这台机器要碰安全密钥才能登录，自动恢复不会替你碰':
       'This machine needs a security key touch to sign in. Automatic recovery won\'t do that for you',
-  '不支持这个文件的口令加密方式':
-      'This file\'s passphrase encryption isn\'t supported',
-  '安全密钥登录':
-      'Security key sign-in',
-  '这把钥匙要 PIN':
-      'This key needs a PIN',
-  '这把钥匙可能要 PIN':
-      'This key may need a PIN',
-  'PIN 至少 4 位':
-      'PIN must be at least 4 characters',
+  '不支持这个文件的口令加密方式': 'This file\'s passphrase encryption isn\'t supported',
+  '安全密钥登录': 'Security key sign-in',
+  '这把钥匙要 PIN': 'This key needs a PIN',
+  '这把钥匙可能要 PIN': 'This key may need a PIN',
+  'PIN 至少 4 位': 'PIN must be at least 4 characters',
   '插上钥匙。NFC 没打开，要用先到系统设置里开':
       'Plug in the key. NFC is off; turn it on in system settings to use it',
   '把钥匙贴到手机背面，或插到 USB 口':
       'Hold the key to the back of the phone, or plug it into USB',
-  '正在通信，别拿开':
-      'Communicating, keep the key in place',
-  '碰一下钥匙':
-      'Touch the key',
-  '钥匙的 PIN':
-      'Key PIN',
-  '添加安全密钥':
-      'Add security key',
-  '在钥匙上生成新密钥':
-      'Generate a new key on the security key',
-  '读取钥匙里已有的密钥':
-      'Read keys already on the security key',
-  '在钥匙上生成密钥':
-      'Generate key on the security key',
-  '读取钥匙里的密钥':
-      'Read keys from the security key',
-  r'安全密钥 $index':
-      r'Security key $index',
-  r'找到 $total 把，新增 $added 把':
-      r'Found $total, added $added',
-  '公钥':
-      'Public key',
+  '正在通信，别拿开': 'Communicating, keep the key in place',
+  '碰一下钥匙': 'Touch the key',
+  '钥匙的 PIN': 'Key PIN',
+  '添加安全密钥': 'Add security key',
+  '在钥匙上生成新密钥': 'Generate a new key on the security key',
+  '读取钥匙里已有的密钥': 'Read keys already on the security key',
+  '在钥匙上生成密钥': 'Generate key on the security key',
+  '读取钥匙里的密钥': 'Read keys from the security key',
+  r'安全密钥 $index': r'Security key $index',
+  r'找到 $total 把，新增 $added 把': r'Found $total, added $added',
+  '公钥': 'Public key',
   '把这一行加到服务器的 ~/.ssh/authorized_keys':
       'Add this line to ~/.ssh/authorized_keys on the server',
-  '存进钥匙里':
-      'Store on the key',
-  '换手机后能从钥匙读回来':
-      'Can be read back from the key on a new phone',
-  '每次登录都要 PIN':
-      'Require PIN for every sign-in',
-  '生成':
-      'Generate',
+  '存进钥匙里': 'Store on the key',
+  '换手机后能从钥匙读回来': 'Can be read back from the key on a new phone',
+  '每次登录都要 PIN': 'Require PIN for every sign-in',
+  '生成': 'Generate',
   '服务器只支持旧算法': 'Server only supports old algorithms',
   '这台服务器只认已淘汰的算法（CBC 加密、SHA-1 密钥交换、ssh-rsa 主机密钥），本 App 不再使用，重试也没用。升级服务器上的 SSH 才能连。':
       'This server only accepts retired algorithms (CBC encryption, SHA-1 key exchange, ssh-rsa host keys). This app no longer uses them, so retrying won\'t help. Upgrade SSH on the server to connect.',
@@ -570,19 +524,6 @@ const englishTranslations = <String, String>{
   '无法读取所选背景图片': 'Unable to read the selected background image',
   '居中': 'Center',
   '终端字号': 'Terminal font size',
-  '云同步': 'Cloud sync',
-  '自动同步': 'Auto-sync',
-  '数据变更后自动同步，并在启动、返回前台及每 5 分钟检查云端':
-      'Sync after local changes and check the cloud at startup, on resume, and every 5 minutes',
-  '正在同步本地与云端数据…': 'Syncing local and cloud data…',
-  '自动同步已开启': 'Auto-sync enabled',
-  '自动同步已关闭': 'Auto-sync disabled',
-  '已关闭；开启后会在数据变更、启动和返回前台时自动同步':
-      'Off; enable to sync after changes, at startup, and when returning to the app',
-  '上次自动同步失败，将自动重试：\${syncState.lastError}':
-      'Last auto-sync failed and will retry: \${syncState.lastError}',
-  '最近同步 \$hour:\$minute · 数据变更后约 10 秒自动同步':
-      'Last synced at \$hour:\$minute · syncs about 10 seconds after changes',
   '用户名': 'Username',
   '密码 / 应用密码': 'Password / app password',
   '对象前缀（可选）': 'Object prefix (optional)',
@@ -599,37 +540,25 @@ const englishTranslations = <String, String>{
   '请填写 S3 Bucket': 'Enter the S3 bucket',
   '请填写 S3 Access Key ID': 'Enter the S3 access key ID',
   '请填写 S3 Secret Access Key': 'Enter the S3 secret access key',
-  '填写 S3 凭据后查看同步版本': 'Enter S3 credentials to view sync versions',
   '尚未登录 GitHub': 'Not signed in to GitHub',
   '已连接 GitHub': 'GitHub connected',
-  '登录后自动查找或创建 Gist':
-      'Automatically find or create a Gist after sign-in',
+  '登录后自动查找或创建 Gist': 'Automatically find or create a Gist after sign-in',
   '登录 GitHub': 'Sign in to GitHub',
   '退出 GitHub': 'Sign out of GitHub',
   '高级 / 手动配置': 'Advanced / manual configuration',
   '仅用于迁移或登录故障排查': 'Only for migration or sign-in troubleshooting',
   'GitHub Token（备用）': 'GitHub token (fallback)',
   'Gist ID（通常自动识别）': 'Gist ID (normally detected automatically)',
-  '同步主密码': 'Sync master password',
-  '同步主密码至少 12 位': 'The sync master password must be at least 12 characters',
-  '填好才会外连。密码和私钥也会加密后传上去，靠同步主密码保护。':
-      'Nothing connects until this is filled in. Passwords and private keys are uploaded too, encrypted with the sync master password.',
   '这个版本不支持同步到 GitHub': 'This version cannot sync to GitHub',
   '拉取并合并': 'Pull & merge',
   '上传': 'Upload',
-  '立即同步': 'Sync now',
   '本地版本': 'Local version',
   '云端版本': 'Cloud version',
-  '待同步': 'Pending',
-  '刷新同步版本': 'Refresh sync versions',
-  '登录 GitHub 后查看同步版本': 'Sign in to GitHub to view sync versions',
   '正在读取本地与云端版本…': 'Reading local and cloud versions…',
-  '点按刷新以确认当前同步版本': 'Tap refresh to confirm the current sync versions',
   '本地与云端尚无共同版本，请先拉取并合并':
       'Local and cloud have no shared version yet. Pull and merge first',
   '云端已有版本，建议拉取并合并': 'A cloud version exists. Pull and merge is recommended',
   '本地数据尚未上传': 'Local data has not been uploaded',
-  '尚未建立同步版本': 'No sync version has been established',
   '本地和云端均有更新，请拉取并合并': 'Both local and cloud have changes. Pull and merge',
   '本地有待上传的更改': 'Local changes are waiting to be uploaded',
   '云端有新版本，建议拉取并合并':
@@ -637,14 +566,6 @@ const englishTranslations = <String, String>{
   '云端版本与上次同步记录不一致，请先拉取并合并':
       'The cloud version differs from the last sync record. Pull and merge first',
   '本地与云端版本一致': 'Local and cloud versions match',
-  '本地与云端尚无共同版本，请立即同步': 'Local and cloud have no shared version yet. Sync now',
-  '云端已有版本，建议立即同步': 'A cloud version exists. Sync now',
-  '本地数据等待同步': 'Local data is waiting to sync',
-  '本地和云端均有更新，请立即同步': 'Both local and cloud have changes. Sync now',
-  '本地有待同步的更改': 'Local changes are waiting to sync',
-  '云端有新版本，建议立即同步': 'A newer cloud version is available. Sync now',
-  '云端版本与上次同步记录不一致，请立即同步':
-      'The cloud version differs from the last sync record. Sync now',
   '云端保险库使用了当前移动版尚不支持的新版同步格式，已停止写入以保护数据':
       'The cloud vault uses a newer sync format that this mobile version does not support. Writing was stopped to protect your data',
   '云端保险库的同步格式标记无效，已停止写入以保护数据':
@@ -1048,8 +969,6 @@ const englishTranslations = <String, String>{
       'The file will be deleted from the mounted phone folder. This cannot be undone.',
   '此操作会直接修改远程服务器，无法撤销。':
       'This directly modifies the remote server and cannot be undone.',
-  r'将从保险库中删除“${host.label}”，此操作可通过云同步传播到其他设备。':
-      r'Delete “${host.label}” from the vault. Cloud sync can propagate this to other devices.',
   r'已保存 · ${profile.label}': r'Saved · ${profile.label}',
   'SSH 密钥': 'SSH keys',
   r'将重新构建 ${project.name} 的本地镜像并强制创建全部容器，服务会短暂中断。':
@@ -1093,10 +1012,6 @@ const englishTranslations = <String, String>{
   '握手成功（插件核对了宿主证书），ping 往返正常':
       'Handshake succeeded (the plugin verified the host certificate); ping round trip OK',
   // 导入确认框（vault_import_dialog.dart）。
-  '导入保险库文件': 'Import vault file',
-  '导出加密备份（含密码）': 'Export encrypted backup (with passwords)',
-  '导出加密备份': 'Export encrypted backup',
-  '导出 JSON（不含密码）': 'Export JSON (no passwords)',
   '备份口令': 'Backup passphrase',
   '备份里有密码和私钥，靠这个口令保护。忘了就解不开，App 不存它。':
       'The backup holds passwords and private keys, protected by this passphrase. Forget it and the backup can\'t be opened; the app doesn\'t store it.',
@@ -1107,21 +1022,89 @@ const englishTranslations = <String, String>{
   '解密': 'Decrypt',
   '正在计算…': 'Working…',
   '口令不对，或者文件被改过': 'Wrong passphrase, or the file was changed',
-  '不是保险库文件，或者文件已损坏': 'Not a vault file, or the file is damaged',
   '文件的密钥派生次数超出范围，没有解密：可能被改过，也可能是更新版本导出的':
       'The file\'s key derivation count is out of range, so it wasn\'t decrypted. It may have been changed, or exported by a newer version.',
-  '加密备份已导出': 'Encrypted backup exported',
-  '本机有、文件里没有的：': 'On this device but not in the file:',
-  '文件里的服务器指纹不导入：本机没核对过的服务器，第一次连接时会请你重新核对。':
-      'Server fingerprints in the file are not imported. Servers not yet verified on this device will ask you to verify them on first connection.',
-  '选「合并」会保留它们。选「替换」会把它们连同密码和私钥一起删除，之后再导入不带凭据的备份也找不回来。':
-      'Merge keeps them. Replace deletes them together with their passwords and private keys; importing a backup without credentials later will not bring those back.',
-  '这些条目的地址、端口或用户名和本机不同，本机存的密码不会沿用，导入后要重新填：':
-      'These entries have a different address, port or username than on this device, so the saved passwords will not carry over. Re-enter them after importing:',
-  '这些私钥在文件里只有名字、没有内容（本 App 导出的文件不带私钥），导入后要重新导入私钥：':
-      'These private keys have only a name in the file and no key material (files exported by this app never include private keys). Import the keys again afterwards:',
   '主机': 'Hosts',
   '代理配置': 'Proxy profiles',
+  '云端备份': 'Cloud backup',
+  '备份到文件': 'Back up to file',
+  '从文件恢复': 'Restore from file',
+  '未设置': 'Not set up',
+  '备份里有密码和私钥，全程加密，靠你定的密码保护。换手机用备份恢复，两台手机在同一个 Wi-Fi 也可以扫码互传。':
+      'Backups include passwords and private keys, always encrypted under a password you choose. Restore one on a new phone; two phones on the same Wi-Fi can also transfer by QR code.',
+  '备份已保存': 'Backup saved',
+  '填好才会外连。密码和私钥加密后才传上去，靠主密码保护，忘了就解不开。备份时会先和云端那份合并。':
+      'Nothing connects until this is filled in. Passwords and private keys are encrypted before upload under the master password; if you forget it, the backup can\'t be opened. Backing up merges with the cloud copy first.',
+  '主密码': 'Master password',
+  '主密码至少 12 位': 'The master password must be at least 12 characters',
+  '主密码不到 12 位，没有保存':
+      'Master password is under 12 characters, so it was not saved',
+  '自动备份': 'Auto backup',
+  '数据变了约 10 秒后备份，启动、回到前台和每 5 分钟也查一次云端。':
+      'Backs up about 10 seconds after data changes, and checks the cloud at launch, on returning to the app and every 5 minutes.',
+  '自动备份已开启': 'Auto backup on',
+  '自动备份已关闭': 'Auto backup off',
+  '正在备份…': 'Backing up…',
+  '立即备份': 'Back up now',
+  '从云端恢复': 'Restore from cloud',
+  '待备份': 'Pending',
+  '刷新版本': 'Refresh versions',
+  '填写 S3 凭据后查看版本': 'Enter S3 credentials to view versions',
+  '登录 GitHub 后查看版本': 'Sign in to GitHub to view versions',
+  '点按刷新确认版本': 'Tap refresh to confirm versions',
+  '本地与云端尚无共同版本，请立即备份':
+      'Local and cloud have no shared version yet. Back up now',
+  '云端已有版本，建议立即备份': 'A cloud version exists. Back up now',
+  '本地数据等待备份': 'Local data is waiting to be backed up',
+  '尚未备份过': 'Not backed up yet',
+  '本地和云端均有更新，请立即备份': 'Both local and cloud have changes. Back up now',
+  '本地有待备份的更改': 'Local changes are waiting to be backed up',
+  '云端有新版本，建议立即备份': 'A newer cloud version is available. Back up now',
+  '云端版本与上次记录不一致，请立即备份':
+      'The cloud version differs from the last record. Back up now',
+  '确认删除并备份': 'Confirm deletions and back up',
+  '云端还没有备份': 'No backup in the cloud yet',
+  '云端同步格式已降级，已停止写入以保护删除记录':
+      'The cloud sync format was downgraded. Writing stopped to protect deletion records',
+  '缺少可信同步基线，无法安全合并本地数据与云端 v2 保险库，本次未写入云端。可以用「从云端恢复」先看看云端那份':
+      'No trusted sync baseline, so local data cannot be merged safely with the cloud v2 vault. Nothing was written to the cloud. Use Restore from cloud to look at the cloud copy',
+  '请先填好云端备份的配置和主密码':
+      'Fill in the cloud backup settings and master password first',
+  '主密码不对，或者云端文件已损坏': 'Wrong master password, or the cloud file is damaged',
+  '云端文件的密钥派生次数超出范围，没有解密：可能被改过，也可能是更新版本写的':
+      'The key derivation count in the cloud file is out of range, so it was not decrypted. It may have been altered, or written by a newer version',
+  '备份完成': 'Backup finished',
+  '备份失败': 'Backup failed',
+  '备份完成；备份期间的本地修改已保留，下次一起备份':
+      'Backup finished. Local changes made during the backup were kept and go in the next one',
+  '不是 shun 的加密备份，或者文件已损坏':
+      'Not a shun encrypted backup, or the file is damaged',
+  '备份': 'Backup',
+  '只存在这部手机上，不上传、不进备份。地址、用户名、令牌写进来之前就换成了「<IP>」这类记号。崩溃、出错、备份留 14 天，连接留 7 天。':
+      'Stays on this phone: not uploaded, not in backups. Addresses, usernames and tokens become markers like <IP> before being written. Crashes, errors and backups are kept 14 days, connections 7 days.',
+  '会删掉崩溃、出错、备份 {a} 条和连接 {b} 条，删了找不回来。主机和连着的标签都不动。':
+      'Deletes {a} crash, error and backup entries and {b} connection entries. They can\'t be recovered. Hosts and open tabs are not touched.',
+  '崩溃、出错、备份': 'Crashes, errors and backups',
+  '恢复备份': 'Restore backup',
+  '确认恢复': 'Restore',
+  '本机有、备份里没有的：': 'On this device but not in the backup:',
+  '选「合并」会保留它们。选「替换」会把它们连同密码和私钥一起删除，删了找不回来。':
+      'Merge keeps them. Replace deletes them along with their passwords and private keys, and they can\'t be recovered.',
+  '这些条目的地址、端口或用户名和本机不同，本机存的密码不会沿用，恢复后要重新填：':
+      'These entries have a different address, port or username from this device, so saved passwords won\'t carry over. Re-enter them after restoring:',
+  '这些私钥在备份里只有名字、没有内容，恢复后要重新导入私钥：':
+      'These private keys have only a name in the backup, no content. Import them again after restoring:',
+  '服务器指纹不恢复：本机没核对过的服务器，第一次连接时会请你重新核对。':
+      'Server fingerprints are not restored. Servers this device hasn\'t verified will ask you to verify them on first connection.',
+  '关闭会删除该服务器已保存的历史；不进云端备份':
+      'Turning this off deletes the saved history for this server; it is not in cloud backups',
+  '本地同步基线无法读取，已停止写入以保护数据，请先检查主密码':
+      'The local sync baseline cannot be read. Writing stopped to protect data. Check the master password first',
+  '上次失败，会自动重试：\${syncState.lastError}':
+      'Last backup failed, will retry: \${syncState.lastError}',
+  '最近备份 \$hour:\$minute': 'Last backup \$hour:\$minute',
+  r'将从保险库中删除“${host.label}”，此操作可通过云端备份传播到其他设备。':
+      r'Delete “${host.label}” from the vault? This can reach other devices through cloud backup.',
   '合并': 'Merge',
   '替换': 'Replace',
   // R13：Tailscale 设备目录（tailscale_catalog_screen.dart、catalog_import_sheet.dart、
@@ -2269,8 +2252,10 @@ const englishTranslations = <String, String>{
   // 凭据（R26 F25）
   '凭据': 'Credentials',
   '登录身份': 'Login identities',
-  '登录身份（用户名 + 密码或密钥）、SSH 密钥': 'Login identities (username + password or key), SSH keys',
-  '用户名 + 登录方式，多台主机共用一份：改一次密码，所有用它的主机都跟着变。在主机编辑器的「认证」里选。': 'A username plus a sign-in method, shared by several hosts: change the password once and every host using it follows. Pick one under “Authentication” in the host editor.',
+  '登录身份（用户名 + 密码或密钥）、SSH 密钥':
+      'Login identities (username + password or key), SSH keys',
+  '用户名 + 登录方式，多台主机共用一份：改一次密码，所有用它的主机都跟着变。在主机编辑器的「认证」里选。':
+      'A username plus a sign-in method, shared by several hosts: change the password once and every host using it follows. Pick one under “Authentication” in the host editor.',
   '新建登录身份': 'New login identity',
   '编辑登录身份': 'Edit login identity',
   '删除登录身份': 'Delete login identity',
@@ -2279,12 +2264,15 @@ const englishTranslations = <String, String>{
   '登录身份“{name}”': 'Login identity “{name}”',
   '登录凭据': 'Login credential',
   '不用凭据，在下面单独设置': 'No credential, set it up below',
-  '登录时用户名 {user}，{how}。这台主机自己的认证设置留着，改回「不用凭据」时照常用。': 'Signs in as {user} with {how}. This host’s own authentication settings are kept and used again if you switch back to “No credential”.',
+  '登录时用户名 {user}，{how}。这台主机自己的认证设置留着，改回「不用凭据」时照常用。':
+      'Signs in as {user} with {how}. This host’s own authentication settings are kept and used again if you switch back to “No credential”.',
   '名称（可选，默认用用户名）': 'Name (optional, defaults to the username)',
   '登录方式': 'Sign-in method',
   'SSH 密钥 + 密码': 'SSH key + password',
-  '服务器要求先过公钥、再输密码时用（sshd 配了 AuthenticationMethods publickey,password）。密钥自己的口令存在密钥上，不在这里。': 'For servers that require the public key first and then a password (sshd with AuthenticationMethods publickey,password). The key’s own passphrase is stored with the key, not here.',
-  '还没有 SSH 密钥。先在「凭据」里导入一把，再回来选。': 'No SSH keys yet. Import one under “Credentials” first, then come back and pick it.',
+  '服务器要求先过公钥、再输密码时用（sshd 配了 AuthenticationMethods publickey,password）。密钥自己的口令存在密钥上，不在这里。':
+      'For servers that require the public key first and then a password (sshd with AuthenticationMethods publickey,password). The key’s own passphrase is stored with the key, not here.',
+  '还没有 SSH 密钥。先在「凭据」里导入一把，再回来选。':
+      'No SSH keys yet. Import one under “Credentials” first, then come back and pick it.',
   '密码（可选，不填就连接时问）': 'Password (optional; asked when connecting if left empty)',
   '用户名不能有空格': 'The username cannot contain spaces',
   '选一把 SSH 密钥': 'Pick an SSH key',
@@ -2292,16 +2280,11 @@ const englishTranslations = <String, String>{
   '密码（连接时问）': 'Password (asked when connecting)',
   '（已删除的密钥）': '(deleted key)',
   // 日志页（R26 F24）
-  '连接日志':
-      'Connection log',
-  '清除这台主机的连接日志？':
-      'Clear this host\'s connection log?',
+  '连接日志': 'Connection log',
+  '清除这台主机的连接日志？': 'Clear this host\'s connection log?',
   'shun 连接日志，导出于 {time}，共 {n} 条。':
       'shun connection log, exported {time}, {n} entries.',
-  '会删掉崩溃、出错、同步 {a} 条和连接 {b} 条，删了找不回来。主机和连着的标签都不动。':
-      'This deletes {a} crash, error and sync entries and {b} connection entries. They can\'t be recovered. Hosts and open tabs stay as they are.',
-  '这台主机最近 7 天没有记录':
-      'No records for this host in the last 7 days',
+  '这台主机最近 7 天没有记录': 'No records for this host in the last 7 days',
   '日志': 'Logs',
   '崩溃': 'Crashes',
   '出错': 'Errors',
@@ -2310,9 +2293,6 @@ const englishTranslations = <String, String>{
   '复制这条': 'Copy this entry',
   '还没有记录': 'No entries yet',
   '清除全部日志？': 'Clear all logs?',
-  '崩溃、出错、同步': 'Crashes, errors, sync',
-  '同步完成': 'Sync finished',
-  '同步失败': 'Sync failed',
   '内存不够，系统结束了 App': 'The system ended the app: low memory',
   'App 崩溃（Java 层）': 'App crashed (Java)',
   'App 崩溃（原生层）': 'App crashed (native)',
@@ -2321,8 +2301,8 @@ const englishTranslations = <String, String>{
   '占用资源过多，系统结束了 App': 'The system ended the app: too much resource use',
   '界面出错（Flutter）': 'UI error (Flutter)',
   '没接住的错误（Dart）': 'Uncaught error (Dart)',
-  '只存在这部手机上，不上传、不进备份和同步。地址、用户名、令牌写进来之前就换成了「<IP>」这类记号。崩溃、出错、同步留 14 天，连接留 7 天。': 'Stored only on this phone: never uploaded, backed up or synced. Addresses, usernames and tokens are replaced with marks like “<IP>” before they are written. Crashes, errors and sync are kept 14 days, connections 7 days.',
-  '复制的就是下面这些。地址、用户名、令牌已经换成记号，主机只写编号。发给别人之前再看一眼。': 'This is exactly what gets copied. Addresses, usernames and tokens are already replaced with marks, and hosts appear only as numbers. Check it before sending it to anyone.',
+  '复制的就是下面这些。地址、用户名、令牌已经换成记号，主机只写编号。发给别人之前再看一眼。':
+      'This is exactly what gets copied. Addresses, usernames and tokens are already replaced with marks, and hosts appear only as numbers. Check it before sending it to anyone.',
   '已复制 {n} 条记录': 'Copied {n} entries',
   '会删掉 {n} 条，删了找不回来。主机、连着的标签和保险库都不动。':
       'This deletes {n} entries and they cannot be recovered. Hosts, connected tabs and the vault are not touched.',
@@ -2384,7 +2364,8 @@ const englishTranslations = <String, String>{
   '没连局域网。连上 Wi-Fi 或打开手机热点再试。':
       'Not on a local network. Join Wi-Fi or turn on a hotspot, then try again.',
   r'等对方扫码 · $time': r'Waiting for scan · $time',
-  r'$missing 条凭据解不开，没有带上': r'$missing credentials could not be decrypted and were left out',
+  r'$missing 条凭据解不开，没有带上':
+      r'$missing credentials could not be decrypted and were left out',
   r'没开成：$message': r'Could not start: $message',
   '互传二维码': 'Transfer QR code',
   '扫对方手机上的二维码': 'Scan the QR code on the other phone',
@@ -2394,16 +2375,13 @@ const englishTranslations = <String, String>{
   '不是 shun 的互传二维码': 'Not a shun transfer QR code',
   '对方不是出这个二维码的手机，让对方重新生成再扫。':
       'The other device did not make this QR code. Generate a new one and scan again.',
-  '收到的内容校验没过，重新扫码再试。':
-      'The received data failed its check. Scan again.',
+  '收到的内容校验没过，重新扫码再试。': 'The received data failed its check. Scan again.',
   '二维码已过期，让对方重新生成。': 'This QR code has expired. Generate a new one.',
   '连不上对方。这台手机开着 VPN，局域网连接可能被导进了 VPN，先关掉再试。':
       'Cannot reach the other phone. A VPN is on and may be capturing local traffic. Turn it off and try again.',
   '连不上对方。两台手机要连同一个 Wi-Fi，路由器开了 AP 隔离就改用手机热点。':
       'Cannot reach the other phone. Both must be on the same Wi-Fi. If the router isolates clients, use a phone hotspot.',
   '重新扫码': 'Scan again',
-  '换手机用加密备份，两台手机在同一个 Wi-Fi 也可以扫码互传。不含密码的 JSON 只有配置，导入后要重新填。':
-      'To move phones, use an encrypted backup, or scan a QR code when both are on the same Wi-Fi. JSON without passwords only has settings; fill them in again after importing.',
   '可信主机密钥': 'Trusted host keys',
   '这里是你核对后接受过的服务器。删一条后，下次连这台要重新核对。只记在这台手机上，同步和导入都不带。':
       'Servers you verified and accepted. Delete one and you verify it again on the next connection. Kept on this phone only: sync and import never carry it.',
@@ -2627,9 +2605,15 @@ const englishReplacements = <(String, String)>[
   ('，都不行再问你', ', and if none works you are asked'),
   // 凭据（R26 F25）：删除前问的话、登录方式一句话。
   ('删除登录身份“', 'Delete login identity “'),
-  ('。删了以后它们改回用自己的用户名和认证设置；删了不能撤销。', '. After deleting, they go back to their own username and authentication settings. This cannot be undone.'),
+  (
+    '。删了以后它们改回用自己的用户名和认证设置；删了不能撤销。',
+    '. After deleting, they go back to their own username and authentication settings. This cannot be undone.'
+  ),
   ('这些在用它：', 'In use by: '),
-  ('。删了以后，其中用私钥登录的会连不上，要重新选一把；删了不能撤销。', '. After deleting, those that sign in with this key cannot connect until another key is picked. This cannot be undone.'),
+  (
+    '。删了以后，其中用私钥登录的会连不上，要重新选一把；删了不能撤销。',
+    '. After deleting, those that sign in with this key cannot connect until another key is picked. This cannot be undone.'
+  ),
   ('” + 密码', '” + password'),
   ('SSH 密钥“', 'SSH key “'),
   ('凭据“', 'Credential “'),
@@ -2714,10 +2698,6 @@ const englishReplacements = <(String, String)>[
   ('改权限「', 'Change permissions of “'),
   ('删除「', 'Delete “'),
   // 同步解密的报错前面带着「FormatException: 」，只能按片段换。
-  (
-    '云端文件的密钥派生次数超出范围，没有解密：可能被改过，也可能是更新版本的桌面端写的',
-    'The cloud file asks for a key-derivation count outside the allowed range, so it was not decrypted. It may have been tampered with, or written by a newer desktop version'
-  ),
   // 系统管理确认框里接在名字后面的说明（名字是运行时才知道的）。放最前面，免得被后面的「停止」「重启」先拆碎。
   ('全部服务会停止，容器保留。', 'All services will stop; the containers are kept.'),
   ('全部服务会重启，期间中断。', 'All services will restart and are interrupted meanwhile.'),
@@ -3163,26 +3143,35 @@ const englishReplacements = <(String, String)>[
     '. Certificate and descriptor checked again; the earlier connection was closed.'
   ),
   // R13：多行拼接和带插值的句子（精确表匹配不到运行时的整句，按片段翻）。
+  ('备份已保存，但有 ', 'Backup saved, but '),
+  ('备份里有 ', 'The backup has '),
+  (' 台以备份为准更新。', ' existing ones will be updated from the backup.'),
+  ('恢复完成（合并）：新增主机 ', 'Restored (merge): hosts added '),
+  ('恢复完成（替换）：现在共有主机 ', 'Restored (replace): hosts now '),
+  (
+    '确认期间本机数据有变化，没有恢复。请重新来一次。',
+    'Data on this device changed while you were confirming; nothing was restored. Try again.'
+  ),
+  ('恢复失败：', 'Restore failed: '),
+  ('备份失败：', 'Backup failed: '),
+  (
+    '”，此操作可通过云端备份传播到其他设备。',
+    '”. This can reach other devices through cloud backup.'
+  ),
+  (
+    '云端备份请求超时，请检查网络后重试',
+    'Cloud backup timed out. Check the network and try again'
+  ),
   ('读取来源失败：', 'Failed to read sources: '),
   ('已导入为“', 'Already imported as “'),
   // 导入保险库：带数字的句子（vault_import_dialog.dart、settings_screen.dart 的 _import）。
   // 放最前：后面的通用片段会把「导入」「失败」「台」拆开逐个翻。
-  ('加密备份已导出，但有 ', 'Encrypted backup exported, but '),
   (' 条凭据解不开，没有带上', ' credentials could not be read and are not in it'),
-  ('文件里有 ', 'The file has '),
   (' 台主机：本机没有的 ', ' hosts: '),
   (' 台会新增，本机已有的 ', ' will be added and '),
-  (' 台以文件为准更新。', ' existing ones will be updated from the file.'),
-  ('导入完成（合并）：新增主机 ', 'Imported (merge): hosts added '),
   (' 台，更新主机 ', ', hosts updated '),
   (' 台，本机独有的主机保留：', ', local-only hosts kept '),
-  ('导入完成（替换）：现在共有主机 ', 'Imported (replace): hosts now '),
   (' 台，删除了本机独有的主机：', ', local-only hosts deleted '),
-  (
-    '确认期间本机保险库有变化，没有导入。请重新选择文件导入。',
-    'The vault on this device changed while you were confirming; nothing was imported. Choose the file again.'
-  ),
-  ('导入失败：', 'Import failed: '),
   // X03：插件会话（plugin_sessions.dart、PluginBridge.kt 的会话报错与丢弃原因）。
   ('不是已安装的插件', 'Not an installed plugin'),
   ('会话不在运行', 'The session is not running'),
@@ -3756,10 +3745,6 @@ const englishReplacements = <(String, String)>[
     '私钥内容已损坏：解出来的私钥和它的公钥对不上，可能被改动过',
     'the private key is damaged: it does not match its own public key and may have been altered'
   ),
-  (
-    '导出完成（不含密码、私钥和代理口令）',
-    'Export complete (passwords, private keys and proxy passwords are not included)'
-  ),
   // 连接进度（ssh_service.dart 的 ConnectionStage.describe）：「第 1/3 跳，正在连接“x”（地址）」。
   ('第 ', 'Hop '),
   (' 跳，', ', '),
@@ -3885,10 +3870,6 @@ const englishReplacements = <(String, String)>[
     'Not all sensitive data can be detected; preview before sending'
   ),
   ('在本机保存聊天历史', 'Save chat history on this device'),
-  (
-    '关闭会删除该服务器已保存的历史；不进行云同步',
-    'Turning off deletes saved history for this server; history is not cloud-synced'
-  ),
   ('无法修改历史保存设置', 'Could not change history settings'),
   ('发送内容预览', 'Preview outgoing content'),
   (
@@ -4062,7 +4043,6 @@ const englishReplacements = <(String, String)>[
   ('将断开', 'Disconnect '),
   ('将从保险库中删除', 'Delete from the vault: '),
   ('将删除“', 'Delete “'),
-  ('”，此操作可通过云同步传播到其他设备。', '”. This change can sync to other devices.'),
   ('”，删了不能撤销。', '”. This cannot be undone.'),
   ('重新创建有变化的服务', 'recreate changed services'),
   ('使用当前镜像重新创建', 'recreate using the current image'),
@@ -4084,7 +4064,6 @@ const englishReplacements = <(String, String)>[
   ('续传文件长度已变化', 'The resume file size changed'),
   ('传输已取消', 'Transfer cancelled'),
   ('上传完成', 'Upload complete'),
-  ('导出完成', 'Export complete'),
   ('加密上传完成', 'Encrypted upload complete'),
   ('手机目录（未挂载）', 'Phone folder (not mounted)'),
   ('尚未挂载手机目录', 'No phone folder is mounted'),
@@ -4169,20 +4148,11 @@ const englishReplacements = <(String, String)>[
   ('打开 GitHub', 'Open GitHub'),
   ('已退出 GitHub', 'Signed out of GitHub'),
   ('自动同步私有 Gist', 'Automatically sync a private Gist'),
-  ('云同步请求超时，请检查网络后重试', 'Cloud sync timed out. Check the network and retry'),
   ('版本信息读取失败', 'Unable to read version information'),
   ('无法确认云端版本', 'Unable to verify the cloud version'),
   ('云端写入失败', 'Unable to write the cloud vault'),
   ('云端保险库在同步期间发生变化，请重试', 'The remote vault changed during sync. Retry'),
   ('云端保险库超过', 'The remote vault exceeds'),
-  (
-    '同步密码错误或云端文件已损坏',
-    'The sync password is incorrect or the remote file is corrupted'
-  ),
-  (
-    '请先在设置中配置云同步与同步密码',
-    'Configure cloud sync and its password in Settings first'
-  ),
   ('已创建加密云端保险库', 'Created the encrypted remote vault'),
   ('Gist 大文件读取失败', 'Unable to read the large Gist file'),
   ('AI 请求失败', 'AI request failed'),
@@ -4505,7 +4475,6 @@ const englishReplacements = <(String, String)>[
   ('已导出', 'Exported '),
   ('已保存', 'Saved '),
   ('已发送到', 'Sent to '),
-  ('同步完成', 'Sync complete'),
   ('同步', 'sync'),
   ('云端', 'remote '),
   ('保险库', 'vault'),

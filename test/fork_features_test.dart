@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -51,7 +54,7 @@ void main() {
       return http.Response('{"tag_name":"v1.4.7"}', 200);
     });
     final repository = await VaultRepository.open();
-    // 设置页是懒加载 ListView：默认 800x600 的测试窗口里，云同步/AI 那几项根本不会被构建，
+    // 设置页是懒加载 ListView：默认 800x600 的测试窗口里，云端备份/AI 那几项根本不会被构建，
     // "找不到"就不能说明被隐藏了。拉高窗口让整页一次构建出来，UI 断言才有意义。
     tester.view.physicalSize = const Size(800, 20000);
     tester.view.devicePixelRatio = 1;
@@ -82,13 +85,21 @@ void main() {
     return requests;
   }
 
+  Future<void> openCloudBackup(WidgetTester tester) async {
+    await tester.tap(find.byKey(const ValueKey('settings-cloud-backup')));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+  }
+
   testWidgets('默认开关下冷启动、打开设置、后台恢复都不发网络请求', (tester) async {
     final requests = await launchAndVisitSettings(tester);
     expect(requests.map((r) => r.url.toString()), isEmpty);
-    // 云同步入口在，但没填配置：就算残留着「自动同步已开」也没有请求（SYN03）。GitHub 那一项不出现。
+    expect(find.text('管理多个 AI 服务商'), findsNothing);
+    // 云端备份入口在，但没填配置：就算残留着「自动备份已开」，打开这页也没有请求（SYN03）。GitHub 那一项不出现。
+    await openCloudBackup(tester);
     expect(find.byKey(const ValueKey('cloud-auto-sync')), findsOneWidget);
     expect(find.text('GitHub'), findsNothing);
-    expect(find.text('管理多个 AI 服务商'), findsNothing);
+    expect(requests.map((r) => r.url.toString()), isEmpty);
   });
 
   testWidgets('数据区：加密备份入口弹口令框，取消后什么都不写', (tester) async {
@@ -104,32 +115,78 @@ void main() {
     expect(requests, isEmpty);
   });
 
+  testWidgets('数据区：明文 JSON 的入口没了；云端备份那一行跟着配置变', (tester) async {
+    await launchAndVisitSettings(tester);
+    expect(find.text('备份到文件'), findsOneWidget);
+    expect(find.text('从文件恢复'), findsOneWidget);
+    expect(find.textContaining('JSON'), findsNothing);
+    expect(find.text('未设置'), findsOneWidget);
+
+    await openCloudBackup(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, 'WebDAV 地址'),
+      'https://dav.example.com/x',
+    );
+    await tester.tap(find.byType(BackButton));
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text('未设置'), findsNothing);
+    expect(find.text('WebDAV · 自动'), findsOneWidget);
+  });
+
+  testWidgets('从文件恢复：明文 JSON 不收，不弹确认框，本机不动', (tester) async {
+    await launchAndVisitSettings(tester);
+    final repository = await VaultRepository.open();
+    final previous = _swapPicker(_FakePicker(FilePickerResult([
+      PlatformFile(
+        name: 'shun-export.json',
+        size: 60,
+        bytes: utf8.encode(
+          '{"hosts":[{"id":"h","label":"h"}],"keys":[],"snippets":[]}',
+        ),
+      ),
+    ])));
+    addTearDown(() => _swapPicker(previous));
+    ScaffoldMessenger.of(tester.element(find.text('从文件恢复'))).clearSnackBars();
+    await tester.pump();
+
+    await tester.tap(find.byKey(const ValueKey('restore-from-file')));
+    await tester.pump(const Duration(seconds: 1));
+
+    expect(find.text('恢复失败：不是 shun 的加密备份，或者文件已损坏'), findsOneWidget);
+    expect(find.text('恢复备份'), findsNothing);
+    expect(find.byKey(const ValueKey('backup-passphrase')), findsNothing);
+    expect((await repository.loadVault()).hosts, isEmpty);
+  });
+
   Future<List<http.Request>> tapSyncWithPassword(
     WidgetTester tester,
     String password,
   ) async {
     final requests = await launchAndVisitSettings(tester);
+    await openCloudBackup(tester);
     await tester.enterText(
-      find.widgetWithText(TextField, '同步主密码'),
+      find.widgetWithText(TextField, '主密码'),
       password,
     );
     // 夹具的安全存储是假的，启动时会弹一条「远控存储未就绪」。它不走，后面的提示只能排队，测试看不到。
-    ScaffoldMessenger.of(tester.element(find.text('立即同步'))).clearSnackBars();
+    ScaffoldMessenger.of(tester.element(find.text('立即备份'))).clearSnackBars();
     await tester.pump();
-    await tester.tap(find.text('立即同步'));
+    await tester.tap(find.text('立即备份'));
     await tester.pump(const Duration(seconds: 1));
     return requests;
   }
 
-  testWidgets('同步主密码 11 位：拦住，没有请求', (tester) async {
+  testWidgets('主密码 11 位：拦住，没有请求', (tester) async {
     final requests = await tapSyncWithPassword(tester, 'a' * 11);
-    expect(find.text('同步主密码至少 12 位'), findsOneWidget);
+    expect(find.text('主密码至少 12 位'), findsOneWidget);
     expect(requests, isEmpty);
   });
 
-  testWidgets('同步主密码 12 位：放行，但没填配置仍然没有请求', (tester) async {
+  testWidgets('主密码 12 位：放行，但没填配置仍然没有请求', (tester) async {
     final requests = await tapSyncWithPassword(tester, 'a' * 12);
-    expect(find.text('同步主密码至少 12 位'), findsNothing);
+    expect(find.text('主密码至少 12 位'), findsNothing);
     // 有别的提示才说明点击真的走下去了，不然按钮没反应这条也会过。
     expect(find.byType(SnackBar), findsOneWidget);
     expect(requests, isEmpty);
@@ -145,7 +202,42 @@ void main() {
       requests.map((r) => r.url.host),
       contains('api.github.com'),
     );
-    expect(find.byKey(const ValueKey('cloud-auto-sync')), findsOneWidget);
     expect(find.text('管理多个 AI 服务商'), findsOneWidget);
+    await openCloudBackup(tester);
+    expect(find.byKey(const ValueKey('cloud-auto-sync')), findsOneWidget);
   });
+}
+
+FilePicker? _swapPicker(FilePicker? next) {
+  FilePicker? previous;
+  try {
+    previous = FilePicker.platform;
+  } catch (_) {
+    // 桌面测试里没注册过平台实现，取不到旧的。
+  }
+  if (next != null) FilePicker.platform = next;
+  return previous;
+}
+
+class _FakePicker extends FilePicker {
+  _FakePicker(this.result);
+
+  final FilePickerResult result;
+
+  @override
+  Future<FilePickerResult?> pickFiles({
+    String? dialogTitle,
+    String? initialDirectory,
+    FileType type = FileType.any,
+    List<String>? allowedExtensions,
+    Function(FilePickerStatus)? onFileLoading,
+    bool allowCompression = false,
+    int compressionQuality = 0,
+    bool allowMultiple = false,
+    bool withData = false,
+    bool withReadStream = false,
+    bool lockParentWindow = false,
+    bool readSequential = false,
+  }) async =>
+      result;
 }

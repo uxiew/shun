@@ -228,7 +228,7 @@ class AutoSyncController extends StateNotifier<AutoSyncState> {
         clearError: true,
       );
       final changed = !cloudSyncPayloadsEqual(merged, result.vault);
-      final message = changed ? '云端同步完成；同步期间的本地修改已保留，待下次同步' : result.message;
+      final message = changed ? '备份完成；备份期间的本地修改已保留，下次一起备份' : result.message;
       _onOutcome?.call(true, message);
       return CloudSyncResult(
         vault: merged,

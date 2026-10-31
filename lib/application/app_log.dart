@@ -12,7 +12,7 @@ import '../domain/log_scrub.dart';
 /// 本机日志（R26 F24：所有者要看应用崩溃、出错和同步事件）。连接事件不在这里：它们记在
 /// [ConnectionEventLog]（R25），日志页把两边合在一起显示。
 ///
-/// 和连接记录一样只在这部手机的 App 私有目录：不进保险库导出、不进云同步、不进系统备份，
+/// 和连接记录一样只在这部手机的 App 私有目录：不进备份、不进系统备份，
 /// 不上传。写进去之前过一遍 [scrubLogText]，用户复制出去的就是去敏后的。
 enum AppLogKind {
   /// App 挂了：Java 层崩溃、原生崩溃、无响应被系统结束、启动失败。都是下次启动才记上的。
@@ -21,7 +21,7 @@ enum AppLogKind {
   /// 没挂，但有代码报了没人接的错；还有系统在后台因为内存不够结束了 App。
   error,
 
-  /// 云同步的结果。
+  /// 云端备份的结果。
   sync,
 }
 
@@ -313,7 +313,7 @@ class AppLog extends StateNotifier<List<AppLogEntry>> {
       record(AppLogEntry(
         at: _now(),
         kind: AppLogKind.sync,
-        title: ok ? '同步完成' : '同步失败',
+        title: ok ? '备份完成' : '备份失败',
         detail: detail,
       ));
 

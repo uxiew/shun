@@ -14,7 +14,7 @@ class VaultChangedDuringImport implements Exception {
   const VaultChangedDuringImport();
 
   @override
-  String toString() => '确认期间本机保险库有变化，没有导入。请重新选择文件导入。';
+  String toString() => '确认期间本机数据有变化，没有恢复。请重新来一次。';
 }
 
 class VaultState {

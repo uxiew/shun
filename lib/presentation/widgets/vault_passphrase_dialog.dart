@@ -92,7 +92,7 @@ Future<T> _whileWorking<T>(BuildContext context, Future<T> work) async {
   }
 }
 
-/// 导出加密备份前定口令：输两遍，短了不让过。返回 null 表示取消。口令不存。
+/// 备份到文件前定口令：输两遍，短了不让过。返回 null 表示取消。口令不存。
 Future<String?> askNewBackupPassphrase(BuildContext context) =>
     showDialog<String>(
       context: context,
@@ -100,7 +100,7 @@ Future<String?> askNewBackupPassphrase(BuildContext context) =>
       builder: (context) => const _NewPassphraseDialog(),
     );
 
-/// 导入加密备份时问口令。[problem] 是上一次为什么没成功。返回 null 表示取消。
+/// 从文件恢复时问口令。[problem] 是上一次为什么没成功。返回 null 表示取消。
 Future<String?> askBackupPassphrase(BuildContext context, {String? problem}) =>
     showDialog<String>(
       context: context,
@@ -187,7 +187,7 @@ class _NewPassphraseDialogState extends State<_NewPassphraseDialog> {
             FilledButton(
               key: const ValueKey('backup-passphrase-confirm'),
               onPressed: _submit,
-              child: const LText('导出'),
+              child: const LText('备份'),
             ),
           ],
         ),

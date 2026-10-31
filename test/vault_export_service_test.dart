@@ -1,19 +1,18 @@
-import 'dart:convert';
 import 'dart:io';
 import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:shun/domain/models/vault.dart';
 import 'package:shun/infrastructure/storage/vault_export_service.dart';
 
 void main() {
-  test(
-      'mobile export passes the JSON payload, without credentials, to the document picker',
-      () async {
+  final cipher = Uint8List.fromList([1, 2, 3]);
+
+  test('手机上把密文交给文档选择器，文件名写明是加密备份', () async {
     Uint8List? savedBytes;
     FileType? savedType;
     List<String>? savedExtensions;
+    String? savedName;
     final service = VaultExportService(
       pickerWritesBytes: true,
       saveFile: ({
@@ -26,42 +25,22 @@ void main() {
         savedBytes = bytes;
         savedType = type;
         savedExtensions = allowedExtensions;
-        return '/document/shun-export.json';
+        savedName = fileName;
+        return '/document/shun-backup-encrypted.json';
       },
     );
-    final vault = VaultData.fromJson({
-      'hosts': [
-        {
-          'id': 'host-1',
-          'label': 'NAS',
-          'hostname': '192.0.2.10',
-          'username': 'root',
-          'password': 'secret',
-        },
-      ],
-      'keys': [],
-      'snippets': [],
-      'customGroups': ['Home'],
-      'desktopPluginData': {'preserved': true},
-    });
 
-    final result = await service.export(vault);
-
-    expect(result, VaultExportResult.saved);
+    expect(await service.exportEncrypted(cipher), VaultExportResult.saved);
     expect(savedType, FileType.custom);
     expect(savedExtensions, ['json']);
-    expect(savedBytes, isNotNull);
-    final json = jsonDecode(utf8.decode(savedBytes!)) as Map<String, dynamic>;
-    // V3 契约：凭据不进普通导出（上游导出里是明文密码，这里有意反过来）。
-    expect((json['hosts'] as List).single.containsKey('password'), isFalse);
-    expect(utf8.decode(savedBytes!), isNot(contains('secret')));
-    expect(json['desktopPluginData'], {'preserved': true});
+    expect(savedName, 'shun-backup-encrypted.json');
+    expect(savedBytes, cipher);
   });
 
-  test('desktop export writes JSON to the selected filesystem path', () async {
+  test('桌面上选择器只给路径，文件自己写', () async {
     final directory = await Directory.systemTemp.createTemp('vault-export-');
     addTearDown(() => directory.delete(recursive: true));
-    final destination = File('${directory.path}/vault.json');
+    final destination = File('${directory.path}/backup.json');
     Uint8List? pickerBytes;
     final service = VaultExportService(
       pickerWritesBytes: false,
@@ -77,18 +56,12 @@ void main() {
       },
     );
 
-    final result = await service.export(VaultData.empty());
-
-    expect(result, VaultExportResult.saved);
+    expect(await service.exportEncrypted(cipher), VaultExportResult.saved);
     expect(pickerBytes, isNull);
-    expect(destination.existsSync(), isTrue);
-    expect(
-      jsonDecode(await destination.readAsString()),
-      containsPair('hosts', isEmpty),
-    );
+    expect(await destination.readAsBytes(), cipher);
   });
 
-  test('cancelled export does not report success', () async {
+  test('选择器里取消：不算成功', () async {
     final service = VaultExportService(
       pickerWritesBytes: true,
       saveFile: ({
@@ -102,7 +75,7 @@ void main() {
     );
 
     expect(
-      await service.export(VaultData.empty()),
+      await service.exportEncrypted(cipher),
       VaultExportResult.cancelled,
     );
   });

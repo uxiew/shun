@@ -120,6 +120,15 @@ class CloudSyncService {
     );
   }
 
+  /// 恢复用：只读云端那份、解密。不合并、不写云端，写不写本机由调用方问用户。
+  Future<VaultData> downloadBackup() async {
+    final setup = await _setup();
+    final remote = await _download(setup.connection);
+    if (remote == null) throw StateError('云端还没有备份');
+    _assertSupportedSyncSchema(remote.file);
+    return VaultCrypto.decrypt(remote.file, setup.password);
+  }
+
   Future<void> testS3Connection(SyncConnection connection) =>
       _withTimeout(S3SyncClient(client: _client).testConnection(connection));
 
@@ -160,7 +169,7 @@ class CloudSyncService {
       if (!isV2 &&
           ((candidate != null && hasConvergentSyncEnvelope(candidate)) ||
               (base != null && hasConvergentSyncEnvelope(base)))) {
-        throw StateError('云端同步格式已降级，已停止写入以保护删除记录，请先在桌面端确认恢复');
+        throw StateError('云端同步格式已降级，已停止写入以保护删除记录');
       }
       final legacyMerged =
           mergeVaults(base: base, local: local, remote: downloaded);
@@ -183,7 +192,7 @@ class CloudSyncService {
             if (base == null) {
               if (hasEntities && !cloudSyncPayloadsEqual(local, downloaded)) {
                 throw StateError(
-                    '缺少可信同步基线，无法安全合并本地数据与云端 v2 保险库。请先导出本地备份，并在桌面端确认数据后重试；本次未写入云端');
+                    '缺少可信同步基线，无法安全合并本地数据与云端 v2 保险库，本次未写入云端。可以用「从云端恢复」先看看云端那份');
               }
               candidate = downloaded;
             } else {
@@ -280,7 +289,7 @@ class CloudSyncService {
         final applied = retainLocalDeviceData(verifiedVault, local);
         return CloudSyncResult(
           vault: applied,
-          message: '同步完成',
+          message: '备份完成',
           validateBeforeApply: () =>
               _assertSetupUnchanged(setup.connection, setup.password),
           acknowledge: () async {
@@ -319,7 +328,7 @@ class CloudSyncService {
     var connection = await repository.loadSyncConnection();
     final password = await repository.readMasterPassword();
     if (connection == null || password == null || password.isEmpty) {
-      throw StateError('请先在设置中配置云同步与同步密码');
+      throw StateError('请先填好云端备份的配置和主密码');
     }
     if (connection.type == SyncProviderType.githubGist) {
       if (!githubEnabled) throw StateError('这个版本不支持同步到 GitHub');
@@ -795,7 +804,7 @@ class CloudSyncService {
       if (_syncSchema(file) == 2) _validateConvergentPayload(decrypted);
       return decrypted;
     } on Object {
-      throw StateError('本地同步基线无法读取，已停止写入以保护数据，请先检查同步密码');
+      throw StateError('本地同步基线无法读取，已停止写入以保护数据，请先检查主密码');
     }
   }
 
@@ -899,7 +908,7 @@ class CloudSyncService {
     try {
       return await request.timeout(requestTimeout);
     } on TimeoutException {
-      throw StateError('云同步请求超时，请检查网络后重试');
+      throw StateError('云端备份请求超时，请检查网络后重试');
     }
   }
 
@@ -907,7 +916,7 @@ class CloudSyncService {
     try {
       return await request.timeout(requestTimeout);
     } on TimeoutException {
-      throw StateError('云同步请求超时，请检查网络后重试');
+      throw StateError('云端备份请求超时，请检查网络后重试');
     }
   }
 

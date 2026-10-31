@@ -196,7 +196,7 @@ void main() {
     });
   });
 
-  testWidgets('整个 App：云同步卡片只在设置页显示时防；设置开关拨了马上生效、存下来；切到终端页放开', (tester) async {
+  testWidgets('整个 App：只有云端备份页防，设置页本身能截；开关拨了存下来，之后这页也不防', (tester) async {
     // 设置页 await PackageInfo，不 mock 会抛 MissingPluginException。
     PackageInfo.setMockInitialValues(
       appName: 'shun',
@@ -205,7 +205,7 @@ void main() {
       buildNumber: '26',
       buildSignature: '',
     );
-    // 设置页是懒加载 ListView：拉高窗口让云同步卡片和「安全」一节一次建出来。
+    // 设置页是懒加载 ListView：拉高窗口让「数据」和「安全」两节一次建出来。
     tester.view.physicalSize = const Size(800, 20000);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.reset);
@@ -221,25 +221,32 @@ void main() {
       child: const ShunApp(),
     ));
     await tester.pump(const Duration(seconds: 1));
-    expect(window.calls, isEmpty, reason: '冷启动停在主机页，设置页在 IndexedStack 里挂着没显示');
+    expect(window.calls, isEmpty);
 
     await tester.tap(find.byIcon(Icons.settings_outlined));
     await tester.pump(const Duration(seconds: 1));
+    expect(window.calls, isEmpty, reason: '云同步表单搬走了，设置页本身没有密码');
+
+    final backup = find.byKey(const ValueKey('settings-cloud-backup'));
+    await tester.tap(backup);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
     expect(window.calls, [true]);
 
-    final allow =
-        find.byKey(const ValueKey('settings-allow-sensitive-screenshots'));
-    await tester.tap(allow);
+    await tester.tap(find.byType(BackButton));
+    await tester.pump(const Duration(seconds: 1));
     await tester.pump(const Duration(seconds: 1));
     expect(window.calls, [true, false]);
-    expect((await repository.loadSettings()).allowSensitiveScreenshots, isTrue);
-    await tester.tap(allow);
-    await tester.pump(const Duration(seconds: 1));
-    expect(window.calls, [true, false, true]);
 
-    await tester.tap(find.byIcon(Icons.terminal_outlined));
+    await tester.tap(
+      find.byKey(const ValueKey('settings-allow-sensitive-screenshots')),
+    );
     await tester.pump(const Duration(seconds: 1));
-    expect(window.calls, [true, false, true, false]);
+    expect((await repository.loadSettings()).allowSensitiveScreenshots, isTrue);
+    await tester.tap(backup);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.pump(const Duration(seconds: 1));
+    expect(window.calls, [true, false], reason: '用户说了允许截，这页也不再防');
   });
 
   group('接上了的页面', () {
@@ -400,8 +407,7 @@ void main() {
     test('有打码输入框的文件都用了 SecretContent', () {
       // 只在别处被包着的组件：写清楚是谁包的。
       const coveredElsewhere = {
-        'lib/presentation/widgets/github_manual_config.dart':
-            '只用在设置页的云同步卡片里，那张卡片整个包着',
+        'lib/presentation/widgets/github_manual_config.dart': '只用在云端备份页，那页整个包着',
       };
       final missing = [
         for (final (path, source) in sources)

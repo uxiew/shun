@@ -27,11 +27,11 @@ class VaultCrypto {
   /// 解密时肯算的最多次数。`kdfIterations` 在云端 meta 里是明文，能改云端文件的人填一个十亿，
   /// 手机就一直算下去、同步卡住。桌面端和本 App 都写 [iterations]，这里留了 3 倍多的余地给以后提高；
   /// 桌面端真调到更高，这里要跟着改，否则手机报 [iterationsOutOfRange] 解不开。
-  /// 下限只拦非正数：次数少不影响安全，密钥还是从用户的同步密码来，改小了只会解不开。
+  /// 下限只拦非正数：次数少不影响安全，密钥还是从用户的主密码来，改小了只会解不开。
   static const maxIterations = 2000000;
 
   static const iterationsOutOfRange =
-      '云端文件的密钥派生次数超出范围，没有解密：可能被改过，也可能是更新版本的桌面端写的';
+      '云端文件的密钥派生次数超出范围，没有解密：可能被改过，也可能是更新版本写的';
   static const saltLength = 32;
   static const ivLength = 12;
   static const tagLength = 16;
@@ -153,7 +153,7 @@ class VaultCrypto {
         jsonDecode(utf8.decode(cleartext)) as Map<String, dynamic>,
       );
     } on SecretBoxAuthenticationError {
-      throw const FormatException('同步密码错误或云端文件已损坏');
+      throw const FormatException('主密码不对，或者云端文件已损坏');
     }
   }
 }

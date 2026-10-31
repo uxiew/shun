@@ -294,7 +294,7 @@ void main() {
     final log = AppLog(MemoryAppLogStore());
     await log.ready;
     log.recordSync(ok: false, detail: outcomes.last.$2);
-    expect(log.state.single.title, '同步失败');
+    expect(log.state.single.title, '备份失败');
     expect(log.state.single.detail, 'Bad state: WebDAV 401 at <host>');
     log.dispose();
     controller.dispose();
