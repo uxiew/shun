@@ -4,13 +4,21 @@ import '../../application/tailscale_catalog_refresh.dart';
 import '../../domain/models/host.dart';
 import '../localization/localized_widgets.dart';
 import 'secret_content.dart';
+import '../../domain/credential_identity.dart';
 
 /// 连接前要不要先问登录信息（R26 所有者：不是每台机器都用同一个用户和密码，Tailscale 导入时不统一填，
 /// 单独连接时再配）：
 /// - 没有用户名的 SSH / Mosh 主机：要问，不然只会拿空用户名去登录、被拒。
 /// - 从目录导入、还没登录成功过、也没配密码和私钥的：用户名是来源的默认值，第一次连之前让人看一眼、顺便填密码。
 ///   登录成功过一次就不再问；之后没存密码的，连接时在「密码」那一步问（ssh_service）。
-bool needsFirstLogin(HostProfile host) {
+///
+/// 主机引用了「凭据」里的身份时按展开后的看（R26 F25）：用户名、密码、私钥都可能在身份里，主机自己是空的。
+bool needsFirstLogin(
+  HostProfile stored, {
+  List<Map<String, dynamic>> identities = const [],
+}) {
+  final host = HostProfile(Map<String, dynamic>.from(stored.data));
+  applyHostIdentity(host.data, identities);
   if (host.protocol != HostProtocol.ssh && host.protocol != HostProtocol.mosh) {
     return false;
   }

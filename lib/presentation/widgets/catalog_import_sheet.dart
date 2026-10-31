@@ -14,6 +14,7 @@ import 'connection_route_draft.dart';
 import 'connection_route_editor.dart';
 import 'hint.dart';
 import 'proxy_profiles_page.dart';
+import '../../domain/vault_secrets.dart';
 
 /// 把选中的目录设备按这一页的设置批量导入为主机（设备页 ⋮ 里的「用自定义设置导入」）。
 /// 返回实际新建的台数，取消返回 null。平常点设备走 Tailscale 设置里的默认值，不经过这页（R26）。
@@ -144,7 +145,8 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
         ? resolveRoutePlan(result.hosts.first,
             hosts: [...vault.hosts, ...result.hosts],
             proxyProfiles: vault.proxyProfiles,
-            keys: vault.keys)
+            keys: vault.keys,
+            identities: vaultIdentityMaps(vault))
         : null;
     return Scaffold(
       appBar: AppBar(

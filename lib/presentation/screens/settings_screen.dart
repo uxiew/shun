@@ -533,8 +533,10 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ),
                     const Divider(height: 1),
                     ListTile(
+                      key: const ValueKey('settings-credentials'),
                       leading: const Icon(Icons.key_outlined),
-                      title: const LText('SSH 密钥库'),
+                      title: const LText('凭据'),
+                      subtitle: const LText('登录身份（用户名 + 密码或密钥）、SSH 密钥'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => showModalBottomSheet<void>(
                         context: context,

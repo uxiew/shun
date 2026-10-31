@@ -92,6 +92,7 @@ RoutePlan rehydrateRoutePlan(
   required List<HostProfile> hosts,
   required List<ProxyProfile> proxyProfiles,
   required List<SshKeyProfile> keys,
+  List<Map<String, dynamic>> identities = const [],
 }) {
   final stored = hosts.where((value) => value.id == sourceHostId).firstOrNull;
   if (stored == null) {
@@ -112,6 +113,7 @@ RoutePlan rehydrateRoutePlan(
       hosts: hosts,
       proxyProfiles: proxyProfiles,
       keys: keys,
+      identities: identities,
     );
   } on RouteConfigException catch (error) {
     throw RouteChangedException('断线期间这台主机的连接路径改过，现在的配置有问题：$error');

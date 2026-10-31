@@ -1,6 +1,8 @@
 import '../domain/models/host.dart';
 import '../domain/models/vault.dart';
 import '../domain/tailscale_ssh.dart';
+import '../domain/credential_identity.dart';
+import '../domain/vault_secrets.dart';
 
 /// 路线要用到的凭据解不开，连接在拨号前被拒绝。[message] 说明是哪台机器的哪种凭据。
 class CredentialUnavailableException implements Exception {
@@ -30,12 +32,25 @@ String? unreadableCredentialProblem(
       if (byId[id] != null) byId[id]!,
     target,
   ];
-  for (final host in hops) {
-    final isTarget = identical(host, target);
+  final identities = vaultIdentityMaps(vault);
+  for (final stored in hops) {
+    final isTarget = identical(stored, target);
     final problems = <String>{};
+    // 主机引用了「凭据」里的身份：用户名、登录方式、私钥按身份展开后再判断（R26 F25）。
+    final identity = hostIdentity(stored, identities);
+    final host = HostProfile(Map<String, dynamic>.from(stored.data));
+    applyHostIdentity(host.data, identities);
     // Tailscale SSH 不发登录密码和私钥，它们解不开也不影响这一跳。
     final standard = sshLoginModeOf(host) == SshLoginMode.standard;
     if (standard &&
+        identity != null &&
+        unreadable.contains('identity.${identity.id}.password')) {
+      // 存过密码的身份只会是「密码」或「密钥 + 密码」，两种都要用它；解不开时身份看着像
+      // 「只用密钥」，不拦的话第二步登录过不去，只得到一句「登录被拒绝」。
+      problems.add('凭据“${identity.label}”的密码');
+    } else if (standard &&
+        // 身份自带密码时用身份的，主机自己那份用不上；身份没存密码才退回主机的（同桌面端）。
+        identity?.password == null &&
         host.authMethod != HostAuthMethod.key &&
         unreadable.contains('host.${host.id}.password')) {
       problems.add('登录密码');
@@ -61,7 +76,7 @@ String? unreadableCredentialProblem(
       }
     }
     if (problems.isNotEmpty) {
-      final who = isTarget ? '目标“${host.label}”' : '跳板机“${host.label}”';
+      final who = isTarget ? '目标“${stored.label}”' : '跳板机“${stored.label}”';
       final what = problems.join('、');
       return '$who：$what无法解密'
           '（设备密钥可能已失效，或数据被改动过）。请在编辑器里重新填写后再连接。';

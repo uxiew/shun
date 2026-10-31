@@ -120,6 +120,7 @@ class _ScriptedProbe extends SshService {
     required HostProfile host,
     List<HostProfile> hosts = const [],
     List<SshKeyProfile> keys = const [],
+    List<Map<String, dynamic>> identities = const [],
     List<ProxyProfile> proxyProfiles = const [],
     RoutePlan? routePlan,
     required HostKeyVerifier verifyHostKey,

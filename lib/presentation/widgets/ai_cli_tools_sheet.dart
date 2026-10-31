@@ -28,6 +28,7 @@ import '../localization/localized_widgets.dart';
 import 'catalog_text.dart';
 import 'hint.dart';
 import 'tailscale_check_card.dart';
+import '../../domain/vault_secrets.dart';
 
 typedef AiCliScan = Future<AiCliScanResult> Function(
     AiCliScanRequest request, AiCliProbeCancellation cancellation);
@@ -193,6 +194,7 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
     final plan = resolveRoutePlan(host,
         hosts: vault.hosts,
         keys: vault.keys,
+        identities: vaultIdentityMaps(vault),
         proxyProfiles: vault.proxyProfiles);
     _candidatePlan = plan;
     final live = ref
@@ -443,6 +445,7 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
       final now = resolveRoutePlan(current,
           hosts: vault.hosts,
           keys: vault.keys,
+          identities: vaultIdentityMaps(vault),
           proxyProfiles: vault.proxyProfiles);
       if (now.shape != scanned.shape ||
           run.target.hostKey != scanned.target.endpoint.authority) {
@@ -453,7 +456,8 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
               sourceHostId: sourceId,
               hosts: vault.hosts,
               proxyProfiles: vault.proxyProfiles,
-              keys: vault.keys)
+              keys: vault.keys,
+              identities: vaultIdentityMaps(vault))
           : scanned;
       final verifier = widget.verifyHostKey ??
           widget.session?.verifyHostKey ??
@@ -677,6 +681,7 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
       final now = resolveRoutePlan(current,
           hosts: vault.hosts,
           keys: vault.keys,
+          identities: vaultIdentityMaps(vault),
           proxyProfiles: vault.proxyProfiles);
       if (now.shape != scanned.shape) {
         throw const AiCliDiscoveryException('连接路线已改变，请重新检测工具');
@@ -686,7 +691,8 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
               sourceHostId: sourceId,
               hosts: vault.hosts,
               proxyProfiles: vault.proxyProfiles,
-              keys: vault.keys)
+              keys: vault.keys,
+              identities: vaultIdentityMaps(vault))
           : scanned;
       final verifier = widget.verifyHostKey ??
           widget.session?.verifyHostKey ??

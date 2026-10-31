@@ -21,6 +21,7 @@ import '../widgets/connection_route_editor.dart';
 import '../widgets/hint.dart';
 import '../widgets/proxy_profiles_page.dart';
 import '../widgets/secret_content.dart';
+import '../../domain/vault_secrets.dart';
 
 /// 设置页的结果：保存了哪个来源（新建时是新的 ID），或者来源被移除了。取消是 null。
 typedef TailscaleSettingsResult = ({String catalogId, bool removed});
@@ -166,6 +167,7 @@ class _TailscaleSettingsScreenState
           hosts: vault.hosts,
           proxyProfiles: vault.proxyProfiles,
           keys: vault.keys,
+          identities: vaultIdentityMaps(vault),
         ),
         error: null,
       );

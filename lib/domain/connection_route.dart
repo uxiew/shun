@@ -1,3 +1,4 @@
+import 'credential_identity.dart';
 import 'dart:convert';
 
 import 'dart:io' show InternetAddress, InternetAddressType;
@@ -265,6 +266,7 @@ RoutePlan resolveRoutePlan(
   required List<HostProfile> hosts,
   required List<ProxyProfile> proxyProfiles,
   List<SshKeyProfile> keys = const [],
+  List<Map<String, dynamic>> identities = const [],
 }) {
   if (target.protocol == HostProtocol.unknown) {
     throw const RouteConfigException('此连接类型暂不支持，原配置已保留，不会改用 SSH。');
@@ -274,7 +276,7 @@ RoutePlan resolveRoutePlan(
     throw const RouteConfigException('插件主机不走本 App 的连接路径：插件自己联网，不经过代理和跳板。');
   }
   final targetName = '目标“${target.label}”';
-  final targetHop = _hop(target, targetName, keys);
+  final targetHop = _hop(target, targetName, keys, identities);
   final jumpIds = _jumpIds(target, targetName);
 
   if (target.protocol == HostProtocol.telnet) {
@@ -316,7 +318,7 @@ RoutePlan resolveRoutePlan(
         '$jumpName自己又配置了跳板机，不支持嵌套。请在$targetName上按顺序列出全部跳板机。',
       );
     }
-    jumps.add(_hop(jump, jumpName, keys));
+    jumps.add(_hop(jump, jumpName, keys, identities));
   }
 
   final hops = [...jumps, targetHop];
@@ -395,15 +397,25 @@ RouteEntry _entry(
   );
 }
 
-RouteHop _hop(HostProfile host, String name, List<SshKeyProfile> keys) {
+/// 这一跳的快照里，主机引用的「凭据」身份已经展开（[applyHostIdentity]）：后面的登录、私钥解析、
+/// 断线恢复时比对「身份变没变」都直接看 [RouteHop.host]，不用再各自去查身份。
+RouteHop _hop(
+  HostProfile host,
+  String name,
+  List<SshKeyProfile> keys,
+  List<Map<String, dynamic>> identities,
+) {
   final endpoint =
       Endpoint.parse(host.hostname, host.data['port'] ?? 22, what: name);
-  final keyId = host.identityFileId;
+  final data = _deepCopy(host.data);
+  applyHostIdentity(data, identities);
+  final effective = HostProfile(data);
+  final keyId = effective.identityFileId;
   final key = keyId == null
       ? null
       : keys.where((value) => value.id == keyId).firstOrNull;
   return RouteHop._(
-    HostProfile(_deepCopy(host.data)),
+    effective,
     endpoint,
     key == null ? null : SshKeyProfile(_deepCopy(key.data)),
   );

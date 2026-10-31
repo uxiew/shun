@@ -128,7 +128,7 @@ void main() {
       final container = await open(tester);
       await tester.tap(find.byKey(const ValueKey('keychain-delete-k1')));
       await tester.pumpAndSettle();
-      expect(find.textContaining('这些主机在用它：web。'), findsOneWidget);
+      expect(find.textContaining('这些在用它：web。'), findsOneWidget);
       await tester.tap(find.text('取消'));
       await tester.pumpAndSettle();
       expect(keyIds(container), ['k1', 'k2']);

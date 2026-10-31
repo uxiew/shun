@@ -2,6 +2,7 @@ import 'connection_route.dart';
 import 'models/host.dart';
 import 'plugins/mosh_route.dart';
 import 'tailscale_ssh.dart';
+import 'credential_identity.dart';
 
 /// 主机现在的配置连接时会怎么走：算得出来给路线；算不出来，或 Mosh 配了代理、跳板，给连接时会报的那句话。
 ///
@@ -13,6 +14,7 @@ import 'tailscale_ssh.dart';
   required List<HostProfile> hosts,
   required List<ProxyProfile> proxyProfiles,
   List<SshKeyProfile> keys = const [],
+  List<Map<String, dynamic>> identities = const [],
 }) {
   try {
     final plan = resolveRoutePlan(
@@ -20,6 +22,7 @@ import 'tailscale_ssh.dart';
       hosts: hosts,
       proxyProfiles: proxyProfiles,
       keys: keys,
+      identities: identities,
     );
     if (plan.protocol == HostProtocol.mosh) {
       final unsupported = moshRouteProblem(plan);
@@ -38,7 +41,19 @@ import 'tailscale_ssh.dart';
 /// 按连接时的真实规则写（`ssh_identity.dart` 的 `loadHopIdentities`、`ssh_service.dart` 的 `onPasswordRequest`）：
 /// 选「密码」不发私钥，选「私钥」不发密码，选「自动」私钥、保存的密码都试，最后服务器问什么再问你。
 /// 以前主机详情只看有没有挂私钥：选了「密码」又挂着私钥时显示「私钥」，登录时其实根本不发它。
-String? describeLogin(HostProfile host, SshKeyProfile? key) {
+///
+/// [host] 要传展开过身份的那份（[applyHostIdentity]）；引用了身份时 [identity] 给出来，前面写上是哪个凭据。
+String? describeLogin(
+  HostProfile host,
+  SshKeyProfile? key, {
+  IdentityProfile? identity,
+}) {
+  final login = _describeLogin(host, key);
+  if (login == null || identity == null) return login;
+  return '凭据“${identity.label}”：$login';
+}
+
+String? _describeLogin(HostProfile host, SshKeyProfile? key) {
   if (host.protocol != HostProtocol.ssh && host.protocol != HostProtocol.mosh) {
     return null;
   }

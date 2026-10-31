@@ -17,6 +17,7 @@ import '../domain/models/host.dart';
 import '../domain/models/vault.dart';
 import '../infrastructure/ssh/ssh_service.dart';
 import 'connection_switch.dart';
+import '../domain/vault_secrets.dart';
 
 enum HostMenuAction {
   connectOther,
@@ -93,6 +94,7 @@ RoutePlan? probePlanOf(HostProfile host, VaultData vault) {
       hosts: vault.hosts,
       proxyProfiles: vault.proxyProfiles,
       keys: vault.keys,
+      identities: vaultIdentityMaps(vault),
     );
   } on RouteConfigException {
     return null;

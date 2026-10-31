@@ -444,6 +444,7 @@ class SessionController extends StateNotifier<SessionState> {
                 hosts: vault.hosts,
                 proxyProfiles: vault.proxyProfiles,
                 keys: vault.keys,
+                identities: vaultIdentityMaps(vault),
               )
             : routePlan ??
                 resolveRoutePlan(
@@ -451,6 +452,7 @@ class SessionController extends StateNotifier<SessionState> {
                   hosts: vault.hosts,
                   proxyProfiles: vault.proxyProfiles,
                   keys: vault.keys,
+                  identities: vaultIdentityMaps(vault),
                 );
         route = plan;
         if (mounted) {
@@ -876,6 +878,7 @@ class SessionController extends StateNotifier<SessionState> {
         hosts: vault.hosts,
         proxyProfiles: vault.proxyProfiles,
         keys: vault.keys,
+        identities: vaultIdentityMaps(vault),
       );
       return _moshRouteBlocked(plan) ?? _moshOptionsBlocked(source);
     } on RouteConfigException catch (error) {
@@ -1190,13 +1193,15 @@ class SessionController extends StateNotifier<SessionState> {
         ? resolveRoutePlan(host,
             hosts: vault.hosts,
             proxyProfiles: vault.proxyProfiles,
-            keys: vault.keys)
+            keys: vault.keys,
+            identities: vaultIdentityMaps(vault))
         : frozen.secretsForgotten
             ? rehydrateRoutePlan(frozen,
                 sourceHostId: source.id,
                 hosts: vault.hosts,
                 proxyProfiles: vault.proxyProfiles,
-                keys: vault.keys)
+                keys: vault.keys,
+                identities: vaultIdentityMaps(vault))
             : frozen;
     if (plan.target.endpoint.authority != target.hostKey) {
       throw RouteChangedException(
@@ -1473,6 +1478,7 @@ class SessionController extends StateNotifier<SessionState> {
           hosts: vault!.hosts,
           proxyProfiles: vault.proxyProfiles,
           keys: vault.keys,
+          identities: vaultIdentityMaps(vault),
         );
       } else if (old.restored && old.resumeTmux != null) {
         // 放回来的 tmux 标签：按保险库现在的配置算路线，到达的还得是原来那台机器，
@@ -1492,6 +1498,7 @@ class SessionController extends StateNotifier<SessionState> {
           hosts: vault.hosts,
           proxyProfiles: vault.proxyProfiles,
           keys: vault.keys,
+          identities: vaultIdentityMaps(vault),
         );
         if (plan.target.endpoint.authority != old.resumeTmux!.hostKey) {
           throw RouteChangedException(

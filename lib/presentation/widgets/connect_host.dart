@@ -12,6 +12,7 @@ import '../../infrastructure/tailscale/catalog_cache_repository.dart';
 import '../localization/localized_widgets.dart';
 import 'connection_prompts.dart';
 import 'first_login_dialog.dart';
+import '../../domain/vault_secrets.dart';
 
 /// 从列表里点一台主机去连：保险库页和 Tailscale 目录页共用（R26），两边表现一样。
 /// 还没配好登录的（Tailscale 导入时不统一填用户名和密码）先问，写回这一台再连；然后切到终端页。
@@ -24,7 +25,9 @@ Future<void> connectHostFromList(
   bool leavePushedPages = false,
 }) async {
   final container = ProviderScope.containerOf(context, listen: false);
-  if (needsFirstLogin(host)) {
+  final vault = container.read(vaultControllerProvider).data;
+  if (needsFirstLogin(host,
+      identities: vault == null ? const [] : vaultIdentityMaps(vault))) {
     final login = await askFirstLogin(context, host);
     if (login == null || !context.mounted) return;
     final updated = HostProfile({

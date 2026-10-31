@@ -30,6 +30,8 @@ import 'secret_content.dart';
 import 'unsupported_connection_page.dart';
 import 'connection_endpoint_fields.dart';
 import 'hint.dart';
+import '../../domain/vault_secrets.dart';
+import '../../domain/credential_identity.dart';
 
 class HostEditor extends ConsumerStatefulWidget {
   const HostEditor({
@@ -78,6 +80,9 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   late HostAuthMethod authMethod;
   late SshLoginMode loginMode;
   String? identityFileId;
+
+  /// 「凭据」里的登录身份（R26 F25）。选了它，登录用它的用户名和登录方式，下面主机自己的认证设置收起来但不删。
+  String? identityId;
   bool obscurePassword = true;
   bool pinned = false;
 
@@ -156,6 +161,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     authMethod = host?.authMethod ?? HostAuthMethod.auto;
     loginMode = host == null ? SshLoginMode.standard : sshLoginModeOf(host);
     identityFileId = host?.identityFileId;
+    identityId = host?.data['identityId']?.toString();
     pinned = host?.pinned ?? false;
     pluginId = host == null ? widget.initialPluginId : pluginIdOf(host);
     // App 启动时不自动发现插件（X04）：编辑器里要列出能选的插件，先让发现跑一次。
@@ -217,6 +223,12 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     if (identityFileId != null &&
         !keys.any((value) => value.id == identityFileId)) {
       identityFileId = null;
+    }
+    final identities =
+        vault == null ? const <IdentityProfile>[] : vaultIdentities(vault);
+    // 引用的身份被删了（桌面端删的、同步过来）：和私钥一样当没选，连接时本来也会退回主机自己的设置。
+    if (identityId != null && !identities.any((i) => i.id == identityId)) {
+      identityId = null;
     }
     final preview = _preview(vault);
 
@@ -289,12 +301,21 @@ class _HostEditorState extends ConsumerState<HostEditor> {
               ],
               if (sshLike) ...[
                 _section('认证'),
-                _authSelector(),
-                const SizedBox(height: 12),
-                if (loginMode == SshLoginMode.tailscale)
-                  _tailscaleLoginNote(preview.plan)
-                else
-                  ..._credentialFields(keys),
+                if (loginMode == SshLoginMode.standard &&
+                    identities.isNotEmpty) ...[
+                  _identitySelector(identities),
+                  const SizedBox(height: 12),
+                ],
+                if (loginMode == SshLoginMode.standard && identityId != null)
+                  _identitySummary(identities, keys)
+                else ...[
+                  _authSelector(),
+                  const SizedBox(height: 12),
+                  if (loginMode == SshLoginMode.tailscale)
+                    _tailscaleLoginNote(preview.plan)
+                  else
+                    ..._credentialFields(keys),
+                ],
                 _section(
                   '连接路径',
                   hint:
@@ -357,6 +378,54 @@ class _HostEditorState extends ConsumerState<HostEditor> {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  /// 选「凭据」里的一个登录身份，或者不用、在这台主机上单独设置（R26 F25）。
+  Widget _identitySelector(List<IdentityProfile> identities) =>
+      DropdownButtonFormField<String>(
+        key: const ValueKey('host-identity'),
+        initialValue: identityId ?? '',
+        isExpanded: true,
+        decoration: LInputDecoration(labelText: '登录凭据'),
+        items: [
+          const DropdownMenuItem(
+            value: '',
+            child: LText('不用凭据，在下面单独设置'),
+          ),
+          for (final identity in identities)
+            DropdownMenuItem(
+              value: identity.id,
+              child: Text(
+                '${identity.label}（${identity.username}）',
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+        ],
+        onChanged: (value) => setState(
+          () => identityId = value == null || value.isEmpty ? null : value,
+        ),
+      );
+
+  /// 选了登录身份时，说清楚登录会用什么。主机自己的用户名留在上面当兜底：身份没填用户名、或身份被删了时用它。
+  Widget _identitySummary(
+    List<IdentityProfile> identities,
+    List<SshKeyProfile> keys,
+  ) {
+    final identity = identities.firstWhere((i) => i.id == identityId);
+    final how = localized(identityAuthText(
+      identity,
+      {for (final key in keys) key.id: key.label},
+    ));
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Text(
+        localized('登录时用户名 {user}，{how}。这台主机自己的认证设置留着，改回「不用凭据」时照常用。')
+            .replaceAll('{user}', identity.username)
+            .replaceAll('{how}', how),
+        key: const ValueKey('host-identity-summary'),
+        style: Theme.of(context).textTheme.bodySmall,
       ),
     );
   }
@@ -849,6 +918,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     'authMethod',
     'password',
     'identityFileId',
+    'identityId',
     sshLoginModeKey,
     'proxyProfileId',
     'proxyConfig',
@@ -1147,6 +1217,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     _setOrRemove(data, 'password', password.text.trim());
     _setOrRemove(data, 'group', group.text.trim());
     _setOrRemove(data, 'identityFileId', identityFileId);
+    _setOrRemove(data, 'identityId', identityId);
     _setOrRemove(data, 'startupCommand', startupCommand.text.trim());
     // SSH/Mosh 共用表单：切回 SSH 保留 Mosh 选项，执行时仍只按当前协议。
     final keepsMosh =
@@ -1199,6 +1270,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
       hosts: vault.hosts,
       proxyProfiles: vault.proxyProfiles,
       keys: vault.keys,
+      identities: vaultIdentityMaps(vault),
     );
     final plan = status.plan;
     if (status.error != null || plan == null) {
@@ -1279,6 +1351,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     if (protocol != HostProtocol.telnet &&
         protocol != HostProtocol.plugin &&
         loginMode == SshLoginMode.standard &&
+        identityId == null &&
         authMethod == HostAuthMethod.key &&
         identityFileId == null) {
       _message('请选择用于认证的 SSH 私钥');

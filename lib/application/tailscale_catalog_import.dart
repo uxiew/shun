@@ -6,6 +6,7 @@ import '../domain/models/vault.dart';
 import '../infrastructure/tailscale/catalog_cache.dart';
 import 'tailscale_catalog_refresh.dart';
 import 'vault_controller.dart';
+import '../domain/vault_secrets.dart';
 
 /// 从目录批量导入主机（R13）：选中的设备按同一套设置生成新主机，只写保险库，不连接、不开 VPN。
 ///
@@ -263,6 +264,7 @@ CatalogImportResult buildCatalogImport({
         hosts: [...vault.hosts, ...hosts],
         proxyProfiles: vault.proxyProfiles,
         keys: vault.keys,
+        identities: vaultIdentityMaps(vault),
       );
     } on RouteConfigException catch (error) {
       if (_routeLevel(error, options, vault)) {
@@ -375,6 +377,7 @@ bool _routeLevel(
       hosts: vault.hosts,
       proxyProfiles: vault.proxyProfiles,
       keys: vault.keys,
+      identities: vaultIdentityMaps(vault),
     );
     return false;
   } on RouteConfigException {

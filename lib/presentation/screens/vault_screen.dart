@@ -50,6 +50,8 @@ import '../../application/uuremote.dart';
 import '../widgets/remote_entry_widgets.dart';
 import '../widgets/remote_connections.dart';
 import 'uuremote_screen.dart';
+import '../../domain/vault_secrets.dart';
+import '../../domain/credential_identity.dart';
 
 class VaultScreen extends ConsumerStatefulWidget {
   const VaultScreen(
@@ -469,17 +471,23 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       await _editHost(host);
       return;
     }
+    // 引用了「凭据」里的身份：用户名、登录方式、私钥按身份展开后再描述（R26 F25）。
+    final identities = vaultIdentityMaps(vault);
+    final effective = HostProfile(Map<String, dynamic>.from(host.data));
+    applyHostIdentity(effective.data, identities);
     final key = vault.keys.cast<SshKeyProfile?>().firstWhere(
-          (value) => value?.id == host.identityFileId,
+          (value) => value?.id == effective.identityFileId,
           orElse: () => null,
         );
-    final login = describeLogin(host, key);
+    final login =
+        describeLogin(effective, key, identity: hostIdentity(host, identities));
     final route = host.protocol == HostProtocol.plugin
         ? null
         : hostRouteStatus(host,
             hosts: vault.hosts,
             proxyProfiles: vault.proxyProfiles,
-            keys: vault.keys);
+            keys: vault.keys,
+            identities: vaultIdentityMaps(vault));
     final action = await showDialog<_HostAction>(
       context: context,
       builder: (context) => AlertDialog(

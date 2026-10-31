@@ -506,6 +506,7 @@ class SshService {
     required HostProfile host,
     List<HostProfile> hosts = const [],
     List<SshKeyProfile> keys = const [],
+    List<Map<String, dynamic>> identities = const [],
     List<ProxyProfile> proxyProfiles = const [],
     RoutePlan? routePlan,
     required HostKeyVerifier verifyHostKey,
@@ -520,6 +521,7 @@ class SshService {
         host: host,
         hosts: hosts,
         keys: keys,
+        identities: identities,
         proxyProfiles: proxyProfiles,
         routePlan: routePlan,
         verifyHostKey: verifyHostKey,
@@ -585,6 +587,7 @@ class SshService {
     required HostProfile host,
     List<HostProfile> hosts = const [],
     List<SshKeyProfile> keys = const [],
+    List<Map<String, dynamic>> identities = const [],
     List<ProxyProfile> proxyProfiles = const [],
     RoutePlan? routePlan,
     required HostKeyVerifier verifyHostKey,
@@ -642,6 +645,7 @@ class SshService {
             hosts: hosts,
             proxyProfiles: proxyProfiles,
             keys: keys,
+            identities: identities,
           );
       final session = plan.protocol == HostProtocol.telnet
           ? await _connectTelnet(
@@ -692,6 +696,7 @@ class SshService {
     required HostProfile host,
     List<HostProfile> hosts = const [],
     List<SshKeyProfile> keys = const [],
+    List<Map<String, dynamic>> identities = const [],
     List<ProxyProfile> proxyProfiles = const [],
     RoutePlan? routePlan,
     required HostKeyVerifier verifyHostKey,
@@ -712,6 +717,7 @@ class SshService {
             hosts: hosts,
             proxyProfiles: proxyProfiles,
             keys: keys,
+            identities: identities,
           );
       if (plan.protocol == HostProtocol.telnet) {
         final endpoint = plan.target.endpoint;
