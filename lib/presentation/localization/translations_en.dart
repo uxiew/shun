@@ -1090,8 +1090,6 @@ const englishTranslations = <String, String>{
       'Handshake succeeded (the plugin verified the host certificate); ping round trip OK',
   // 导入确认框（vault_import_dialog.dart）。
   '导入保险库文件': 'Import vault file',
-  '换手机用加密备份。不含密码的 JSON 只有配置，导入后要重新填。':
-      'Use an encrypted backup to move phones. The JSON without passwords only has settings; you re-enter passwords after importing.',
   '导出加密备份（含密码）': 'Export encrypted backup (with passwords)',
   '导出加密备份': 'Export encrypted backup',
   '导出 JSON（不含密码）': 'Export JSON (no passwords)',
@@ -2341,6 +2339,36 @@ const englishTranslations = <String, String>{
       'This deletes {n} entries and they cannot be recovered. Hosts, connected tabs and the vault are not touched.',
   '清除': 'Clear',
   '已清除': 'Cleared',
+  '发到另一台手机': 'Send to another phone',
+  '从另一台手机接收': 'Receive from another phone',
+  '另一台在「从另一台手机接收」里扫这个码。内容含密码和私钥，扫到码就能解开，别给别人看。离开这页就作废。':
+      'Scan this on the other phone under Receive from another phone. It carries passwords and private keys and anyone who scans it can decrypt them, so keep it private. It stops working when you leave this page.',
+  '已传完': 'Sent',
+  '二维码已失效': 'QR code no longer valid',
+  '重新生成': 'Generate again',
+  '没连局域网。连上 Wi-Fi 或打开手机热点再试。':
+      'Not on a local network. Join Wi-Fi or turn on a hotspot, then try again.',
+  r'等对方扫码 · $time': r'Waiting for scan · $time',
+  r'$missing 条凭据解不开，没有带上': r'$missing credentials could not be decrypted and were left out',
+  r'没开成：$message': r'Could not start: $message',
+  '互传二维码': 'Transfer QR code',
+  '扫对方手机上的二维码': 'Scan the QR code on the other phone',
+  '没有相机权限。到系统设置里给 shun 打开相机再试。':
+      'No camera permission. Allow the camera for shun in system settings, then try again.',
+  '打不开扫码页，再试一次。': 'Could not open the scanner. Try again.',
+  '不是 shun 的互传二维码': 'Not a shun transfer QR code',
+  '对方不是出这个二维码的手机，让对方重新生成再扫。':
+      'The other device did not make this QR code. Generate a new one and scan again.',
+  '收到的内容校验没过，重新扫码再试。':
+      'The received data failed its check. Scan again.',
+  '二维码已过期，让对方重新生成。': 'This QR code has expired. Generate a new one.',
+  '连不上对方。这台手机开着 VPN，局域网连接可能被导进了 VPN，先关掉再试。':
+      'Cannot reach the other phone. A VPN is on and may be capturing local traffic. Turn it off and try again.',
+  '连不上对方。两台手机要连同一个 Wi-Fi，路由器开了 AP 隔离就改用手机热点。':
+      'Cannot reach the other phone. Both must be on the same Wi-Fi. If the router isolates clients, use a phone hotspot.',
+  '重新扫码': 'Scan again',
+  '换手机用加密备份，两台手机在同一个 Wi-Fi 也可以扫码互传。不含密码的 JSON 只有配置，导入后要重新填。':
+      'To move phones, use an encrypted backup, or scan a QR code when both are on the same Wi-Fi. JSON without passwords only has settings; fill them in again after importing.',
   '可信主机密钥': 'Trusted host keys',
   '这里是你核对后接受过的服务器。删一条后，下次连这台要重新核对。只记在这台手机上，同步和导入都不带。':
       'Servers you verified and accepted. Delete one and you verify it again on the next connection. Kept on this phone only: sync and import never carry it.',

@@ -19,11 +19,16 @@ void main() {
       'android.permission.FOREGROUND_SERVICE',
       'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',
       'android.permission.NFC',
+      'android.permission.CAMERA',
     });
   });
 
-  test('NFC、USB 不是必需的：没有它们的手机也能装', () {
-    for (final feature in ['android.hardware.nfc', 'android.hardware.usb.host']) {
+  test('NFC、USB、相机不是必需的：没有它们的手机也能装', () {
+    for (final feature in [
+      'android.hardware.nfc',
+      'android.hardware.usb.host',
+      'android.hardware.camera',
+    ]) {
       expect(
         manifest,
         contains('<uses-feature android:name="$feature" android:required="false" />'),

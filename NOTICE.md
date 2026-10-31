@@ -34,7 +34,7 @@
 
 ## 编进 App 的 Android 第三方库
 
-安全密钥功能（R59）带进来的。Dart 依赖的许可证由 Flutter 自己收集，这几个不走那条路，所以写在这里。
+安全密钥（R59）和手机互传扫码（R62）带进来的。Dart 依赖的许可证由 Flutter 自己收集，这几个不走那条路，所以写在这里。
 
 | 库 | 版本 | 许可证 |
 |---|---|---|
@@ -42,3 +42,5 @@
 | [Moshi](https://github.com/square/moshi) | 1.15.2 | Apache-2.0 |
 | [SLF4J API](https://www.slf4j.org/) | 2.0.17 | MIT |
 | [JSpecify](https://github.com/jspecify/jspecify) | 1.0.0 | Apache-2.0 |
+| [zxing-android-embedded](https://github.com/journeyapps/zxing-android-embedded) | 4.3.0 | Apache-2.0 |
+| [ZXing core](https://github.com/zxing/zxing) | 3.4.1 | Apache-2.0 |

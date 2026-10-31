@@ -40,6 +40,7 @@ import '../widgets/vault_passphrase_dialog.dart';
 import 'app_log_screen.dart';
 import 'connection_log_screen.dart';
 import 'known_hosts_screen.dart';
+import 'lan_transfer_screen.dart';
 import 'plugins_screen.dart';
 import 'rustdesk_screen.dart';
 import 'tailscale_catalog_screen.dart';
@@ -631,7 +632,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               _header(
                 '数据',
-                hint: '换手机用加密备份。不含密码的 JSON 只有配置，导入后要重新填。',
+                hint: '换手机用加密备份，两台手机在同一个 Wi-Fi 也可以扫码互传。不含密码的 JSON 只有配置，导入后要重新填。',
               ),
               Card(
                 child: Column(
@@ -654,6 +655,32 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       title: const LText('导出 JSON（不含密码）'),
                       onTap: _export,
                     ),
+                    if (Platform.isAndroid) ...[
+                      const Divider(height: 1),
+                      ListTile(
+                        key: const ValueKey('lan-send'),
+                        leading: const Icon(Icons.qr_code_2),
+                        title: const LText('发到另一台手机'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const LanSendScreen(),
+                          ),
+                        ),
+                      ),
+                      const Divider(height: 1),
+                      ListTile(
+                        key: const ValueKey('lan-receive'),
+                        leading: const Icon(Icons.qr_code_scanner),
+                        title: const LText('从另一台手机接收'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const LanReceiveScreen(),
+                          ),
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),
@@ -1700,12 +1727,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       final mode = await confirmVaultImport(context, shown);
       if (mode == null) return;
       final plan = await controller.importVault(shown, mode);
-      final added = plan.addedHosts.length;
-      final updated = plan.updatedHosts.length;
-      final localOnly = plan.localOnlyHosts.length;
-      _message(mode == VaultImportMode.merge
-          ? '导入完成（合并）：新增主机 $added 台，更新主机 $updated 台，本机独有的主机保留：$localOnly'
-          : '导入完成（替换）：现在共有主机 ${added + updated} 台，删除了本机独有的主机：$localOnly');
+      _message(vaultImportSummary(plan, mode));
     } on FormatException catch (error) {
       _message('导入失败：${error.message}');
     } catch (error) {

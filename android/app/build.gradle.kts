@@ -106,5 +106,7 @@ dependencies {
     // 安全密钥（R59）：CTAP2、NFC、USB 都由它走，SecurityKeyChannel 只做桥。
     implementation("com.yubico.yubikit:android:3.1.0")
     implementation("com.yubico.yubikit:fido:3.1.0")
+    // 手机互传扫码（R62）。带进 com.google.zxing:core 3.4.1，都是 Apache-2.0，没有 Play 服务。
+    implementation("com.journeyapps:zxing-android-embedded:4.3.0")
     testImplementation("junit:junit:4.13.2")
 }

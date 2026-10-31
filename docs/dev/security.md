@@ -163,6 +163,24 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 
 **改了会怎样**：改算法、迭代次数或字段名，桌面端就解不开。`test/netcatty_crypto_test.dart` 有一条用桌面端 Node/WebCrypto 生成的密文当夹具，改坏了它会红。`decrypt` 用云端 `meta.kdfIterations`，但只认 1–`NetcattyCrypto.maxIterations`（200 万），超了在算密钥之前就报 `iterationsOutOfRange`：meta 是明文，以前被改成十亿，手机就一直算下去。桌面端以后把次数调到 200 万以上，这个上限要跟着改，不然手机解不开。
 
+### 2.4 手机互传（R62）
+
+协议写在 `lib/infrastructure/sync/lan_transfer.dart` 开头，页面在 `lib/presentation/screens/lan_transfer_screen.dart`。密钥是二维码里的 256 位随机数，只经屏幕传。内容和加密备份一样（`EncryptedVaultFile.plainForTransfer`），收下来走 `planVaultImport`，所以指纹不收、凭据按 2.2 的规则。
+
+下面几条改了就会出事：
+
+- **没证明有密钥之前不发密文**，并且没密钥的连接不结束服务：局域网里谁都能连上来，结束的话一次端口扫描就让互传失败。同时握手的连接最多 8 个，每步有超时。
+- **只绑局域网地址**（`lanAddresses`），不绑 `0.0.0.0`：VPN、蜂窝那一侧的人连不进来。
+- **二维码里的地址只收私有 IPv4**（`isLanAddress`）：码是别人送到眼前的，不能让它指挥手机连互联网上的任意地址。
+- **服务只在页面显示着时开**：离开、`paused`、传完、5 分钟到期都关端口。页面包 `SecretContent` 防截屏。
+- **连上了却没回应算「连不上」**：VPN 接管局域网时，本地 tun 栈先把 TCP 握手答应下来，按「对方不对」报会把人带沟里。
+
+已知边界：没有前向保密，录了流量、事后又拿到二维码就能解开（二维码不落盘、页面防截屏）。拍到码的人抢先扫，就拿到全部凭据。
+
+扫码用 zxing-android-embedded（Apache-2.0），不用 mobile_scanner：后者在 Android 上靠闭源的 ML Kit。相机权限点「从另一台手机接收」才问。
+
+测试：`test/lan_transfer_test.dart`（真 socket，含改字节、错密钥、重扫）、`test/lan_transfer_screen_test.dart`、`integration_test/r62_lan_transfer_test.dart`（设备上自己传给自己）。两台真手机是 SYN04，没跑过就是 NOT_RUN。
+
 ## 3. 主机指纹
 
 指纹是服务器公钥的摘要，用来确认「这次连的还是上次那台」。规则全在 `lib/application/host_trust.dart`，弹框在 `lib/presentation/widgets/host_key_dialogs.dart`，两者由 `hostKeyVerifier`（`lib/presentation/widgets/connection_prompts.dart`）接起来。用户怎么核对见[使用手册第 5 节](../user/README.md#5-服务器指纹)。

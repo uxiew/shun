@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 扫码页（zxing-android-embedded）自带的字是英文，按同名资源盖掉。具体何时出现见它的 CaptureManager。 -->
+<resources>
+    <string name="zxing_app_name">shun</string>
+    <string name="zxing_button_ok">知道了</string>
+    <string name="zxing_msg_camera_framework_bug">相机打不开。换加密备份文件来传，或者重启手机再试。</string>
+</resources>

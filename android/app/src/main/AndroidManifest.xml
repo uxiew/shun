@@ -1,4 +1,5 @@
-<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
@@ -8,6 +9,9 @@
     <uses-permission android:name="android.permission.NFC" />
     <uses-feature android:name="android.hardware.nfc" android:required="false" />
     <uses-feature android:name="android.hardware.usb.host" android:required="false" />
+    <!-- 手机互传（R62）扫二维码用，点「从另一台手机接收」才问。扫码库自己也声明，这里写出来是让清单测试看得见。 -->
+    <uses-permission android:name="android.permission.CAMERA" />
+    <uses-feature android:name="android.hardware.camera" android:required="false" />
 
     <application
         android:label="${appLabel}"
@@ -55,6 +59,11 @@
                 <data android:scheme="shun-uuremote" android:host="callback" />
             </intent-filter>
         </activity>
+        <!-- 扫码页：库默认锁横屏，手机竖着扫才顺手（跟着 ScanOptions.setOrientationLocked(false)）。 -->
+        <activity
+            android:name="com.journeyapps.barcodescanner.CaptureActivity"
+            android:screenOrientation="fullSensor"
+            tools:replace="android:screenOrientation" />
         <service
             android:name=".SshKeepAliveService"
             android:exported="false"

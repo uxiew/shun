@@ -3,6 +3,16 @@ import 'package:flutter/material.dart';
 import '../../application/vault_import.dart';
 import '../localization/localized_widgets.dart';
 
+/// 导入完告诉用户的那句话。
+String vaultImportSummary(VaultImportPlan plan, VaultImportMode mode) {
+  final added = plan.addedHosts.length;
+  final updated = plan.updatedHosts.length;
+  final localOnly = plan.localOnlyHosts.length;
+  return mode == VaultImportMode.merge
+      ? '导入完成（合并）：新增主机 $added 台，更新主机 $updated 台，本机独有的主机保留：$localOnly'
+      : '导入完成（替换）：现在共有主机 ${added + updated} 台，删除了本机独有的主机：$localOnly';
+}
+
 /// 导入前的确认框：说清楚会新增、更新、删除什么，哪些凭据要重新填。返回用户选的方式，取消返回 null。
 ///
 /// 本机有独有条目时才出现「替换」，而且不是默认按钮：替换会连同密码和私钥一起删，

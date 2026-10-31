@@ -17,6 +17,7 @@ class MainActivity : FlutterActivity() {
     // 这几个要用 Activity（选目录的 startActivityForResult、拉起 UU/RustDesk、画中画），跟着界面建、跟着界面撤。
     // 跟引擎同寿命的（连接、插件桥）在 ProcessEngine 里。
     private var documentTreeChannel: DocumentTreeChannel? = null
+    private var qrScanChannel: QrScanChannel? = null
     private var pictureInPictureChannel: MethodChannel? = null
     private var uuRemoteBridge: UuRemoteBridge? = null
     private var rustDeskBridge: RustDeskBridge? = null
@@ -84,6 +85,7 @@ class MainActivity : FlutterActivity() {
             this,
             flutterEngine.dartExecutor.binaryMessenger,
         )
+        qrScanChannel = QrScanChannel(this, flutterEngine.dartExecutor.binaryMessenger)
         uuRemoteBridge = UuRemoteBridge(this, flutterEngine.dartExecutor.binaryMessenger)
         rustDeskBridge = RustDeskBridge(this, flutterEngine.dartExecutor.binaryMessenger)
         pictureInPictureChannel = MethodChannel(
@@ -131,6 +133,9 @@ class MainActivity : FlutterActivity() {
         if (documentTreeChannel?.onActivityResult(requestCode, resultCode, data) == true) {
             return
         }
+        if (qrScanChannel?.onActivityResult(requestCode, resultCode, data) == true) {
+            return
+        }
         super.onActivityResult(requestCode, resultCode, data)
     }
 
@@ -138,6 +143,8 @@ class MainActivity : FlutterActivity() {
     override fun cleanUpFlutterEngine(flutterEngine: FlutterEngine) {
         documentTreeChannel?.dispose()
         documentTreeChannel = null
+        qrScanChannel?.dispose()
+        qrScanChannel = null
         uuRemoteBridge?.dispose()
         uuRemoteBridge = null
         rustDeskBridge?.dispose()

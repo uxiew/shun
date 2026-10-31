@@ -499,6 +499,7 @@ Kotlin 在 `android/app/src/main/kotlin/top/xdwa/shun/`，9 个文件共 2120 �
 | `top.xdwa.shun/picture_in_picture` | `MainActivity.kt` | `infrastructure/ssh/terminal_picture_in_picture_service.dart` | 画中画 |
 | `top.xdwa.shun/uuremote` | `UuRemoteBridge.kt`，回调入口 `UuCallbackActivity.kt` | `infrastructure/plugins/uuremote_adapter.dart` | 拉起 UU、取回调；回调原文交给 Dart 校验 |
 | `top.xdwa.shun/rustdesk` | `RustDeskBridge.kt` | `infrastructure/plugins/rustdesk_external.dart` | 拉起 RustDesk（它不回报结果，没有回调） |
+| `top.xdwa.shun/qr_scan` | `QrScanChannel.kt` | `infrastructure/qr_scanner.dart` | 手机互传扫码（R62），打开 zxing 的扫码页、拿回内容 |
 
 另外两个文件：`ProcessEngine.kt`（进程里唯一的 FlutterEngine，见第 6 节最后一段；连接通道和插件桥跟它同寿命）和 `SshKeepAliveService.kt`（保活前台服务，通知上的「全部断开」交给 Dart 去断，5 秒没反应就自己停）。
 
