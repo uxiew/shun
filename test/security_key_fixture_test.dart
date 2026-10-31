@@ -166,6 +166,45 @@ void main() {
       }
     }, skip: skip, timeout: const Timeout(Duration(seconds: 90)));
 
+    test('签名多一个字节：绕过我们自己的检查直接发，sshd 也拒绝', () async {
+      final f = fixture!;
+      Future<SSHClient> login(int extra) async => SSHClient(
+            await SSHSocket.connect(f.edgeHost, f.edgePort),
+            username: f.user,
+            identities: [
+              SSHIdentity.custom(
+                type: ed25519.stub.type,
+                publicKey: SSHRawHostKey(ed25519.stub.publicKey),
+                signer: (data) async {
+                  final assertion = await ed25519.call(
+                    SecurityKeySignRequest(
+                      key: ed25519.stub,
+                      data: data,
+                      hostLabel: 'edge',
+                      username: f.user,
+                    ),
+                  );
+                  return SSHRawSignature(
+                    Uint8List.fromList([
+                      ...encodeSecurityKeySignature(ed25519.stub, assertion),
+                      ...List<int>.filled(extra, 0),
+                    ]),
+                  );
+                },
+              ),
+            ],
+          );
+
+      // 对照：同样的路子不多字节能过，下面的拒绝才算数。
+      final good = await login(0);
+      await good.authenticated;
+      good.closeQuietly();
+
+      final bad = await login(1);
+      await expectLater(bad.authenticated, throwsA(isA<SSHAuthFailError>()));
+      bad.closeQuietly();
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 60)));
+
     test('跳板和目标各碰一次：每一跳分别确认', () async {
       final f = fixture!;
       ed25519.requests.clear();

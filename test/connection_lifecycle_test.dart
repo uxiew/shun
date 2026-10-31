@@ -12,6 +12,7 @@ import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/connection_route.dart';
 import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/security_key.dart';
 import 'package:shun/domain/tmux/tmux_target.dart';
 import 'package:shun/infrastructure/ssh/connection_platform_service.dart';
 import 'package:shun/infrastructure/ssh/ssh_login_watch.dart';
@@ -217,6 +218,36 @@ void main() {
         expect(service.calls.length, calls, reason: '$error 不该再试');
         await controller.close(0);
       }
+    });
+
+    test('安全密钥要人碰：停下写明原因，不自己重试', () async {
+      final host = hostWith();
+      await start(hosts: [host]);
+      final old = await connected(host);
+      old.drop();
+      await settle();
+      final call = service.calls.last;
+      expect(call.purpose, ConnectionPurpose.restore);
+      final calls = service.calls.length;
+      // 和 SshService 真抛的一样（SKY01 对真 sshd 验过这个形状）。
+      call.result.completeError(
+        RouteHopException(
+          0,
+          '${const SecurityKeyNeedsUser()}',
+          SSHAuthAbortError(
+            'sign',
+            SSHInternalError(const SecurityKeyNeedsUser()),
+          ),
+        ),
+      );
+      await settle();
+      final hold = tab(old.id).restoreHold!;
+      expect(hold.kind, RestoreHoldKind.untilUser);
+      expect(hold.message, contains('自动恢复不会替你碰'));
+      clock = clock.add(const Duration(minutes: 1));
+      await controller.runRecoveryPass();
+      expect(service.calls.length, calls, reason: '碰不了钥匙，再试也没用');
+      await controller.close(0);
     });
 
     test('后台且手机锁着：不重新登录，等解锁回到 App；回来后自动恢复', () async {
