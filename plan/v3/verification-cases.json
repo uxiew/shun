@@ -2010,9 +2010,11 @@
       "action": "按 sudo 键：通过验证、取消验证、切到别的标签、经跳板的标签；查日志。",
       "expected": "只发当前主机的密码；取消不发；不走 bracketed paste；日志里没有密码。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R66.md"
+      ]
     }
   ],
   "plan_revision": "3.0",
