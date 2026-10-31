@@ -32,3 +32,13 @@
   这些文件在宿主和 Mosh 插件里仍是 Apache-2.0，Apache-2.0 能和 GPLv3 合用；宿主和 Mosh 插件整体仍按 GPL-3.0-or-later 分发。
 - 除上表以外，仓库其余部分（包括测试插件 `plugins/fixture-*`、Mosh 插件 `plugins/mosh`）仍是 GPL-3.0-or-later。
 
+## 编进 App 的 Android 第三方库
+
+安全密钥功能（R59）带进来的。Dart 依赖的许可证由 Flutter 自己收集，这几个不走那条路，所以写在这里。
+
+| 库 | 版本 | 许可证 |
+|---|---|---|
+| [yubikit-android](https://github.com/Yubico/yubikit-android)（`android`、`core`、`fido`） | 3.1.0 | Apache-2.0 |
+| [Moshi](https://github.com/square/moshi) | 1.15.2 | Apache-2.0 |
+| [SLF4J API](https://www.slf4j.org/) | 2.0.17 | MIT |
+| [JSpecify](https://github.com/jspecify/jspecify) | 1.0.0 | Apache-2.0 |
