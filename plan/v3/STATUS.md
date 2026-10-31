@@ -39,7 +39,7 @@ AIC09（真实 AI 账号）不再卡任何任务，见下一节「全部做完�
 1. **R26 手机日用**：所有者自己的手机开着 VPN、用 TailSocks（非 VPN 模式），按 `evidence/R26.md`「日用清单与结果」跑 NET12、LIFE03、LIFE04、SOX01、JMP01、TSC06 等。
    要连所有者自己的 tailnet，我不碰。候选包怎么装 10-30 定了：本机冷编、用正式密钥签（每次所有者当次授权）、`adb install -r` 原地升级。
    现在手机上是 29 包（`700282f`）。`tskey-api` 不存（F20，所有者 10-30 定的）。
-   所有者给了 LobiShell 的设置页截图（`../lobishell0[1-5].jpg`）做参考，shun 缺的几样列在 `evidence/R26.md` F22，做哪几样等所有者挑。
+   F22、F23、F25 安全密钥的调研和分阶段方案在 [docs/21](docs/21-credentials-sync-plan.md)，第 7 节是要所有者定的 8 件事；建议先升 dartssh2，赶在跑清单之前。
 
 ### 全部做完后所有者自己做的
 
