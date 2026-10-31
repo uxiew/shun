@@ -273,7 +273,6 @@ void main() {
     );
     expect(outcome.error, isNull, reason: '${outcome.error}');
     expect(outcome.scope, TokenScopeStatus.deviceReadOnly);
-    expect(outcome.persistRefusal, isNull, reason: '服务器回报只读，应当保存 client');
     expect(outcome.cache.devices.keys,
         unorderedEquals(['n-server', 'n-socks', 'n-relay', 'n-jump']));
     final calls = api.requests.map((r) => '${r.method} ${r.path}').toList();

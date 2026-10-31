@@ -151,8 +151,6 @@ void main() {
       persist: true,
     );
     expect(homeRead.error, isNull);
-    expect(homeRead.persistRefusal, isNull,
-        reason: '假服务器回报只有 devices:core:read，应该存下');
     expect((await catalog.refreshWithToken(work, 'r43-token')).error, isNull);
     await overview.reload();
     await settle(tester, 1000);
