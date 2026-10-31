@@ -96,10 +96,42 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('export-encrypted-backup')));
     await tester.pump(const Duration(seconds: 1));
     expect(find.byKey(const ValueKey('backup-passphrase')), findsOneWidget);
-    expect(find.byKey(const ValueKey('backup-passphrase-again')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('backup-passphrase-again')), findsOneWidget);
     await tester.tap(find.text('取消').last);
     await tester.pump(const Duration(seconds: 1));
     expect(find.byKey(const ValueKey('backup-passphrase')), findsNothing);
+    expect(requests, isEmpty);
+  });
+
+  Future<List<http.Request>> tapSyncWithPassword(
+    WidgetTester tester,
+    String password,
+  ) async {
+    final requests = await launchAndVisitSettings(tester);
+    await tester.enterText(
+      find.widgetWithText(TextField, '同步主密码'),
+      password,
+    );
+    // 夹具的安全存储是假的，启动时会弹一条「远控存储未就绪」。它不走，后面的提示只能排队，测试看不到。
+    ScaffoldMessenger.of(tester.element(find.text('立即同步'))).clearSnackBars();
+    await tester.pump();
+    await tester.tap(find.text('立即同步'));
+    await tester.pump(const Duration(seconds: 1));
+    return requests;
+  }
+
+  testWidgets('同步主密码 11 位：拦住，没有请求', (tester) async {
+    final requests = await tapSyncWithPassword(tester, 'a' * 11);
+    expect(find.text('同步主密码至少 12 位'), findsOneWidget);
+    expect(requests, isEmpty);
+  });
+
+  testWidgets('同步主密码 12 位：放行，但没填配置仍然没有请求', (tester) async {
+    final requests = await tapSyncWithPassword(tester, 'a' * 12);
+    expect(find.text('同步主密码至少 12 位'), findsNothing);
+    // 有别的提示才说明点击真的走下去了，不然按钮没反应这条也会过。
+    expect(find.byType(SnackBar), findsOneWidget);
     expect(requests, isEmpty);
   });
 

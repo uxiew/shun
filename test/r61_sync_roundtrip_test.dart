@@ -12,6 +12,7 @@ import 'package:shun/domain/models/vault.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/sync/cloud_sync_service.dart';
 import 'package:shun/infrastructure/sync/netcatty_crypto.dart';
+import 'package:shun/infrastructure/sync/sync_safety.dart';
 
 // SYN02（R61）：两台手机经本机的假服务器同步。请求真的走 TLS 和本机网络，加密、合并、写安全存储都是真的代码；
 // 假的是服务器的实现（只有 GET、PUT、MOVE、DELETE）和安全存储的底层（真的安全存储见 tool/r60-backup.py）。
@@ -251,7 +252,11 @@ void main() {
   });
 
   /// 走和 App 一样的路：同步前读出带凭据的保险库，结果经仓库写回去。
-  Future<void> syncNow(VaultRepository repository, http.Client client) async {
+  Future<void> syncNow(
+    VaultRepository repository,
+    http.Client client, {
+    bool confirmShrink = false,
+  }) async {
     final service = CloudSyncService(
       repository,
       client: client,
@@ -263,11 +268,13 @@ void main() {
       localChanges: repository.localChanges,
       loadVault: repository.loadVault,
       synchronize: service.synchronize,
+      synchronizeConfirmed: (vault) =>
+          service.synchronize(vault, overrideShrink: true),
       applyVault: (vault) => repository.saveVault(vault, remote: true),
       retryDelays: const [],
     );
     try {
-      await controller.synchronizeNow();
+      await controller.synchronizeNow(confirmShrink: confirmShrink);
     } finally {
       controller.dispose();
     }
@@ -402,6 +409,54 @@ void main() {
       expect(phoneA.plainPrefs, isNot(contains('R61-NEW-TOTP')));
     }, timeout: const Timeout(Duration(minutes: 3)));
   });
+
+  test('防误删：一次删 11 条主机被拦下，云端不动；确认后才写', () async {
+    final server = await _FakeServer.start(serverContext);
+    addTearDown(server.close);
+    final client = _RecordingClient(certificatePem);
+    final phone = _Phone();
+    VaultData withHosts(int count) => VaultData.fromJson({
+          ..._vault().toJson(),
+          'hosts': [
+            for (var i = 0; i < count; i++)
+              {
+                'id': 'h$i',
+                'label': 'h$i',
+                'hostname': 'h$i.example',
+                'username': 'ops',
+                'port': 22,
+                'protocol': 'ssh',
+                'authMethod': 'password',
+              },
+          ],
+        });
+    Map<String, String> onServer() => {
+          for (final entry in server.files.entries)
+            entry.key: base64Encode(entry.value),
+        };
+
+    await phone.use((repository) async {
+      await configure(repository, connections['WebDAV']!(server.origin));
+      await repository.saveVault(withHosts(12));
+      await syncNow(repository, client);
+    });
+    final before = onServer();
+    expect(before, isNotEmpty);
+
+    await phone.use((repository) async {
+      await repository.saveVault(withHosts(1));
+      await expectLater(
+        syncNow(repository, client),
+        throwsA(isA<SyncShrinkException>()),
+      );
+    });
+    expect(onServer(), before, reason: '拦下以后云端不该变');
+
+    await phone.use((repository) async {
+      await syncNow(repository, client, confirmShrink: true);
+    });
+    expect(onServer(), isNot(before), reason: '用户确认后才写');
+  }, timeout: const Timeout(Duration(minutes: 3)));
 
   group('没发出去就拒绝', () {
     Future<void> expectRefused(SyncConnection connection, String why) async {
