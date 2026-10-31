@@ -328,6 +328,23 @@ def sync(out, log):
                            f'master-in-body={b"r61-master-password" in stored}')
         if not any(r.startswith('PUT') for r in _FakeS3.requests):
             raise SystemExit('服务器没收到 PUT：没同步上去')
+        # 从云端恢复：真解密、弹确认框。这里点取消，写本机那段单测管；要看的是全程不往云端写。
+        puts = sum(r.startswith('PUT') for r in _FakeS3.requests)
+        tap('从云端恢复', scroll_to('从云端恢复'))
+        log('restore-tapped', '点了从云端恢复')
+        for _ in range(30):
+            time.sleep(1)
+            nodes = ui_nodes()
+            if any('恢复备份' in n['label'] for n in nodes):
+                break
+        else:
+            raise SystemExit('没等到恢复确认框')
+        log('restore-dialog', ' ; '.join(n['label'] for n in nodes if n['label'] != '|'))
+        tap('取消', nodes)
+        time.sleep(2)
+        if sum(r.startswith('PUT') for r in _FakeS3.requests) != puts:
+            raise SystemExit('恢复往云端写了东西')
+        log('restore-server', ' ; '.join(_FakeS3.requests))
     finally:
         server.shutdown()
         adb('reverse', '--remove', f'tcp:{SYNC_PORT}')
