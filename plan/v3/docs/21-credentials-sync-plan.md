@@ -137,7 +137,7 @@ Gist 代码也在，但它的 `clientId` 默认值是上游的，要用得换成
 - **要重新过 R28**：R28 审查时身份、TOTP 还没搬进安全存储（`e75bc98`），要确认它们照样进加密 payload、同步回来照样进安全存储、不落明文。
 - 手机的 ETag 检查是先读再比，不是原子的，两台手机同时写可能后写覆盖。文档照实写，别说「防并发」。
 
-**F23c 手机之间局域网互传（R62）**
+**F23c 手机之间局域网互传（R62，代码做完，等两台手机测，见 [R62](../evidence/R62.md)）**
 
 一台出二维码（IP、端口、一次性 256 位密钥），另一台扫。用这个密钥加密传输，走现有 `planVaultImport`，用完关服务。密钥熵够，不需要 PAKE（配对口令协议）。
 
@@ -145,7 +145,7 @@ Gist 代码也在，但它的 `clientId` 默认值是上游的，要用得换成
 
 - 所有者的手机上 shun 走 v2rayNG 的 VPN（`evidence/R26.md`），局域网连接可能被导进 VPN，表现是扫完码连不上。要在真机上测。
 - 路由器开了 AP 隔离也连不上，要报错说清楚。
-- 清单里 `usesCleartextTraffic="false"` 管不管 `dart:io` **未核实**。
+- 清单里 `usesCleartextTraffic="false"` 不管 `dart:io` 的裸 `Socket`：API 30 模拟器上互传能通（[R62](../evidence/R62.md)）。别的 API 没跑过。
 
 不选的：
 
@@ -174,12 +174,12 @@ Gist 代码也在，但它的 `clientId` 默认值是上游的，要用得换成
 
 | 项 | shun 现在 | 怎么做 | 建议 |
 |---|---|---|---|
-| 可信主机密钥页 | 记录在 `extras.knownHosts`，只有连接时的弹框，没有管理页 | 新页面：主机:端口、类型、指纹、接受时间，能删一条（相当于 `ssh-keygen -R`） | **做**，小 |
+| 可信主机密钥页 | 记录在 `extras.knownHosts`，只有连接时的弹框，没有管理页 | 新页面：主机:端口、类型、指纹、接受时间，能删一条（相当于 `ssh-keygen -R`） | **做完**（[R65](../evidence/R65.md)） |
 | 粘贴 known_hosts | 没有；而且 `security.md` 第 3 节规定指纹只从手机上的核对框来 | 解析后逐条预览，用户确认才写入；哈希行（`\|1\|…`）首版跳过并说明 | **要所有者定**，改的是安全规则 |
 | `@cert-authority` | dartssh2 4.1.0 主机算法表没有 `*-cert-v01`（[源码](https://raw.githubusercontent.com/vicajilau/dartssh2/main/lib/src/algorithm/ssh_hostkey_type.dart)） | 要 fork 改密钥交换 | **不做**，等真有 CA 再说（R51） |
-| 应用锁（R46） | 没有 | 自己写 Kotlin 桥，用系统 `android.hardware.biometrics.BiometricPrompt`（API 28+），24–27 用 `KeyguardManager`。锁定间隔、连着不锁、直接 PIN、允许弱生物识别都照 LobiShell | **做**，中 |
-| sudo 密码键 | 没有 | 快捷键栏加一个键，发当前主机存的密码，**默认每次过生物识别** | **做**，排在应用锁后面 |
-| 按主机按键布局（R45） | 全局一套 | 照 R45 | **做**，中 |
+| 应用锁（R46） | 没有 | 自己写 Kotlin 桥，用系统 `android.hardware.biometrics.BiometricPrompt`（API 28+），24–27 用 `KeyguardManager`。锁定间隔、连着不锁、直接 PIN、允许弱生物识别都照 LobiShell | **做完**（[R46](../evidence/R46.md)） |
+| sudo 密码键 | 没有 | 快捷键栏加一个键，发当前主机存的密码，**默认每次过生物识别** | **做完**（[R66](../evidence/R66.md)） |
+| 按主机按键布局（R45） | 全局一套 | 照 R45 | **做完**（[R45](../evidence/R45.md)） |
 | IME 无痕 | 终端输入、密码框已关学习（R44），有「系统安全键盘」；大输入框默认会学习（为了中文联想） | 给大输入框加个开关 | 可选 |
 | 允许截图 | 敏感页一律防截屏，终端从不（R44） | 加开关放开 | 不做，R44 是所有者验过的 |
 | Bracketed paste 开关 | 远端开了 DEC 2004 就包裹，这是标准行为 | 加「从不包裹」 | 不做，真遇到出问题的程序再加 |

@@ -30,7 +30,7 @@ LobiShell 带密码的编辑页禁止截屏，截出来是全黑的，那几页�
 | 断开的标签显示「上次的会话 · SSH」，加【重新连接】【选会话】 | TermRover | SSH 有自动恢复；Mosh 标签没有重新连接（X09 留下的） | R42 |
 | 主机列表里 Tailscale 设备单独一节，带刷新、设置入口和在线/离线。每台主机的 ⋮：用 Mosh 连接 / 端口转发 / 编辑 / 隐藏 | TermRover 首页 | 目录在单独一页 | R43 |
 | 带密码、私钥的页面禁止截屏，设置里可以显式打开。「IME 无痕模式」挡住密码自动补全和输入法学习 | LobiShell 安全设置 | 没有 | R44 |
-| 特殊键栏能按连接分配布局；有模板：Windows、tmux/vim、AI CLI（Claude、Codex…）；按键高度、触觉反馈、方向键长按重复速度都能调 | LobiShell 界面设置 | 全局一套 | R45（后续） |
+| 特殊键栏能按连接分配布局；有模板：Windows、tmux/vim、AI CLI（Claude、Codex…）；按键高度、触觉反馈、方向键长按重复速度都能调 | LobiShell 界面设置 | 都有了（[R45](../evidence/R45.md)） | R45 |
 | 生物识别应用锁：宽限期、终端连着时不锁、可以直接用 PIN | LobiShell 安全设置 | 没有（10-08 定另开任务） | R46（后续） |
 | 本地 Shell；Linux 用户态（Ubuntu，多个连接可以共用一个环境）；串行/USB（波特率、数据位、停止位、校验、流控、选 USB 设备） | LobiShell | 没有 | R47、R48（后续） |
 | 远程桌面插件（VNC / RDP / Proxmox SPICE，noVNC 兜底）；RustDesk 插件（画面在 App 里） | LobiShell 插件页 | RustDesk 是交给外部 App；内嵌画面是 R38 | R49（后续）、R38 |
@@ -72,7 +72,7 @@ LobiShell 带密码的编辑页禁止截屏，截出来是全黑的，那几页�
 | meshTerm 的每主机事件记录 | 在已有诊断入口显示连接阶段、失败位置、耗时和重连次数；只保留有限本地元数据，可清除。没有采样就显示未知，不拿 SSH 握手耗时当网络 ping | R25、R43；UX10 |
 | 两款终端的多 tailnet / 主机工作入口 | 主机列表按目录来源分组；同名同 IP 不合并。控制面连接状态、SSH 连接状态、缓存时间分开；换来源不改活动会话身份和路线，不以列表切换冒充已经加入另一 tailnet | R43；扩充尚未执行的 UX09 |
 | 两款终端把 SFTP 与主机工作放在一起 | 回归已有文件浏览、预览、上传/下载、取消与覆盖流程，保持同一目标 client 和代次；大文件有界，断线明确中断或未知。此轮不加入新编辑器、自动上传剪贴板或附件云处理 | R24；UX12 |
-| meshTerm 的键盘分组；NovaScale 的常用按键和建议 | R45 评估分页、折叠和会话快捷入口；R50 仍只显示待确认建议，数据源保持已有规划的受限探测和本机历史，不自动读 shell history 或写 shell rc | R45、R50，仍为 P6 |
+| meshTerm 的键盘分组；NovaScale 的常用按键和建议 | R45 评估过分页、折叠和会话快捷入口，结论是先不加（[R45](../evidence/R45.md)）；R50 仍只显示待确认建议，数据源保持已有规划的受限探测和本机历史，不自动读 shell history 或写 shell rc | R45、R50，仍为 P6 |
 | OSH 的逐次审批 | 应用解锁、硬件签名、证书签发分别建边界。应用解锁宽限期不授权任何外部签名；Android 是否硬件支持必须按设备测，不能从 iPhone Secure Enclave 宣称迁移得出 | R36、R46；短期证书另列 R51 |
 | meshTerm / NovaScale 的进程内 Tailscale | 复用已有 R32，不另造重复任务；评估节点身份与退出、控制面凭据隔离、多来源、DNS、系统 VPN 共存、Android 生命周期和资源。NovaScale 的 libtailscale 仓库只是候选实现线索 | R32；[S79](13-sources.md#s79)，仍为 P6 |
 
