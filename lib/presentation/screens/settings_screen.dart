@@ -39,6 +39,7 @@ import '../widgets/vault_import_dialog.dart';
 import '../widgets/vault_passphrase_dialog.dart';
 import 'app_log_screen.dart';
 import 'connection_log_screen.dart';
+import 'known_hosts_screen.dart';
 import 'plugins_screen.dart';
 import 'rustdesk_screen.dart';
 import 'tailscale_catalog_screen.dart';
@@ -612,6 +613,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       onChanged: _savingAllowSensitiveScreenshots
                           ? null
                           : _setAllowSensitiveScreenshots,
+                    ),
+                    const Divider(height: 1),
+                    ListTile(
+                      key: const ValueKey('settings-known-hosts'),
+                      leading: const Icon(Icons.verified_user_outlined),
+                      title: const LText('可信主机密钥'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const KnownHostsScreen(),
+                        ),
+                      ),
                     ),
                   ],
                 ),

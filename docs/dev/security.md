@@ -172,8 +172,9 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 - **记在哪、按什么比**：保险库 `extras.knownHosts`，按**逻辑主机名 + 端口**记，不按实际拨出去的地址：经代理或跳板时拨的是代理端口或 127.0.0.1，按那个记就张冠李戴。名字比之前过 `trustHostName`：去首尾空白、IPv6 方括号、结尾的点，IP 按标准写法，域名转小写。只做写法上的等价，**不做 DNS 解析**：两个名字指向同一个 IP 也各自核对。
 - **弹框所在页面没了**（`context.mounted` 为 false）一律按拒绝处理。
 - 同步不上传指纹（第 2.3 节），导入也不收（第 2.2 节）：指纹记录只从这台手机上的核对框来。
+- **可信主机密钥页**（`lib/presentation/screens/known_hosts_screen.dart`）只能看和删：能写的话就是一条绕过核对的路。删除按规范写法把同一台的记录全删（`withoutKnownHost`）：`checkHostKey` 只看第一条，留下旧的下次还会报「指纹变了」。
 
-测试：`test/host_trust_test.dart`，其中「指纹变了：只有「删除旧指纹」和「关闭」，没有任何继续连接的按钮」钉死了第三种情况。
+测试：`test/host_trust_test.dart`，其中「指纹变了：只有「删除旧指纹」和「关闭」，没有任何继续连接的按钮」钉死了第三种情况；`test/known_hosts_screen_test.dart`、`integration_test/r65_known_hosts_test.dart`（设备上删了再连）。
 
 **别做**：给「指纹变了」加「确认更新」「仍然连接」之类一点就过的按钮——用户会养成不看就点的习惯，拦了等于没拦。也别因为地址是 100.x、在 tailnet 里就自动信任。
 

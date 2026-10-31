@@ -6,6 +6,7 @@ import '../domain/models/host.dart';
 import '../domain/models/vault.dart';
 import '../domain/proxy_profiles.dart';
 import '../infrastructure/storage/vault_repository.dart';
+import 'host_trust.dart';
 import 'vault_import.dart';
 
 /// 确认导入期间本机保险库变了，没有写入任何东西。
@@ -156,6 +157,20 @@ class VaultController extends StateNotifier<VaultState> {
             proxyProfiles: vault.proxyProfiles
                 .where((value) => value.id != shown.profile.id)
                 .toList()));
+      });
+
+  /// 删一台服务器的指纹记录（可信主机密钥页），下次连接按第一次见重新核对。
+  Future<void> forgetHostKey({required String hostname, required int port}) =>
+      _serialHostWrite(() async {
+        final vault = await ready();
+        await replace(vault.copyWith(extras: {
+          ...vault.extras,
+          'knownHosts': withoutKnownHost(
+            knownHostsFromExtras(vault.extras),
+            hostname: hostname,
+            port: port,
+          ),
+        }));
       });
 
   Future<void> upsertHost(HostProfile host) =>

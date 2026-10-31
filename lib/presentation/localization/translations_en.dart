@@ -2341,6 +2341,12 @@ const englishTranslations = <String, String>{
       'This deletes {n} entries and they cannot be recovered. Hosts, connected tabs and the vault are not touched.',
   '清除': 'Clear',
   '已清除': 'Cleared',
+  '可信主机密钥': 'Trusted host keys',
+  '这里是你核对后接受过的服务器。删一条后，下次连这台要重新核对。只记在这台手机上，同步和导入都不带。':
+      'Servers you verified and accepted. Delete one and you verify it again on the next connection. Kept on this phone only: sync and import never carry it.',
+  '还没有接受过服务器': 'No accepted servers yet',
+  r'删除 $name 的指纹？': r'Delete the fingerprint of $name?',
+  '下次连这台要重新核对。': 'You will verify it again next time you connect.',
   '连接记录': 'Connection log',
   '已删除的主机': 'Deleted host',
   '导出（先预览）': 'Export (preview first)',

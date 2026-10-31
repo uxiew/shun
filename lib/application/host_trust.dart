@@ -1,7 +1,8 @@
 /// 主机指纹信任：连接时 dartssh2 拿到服务器指纹后调这里，决定放行还是断开。
 ///
-/// 信任记录存在保险库 `extras.knownHosts`（和桌面端同步），按**逻辑主机名 + 端口**记，
-/// 不按实际拨出的地址——经代理或跳板时拨的是 127.0.0.1 或代理端口，按那个记就会张冠李戴（SEC01）。
+/// 信任记录存在保险库 `extras.knownHosts`，只在这台手机上：同步和导入都不带（docs/dev/security.md 第 2 节）。
+/// 按**逻辑主机名 + 端口**记，不按实际拨出的地址——经代理或跳板时拨的是 127.0.0.1 或代理端口，
+/// 按那个记就会张冠李戴（SEC01）。
 ///
 /// 三种情况：
 /// - 已信任且指纹一致：直接放行，不打扰用户。
@@ -35,6 +36,56 @@ String trustHostName(String hostname) {
   return value.toLowerCase();
 }
 
+/// 从保险库的 extras 取出信任记录。形状不对的条目跳过，不抛异常。
+List<Map<String, dynamic>> knownHostsFromExtras(Map<String, dynamic> extras) =>
+    (extras['knownHosts'] as List? ?? const [])
+        .whereType<Map>()
+        .map((value) => Map<String, dynamic>.from(value))
+        .toList();
+
+bool _sameHost(Map<String, dynamic> entry, String name, int port) =>
+    trustHostName('${entry['hostname'] ?? ''}') == name &&
+    ((entry['port'] as num?)?.toInt() ?? 22) == port;
+
+/// 去掉 [hostname]:[port] 的全部记录，相当于 `ssh-keygen -R`。
+///
+/// 按规范写法比，同一台的几条一起删：[checkHostKey] 只看第一条，只删一条的话，
+/// 留下的旧记录下次会报「指纹变了」，用户以为删了却还是连不上。
+List<Map<String, dynamic>> withoutKnownHost(
+  List<Map<String, dynamic>> knownHosts, {
+  required String hostname,
+  required int port,
+}) {
+  final name = trustHostName(hostname);
+  return [
+    for (final entry in knownHosts)
+      if (!_sameHost(entry, name, port)) entry,
+  ];
+}
+
+/// 按主机名、端口排好，给页面显示用。
+List<Map<String, dynamic>> sortedKnownHosts(
+  List<Map<String, dynamic>> knownHosts,
+) {
+  String name(Map<String, dynamic> entry) =>
+      trustHostName('${entry['hostname'] ?? ''}');
+  int port(Map<String, dynamic> entry) =>
+      (entry['port'] as num?)?.toInt() ?? 22;
+  return [...knownHosts]..sort((a, b) {
+      final byName = name(a).compareTo(name(b));
+      return byName != 0 ? byName : port(a).compareTo(port(b));
+    });
+}
+
+/// 显示用的「主机:端口」。IPv6 加方括号，不然分不清哪段是端口。
+String knownHostLabel(Map<String, dynamic> entry) {
+  final host = '${entry['hostname'] ?? ''}';
+  final port = (entry['port'] as num?)?.toInt() ?? 22;
+  return host.contains(':') && !host.startsWith('[')
+      ? '[$host]:$port'
+      : '$host:$port';
+}
+
 /// 查 [knownHosts] 里 [hostname]:[port] 的记录，和这次拿到的指纹比对。
 ({HostKeyStatus status, Map<String, dynamic>? existing}) checkHostKey(
   List<Map<String, dynamic>> knownHosts, {
@@ -44,11 +95,8 @@ String trustHostName(String hostname) {
   required String fingerprint,
 }) {
   final name = trustHostName(hostname);
-  final existing = knownHosts
-      .where((entry) =>
-          trustHostName('${entry['hostname'] ?? ''}') == name &&
-          ((entry['port'] as num?)?.toInt() ?? 22) == port)
-      .firstOrNull;
+  final existing =
+      knownHosts.where((entry) => _sameHost(entry, name, port)).firstOrNull;
   if (existing == null) return (status: HostKeyStatus.unknown, existing: null);
   final same =
       existing['fingerprint'] == fingerprint && existing['keyType'] == keyType;

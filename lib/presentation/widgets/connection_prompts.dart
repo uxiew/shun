@@ -24,10 +24,7 @@ HostKeyVerifier hostKeyVerifier(BuildContext context) {
     final vault = container.read(vaultControllerProvider).data;
     if (vault == null) return false;
     return verifyHostKeyWithKnownHosts(
-      knownHosts: (vault.extras['knownHosts'] as List? ?? const [])
-          .whereType<Map>()
-          .map((value) => Map<String, dynamic>.from(value))
-          .toList(),
+      knownHosts: knownHostsFromExtras(vault.extras),
       hostname: host.hostname,
       port: host.port,
       keyType: algorithm,
