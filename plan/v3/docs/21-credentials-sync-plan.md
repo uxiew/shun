@@ -125,7 +125,7 @@ Gist 代码也在，但它的 `clientId` 默认值是上游的，要用得换成
 
 **F23a 加密文件导出导入（R60）**
 
-- 格式直接用 `netcatty_crypto.dart` 的 `{meta, payload}`（PBKDF2-SHA256 60 万次 + AES-256-GCM），**带凭据**。不再造一种格式。
+- 格式直接用 `vault_crypto.dart` 的 `{meta, payload}`（PBKDF2-SHA256 60 万次 + AES-256-GCM），**带凭据**。不再造一种格式。
 - 导出前要口令输两遍，少于 12 位不让过：文件离开手机后可以离线暴力破解。口令框防截屏（R44）。
 - 导入走现有 `planVaultImport`，先解密再出预览。`knownHosts` 不收（现有规则）。
 - 现有的明文导出留着，名字改清楚：不带凭据。

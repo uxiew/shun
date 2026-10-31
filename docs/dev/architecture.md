@@ -457,8 +457,8 @@ flowchart TD
 
 `ForkFeatures.cloudSync` 开着，只有 WebDAV、S3；GitHub 由 `githubSync` 关着。代码在 `infrastructure/sync/`：
 
-- 后端 `SyncProviderType { webdav, githubGist, s3 }`，远端文件名都是 `netcatty-vault.json`，和桌面端同一个文件。三家都用 ETag 做乐观并发，冲突时整个流程最多试 3 次；WebDAV 先 PUT 临时文件再 MOVE，写完读回比对。GitHub 用设备码登录（`github_auth_service.dart`）。
-- 加密在 `netcatty_crypto.dart`，参数、云端看得到什么、传输要求见[安全文档 2.3](security.md#23-云同步默认关)。
+- 后端 `SyncProviderType { webdav, githubGist, s3 }`，远端文件名都是 `shun-vault.json`，和桌面端同一个文件。三家都用 ETag 做乐观并发，冲突时整个流程最多试 3 次；WebDAV 先 PUT 临时文件再 MOVE，写完读回比对。GitHub 用设备码登录（`github_auth_service.dart`）。
+- 加密在 `vault_crypto.dart`，参数、云端看得到什么、传输要求见[安全文档 2.3](security.md#23-云同步默认关)。
 - 流程 `CloudSyncService._synchronize`，手动、自动都走它：取本机加密存着的上次基线 → 下载解密 → 合并（v1 用 `vault_merge_service.dart` 的三方合并；桌面端的 v2 convergent 格式用 `convergent_sync_adapter.dart`，不把云端降级成 v1）→ `sync_safety.dart` 防误删扩散（任一集合一次少 ≥10 项，或 ≥3 项且 ≥50%，就停下要用户确认）→ 加密上传 → 再下载核对 → 本地应用成功后才存新基线。
 - 三方合并按 id：两边都改，本地胜；一边删一边改，保留改过的；没有基线时用 `syncMeta.deletions` 墓碑压掉旧条目；可选集合缺席时继承基线，不当作删除。
 - 不上云的两样（`knownHosts`、`lastConnectedAt`）在应用云端结果后由 `retainLocalDeviceData` 接回来，见[安全文档 2.3](security.md#23-云同步默认关)。

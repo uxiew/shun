@@ -10,7 +10,7 @@ import 'package:shun/domain/models/settings.dart';
 import 'package:shun/domain/models/vault.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/sync/cloud_sync_service.dart';
-import 'package:shun/infrastructure/sync/netcatty_crypto.dart';
+import 'package:shun/infrastructure/sync/vault_crypto.dart';
 
 // R28 / REG03：云同步在本 fork 里是关着的（fork_features.dart），但代码还在，将来打开时
 // 上传的就是这里抓到的字节。看两件事：发出去的任何字节（包括请求头以外的 URL、正文）
@@ -122,9 +122,9 @@ void main() {
 
     final file = SyncedVaultFile.fromJson(
         jsonDecode(utf8.decode(stored!)) as Map<String, dynamic>);
-    await expectLater(NetcattyCrypto.decrypt(file, 'wrong-$master'),
+    await expectLater(VaultCrypto.decrypt(file, 'wrong-$master'),
         throwsA(anything));
-    final back = await NetcattyCrypto.decrypt(file, master);
+    final back = await VaultCrypto.decrypt(file, master);
     expect(back.hosts.single.data['password'], hostPassword);
     expect(back.hosts.single.data['r28UnknownField'], {'kept': true});
     expect(back.keys.single.data['privateKey'], privateKey);

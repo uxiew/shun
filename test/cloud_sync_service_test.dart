@@ -14,7 +14,7 @@ import 'package:shun/domain/models/vault.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/sync/cloud_sync_service.dart';
 import 'package:shun/infrastructure/sync/convergent_sync_adapter.dart';
-import 'package:shun/infrastructure/sync/netcatty_crypto.dart';
+import 'package:shun/infrastructure/sync/vault_crypto.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -65,7 +65,7 @@ void main() {
         secret: 'test-token',
         resourceId: 'lost-write'));
     await repository.saveMasterPassword('sync-password');
-    final file = await NetcattyCrypto.encrypt(
+    final file = await VaultCrypto.encrypt(
         vault: VaultData.empty(),
         password: 'sync-password',
         deviceId: 'pc',
@@ -80,7 +80,7 @@ void main() {
       return http.Response(
           jsonEncode({
             'files': {
-              'netcatty-vault.json': {
+              'shun-vault.json': {
                 'content': jsonEncode(file.toJson()),
                 'truncated': false,
               }
@@ -135,7 +135,7 @@ void main() {
         secret: 'test-token',
         resourceId: 'recovery'));
     await repository.saveMasterPassword('sync-password');
-    var file = await NetcattyCrypto.encrypt(
+    var file = await VaultCrypto.encrypt(
         vault: _desktopV2Vault(),
         password: 'sync-password',
         deviceId: 'pc',
@@ -148,14 +148,14 @@ void main() {
         writes++;
         final json = jsonDecode(request.body) as Map;
         file = SyncedVaultFile.fromJson(
-            jsonDecode(json['files']['netcatty-vault.json']['content'])
+            jsonDecode(json['files']['shun-vault.json']['content'])
                 as Map<String, dynamic>);
         throw http.ClientException('response lost');
       }
       return http.Response(
           jsonEncode({
             'files': {
-              'netcatty-vault.json': {
+              'shun-vault.json': {
                 'content': jsonEncode(file.toJson()),
                 'truncated': false,
               }
@@ -193,7 +193,7 @@ void main() {
     await repository.saveMasterPassword('sync-password');
 
     final remoteVault = VaultData.empty();
-    final remoteFile = await NetcattyCrypto.encrypt(
+    final remoteFile = await VaultCrypto.encrypt(
       vault: remoteVault,
       password: 'sync-password',
       deviceId: 'remote-device',
@@ -203,7 +203,7 @@ void main() {
     );
     var gistResponse = jsonEncode({
       'files': {
-        'netcatty-vault.json': {
+        'shun-vault.json': {
           'content': jsonEncode(remoteFile.toJson()),
           'truncated': false,
         },
@@ -226,7 +226,7 @@ void main() {
         final body = jsonDecode(request.body) as Map<String, dynamic>;
         final files = body['files'] as Map<String, dynamic>;
         final vaultFile = jsonDecode(
-          (files['netcatty-vault.json'] as Map<String, dynamic>)['content']
+          (files['shun-vault.json'] as Map<String, dynamic>)['content']
               as String,
         ) as Map<String, dynamic>;
         expect((vaultFile['meta'] as Map<String, dynamic>)['version'], 5);
@@ -283,7 +283,7 @@ void main() {
         desired: original.copyWith(hosts: []),
         deviceId: 'desktop-device',
         timestamp: 200);
-    final file = await NetcattyCrypto.encrypt(
+    final file = await VaultCrypto.encrypt(
         vault: deleted,
         password: 'sync-password',
         deviceId: 'pc',
@@ -297,7 +297,7 @@ void main() {
       return http.Response(
           jsonEncode({
             'files': {
-              'netcatty-vault.json': {
+              'shun-vault.json': {
                 'content': jsonEncode(file.toJson()),
                 'truncated': false
               }
@@ -327,7 +327,7 @@ void main() {
     await repository.saveSyncConnection(connection);
     await repository.saveMasterPassword('sync-password');
     final original = VaultData.empty();
-    final remoteFile = await NetcattyCrypto.encrypt(
+    final remoteFile = await VaultCrypto.encrypt(
       vault: original,
       password: 'sync-password',
       deviceId: 'remote-device',
@@ -342,7 +342,7 @@ void main() {
         final files = body['files'] as Map<String, dynamic>;
         currentFile = SyncedVaultFile.fromJson(
           jsonDecode(
-            (files['netcatty-vault.json'] as Map<String, dynamic>)['content']
+            (files['shun-vault.json'] as Map<String, dynamic>)['content']
                 as String,
           ) as Map<String, dynamic>,
         );
@@ -351,7 +351,7 @@ void main() {
       return http.Response(
         jsonEncode({
           'files': {
-            'netcatty-vault.json': {
+            'shun-vault.json': {
               'content': jsonEncode(currentFile.toJson()),
               'truncated': false,
             },
@@ -389,7 +389,7 @@ void main() {
       resourceId: 'gist-v2',
     ));
     await repository.saveMasterPassword('sync-password');
-    final encrypted = await NetcattyCrypto.encrypt(
+    final encrypted = await VaultCrypto.encrypt(
       vault: VaultData.empty(),
       password: 'sync-password',
       deviceId: 'desktop-device',
@@ -406,7 +406,7 @@ void main() {
       return http.Response(
         jsonEncode({
           'files': {
-            'netcatty-vault.json': {
+            'shun-vault.json': {
               'content': jsonEncode(v2.toJson()),
               'truncated': false,
             },
@@ -459,7 +459,7 @@ void main() {
         }),
       ],
     );
-    final baseFile = await NetcattyCrypto.encrypt(
+    final baseFile = await VaultCrypto.encrypt(
       vault: local,
       password: 'sync-password',
       deviceId: 'mobile-device',
@@ -476,7 +476,7 @@ void main() {
       ),
     );
     final desktopSnapshot = local.copyWith(hosts: [], keys: []);
-    final remoteFile = await NetcattyCrypto.encrypt(
+    final remoteFile = await VaultCrypto.encrypt(
       vault: desktopSnapshot,
       password: 'sync-password',
       deviceId: 'desktop-device',
@@ -486,7 +486,7 @@ void main() {
     );
     var gistResponse = jsonEncode({
       'files': {
-        'netcatty-vault.json': {
+        'shun-vault.json': {
           'content': jsonEncode(remoteFile.toJson()),
           'truncated': false,
         },
@@ -506,11 +506,11 @@ void main() {
         final files = body['files'] as Map<String, dynamic>;
         final encrypted = SyncedVaultFile.fromJson(
           jsonDecode(
-            (files['netcatty-vault.json'] as Map<String, dynamic>)['content']
+            (files['shun-vault.json'] as Map<String, dynamic>)['content']
                 as String,
           ) as Map<String, dynamic>,
         );
-        uploadedVault = await NetcattyCrypto.decrypt(
+        uploadedVault = await VaultCrypto.decrypt(
           encrypted,
           'sync-password',
         );
@@ -550,7 +550,7 @@ void main() {
       resourceId: 'gist-desktop-v2',
     ));
     await repository.saveMasterPassword('sync-password');
-    final remoteFile = await NetcattyCrypto.encrypt(
+    final remoteFile = await VaultCrypto.encrypt(
       vault: _desktopV2Vault(),
       password: 'sync-password',
       deviceId: 'desktop-device',
@@ -560,7 +560,7 @@ void main() {
     );
     var gistResponse = jsonEncode({
       'files': {
-        'netcatty-vault.json': {
+        'shun-vault.json': {
           'content': jsonEncode(remoteFile.toJson()),
           'truncated': false,
         },
@@ -582,7 +582,7 @@ void main() {
         final files = body['files'] as Map<String, dynamic>;
         uploaded = SyncedVaultFile.fromJson(
           jsonDecode(
-            (files['netcatty-vault.json'] as Map<String, dynamic>)['content']
+            (files['shun-vault.json'] as Map<String, dynamic>)['content']
                 as String,
           ) as Map<String, dynamic>,
         );
@@ -609,7 +609,7 @@ void main() {
         reason: 'download, revision preflight, read-back verification');
     expect(result.vault.customGroups, contains('Mobile'));
     expect(uploaded?.meta['syncSchemaVersion'], 2);
-    final roundTrip = await NetcattyCrypto.decrypt(
+    final roundTrip = await VaultCrypto.decrypt(
       uploaded!,
       'sync-password',
     );
@@ -629,7 +629,7 @@ void main() {
     ));
     await repository.saveMasterPassword('sync-password');
 
-    final remoteFile = await NetcattyCrypto.encrypt(
+    final remoteFile = await VaultCrypto.encrypt(
       vault: VaultData.empty(),
       password: 'sync-password',
       deviceId: 'desktop-device',
@@ -648,7 +648,7 @@ void main() {
       expect(request.headers.containsKey('if-match'), isFalse);
       expect(request.headers.containsKey('if-none-match'), isFalse);
       if (request.method == 'GET' &&
-          request.url.path.endsWith('netcatty-vault.json')) {
+          request.url.path.endsWith('shun-vault.json')) {
         return http.Response.bytes(canonical, 200, headers: {
           'content-type': 'application/json; charset=utf-8',
           'etag': '"desktop-revision"',
@@ -666,7 +666,7 @@ void main() {
         expect(request.headers['overwrite'], 'T');
         expect(
           request.headers['destination'],
-          'https://dav.example.com/netcatty/netcatty-vault.json',
+          'https://dav.example.com/netcatty/shun-vault.json',
         );
         canonical = temporary!;
         return http.Response('', 201);
@@ -708,7 +708,7 @@ void main() {
       secret: 'password',
     ));
     await repository.saveMasterPassword('sync-password');
-    final remoteFile = await NetcattyCrypto.encrypt(
+    final remoteFile = await VaultCrypto.encrypt(
       vault: _desktopV2Vault(),
       password: 'sync-password',
       deviceId: 'desktop-device',
@@ -724,7 +724,7 @@ void main() {
         return http.Response('', 404);
       }
       if (request.method == 'GET' &&
-          request.url.path.endsWith('netcatty-vault.json')) {
+          request.url.path.endsWith('shun-vault.json')) {
         return http.Response.bytes(
           canonical,
           200,
@@ -750,7 +750,7 @@ void main() {
     });
 
     await _seedCheckpoint(repository, remoteFile,
-        'webdav:https://dav.example.com/netcatty/netcatty-vault.json');
+        'webdav:https://dav.example.com/netcatty/shun-vault.json');
 
     final result = await CloudSyncService(
       repository,
@@ -761,7 +761,7 @@ void main() {
 
     expect(result.vault.customGroups, contains('Mobile'));
     expect(uploaded?.meta['syncSchemaVersion'], 2);
-    final roundTrip = await NetcattyCrypto.decrypt(
+    final roundTrip = await VaultCrypto.decrypt(
       uploaded!,
       'sync-password',
     );
@@ -781,7 +781,7 @@ void main() {
     ));
     await repository.saveMasterPassword('sync-password');
 
-    final remoteFile = await NetcattyCrypto.encrypt(
+    final remoteFile = await VaultCrypto.encrypt(
       vault: VaultData.empty(),
       password: 'sync-password',
       deviceId: 'desktop-device',
@@ -856,7 +856,7 @@ void main() {
     final client = MockClient((request) async {
       expect(
         request.url.path,
-        '/storage/netcatty/vaults/user/netcatty-vault.json',
+        '/storage/netcatty/vaults/user/shun-vault.json',
       );
       expect(
         request.headers['authorization'],
@@ -919,7 +919,7 @@ void main() {
     );
     await repository.saveSyncConnection(connection);
     await repository.saveMasterPassword('sync-password');
-    final remoteFile = await NetcattyCrypto.encrypt(
+    final remoteFile = await VaultCrypto.encrypt(
       vault: _desktopV2Vault(),
       password: 'sync-password',
       deviceId: 'desktop-device',
@@ -961,7 +961,7 @@ void main() {
 
     expect(result.vault.customGroups, contains('Mobile'));
     expect(uploaded?.meta['syncSchemaVersion'], 2);
-    final roundTrip = await NetcattyCrypto.decrypt(
+    final roundTrip = await VaultCrypto.decrypt(
       uploaded!,
       'sync-password',
     );

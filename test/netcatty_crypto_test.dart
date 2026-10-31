@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/domain/models/vault.dart';
-import 'package:shun/infrastructure/sync/netcatty_crypto.dart';
+import 'package:shun/infrastructure/sync/vault_crypto.dart';
 
 void main() {
   test(
@@ -15,7 +15,7 @@ void main() {
     }''') as Map<String, dynamic>,
       );
 
-      final vault = await NetcattyCrypto.decrypt(fixture, 'netcatty-test');
+      final vault = await VaultCrypto.decrypt(fixture, 'netcatty-test');
       expect(vault.hosts.single.label, 'Demo');
       expect(vault.hosts.single.hostname, 'example.com');
     },
@@ -41,14 +41,14 @@ void main() {
         'example.plugin': {'version': 1},
       },
     });
-    final encrypted = await NetcattyCrypto.encrypt(
+    final encrypted = await VaultCrypto.encrypt(
       vault: vault,
       password: 'correct horse battery staple',
       deviceId: 'mobile-test',
       deviceName: 'Test Phone',
       appVersion: 'test',
     );
-    final decrypted = await NetcattyCrypto.decrypt(
+    final decrypted = await VaultCrypto.decrypt(
       encrypted,
       'correct horse battery staple',
     );
@@ -57,7 +57,7 @@ void main() {
     });
     expect(decrypted.extras['pluginSidecars'], isNotNull);
     await expectLater(
-      NetcattyCrypto.decrypt(encrypted, 'wrong'),
+      VaultCrypto.decrypt(encrypted, 'wrong'),
       throwsA(isA<FormatException>()),
     );
   });
@@ -67,23 +67,23 @@ void main() {
     'refuses an out-of-range kdfIterations before deriving any key',
     () async {
       final vault = VaultData.fromJson({'hosts': [], 'keys': []});
-      final encrypted = await NetcattyCrypto.encrypt(
+      final encrypted = await VaultCrypto.encrypt(
         vault: vault,
         password: 'pw',
         deviceId: 'mobile-test',
         deviceName: 'Test Phone',
         appVersion: 'test',
       );
-      for (final rounds in [1000000000, NetcattyCrypto.maxIterations + 1, 0]) {
+      for (final rounds in [1000000000, VaultCrypto.maxIterations + 1, 0]) {
         final tampered = SyncedVaultFile(
           meta: {...encrypted.meta, 'kdfIterations': rounds},
           payload: encrypted.payload,
         );
         await expectLater(
-          NetcattyCrypto.decrypt(tampered, 'pw')
+          VaultCrypto.decrypt(tampered, 'pw')
               .timeout(const Duration(seconds: 2)),
           throwsA(isA<FormatException>().having((e) => e.message, 'message',
-              NetcattyCrypto.iterationsOutOfRange)),
+              VaultCrypto.iterationsOutOfRange)),
           reason: '$rounds',
         );
       }

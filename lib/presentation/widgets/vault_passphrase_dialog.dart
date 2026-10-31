@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/models/vault.dart';
 import '../../infrastructure/storage/encrypted_vault_file.dart';
-import '../../infrastructure/sync/netcatty_crypto.dart';
+import '../../infrastructure/sync/vault_crypto.dart';
 import '../localization/localized_widgets.dart';
 import 'form_gap.dart';
 import 'secret_content.dart';

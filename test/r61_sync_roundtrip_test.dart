@@ -11,7 +11,7 @@ import 'package:shun/domain/models/settings.dart';
 import 'package:shun/domain/models/vault.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/sync/cloud_sync_service.dart';
-import 'package:shun/infrastructure/sync/netcatty_crypto.dart';
+import 'package:shun/infrastructure/sync/vault_crypto.dart';
 import 'package:shun/infrastructure/sync/sync_safety.dart';
 
 // SYN02（R61）：两台手机经本机的假服务器同步。请求真的走 TLS 和本机网络，加密、合并、写安全存储都是真的代码；
@@ -333,7 +333,7 @@ void main() {
 
       final stored =
           server.files.values.singleWhere((bytes) => bytes.isNotEmpty);
-      final onServer = await NetcattyCrypto.decrypt(
+      final onServer = await VaultCrypto.decrypt(
         SyncedVaultFile.fromJson(
           jsonDecode(utf8.decode(stored)) as Map<String, dynamic>,
         ),

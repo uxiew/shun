@@ -21,7 +21,7 @@ class SyncedVaultFile {
   Map<String, dynamic> toJson() => {'meta': meta, 'payload': payload};
 }
 
-class NetcattyCrypto {
+class VaultCrypto {
   static const iterations = 600000;
 
   /// 解密时肯算的最多次数。`kdfIterations` 在云端 meta 里是明文，能改云端文件的人填一个十亿，
@@ -125,7 +125,7 @@ class NetcattyCrypto {
   ) async {
     if (file.meta['algorithm'] != 'AES-256-GCM' ||
         file.meta['kdf'] != 'PBKDF2') {
-      throw const FormatException('Unsupported Netcatty encryption format');
+      throw const FormatException('Unsupported encryption format');
     }
     final rounds = (file.meta['kdfIterations'] as num?)?.toInt() ?? iterations;
     if (rounds < 1 || rounds > maxIterations) {

@@ -24,7 +24,7 @@ class S3ObjectResponse {
 class S3SyncClient {
   S3SyncClient({required http.Client client}) : _client = client;
 
-  static const vaultFileName = 'netcatty-vault.json';
+  static const vaultFileName = 'shun-vault.json';
 
   final http.Client _client;
 

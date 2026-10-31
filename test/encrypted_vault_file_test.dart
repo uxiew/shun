@@ -10,7 +10,7 @@ import 'package:shun/domain/models/vault.dart';
 import 'package:shun/infrastructure/storage/encrypted_vault_file.dart';
 import 'package:shun/infrastructure/storage/vault_export_service.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
-import 'package:shun/infrastructure/sync/netcatty_crypto.dart';
+import 'package:shun/infrastructure/sync/vault_crypto.dart';
 import 'package:shun/presentation/widgets/vault_passphrase_dialog.dart';
 
 // SYN01：加密备份导出再导入。PBKDF2 60 万次，每次加解密都要算一会，文件复用一份。

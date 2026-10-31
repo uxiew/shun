@@ -195,7 +195,7 @@ void main() {
     expect(updated.extras['convergentSync'], isA<Map>());
     validateConvergentSyncPayload(updated);
 
-    // Encryption interoperability is exercised by netcatty_crypto_test and
+    // Encryption interoperability is exercised by vault_crypto_test and
     // provider round-trip tests; this suite only tests causal state semantics.
   });
 

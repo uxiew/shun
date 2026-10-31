@@ -602,8 +602,8 @@ const englishTranslations = <String, String>{
   '填写 S3 凭据后查看同步版本': 'Enter S3 credentials to view sync versions',
   '尚未登录 GitHub': 'Not signed in to GitHub',
   '已连接 GitHub': 'GitHub connected',
-  '登录后自动查找或创建 Netcatty Gist':
-      'Automatically find or create a Netcatty Gist after sign-in',
+  '登录后自动查找或创建 Gist':
+      'Automatically find or create a Gist after sign-in',
   '登录 GitHub': 'Sign in to GitHub',
   '退出 GitHub': 'Sign out of GitHub',
   '高级 / 手动配置': 'Advanced / manual configuration',
@@ -4017,8 +4017,8 @@ const englishReplacements = <(String, String)>[
     'GitHub authorization succeeded, but user information is temporarily unavailable'
   ),
   (
-    'GitHub 登录成功，将自动查找 Netcatty Gist',
-    'GitHub sign-in succeeded. Netcatty will find the Gist automatically'
+    'GitHub 登录成功，将自动查找 Gist',
+    'GitHub sign-in succeeded. shun will find the Gist automatically'
   ),
   ('网络连接发生变化，正在自动重试', 'The network changed; retrying automatically'),
   (
@@ -4164,7 +4164,7 @@ const englishReplacements = <(String, String)>[
     '无法连接 GitHub，请检查网络、VPN或代理后重试',
     'Unable to connect to GitHub. Check the network, VPN, or proxy and retry'
   ),
-  ('无法查找 Netcatty Gist', 'Unable to find the Netcatty Gist'),
+  ('无法查找 Gist', 'Unable to find the Gist'),
   ('请先登录 GitHub', 'Sign in to GitHub first'),
   ('打开 GitHub', 'Open GitHub'),
   ('已退出 GitHub', 'Signed out of GitHub'),

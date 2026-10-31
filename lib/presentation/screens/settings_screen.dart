@@ -875,7 +875,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                             ),
                             subtitle: LText(
                               _githubUser == null
-                                  ? '登录后自动查找或创建 Netcatty Gist'
+                                  ? '登录后自动查找或创建 Gist'
                                   : '@$_githubUser · 自动同步私有 Gist',
                             ),
                           ),
@@ -1419,7 +1419,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       await _saveSync();
       if (mounted) setState(() {});
       await _refreshSyncVersions();
-      _message('GitHub 登录成功，将自动查找 Netcatty Gist');
+      _message('GitHub 登录成功，将自动查找 Gist');
     } catch (error) {
       _message('$error');
     } finally {

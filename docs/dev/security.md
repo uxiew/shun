@@ -154,9 +154,9 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 
 `ForkFeatures.cloudSync` 10-31 起默认开（R61），但没填配置和主密码时 `CloudSyncService._setup` 直接报错，一个请求都没有（`test/r61_sync_roundtrip_test.dart`、`test/fork_features_test.dart`）。`ForkFeatures.githubSync` 默认关：入口不显示，存着 GitHub 配置也不连 api.github.com，因为 OAuth clientId 是上游的。
 
-主密码至少 12 位（设置页 `_masterPasswordStrongEnough`）：云端那份泄露后能被离线猜。加解密在后台 isolate（`NetcattyCrypto`），模拟器 AOT 上一次约 2.8 秒，放主 isolate 的话每次自动同步界面和终端都会停这么久。
+主密码至少 12 位（设置页 `_masterPasswordStrongEnough`）：云端那份泄露后能被离线猜。加解密在后台 isolate（`VaultCrypto`），模拟器 AOT 上一次约 2.8 秒，放主 isolate 的话每次自动同步界面和终端都会停这么久。
 
-加密在 `NetcattyCrypto`（`lib/infrastructure/sync/netcatty_crypto.dart`），格式和桌面端互通：
+加密在 `VaultCrypto`（`lib/infrastructure/sync/vault_crypto.dart`），格式和桌面端互通：
 
 | 项 | 值 |
 |---|---|
@@ -172,7 +172,7 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 **云端看得到的**：
 
 - `meta` 是明文：`version`、`updatedAt`、`deviceId`（`shun_device_id_v1` 里的 UUID）、`deviceName`（固定 `shun`）、`appVersion`、`iv`、`salt`、`algorithm`、`kdf`、`kdfIterations`，新格式多一个 `syncSchemaVersion`。
-- 文件名 `netcatty-vault.json`；GitHub 上是私有 Gist，描述是 `Netcatty Encrypted Vault (DO NOT EDIT MANUALLY)`。
+- 文件名 `shun-vault.json`；GitHub 上是私有 Gist，描述是 `shun Encrypted Vault (DO NOT EDIT MANUALLY)`。
 - 存储服务本来就看得到的：文件大小、修改时间、请求来源 IP、哪个账号。
 
 **传输**：
@@ -184,7 +184,7 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 
 **防误删**：`assertSafeSyncShrink`（`lib/infrastructure/sync/sync_safety.dart`）发现某类条目少了 10 个及以上，或者少了 3 个及以上且达到原来的一半，就拒绝上传，要用户手动确认。自动同步从不替用户确认。
 
-**改了会怎样**：改算法、迭代次数或字段名，桌面端就解不开。`test/netcatty_crypto_test.dart` 有一条用桌面端 Node/WebCrypto 生成的密文当夹具，改坏了它会红。`decrypt` 用云端 `meta.kdfIterations`，但只认 1–`NetcattyCrypto.maxIterations`（200 万），超了在算密钥之前就报 `iterationsOutOfRange`：meta 是明文，以前被改成十亿，手机就一直算下去。桌面端以后把次数调到 200 万以上，这个上限要跟着改，不然手机解不开。
+**改了会怎样**：改算法、迭代次数或字段名，桌面端就解不开。`test/vault_crypto_test.dart` 有一条用桌面端 Node/WebCrypto 生成的密文当夹具，改坏了它会红。`decrypt` 用云端 `meta.kdfIterations`，但只认 1–`VaultCrypto.maxIterations`（200 万），超了在算密钥之前就报 `iterationsOutOfRange`：meta 是明文，以前被改成十亿，手机就一直算下去。桌面端以后把次数调到 200 万以上，这个上限要跟着改，不然手机解不开。
 
 ### 2.4 手机互传（R62）
 
@@ -409,7 +409,7 @@ git diff --cached --name-only | grep -E '\.(jks|keystore|p12)$|(key|signing)\.pr
 
 ```bash
 flutter test --no-pub test/vault_secrets_test.dart test/vault_unreadable_secrets_test.dart \
-  test/secure_storage_file_names_test.dart test/host_trust_test.dart test/netcatty_crypto_test.dart \
+  test/secure_storage_file_names_test.dart test/host_trust_test.dart test/vault_crypto_test.dart \
   test/terminal_remote_effects_test.dart test/terminal_links_test.dart test/terminal_paste_review_test.dart \
   test/mosh_bootstrap_test.dart test/official_plugins_test.dart test/route_fail_closed_test.dart \
   test/socks5_hardening_test.dart test/fork_features_test.dart

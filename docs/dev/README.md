@@ -166,7 +166,7 @@ flutter test test/integration_ssh_fixture_test.dart
   - 外连抓包（BAS02、SYN03）：模拟器带 `-tcpdump <文件>` 启动、装正式包，依次 `python3 tool/r28-bas02-device.py <目录> measure`（没配置，约 2.5 分钟）、`control`（对照，要先起测试环境）、
     `sync`（在设置页配好 S3 点「立即同步」，假服务器在脚本里，约 1.5 分钟），最后 `pcap <文件>` 按时间段列 DNS 和连接。`sync` 段 netstats 是 0 不代表没连：走的是 `adb reverse`，本机回环不计字节，看脚本打印的服务器日志。
     云同步那张卡片防截屏（R44），这页 `screencap` 得到 0 字节，不是坏了，用 `uiautomator dump` 看。
-  - 加密备份走真文件选择器和真安全存储（SYN01）：`python3 tool/r60-backup.py emulator-5580`，约 2 分钟，最后一行是 `退出码 0` 才算过。改了 `NetcattyCrypto` 或导出逻辑就要重跑。
+  - 加密备份走真文件选择器和真安全存储（SYN01）：`python3 tool/r60-backup.py emulator-5580`，约 2 分钟，最后一行是 `退出码 0` 才算过。改了 `VaultCrypto` 或导出逻辑就要重跑。
   - 只要真 App 加测试环境 ssh-edge 的设备测试（SEC14 等）：`SHUN_R39_AVD=shun-r39-a30 python3 tool/fixture-drive.py integration_test/<x>_test.dart`，脚本转端口、用临时文件传凭据（`SHUN_FIXTURE`）、前后清 App 数据。没设 `SHUN_R39_AVD` 会拒绝跑：默认认的是另一个模拟器。
   - 引擎起不来（TER12）：`tool/r20-engine-failure.sh emulator-5580`，脚本编测试 APK、删掉里面的 libghostty.so、重新签名、用 `flutter drive` 装这个包跑，
     跑完卸掉。会先卸掉模拟器上的 App（签名不同装不上），里面的测试数据随之清掉。

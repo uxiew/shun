@@ -9,7 +9,7 @@ import '../../domain/models/settings.dart';
 import '../../domain/models/vault.dart';
 import '../storage/vault_repository.dart';
 import 'convergent_sync_adapter.dart';
-import 'netcatty_crypto.dart';
+import 'vault_crypto.dart';
 import 's3_sync_client.dart';
 import 'sync_safety.dart';
 import 'vault_merge_service.dart';
@@ -133,7 +133,7 @@ class CloudSyncService {
     VaultData? pendingBaseline;
     final pending = await repository.loadPendingSyncReplica();
     if (pending != null && pending['target'] == _syncTarget(setup.connection)) {
-      final bundle = await NetcattyCrypto.decrypt(
+      final bundle = await VaultCrypto.decrypt(
           SyncedVaultFile.fromJson(
               Map<String, dynamic>.from(pending['file'] as Map)),
           setup.password);
@@ -151,7 +151,7 @@ class CloudSyncService {
       if (remote != null) _assertSupportedSyncSchema(remote.file);
       final downloaded = remote == null
           ? VaultData.empty()
-          : await NetcattyCrypto.decrypt(remote.file, setup.password);
+          : await VaultCrypto.decrypt(remote.file, setup.password);
       final isV2 = remote != null && _syncSchema(remote.file) == 2;
       if (isV2) _validateConvergentPayload(downloaded);
       if (!isV2 && hasConvergentSyncEnvelope(downloaded)) {
@@ -248,7 +248,7 @@ class CloudSyncService {
           if (verified == null) throw const CloudSyncConflictException();
           _assertSupportedSyncSchema(verified.file);
           verifiedVault =
-              await NetcattyCrypto.decrypt(verified.file, setup.password);
+              await VaultCrypto.decrypt(verified.file, setup.password);
           if (isV2) {
             if (_syncSchema(verified.file) != 2) {
               throw const CloudSyncConflictException();
@@ -350,7 +350,7 @@ class CloudSyncService {
         _injectedDeviceId ?? await repository.readOrCreateDeviceId();
     final appVersion =
         _injectedAppVersion ?? (await PackageInfo.fromPlatform()).version;
-    return NetcattyCrypto.encrypt(
+    return VaultCrypto.encrypt(
       vault: vault,
       password: password,
       deviceId: deviceId,
@@ -402,7 +402,7 @@ class CloudSyncService {
       );
     }
     final gist = jsonDecode(response.body) as Map<String, dynamic>;
-    final file = (gist['files'] as Map)['netcatty-vault.json'] as Map?;
+    final file = (gist['files'] as Map)['shun-vault.json'] as Map?;
     if (file == null) return null;
     if (file['truncated'] == true && file['raw_url'] != null) {
       final raw = await _request(_client.get(
@@ -466,10 +466,10 @@ class CloudSyncService {
       response = http.Response('', 204);
     } else {
       final gistBody = jsonEncode({
-        'description': 'Netcatty Encrypted Vault (DO NOT EDIT MANUALLY)',
+        'description': 'shun Encrypted Vault (DO NOT EDIT MANUALLY)',
         'public': false,
         'files': {
-          'netcatty-vault.json': {'content': body},
+          'shun-vault.json': {'content': body},
         },
       });
       final id = connection.resourceId;
@@ -536,8 +536,8 @@ class CloudSyncService {
   Uri _webdavUri(SyncConnection connection) {
     final endpoint = _normalizedWebdavEndpoint(connection.endpoint);
     final path = endpoint.path.endsWith('/')
-        ? '${endpoint.path}netcatty-vault.json'
-        : '${endpoint.path}/netcatty-vault.json';
+        ? '${endpoint.path}shun-vault.json'
+        : '${endpoint.path}/shun-vault.json';
     return endpoint.replace(path: path);
   }
 
@@ -717,14 +717,14 @@ class CloudSyncService {
         headers: _githubHeaders(connection),
       ));
       if (response.statusCode < 200 || response.statusCode >= 300) {
-        throw StateError('无法查找 Netcatty Gist (${response.statusCode})');
+        throw StateError('无法查找 Gist (${response.statusCode})');
       }
       final values = jsonDecode(response.body) as List;
       for (final value in values.whereType<Map>()) {
         final files = value['files'];
         final description = value['description']?.toString();
-        if ((files is Map && files.containsKey('netcatty-vault.json')) ||
-            description == 'Netcatty Encrypted Vault (DO NOT EDIT MANUALLY)') {
+        if ((files is Map && files.containsKey('shun-vault.json')) ||
+            description == 'shun Encrypted Vault (DO NOT EDIT MANUALLY)') {
           final id = value['id']?.toString();
           if (id?.isNotEmpty == true) return id;
         }
@@ -791,7 +791,7 @@ class CloudSyncService {
     try {
       final file = SyncedVaultFile.fromJson(checkpoint.encryptedBase!);
       _assertSupportedSyncSchema(file);
-      final decrypted = await NetcattyCrypto.decrypt(file, password);
+      final decrypted = await VaultCrypto.decrypt(file, password);
       if (_syncSchema(file) == 2) _validateConvergentPayload(decrypted);
       return decrypted;
     } on Object {

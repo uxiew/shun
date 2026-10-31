@@ -2,9 +2,9 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import '../../domain/models/vault.dart';
-import '../sync/netcatty_crypto.dart';
+import '../sync/vault_crypto.dart';
 
-/// 带凭据的加密备份文件（R60）。格式就是云同步的 `{meta, payload}`（[NetcattyCrypto]），没有再造一种。
+/// 带凭据的加密备份文件（R60）。格式就是云同步的 `{meta, payload}`（[VaultCrypto]），没有再造一种。
 ///
 /// 和云同步一样，文件离开手机后就能被离线猜口令，所以口令不能短（[minPassphraseLength]）。
 class EncryptedVaultFile {
@@ -27,7 +27,7 @@ class EncryptedVaultFile {
     required String passphrase,
     required String appVersion,
   }) async {
-    final file = await NetcattyCrypto.encrypt(
+    final file = await VaultCrypto.encrypt(
       vault: _forFile(vault),
       password: passphrase,
       deviceId: 'file-export',
@@ -118,9 +118,9 @@ class EncryptedVaultFile {
     String passphrase,
   ) async {
     try {
-      return await NetcattyCrypto.decrypt(file, passphrase);
+      return await VaultCrypto.decrypt(file, passphrase);
     } on FormatException catch (error) {
-      if (error.message == NetcattyCrypto.iterationsOutOfRange) {
+      if (error.message == VaultCrypto.iterationsOutOfRange) {
         throw const FormatException(iterationsRejected);
       }
       throw const FormatException(wrongPassphraseOrDamaged);
