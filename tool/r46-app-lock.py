@@ -12,6 +12,7 @@ integration_test/r46_cold_seed.dart, run it once to write a host and turn the lo
 normal debug app over it (same data), then start it: lock first, host only after the PIN.
 At the end it clears the app's data and the screen lock.
 If you stop it midway: adb shell locksettings clear --old 1234
+R46_COLD_ONLY=1 skips the first part.
 Screenshots and the log go to ../.toolchain/artifacts/r46-<time>/. Exit code 0 means passed.
 """
 import importlib.util
@@ -111,19 +112,21 @@ def main():
                 'password': fixture['password'],
                 'edgePort': fixture['sshEdge']['port'],
             })}, f)
+        # R46_COLD_ONLY=1：跳过这段，只跑后面的冷启动和指纹。
+        code = 0 if os.environ.get('R46_COLD_ONLY') else None
         with (out / 'flutter-test.log').open('w') as log:
-            proc = subprocess.Popen(
+            proc = None if code == 0 else subprocess.Popen(
                 ['flutter', 'test', '--no-pub', TARGET, '-d', r39.SERIAL,
                  f'--dart-define-from-file={define}'],
                 cwd=ROOT, env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
-            for line in proc.stdout:
+            for line in proc.stdout if proc else ():
                 log.write(line)
                 log.flush()
                 print(line.rstrip(), flush=True)
                 marker = line.strip()
                 if marker.startswith('R46 ACTION='):
                     handle(marker[len('R46 ACTION='):])
-            code = proc.wait()
+            code = proc.wait() if proc else 0
         if code != 0:
             return code
 
@@ -165,7 +168,7 @@ def main():
             raise SystemExit(f'not on screen: {word}')
 
         def check(name, ok):
-            print(f'R46 coldStart.{name}={ok}', flush=True)
+            print(f'R46 cold.{name}={ok}', flush=True)
             failed.extend([] if ok else [name])
 
         failed = []
@@ -202,6 +205,73 @@ def main():
         enter_pin()
         time.sleep(3)
         check('hostAfterSecondUnlock', has('R46-SENTINEL'))
+
+        # 指纹：真手机上最常走的路。模拟器能录、能按。录指纹放在这里：录了之后上面那些 PIN 的路走不到。
+        def finger(number):
+            adb_run('emu', 'finger', 'touch', str(number))
+            time.sleep(1)
+            adb_run('emu', 'finger', 'remove', str(number), check=False)
+            time.sleep(1)
+
+        def wait_text(word, seconds=30):
+            deadline = time.time() + seconds
+            while not has(word):
+                r39.require(time.time() < deadline, f'not on screen after {seconds} s: {word}')
+                time.sleep(1)
+
+        adb_run('shell', 'am', 'start', '-a', 'android.settings.FINGERPRINT_ENROLL')
+        enter_pin()
+        wait_text('NEXT')
+        tap_text('NEXT')
+        wait_text('Touch the sensor')
+        for _ in range(15):
+            finger(1)
+            if has('DONE'):
+                break
+        check('fingerEnrolled', has('DONE'))
+        tap_text('DONE')
+        time.sleep(1)
+        open_app()
+        time.sleep(4)
+        shot('finger-prompt')
+        check('fingerPromptOffersPin', has('Use PIN'))
+        check('fingerPromptHidesHost', not has('R46-SENTINEL'))
+        finger(2)
+        check('wrongFingerStaysLocked', has('Use PIN') and not has('R46-SENTINEL'))
+        finger(1)
+        time.sleep(3)
+        check('hostAfterFinger', has('R46-SENTINEL'))
+        # 取消：停在锁屏页。再点解锁，这次转 PIN。
+        adb_run('shell', 'input', 'keyevent', '3')
+        time.sleep(2)
+        open_app()
+        time.sleep(4)
+        adb_run('shell', 'input', 'keyevent', '4')
+        time.sleep(2)
+        check('fingerCancelStaysLocked', has('解锁') and not has('R46-SENTINEL'))
+        tap_text('解锁')
+        time.sleep(3)
+        tap_text('Use PIN')
+        enter_pin()
+        time.sleep(3)
+        check('hostAfterPinFallback', has('R46-SENTINEL'))
+        # 指纹错太多次（系统按 5 次算）：要能转 PIN，不能把人挡在外面。
+        adb_run('shell', 'input', 'keyevent', '3')
+        time.sleep(2)
+        open_app()
+        time.sleep(4)
+        for _ in range(5):
+            finger(2)
+        time.sleep(3)
+        shot('finger-lockout')
+        check('lockoutHidesHost', not has('R46-SENTINEL'))
+        if has('Use PIN'):
+            tap_text('Use PIN')
+        elif has('解锁'):
+            tap_text('解锁')
+        enter_pin()
+        time.sleep(3)
+        check('hostAfterLockoutPin', has('R46-SENTINEL'))
         code = 1 if failed else 0
     finally:
         if define:
