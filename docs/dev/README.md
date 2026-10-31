@@ -163,6 +163,10 @@ flutter test test/integration_ssh_fixture_test.dart
   - 发布包冒烟（REL03）：`tool/build-release.sh` 之后 `tool/release-smoke.sh emulator-5580`，脚本装包、用 uiautomator 点「设置 → 终端引擎 → 检查」，
     界面上是「正常，这次运行建过的终端：1」才算这个包的原生库在这台设备上能用；测完卸掉。Android 7.0 没有 `getconf`，页大小那项写「读不到」。
     真机上它不用 monkey 启动、每次点之前查前台是本 App 且没锁屏，手机上已装着同名 App 就不跑（卸掉会清所有者的数据）。
+  - 外连抓包（BAS02、SYN03）：模拟器带 `-tcpdump <文件>` 启动、装正式包，依次 `python3 tool/r28-bas02-device.py <目录> measure`（没配置，约 2.5 分钟）、`control`（对照，要先起测试环境）、
+    `sync`（在设置页配好 S3 点「立即同步」，假服务器在脚本里，约 1.5 分钟），最后 `pcap <文件>` 按时间段列 DNS 和连接。`sync` 段 netstats 是 0 不代表没连：走的是 `adb reverse`，本机回环不计字节，看脚本打印的服务器日志。
+    云同步那张卡片防截屏（R44），这页 `screencap` 得到 0 字节，不是坏了，用 `uiautomator dump` 看。
+  - 加密备份走真文件选择器和真安全存储（SYN01）：`python3 tool/r60-backup.py emulator-5580`，约 2 分钟，最后一行是 `退出码 0` 才算过。改了 `NetcattyCrypto` 或导出逻辑就要重跑。
   - 引擎起不来（TER12）：`tool/r20-engine-failure.sh emulator-5580`，脚本编测试 APK、删掉里面的 libghostty.so、重新签名、用 `flutter drive` 装这个包跑，
     跑完卸掉。会先卸掉模拟器上的 App（签名不同装不上），里面的测试数据随之清掉。
   - 在真机上跑这几条：先 `tool/remote-device/up.sh`（见那里的 README）、`source /tmp/shun-remote-device/env`，把上面的 `emulator-5580` 换成手机序列号。

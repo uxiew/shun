@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""BAS02（R28）：AI、云同步、检查更新都关着时，正式包在冷启动、打开设置、后台再回来、收到 deep link 时
+"""BAS02（R28）、SYN03（R61）：AI、检查更新关着、云同步没配置时，正式包在冷启动、打开设置、后台再回来、收到 deep link 时
 有没有往手机外面发任何东西。
 
 怎么跑（模拟器要带 -tcpdump 启动、拿好锁、装好正式包 top.xdwa.shun，见 plan/v3/evidence/R28.md）：
