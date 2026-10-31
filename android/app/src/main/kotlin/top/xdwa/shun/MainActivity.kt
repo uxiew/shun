@@ -18,9 +18,13 @@ class MainActivity : FlutterActivity() {
     // 跟引擎同寿命的（连接、插件桥）在 ProcessEngine 里。
     private var documentTreeChannel: DocumentTreeChannel? = null
     private var qrScanChannel: QrScanChannel? = null
+    private var appLockChannel: AppLockChannel? = null
     private var pictureInPictureChannel: MethodChannel? = null
     private var uuRemoteBridge: UuRemoteBridge? = null
     private var rustDeskBridge: RustDeskBridge? = null
+
+    // 自己拉起、等结果的页面（选文件、扫码）开着：应用锁在这种离开上宽松一点，见 AppLockController。
+    private var launchedOwnActivity = false
 
     /**
      * MainActivity 必须导出（启动器要用），所以别的 App 能用显式组件名带任意 extras 和 data 启动它，
@@ -47,7 +51,31 @@ class MainActivity : FlutterActivity() {
 
     override fun onResume() {
         super.onResume()
+        launchedOwnActivity = false
+        ProcessEngine.applyWindowSecurity(this)
         ProcessEngine.onActivityResumed()
+    }
+
+    override fun onPause() {
+        super.onPause()
+        // 画中画也走 onPause，但那窗是用户要看的，不盖。
+        if (isInPictureInPictureMode) return
+        // 系统马上要截最近任务的缩略图，Dart 画遮罩赶不上（API 30 模拟器实测：缩略图里主机列表清清楚楚）。
+        // 这时加 FLAG_SECURE，缩略图是黑的；onResume 再按 Dart 说的恢复，不影响终端页截屏（R44）。
+        if (ProcessEngine.protectRecents) {
+            window.addFlags(android.view.WindowManager.LayoutParams.FLAG_SECURE)
+        }
+        appLockChannel?.onActivityPaused(launchedOwnActivity)
+    }
+
+    override fun startActivityForResult(intent: Intent, requestCode: Int, options: Bundle?) {
+        launchedOwnActivity = true
+        super.startActivityForResult(intent, requestCode, options)
+    }
+
+    /** 系统的权限框不走上面那个方法（requestPermissions 是 final），弹之前在这里说一声。 */
+    fun noteOwnActivity() {
+        launchedOwnActivity = true
     }
 
     private fun withoutPayload(source: Intent?): Intent =
@@ -81,11 +109,13 @@ class MainActivity : FlutterActivity() {
         super.configureFlutterEngine(flutterEngine)
         ProcessEngine.currentActivity = this
         ProcessEngine.applyWindowSecurity(this)
+        ProcessEngine.applyProtectRecents(this)
         documentTreeChannel = DocumentTreeChannel(
             this,
             flutterEngine.dartExecutor.binaryMessenger,
         )
         qrScanChannel = QrScanChannel(this, flutterEngine.dartExecutor.binaryMessenger)
+        appLockChannel = AppLockChannel(this, flutterEngine.dartExecutor.binaryMessenger)
         uuRemoteBridge = UuRemoteBridge(this, flutterEngine.dartExecutor.binaryMessenger)
         rustDeskBridge = RustDeskBridge(this, flutterEngine.dartExecutor.binaryMessenger)
         pictureInPictureChannel = MethodChannel(
@@ -136,6 +166,9 @@ class MainActivity : FlutterActivity() {
         if (qrScanChannel?.onActivityResult(requestCode, resultCode, data) == true) {
             return
         }
+        if (appLockChannel?.onActivityResult(requestCode, resultCode) == true) {
+            return
+        }
         super.onActivityResult(requestCode, resultCode, data)
     }
 
@@ -145,6 +178,8 @@ class MainActivity : FlutterActivity() {
         documentTreeChannel = null
         qrScanChannel?.dispose()
         qrScanChannel = null
+        appLockChannel?.dispose()
+        appLockChannel = null
         uuRemoteBridge?.dispose()
         uuRemoteBridge = null
         rustDeskBridge?.dispose()

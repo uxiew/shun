@@ -37,6 +37,7 @@ import '../widgets/hint.dart';
 import '../widgets/secret_content.dart';
 import '../widgets/vault_import_dialog.dart';
 import '../widgets/vault_passphrase_dialog.dart';
+import 'app_lock_settings_screen.dart';
 import 'app_log_screen.dart';
 import 'connection_log_screen.dart';
 import 'known_hosts_screen.dart';
@@ -186,12 +187,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
         context,
         ref.watch(autoSyncControllerProvider),
         ref.watch(forkFeaturesProvider),
+        ref.watch(settingsControllerProvider),
       );
 
   Widget _buildSettings(
     BuildContext context,
     AutoSyncState autoSyncState,
     ForkFeatures features,
+    AppSettings lockSettings,
   ) =>
       SafeArea(
         child: Scaffold(
@@ -615,6 +618,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                           ? null
                           : _setAllowSensitiveScreenshots,
                     ),
+                    if (Platform.isAndroid) ...[
+                      const Divider(height: 1),
+                      ListTile(
+                        key: const ValueKey('settings-app-lock'),
+                        leading: const Icon(Icons.lock_outline),
+                        title: const LText('应用锁'),
+                        subtitle: LText(
+                          lockSettings.appLockEnabled
+                              ? appLockGraceLabel(
+                                  lockSettings.appLockGraceSeconds,
+                                )
+                              : '关',
+                        ),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const AppLockSettingsScreen(),
+                          ),
+                        ),
+                      ),
+                    ],
                     const Divider(height: 1),
                     ListTile(
                       key: const ValueKey('settings-known-hosts'),

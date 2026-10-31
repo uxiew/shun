@@ -2339,6 +2339,31 @@ const englishTranslations = <String, String>{
       'This deletes {n} entries and they cannot be recovered. Hosts, connected tabs and the vault are not touched.',
   '清除': 'Clear',
   '已清除': 'Cleared',
+  '应用锁': 'App lock',
+  '关': 'Off',
+  '解锁': 'Unlock',
+  '解锁 shun': 'Unlock shun',
+  '打开应用锁': 'Turn on app lock',
+  '关闭应用锁': 'Turn off app lock',
+  '手机没设屏幕锁，先到系统设置里设一个。':
+      'This phone has no screen lock. Set one in system settings first.',
+  '打开 App 要过指纹、面容或手机的 PIN。只挡住打开 App 的人，登录服务器、安全密钥签名照样各问各的。':
+      'Opening the app needs your fingerprint, face or phone PIN. It only stops people opening the app; logins and security key signatures still ask on their own.',
+  '离开多久后锁': 'Lock after',
+  '立即': 'Immediately',
+  '1 分钟': '1 minute',
+  '5 分钟': '5 minutes',
+  '15 分钟': '15 minutes',
+  '1 小时': '1 hour',
+  '终端连着时不锁': 'Stay unlocked while a terminal is connected',
+  '有连着的终端时，回来不用解锁。手机被人拿走又没锁屏时，对方能直接看到终端。':
+      'Coming back does not ask to unlock while a terminal is connected. If someone takes the phone while it is unlocked, they can see the terminal.',
+  '直接用 PIN': 'Use PIN directly',
+  '不弹指纹、面容，直接用手机的 PIN 或图案。传感器坏了、手指湿的时候用。':
+      'Skip fingerprint and face, go straight to the phone PIN or pattern. For a broken sensor or wet fingers.',
+  '允许弱生物识别': 'Allow weak biometrics',
+  '有些手机的面容解锁系统算弱的，可能被照片骗过。不开就只认指纹这类强的和 PIN。Android 11 起才有效。':
+      'Some phones class face unlock as weak, and a photo may fool it. Off means only strong ones like fingerprint, or the PIN. Works from Android 11.',
   '发到另一台手机': 'Send to another phone',
   '从另一台手机接收': 'Receive from another phone',
   '另一台在「从另一台手机接收」里扫这个码。内容含密码和私钥，扫到码就能解开，别给别人看。离开这页就作废。':

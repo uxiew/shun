@@ -12,6 +12,8 @@
     <!-- 手机互传（R62）扫二维码用，点「从另一台手机接收」才问。扫码库自己也声明，这里写出来是让清单测试看得见。 -->
     <uses-permission android:name="android.permission.CAMERA" />
     <uses-feature android:name="android.hardware.camera" android:required="false" />
+    <!-- 应用锁和 sudo 键（R46、R66）的系统 BiometricPrompt。不声明它系统直接报错，弹框出不来。 -->
+    <uses-permission android:name="android.permission.USE_BIOMETRIC" />
 
     <application
         android:label="${appLabel}"

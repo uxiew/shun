@@ -63,6 +63,16 @@ object ProcessEngine {
         windowSecurity?.applyTo(activity)
     }
 
+    /** 应用锁开着：最近任务不存缩略图。跟引擎同寿命，Activity 换了要重新套上（见 [applyProtectRecents]）。 */
+    var protectRecents = false
+
+    /** API 33 才有这个接口。更早的版本靠 MainActivity.onPause 里临时加的 FLAG_SECURE。 */
+    fun applyProtectRecents(activity: Activity) {
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            activity.setRecentsScreenshotEnabled(!protectRecents)
+        }
+    }
+
     /** 现在挂着引擎的界面；没有时为 null。只用来弹通知权限申请、套防截屏这类必须有 Activity 的事。 */
     var currentActivity: Activity?
         get() = activity?.get()

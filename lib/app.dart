@@ -1,9 +1,11 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'application/app_lock.dart';
 import 'application/auto_sync_controller.dart';
 import 'application/connection_events.dart';
 import 'application/fork_features.dart';
@@ -14,6 +16,7 @@ import 'infrastructure/ssh/connection_platform_service.dart';
 import 'presentation/home_shell.dart';
 import 'presentation/localization/localized_widgets.dart';
 import 'presentation/terminal/ghostty_terminal_view.dart';
+import 'presentation/widgets/app_lock_gate.dart';
 import 'presentation/widgets/security_key_prompt.dart';
 import 'presentation/theme.dart';
 
@@ -59,6 +62,14 @@ class _ShunAppState extends ConsumerState<ShunApp> with WidgetsBindingObserver {
       (_, allowed) => SensitiveScreenGuard.instance.allowScreenshots = allowed,
       fireImmediately: true,
     );
+    // 应用锁第一帧就要盖上（AppLockGate 会读它）；已经在前台的话，第一帧画完就弹验证。
+    // 不在前台（比如还在后台恢复）就等 resumed，那时才有 Activity 能弹。
+    final lock = ref.read(appLockControllerProvider.notifier);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (WidgetsBinding.instance.lifecycleState == AppLifecycleState.resumed) {
+        lock.lifecycleChanged(AppLifecycleState.resumed);
+      }
+    });
   }
 
   @override
@@ -71,6 +82,7 @@ class _ShunAppState extends ConsumerState<ShunApp> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
+    ref.read(appLockControllerProvider.notifier).lifecycleChanged(state);
     final platform = ref.read(connectionPlatformProvider);
     if (state == AppLifecycleState.resumed) {
       unawaited(platform.endBackgroundGrace());
@@ -83,6 +95,15 @@ class _ShunAppState extends ConsumerState<ShunApp> with WidgetsBindingObserver {
         ref.read(sessionControllerProvider.notifier).setBackgrounded(true);
       }
     }
+  }
+
+  /// 锁着时返回键退到桌面，不让它把盖子底下的页面弹掉。
+  /// 这里先于 MaterialApp 的导航器收到：观察者按注册顺序问，这个类比 MaterialApp 先建。
+  @override
+  Future<bool> didPopRoute() async {
+    if (!ref.read(appLockControllerProvider).obscured) return false;
+    await SystemNavigator.pop();
+    return true;
   }
 
   @override
@@ -112,8 +133,9 @@ class _ShunAppState extends ConsumerState<ShunApp> with WidgetsBindingObserver {
         GlobalCupertinoLocalizations.delegate,
       ],
       // 后台标签的终端还没显示过时，也按现在的主题回答远端「背景是什么颜色」。
-      builder: (context, child) =>
-          GhosttyDetachedThemeSync(child: child ?? const SizedBox.shrink()),
+      builder: (context, child) => GhosttyDetachedThemeSync(
+        child: AppLockGate(child: child ?? const SizedBox.shrink()),
+      ),
       home: const HomeShell(),
     );
   }

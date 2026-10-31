@@ -108,6 +108,7 @@ class ConnectionChannel(
             return
         }
         val activity = ProcessEngine.currentActivity ?: return
+        (activity as? MainActivity)?.noteOwnActivity()
         ActivityCompat.requestPermissions(activity, arrayOf(Manifest.permission.POST_NOTIFICATIONS), 701)
     }
 

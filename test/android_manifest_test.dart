@@ -20,6 +20,7 @@ void main() {
       'android.permission.FOREGROUND_SERVICE_SPECIAL_USE',
       'android.permission.NFC',
       'android.permission.CAMERA',
+      'android.permission.USE_BIOMETRIC',
     });
   });
 

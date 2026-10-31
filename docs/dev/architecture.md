@@ -500,10 +500,11 @@ Kotlin 在 `android/app/src/main/kotlin/top/xdwa/shun/`，9 个文件共 2120 �
 | `top.xdwa.shun/uuremote` | `UuRemoteBridge.kt`，回调入口 `UuCallbackActivity.kt` | `infrastructure/plugins/uuremote_adapter.dart` | 拉起 UU、取回调；回调原文交给 Dart 校验 |
 | `top.xdwa.shun/rustdesk` | `RustDeskBridge.kt` | `infrastructure/plugins/rustdesk_external.dart` | 拉起 RustDesk（它不回报结果，没有回调） |
 | `top.xdwa.shun/qr_scan` | `QrScanChannel.kt` | `infrastructure/qr_scanner.dart` | 手机互传扫码（R62），打开 zxing 的扫码页、拿回内容 |
+| `top.xdwa.shun/app_lock` | `AppLockChannel.kt` | `infrastructure/device_auth.dart` | 系统验证（BiometricPrompt，API 24–28 走系统 PIN 页）和最近任务缩略图开关，应用锁（R46）用；生命周期里的 onPause 也由它告诉 Dart |
 
 另外两个文件：`ProcessEngine.kt`（进程里唯一的 FlutterEngine，见第 6 节最后一段；连接通道和插件桥跟它同寿命）和 `SshKeepAliveService.kt`（保活前台服务，通知上的「全部断开」交给 Dart 去断，5 秒没反应就自己停）。
 
-`AndroidManifest.xml`：权限是网络、网络状态、通知、前台服务（specialUse），没有唤醒锁（10-17 去掉的，保活服务也不拿唤醒锁，见第 6 节）；`allowBackup=false`；`<queries>` 只列插件 action 和 UU、RustDesk 两个官方包，故意不申请 `QUERY_ALL_PACKAGES`。applicationId `top.xdwa.shun` 不能改，原因见 [AGENTS.md](../../AGENTS.md)。发布包只带 arm64-v8a（`android/app/build.gradle.kts`，原因写在那里的注释）。
+`AndroidManifest.xml`：权限是网络、网络状态、通知、前台服务（specialUse）、相机（手机互传扫码）、生物识别（应用锁），没有唤醒锁（10-17 去掉的，保活服务也不拿唤醒锁，见第 6 节）；`allowBackup=false`；`<queries>` 只列插件 action 和 UU、RustDesk 两个官方包，故意不申请 `QUERY_ALL_PACKAGES`。applicationId `top.xdwa.shun` 不能改，原因见 [AGENTS.md](../../AGENTS.md)。发布包只带 arm64-v8a（`android/app/build.gradle.kts`，原因写在那里的注释）。
 
 `ios/Runner/AppDelegate.swift` 也注册了 `connection` 和 `picture_in_picture` 两个通道；`plan/v3/STATUS.md` 里 iOS 一直没有测。
 

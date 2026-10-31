@@ -76,7 +76,7 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 
 ### 1.3 内存里的副本
 
-- 保险库启动时整份读进内存，一直在。没有应用锁（使用手册第 12 节写明了）。
+- 保险库启动时整份读进内存，一直在。应用锁只盖界面，不清内存，见 1.6。
 - 每个标签为断线恢复冻结一份路线，里面有凭据。App 在后台满 `credentialLease`（10 分钟，`lib/application/connection_lifecycle.dart`）就调 `ActiveTerminalSession.forgetSecrets` 清掉。光靠 Timer 不够：手机睡着时 Timer 不走（LIFE07 真机锁屏 31 分钟 CPU 只醒了 2 分钟），所以 `SessionController._checkLease` 在每次醒来用路线时按墙上时钟再核一次。
 - 临时标签（tmux、AI 工具、托管终端）的主机是保险库主机的整份拷贝，同一时刻一并去掉凭据。哪些字段算凭据只在 `lib/domain/vault_secrets.dart` 的 `removeHostSecrets` 写一处，存储、导出、路线副本、临时拷贝都调它；R28 之前临时拷贝只删了登录密码，内联代理口令、Telnet 密码过了租期还在。
 - 还连着的连接清不掉：dartssh2 的客户端在连接存续期间一直引用登录用过的私钥。
@@ -103,6 +103,18 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 **输入法学习**。带 `obscureText:` 的框都写 `enableIMEPersonalizedLearning: false`、`enableSuggestions: false`、`autocorrect: false`（Tailscale 目录的通用对话框按字段的 `secret` 取反）。第一项在 Android 上变成 `IME_FLAG_NO_PERSONALIZED_LEARNING`（Android 8.0 起才有），输入法自己决定守不守。模拟器和真机上都核对了标志确实发出去了（`adb shell dumpsys input_method` 的 `mInputEditorInfo`，Android 17 上叫 `curEditorInfo`：密码框 `imeOptions=0x3000006`，带 0x1000000；点小眼睛后 `inputType=0x80091` 仍带；同页的名称框是 `0x2000006`，不带）。输入法到底记没记验不出来：Gboard 对密码类型的框本来就不学；微信输入法在 Pixel 上连普通框里的新词（英文连打三遍、中文逐字选的自造词）也不联想，对照组是阴性，密码框里的词没被联想出来也就说明不了标志有用（evidence/R44.md）。打码的框 Android 本来就按密码类型交给输入法，点小眼睛切成明文就不是了，所以这三项要写死，不跟着 `obscureText` 变。
 
 新加的密码框漏写这三项，或者有密码框的文件没用 `SecretContent`：`test/secret_content_test.dart` 的「源码里的约定」两条会红。只在别处被包着的组件（现在只有 `github_manual_config.dart`）写进那里的 `coveredElsewhere`，写清楚是谁包的。
+
+### 1.6 应用锁（R46）
+
+规则在 `lib/application/app_lock.dart`，系统验证在 `AppLockChannel.kt`，用户怎么用见手册第 12 节。改这里要守住：
+
+- **只盖界面。** 不清内存、不断连接、不碰凭据。解锁成功、宽限期内回来、终端连着免锁，都不等于同意：签名和访问请求各问各的。别给任何流程加「刚解过锁就跳过确认」。
+- **App 开着时要再验证一次，调 `AppLockController.confirm`，不要直接调 `DeviceAuth`。** 系统 PIN 页会把 App 顶到后台。直接调的话，设成「立即」时回来又锁一次、再弹一次框。单测的假验证不走生命周期，这个只有设备测试的 `turnedOffWithoutSecondPrompt` 看得到。
+- **最近任务的缩略图不能靠 Dart 的遮罩。** API 30 模拟器实测：onPause 才发消息给 Dart 画遮罩，系统截图更快，缩略图里主机列表清清楚楚。所以 `MainActivity.onPause` 加 FLAG_SECURE，`onResume` 再按 `WindowSecurityChannel` 的决定恢复，不影响终端页截屏（R44）。API 33 起另外用 `setRecentsScreenshotEnabled`，没有真机验过。
+- **不能在 Flutter 的 `inactive` 上盖或锁。** 下拉通知栏、系统框、输入法浮层、画中画都会触发它，终端会被盖住。
+- **`resumed` 不等于回来。** 只有 `_leftAt` 不为空才算。不然取消验证 → `resumed` → 又弹，用户永远退不出来。
+- **第一帧之前就要知道开没开**，所以 `VaultRepository.loadSettingsPreview` 是同步读。改成等 `SettingsController` 异步加载，就会露一帧内容。
+- **不换 `FragmentActivity`。** `local_auth` 和 `androidx.biometric` 都要它，换基类要重测 R22。
 
 ## 2. 导出、导入、云同步
 

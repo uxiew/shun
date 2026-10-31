@@ -74,6 +74,11 @@ class AppSettings {
     this.terminalFullscreenSwipe = false,
     this.terminalInputMode = terminalInputSystem,
     this.allowSensitiveScreenshots = false,
+    this.appLockEnabled = false,
+    this.appLockGraceSeconds = 60,
+    this.appLockSkipWhileConnected = false,
+    this.appLockPinOnly = false,
+    this.appLockAllowWeakBiometrics = false,
     this.sftpSyntaxHighlight = true,
     this.customBackgroundEnabled = false,
     this.customBackgroundPath = '',
@@ -138,6 +143,11 @@ class AppSettings {
               ? json['terminalInputMode'] as String
               : terminalInputSystem,
       allowSensitiveScreenshots: json['allowSensitiveScreenshots'] == true,
+      appLockEnabled: json['appLockEnabled'] == true,
+      appLockGraceSeconds: (json['appLockGraceSeconds'] as num?)?.toInt() ?? 60,
+      appLockSkipWhileConnected: json['appLockSkipWhileConnected'] == true,
+      appLockPinOnly: json['appLockPinOnly'] == true,
+      appLockAllowWeakBiometrics: json['appLockAllowWeakBiometrics'] == true,
       sftpSyntaxHighlight: json['sftpSyntaxHighlight'] != false,
       customBackgroundEnabled: json['customBackgroundEnabled'] == true,
       customBackgroundPath: json['customBackgroundPath']?.toString() ?? '',
@@ -182,6 +192,21 @@ class AppSettings {
   /// 带密码、私钥口令、代理口令的页面允不允许截屏（R44）。默认不允许：那些页面的窗口带 FLAG_SECURE，
   /// 截屏、录屏、最近任务里都是黑的。只管 Android；终端页不管开不开都能截。
   final bool allowSensitiveScreenshots;
+
+  /// 应用锁（R46）。只挡住打开 App，不授权任何签名或访问请求。
+  final bool appLockEnabled;
+
+  /// 离开多少秒后回来要解锁。0 是立即。
+  final int appLockGraceSeconds;
+
+  /// 有连着的终端时回来不用解锁。
+  final bool appLockSkipWhileConnected;
+
+  /// 不弹生物识别，直接用手机的 PIN 或图案。
+  final bool appLockPinOnly;
+
+  /// 允许系统算「弱」的生物识别（比如部分手机的面容）。Android 11 起才有区别。
+  final bool appLockAllowWeakBiometrics;
   final bool sftpSyntaxHighlight;
   final bool customBackgroundEnabled;
   final String customBackgroundPath;
@@ -207,6 +232,11 @@ class AppSettings {
     bool? terminalFullscreenSwipe,
     String? terminalInputMode,
     bool? allowSensitiveScreenshots,
+    bool? appLockEnabled,
+    int? appLockGraceSeconds,
+    bool? appLockSkipWhileConnected,
+    bool? appLockPinOnly,
+    bool? appLockAllowWeakBiometrics,
     bool? sftpSyntaxHighlight,
     bool? customBackgroundEnabled,
     String? customBackgroundPath,
@@ -235,6 +265,13 @@ class AppSettings {
         terminalInputMode: terminalInputMode ?? this.terminalInputMode,
         allowSensitiveScreenshots:
             allowSensitiveScreenshots ?? this.allowSensitiveScreenshots,
+        appLockEnabled: appLockEnabled ?? this.appLockEnabled,
+        appLockGraceSeconds: appLockGraceSeconds ?? this.appLockGraceSeconds,
+        appLockSkipWhileConnected:
+            appLockSkipWhileConnected ?? this.appLockSkipWhileConnected,
+        appLockPinOnly: appLockPinOnly ?? this.appLockPinOnly,
+        appLockAllowWeakBiometrics:
+            appLockAllowWeakBiometrics ?? this.appLockAllowWeakBiometrics,
         sftpSyntaxHighlight: sftpSyntaxHighlight ?? this.sftpSyntaxHighlight,
         customBackgroundEnabled:
             customBackgroundEnabled ?? this.customBackgroundEnabled,
@@ -266,6 +303,11 @@ class AppSettings {
         'terminalFullscreenSwipe': terminalFullscreenSwipe,
         'terminalInputMode': terminalInputMode,
         'allowSensitiveScreenshots': allowSensitiveScreenshots,
+        'appLockEnabled': appLockEnabled,
+        'appLockGraceSeconds': appLockGraceSeconds,
+        'appLockSkipWhileConnected': appLockSkipWhileConnected,
+        'appLockPinOnly': appLockPinOnly,
+        'appLockAllowWeakBiometrics': appLockAllowWeakBiometrics,
         'sftpSyntaxHighlight': sftpSyntaxHighlight,
         'customBackgroundEnabled': customBackgroundEnabled,
         'customBackgroundPath': customBackgroundPath,

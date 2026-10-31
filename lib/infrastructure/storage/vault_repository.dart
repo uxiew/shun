@@ -382,6 +382,18 @@ class VaultRepository {
     }
   }
 
+  /// 同步读一份设置，不解析背景图路径。给第一帧之前就要知道的东西用（应用锁，R46）。
+  /// 读不出来就当默认值，和 [loadVaultPreview] 一个路数。
+  AppSettings loadSettingsPreview() {
+    try {
+      final raw = _preferences.getString(_settingsKey);
+      if (raw == null) return const AppSettings();
+      return AppSettings.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } on Object {
+      return const AppSettings();
+    }
+  }
+
   Future<AppSettings> loadSettings() async {
     final raw = _preferences.getString(_settingsKey);
     if (raw == null) return const AppSettings();
