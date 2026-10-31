@@ -26,6 +26,7 @@ import '../../infrastructure/tmux/ai_cli_tmux_service.dart';
 import '../../infrastructure/tmux/tmux_protocol.dart';
 import '../localization/localized_widgets.dart';
 import 'catalog_text.dart';
+import 'form_gap.dart';
 import 'hint.dart';
 import 'tailscale_check_card.dart';
 import '../../domain/vault_secrets.dart';
@@ -315,7 +316,7 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
                 content: SingleChildScrollView(
                     child: Column(mainAxisSize: MainAxisSize.min, children: [
                   LText('${installation.name} · ${installation.path}'),
-                  const SizedBox(height: 12),
+                  const FormGap(),
                   TextFormField(
                     key: const ValueKey('ai-cli-project-directory'),
                     initialValue: directory,
@@ -1026,6 +1027,7 @@ class _DiscoverySettingsState extends State<_DiscoverySettings> {
             child: SingleChildScrollView(
                 child: Column(mainAxisSize: MainAxisSize.min, children: [
               const LText('设置只保存在本机，按主机和 SSH 用户分开。每项最多 16 条；保存空白可清除补充项。'),
+              const FormGap(),
               TextField(
                   key: const ValueKey('ai-cli-directories'),
                   controller: _directories,
@@ -1034,6 +1036,7 @@ class _DiscoverySettingsState extends State<_DiscoverySettings> {
                   decoration: const InputDecoration(
                       labelText: '补充目录（每行一个）',
                       hintText: '~/.nvm/versions/node/v22/bin')),
+              const FormGap(),
               TextField(
                   key: const ValueKey('ai-cli-custom'),
                   controller: _custom,

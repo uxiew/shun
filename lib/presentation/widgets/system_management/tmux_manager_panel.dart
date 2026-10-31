@@ -9,6 +9,7 @@ import '../../../domain/tmux/tmux_target.dart';
 import '../../../infrastructure/ssh/ssh_service.dart';
 import '../../../infrastructure/tmux/tmux_protocol.dart';
 import '../../../infrastructure/tmux/tmux_service.dart';
+import '../form_gap.dart';
 
 /// tmux 面板（R21）。所有查询和操作都走打开面板的这个标签自己的 SSH 连接。
 ///
@@ -658,7 +659,7 @@ class _SocketDialogState extends State<_SocketDialog> {
                   _error = null;
                 }),
               ),
-              const SizedBox(height: 12),
+              const FormGap(),
               if (_kind != TmuxSocketKind.standard)
                 TextField(
                   controller: _value,

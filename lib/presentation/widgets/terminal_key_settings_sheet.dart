@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
 
 import '../../domain/models/settings.dart';
+import 'form_gap.dart';
 import 'terminal_keys.dart';
 
 class TerminalKeySettingsResult {
@@ -295,7 +296,7 @@ class _TerminalKeySettingsSheetState extends State<_TerminalKeySettingsSheet> {
                 hintText: '例如：清屏',
               ),
             ),
-            const SizedBox(height: 10),
+            const FormGap(),
             TextField(
               controller: value,
               decoration: LInputDecoration(

@@ -4,6 +4,7 @@ import 'package:uuid/uuid.dart';
 import '../../domain/credential_identity.dart';
 import '../../domain/models/host.dart';
 import '../localization/localized_widgets.dart';
+import 'form_gap.dart';
 import 'secret_content.dart';
 
 /// 新建或编辑「凭据」里的一个登录身份（R26 F25）。取消返回 null。
@@ -115,7 +116,7 @@ class _IdentityDialogState extends State<_IdentityDialog> {
               controller: _label,
               decoration: LInputDecoration(labelText: '名称（可选，默认用用户名）'),
             ),
-            const SizedBox(height: 10),
+            const FormGap(),
             TextField(
               key: const ValueKey('identity-username'),
               controller: _username,
@@ -127,7 +128,7 @@ class _IdentityDialogState extends State<_IdentityDialog> {
                 errorText: _tried ? _usernameError : null,
               ),
             ),
-            const SizedBox(height: 14),
+            const FormGap(),
             DropdownButtonFormField<IdentityAuth>(
               key: const ValueKey('identity-auth'),
               initialValue: _auth,

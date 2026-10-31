@@ -7,6 +7,7 @@ import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
 import '../../domain/proxy_profiles.dart';
 import '../localization/localized_widgets.dart';
+import 'form_gap.dart';
 import 'secret_content.dart';
 
 /// Edits one saved profile. Inline conversion creates a new profile and returns
@@ -117,9 +118,6 @@ class _ProxyProfileEditorState extends ConsumerState<ProxyProfileEditor> {
         body: Form(
             key: _form,
             child: ListView(padding: const EdgeInsets.all(16), children: [
-              // 新建时没有谁在用它，这句只在改已有代理时有意义。
-              if (widget.profile != null)
-                const LText('修改后，引用此代理的主机下次连接使用新配置；已连接的会话不变。'),
               TextFormField(
                   key: const ValueKey('proxy-label'),
                   controller: _label,
@@ -127,7 +125,7 @@ class _ProxyProfileEditorState extends ConsumerState<ProxyProfileEditor> {
                   decoration: LInputDecoration(labelText: '代理名称'),
                   validator: (v) =>
                       v?.trim().isNotEmpty == true ? null : localized('必填')),
-              const SizedBox(height: 12),
+              const FormGap(),
               DropdownButtonFormField<ProxyType>(
                   initialValue: _type,
                   decoration: LInputDecoration(labelText: '代理类型'),
@@ -138,24 +136,28 @@ class _ProxyProfileEditorState extends ConsumerState<ProxyProfileEditor> {
                         value: ProxyType.http, child: Text('HTTP')),
                   ],
                   onChanged: _saving ? null : (v) => setState(() => _type = v)),
+              const FormGap(),
               TextFormField(
                   key: const ValueKey('proxy-host'),
                   controller: _host,
                   enabled: !_saving,
                   autocorrect: false,
                   decoration: LInputDecoration(labelText: '代理地址')),
+              const FormGap(),
               TextFormField(
                   key: const ValueKey('proxy-port'),
                   controller: _port,
                   enabled: !_saving,
                   keyboardType: TextInputType.number,
                   decoration: LInputDecoration(labelText: '代理端口')),
+              const FormGap(),
               TextFormField(
                   controller: _user,
                   enabled: !_saving,
                   autocorrect: false,
                   enableSuggestions: false,
                   decoration: LInputDecoration(labelText: '代理用户名（可选）')),
+              const FormGap(),
               TextFormField(
                   controller: _password,
                   enabled: !_saving,
@@ -165,14 +167,13 @@ class _ProxyProfileEditorState extends ConsumerState<ProxyProfileEditor> {
                   obscureText: _obscure,
                   decoration: LInputDecoration(
                       labelText: '代理密码（可选）',
+                      helperText: '明文发给代理',
                       suffixIcon: IconButton(
                           onPressed: () => setState(() => _obscure = !_obscure),
                           tooltip: localized('显示或隐藏密码'),
                           icon: Icon(_obscure
                               ? Icons.visibility
                               : Icons.visibility_off)))),
-              const SizedBox(height: 12),
-              const LText('代理口令是明文发给代理的，SSH 保护不了。'),
               if (_error != null)
                 LText(_error!,
                     key: const ValueKey('proxy-error'),

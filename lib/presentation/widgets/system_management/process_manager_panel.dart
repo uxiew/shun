@@ -6,6 +6,7 @@ import 'package:shun/presentation/localization/localized_widgets.dart';
 import '../../../domain/models/system_management.dart';
 import '../../../infrastructure/ssh/ssh_service.dart';
 import '../../../infrastructure/ssh/system_management_service.dart';
+import '../form_gap.dart';
 
 class ProcessManagerPanel extends StatefulWidget {
   const ProcessManagerPanel({
@@ -255,7 +256,7 @@ class _ProcessManagerPanelState extends State<ProcessManagerPanel> {
                         ),
                 ),
               ),
-              const SizedBox(height: 8),
+              const FormGap(),
               Row(
                 children: [
                   Expanded(

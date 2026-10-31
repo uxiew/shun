@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../application/tailscale_catalog_refresh.dart';
 import '../../domain/models/host.dart';
 import '../localization/localized_widgets.dart';
+import 'form_gap.dart';
 import 'secret_content.dart';
 import '../../domain/credential_identity.dart';
 
@@ -92,7 +93,7 @@ class _FirstLoginDialogState extends State<_FirstLoginDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(address, style: small),
-              const SizedBox(height: 12),
+              const FormGap(),
               TextField(
                 key: const ValueKey('first-login-username'),
                 controller: _username,
@@ -102,7 +103,7 @@ class _FirstLoginDialogState extends State<_FirstLoginDialog> {
                 decoration: LInputDecoration(labelText: '用户名'),
                 onChanged: (_) => setState(() {}),
               ),
-              const SizedBox(height: 10),
+              const FormGap(),
               TextField(
                 key: const ValueKey('first-login-password'),
                 controller: _password,

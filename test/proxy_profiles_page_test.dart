@@ -141,16 +141,6 @@ void main() {
     expect(find.textContaining('这些主机在用它'), findsNothing);
   });
 
-  testWidgets('新建代理不显示「修改后，引用此代理的主机……」，编辑已有的才显示', (tester) async {
-    await open(tester, const ProxyProfilesPage());
-    await tapRoute(tester, find.byKey(const ValueKey('proxy-create')));
-    expect(find.textContaining('引用此代理的主机下次连接'), findsNothing);
-    await tester.pageBack();
-    await tester.pumpAndSettle();
-    await tapRoute(tester, find.byKey(const ValueKey('proxy-edit-p')));
-    expect(find.textContaining('引用此代理的主机下次连接'), findsOneWidget);
-  });
-
   testWidgets(
       'changed references during delete confirmation require fresh confirmation',
       (tester) async {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../localization/localized_widgets.dart';
+import 'form_gap.dart';
 import 'secret_content.dart';
 
 import '../../infrastructure/ai/ai_service.dart';
@@ -198,12 +199,12 @@ class _ProviderEditorState extends State<_ProviderEditor> {
             key: const ValueKey('provider-name'),
             controller: _name,
             decoration: LInputDecoration(labelText: '名称')),
-        const SizedBox(height: 24),
+        const FormGap(),
         TextField(
             key: const ValueKey('provider-endpoint'),
             controller: _endpoint,
             decoration: LInputDecoration(labelText: 'API 地址（通常以 /v1 结尾）')),
-        const SizedBox(height: 24),
+        const FormGap(),
         TextField(
             key: const ValueKey('provider-key'),
             controller: _key,

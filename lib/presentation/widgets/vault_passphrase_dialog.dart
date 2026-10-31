@@ -7,6 +7,7 @@ import '../../domain/models/vault.dart';
 import '../../infrastructure/storage/encrypted_vault_file.dart';
 import '../../infrastructure/sync/netcatty_crypto.dart';
 import '../localization/localized_widgets.dart';
+import 'form_gap.dart';
 import 'secret_content.dart';
 
 typedef BackupEncoder = Future<Uint8List> Function(
@@ -154,7 +155,7 @@ class _NewPassphraseDialogState extends State<_NewPassphraseDialog> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const LText('备份里有密码和私钥，靠这个口令保护。忘了就解不开，App 不存它。'),
-              const SizedBox(height: 8),
+              const FormGap(),
               TextField(
                 key: const ValueKey('backup-passphrase'),
                 controller: _first,
@@ -165,6 +166,7 @@ class _NewPassphraseDialogState extends State<_NewPassphraseDialog> {
                 autocorrect: false,
                 decoration: _decoration('口令'),
               ),
+              const FormGap(),
               TextField(
                 key: const ValueKey('backup-passphrase-again'),
                 controller: _second,

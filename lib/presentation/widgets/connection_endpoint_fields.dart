@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/models/host.dart';
 import '../localization/localized_widgets.dart';
+import 'form_gap.dart';
 
 /// Endpoint form only; the editor retains draft ownership and route validation.
 /// Hidden SSH identity remains in its controller when switching protocols.
@@ -20,13 +21,13 @@ class ConnectionEndpointFields extends StatelessWidget {
   Widget build(BuildContext context) {
     final ssh = protocol == HostProtocol.ssh || protocol == HostProtocol.mosh;
     return Column(children: [
-      const SizedBox(height: 12),
+      const FormGap(),
       TextFormField(
           controller: hostname,
           decoration: LInputDecoration(labelText: '主机名 / IP'),
           keyboardType: TextInputType.url,
           validator: _required),
-      const SizedBox(height: 12),
+      const FormGap(),
       Row(children: [
         if (ssh) ...[
           Expanded(

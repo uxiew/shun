@@ -14,6 +14,7 @@ import '../../domain/security_key.dart';
 import '../../domain/ssh_key_type.dart';
 import '../../domain/vault_secrets.dart';
 import '../../infrastructure/storage/picked_files.dart';
+import 'form_gap.dart';
 import 'identity_editor.dart';
 import 'secret_content.dart';
 import 'security_key_actions.dart';
@@ -350,7 +351,7 @@ class KeychainSheet extends ConsumerWidget {
               controller: label,
               decoration: LInputDecoration(labelText: '名称'),
             ),
-            const SizedBox(height: 10),
+            const FormGap(),
             TextField(
               controller: passphrase,
               obscureText: true,

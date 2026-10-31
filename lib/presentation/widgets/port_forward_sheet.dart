@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/port_forward_controller.dart';
 import '../../application/session_controller.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
+import 'form_gap.dart';
 
 class PortForwardSheet extends ConsumerStatefulWidget {
   const PortForwardSheet({super.key, required this.session});
@@ -66,7 +67,7 @@ class _PortForwardSheetState extends ConsumerState<PortForwardSheet> {
               selected: {kind},
               onSelectionChanged: (value) => setState(() => kind = value.first),
             ),
-            const SizedBox(height: 12),
+            const FormGap(),
             TextField(
               controller: localPort,
               keyboardType: TextInputType.number,

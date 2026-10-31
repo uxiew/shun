@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
 
 import '../../../infrastructure/ssh/system_management_service.dart';
+import '../form_gap.dart';
 import '../secret_content.dart';
 
 /// 用户在 sudo 确认框里点了取消。没有对服务器做任何事，打印出来是当时的权限提示。
@@ -77,7 +78,7 @@ class _SudoDialogState extends State<_SudoDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               LText(widget.request.message),
-              const SizedBox(height: 12),
+              const FormGap(),
               TextField(
                 key: const ValueKey('sudo-password'),
                 controller: _password,

@@ -70,8 +70,7 @@ const englishTranslations = <String, String>{
   '编辑代理': 'Edit proxy',
   '代理管理': 'Manage proxies',
   '选择代理': 'Choose proxy',
-  '修改后，引用此代理的主机下次连接使用新配置；已连接的会话不变。':
-      'Hosts referencing this proxy use the new settings on their next connection. Active sessions stay unchanged.',
+  '明文发给代理': 'Sent to the proxy in plain text',
   '代理名称': 'Proxy name',
   '代理类型': 'Proxy type',
   '显示或隐藏密码': 'Show or hide password',

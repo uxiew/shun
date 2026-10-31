@@ -27,6 +27,7 @@ import '../../infrastructure/sync/github_auth_service.dart';
 import '../../infrastructure/update_check_service.dart';
 import '../theme.dart';
 import '../localization/localized_widgets.dart';
+import '../widgets/form_gap.dart';
 import '../widgets/keychain_sheet.dart';
 import '../widgets/proxy_profiles_page.dart';
 import '../widgets/terminal_engine_status.dart';
@@ -759,12 +760,12 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               hintText: 'https://dav.example.com/shun',
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const FormGap(),
                           TextField(
                             controller: username,
                             decoration: LInputDecoration(labelText: '用户名'),
                           ),
-                          const SizedBox(height: 10),
+                          const FormGap(),
                           TextField(
                             controller: providerSecret,
                             obscureText: true,
@@ -783,7 +784,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               hintText: 'https://s3.example.com',
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const FormGap(),
                           Row(
                             children: [
                               Expanded(
@@ -806,14 +807,14 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 10),
+                          const FormGap(),
                           TextField(
                             controller: s3AccessKeyId,
                             decoration: LInputDecoration(
                               labelText: 'Access Key ID',
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const FormGap(),
                           TextField(
                             controller: providerSecret,
                             obscureText: true,
@@ -825,7 +826,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               labelText: 'Secret Access Key',
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const FormGap(),
                           TextField(
                             controller: s3SessionToken,
                             obscureText: true,
@@ -836,7 +837,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               labelText: 'Session Token（可选）',
                             ),
                           ),
-                          const SizedBox(height: 10),
+                          const FormGap(),
                           TextField(
                             controller: s3Prefix,
                             decoration: LInputDecoration(
@@ -913,7 +914,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                               secret: providerSecret,
                               onSecretChanged: (_) => setState(() {})),
                         ],
-                        const SizedBox(height: 10),
+                        const FormGap(),
                         TextField(
                           controller: masterPassword,
                           obscureText: true,

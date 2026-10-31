@@ -12,6 +12,7 @@ import '../../infrastructure/tailscale/catalog_cache.dart';
 import '../localization/localized_widgets.dart';
 import 'connection_route_draft.dart';
 import 'connection_route_editor.dart';
+import 'form_gap.dart';
 import 'hint.dart';
 import 'proxy_profiles_page.dart';
 import '../../domain/vault_secrets.dart';
@@ -163,7 +164,7 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
         padding: const EdgeInsets.all(16),
         children: [
           const LText('选中的设备按同一套设置建成新主机。只写进保险库：不连接、不启动 VPN，第一次连接时照常核对指纹。'),
-          const SizedBox(height: 12),
+          const FormGap(),
           TextField(
             key: const ValueKey('catalog-import-username'),
             controller: _username,
@@ -177,7 +178,7 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
             ),
           ),
           // 用户名的提示有两行，贴着下一个输入框会压住它的浮动标签。
-          const SizedBox(height: 12),
+          const FormGap(),
           TextField(
             key: const ValueKey('catalog-import-port'),
             controller: _port,
@@ -253,7 +254,7 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
             },
             onSelectionChanged: (value) => setState(() => _auth = value.first),
           ),
-          const SizedBox(height: 12),
+          const FormGap(),
           DropdownButtonFormField<String?>(
             key: const ValueKey('catalog-import-key'),
             initialValue: _keyId,
@@ -273,7 +274,7 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
           ),
           const SizedBox(height: 4),
           LText('密码不在这里批量填：导入后到各主机的编辑器里填。', style: small),
-          const SizedBox(height: 12),
+          const FormGap(),
           TextField(
             controller: _group,
             onChanged: (_) => setState(() {}),

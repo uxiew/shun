@@ -42,7 +42,7 @@ class _ThemePickerState extends State<_ThemePicker> {
                   widget.brightness == Brightness.dark ? '选择深色主题' : '选择浅色主题',
                   style: Theme.of(context).textTheme.titleLarge,
                 ),
-                const SizedBox(height: 10),
+                const FormGap(),
                 TextField(
                   autofocus: false,
                   decoration: LInputDecoration(

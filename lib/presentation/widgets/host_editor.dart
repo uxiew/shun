@@ -21,6 +21,7 @@ import '../../domain/tailscale_ssh.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import 'catalog_source_section.dart';
 import 'connection_probe_sheet.dart';
+import 'form_gap.dart';
 import 'keychain_sheet.dart';
 import 'route_legs_view.dart';
 import 'connection_route_draft.dart';
@@ -267,6 +268,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                 validator: _required,
               ),
               // 插件主机没有地址、端口、用户名：连哪里由插件自己的设置页决定，本 App 不交给它任何主机数据。
+              // 它自己顶上带一个 FormGap，这里不再放，放了间隔就是两倍。
               if (protocol != HostProtocol.plugin)
                 ConnectionEndpointFields(
                   protocol: protocol,
@@ -274,12 +276,12 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                   username: username,
                   port: port,
                 ),
-              const SizedBox(height: 12),
+              const FormGap(),
               TextFormField(
                 controller: group,
                 decoration: LInputDecoration(labelText: '分组（可选）'),
               ),
-              const SizedBox(height: 12),
+              const FormGap(),
               TextFormField(
                 controller: tags,
                 decoration: LInputDecoration(labelText: '标签（逗号分隔）'),
@@ -304,13 +306,13 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                 if (loginMode == SshLoginMode.standard &&
                     identities.isNotEmpty) ...[
                   _identitySelector(identities),
-                  const SizedBox(height: 12),
+                  const FormGap(),
                 ],
                 if (loginMode == SshLoginMode.standard && identityId != null)
                   _identitySummary(identities, keys)
                 else ...[
                   _authSelector(),
-                  const SizedBox(height: 12),
+                  const FormGap(),
                   if (loginMode == SshLoginMode.tailscale)
                     _tailscaleLoginNote(preview.plan)
                   else
@@ -489,7 +491,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
               ),
             ),
           ),
-        const SizedBox(height: 12),
+        const FormGap(),
         if (authMethod == HostAuthMethod.password)
           if (identityFileId != null)
             const LText(
@@ -640,7 +642,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                 ),
                 validator: _validMoshServerPath,
               ),
-              const SizedBox(height: 12),
+              const FormGap(),
               TextFormField(
                 key: const ValueKey('mosh-ports'),
                 controller: moshPorts,
@@ -651,7 +653,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                 ),
                 validator: _validMoshPorts,
               ),
-              const SizedBox(height: 12),
+              const FormGap(),
               TextFormField(
                 key: const ValueKey('mosh-locale'),
                 controller: moshLocale,
@@ -1123,7 +1125,8 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     const style = TextStyle(fontWeight: FontWeight.w700, fontSize: 15);
     if (hint == null) {
       return Padding(
-        padding: const EdgeInsets.fromLTRB(2, 22, 2, 10),
+        // 下边留 16：紧跟的输入框浮动标签会往上占 8dp，留少了就压到分组标题。
+        padding: const EdgeInsets.fromLTRB(2, 22, 2, 16),
         child: LText(title, style: style),
       );
     }

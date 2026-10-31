@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../localization/localized_widgets.dart';
+import 'form_gap.dart';
 
 class GitHubManualConfig extends StatelessWidget {
   const GitHubManualConfig(
@@ -21,7 +22,7 @@ class GitHubManualConfig extends StatelessWidget {
           TextField(
               controller: resourceId,
               decoration: LInputDecoration(labelText: 'Gist ID（通常自动识别）')),
-          const SizedBox(height: 20),
+          const FormGap(),
           TextField(
               controller: secret,
               obscureText: true,

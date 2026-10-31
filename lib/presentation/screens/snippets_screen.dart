@@ -9,6 +9,7 @@ import '../../application/session_controller.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/models/host.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/form_gap.dart';
 
 class SnippetsScreen extends ConsumerWidget {
   const SnippetsScreen({super.key});
@@ -158,12 +159,12 @@ class SnippetsScreen extends ConsumerWidget {
                 snippet == null ? '新建命令片段' : '编辑命令片段',
                 style: Theme.of(context).textTheme.titleLarge,
               ),
-              const SizedBox(height: 16),
+              const FormGap(),
               TextField(
                 controller: label,
                 decoration: LInputDecoration(labelText: '名称'),
               ),
-              const SizedBox(height: 12),
+              const FormGap(),
               TextField(
                 controller: command,
                 minLines: 4,

@@ -18,6 +18,7 @@ import '../localization/localized_widgets.dart';
 import '../widgets/catalog_text.dart';
 import '../widgets/connection_route_draft.dart';
 import '../widgets/connection_route_editor.dart';
+import '../widgets/form_gap.dart';
 import '../widgets/hint.dart';
 import '../widgets/proxy_profiles_page.dart';
 import '../widgets/secret_content.dart';
@@ -371,7 +372,7 @@ class _TailscaleSettingsScreenState
                       ],
                       const LText(
                           '自动列出 tailnet 里的设备，点一下就导入并连接。只读设备列表：不开 VPN，手机要能到达设备（比如开着 Tailscale App）。'),
-                      const SizedBox(height: 16),
+                      const FormGap(),
                       TextField(
                         key: const ValueKey('ts-settings-key'),
                         controller: _key,
@@ -403,7 +404,7 @@ class _TailscaleSettingsScreenState
                             label: const LText('删除本机保存的 OAuth client'),
                           ),
                         ),
-                      const SizedBox(height: 16),
+                      const FormGap(),
                       TextField(
                         key: const ValueKey('ts-settings-username'),
                         controller: _username,
@@ -485,7 +486,7 @@ class _TailscaleSettingsScreenState
                                     builder: (_) => const ProxyProfilesPage())),
                             onChanged: () => setState(() {}),
                           ),
-                          const SizedBox(height: 16),
+                          const FormGap(),
                           DropdownButtonFormField<String?>(
                             key: const ValueKey('ts-settings-identity'),
                             initialValue: keys.any((k) => k.id == _identity)
@@ -506,7 +507,7 @@ class _TailscaleSettingsScreenState
                             onChanged: (value) =>
                                 setState(() => _identity = value),
                           ),
-                          const SizedBox(height: 12),
+                          const FormGap(),
                           TextField(
                             key: const ValueKey('ts-settings-group'),
                             controller: _group,
@@ -526,7 +527,7 @@ class _TailscaleSettingsScreenState
                                 helperText: '填 - 表示「凭据所属的 tailnet」，一般不用改',
                               ),
                             ),
-                            const SizedBox(height: 12),
+                            const FormGap(),
                             TextField(
                               key: const ValueKey('ts-settings-name'),
                               controller: _name,

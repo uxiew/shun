@@ -4,6 +4,7 @@ import 'package:shun/presentation/localization/localized_widgets.dart';
 import '../../../domain/models/system_management.dart';
 import '../../../infrastructure/ssh/ssh_service.dart';
 import '../../../infrastructure/ssh/system_management_service.dart';
+import '../form_gap.dart';
 import '../hint.dart';
 import 'sudo_prompt.dart';
 
@@ -436,7 +437,7 @@ class _CaddySiteDialogState extends State<_CaddySiteDialog> {
                   helperText: '可使用域名、IP、端口或 http:// 地址',
                 ),
               ),
-              const SizedBox(height: 12),
+              const FormGap(),
               TextField(
                 key: const ValueKey('caddy-upstreams'),
                 controller: upstreams,
