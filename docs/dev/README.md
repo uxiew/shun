@@ -164,9 +164,9 @@ flutter test test/integration_ssh_fixture_test.dart
     界面上是「正常，这次运行建过的终端：1」才算这个包的原生库在这台设备上能用；测完卸掉。Android 7.0 没有 `getconf`，页大小那项写「读不到」。
     真机上它不用 monkey 启动、每次点之前查前台是本 App 且没锁屏，手机上已装着同名 App 就不跑（卸掉会清所有者的数据）。
   - 外连抓包（BAS02、SYN03）：模拟器带 `-tcpdump <文件>` 启动、装正式包，依次 `python3 tool/r28-bas02-device.py <目录> measure`（没配置，约 2.5 分钟）、`control`（对照，要先起测试环境）、
-    `sync`（在设置页配好 S3 点「立即同步」，假服务器在脚本里，约 1.5 分钟），最后 `pcap <文件>` 按时间段列 DNS 和连接。`sync` 段 netstats 是 0 不代表没连：走的是 `adb reverse`，本机回环不计字节，看脚本打印的服务器日志。
-    云同步那张卡片防截屏（R44），这页 `screencap` 得到 0 字节，不是坏了，用 `uiautomator dump` 看。
-  - 加密备份走真文件选择器和真安全存储（SYN01）：`python3 tool/r60-backup.py emulator-5580`，约 2 分钟，最后一行是 `退出码 0` 才算过。改了 `VaultCrypto` 或导出逻辑就要重跑。
+    `sync`（在云端备份页配好 S3 点「立即备份」，假服务器在脚本里，约 1.5 分钟），最后 `pcap <文件>` 按时间段列 DNS 和连接。`sync` 段 netstats 是 0 不代表没连：走的是 `adb reverse`，本机回环不计字节，看脚本打印的服务器日志。
+    云端备份页防截屏（R44），这页 `screencap` 得到 0 字节，不是坏了，用 `uiautomator dump` 看。
+  - 加密备份走真文件选择器和真安全存储（SYN01）：`python3 tool/r60-backup.py emulator-5580`，约 2 分钟，最后一行是 `退出码 0` 才算过。改了 `VaultCrypto` 或备份逻辑就要重跑。
   - 只要真 App 加测试环境 ssh-edge 的设备测试（SEC14 等）：`SHUN_R39_AVD=shun-r39-a30 python3 tool/fixture-drive.py integration_test/<x>_test.dart`，脚本转端口、用临时文件传凭据（`SHUN_FIXTURE`）、前后清 App 数据。没设 `SHUN_R39_AVD` 会拒绝跑：默认认的是另一个模拟器。
   - 引擎起不来（TER12）：`tool/r20-engine-failure.sh emulator-5580`，脚本编测试 APK、删掉里面的 libghostty.so、重新签名、用 `flutter drive` 装这个包跑，
     跑完卸掉。会先卸掉模拟器上的 App（签名不同装不上），里面的测试数据随之清掉。
@@ -336,7 +336,7 @@ tool/build-release.sh && adb install -r build/app/outputs/flutter-apk/app-releas
 - 包用 `~/.android/debug.keystore` 签名；换台电脑构建的包签名不同，`adb install` 报 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`，要先卸载（会清掉 App 数据）才能装。
 - CI 打的包（Actions 里的 `shun-v<版本>-android-apks-<编号>`）用仓库里那把固定密钥签，证书 SHA-256 是
   `9eac1da143c76115e6bfe257a738f2631ab898673fed8db1bb02da89dc367bb0`（`apksigner verify --print-certs <包>` 看）。它和本机包互相盖不上，同样报上面那个错。
-  手机从本机包换到 CI 包只能先卸载：导出的保险库文件**不带密码和私钥**（[使用手册第 12 节](../user/README.md#12-导出导入与凭据)），卸载后要重新填，
+  手机从本机包换到 CI 包只能先卸载：导出的保险库文件**不带密码和私钥**（[使用手册第 12 节](../user/README.md#12-备份恢复与凭据)），卸载后要重新填，
   RustDesk、UU 的本机关联也恢复不了。换过去以后，CI 包之间可以直接覆盖。
 - CI 包的 versionCode 是 GitHub 运行编号（10-20 那次是 2），本机包取 pubspec 的 `+26`。哪天本机也配上那把固定密钥签，
   装过本机包的手机再装编号更小的 CI 包，会报 `INSTALL_FAILED_VERSION_DOWNGRADE`。

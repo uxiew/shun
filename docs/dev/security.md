@@ -28,12 +28,12 @@
 | 主机密码、Telnet 密码、主机自带代理的口令 | 安全存储，文件名 `FlutterSecureStorage` | `host.<id>.password`、`host.<id>.telnetPassword`、`host.<id>.proxyPassword` | `VaultRepository`（`lib/infrastructure/storage/vault_repository.dart`） |
 | 私钥、私钥口令 | 同上 | `key.<id>.private`、`key.<id>.passphrase` | 同上 |
 | 可复用代理的口令 | 同上 | `proxy.<id>.password` | 同上 |
-| 云同步主密码 | 同上 | `shun.sync.masterPassword` | 同上 |
+| 云端备份主密码 | 同上 | `shun.sync.masterPassword` | 同上 |
 | 云端凭据（WebDAV 密码、S3 secret、GitHub token） | 同上 | `sync.provider.secret`、`sync.provider.sessionToken` | 同上；`SyncConnection.toJson` 不含这两项 |
 | AI API Key | 同上 | `shun.ai.apiKey`；多服务商配置（各带 Key）在 `shun.ai.workspace.*` | `VaultRepository.aiWorkspace` |
 | 保险库其余内容：主机、分组、路线、片段、主机指纹 | 普通偏好 | `shun_vault_v1` | 写之前过 `vaultWithoutSecrets`（`lib/domain/vault_secrets.dart`） |
 | 存过哪些凭据（只有键名，没有值） | 普通偏好 | `shun_secret_index_v1` | 见 1.2 |
-| 云同步的地址、用户名、bucket，版本检查点，没传完的恢复副本 | 普通偏好 | `shun_sync_v1`、`shun_sync_version_v1`、`shun_pending_sync_v2` | 恢复副本是用主密码加密过的整份，见第 2 节 |
+| 云端备份的地址、用户名、bucket，版本检查点，没传完的恢复副本 | 普通偏好 | `shun_sync_v1`、`shun_sync_version_v1`、`shun_pending_sync_v2` | 恢复副本是用主密码加密过的整份，见第 2 节 |
 | Tailscale 的 key（OAuth client 或访问令牌，二选一） | 安全存储，文件名 `shun_tailscale_catalog` | `tailscale.catalog.<来源ID>.oauth.clientId` / `.clientSecret`，或 `tailscale.catalog.<来源ID>.accessToken` | `TailscaleCatalogSecretStore`；读成功才存。不进保险库，所以不进导出、同步、互传。`tskey-api` 带全部权限也存，所有者 10-31 定的 |
 | UU 的加密设备标识、RustDesk ID | 安全存储，文件名 `shun_uuremote`、`shun_rustdesk` | — | `SecureProviderBackend`（`lib/application/external_remote.dart`） |
 | AI 命令行的检测设置、最近工作 | 安全存储，文件名 `shun_ai_cli` | `discovery.<scope>`、`recent.<scope>` | `lib/infrastructure/storage/ai_cli_*.dart` |
@@ -90,7 +90,7 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 
 ### 1.5 屏幕上的凭据：防截屏和输入法（R44）
 
-**防截屏**。`SecretContent`（`lib/presentation/widgets/secret_content.dart`）包着的页面或对话框真显示在屏幕上时，`SensitiveScreenGuard`（`lib/application/sensitive_screen.dart`）让窗口带 FLAG_SECURE（`WindowSecurityChannel.kt`）：截屏截不下来，录屏里 App 这块是黑的，最近任务的卡片是空白（API 30 模拟器实测，`plan/v3/evidence/R44.md`；投屏和录屏同一个机制，没单独测）。现在包着的：编辑连接页（`HostEditor`，整页，不管协议）、编辑代理页、AI 服务商编辑页、设置页的云同步卡片（默认隐藏），导入私钥时填口令的对话框、登录时的交互式提问、sudo 密码框、Tailscale 目录填 token 和 OAuth client 的对话框。密钥库列表只有名字和类型，不包。
+**防截屏**。`SecretContent`（`lib/presentation/widgets/secret_content.dart`）包着的页面或对话框真显示在屏幕上时，`SensitiveScreenGuard`（`lib/application/sensitive_screen.dart`）让窗口带 FLAG_SECURE（`WindowSecurityChannel.kt`）：截屏截不下来，录屏里 App 这块是黑的，最近任务的卡片是空白（API 30 模拟器实测，`plan/v3/evidence/R44.md`；投屏和录屏同一个机制，没单独测）。现在包着的：编辑连接页（`HostEditor`，整页，不管协议）、编辑代理页、AI 服务商编辑页、设置页的云端备份卡片（默认隐藏），导入私钥时填口令的对话框、登录时的交互式提问、sudo 密码框、Tailscale 目录填 token 和 OAuth client 的对话框。密钥库列表只有名字和类型，不包。
 
 - 「真显示」= `Visibility.of(context)` 且 `TickerMode.valuesOf(context).enabled`。前一个在首页 IndexedStack 没选中的那页里是 false，后一个在被不透明路由盖住时是 false；对话框、bottom sheet 盖在上面不算盖住。**别改成按「挂没挂在树上」算**：设置页一直挂在首页的 IndexedStack 里，里面一个密码框就会让终端页也截不了屏。Flutter 自带的 `SensitiveContent` 就是这么算的，而且只在 Android 15 起投屏时遮，管不了截屏和最近任务，所以没用它。
 - 不包终端页（R44 的停止条件：用户要截终端）。终端里显示的东西，包括 `cat` 出来的密钥，不受保护。
@@ -127,36 +127,38 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 - **验证通过后要再看 `targetProblem`**：验证期间标签可能关了、断了、换成恢复后的新连接，这时不发，也不改发给别的标签。
 - **不写日志、不留副本。** 设备测试用记号查过 App 日志和整段 logcat。
 
-## 2. 导出、导入、云同步
+## 2. 备份、恢复、云端备份
 
-### 2.1 导出
+### 2.1 备份到文件
 
-`VaultExportService.export` 只写 `vaultWithoutSecrets` 之后的 JSON（文件名 `shun-export.json`）：没有密码、私钥、私钥口令、代理口令。主机名、用户名、路线、指纹记录、启动命令、环境变量都在里面，所以导出文件也别进仓库。测试：`test/vault_secrets_test.dart`「导出文件里没有任何凭据」、`test/vault_export_service_test.dart`。
+明文 JSON 的导入和导出 2026-10-31 去掉了（所有者定的）：不带凭据的导出换手机没用，带凭据的明文更不能有。只有下面这一种文件。
 
-**带凭据的加密备份**（R60，`EncryptedVaultFile`，文件名 `shun-backup-encrypted.json`）。格式和算法就是 2.3 的 `{meta, payload}`，没有再造一种。和云同步的差别：
+**加密备份**（R60，`EncryptedVaultFile`，文件名 `shun-backup-encrypted.json`）。格式和算法就是 2.3 的 `{meta, payload}`，没有再造一种。和云端备份的差别：
 
 - `meta.deviceId` 固定写 `file-export`：meta 是明文，文件会被传来传去，不带这台手机的设备 ID。
 - payload 里没有 `knownHosts` 和 `convergentSync`：指纹导入时本来就不收（见 2.2），同步的收敛信息对别的手机没意义。
 - 口令至少 12 位，输两遍，不存：文件离开手机后能被离线猜。
-- 算口令在后台 isolate（`encodeBackupInBackground`）。云同步现在还在主线程算。
-- 写文件走自己的 `saveDocument`（`DocumentTreeChannel`），模式 `"wt"`。file_picker 10.3.10 用 `openOutputStream(uri)`（`FileUtils.kt:117`）不截断：API 30 模拟器上 879 字节盖 680579 字节的旧文件，文件还是 680579 字节，尾部是旧内容（R60 实测）。加密备份盖到不含密码的 JSON 上，尾部就是明文主机名。
-- 读的时候只看第一个完整的 JSON 对象（`tryParse`、`parsePlain`）：别的工具写的、不认 `"wt"` 的存储服务上的文件仍可能留尾巴。内容有 GCM 校验，尾巴影响不到它。
-- `EncryptedVaultFile.tryParse` 认不出就按明文 JSON 处理。加密备份被截断后也走这条路，报「不是保险库文件，或者文件已损坏」。
+- 算口令在后台 isolate（`encodeBackupInBackground`）。
+- 写文件走自己的 `saveDocument`（`DocumentTreeChannel`），模式 `"wt"`。file_picker 10.3.10 用 `openOutputStream(uri)`（`FileUtils.kt:117`）不截断：API 30 模拟器上 879 字节盖 680579 字节的旧文件，文件还是 680579 字节，尾部是旧内容（R60 实测）。加密备份盖到老的明文 JSON 上，尾部就是明文主机名。
+- 读的时候只看第一个完整的 JSON 对象（`tryParse`）：别的工具写的、不认 `"wt"` 的存储服务上的文件仍可能留尾巴。内容有 GCM 校验，尾巴影响不到它。
+- `EncryptedVaultFile.tryParse` 认不出就报 `notABackup`（「不是 shun 的加密备份，或者文件已损坏」）。加密备份被截断、选了老的明文 JSON，都走这条路。
 
-### 2.2 导入
+### 2.2 恢复（文件、云端、手机互传共用）
 
-逻辑在 `lib/application/vault_import.dart`，用户看到的确认框写在[使用手册第 12 节](../user/README.md#12-导出导入与凭据)。开发上要知道两条：
+逻辑在 `lib/application/vault_import.dart`，用户看到的确认框写在[使用手册第 12 节](../user/README.md#12-备份恢复与凭据)。开发上要知道两条：
 
 - **凭据只在「要发往的地方」没变时沿用**（`keepLocalSecrets`）：主机按 协议 + 地址 + 端口 + 用户名比，代理按 类型 + 地址 + 端口 + 用户名比。不这样的话，一个改了地址的导入文件就能让本机存的密码发给另一台机器。文件自带凭据的以文件为准。
-- **指纹记录不导入**：合并和替换都由 `_withLocalFingerprints` 把 `knownHosts` 整份换回本机的，文件里的一条不收；确认框按 `VaultImportPlan.fingerprintsNotImported`（文件里本机没有一模一样记录的条数）告诉用户。和云同步的 `retainLocalDeviceData` 一个口径：指纹是「在这台手机上核对过」的记录，外面来的东西担保不了。以前文件里本机没有的指纹直接加进来（替换时整份用文件的），等于替用户点了「接受并记住」：改过的文件能先埋下攻击者的指纹，之后的中间人连核对框都不触发。代价是换手机导入后每台服务器要重新核对一次。测试：`test/vault_import_test.dart`「受信指纹：只留本机核对过的……」「受信指纹不跟着换……」。
+- **指纹记录不导入**：合并和替换都由 `_withLocalFingerprints` 把 `knownHosts` 整份换回本机的，文件里的一条不收；确认框按 `VaultImportPlan.fingerprintsNotImported`（文件里本机没有一模一样记录的条数）告诉用户。和云端备份的 `retainLocalDeviceData` 一个口径：指纹是「在这台手机上核对过」的记录，外面来的东西担保不了。以前文件里本机没有的指纹直接加进来（替换时整份用文件的），等于替用户点了「接受并记住」：改过的文件能先埋下攻击者的指纹，之后的中间人连核对框都不触发。代价是换手机导入后每台服务器要重新核对一次。测试：`test/vault_import_test.dart`「受信指纹：只留本机核对过的……」「受信指纹不跟着换……」。
 
-### 2.3 云同步（WebDAV、S3）
+### 2.3 云端备份（WebDAV、S3）
 
 `ForkFeatures.cloudSync` 10-31 起默认开（R61），但没填配置和主密码时 `CloudSyncService._setup` 直接报错，一个请求都没有（`test/r61_sync_roundtrip_test.dart`、`test/fork_features_test.dart`）。`ForkFeatures.githubSync` 默认关：入口不显示，存着 GitHub 配置也不连 api.github.com，因为 OAuth clientId 是上游的。
 
-主密码至少 12 位（设置页 `_masterPasswordStrongEnough`）：云端那份泄露后能被离线猜。加解密在后台 isolate（`VaultCrypto`），模拟器 AOT 上一次约 2.8 秒，放主 isolate 的话每次自动同步界面和终端都会停这么久。
+主密码至少 12 位（`CloudBackupScreen._masterPasswordStrongEnough`）：云端那份泄露后能被离线猜。离开页面时也按这条：不到 12 位不存，不然开着自动备份时下一轮就拿短密码加密上传。加解密在后台 isolate（`VaultCrypto`），模拟器 AOT 上一次约 2.8 秒，放主 isolate 的话每次自动备份界面和终端都会停这么久。
 
-加密在 `VaultCrypto`（`lib/infrastructure/sync/vault_crypto.dart`），格式和桌面端互通：
+「从云端恢复」（`CloudSyncService.downloadBackup`）只下载、解密，不合并、不写云端；写不写本机走 2.2 的确认框。「立即备份」走 `_synchronize`，先和云端那份合并，所以名字叫备份，实际会把别的手机的改动带下来。
+
+加密在 `VaultCrypto`（`lib/infrastructure/sync/vault_crypto.dart`）。格式沿用桌面端 Netcatty 的，10-31 起不要求互通（云端文件名也从 `netcatty-vault.json` 换了），但格式没动：
 
 | 项 | 值 |
 |---|---|
@@ -182,9 +184,9 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 - GitHub 走 device flow（到 github.com 输一次性码授权），scope 是 `gist read:user`。`GitHubAuthService.clientId` 默认值写在代码里，可用 `--dart-define=GITHUB_OAUTH_CLIENT_ID` 换；它是公开值，device flow 用不到 client secret，**也别往代码里加**。
 - 下载超过 8 MiB 拒收（`maxResponseBytes`），单个请求 25 秒超时。
 
-**防误删**：`assertSafeSyncShrink`（`lib/infrastructure/sync/sync_safety.dart`）发现某类条目少了 10 个及以上，或者少了 3 个及以上且达到原来的一半，就拒绝上传，要用户手动确认。自动同步从不替用户确认。
+**防误删**：`assertSafeSyncShrink`（`lib/infrastructure/sync/sync_safety.dart`）发现某类条目少了 10 个及以上，或者少了 3 个及以上且达到原来的一半，就拒绝上传，要用户手动确认。自动备份从不替用户确认。
 
-**改了会怎样**：改算法、迭代次数或字段名，桌面端就解不开。`test/vault_crypto_test.dart` 有一条用桌面端 Node/WebCrypto 生成的密文当夹具，改坏了它会红。`decrypt` 用云端 `meta.kdfIterations`，但只认 1–`VaultCrypto.maxIterations`（200 万），超了在算密钥之前就报 `iterationsOutOfRange`：meta 是明文，以前被改成十亿，手机就一直算下去。桌面端以后把次数调到 200 万以上，这个上限要跟着改，不然手机解不开。
+**改了会怎样**：改算法、迭代次数或字段名，手上已有的备份文件和云端那份就解不开。`test/vault_crypto_test.dart` 有一条用桌面端 Node/WebCrypto 生成的密文当夹具，改坏了它会红。`decrypt` 用云端 `meta.kdfIterations`，但只认 1–`VaultCrypto.maxIterations`（200 万），超了在算密钥之前就报 `iterationsOutOfRange`：meta 是明文，以前被改成十亿，手机就一直算下去。
 
 ### 2.4 手机互传（R62）
 
@@ -371,7 +373,7 @@ AI 命令行的「按会话 ID 继续」「同项目新建」点一下就启动�
 - **SOCKS5 不降级**：配了用户名就只提供「用户名密码」一种认证方式，代理回「无认证」就拒绝（`_socks5`，`lib/infrastructure/transport/proxy_transport.dart`）；没配就只提供无认证。代理口令在网络上是明文，SSH 保护不了它（手册第 3 节写了）。测试 `test/socks5_hardening_test.dart`。
 - **Tailscale API**：`tailscaleApiOrigin` 写死 `https://api.tailscale.com`，不从设置或导入文件读；请求 `followRedirects = false`，跟了重定向就会把 Authorization 头或 client secret 带到对方指定的任何地方。
 - **管不住的**：插件、UU 远程、RustDesk 自己联网，不走宿主的路线（contract.md 第 7 节，手册第 15、16 节）。
-- **默认不外连**：AI、检查更新由 `ForkFeatures` 默认关掉，云同步没配置就不连，`test/fork_features_test.dart`「默认开关下冷启动、打开设置、后台恢复都不发网络请求」钉着。
+- **默认不外连**：AI、检查更新由 `ForkFeatures` 默认关掉，云端备份没配置就不连，`test/fork_features_test.dart`「默认开关下冷启动、打开设置、后台恢复都不发网络请求」钉着。
 - Android 清单 `usesCleartextTraffic="false"`，没有自定义 `networkSecurityConfig`。
 - 清单只声明用得到的：权限是白名单，`MainActivity` 不接 VIEW（`test/android_manifest_test.dart` 钉着）。以前声明了 `ssh://` 链接和 `WAKE_LOCK`，都没代码用：前者让网页和别的 App 能拉起本 App，链接还被 Flutter 当深链路由交给导航；后者是 `SshKeepAliveService` 已经不拿的唤醒锁。iOS 的 `CFBundleURLTypes`（`ssh`、`shun`）同理删了。要加链接入口，先写处理和用户确认。
 - `MainActivity` 只能导出（启动器要用），别的 App 仍能用显式组件名带任意 extras 和 data 启动它。`MainActivity.withoutPayload` 在 `onCreate`、`onNewIntent` 把进来的 Intent 换成不带 extras、data 的普通启动。

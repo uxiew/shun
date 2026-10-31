@@ -42,5 +42,5 @@ tool/build-release.sh                     # 发布用的包：终端原生库从
 ## 致谢
 
 shun 是在 [Netcatty Mobile](https://github.com/kmh1145/Netcatty-mobile)（作者 kmh1145）v1.4.7 的基础上改出来的，
-云同步的格式和桌面版 [Netcatty](https://github.com/binaricat/Netcatty) 保持兼容。谢谢两个项目把代码以 GPL 开源，
+谢谢两个项目把代码以 GPL 开源，
 没有它们就没有这个 App。原作者的版权和修改声明见 [NOTICE.md](NOTICE.md)。

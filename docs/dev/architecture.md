@@ -22,7 +22,7 @@
 |---|---|---|---|
 | `domain/` | 29 / 约 4200 | 纯数据和纯规则：保险库模型、路线计算、tmux 目标身份、Mosh 引导脚本。不引 Flutter，不做网络和存储操作，外部包只用 `cryptography`、`plugin_api` | `connection_route.dart` 的 `resolveRoutePlan` |
 | `application/` | 34 / 约 9000 | 跨页面的状态和流程：会话、保险库、插件、同步、Tailscale 目录。几乎都是 Riverpod 的 `StateNotifier` | `session_controller.dart` 的 `SessionController` |
-| `infrastructure/` | 51 / 约 17000 | 和外界打交道：SSH（dartssh2）、代理握手、tmux 命令、SFTP、存储、云同步、平台通道、终端引擎适配 | `ssh/ssh_service.dart` 的 `SshService` |
+| `infrastructure/` | 51 / 约 17000 | 和外界打交道：SSH（dartssh2）、代理握手、tmux 命令、SFTP、存储、云端备份、平台通道、终端引擎适配 | `ssh/ssh_service.dart` 的 `SshService` |
 | `presentation/` | 76 / 约 31000 | 页面、弹窗、终端视图、多语言 | `screens/terminal_screen.dart` |
 
 依赖方向（按 import 语句数过）：
@@ -63,8 +63,8 @@ Riverpod 2（`flutter_riverpod ^2.6.1`），写法是 `StateNotifierProvider` / 
 | `pluginRegistryProvider`、`pluginDiscoveryProvider`、`pluginSessionManagerProvider`、`pluginHostConnectorProvider` | `application/plugin_*.dart` | 插件（第 9 节） |
 | `portForwardControllerProvider` | `application/port_forward_controller.dart` | 端口转发 |
 | `settingsControllerProvider` | `application/settings_controller.dart` | 本机设置 `AppSettings` |
-| `autoSyncControllerProvider` | `application/auto_sync_controller.dart` | 自动云同步 |
-| `forkFeaturesProvider` | `application/fork_features.dart` | AI 聊天、云同步、检查更新三个总开关，默认全关；做成 provider 是为了测试能打开 |
+| `autoSyncControllerProvider` | `application/auto_sync_controller.dart` | 自动云端备份 |
+| `forkFeaturesProvider` | `application/fork_features.dart` | AI 聊天、云端备份、检查更新三个总开关，默认全关；做成 provider 是为了测试能打开 |
 | `rustDeskProvider`、`uuRemoteProvider` | `application/rustdesk.dart`、`uuremote.dart` | 外部远控 App 的条目 |
 | `tailscaleCatalogProvider` 等 | `application/tailscale_catalog_*.dart` | Tailscale 设备目录 |
 
@@ -199,7 +199,7 @@ Tailscale SSH 是**一跳的登录方式**：主机 data 里写着 `shunSshLogin
 ### 2.9 连上之后
 
 - 从 `pendingConnections` 移进 `sessions`；`_watchSession` 给 SSH 标签开 `SessionMonitor`，并等 `session.done` 走断线流程（第 6 节）。
-- `vaultController.markConnected` 记连接时间，按「远端来的改动」保存，打开终端不触发云同步上传。
+- `vaultController.markConnected` 记连接时间，按「远端来的改动」保存，打开终端不触发云端备份上传。
 - `_detectSystem` 用 `ServerMonitorService.detect` 认远端系统，只 `patchHost` 写 `os`、`distro`、`systemInfo` 三个字段，写到保险库**此刻**那份主机上。以前写回连接开始时的整份快照，连接期间用户改的地址、账号会被改回去，删掉的主机会被加回来。
 
 ### 2.10 连接日志（R25）
@@ -415,7 +415,7 @@ flowchart TD
 
 同一台设备在几处的关联（主机上的目录绑定、远控条目的 `sourceHostId`）由 `application/device_links.dart` 的 `deviceLinksOf` 拼起来。它只认显式关联：名字、地址一样也不算同一台，改这里别加按名字猜的规则，不然两个 Tailscale 来源里同名的设备会被并成一台。
 
-## 8. 保险库、导入导出、云同步
+## 8. 保险库、备份恢复
 
 ### 数据模型和未知字段
 
@@ -446,23 +446,32 @@ flowchart TD
 - 主机相关的写入（增删改、`markConnected`、`patchHost`、代理配置、导入）排进 `_serialHostWrite` 队列，每次都「读当前 → 改 → 存」，防止后写的拿旧列表盖掉先写的。钥匙串和同步仍直接调 `replace`，不在队列里。
 - `markConnected` 按远端改动保存（不触发上传）；`patchHost`、`updateHost` 改的是保险库此刻那份，主机已删就不写。
 
-### 导入导出
+### 备份和恢复
 
-- 导出 `infrastructure/storage/vault_export_service.dart`：明文 JSON `shun-export.json`，内容是去掉凭据后的保险库，**不加密**。
-- 导入在设置页：只认明文 JSON，`application/vault_import.dart` 的 `planVaultImport` 先出计划给用户确认。默认合并（文件优先，本机独有的保留），替换要用户明确选；`knownHosts` 冲突保留本机的；本机凭据只在去向（协议、地址、端口、用户名）没变时沿用，防止改了地址的文件把密码带到别的机器；确认框开着期间保险库变了就拒绝（`VaultChangedDuringImport`）。
+三条路写出同一种加密内容（`{meta, payload}`，见[安全文档 2.1](security.md#21-备份到文件)），恢复都走同一个确认框：
 
-用户怎么搬数据见[使用手册第 12 节](../user/README.md#12-导出导入与凭据)。
+| 入口（设置 → 数据） | 代码 |
+|---|---|
+| 云端备份 | `presentation/screens/cloud_backup_screen.dart`、`infrastructure/sync/cloud_sync_service.dart` |
+| 备份到文件、从文件恢复 | `settings_screen.dart` 的 `_exportEncrypted`、`_import`；`infrastructure/storage/encrypted_vault_file.dart`、`vault_export_service.dart` |
+| 发到另一台手机、从另一台手机接收 | `presentation/screens/lan_transfer_screen.dart`、`infrastructure/sync/lan_transfer.dart` |
 
-### 云同步（没配置就不连）
+恢复：`application/vault_import.dart` 的 `planVaultImport` 先出计划给用户确认（`vault_import_dialog.dart`）。默认合并（备份优先，本机独有的保留），替换要用户明确选；`knownHosts` 只留本机的；本机凭据只在去向（协议、地址、端口、用户名）没变时沿用。
+
+明文 JSON 2026-10-31 去掉了：选到这种文件报「不是 shun 的加密备份」。
+
+用户怎么搬数据见[使用手册第 12 节](../user/README.md#12-备份恢复与凭据)。
+
+### 云端备份（没配置就不连）
 
 `ForkFeatures.cloudSync` 开着，只有 WebDAV、S3；GitHub 由 `githubSync` 关着。代码在 `infrastructure/sync/`：
 
-- 后端 `SyncProviderType { webdav, githubGist, s3 }`，远端文件名都是 `shun-vault.json`，和桌面端同一个文件。三家都用 ETag 做乐观并发，冲突时整个流程最多试 3 次；WebDAV 先 PUT 临时文件再 MOVE，写完读回比对。GitHub 用设备码登录（`github_auth_service.dart`）。
-- 加密在 `vault_crypto.dart`，参数、云端看得到什么、传输要求见[安全文档 2.3](security.md#23-云同步默认关)。
+- 后端 `SyncProviderType { webdav, githubGist, s3 }`，远端文件名都是 `shun-vault.json`（10-31 前叫 `netcatty-vault.json`，那时候真服务没连过，不用迁移）。三家都用 ETag 做乐观并发，冲突时整个流程最多试 3 次；WebDAV 先 PUT 临时文件再 MOVE，写完读回比对。GitHub 用设备码登录（`github_auth_service.dart`）。
+- 加密在 `vault_crypto.dart`，参数、云端看得到什么、传输要求见[安全文档 2.3](security.md#23-云端备份webdavs3)。
 - 流程 `CloudSyncService._synchronize`，手动、自动都走它：取本机加密存着的上次基线 → 下载解密 → 合并（v1 用 `vault_merge_service.dart` 的三方合并；桌面端的 v2 convergent 格式用 `convergent_sync_adapter.dart`，不把云端降级成 v1）→ `sync_safety.dart` 防误删扩散（任一集合一次少 ≥10 项，或 ≥3 项且 ≥50%，就停下要用户确认）→ 加密上传 → 再下载核对 → 本地应用成功后才存新基线。
 - 三方合并按 id：两边都改，本地胜；一边删一边改，保留改过的；没有基线时用 `syncMeta.deletions` 墓碑压掉旧条目；可选集合缺席时继承基线，不当作删除。
-- 不上云的两样（`knownHosts`、`lastConnectedAt`）在应用云端结果后由 `retainLocalDeviceData` 接回来，见[安全文档 2.3](security.md#23-云同步默认关)。
-- 自动同步 `auto_sync_controller.dart`：本地改动后防抖 10 秒；开启时立即一次、之后每 5 分钟；回到前台一次；失败退避 30 秒、1、2、4 分钟；手动同步并入正在跑的那次，不开第二个写入方。
+- 不上云的两样（`knownHosts`、`lastConnectedAt`）在应用云端结果后由 `retainLocalDeviceData` 接回来，见[安全文档 2.3](security.md#23-云端备份webdavs3)。
+- 自动备份 `auto_sync_controller.dart`：本地改动后防抖 10 秒；开启时立即一次、之后每 5 分钟；回到前台一次；失败退避 30 秒、1、2、4 分钟；手动同步并入正在跑的那次，不开第二个写入方。
 
 ## 9. 插件体系
 
