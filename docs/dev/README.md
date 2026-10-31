@@ -350,7 +350,7 @@ tool/build-release.sh && adb install -r build/app/outputs/flutter-apk/app-releas
     在正式版里用 UU 之前先 `adb uninstall top.xdwa.shun.debug`。`flutter test` 跑完默认会自己卸（加了 `--no-uninstall` 就不卸），`flutter run` 不卸。
 - 要发给别人的包用 CI 的：本机打的 release 包会把构建目录的绝对路径编进 `libapp.so`（10-21 实测含 `/Users/<用户名>/...`），
   CI 包里只有 `/home/runner/...`。
-- AI、云同步、检查更新默认关闭且不显示，开关在 `lib/application/fork_features.dart`。
+- AI、检查更新、GitHub 同步默认关闭且不显示，开关在 `lib/application/fork_features.dart`。
 
 真机 Pixel 9 Pro 接在 xdwmbp 上，项目现在也在 xdwmbp 上跑（10-21 确认，`scutil --get LocalHostName` 输出 `xdwmbp`），插上就是本机设备，按上面的命令直接用。
 在别的电脑上开发、手机还接在 xdwmbp 时，用 `tool/remote-device/`，见那里的 README。

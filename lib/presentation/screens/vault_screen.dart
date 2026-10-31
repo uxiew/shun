@@ -885,8 +885,9 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
           builder: (context) => AlertDialog(
             icon: const Icon(Icons.delete_outline),
             title: const LText('删除服务器？'),
-            // 云同步默认关着（ForkFeatures）：关着时不说「会传到其他设备」，那句是上游留下的。
-            content: LText(ref.read(forkFeaturesProvider).cloudSync
+            // 没开自动同步就不说「会传到其他设备」，那句是上游留下的。
+            content: LText(ref.read(forkFeaturesProvider).cloudSync &&
+                    ref.read(settingsControllerProvider).autoSyncEnabled
                 ? '将从保险库中删除“${host.label}”，此操作可通过云同步传播到其他设备。'
                 : '将从保险库中删除“${host.label}”，删了不能撤销。'),
             actions: [

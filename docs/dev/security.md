@@ -127,9 +127,11 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 - **凭据只在「要发往的地方」没变时沿用**（`keepLocalSecrets`）：主机按 协议 + 地址 + 端口 + 用户名比，代理按 类型 + 地址 + 端口 + 用户名比。不这样的话，一个改了地址的导入文件就能让本机存的密码发给另一台机器。文件自带凭据的以文件为准。
 - **指纹记录不导入**：合并和替换都由 `_withLocalFingerprints` 把 `knownHosts` 整份换回本机的，文件里的一条不收；确认框按 `VaultImportPlan.fingerprintsNotImported`（文件里本机没有一模一样记录的条数）告诉用户。和云同步的 `retainLocalDeviceData` 一个口径：指纹是「在这台手机上核对过」的记录，外面来的东西担保不了。以前文件里本机没有的指纹直接加进来（替换时整份用文件的），等于替用户点了「接受并记住」：改过的文件能先埋下攻击者的指纹，之后的中间人连核对框都不触发。代价是换手机导入后每台服务器要重新核对一次。测试：`test/vault_import_test.dart`「受信指纹：只留本机核对过的……」「受信指纹不跟着换……」。
 
-### 2.3 云同步（默认关）
+### 2.3 云同步（WebDAV、S3）
 
-`ForkFeatures.cloudSync` 默认 `false`（`lib/application/fork_features.dart`），设置页看不到入口，本地残留的 `autoSyncEnabled=true` 也不会启动同步。下面是打开以后的行为。
+`ForkFeatures.cloudSync` 10-31 起默认开（R61），但没填配置和主密码时 `CloudSyncService._setup` 直接报错，一个请求都没有（`test/r61_sync_roundtrip_test.dart`、`test/fork_features_test.dart`）。`ForkFeatures.githubSync` 默认关：入口不显示，存着 GitHub 配置也不连 api.github.com，因为 OAuth clientId 是上游的。
+
+主密码至少 12 位（设置页 `_masterPasswordStrongEnough`）：云端那份泄露后能被离线猜。加解密在后台 isolate（`NetcattyCrypto`），模拟器 AOT 上一次约 2.8 秒，放主 isolate 的话每次自动同步界面和终端都会停这么久。
 
 加密在 `NetcattyCrypto`（`lib/infrastructure/sync/netcatty_crypto.dart`），格式和桌面端互通：
 
@@ -327,7 +329,7 @@ AI 命令行的「按会话 ID 继续」「同项目新建」点一下就启动�
 - **SOCKS5 不降级**：配了用户名就只提供「用户名密码」一种认证方式，代理回「无认证」就拒绝（`_socks5`，`lib/infrastructure/transport/proxy_transport.dart`）；没配就只提供无认证。代理口令在网络上是明文，SSH 保护不了它（手册第 3 节写了）。测试 `test/socks5_hardening_test.dart`。
 - **Tailscale API**：`tailscaleApiOrigin` 写死 `https://api.tailscale.com`，不从设置或导入文件读；请求 `followRedirects = false`，跟了重定向就会把 Authorization 头或 client secret 带到对方指定的任何地方。
 - **管不住的**：插件、UU 远程、RustDesk 自己联网，不走宿主的路线（contract.md 第 7 节，手册第 15、16 节）。
-- **默认不外连**：AI、云同步、检查更新都由 `ForkFeatures` 默认关掉，`test/fork_features_test.dart`「默认开关下冷启动、打开设置、后台恢复都不发网络请求」钉着。
+- **默认不外连**：AI、检查更新由 `ForkFeatures` 默认关掉，云同步没配置就不连，`test/fork_features_test.dart`「默认开关下冷启动、打开设置、后台恢复都不发网络请求」钉着。
 - Android 清单 `usesCleartextTraffic="false"`，没有自定义 `networkSecurityConfig`。
 - 清单只声明用得到的：权限是白名单，`MainActivity` 不接 VIEW（`test/android_manifest_test.dart` 钉着）。以前声明了 `ssh://` 链接和 `WAKE_LOCK`，都没代码用：前者让网页和别的 App 能拉起本 App，链接还被 Flutter 当深链路由交给导航；后者是 `SshKeepAliveService` 已经不拿的唤醒锁。iOS 的 `CFBundleURLTypes`（`ssh`、`shun`）同理删了。要加链接入口，先写处理和用户确认。
 - `MainActivity` 只能导出（启动器要用），别的 App 仍能用显式组件名带任意 extras 和 data 启动它。`MainActivity.withoutPayload` 在 `onCreate`、`onNewIntent` 把进来的 Intent 换成不带 extras、data 的普通启动。

@@ -12,7 +12,7 @@
 
 Mosh首版仅显式Direct UDP，SOCKS/Jump预先拒绝；SSH+TailSocks不等于Mosh。UU/RustDesk外部App不继承SSH路由、启动不等于已连接；UU当前协议目标Windows/macOS，不能假称Linux支持。任何敏感URL或callback均有固定结构/目标和一次性关联；不传远控密码URL。
 
-默认关闭继承AI/云同步/自动管理的非本次功能路径，凭据不进日志/普通导出/备份。生产账号、测试主机、安装、VPN配置、签名、额度、push/发布需明确授权；不擅自改变用户系统。
+默认关闭继承AI/自动管理的非本次功能路径（云同步所有者 10-31 定了开 WebDAV、S3，没配置不外连），凭据不进日志/普通导出/备份。生产账号、测试主机、安装、VPN配置、签名、额度、push/发布需明确授权；不擅自改变用户系统。
 
 未有设备/授权写NOT_RUN/BLOCKED，继续独立任务；禁止拿Echo、参考App或计划校验当真实成功。完整范围含X00–X13，Ghostty成为实际默认且同候选全门禁通过才FULL_READY；CORE_READY不是完整V3完成。
 

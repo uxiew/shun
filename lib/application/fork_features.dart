@@ -1,6 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-/// 本 fork 对继承自上游、但不在 V3 范围内的功能的总开关，默认全关。
+/// 本 fork 对继承自上游、但不在 V3 范围内的功能的总开关。只有云同步的 WebDAV、S3 是开的（所有者 10-31
+/// 定，R61），其它默认关。
 ///
 /// V3 计划要求 AI、云同步、更新检查在用户未授权前不可激活、不发任何网络请求
 /// （plan/v3/AGENTS.md，用例 BAS02）。代码保留不删：以后所有者授权开启时改默认值即可，
@@ -10,16 +11,20 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 class ForkFeatures {
   const ForkFeatures({
     this.ai = false,
-    this.cloudSync = false,
+    this.cloudSync = true,
+    this.githubSync = false,
     this.updateCheck = false,
   });
 
   /// shu Agent：终端工具栏的 AI 按钮、设置页的 AI 服务商入口。
   final bool ai;
 
-  /// 设置页的云同步区与自动同步。关着时即使本地 settings 残留
-  /// `autoSyncEnabled=true`（比如从上游数据导入）也不会启动同步。
+  /// 设置页的云同步区与自动同步。打开不等于外连：用户填好地址和主密码之前没有任何同步请求（BAS02、SYN03）。
+  /// 关着时即使本地 settings 残留 `autoSyncEnabled=true` 也不会启动同步。
   final bool cloudSync;
+
+  /// 云同步里的 GitHub Gist。默认关：登录用的 OAuth clientId 是上游的，换成自己的要所有者在 GitHub 注册。
+  final bool githubSync;
 
   /// 设置页的"检查更新"。上游实现会在冷启动时请求
   /// api.github.com/repos/kmh1145/Netcatty-mobile/releases/latest：

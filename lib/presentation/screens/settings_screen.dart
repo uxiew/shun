@@ -161,9 +161,16 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     _githubUser =
         sync?.type == SyncProviderType.githubGist ? sync?.username : null;
     if (mounted) {
-      setState(() => provider = sync?.type ?? SyncProviderType.webdav);
-      if (ref.read(forkFeaturesProvider).cloudSync &&
-          (sync?.type == SyncProviderType.githubGist ||
+      final features = ref.read(forkFeaturesProvider);
+      final github = sync?.type == SyncProviderType.githubGist;
+      setState(() {
+        // 存着 GitHub 配置但这个版本没有那一项：选中一个不存在的分段会触发断言。
+        provider = github && !features.githubSync
+            ? SyncProviderType.webdav
+            : sync?.type ?? SyncProviderType.webdav;
+      });
+      if (features.cloudSync &&
+          ((github && features.githubSync) ||
               sync?.type == SyncProviderType.s3) &&
           sync?.secret?.isNotEmpty == true &&
           masterPassword.text.isNotEmpty) {
@@ -638,8 +645,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               if (features.cloudSync)
-                _header('云同步',
-                    hint: '和桌面端用同一个加密文件 netcatty-vault.json，两边能互相同步。'),
+                _header('云同步', hint: '填好才会外连。密码和私钥也会加密后传上去，靠同步主密码保护。'),
               // 整张卡片防截屏（R44）：里面有 WebDAV/S3/GitHub 的口令和同步主密码。
               // 设置页一直挂在首页的 IndexedStack 里，切到别的标签页时不算在屏幕上，见 SecretContent。
               if (features.cloudSync)
@@ -651,18 +657,19 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       children: [
                         SegmentedButton<SyncProviderType>(
                           expandedInsets: EdgeInsets.zero,
-                          segments: const [
-                            ButtonSegment(
+                          segments: [
+                            const ButtonSegment(
                               value: SyncProviderType.webdav,
                               label: _AdaptiveSyncProviderLabel('WebDAV'),
                               icon: Icon(Icons.cloud_outlined),
                             ),
-                            ButtonSegment(
-                              value: SyncProviderType.githubGist,
-                              label: _AdaptiveSyncProviderLabel('GitHub'),
-                              icon: Icon(Icons.code),
-                            ),
-                            ButtonSegment(
+                            if (features.githubSync)
+                              const ButtonSegment(
+                                value: SyncProviderType.githubGist,
+                                label: _AdaptiveSyncProviderLabel('GitHub'),
+                                icon: Icon(Icons.code),
+                              ),
+                            const ButtonSegment(
                               value: SyncProviderType.s3,
                               label: _AdaptiveSyncProviderLabel('S3'),
                               icon: Icon(Icons.storage_outlined),
@@ -1245,7 +1252,17 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
     return '数据变更后自动同步，并在启动、返回前台及每 5 分钟检查云端';
   }
 
+  /// 云端那份文件泄露后能被离线猜口令，和加密备份一个道理。没到 12 位就不往外传。
+  bool _masterPasswordStrongEnough() {
+    if (masterPassword.text.length >= EncryptedVaultFile.minPassphraseLength) {
+      return true;
+    }
+    _message('同步主密码至少 12 位');
+    return false;
+  }
+
   Future<void> _setAutoSync(bool enabled) async {
+    if (enabled && !_masterPasswordStrongEnough()) return;
     setState(() => _savingAutoSync = true);
     try {
       if (enabled) await _saveSync();
@@ -1371,6 +1388,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   }
 
   Future<void> _sync({bool confirmShrink = false}) async {
+    if (!_masterPasswordStrongEnough()) return;
     setState(() => _busy = true);
     try {
       await _saveSync();
@@ -1694,9 +1712,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
       if (result != VaultExportResult.saved) return;
       // 解不开的凭据没法放进备份。不说的话，用户换完手机才发现少了密码。
       final missing = controller.repository.unreadableSecrets.length;
-      _message(missing == 0
-          ? '加密备份已导出'
-          : '加密备份已导出，但有 $missing 条凭据解不开，没有带上');
+      _message(missing == 0 ? '加密备份已导出' : '加密备份已导出，但有 $missing 条凭据解不开，没有带上');
     } catch (error) {
       _message('导出失败：$error');
     }

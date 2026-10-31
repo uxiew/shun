@@ -85,7 +85,9 @@ void main() {
   testWidgets('默认开关下冷启动、打开设置、后台恢复都不发网络请求', (tester) async {
     final requests = await launchAndVisitSettings(tester);
     expect(requests.map((r) => r.url.toString()), isEmpty);
-    expect(find.byKey(const ValueKey('cloud-auto-sync')), findsNothing);
+    // 云同步入口在，但没填配置：就算残留着「自动同步已开」也没有请求（SYN03）。GitHub 那一项不出现。
+    expect(find.byKey(const ValueKey('cloud-auto-sync')), findsOneWidget);
+    expect(find.text('GitHub'), findsNothing);
     expect(find.text('管理多个 AI 服务商'), findsNothing);
   });
 

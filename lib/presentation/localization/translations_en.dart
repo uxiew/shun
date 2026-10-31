@@ -607,6 +607,10 @@ const englishTranslations = <String, String>{
   'GitHub Token（备用）': 'GitHub token (fallback)',
   'Gist ID（通常自动识别）': 'Gist ID (normally detected automatically)',
   '同步主密码': 'Sync master password',
+  '同步主密码至少 12 位': 'The sync master password must be at least 12 characters',
+  '填好才会外连。密码和私钥也会加密后传上去，靠同步主密码保护。':
+      'Nothing connects until this is filled in. Passwords and private keys are uploaded too, encrypted with the sync master password.',
+  '这个版本不支持同步到 GitHub': 'This version cannot sync to GitHub',
   '拉取并合并': 'Pull & merge',
   '上传': 'Upload',
   '立即同步': 'Sync now',
@@ -2384,8 +2388,6 @@ const englishTranslations = <String, String>{
       'Passwords and private keys are kept only in the system secure storage. The first connection to a server asks you to check its fingerprint; if it changes later, the connection is stopped before any login is sent.',
   '关着时，编辑连接、编辑代理和输密码的对话框截屏、录屏都是黑的，最近任务里也看不到。终端页不受影响。只对 Android 有效。':
       'When off, screenshots and recordings of the connection and proxy editors and password dialogs are black, and Recents hides them. Terminal pages are not affected. Android only.',
-  '和桌面端用同一个加密文件 netcatty-vault.json，两边能互相同步。':
-      'Uses the same encrypted netcatty-vault.json as the desktop app, so both can sync with each other.',
   'MinIO 这类自建 S3 要开着。默认开。':
       'Keep this on for self-hosted S3 such as MinIO. On by default.',
   '只给 HTTP 或自签名 HTTPS 的服务用。开着时任何证书都接受，被中间人截走也发现不了。':

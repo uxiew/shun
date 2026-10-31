@@ -9,6 +9,7 @@ import '../infrastructure/storage/vault_repository.dart';
 import '../infrastructure/sync/cloud_sync_service.dart';
 import '../infrastructure/sync/vault_merge_service.dart';
 import 'app_log.dart';
+import 'fork_features.dart';
 import 'vault_controller.dart';
 
 const autoSyncChangeDebounce = Duration(seconds: 10);
@@ -56,6 +57,7 @@ final autoSyncControllerProvider =
   final service = CloudSyncService(
     repository,
     client: ref.watch(httpClientProvider),
+    githubEnabled: ref.watch(forkFeaturesProvider).githubSync,
   );
   return AutoSyncController(
     localChanges: repository.localChanges,

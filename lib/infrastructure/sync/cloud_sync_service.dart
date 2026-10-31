@@ -72,6 +72,7 @@ class CloudSyncService {
     this.maxResponseBytes = 8 * 1024 * 1024,
     String? deviceId,
     String? appVersion,
+    this.githubEnabled = true,
   })  : _client = client ?? http.Client(),
         _ownsClient = client == null,
         _injectedDeviceId = deviceId,
@@ -82,6 +83,9 @@ class CloudSyncService {
   final bool _ownsClient;
   final Duration requestTimeout;
   final int maxResponseBytes;
+
+  /// 关着时，就算存着 GitHub 的配置也不连 api.github.com（ForkFeatures.githubSync）。
+  final bool githubEnabled;
   final String? _injectedDeviceId;
   final String? _injectedAppVersion;
 
@@ -318,6 +322,7 @@ class CloudSyncService {
       throw StateError('请先在设置中配置云同步与同步密码');
     }
     if (connection.type == SyncProviderType.githubGist) {
+      if (!githubEnabled) throw StateError('这个版本不支持同步到 GitHub');
       if (connection.secret?.isNotEmpty != true) {
         throw StateError('请先登录 GitHub');
       }

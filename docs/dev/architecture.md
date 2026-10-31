@@ -453,9 +453,9 @@ flowchart TD
 
 用户怎么搬数据见[使用手册第 12 节](../user/README.md#12-导出导入与凭据)。
 
-### 云同步（默认关闭）
+### 云同步（没配置就不连）
 
-`ForkFeatures.cloudSync` 默认关：设置页不显示同步区，`app.dart` 也不启动自动同步。代码在 `infrastructure/sync/`：
+`ForkFeatures.cloudSync` 开着，只有 WebDAV、S3；GitHub 由 `githubSync` 关着。代码在 `infrastructure/sync/`：
 
 - 后端 `SyncProviderType { webdav, githubGist, s3 }`，远端文件名都是 `netcatty-vault.json`，和桌面端同一个文件。三家都用 ETag 做乐观并发，冲突时整个流程最多试 3 次；WebDAV 先 PUT 临时文件再 MOVE，写完读回比对。GitHub 用设备码登录（`github_auth_service.dart`）。
 - 加密在 `netcatty_crypto.dart`，参数、云端看得到什么、传输要求见[安全文档 2.3](security.md#23-云同步默认关)。
