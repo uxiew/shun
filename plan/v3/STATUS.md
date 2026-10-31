@@ -6,7 +6,7 @@
 
 **一句话：R26 进行中：所有者在手机上提了三批反馈（F1–F25），10-31 装上了 29 包。之后所有者定了做 dartssh2 升级和 F22、F23、F25 的安全密钥（R58–R66）。R58、R60、R61 做完了，R59 代码写完等真钥匙，这些都还没进手机；下次装包要所有者当次同意。主线只卡「所有者拿手机按清单用」这一件。**
 
-- 任务 81 条：DONE 53、IN_PROGRESS 2（R26、R59）、NOT_STARTED 7、DEFERRED 19（DEFERRED 是 P6 后续功能，启用顺序由所有者定）。
+- 任务 81 条：DONE 53、IN_PROGRESS 3（R26、R59、R62）、NOT_STARTED 6、DEFERRED 19（DEFERRED 是 P6 后续功能，启用顺序由所有者定）。
 - 用例 172 条：PASS 150、FAIL 0、BLOCKED 6、NOT_RUN 16。每条实际做了什么、看到了什么在 `evidence/`。
 - 门禁只有 G0、G3 PASS，其余 NOT_RUN（各差什么见「早期进展」的门禁一条），离 CORE_READY / FULL_READY 还远。
 - 最近一次全量单测（10-31，R61 改完；没开 Docker，`-j 4`）：1638 过 / 269 跳过 / 0 失败。跳过的都是要测试环境的，算没跑；

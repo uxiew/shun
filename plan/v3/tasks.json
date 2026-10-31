@@ -3161,7 +3161,7 @@
       "id": "R62",
       "phase": "P6",
       "title": "手机之间局域网互传",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [
         "R60"
       ],
@@ -3184,8 +3184,10 @@
       ],
       "stop_condition": "不做互联网打洞和中继；没两台真机时写 NOT_RUN。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R62.md"
+      ],
+      "commit": "5a4ec7d"
     },
     {
       "id": "R63",
