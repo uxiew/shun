@@ -10,11 +10,13 @@ import 'package:uuid/uuid.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/credential_identity.dart';
 import '../../domain/models/host.dart';
+import '../../domain/security_key.dart';
 import '../../domain/ssh_key_type.dart';
 import '../../domain/vault_secrets.dart';
 import '../../infrastructure/storage/picked_files.dart';
 import 'identity_editor.dart';
 import 'secret_content.dart';
+import 'security_key_actions.dart';
 
 /// 「凭据」（R26 F25，以前叫「SSH 密钥库」）：登录身份和 SSH 密钥放在一处管。
 ///
@@ -45,12 +47,18 @@ class KeychainSheet extends ConsumerWidget {
               key: const ValueKey('keychain-add'),
               tooltip: localized('添加'),
               icon: const Icon(Icons.add),
-              onSelected: (value) => value == 'identity'
-                  ? _editIdentity(context, ref, null)
-                  : _import(context, ref),
+              onSelected: (value) => switch (value) {
+                'identity' => _editIdentity(context, ref, null),
+                'security-key' => addSecurityKey(context, ref),
+                _ => _import(context, ref),
+              },
               itemBuilder: (_) => const [
                 PopupMenuItem(value: 'identity', child: LText('新建登录身份')),
                 PopupMenuItem(value: 'key', child: LText('导入 SSH 私钥')),
+                PopupMenuItem(
+                  value: 'security-key',
+                  child: LText('添加安全密钥'),
+                ),
               ],
             ),
           ],
@@ -125,11 +133,25 @@ class KeychainSheet extends ConsumerWidget {
                 subtitle: LText(
                   key.data['type']?.toString() ?? 'OpenSSH / PEM',
                 ),
-                trailing: IconButton(
-                  key: ValueKey('keychain-delete-${key.id}'),
-                  tooltip: localized('删除私钥'),
-                  onPressed: () => _delete(context, ref, key),
-                  icon: const Icon(Icons.delete_outline),
+                trailing: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (SecurityKeyStub.publicKeyLineOf(key.privateKey)
+                        case final line?)
+                      IconButton(
+                        key: ValueKey('keychain-public-key-${key.id}'),
+                        tooltip: localized('公钥'),
+                        onPressed: () =>
+                            showSecurityKeyPublicKey(context, line),
+                        icon: const Icon(Icons.content_copy_outlined),
+                      ),
+                    IconButton(
+                      key: ValueKey('keychain-delete-${key.id}'),
+                      tooltip: localized('删除私钥'),
+                      onPressed: () => _delete(context, ref, key),
+                      icon: const Icon(Icons.delete_outline),
+                    ),
+                  ],
                 ),
               ),
           ],
@@ -311,6 +333,7 @@ class KeychainSheet extends ConsumerWidget {
       return;
     }
     final type = sshKeyTypeOf(privateKey);
+    final publicKey = SecurityKeyStub.publicKeyLineOf(privateKey);
     final label = TextEditingController(text: file.name);
     final passphrase = TextEditingController();
     if (!context.mounted) return;
@@ -348,6 +371,7 @@ class KeychainSheet extends ConsumerWidget {
                 // 认不出就不写，列表里显示「OpenSSH / PEM」；以前一律写 ED25519。
                 if (type != null) 'type': type,
                 'privateKey': privateKey,
+                if (publicKey != null) 'publicKey': publicKey,
                 'passphrase': passphrase.text,
                 'savePassphrase': true,
                 'source': 'imported',

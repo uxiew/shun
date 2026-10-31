@@ -14,6 +14,7 @@ import 'infrastructure/ssh/connection_platform_service.dart';
 import 'presentation/home_shell.dart';
 import 'presentation/localization/localized_widgets.dart';
 import 'presentation/terminal/ghostty_terminal_view.dart';
+import 'presentation/widgets/security_key_prompt.dart';
 import 'presentation/theme.dart';
 
 class ShunApp extends ConsumerStatefulWidget {
@@ -24,6 +25,7 @@ class ShunApp extends ConsumerStatefulWidget {
 }
 
 class _ShunAppState extends ConsumerState<ShunApp> with WidgetsBindingObserver {
+  final _navigatorKey = GlobalKey<NavigatorState>();
   late final ProviderSubscription<bool> _autoSyncSubscription;
   late final ProviderSubscription<bool> _screenshotSubscription;
 
@@ -36,6 +38,13 @@ class _ShunAppState extends ConsumerState<ShunApp> with WidgetsBindingObserver {
     ref.read(sessionControllerProvider.notifier);
     // 连接记录（R25）一启动就读盘：主机菜单按已经读到的判断「有没有记录」，不在点开菜单时等读盘。
     ref.read(connectionEventLogProvider.notifier);
+    // 连接在哪都可能走到要碰钥匙（新开标签、重连、测试连接），弹框不依赖发起连接的页面还在不在。
+    ref.read(sshServiceProvider).securityKeySigner = (request) =>
+        signWithSecurityKey(
+          _navigatorKey.currentContext,
+          ref.read(securityKeyChannelProvider),
+          request,
+        );
     _autoSyncSubscription = ref.listenManual<bool>(
       settingsControllerProvider.select((settings) => settings.autoSyncEnabled),
       (_, enabled) => ref
@@ -86,6 +95,7 @@ class _ShunAppState extends ConsumerState<ShunApp> with WidgetsBindingObserver {
       _ => ThemeMode.dark,
     };
     return MaterialApp(
+      navigatorKey: _navigatorKey,
       // Android 最近任务列表显示的名字；与原版 Netcatty 同机并存时靠它区分。所有者 2026-10-11 定为 shun。
       title: 'shun',
       debugShowCheckedModeBanner: false,
