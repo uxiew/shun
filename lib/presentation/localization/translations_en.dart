@@ -1169,6 +1169,7 @@ const englishTranslations = <String, String>{
   r'附着同一个 tmux 会话 ${tmux!.displayName}，核对过才换过去，不重发输入':
       r'Attaches the same tmux session ${tmux!.displayName}, moves over only after verifying, and resends nothing',
   r'另开一个 $to 标签，这个标签不动': r'Opens another $to tab; this one stays as it is',
+  '存储方式没换，点「立即备份」才算': 'Storage type not changed. Tap Back up now to switch',
   '合并': 'Merge',
   '替换': 'Replace',
   // R13：Tailscale 设备目录（tailscale_catalog_screen.dart、catalog_import_sheet.dart、

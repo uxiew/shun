@@ -268,6 +268,32 @@ void main() {
       expect(find.text('主密码不到 12 位，没有保存'), findsOneWidget);
     });
 
+    testWidgets('存着 WebDAV，切到 S3 看一眼就返回：配置不动，并且告诉用户', (tester) async {
+      await configure();
+      await open(tester);
+      await tester.tap(find.text('S3'));
+      await tester.pump(const Duration(seconds: 1));
+      await leave(tester);
+
+      final saved = await repository.loadSyncConnection();
+      expect(saved?.type, SyncProviderType.webdav);
+      expect(saved?.username, 'me');
+      expect(find.text('存储方式没换，点「立即备份」才算'), findsOneWidget);
+    });
+
+    testWidgets('第一次配就选 S3：填了返回也存下', (tester) async {
+      await open(tester);
+      await tester.tap(find.text('S3'));
+      await tester.pump(const Duration(seconds: 1));
+      await tester.enterText(field('S3 Endpoint'), 'https://s3.example.com');
+      await tester.enterText(field('Bucket'), 'b');
+      await leave(tester);
+
+      final saved = await repository.loadSyncConnection();
+      expect(saved?.type, SyncProviderType.s3);
+      expect(saved?.bucket, 'b');
+    });
+
     testWidgets('没改过：配置原样，口令还在', (tester) async {
       await configure();
       await open(tester);

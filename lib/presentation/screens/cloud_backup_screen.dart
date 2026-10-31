@@ -399,26 +399,35 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
         masterPassword.text,
       ];
 
-  /// 这页一关输入框就没了：填了没点按钮也存下来，不然返回一次就白填。
-  /// 先存完再关页面，设置页回来时读到的才是新的。
-  ///
-  /// 主密码不到 12 位不存：开着自动备份时，存了下一轮就拿它加密上传。还没读完配置也不存，
-  /// 不然打开马上返回，会拿空表单把配置盖掉。连按两次返回只算一次，不然会把首页也关掉。
+  /// 先存完再关页面，设置页回来时读到的才是新的。连按两次返回只算一次，不然会把首页也关掉。
+  /// 还没读完配置不存：不然打开马上返回，会拿空表单把配置盖掉。
   Future<void> _leave() async {
     if (_leaving) return;
     _leaving = true;
     try {
-      if (_loaded && !listEquals(_formValues(), _savedForm)) {
-        final password = masterPassword.text;
-        final savePassword = password.isEmpty ||
-            password.length >= EncryptedVaultFile.minPassphraseLength;
-        await _saveSync(savePassword: savePassword);
-        if (!savePassword) _message('主密码不到 12 位，没有保存');
-      }
+      if (_loaded && !listEquals(_formValues(), _savedForm)) await _saveEdits();
     } on Object catch (error) {
       _message('$error');
     }
     if (mounted) Navigator.of(context).pop();
+  }
+
+  /// 这页一关输入框就没了：填了没点按钮也存下来，不然返回一次就白填。
+  ///
+  /// 存着一份配置时，只是切到另一个分段再返回不算要换：两边共用地址和密码框，存了的话
+  /// 原来的用户名、bucket 就没了，开着自动备份时还会连错地方。要换就点按钮。
+  /// 主密码不到 12 位不存：开着自动备份时，存了下一轮就拿它加密上传。
+  Future<void> _saveEdits() async {
+    final hadConfig = _savedForm[1] != '' || _savedForm[3] != '';
+    if (hadConfig && _savedForm.first != provider) {
+      _message('存储方式没换，点「立即备份」才算');
+      return;
+    }
+    final password = masterPassword.text;
+    final savePassword = password.isEmpty ||
+        password.length >= EncryptedVaultFile.minPassphraseLength;
+    await _saveSync(savePassword: savePassword);
+    if (!savePassword) _message('主密码不到 12 位，没有保存');
   }
 
   Future<void> _saveSync({bool savePassword = true}) async {
