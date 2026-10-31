@@ -89,6 +89,18 @@ void main() {
     expect(find.text('管理多个 AI 服务商'), findsNothing);
   });
 
+  testWidgets('数据区：加密备份入口弹口令框，取消后什么都不写', (tester) async {
+    final requests = await launchAndVisitSettings(tester);
+    await tester.tap(find.byKey(const ValueKey('export-encrypted-backup')));
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byKey(const ValueKey('backup-passphrase')), findsOneWidget);
+    expect(find.byKey(const ValueKey('backup-passphrase-again')), findsOneWidget);
+    await tester.tap(find.text('取消').last);
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byKey(const ValueKey('backup-passphrase')), findsNothing);
+    expect(requests, isEmpty);
+  });
+
   testWidgets('对照：开关全开时能录到请求、能找到入口，证明上一条不是夹具失灵才通过', (tester) async {
     final requests = await launchAndVisitSettings(
       tester,

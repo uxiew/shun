@@ -228,6 +228,16 @@ void main() {
       }
     });
 
+    test('明文 JSON 被覆盖后留尾巴：也能读', () {
+      final plain = [
+        ...utf8.encode(
+            '{"hosts":[],"keys":[],"snippets":[],"customGroups":["a}"]}'),
+        ...utf8.encode(' "old tail"}]'),
+        0xE4,
+      ];
+      expect(EncryptedVaultFile.parsePlain(plain).customGroups, ['a}']);
+    });
+
     test('后台 isolate 里加解密：保险库能跨 isolate 传', () async {
       final encoded =
           await encodeBackupInBackground(vault(), passphrase, 'test');

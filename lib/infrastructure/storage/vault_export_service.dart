@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 
 import 'package:file_picker/file_picker.dart';
+import 'package:flutter/services.dart';
 
 import '../../domain/models/vault.dart';
 import '../../domain/vault_secrets.dart';
@@ -17,11 +17,27 @@ typedef SaveVaultFile = Future<String?> Function({
   Uint8List? bytes,
 });
 
+/// Android 上不用 file_picker 存：它写文件不截断，原因见 DocumentTreeChannel.saveDocument。
+Future<String?> _saveDocumentOnAndroid({
+  String? dialogTitle,
+  String? fileName,
+  FileType type = FileType.any,
+  List<String>? allowedExtensions,
+  Uint8List? bytes,
+}) =>
+    const MethodChannel('top.xdwa.shun/storage').invokeMethod<String>(
+      'saveDocument',
+      {'fileName': fileName, 'bytes': bytes},
+    );
+
 class VaultExportService {
   VaultExportService({
     SaveVaultFile? saveFile,
     bool? pickerWritesBytes,
-  })  : _saveFile = saveFile ?? FilePicker.platform.saveFile,
+  })  : _saveFile = saveFile ??
+            (Platform.isAndroid
+                ? _saveDocumentOnAndroid
+                : FilePicker.platform.saveFile),
         _pickerWritesBytes =
             pickerWritesBytes ?? (Platform.isAndroid || Platform.isIOS);
 

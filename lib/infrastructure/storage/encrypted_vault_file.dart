@@ -46,8 +46,8 @@ class EncryptedVaultFile {
 
   /// 这些字节是不是加密备份。不是就返回 null，调用方按明文 JSON 处理。
   ///
-  /// 文件尾部多出来的东西不理：直接覆盖同名的长文件时，有的存储服务不截断（file_picker 用 `openOutputStream`
-  /// 默认模式），尾部会留着旧内容，直接 `jsonDecode` 会报错，备份就打不开了。内容有 GCM 校验，尾巴影响不到它。
+  /// 文件尾部多出来的东西不理：短内容盖长文件可能不截断（file_picker 写的都这样，现在自己写的见
+  /// DocumentTreeChannel.saveDocument），直接 `jsonDecode` 会报错，备份就打不开了。内容有 GCM 校验，尾巴影响不到它。
   static SyncedVaultFile? tryParse(List<int> bytes) {
     try {
       final text = utf8.decode(bytes, allowMalformed: true);
@@ -94,8 +94,12 @@ class EncryptedVaultFile {
   /// 明文 JSON（不含密码的导出、桌面端解密后导出的）。不是保险库或文件坏了抛 [FormatException]。
   static VaultData parsePlain(List<int> bytes) {
     try {
+      // 同样可能留着尾巴，见 [tryParse]。
+      final text = utf8.decode(bytes, allowMalformed: true);
+      final end = _endOfFirstObject(text);
+      if (end == null) throw const FormatException(notAVaultFile);
       return VaultData.fromJson(
-        jsonDecode(utf8.decode(bytes)) as Map<String, dynamic>,
+        jsonDecode(text.substring(0, end)) as Map<String, dynamic>,
       );
     } on FormatException {
       throw const FormatException(notAVaultFile);

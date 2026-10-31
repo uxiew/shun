@@ -20,6 +20,7 @@ class DocumentTreeChannel(
     companion object {
         private const val CHANNEL = "top.xdwa.shun/storage"
         private const val REQUEST_MOUNT_TREE = 8042
+        private const val REQUEST_SAVE_DOCUMENT = 8043
         private const val PREFS = "shun_document_tree"
         private const val PREF_TREE_URI = "tree_uri"
         private val PROJECTION = arrayOf(
@@ -36,17 +37,27 @@ class DocumentTreeChannel(
     private val mainHandler = Handler(Looper.getMainLooper())
     private val preferences = activity.getSharedPreferences(PREFS, Activity.MODE_PRIVATE)
     private var pendingMount: MethodChannel.Result? = null
+    private var pendingSave: PendingSave? = null
+
+    private class PendingSave(val result: MethodChannel.Result, val bytes: ByteArray)
 
     init {
         channel.setMethodCallHandler(::handleCall)
     }
 
     fun dispose() {
+        // 选择器开着时界面被系统回收：结果到不了这个实例，先告诉 Dart 没存成，不然它一直等。
+        pendingSave?.result?.error("save_interrupted", "界面被系统回收了，没有保存，请重新导出", null)
+        pendingSave = null
         channel.setMethodCallHandler(null)
         executor.shutdown()
     }
 
     fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?): Boolean {
+        if (requestCode == REQUEST_SAVE_DOCUMENT) {
+            finishSave(resultCode, data)
+            return true
+        }
         if (requestCode != REQUEST_MOUNT_TREE) return false
         val result = pendingMount ?: return true
         pendingMount = null
@@ -84,6 +95,7 @@ class DocumentTreeChannel(
                 if (tree == null) mapOf("mounted" to false) else mountInfo(tree)
             }
             "mount" -> mount(result)
+            "saveDocument" -> saveDocument(call, result)
             "list" -> runIo(result) { list(requirePath(call, "path")) }
             "stat" -> runIo(result) {
                 val tree = requireTree()
@@ -132,6 +144,54 @@ class DocumentTreeChannel(
                 null
             }
             else -> result.notImplemented()
+        }
+    }
+
+    /**
+     * 存到哪让用户选，写文件我们自己来。file_picker 也能存，但它用 `openOutputStream(uri)`，默认模式 "w" 不截断：
+     * API 30 上 879 字节盖 680579 字节的旧文件，文件还是 680579 字节（R60 实测）。加密备份盖到不含密码的 JSON 上时，
+     * 尾部就留着明文主机名。
+     */
+    private fun saveDocument(call: MethodCall, result: MethodChannel.Result) {
+        if (pendingSave != null) {
+            result.error("save_active", "文件选择器已经打开", null)
+            return
+        }
+        val bytes = call.argument<ByteArray>("bytes")
+        if (bytes == null) {
+            result.error("storage_error", "缺少文件内容", null)
+            return
+        }
+        pendingSave = PendingSave(result, bytes)
+        val intent = Intent(Intent.ACTION_CREATE_DOCUMENT).apply {
+            addCategory(Intent.CATEGORY_OPENABLE)
+            type = "application/json"
+            putExtra(Intent.EXTRA_TITLE, call.argument<String>("fileName"))
+        }
+        try {
+            activity.startActivityForResult(intent, REQUEST_SAVE_DOCUMENT)
+        } catch (error: Exception) {
+            pendingSave = null
+            result.error("storage_error", error.message ?: error.toString(), null)
+        }
+    }
+
+    private fun finishSave(resultCode: Int, data: Intent?) {
+        val pending = pendingSave ?: return
+        pendingSave = null
+        val uri = data?.data
+        if (resultCode != Activity.RESULT_OK || uri == null) {
+            pending.result.success(null)
+            return
+        }
+        runIo(pending.result) {
+            val resolver = activity.contentResolver
+            // 个别存储服务不认 "wt"：退回 "w"，文件总要存上，尾巴读的时候也不理（EncryptedVaultFile）。
+            val output = runCatching { resolver.openOutputStream(uri, "wt") }.getOrNull()
+                ?: resolver.openOutputStream(uri, "w")
+                ?: throw IllegalStateException("打不开选中的文件")
+            output.use { it.write(pending.bytes) }
+            uri.toString()
         }
     }
 

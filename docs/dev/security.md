@@ -116,7 +116,8 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 - payload 里没有 `knownHosts` 和 `convergentSync`：指纹导入时本来就不收（见 2.2），同步的收敛信息对别的手机没意义。
 - 口令至少 12 位，输两遍，不存：文件离开手机后能被离线猜。
 - 算口令在后台 isolate（`encodeBackupInBackground`）。云同步现在还在主线程算。
-- 读的时候只看第一个完整的 JSON 对象（`tryParse`）。`file_picker` 10.3.10 用 `openOutputStream(uri)` 写（`FileUtils.kt:117`），没传 `"wt"`；子代理查到有的存储服务这样覆盖长文件不截断（**我没复现**）。留下尾巴也能解开，内容有 GCM 校验，尾巴影响不到它。
+- 写文件走自己的 `saveDocument`（`DocumentTreeChannel`），模式 `"wt"`。file_picker 10.3.10 用 `openOutputStream(uri)`（`FileUtils.kt:117`）不截断：API 30 模拟器上 879 字节盖 680579 字节的旧文件，文件还是 680579 字节，尾部是旧内容（R60 实测）。加密备份盖到不含密码的 JSON 上，尾部就是明文主机名。
+- 读的时候只看第一个完整的 JSON 对象（`tryParse`、`parsePlain`）：别的工具写的、不认 `"wt"` 的存储服务上的文件仍可能留尾巴。内容有 GCM 校验，尾巴影响不到它。
 - `EncryptedVaultFile.tryParse` 认不出就按明文 JSON 处理。加密备份被截断后也走这条路，报「不是保险库文件，或者文件已损坏」。
 
 ### 2.2 导入
