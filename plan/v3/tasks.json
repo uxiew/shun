@@ -2604,7 +2604,7 @@
       "id": "R45",
       "phase": "P6",
       "title": "快捷键栏按主机分配布局，加常用模板",
-      "status": "DEFERRED",
+      "status": "DONE",
       "depends_on": [
         "R25"
       ],
@@ -2626,8 +2626,10 @@
       "test_ids": [],
       "stop_condition": "10-07 定的「按键面板 + 大输入框」交互不推翻；布局导入导出、在线模板不做（等所有者用一段时间面板再定）。",
       "owner_role": "实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R45.md"
+      ],
+      "commit": "8cb5911"
     },
     {
       "id": "R46",
