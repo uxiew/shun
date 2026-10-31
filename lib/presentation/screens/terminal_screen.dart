@@ -271,6 +271,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
     required _InputLayout layout,
   }) {
     final tight = layout.tight;
+    final keysHost = inputSession == null ? null : _vaultHostOf(inputSession);
     // 用按键面板、大输入框时点终端不叫系统键盘；从面板换回系统键盘那一下让输入那一格叫出键盘。
     final softKeyboard = inputMode == terminalInputSystem;
     int keyboardRequestFor(ActiveTerminalSession session) =>
@@ -588,9 +589,9 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                   key: const ValueKey('terminal-quick-keys'),
                   order: settings.terminalQuickKeys,
                   exactOrder: settings.terminalQuickKeysExact,
-                  hostOrder: _vaultHostOf(inputSession)?.terminalKeys,
-                  hostLabel: _vaultHostOf(inputSession)?.label,
-                  onSaveHostOrder: _vaultHostOf(inputSession) == null
+                  hostOrder: keysHost?.terminalKeys,
+                  hostLabel: keysHost?.label,
+                  onSaveHostOrder: keysHost == null
                       ? null
                       : (order) => _saveHostKeys(inputSession, order),
                   customKeys: settings.terminalCustomKeys,
