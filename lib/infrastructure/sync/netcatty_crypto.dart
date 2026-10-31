@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:isolate';
 import 'dart:math';
 import 'dart:typed_data';
 
@@ -42,6 +43,8 @@ class NetcattyCrypto {
   );
   static final _aes = AesGcm.with256bits();
 
+  /// 口令派生故意慢（纯 Dart 循环，模拟器 AOT 上 60 万轮约 2.8 秒，机器忙时 7 秒），所以加解密都在
+  /// 后台 isolate。放主 isolate 的话，每次自动同步界面和终端都会停几秒。
   static Future<SyncedVaultFile> encrypt({
     required VaultData vault,
     required String password,
@@ -49,6 +52,25 @@ class NetcattyCrypto {
     required String deviceName,
     required String appVersion,
     int previousVersion = 0,
+  }) =>
+      Isolate.run(
+        () => _encrypt(
+          vault: vault,
+          password: password,
+          deviceId: deviceId,
+          deviceName: deviceName,
+          appVersion: appVersion,
+          previousVersion: previousVersion,
+        ),
+      );
+
+  static Future<SyncedVaultFile> _encrypt({
+    required VaultData vault,
+    required String password,
+    required String deviceId,
+    required String deviceName,
+    required String appVersion,
+    required int previousVersion,
   }) async {
     final random = Random.secure();
     final salt = Uint8List.fromList(
@@ -94,7 +116,10 @@ class NetcattyCrypto {
     );
   }
 
-  static Future<VaultData> decrypt(
+  static Future<VaultData> decrypt(SyncedVaultFile file, String password) =>
+      Isolate.run(() => _decrypt(file, password));
+
+  static Future<VaultData> _decrypt(
     SyncedVaultFile file,
     String password,
   ) async {

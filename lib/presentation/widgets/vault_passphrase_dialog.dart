@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:isolate';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
@@ -10,8 +9,6 @@ import '../../infrastructure/sync/netcatty_crypto.dart';
 import '../localization/localized_widgets.dart';
 import 'secret_content.dart';
 
-/// 口令派生是故意慢的（PBKDF2 60 万次），放主线程会掉帧甚至 ANR，所以都在后台 isolate 算。
-/// 只能传顶层函数和数据：闭包捕获到 State 的话会报 `object is unsendable`。
 typedef BackupEncoder = Future<Uint8List> Function(
   VaultData vault,
   String passphrase,
@@ -22,31 +19,23 @@ typedef BackupDecoder = Future<VaultData> Function(
   String passphrase,
 );
 
-Future<Uint8List> encodeBackupInBackground(
+Future<Uint8List> _encode(
   VaultData vault,
   String passphrase,
   String appVersion,
 ) =>
-    Isolate.run(
-      () => EncryptedVaultFile.encode(
-        vault: vault,
-        passphrase: passphrase,
-        appVersion: appVersion,
-      ),
+    EncryptedVaultFile.encode(
+      vault: vault,
+      passphrase: passphrase,
+      appVersion: appVersion,
     );
-
-Future<VaultData> decodeBackupInBackground(
-  SyncedVaultFile file,
-  String passphrase,
-) =>
-    Isolate.run(() => EncryptedVaultFile.decrypt(file, passphrase));
 
 /// 问口令、加密。返回 null 表示取消。
 Future<Uint8List?> askAndEncodeBackup(
   BuildContext context,
   VaultData vault,
   String appVersion, {
-  BackupEncoder encode = encodeBackupInBackground,
+  BackupEncoder encode = _encode,
 }) async {
   final passphrase = await askNewBackupPassphrase(context);
   if (passphrase == null || !context.mounted) return null;
@@ -59,7 +48,7 @@ Future<Uint8List?> askAndEncodeBackup(
 Future<VaultData?> askAndDecodeBackup(
   BuildContext context,
   SyncedVaultFile file, {
-  BackupDecoder decode = decodeBackupInBackground,
+  BackupDecoder decode = EncryptedVaultFile.decrypt,
 }) async {
   String? problem;
   while (context.mounted) {

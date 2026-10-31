@@ -10,7 +10,6 @@ import 'package:shun/domain/models/vault.dart';
 import 'package:shun/infrastructure/storage/encrypted_vault_file.dart';
 import 'package:shun/infrastructure/storage/vault_export_service.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
-import 'package:shun/presentation/widgets/vault_passphrase_dialog.dart';
 
 // SYN01 的设备部分：真的系统文件选择器、真的安全存储、后台 isolate。
 // 文件选择器是系统界面，Flutter 点不到：测试打 `R60 ACTION=<动作>`，tool/r60-backup.py 在电脑上照做。
@@ -83,11 +82,10 @@ void main() {
     await tester.runAsync(() async {
       final service = VaultExportService();
       final watch = Stopwatch()..start();
-      final long = await encodeBackupInBackground(
-        _vault(tag: 'LONG', filler: 2000),
-        _passphrase,
-        'r60',
-      );
+      final long = await EncryptedVaultFile.encode(
+          vault: _vault(tag: 'LONG', filler: 2000),
+          passphrase: _passphrase,
+          appVersion: 'r60');
       r60('encodeMs', watch.elapsedMilliseconds);
       r60('longBytes', long.length);
 
@@ -97,7 +95,7 @@ void main() {
       expect(back, long, reason: '存进去和读回来的字节要一样');
 
       watch.reset();
-      final decoded = await decodeBackupInBackground(
+      final decoded = await EncryptedVaultFile.decrypt(
         EncryptedVaultFile.tryParse(back)!,
         _passphrase,
       );
@@ -105,18 +103,17 @@ void main() {
       expect(decoded.hosts.single.password, 'HOST-LONG');
 
       await expectLater(
-        decodeBackupInBackground(
+        EncryptedVaultFile.decrypt(
           EncryptedVaultFile.tryParse(back)!,
           'not the passphrase',
         ),
         throwsA(isA<FormatException>()),
       );
 
-      final short = await encodeBackupInBackground(
-        _vault(tag: 'SHORT'),
-        _passphrase,
-        'r60',
-      );
+      final short = await EncryptedVaultFile.encode(
+          vault: _vault(tag: 'SHORT'),
+          passphrase: _passphrase,
+          appVersion: 'r60');
       r60('ACTION', 'save-overwrite');
       expect(await service.exportEncrypted(short), VaultExportResult.saved);
       final over = await _pickBack();
@@ -126,7 +123,7 @@ void main() {
             'truncated=${over.length == short.length}',
       );
       expect(over, short, reason: '覆盖后不能留旧文件的尾巴');
-      final restored = await decodeBackupInBackground(
+      final restored = await EncryptedVaultFile.decrypt(
         EncryptedVaultFile.tryParse(over)!,
         _passphrase,
       );

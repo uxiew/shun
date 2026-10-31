@@ -238,16 +238,16 @@ void main() {
       expect(EncryptedVaultFile.parsePlain(plain).customGroups, ['a}']);
     });
 
-    test('后台 isolate 里加解密：保险库能跨 isolate 传', () async {
-      final encoded =
-          await encodeBackupInBackground(vault(), passphrase, 'test');
-      final back = await decodeBackupInBackground(
+    test('加解密在后台 isolate：错误能传回来', () async {
+      final encoded = await EncryptedVaultFile.encode(
+          vault: vault(), passphrase: passphrase, appVersion: 'test');
+      final back = await EncryptedVaultFile.decrypt(
         EncryptedVaultFile.tryParse(encoded)!,
         passphrase,
       );
       expect(back.hosts.single.password, 'HOST-PASSWORD');
       await expectLater(
-        decodeBackupInBackground(
+        EncryptedVaultFile.decrypt(
           EncryptedVaultFile.tryParse(encoded)!,
           'wrong passphrase!',
         ),
