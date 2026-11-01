@@ -50,6 +50,7 @@ import '../widgets/terminal_key_button.dart';
 import '../widgets/terminal_paste_sheet.dart';
 import '../widgets/session_tab_actions.dart';
 import '../widgets/terminal_special_keys.dart';
+import '../widgets/two_finger_swipe.dart';
 import '../widgets/system_management/server_panel_sheet.dart';
 import '../widgets/tailscale_check_card.dart';
 import '../terminal/terminal_view.dart';
@@ -532,70 +533,49 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
               //（模拟器横屏收键盘时撞上）。
               Expanded(
                 key: const ValueKey('terminal-area'),
-                child: selectedPending != null
-                    ? _ConnectionStatusPane(
-                        pending: selectedPending,
-                        onReturn: state.sessions.isEmpty
-                            ? null
-                            : () => ref
-                                .read(sessionControllerProvider.notifier)
-                                .activate(state.activeIndex),
-                        onClose: selectedPending.phase ==
-                                PendingConnectionPhase.failed
-                            ? () => ref
-                                .read(sessionControllerProvider.notifier)
-                                .dismissPending(selectedPending.id)
-                            : null,
-                        onRetry: selectedPending.phase ==
-                                    PendingConnectionPhase.failed &&
-                                selectedPending.retryable
-                            ? () => unawaited(_retry(selectedPending))
-                            : null,
-                        onCancel: selectedPending.phase ==
-                                PendingConnectionPhase.connecting
-                            ? () => ref
-                                .read(sessionControllerProvider.notifier)
-                                .cancelPendingConnection(selectedPending.id)
-                            : null,
-                      )
-                    : state.sessions.isEmpty
-                        ? const EmptyState(
-                            icon: Icons.terminal_outlined,
-                            title: '没有活动会话',
-                            subtitle: '从「连接」页选一台主机开始连接。',
-                          )
-                        : LayoutBuilder(
-                            builder: (context, constraints) {
-                              if (pictureInPicture ||
-                                  !_split ||
-                                  state.sessions.length < 2) {
-                                return _TerminalPane(
-                                  key: ValueKey(state.active!.id),
-                                  session: state.active!,
-                                  fontSize: settings.terminalFontSize,
-                                  secureKeyboard:
-                                      settings.terminalSecureKeyboard,
-                                  fullscreenSwipe:
-                                      settings.terminalFullscreenSwipe,
-                                  softKeyboard: softKeyboard,
-                                  keyboardRequest:
-                                      keyboardRequestFor(state.active!),
-                                  pictureInPicture: pictureInPicture,
-                                  transparentBackground:
-                                      customBackground && !pictureInPicture,
-                                  onFocused: _focusPane,
-                                  onPaste: _pasteInto,
-                                  onTap: _onTerminalTap,
-                                  banner: pictureInPicture
-                                      ? null
-                                      : _connectionBanner(state.active!, state),
-                                );
-                              }
-                              final secondIndex = (state.activeIndex + 1) %
-                                  state.sessions.length;
-                              final children = [
-                                Expanded(
-                                  child: _TerminalPane(
+                // 会话总览的手势（所有者 11-01）。屏幕其余地方归首页外壳那一层，这里单独抢先，
+                // 不然手指快时终端先滚起来。别的底栏页看不到这里。
+                child: TwoFingerSwipeUp(
+                  eager: true,
+                  enabled: () => !ref.read(terminalPictureInPictureProvider),
+                  child: selectedPending != null
+                      ? _ConnectionStatusPane(
+                          pending: selectedPending,
+                          onReturn: state.sessions.isEmpty
+                              ? null
+                              : () => ref
+                                  .read(sessionControllerProvider.notifier)
+                                  .activate(state.activeIndex),
+                          onClose: selectedPending.phase ==
+                                  PendingConnectionPhase.failed
+                              ? () => ref
+                                  .read(sessionControllerProvider.notifier)
+                                  .dismissPending(selectedPending.id)
+                              : null,
+                          onRetry: selectedPending.phase ==
+                                      PendingConnectionPhase.failed &&
+                                  selectedPending.retryable
+                              ? () => unawaited(_retry(selectedPending))
+                              : null,
+                          onCancel: selectedPending.phase ==
+                                  PendingConnectionPhase.connecting
+                              ? () => ref
+                                  .read(sessionControllerProvider.notifier)
+                                  .cancelPendingConnection(selectedPending.id)
+                              : null,
+                        )
+                      : state.sessions.isEmpty
+                          ? const EmptyState(
+                              icon: Icons.terminal_outlined,
+                              title: '没有活动会话',
+                              subtitle: '从「连接」页选一台主机开始连接。',
+                            )
+                          : LayoutBuilder(
+                              builder: (context, constraints) {
+                                if (pictureInPicture ||
+                                    !_split ||
+                                    state.sessions.length < 2) {
+                                  return _TerminalPane(
                                     key: ValueKey(state.active!.id),
                                     session: state.active!,
                                     fontSize: settings.terminalFontSize,
@@ -606,49 +586,77 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                     softKeyboard: softKeyboard,
                                     keyboardRequest:
                                         keyboardRequestFor(state.active!),
-                                    pictureInPicture: false,
-                                    transparentBackground: customBackground,
+                                    pictureInPicture: pictureInPicture,
+                                    transparentBackground:
+                                        customBackground && !pictureInPicture,
                                     onFocused: _focusPane,
                                     onPaste: _pasteInto,
                                     onTap: _onTerminalTap,
-                                    inputTarget:
-                                        inputSession?.id == state.active!.id,
-                                    banner:
-                                        _connectionBanner(state.active!, state),
+                                    banner: pictureInPicture
+                                        ? null
+                                        : _connectionBanner(
+                                            state.active!, state),
+                                  );
+                                }
+                                final secondIndex = (state.activeIndex + 1) %
+                                    state.sessions.length;
+                                final children = [
+                                  Expanded(
+                                    child: _TerminalPane(
+                                      key: ValueKey(state.active!.id),
+                                      session: state.active!,
+                                      fontSize: settings.terminalFontSize,
+                                      secureKeyboard:
+                                          settings.terminalSecureKeyboard,
+                                      fullscreenSwipe:
+                                          settings.terminalFullscreenSwipe,
+                                      softKeyboard: softKeyboard,
+                                      keyboardRequest:
+                                          keyboardRequestFor(state.active!),
+                                      pictureInPicture: false,
+                                      transparentBackground: customBackground,
+                                      onFocused: _focusPane,
+                                      onPaste: _pasteInto,
+                                      onTap: _onTerminalTap,
+                                      inputTarget:
+                                          inputSession?.id == state.active!.id,
+                                      banner: _connectionBanner(
+                                          state.active!, state),
+                                    ),
                                   ),
-                                ),
-                                const Divider(height: 1, thickness: 1),
-                                Expanded(
-                                  child: _TerminalPane(
-                                    key: ValueKey(
-                                        state.sessions[secondIndex].id),
-                                    session: state.sessions[secondIndex],
-                                    fontSize: settings.terminalFontSize,
-                                    secureKeyboard:
-                                        settings.terminalSecureKeyboard,
-                                    fullscreenSwipe:
-                                        settings.terminalFullscreenSwipe,
-                                    softKeyboard: softKeyboard,
-                                    keyboardRequest: keyboardRequestFor(
-                                        state.sessions[secondIndex]),
-                                    pictureInPicture: false,
-                                    transparentBackground: customBackground,
-                                    onFocused: _focusPane,
-                                    onPaste: _pasteInto,
-                                    onTap: _onTerminalTap,
-                                    inputTarget: inputSession?.id ==
-                                        state.sessions[secondIndex].id,
-                                    banner: _connectionBanner(
-                                        state.sessions[secondIndex], state),
+                                  const Divider(height: 1, thickness: 1),
+                                  Expanded(
+                                    child: _TerminalPane(
+                                      key: ValueKey(
+                                          state.sessions[secondIndex].id),
+                                      session: state.sessions[secondIndex],
+                                      fontSize: settings.terminalFontSize,
+                                      secureKeyboard:
+                                          settings.terminalSecureKeyboard,
+                                      fullscreenSwipe:
+                                          settings.terminalFullscreenSwipe,
+                                      softKeyboard: softKeyboard,
+                                      keyboardRequest: keyboardRequestFor(
+                                          state.sessions[secondIndex]),
+                                      pictureInPicture: false,
+                                      transparentBackground: customBackground,
+                                      onFocused: _focusPane,
+                                      onPaste: _pasteInto,
+                                      onTap: _onTerminalTap,
+                                      inputTarget: inputSession?.id ==
+                                          state.sessions[secondIndex].id,
+                                      banner: _connectionBanner(
+                                          state.sessions[secondIndex], state),
+                                    ),
                                   ),
-                                ),
-                              ];
-                              return constraints.maxWidth >
-                                      constraints.maxHeight
-                                  ? Row(children: children)
-                                  : Column(children: children);
-                            },
-                          ),
+                                ];
+                                return constraints.maxWidth >
+                                        constraints.maxHeight
+                                    ? Row(children: children)
+                                    : Column(children: children);
+                              },
+                            ),
+                ),
               ),
               if (visibleSession != null &&
                   inputSession != null &&

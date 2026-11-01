@@ -14,14 +14,19 @@ import 'package:shun/domain/host_identity.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/domain/tmux/tmux_target.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/home_shell.dart';
 import 'package:shun/presentation/screens/terminal_screen.dart';
 import 'package:shun/presentation/widgets/session_overview.dart';
+import 'package:shun/presentation/widgets/terminal_key_button.dart';
+import 'package:shun/presentation/widgets/terminal_keys.dart';
+import 'package:shun/presentation/widgets/terminal_special_keys.dart';
+import 'package:shun/presentation/widgets/two_finger_swipe.dart';
 
 import 'support/test_terminal.dart';
 
-// F35 / R70：从底栏「终端」往上滑出会话总览。手势手感要真机，这里管逻辑：分组、切换、关闭、重连。
+// F35 / R70：在终端页两指上滑出会话总览。手势手感要真机，这里管逻辑：分组、切换、关闭、重连。
 void main() {
   HostProfile host(String id, String label) => HostProfile({
         'id': id,
@@ -121,48 +126,383 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
   }
 
-  Future<void> swipeUp(WidgetTester tester) async {
-    await tester.drag(
-      find.byKey(const ValueKey('terminal-tab-swipe')),
-      const Offset(0, -500),
-    );
+  /// 两根手指一起从终端中间往上走 [by]，分成小步：真手指是一点一点动的。
+  Future<void> twoFingers(
+    WidgetTester tester, {
+    double by = 300,
+    double spread = 80,
+    Offset? from,
+  }) async {
+    final center = from ?? tester.getCenter(find.byType(HomeShell));
+    final first =
+        await tester.startGesture(center - Offset(spread / 2, 0), pointer: 7);
+    final second =
+        await tester.startGesture(center + Offset(spread / 2, 0), pointer: 8);
+    for (var moved = 0.0; moved < by; moved += 6) {
+      await first.moveBy(const Offset(0, -6));
+      await second.moveBy(const Offset(0, -6));
+      await tester.pump(const Duration(milliseconds: 8));
+    }
+    await first.up();
+    await second.up();
     await settle(tester);
+  }
+
+  /// 总览只在终端页出，测别的事的用例一律先切过来。
+  Future<void> swipeUp(WidgetTester tester) async {
+    container.read(homeTabProvider.notifier).state = 1;
+    await settle(tester);
+    await twoFingers(tester);
   }
 
   final overview = find.byType(SessionOverview);
 
-  testWidgets('上滑出总览；点「终端」照旧切页，不出总览；没滑够就收回去', (tester) async {
+  testWidgets('终端页两指上滑出总览；点「终端」不出；滑一点点收回去', (tester) async {
     await open(tester, const SessionState());
-    expect(overview, findsNothing);
-
     await tester.tap(find.text('终端').last);
     await settle(tester);
     expect(container.read(homeTabProvider), 1);
     expect(overview, findsNothing);
 
-    await tester.drag(
-      find.byKey(const ValueKey('terminal-tab-swipe')),
-      const Offset(0, -40),
-    );
-    await settle(tester);
+    await twoFingers(tester, by: 40);
     expect(overview, findsNothing, reason: '滑一点点不算');
 
-    await swipeUp(tester);
+    await twoFingers(tester);
     expect(overview, findsOneWidget);
     expect(find.text('没有打开的会话'), findsOneWidget);
     await finish(tester);
   });
 
-  testWidgets('别的底栏格子上滑不出总览', (tester) async {
-    await open(tester, const SessionState());
+  testWidgets('所有者 11-01：只在选中终端页时出，别的页两指上滑、底栏上滑都不出', (tester) async {
+    // 要有会话：没有可显示的会话时，终端页自己退出画中画。
+    await open(tester, SessionState(sessions: [tab('s', host('a', 'alpha'))]));
+    for (final tab in [0, 2, 3, 4]) {
+      container.read(homeTabProvider.notifier).state = tab;
+      await settle(tester);
+      await twoFingers(tester);
+      expect(overview, findsNothing, reason: '第 $tab 页');
+    }
     final bar =
         tester.getRect(find.byKey(const ValueKey('home-navigation-bar')));
     await tester.dragFrom(
-      Offset(bar.left + bar.width * .5, bar.center.dy),
+      Offset(bar.left + bar.width * .3, bar.center.dy),
       const Offset(0, -500),
     );
     await settle(tester);
-    expect(overview, findsNothing);
+    expect(overview, findsNothing, reason: '以前从底栏「终端」那一格上滑');
+
+    container.read(homeTabProvider.notifier).state = 1;
+    container.read(terminalPictureInPictureProvider.notifier).state = true;
+    await settle(tester);
+    await twoFingers(tester);
+    expect(overview, findsNothing, reason: '画中画');
+    container.read(terminalPictureInPictureProvider.notifier).state = false;
+    await finish(tester);
+  });
+
+  testWidgets('单指不出总览；两指往下、一上一下、左右滑都不出', (tester) async {
+    await open(tester, SessionState(sessions: [tab('s', host('a', 'alpha'))]));
+    container.read(homeTabProvider.notifier).state = 1;
+    await settle(tester);
+    final center = tester.getCenter(find.byType(HomeShell));
+
+    await tester.dragFrom(center, const Offset(0, -300));
+    await settle(tester);
+    expect(overview, findsNothing, reason: '单指');
+
+    Future<void> move(Offset left, Offset right, String why) async {
+      final first =
+          await tester.startGesture(center - const Offset(40, 0), pointer: 7);
+      final second =
+          await tester.startGesture(center + const Offset(40, 0), pointer: 8);
+      for (var i = 0; i < 40; i++) {
+        await first.moveBy(left);
+        await second.moveBy(right);
+        await tester.pump(const Duration(milliseconds: 8));
+      }
+      await first.up();
+      await second.up();
+      await settle(tester);
+      expect(overview, findsNothing, reason: why);
+    }
+
+    await move(const Offset(0, 6), const Offset(0, 6), '两指往下');
+    await move(const Offset(0, -6), const Offset(0, 6), '一上一下');
+    await move(const Offset(6, 0), const Offset(6, 0), '两指横滑');
+    await finish(tester);
+  });
+
+  // 第二根手指一落下就接管：真手指一步可能就 20dp，比距离抢不过终端的滚动（模拟器上撞过）。
+  testWidgets('手指动得快，第一根一步就过了滚动的门槛：总览照样出，终端不滚', (tester) async {
+    final session = tab(
+      's',
+      host('a', 'alpha'),
+      output: [for (var i = 0; i < 400; i++) 'line $i'].join('\r\n'),
+    );
+    await open(tester, SessionState(sessions: [session]));
+    container.read(homeTabProvider.notifier).state = 1;
+    await settle(tester);
+    final terminal = session.terminal as GhosttyTerminalAdapter;
+    final center = tester.getCenter(find.byType(HomeShell));
+    // 先滚进历史：手指往上是往新的方向滚，停在最底下时滚不动，这条就什么也测不出来。
+    final bottom = terminal.controller.scrollbar.offset;
+    await tester.dragFrom(center, const Offset(0, 200));
+    await settle(tester);
+    final inHistory = terminal.controller.scrollbar.offset;
+    expect(inHistory, lessThan(bottom));
+
+    final first =
+        await tester.startGesture(center - const Offset(45, 0), pointer: 7);
+    final second =
+        await tester.startGesture(center + const Offset(45, 0), pointer: 8);
+    for (var i = 0; i < 12; i++) {
+      await first.moveBy(const Offset(0, -22));
+      await second.moveBy(const Offset(0, -22));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await first.up();
+    await second.up();
+    await settle(tester);
+    expect(overview, findsOneWidget);
+    expect(terminal.controller.scrollbar.offset, inHistory);
+    await finish(tester);
+  });
+
+  testWidgets('所有者 11-01：屏幕哪里两指上滑都出，快捷键栏上滑也不发键', (tester) async {
+    final session = tab('s', host('a', 'alpha'));
+    await open(tester, SessionState(sessions: [session]));
+    container.read(homeTabProvider.notifier).state = 1;
+    await settle(tester);
+    final sent = <int>[];
+    final binding = session.terminal.bind(sent.addAll);
+    final keys = tester.getRect(find.byType(TerminalSpecialKeys)).center;
+    final bar = tester
+        .getRect(find.byKey(const ValueKey('home-navigation-bar')))
+        .center;
+    final area = tester.getRect(find.byKey(const ValueKey('terminal-area')));
+
+    Future<void> opensFrom(String where, Offset left, Offset right) async {
+      final first = await tester.startGesture(left, pointer: 7);
+      final second = await tester.startGesture(right, pointer: 8);
+      for (var i = 0; i < 40; i++) {
+        await first.moveBy(const Offset(0, -6));
+        await second.moveBy(const Offset(0, -6));
+        await tester.pump(const Duration(milliseconds: 8));
+      }
+      await first.up();
+      await second.up();
+      await settle(tester);
+      expect(overview, findsOneWidget, reason: where);
+      await tester.tap(find.byKey(const ValueKey('overview-close')));
+      await settle(tester);
+      expect(overview, findsNothing, reason: where);
+    }
+
+    const apart = Offset(40, 0);
+    await opensFrom('快捷键栏', keys - apart, keys + apart);
+    await opensFrom('底栏', bar - apart, bar + apart);
+    await opensFrom(
+      '标签条',
+      Offset(area.center.dx - 40, area.top - 20),
+      Offset(area.center.dx + 40, area.top - 20),
+    );
+    await opensFrom('一根在终端、一根在快捷键栏', area.center, keys);
+    expect(sent, isEmpty, reason: '滑过按键不算按');
+    expect(container.read(homeTabProvider), 1, reason: '滑过底栏不算切页');
+    binding.release();
+    await finish(tester);
+  });
+
+  // 按住 Ctrl 再按别的键也是两根手指：不动就不归总览，往上滑才归。
+  testWidgets('两根手指同时按两个键，两个键都算；两指上滑时一个键都不算', (tester) async {
+    final pressed = <String>[];
+    var swiped = 0.0;
+    await tester.pumpWidget(MaterialApp(
+      home: TwoFingerSwipeHandlers(
+        onUpdate: (delta) => swiped += delta,
+        onEnd: (_) {},
+        child: TwoFingerSwipeUp(
+          eager: false,
+          enabled: () => true,
+          child: Align(
+            alignment: Alignment.bottomCenter,
+            child: SizedBox(
+              height: 60,
+              child: Row(
+                children: [
+                  for (final key in [escapeKey, tabKey])
+                    SizedBox(
+                      width: 100,
+                      child: TerminalKeyButton(
+                        spec: key,
+                        selected: false,
+                        onPressed: (spec) => pressed.add(spec.label),
+                      ),
+                    ),
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    ));
+    Offset at(TerminalKeySpec key) =>
+        tester.getCenter(find.widgetWithText(TerminalKeyButton, key.label));
+
+    var first = await tester.startGesture(at(escapeKey), pointer: 7);
+    var second = await tester.startGesture(at(tabKey), pointer: 8);
+    await tester.pump(const Duration(milliseconds: 60));
+    await second.up();
+    await first.up();
+    await tester.pumpAndSettle();
+    expect(pressed, unorderedEquals(['Esc', 'Tab']));
+    expect(swiped, 0);
+
+    pressed.clear();
+    first = await tester.startGesture(at(escapeKey), pointer: 9);
+    second = await tester.startGesture(at(tabKey), pointer: 10);
+    for (var i = 0; i < 20; i++) {
+      await first.moveBy(const Offset(0, -6));
+      await second.moveBy(const Offset(0, -6));
+      await tester.pump(const Duration(milliseconds: 8));
+    }
+    await first.up();
+    await second.up();
+    await tester.pumpAndSettle();
+    expect(pressed, isEmpty);
+    expect(swiped, lessThan(-60));
+  });
+
+  // tmux 开着鼠标、vim 都是「鼠标跟踪」：终端把手指动作编码成字节发给远端。两指上滑不能漏一个字节过去。
+  testWidgets('鼠标跟踪开着时两指上滑不向远端发字节，第二根手指晚到也一样', (tester) async {
+    final session = tab(
+      's',
+      host('a', 'alpha'),
+      output: '\x1b[?1000h\x1b[?1006h${[
+        for (var i = 0; i < 400; i++) 'line $i'
+      ].join('\r\n')}',
+    );
+    await open(tester, SessionState(sessions: [session]));
+    container.read(homeTabProvider.notifier).state = 1;
+    await settle(tester);
+    final sent = <int>[];
+    final binding = session.terminal.bind(sent.addAll);
+
+    await twoFingers(tester);
+    expect(overview, findsOneWidget);
+    expect(sent, isEmpty);
+    await tester.tap(find.byKey(const ValueKey('overview-close')));
+    await settle(tester);
+
+    // 第一根手指按住 150ms 才来第二根：终端已经把它当成一次按下了。
+    final center = tester.getCenter(find.byType(HomeShell));
+    final first =
+        await tester.startGesture(center - const Offset(45, 0), pointer: 7);
+    await tester.pump(const Duration(milliseconds: 150));
+    final second =
+        await tester.startGesture(center + const Offset(45, 0), pointer: 8);
+    for (var i = 0; i < 12; i++) {
+      await first.moveBy(const Offset(0, -22));
+      await second.moveBy(const Offset(0, -22));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await first.up();
+    await second.up();
+    await settle(tester);
+    expect(overview, findsOneWidget);
+    expect(sent, isEmpty);
+    binding.release();
+    await finish(tester);
+  });
+
+  testWidgets('第二根手指晚到：之后单指点一下还是普通的点，没有残留的选字', (tester) async {
+    final session = tab('s', host('a', 'alpha'), output: 'hello world\r\n');
+    await open(tester, SessionState(sessions: [session]));
+    container.read(homeTabProvider.notifier).state = 1;
+    await settle(tester);
+    final center = tester.getCenter(find.byType(HomeShell));
+    final first =
+        await tester.startGesture(center - const Offset(45, 0), pointer: 7);
+    await tester.pump(const Duration(milliseconds: 150));
+    final second =
+        await tester.startGesture(center + const Offset(45, 0), pointer: 8);
+    for (var i = 0; i < 12; i++) {
+      await first.moveBy(const Offset(0, -22));
+      await second.moveBy(const Offset(0, -22));
+      await tester.pump(const Duration(milliseconds: 16));
+    }
+    await first.up();
+    await second.up();
+    await settle(tester);
+    expect(overview, findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('overview-close')));
+    await settle(tester);
+
+    final terminal = session.terminal as GhosttyTerminalAdapter;
+    await tester.tapAt(center);
+    await settle(tester);
+    expect(terminal.controller.hasSelection, isFalse);
+    await finish(tester);
+  });
+
+  testWidgets('滚在历史里时两指上滑终端不跟着滚；单指照旧滚', (tester) async {
+    final session = tab(
+      's',
+      host('a', 'alpha'),
+      output: [for (var i = 0; i < 400; i++) 'line $i'].join('\r\n'),
+    );
+    await open(tester, SessionState(sessions: [session]));
+    container.read(homeTabProvider.notifier).state = 1;
+    await settle(tester);
+    final terminal = session.terminal as GhosttyTerminalAdapter;
+    double offset() => terminal.controller.scrollbar.offset.toDouble();
+    final bottom = offset();
+
+    await tester.dragFrom(
+      tester.getCenter(find.byType(HomeShell)),
+      const Offset(0, 200),
+    );
+    await settle(tester);
+    final inHistory = offset();
+    expect(inHistory, lessThan(bottom), reason: '单指往下拖看历史');
+
+    await twoFingers(tester, by: 150);
+    expect(overview, findsOneWidget);
+    expect(offset(), inHistory, reason: '两指接管了，没有滚');
+    await tester.tap(find.byKey(const ValueKey('overview-close')));
+    await settle(tester);
+
+    await tester.dragFrom(
+      tester.getCenter(find.byType(HomeShell)),
+      const Offset(0, -120),
+    );
+    await settle(tester);
+    expect(offset(), greaterThan(inHistory), reason: '单指往上拖回新的');
+    await finish(tester);
+  });
+
+  testWidgets('所有者 11-01：卡片是小屏，一屏看得到好几张，总览只占底下一截', (tester) async {
+    await open(
+      tester,
+      SessionState(sessions: [
+        for (var i = 0; i < 5; i++)
+          tab('s$i', host('a', 'alpha'), output: 'output of $i\r\n'),
+      ]),
+    );
+    await swipeUp(tester);
+    final screen = tester.getSize(find.byType(HomeShell));
+    final sheet =
+        tester.getRect(find.byKey(const ValueKey('session-overview')));
+    expect(sheet.height, lessThan(screen.height * .5));
+    final card =
+        tester.getRect(find.byKey(const ValueKey('overview-window-s0')));
+    expect(card.width, lessThan(screen.width * .5));
+    expect(card.height, lessThan(screen.height * .3));
+    expect(
+      find.byKey(const ValueKey('overview-window-s1')).hitTestable(),
+      findsOneWidget,
+      reason: '第二张不用滑就看得见',
+    );
     await finish(tester);
   });
 
@@ -271,7 +611,7 @@ void main() {
       SessionState(sessions: [tab('s1', alpha), tab('s2', beta)]),
     );
     await swipeUp(tester);
-    await tester.tap(find.text('beta').first);
+    await tester.tap(find.byKey(const ValueKey('overview-machine-b')));
     await settle(tester);
     await tester.tap(find.byKey(const ValueKey('overview-window-s2')));
     await settle(tester);
@@ -600,7 +940,13 @@ void main() {
       ], activePendingId: 'p2'),
     );
     await swipeUp(tester);
-    expect(find.text('连接失败'), findsOneWidget, reason: '打开在当前那个');
+    expect(
+      find.descendant(
+        of: find.byKey(const ValueKey('overview-window-p2')),
+        matching: find.text('连接失败'),
+      ),
+      findsOneWidget,
+    );
     await tester.tap(find.byKey(const ValueKey('overview-close-p2')));
     await settle(tester);
     expect(

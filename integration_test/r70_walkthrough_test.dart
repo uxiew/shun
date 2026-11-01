@@ -1,9 +1,11 @@
-// F31–F35 设备走查：真 App 页面、真安全存储、真 Android 触摸事件（adb input swipe），没有网络。
+// F31–F37 设备走查：真 App 页面、真安全存储、真 Android 触摸事件（adb input、模拟器控制台注入的两指），没有网络。
 // 会话是塑进去的（没有真 SSH），所以证明的是界面、手势、中文字体下的布局，不是登录。
 //
 // 不是 CI 测试，只用 tool/r70-device.py 跑：它只认项目专用模拟器，按下面的标记截图和滑屏。
 //   R70 SHOT <名字>                 截一张屏
 //   R70 SWIPE <x0> <y0> <x1> <y1>    设备像素，脚本用 adb input swipe 滑一下
+//   R70 ONE <x> <y> <dy>             设备像素，脚本经模拟器控制台注入一根手指（报 touch，adb input 报 unknown）
+//   R70 TWO <x0> <y0> <x1> <y1> <dy>  设备像素，脚本经模拟器控制台注入两根手指一起滑（adb input 只能单指）
 //   R70 TAP <x> <y>                  设备像素，脚本用 adb input tap 点一下
 //   R70 BACK                         脚本按一下 Android 返回键
 //   R70 FRONT                        脚本把 App 叫回全屏（退出画中画）
@@ -82,6 +84,29 @@ void main() {
     await settle(tester);
   }
 
+  /// 一根手指从 [from] 竖着走 [by]。
+  Future<void> oneFinger(WidgetTester tester, Offset from, double by) async {
+    final ratio = tester.view.devicePixelRatio;
+    mark('ONE ${(from.dx * ratio).round()} ${(from.dy * ratio).round()} '
+        '${(by * ratio).round()}');
+    await binding.delayed(const Duration(milliseconds: 2500));
+    await settle(tester);
+  }
+
+  /// 两根手指从 [center] 左右各一根，一起往上走 [by]。
+  Future<void> twoFingersUp(
+    WidgetTester tester,
+    Offset center, {
+    double by = 260,
+  }) async {
+    final ratio = tester.view.devicePixelRatio;
+    final y = (center.dy * ratio).round();
+    mark('TWO ${((center.dx - 45) * ratio).round()} $y '
+        '${((center.dx + 45) * ratio).round()} $y ${(-by * ratio).round()}');
+    await binding.delayed(const Duration(milliseconds: 2500));
+    await settle(tester);
+  }
+
   /// adb 是脚本那边异步发的，结果交给后面的 waitFor 判断。
   Future<void> realTap(WidgetTester tester, Offset at) async {
     final ratio = tester.view.devicePixelRatio;
@@ -125,13 +150,14 @@ void main() {
         ...?extra,
       });
 
-  testWidgets('F31–F35 走查', (tester) async {
+  testWidgets('F31–F37 走查', (tester) async {
     final repository = await VaultRepository.open();
     final nas = host('nas', 'NAS 家里');
     final web = host('web', 'web-production-frontend-01');
     final old = host('old', '老服务器', {'identityFileId': 'k1'});
     final top = StringBuffer();
-    for (var i = 0; i < 30; i++) {
+    // 比一屏多：下面要看两指上滑时终端会不会跟着滚。
+    for (var i = 0; i < 90; i++) {
       top.write('$i  进程列表一行 /usr/bin/python3 --serve --port=80${i % 10}\r\n');
     }
     final sessions = [
@@ -215,15 +241,21 @@ void main() {
 
     // ── 会话总览（F35）：真的触摸事件 ──
     final overview = find.byType(SessionOverview);
-    final swipeArea = find.byKey(const ValueKey('terminal-tab-swipe'));
-    final bar = tester.getRect(swipeArea);
-    mark('report nav=$bar');
+    final terminalArea = tester.getCenter(find.byType(HomeShell));
+    final bar =
+        tester.getRect(find.byKey(const ValueKey('home-navigation-bar')));
+    // 单指从底栏「终端」那一格往上滑：以前的手势，现在不出。
     await swipe(
       tester,
-      bar.center,
-      Offset(bar.center.dx, bar.center.dy - 420),
+      Offset(bar.left + bar.width * .3, bar.center.dy),
+      Offset(bar.left + bar.width * .3, bar.center.dy - 420),
     );
-    await waitFor(tester, () => overview.evaluate().isNotEmpty, what: '总览打开');
+    expect(overview, findsNothing, reason: '底栏上滑不再出总览');
+    // 单指在终端上滑：滚动，不出。
+    await oneFinger(tester, terminalArea, -260);
+    expect(overview, findsNothing, reason: '单指不出总览');
+    await twoFingersUp(tester, terminalArea);
+    await waitFor(tester, () => overview.evaluate().isNotEmpty, what: '两指上滑打开');
     await shot(tester, '02-overview-first-machine');
 
     // 多个卡片左右滑。
@@ -280,17 +312,43 @@ void main() {
     await waitFor(tester, () => overview.evaluate().isEmpty, what: '总览收起');
     await shot(tester, '07-overview-closed');
 
-    // 从别的页面也能滑出来。
+    // 终端有滚动历史时两指上滑：总览抢先接管，终端不跟着滚。
+    final seeded = container.read(sessionControllerProvider.notifier);
+    seeded.activate(1);
+    await settle(tester);
+    final scrolling = sessions[1].terminal as GhosttyTerminalAdapter;
+    // 先单指滚进历史：手指往上是往新的方向滚，停在最底下时滚不动，比了也白比。
+    // 位置现量：切标签后键盘可能弹着，终端比全屏时矮，全屏时算的中心点会落到键盘上。
+    final scrollArea =
+        tester.getCenter(find.byKey(const ValueKey('terminal-area')));
+    await oneFinger(tester, scrollArea, 120);
+    final before = scrolling.controller.scrollbar;
+    mark('report scrollback total=${before.total} offset=${before.offset} '
+        'visible=${before.visible}');
+    expect(before.offset + before.visible, lessThan(before.total),
+        reason: '单指往下拖要滚进历史');
+    await twoFingersUp(tester, scrollArea);
+    await waitFor(tester, () => overview.evaluate().isNotEmpty,
+        what: '有滚动历史时两指上滑打开');
+    final after = scrolling.controller.scrollbar;
+    mark('report afterTwoFingers total=${after.total} offset=${after.offset} '
+        'visible=${after.visible}');
+    expect(after.offset, before.offset, reason: '两指上滑时终端不能跟着滚');
+    await shot(tester, '07b-overview-with-scrollback');
+    await realBack(tester);
+    await waitFor(tester, () => overview.evaluate().isEmpty, what: '收起');
+
+    // 别的页两指上滑不出。
     container.read(homeTabProvider.notifier).state = 4;
     await settle(tester);
-    await swipe(
-      tester,
-      bar.center,
-      Offset(bar.center.dx, bar.center.dy - 420),
-    );
+    await twoFingersUp(tester, terminalArea);
+    expect(overview, findsNothing, reason: '设置页两指上滑不出总览');
+    await shot(tester, '08-no-overview-on-settings');
+    container.read(homeTabProvider.notifier).state = 1;
+    await settle(tester);
+    await twoFingersUp(tester, terminalArea);
     await waitFor(tester, () => overview.evaluate().isNotEmpty,
-        what: '从设置页打开总览');
-    await shot(tester, '08-overview-over-settings');
+        what: '回终端页再打开');
 
     // 真实点机器 tab、点卡片：切到那个会话，回到终端页。
     await realTap(
@@ -314,11 +372,7 @@ void main() {
     await shot(tester, '09-opened-from-card');
 
     // 真实返回键：先关总览，App 不退出。
-    await swipe(
-      tester,
-      bar.center,
-      Offset(bar.center.dx, bar.center.dy - 420),
-    );
+    await twoFingersUp(tester, terminalArea);
     await waitFor(tester, () => overview.evaluate().isNotEmpty, what: '总览再次打开');
     await realBack(tester);
     await waitFor(tester, () => overview.evaluate().isEmpty, what: '返回键关总览');
