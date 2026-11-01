@@ -97,18 +97,18 @@ void main() {
         .map((t) => t.data ?? t.textSpan?.toPlainText() ?? '')
         .join('\n');
 
-    // ---- 1. 「添加连接」→ 类型页点这个插件 → 主机编辑器（插件已选好）→ 保存 ----
-    // 10-14（R39）起新建先进「选择连接类型」，首页不再有「添加主机」，编辑器里也不用再切协议、选插件。
+    // ---- 1. 「添加连接」→ 表单顶上的连接类型里点这个插件（插件已选好）→ 保存 ----
     container.read(homeTabProvider.notifier).state = 0;
     await settle(tester);
     await tap(find.byTooltip('添加连接').first);
+    await tap(find.byKey(const ValueKey('host-protocol')));
     final typeTile = find.byKey(const ValueKey('connection-type-$pluginName'));
     await waitFor(
         tester,
         () =>
             typeTile.evaluate().isNotEmpty &&
             tester.widget<ListTile>(typeTile).enabled,
-        what: '类型页列出可用的插件');
+        what: '类型面板列出可用的插件');
     await tap(typeTile);
     report('editor.hostnameField',
         find.widgetWithText(TextFormField, '主机名 / IP').evaluate().length);

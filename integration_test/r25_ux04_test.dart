@@ -19,7 +19,7 @@ import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/screens/app_log_screen.dart';
-import 'package:shun/presentation/screens/connection_type_screen.dart';
+import 'package:shun/presentation/widgets/connection_type_sheet.dart';
 import 'package:shun/presentation/screens/settings_screen.dart';
 
 const _raw = String.fromEnvironment('UX04_SSH');
@@ -220,15 +220,19 @@ void main() {
       await settle(tester);
     }
 
-    // 支持清单：「添加连接」的类型页，只看不选。
+    // 支持清单：表单顶上「连接类型」的面板，只看不选。
     await tester.tap(find.byTooltip('添加连接'));
+    await settle(tester);
+    await tester.tap(key('host-protocol'));
     await waitFor(
-        tester, () => find.byType(ConnectionTypeScreen).evaluate().isNotEmpty,
-        what: '类型页');
+        tester, () => find.byType(ConnectionTypeSheet).evaluate().isNotEmpty,
+        what: '类型面板');
     await settle(tester, 2000);
-    report('types', texts(find.byType(ConnectionTypeScreen)));
+    report('types', texts(find.byType(ConnectionTypeSheet)));
     await shot('types');
-    await tester.tap(find.byType(BackButton));
+    await tester.binding.handlePopRoute();
+    await settle(tester);
+    await tester.tap(find.byIcon(Icons.close));
     await settle(tester);
 
     // 实际引擎：设置 → 终端 → 终端引擎。

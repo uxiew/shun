@@ -1,3 +1,5 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,16 +10,20 @@ import 'package:shun/application/plugin_discovery.dart';
 import 'package:shun/application/plugin_registry.dart';
 import 'package:shun/application/rustdesk.dart';
 import 'package:shun/application/uuremote.dart';
+import 'package:shun/domain/models/host.dart';
 import 'package:shun/domain/models/vault.dart';
 import 'package:shun/domain/plugins/plugin_host.dart';
 import 'package:shun/infrastructure/plugins/plugin_approval_store.dart';
 import 'package:shun/infrastructure/plugins/rustdesk_external.dart';
+import 'package:shun/infrastructure/tailscale/catalog_cache.dart';
+import 'package:shun/infrastructure/tailscale/catalog_cache_repository.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
-import 'package:shun/presentation/screens/connection_type_screen.dart';
 import 'package:shun/presentation/screens/rustdesk_screen.dart';
 import 'package:shun/presentation/screens/uuremote_screen.dart';
+import 'package:shun/presentation/screens/tailscale_settings_screen.dart';
 import 'package:shun/presentation/screens/vault_screen.dart';
+import 'package:shun/presentation/widgets/connection_type_sheet.dart';
 import 'package:shun/presentation/widgets/hint.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
 
@@ -64,6 +70,7 @@ void main() {
           rustDeskStoreProvider.overrideWithValue(RustDeskStore(rdBackend)),
           uuRemotePlatformProvider.overrideWithValue(uu),
           uuRemoteStoreProvider.overrideWithValue(UuRemoteStore(uuBackend)),
+          catalogCacheRepositoryProvider.overrideWithValue(_NoCatalogs()),
         ],
         child:
             MaterialApp(home: UuRemoteListener(child: Scaffold(body: home)))));
@@ -75,11 +82,103 @@ void main() {
   Future<void> select(WidgetTester tester, String type) async {
     await tester.tap(find.byTooltip('添加连接'));
     await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('host-protocol')));
+    await tester.pumpAndSettle();
     final tile = find.byKey(ValueKey('connection-type-$type'));
     await tester.ensureVisible(tile);
     await tester.tap(tile);
     await tester.pumpAndSettle();
   }
+
+  /// 面板本身：terminalsOnly 为假时列全部类型。
+  Widget sheet({bool terminalsOnly = false}) => ConnectionTypeSheet(
+      current: HostProtocol.ssh, terminalsOnly: terminalsOnly);
+
+  testWidgets('点添加连接直接进表单，不再先过一页选类型', (tester) async {
+    await open(tester, const VaultScreen());
+    await tester.tap(find.byTooltip('添加连接'));
+    await tester.pumpAndSettle();
+    expect(find.byType(HostEditor), findsOneWidget);
+    expect(find.byType(ConnectionTypeSheet), findsNothing);
+    expect(
+        find.descendant(
+            of: find.byKey(const ValueKey('host-protocol')),
+            matching: find.text('SSH')),
+        findsOneWidget);
+  });
+
+  testWidgets('表单里换类型：填过的地址留着，端口跟着 22 和 23 变，改过的端口不动', (tester) async {
+    await open(tester, const VaultScreen());
+    await select(tester, 'Telnet');
+    await tester.enterText(
+        find.widgetWithText(TextFormField, '主机名 / IP'), 'host.example');
+    final telnetPort = find.widgetWithText(TextFormField, 'Telnet 端口');
+    expect(tester.widget<TextFormField>(telnetPort).controller!.text, '23');
+    await tester.tap(find.byKey(const ValueKey('host-protocol')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('connection-type-SSH')));
+    await tester.pumpAndSettle();
+    expect(find.text('host.example'), findsOneWidget);
+    final sshPort = find.widgetWithText(TextFormField, 'SSH 端口');
+    expect(tester.widget<TextFormField>(sshPort).controller!.text, '22');
+    await tester.enterText(sshPort, '2200');
+    await tester.tap(find.byKey(const ValueKey('host-protocol')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('connection-type-Mosh')));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextFormField>(sshPort).controller!.text, '2200');
+  });
+
+  testWidgets('换到 Tailscale：没填东西直接去；填过的先问，选继续编辑留在表单', (tester) async {
+    await open(tester, const VaultScreen());
+    await tester.tap(find.byTooltip('添加连接'));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+        find.widgetWithText(TextFormField, '主机名 / IP'), 'host.example');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('host-protocol')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('connection-type-Tailscale')));
+    await tester.pumpAndSettle();
+    expect(find.text('放弃没保存的改动？'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('host-editor-keep-editing')));
+    await tester.pumpAndSettle();
+    expect(find.text('host.example'), findsOneWidget);
+    expect(find.byType(TailscaleSettingsScreen), findsNothing);
+
+    await tester.enterText(find.widgetWithText(TextFormField, '主机名 / IP'), '');
+    await tester.pump();
+    await tester.tap(find.byKey(const ValueKey('host-protocol')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('connection-type-Tailscale')));
+    await tester.pumpAndSettle();
+    expect(find.byType(HostEditor), findsNothing);
+    // 设置页打开就在读，转圈不停，pumpAndSettle 等不到头。
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(TailscaleSettingsScreen), findsOneWidget);
+  });
+
+  testWidgets('换到 RustDesk：关掉表单，问名字后进它自己的页面，不启动客户端', (tester) async {
+    await open(tester, const VaultScreen());
+    await select(tester, 'RustDesk');
+    expect(find.byType(HostEditor), findsNothing);
+    await tester.enterText(find.byType(TextField).last, 'desk');
+    await tester.tap(find.text('保存').last);
+    await tester.pumpAndSettle();
+    expect(find.byType(RustDeskHostScreen), findsOneWidget);
+    expect(rd.launched, isEmpty);
+  });
+
+  testWidgets('编辑已有主机只能换终端类型：RustDesk、UU、Tailscale 不是同一种记录', (tester) async {
+    await open(tester, sheet(terminalsOnly: true));
+    for (final type in ['SSH', 'Mosh', 'Telnet']) {
+      expect(find.byKey(ValueKey('connection-type-$type')), findsOneWidget);
+    }
+    for (final type in ['Tailscale', 'RustDesk', 'UU 远程']) {
+      expect(find.byKey(ValueKey('connection-type-$type')), findsNothing);
+    }
+    expect(find.byIcon(Icons.check), findsOneWidget, reason: '当前选中的打勾');
+  });
 
   for (final type in ['SSH', 'Mosh', 'Telnet']) {
     testWidgets(
@@ -88,11 +187,9 @@ void main() {
       await open(tester, const VaultScreen());
       await select(tester, type);
       expect(find.byType(HostEditor), findsOneWidget);
-      final editor = tester.widget<HostEditor>(find.byType(HostEditor));
-      expect(editor.initialProtocol.name, type.toLowerCase());
       expect(find.widgetWithText(TextFormField, '用户名'),
           type == 'Telnet' ? findsNothing : findsOneWidget);
-      // Mosh 的用法在「首选连接方式」旁的 ⓘ 里，只有 Mosh 表单写它。
+      // Mosh 的用法在「连接类型」旁的 ⓘ 里，只有 Mosh 表单写它。
       final advice = find.byKey(const ValueKey('protocol-advice'));
       expect(
           advice.evaluate().isEmpty
@@ -199,16 +296,13 @@ void main() {
       'missing app is explained; type selection never trusts or launches clients',
       (tester) async {
     rd.probeResult = const RustDeskProbe(platformSupported: true, handlers: []);
-    await open(tester, const ConnectionTypeScreen());
+    await open(tester, sheet());
     expect(find.text('未安装'), findsOneWidget);
     expect(find.text('签名证书待批准'), findsOneWidget);
     expect(rdBackend.values.containsKey('rustdesk.trust.v1'), isFalse);
     expect(uuBackend.values.containsKey('uuremote.approvedSigner.v1'), isFalse);
     expect(rd.launched, isEmpty);
     expect(uu.launched, isEmpty);
-    // R25 / UX04：没装第三方插件时「终端插件」下面不是一片空白。
-    expect(find.byKey(const ValueKey('connection-type-no-plugins')),
-        findsOneWidget);
   });
 
   testWidgets(
@@ -227,12 +321,10 @@ void main() {
         signingDigest: 'author-cert',
         capabilities: {Capability.terminalSession},
         permissions: {Permission.ownSessionInputOutput}));
-    final container = await open(tester, const ConnectionTypeScreen());
+    final container = await open(tester, sheet());
     final tile = find.byKey(const ValueKey('connection-type-Terminal'));
     await tester.ensureVisible(tile);
     expect(tester.widget<ListTile>(tile).enabled, isTrue);
-    expect(
-        find.byKey(const ValueKey('connection-type-no-plugins')), findsNothing);
     container.read(pluginRegistryProvider.notifier).revoke('example.terminal');
     await tester.pumpAndSettle();
     expect(tester.widget<ListTile>(tile).enabled, isFalse);
@@ -282,7 +374,7 @@ void main() {
       (tester) async {
     ShunLocalizations.use('en');
     addTearDown(() => ShunLocalizations.use('zh'));
-    await open(tester, const ConnectionTypeScreen(), width: 320);
+    await open(tester, sheet(), width: 320);
     final text = tester
         .widgetList<Text>(find.byType(Text))
         .map((t) => t.data ?? '')
@@ -290,4 +382,11 @@ void main() {
     expect(RegExp(r'[一-鿿]').hasMatch(text), isFalse, reason: text);
     expect(tester.takeException(), isNull);
   });
+}
+
+/// 本机没有 Tailscale 来源。真的仓库要读文件，假时钟的 pump 等不到。
+class _NoCatalogs extends CatalogCacheRepository {
+  _NoCatalogs() : super(() async => Directory.systemTemp);
+  @override
+  Future<List<CatalogCache>> loadAll() async => const [];
 }

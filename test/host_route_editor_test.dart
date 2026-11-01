@@ -177,6 +177,7 @@ void main() {
   testWidgets('默认直连：摘要是 手机 → 目标；保存后没有代理和跳板', (tester) async {
     await open(tester);
     await fillTarget(tester);
+    await openRouteEditor(tester);
     expect(preview(tester), contains('1. 手机'));
     expect(preview(tester), contains('2. 目标“web”'));
     expect(preview(tester), contains('SSH deploy@web.example.com:2222'));
@@ -263,6 +264,7 @@ void main() {
         'proxyConfig': {'type': 'socks5', 'host': '127.0.0.1', 'port': 1080},
       }),
     );
+    await openRouteEditor(tester);
     expect(preview(tester), contains('SOCKS5 代理'), reason: '按已有数据打开在「经代理」');
     await tester.tap(find.byKey(const ValueKey('route-clear')));
     await tester.pumpAndSettle();
@@ -282,6 +284,7 @@ void main() {
       }),
     );
     expect(find.byKey(const ValueKey('entry-proxy-switch')), findsNothing);
+    await openRouteEditor(tester);
     expect(preview(tester), contains('2. SOCKS5 代理'));
     expect(preview(tester), contains('3. 跳板机“edge”'));
   });
@@ -295,29 +298,31 @@ void main() {
         'proxyConfig': {'type': 'socks5', 'host': '127.0.0.1', 'port': 1080},
       }),
     );
-    final mosh = tester
-        .widget<SegmentedButton<HostProtocol>>(
-            find.byType(SegmentedButton<HostProtocol>))
-        .segments
-        .firstWhere((segment) => segment.value == HostProtocol.mosh);
-    expect(mosh.enabled, isTrue);
-    expect(find.byKey(const ValueKey('telnet-direct-only')), findsOneWidget);
+    await tapRoute(tester, find.byKey(const ValueKey('host-protocol')));
+    expect(
+        tester
+            .widget<ListTile>(
+                find.byKey(const ValueKey('connection-type-Mosh')))
+            .enabled,
+        isTrue);
+    await tapRoute(
+        tester, find.byKey(const ValueKey('connection-type-Telnet')));
+    expect(find.byKey(const ValueKey('telnet-direct-only')), findsOneWidget,
+        reason: '这台配了代理、保存时会被去掉：不能收在高级里');
     expect(find.widgetWithText(TextFormField, 'Telnet 端口'), findsOneWidget);
     await save(tester);
     expect(result!.data.containsKey('proxyConfig'), isFalse);
   });
 
   group('X09 Mosh 主机', () {
-    Future<void> chooseMosh(WidgetTester tester) async {
-      await tester.tap(find.text('Mosh'));
-      await tester.pumpAndSettle();
-    }
+    Future<void> chooseMosh(WidgetTester tester) =>
+        chooseConnectionType(tester, 'Mosh');
 
     testWidgets('只能直连：选了代理或跳板，摘要说明原因，保存被拒绝；不会悄悄去掉代理改成直连', (tester) async {
       await open(tester);
       await fillTarget(tester);
       await chooseMosh(tester);
-      // Mosh 怎么连、只能直连，写在「首选连接方式」旁的 ⓘ 里。
+      // Mosh 怎么连、只能直连，写在「连接类型」旁的 ⓘ 里。
       expect(
           tester
               .widget<HintButton>(find.byKey(const ValueKey('protocol-advice')))
@@ -344,10 +349,10 @@ void main() {
       await chooseMosh(tester);
       expect(find.byKey(const ValueKey('test-connection')), findsNothing,
           reason: '测试连接只测 SSH 那段，给 Mosh 主机一个「通过」会误导');
+      await openRouteEditor(tester);
       expect(preview(tester), contains('启动 mosh-server，之后 Mosh 会话走 UDP 直连'));
       // R41：端口范围在默认收起的「高级 → Mosh 启动参数」里。
-      await tester.tap(find.byKey(const ValueKey('advanced-mosh')));
-      await tester.pumpAndSettle();
+      await tapRoute(tester, find.byKey(const ValueKey('advanced-mosh')));
       await tester.enterText(
           find.byKey(const ValueKey('mosh-ports')), '60001:70000');
       await save(tester);
@@ -370,14 +375,14 @@ void main() {
           'desktop-extra': {'preserve': true},
         }),
       );
-      await tester.tap(find.text('SSH'));
-      await tester.pumpAndSettle();
+      await chooseConnectionType(tester, 'SSH');
       await save(tester);
       expect(result!.protocol, HostProtocol.ssh);
       expect(result!.data['shunMoshPorts'], '60001');
       final ssh = result!;
       await open(tester, host: ssh);
       await chooseMosh(tester);
+      await openAdvanced(tester);
       expect(
           tester
               .widget<TextFormField>(find.byKey(const ValueKey('mosh-ports')))

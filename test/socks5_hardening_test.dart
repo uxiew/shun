@@ -17,6 +17,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'fixtures/net/scripted_proxy.dart';
 import 'fixtures/net/socks5_fixture.dart';
 import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import 'support/route_editor_actions.dart';
 
 // R06：SOCKS5 CONNECT 生产加固。
 // 传输层直接对"剧本代理"做握手（NET05/06/08、SOX02/03）；
@@ -598,6 +599,7 @@ void main() {
           ),
         ),
       );
+      await openRouteEditor(tester);
       expect(find.textContaining('明文发给代理'), findsOneWidget);
     });
 

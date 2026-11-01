@@ -162,6 +162,7 @@ void main() {
     await repository
         .saveVault(before.copyWith(hosts: [...before.hosts, original]));
     await open(tester, HostEditor(host: original));
+    await openRouteEditor(tester);
     await tapRoute(tester, find.byKey(const ValueKey('route-save-inline')));
     await tester.pageBack();
     await tester.pumpAndSettle();
@@ -191,6 +192,7 @@ void main() {
       (tester) async {
     await open(
         tester, HostEditor(host: host('a', extra: {'proxyProfileId': 'p'})));
+    await openRouteEditor(tester);
     await tapRoute(tester, find.text('代理管理'));
     await tapRoute(tester, find.byKey(const ValueKey('proxy-delete-p')));
     await tapRoute(tester, find.byKey(const ValueKey('proxy-delete-confirm')));

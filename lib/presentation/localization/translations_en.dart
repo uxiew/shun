@@ -34,7 +34,6 @@ const englishTranslations = <String, String>{
       'Remote storage is not ready or migration failed. Original records are preserved. Retry.',
   '远控画面、密码、服务器设置和网络都在 RustDesk 里，本 App 只把这条连接的 RustDesk ID 交给它。RustDesk 不向本 App 回报结果：连没连上、什么时候断开，都要在 RustDesk 里看。':
       'The desktop, passwords, servers and network are managed by RustDesk. This app only hands over the connection ID. RustDesk does not report connection or disconnection status to this app.',
-  '选择连接类型': 'Choose connection type',
   '重新读取本机远控记录': 'Reload local remote entries',
   '仅本机保存': 'Local only',
   'Mosh 插件不可用：': 'Mosh plugin unavailable: ',
@@ -267,7 +266,7 @@ const englishTranslations = <String, String>{
       'This is an auth key for adding devices to a tailnet; it can’t read the device list. Use tskey-client-… (OAuth client, recommended) or tskey-api-… (access token).',
   '这种 key 读不了设备列表。要 tskey-client-…（OAuth client，推荐）或 tskey-api-…（访问令牌）。':
       'This kind of key can’t read the device list. Use tskey-client-… (OAuth client, recommended) or tskey-api-… (access token).',
-  '批量导入': 'Bulk import',
+  '从 Tailscale 添加': 'Add from Tailscale',
   '填一个 Tailscale 的 key，自动列出 tailnet 里的设备，点一下就导入并连接。只读设备列表，不开 VPN。':
       'Enter a Tailscale key to list the devices in your tailnet; tap one to import and connect. Only reads the device list; no VPN is started.',
   '从 Tailscale 读设备列表，点一台就导入并连接。只读列表：不连设备、不开 VPN。手机要能到达设备（开着官方 Tailscale App，或经代理、跳板机）才连得上。':
@@ -649,10 +648,10 @@ const englishTranslations = <String, String>{
   '运行时长': 'Elapsed time',
   '连接': 'Connect',
   '连接地址': 'Address',
-  '认证': 'Authentication',
   '分组': 'Group',
   '标签': 'Tags',
   '代理': 'Proxy',
+  '认证': 'Authentication',
   '跳板机': 'Jump host',
   '未分组': 'Ungrouped',
   '网格视图': 'Grid view',
@@ -666,7 +665,11 @@ const englishTranslations = <String, String>{
       'Add an SSH or Telnet connection. Synced connections will also appear here.',
   '新建连接': 'New connection',
   '编辑连接': 'Edit connection',
-  '基本信息': 'Basic information',
+  '留空用地址': 'Uses the address if empty',
+  '未填写': 'Not set',
+  '分组和标签': 'Group and tags',
+  '连接路径、分组和标签等': 'Route, group, tags and more',
+  '经代理和跳板机': 'Via proxy and jump host',
   '主机名 / IP': 'Hostname / IP',
   '端口': 'Port',
   '分组（可选）': 'Group (optional)',
@@ -1959,7 +1962,6 @@ const englishTranslations = <String, String>{
   '服务器上没有要用的 UTF-8 locale（没填时用 en_US.UTF-8）。先在服务器上用 locale -a 看有哪些 UTF-8 locale（很多系统自带 C.UTF-8），填到主机编辑页「高级 → Mosh 启动参数」的 locale 里；或者让管理员生成一个（比如 locale-gen en_US.UTF-8）。':
       'The server lacks the UTF-8 locale being used (en_US.UTF-8 when none is set). Run locale -a on the server to see which UTF-8 locales exist (many systems ship C.UTF-8) and enter one as the locale under Advanced → Mosh launch options in the host editor, or ask the administrator to generate one (for example locale-gen en_US.UTF-8).',
   // R41：主机编辑页分区、高级折叠、底部操作栏。
-  '首选连接方式': 'Preferred connection method',
   '连接类型': 'Connection type',
   '建议先用 SSH，连上后点终端顶上的「SSH」徽标能切到 Mosh。':
       'Start with SSH; once connected, tap the SSH badge at the top of the terminal to switch to Mosh.',
@@ -1980,8 +1982,6 @@ const englishTranslations = <String, String>{
   '这次的修改还没保存，离开后就没了。':
       'These changes have not been saved and will be lost if you leave.',
   '放弃改动': 'Discard changes',
-  'tmux 与断开之后': 'tmux and after disconnecting',
-  '普通 shell': 'Plain shell',
   '上面选的 SSH / Mosh 只管网络这一段怎么走；断开以后远端程序还在不在，要看它跑在哪。':
       'The SSH / Mosh choice above only decides how the network leg works; whether remote programs survive a disconnect depends on where they run.',
   '普通 shell：现在连这台主机开的都是它。连接一断，shell 和里面前台的程序一起结束；重新连接得到的是一个新 shell，不是原来那个。':
@@ -2476,7 +2476,6 @@ const englishTranslations = <String, String>{
   '只能控制 Windows/macOS': 'Windows/macOS only',
   '插件是单独安装的 App，装上后这里会列出来。它自己联网，不走这里配的代理或跳板。':
       'Plugins are separate apps and are listed here once installed. They use their own network, not the proxies or jump hosts configured here.',
-  '没有插件': 'No plugins',
   '设备密钥可能已失效，或数据被改动过。主机配置都还在；用到这些凭据的连接会被拒绝。':
       'The device key may have been invalidated, or the data was altered. Host settings are intact; connections that need these credentials are refused.',
   '原终端仍连接': 'Original terminal still connected',

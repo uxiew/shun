@@ -4,7 +4,7 @@ import '../../domain/models/host.dart';
 import '../localization/localized_widgets.dart';
 import 'host_system_icon.dart';
 
-/// 每种连接类型用哪个图标。「选择连接类型」页和主机列表的角标都用这里，改一处两边一起变。
+/// 每种连接类型用哪个图标。「连接类型」面板和主机列表的角标都用这里，改一处两边一起变。
 /// 不认识的类型返回 null：系统图标那里已经画了问号。
 IconData? hostProtocolIcon(HostProtocol protocol) => switch (protocol) {
       HostProtocol.ssh => Icons.lock_outline,

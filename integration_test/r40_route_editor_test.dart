@@ -191,6 +191,11 @@ void main() {
         if (result != null) await controller.upsertHost(result);
       });
       await frames(tester);
+      // 路线收在「高级」里（F39）。填过路线的组点开高级就是展开的。
+      await tap(tester, key('advanced-all'));
+      if (find.byType(ConnectionRouteEditor).evaluate().isEmpty) {
+        await tap(tester, key('advanced-route'));
+      }
     }
 
     // 保存都要等写进加密存储。点完「保存」「导入」马上读保险库可能还是旧的：10-25 在 API 30 上

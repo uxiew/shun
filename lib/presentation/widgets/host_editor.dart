@@ -21,7 +21,9 @@ import '../../domain/tailscale_ssh.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import 'catalog_source_section.dart';
 import 'connection_probe_sheet.dart';
+import 'connection_type_sheet.dart';
 import 'form_gap.dart';
+import 'host_type_icon.dart';
 import 'credential_field.dart';
 import 'identity_editor.dart';
 import 'route_legs_view.dart';
@@ -41,6 +43,7 @@ class HostEditor extends ConsumerStatefulWidget {
     this.host,
     this.initialProtocol = HostProtocol.ssh,
     this.initialPluginId,
+    this.onOtherType,
     this.onDelete,
     this.verifyHostKey,
     this.keyboardInteractive,
@@ -49,6 +52,10 @@ class HostEditor extends ConsumerStatefulWidget {
   final HostProfile? host;
   final HostProtocol initialProtocol;
   final String? initialPluginId;
+
+  /// 新建时把类型换成 Tailscale、RustDesk、UU：表单建不了这些，关掉自己后交给调用方。
+  /// 不传（编辑已有主机）就只能在终端类型里换。
+  final ValueChanged<ConnectionTypeChoice>? onOtherType;
   final Future<bool> Function()? onDelete;
 
   /// 测试连接用的指纹核对和交互式登录。和正式连接用同一套，测试不能绕过指纹确认。
@@ -109,6 +116,9 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   /// 新建、还没点过保存、地址也没填：这时路线必然算不出来，那条错误不是用户的错。
   bool get _quiet =>
       widget.host == null && !_triedSave && hostname.text.trim().isEmpty;
+
+  /// 「高级」整块展开没有。默认收起，填过什么写在它的摘要里（F39，学 LobiShell 的高级卡片）。
+  var _advancedOpen = false;
 
   /// 高级里展开着的组。
   late final Set<String> _expanded;
@@ -196,6 +206,11 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         moshLocale,
       ];
 
+  String get _labelOrAddress {
+    final text = label.text.trim();
+    return text.isNotEmpty ? text : hostname.text.trim();
+  }
+
   void _refresh() {
     if (mounted) setState(() {});
   }
@@ -223,7 +238,6 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     final vaultState = ref.watch(vaultControllerProvider);
     final vault = vaultState.data;
     final keys = vault?.keys ?? const <SshKeyProfile>[];
-    final profiles = vault?.proxyProfiles ?? const <ProxyProfile>[];
     if (identityFileId != null &&
         !keys.any((value) => value.id == identityFileId)) {
       identityFileId = null;
@@ -265,14 +279,10 @@ class _HostEditorState extends ConsumerState<HostEditor> {
               : AutovalidateMode.onUserInteraction,
           child: ListView(
             keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
             children: [
-              _section('基本信息'),
-              TextFormField(
-                controller: label,
-                decoration: LInputDecoration(labelText: '名称'),
-                validator: _required,
-              ),
+              _typeRow(),
+              if (protocol == HostProtocol.plugin) ..._pluginSection(),
               // 插件主机没有地址、端口、用户名：连哪里由插件自己的设置页决定，本 App 不交给它任何主机数据。
               // 它自己顶上带一个 FormGap，这里不再放，放了间隔就是两倍。
               if (protocol != HostProtocol.plugin)
@@ -281,42 +291,40 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                   hostname: hostname,
                   port: port,
                 ),
-              const FormGap(),
-              TextFormField(
-                controller: group,
-                decoration: LInputDecoration(labelText: '分组（可选）'),
-              ),
-              const FormGap(),
-              TextFormField(
-                controller: tags,
-                decoration: LInputDecoration(labelText: '标签（逗号分隔）'),
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const LText('置顶显示'),
-                value: pinned,
-                onChanged: (value) => setState(() => pinned = value),
-              ),
-              if (protocol == HostProtocol.plugin) ..._pluginSection(),
-              if (protocol == HostProtocol.telnet) ...[
-                _section('连接路径'),
-                const LText(
-                  'Telnet 只能直连；保存时会去掉这台主机的代理和跳板。',
-                  key: ValueKey('telnet-direct-only'),
+              // 地址、端口写错时路线算不出来：路线编辑器收在高级里，错得在这里说，不然底部写
+              //「按上面红字改好」，页面上却找不到红字。
+              if (protocol != HostProtocol.plugin &&
+                  preview.error != null &&
+                  !_quiet &&
+                  !_routeVisible(preview))
+                Padding(
+                  padding: const EdgeInsets.only(top: 8),
+                  child: LText(
+                    preview.error!,
+                    key: const ValueKey('host-editor-route-error'),
+                    style: TextStyle(
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                  ),
                 ),
-                _routePreview(preview),
-              ],
               if (sshLike) ...[
-                _section(
-                  '认证',
-                  hint:
-                      '用户名 / 密码只给这一台，不填密码就连接时问。凭据是多台共用的一份，改一次全跟着变，里面可以是密码、SSH 密钥或安全密钥。',
-                ),
-                LoginChoiceField(
-                  key: const ValueKey('ssh-login-mode'),
-                  value: _loginChoice,
-                  withTailscale: true,
-                  onChanged: _setLoginChoice,
+                const FormGap(),
+                Row(
+                  children: [
+                    Expanded(
+                      child: LoginChoiceField(
+                        key: const ValueKey('ssh-login-mode'),
+                        value: _loginChoice,
+                        withTailscale: true,
+                        onChanged: _setLoginChoice,
+                      ),
+                    ),
+                    const HintButton(
+                      title: '认证方式',
+                      message:
+                          '用户名 / 密码只给这一台，不填密码就连接时问。凭据是多台共用的一份，改一次全跟着变，里面可以是密码、SSH 密钥或安全密钥。',
+                    ),
+                  ],
                 ),
                 const FormGap(),
                 ...switch (_loginChoice) {
@@ -328,50 +336,30 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                       _tailscaleLoginNote(preview.plan),
                     ],
                 },
-                _section(
-                  '连接路径',
-                  hint:
-                      '手机 →（代理）→（跳板机）→ 目标。代理只用于手机连第一跳，之后由上一台跳板转发。跳板机要先存成普通 SSH 主机。',
-                ),
-                ConnectionRouteEditor(
-                  canConfirmRoutes: !vaultState.loading &&
-                      vaultState.error == null &&
-                      !vaultState.unreadableSecrets.any((key) =>
-                          key.startsWith('proxy.') ||
-                          key.endsWith('.proxyPassword')),
-                  draft: route,
-                  hosts: vault?.hosts ?? const [],
-                  profiles: profiles,
-                  targetHostId: widget.host?.id,
-                  plan: preview.plan,
-                  error: _quiet ? null : preview.error,
-                  warnings: preview.warnings,
-                  targetLabel: label.text,
-                  targetDetail: hostname.text.trim().isEmpty
-                      ? ''
-                      : '${_shownUsername()}@${hostname.text}:${port.text}',
-                  onSelectProxy: (inline) => selectRouteProxy(context, inline),
-                  onManageProxies: () => Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => const ProxyProfilesPage())),
-                  onChanged: _refresh,
-                ),
-                if (widget.host case final host?
-                    when CatalogBinding.of(host) != null)
-                  CatalogSourceSection(
-                    host: host,
-                    currentHostname: hostname.text.trim(),
-                    unlinked: unlinkCatalog,
-                    onUnlinkChanged: (value) =>
-                        setState(() => unlinkCatalog = value),
-                  ),
               ],
-              ..._protocolSection(),
-              if (sshLike) ...[
-                _section('高级'),
-                ..._advancedGroups(),
-              ],
+              const FormGap(),
+              TextFormField(
+                controller: label,
+                decoration: protocol == HostProtocol.plugin
+                    ? LInputDecoration(labelText: '名称')
+                    : LInputDecoration(
+                        labelText: '名称',
+                        hintText: '留空用地址',
+                        floatingLabelBehavior: FloatingLabelBehavior.always,
+                      ),
+                // 插件主机没有地址可以拿来当名字。
+                validator: protocol == HostProtocol.plugin ? _required : null,
+              ),
+              const SizedBox(height: 12),
+              _AdvancedGroup(
+                id: 'all',
+                title: '高级',
+                state: _advancedSummary,
+                filled: false,
+                expanded: _advancedVisible(preview),
+                onToggle: () => setState(() => _advancedOpen = !_advancedOpen),
+                children: _advancedGroups(vaultState, preview),
+              ),
               if (widget.host != null && widget.onDelete != null) ...[
                 const SizedBox(height: 28),
                 OutlinedButton.icon(
@@ -517,62 +505,81 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     ];
   }
 
-  /// 首选连接方式放在路线后面：先填好怎么连到这台机器，再选用什么协议（R41）。
-  List<Widget> _protocolSection() {
-    final sshLike =
-        protocol == HostProtocol.ssh || protocol == HostProtocol.mosh;
-    // 编辑已有主机时四个选项：手机竖屏每格不到 100dp，带图标和选中的对勾时「Telnet」会断成两行
-    // （模拟器 1080×2340 上看到的）。四个时只留文字，选中靠底色。
-    final four = widget.host != null;
-    return [
-      _section(
-        sshLike ? '首选连接方式' : '连接类型',
-        // R42：终端顶上的 SSH / MOSH 徽标能切换。不写「切网不断」——X10 还没在真机上证实。
-        // Mosh 怎么连、要装什么原来是选项下面常驻的一段，也收进这里（docs/dev/ui-text.md）。
-        hint: !sshLike
-            ? null
-            : protocol == HostProtocol.mosh
-                ? [
-                    localized('建议先用 SSH，连上后点终端顶上的「SSH」徽标能切到 Mosh。'),
-                    localized(
-                        'Mosh 先用 SSH 登录这台主机、在上面启动 mosh-server，然后断开 SSH，改由 Mosh 插件经 UDP 直连。要先装好 Mosh 插件并在「设置 → 插件（实验）」批准；服务器上要有 mosh-server，没有时连接会停下、给出安装命令。只能直连：UDP 走不了代理和跳板机。'),
-                  ].join('\n\n')
-                : '建议先用 SSH，连上后点终端顶上的「SSH」徽标能切到 Mosh。',
-        hintKey: const ValueKey('protocol-advice'),
-      ),
-      if (widget.host != null || sshLike)
-        SegmentedButton<HostProtocol>(
-          key: const ValueKey('host-protocol'),
-          showSelectedIcon: !four,
-          segments: [
-            ButtonSegment(
-              value: HostProtocol.ssh,
-              label: const Text('SSH'),
-              icon: four ? null : const Icon(Icons.lock_outline),
+  /// 所有类型都在这一行切换（F39），原来是表单前一整页加表单后面一组「首选连接方式」。
+  Widget _typeRow() {
+    // R42：终端顶上的 SSH / MOSH 徽标能切换。不写「切网不断」——X10 还没在真机上证实。
+    // Mosh 怎么连、要装什么原来是选项下面常驻的一段，也收进这里（docs/dev/ui-text.md）。
+    final hint = switch (protocol) {
+      HostProtocol.ssh => _hint([
+          localized('建议先用 SSH，连上后点终端顶上的「SSH」徽标能切到 Mosh。'),
+          localized('上面选的 SSH / Mosh 只管网络这一段怎么走；断开以后远端程序还在不在，要看它跑在哪。'),
+          ..._persistenceLines().map(localized),
+        ]),
+      HostProtocol.mosh => _hint([
+          localized('建议先用 SSH，连上后点终端顶上的「SSH」徽标能切到 Mosh。'),
+          localized(
+              'Mosh 先用 SSH 登录这台主机、在上面启动 mosh-server，然后断开 SSH，改由 Mosh 插件经 UDP 直连。要先装好 Mosh 插件并在「设置 → 插件（实验）」批准；服务器上要有 mosh-server，没有时连接会停下、给出安装命令。只能直连：UDP 走不了代理和跳板机。'),
+          localized('上面选的 SSH / Mosh 只管网络这一段怎么走；断开以后远端程序还在不在，要看它跑在哪。'),
+          ..._persistenceLines().map(localized),
+        ]),
+      _ => null,
+    };
+    return Row(
+      children: [
+        Expanded(
+          child: InkWell(
+            key: const ValueKey('host-protocol'),
+            onTap: _pickType,
+            child: InputDecorator(
+              decoration: LInputDecoration(
+                labelText: '连接类型',
+                prefixIcon: Icon(hostProtocolIcon(protocol)),
+                suffixIcon: const Icon(Icons.arrow_drop_down),
+              ),
+              child: switch (protocol) {
+                HostProtocol.mosh => const Text('Mosh'),
+                HostProtocol.telnet => const Text('Telnet'),
+                HostProtocol.plugin => const LText('终端插件'),
+                _ => const Text('SSH'),
+              },
             ),
-            ButtonSegment(
-              value: HostProtocol.mosh,
-              label: const Text('Mosh'),
-              icon: four ? null : const Icon(Icons.wifi_tethering),
-            ),
-            if (four) ...[
-              const ButtonSegment(
-                  value: HostProtocol.telnet, label: Text('Telnet')),
-              const ButtonSegment(
-                  value: HostProtocol.plugin, label: LText('插件')),
-            ],
-          ],
-          selected: {protocol},
-          onSelectionChanged: (value) => setState(() {
-            protocol = value.first;
-            if (port.text == '22' || port.text == '23') {
-              port.text = protocol == HostProtocol.telnet ? '23' : '22';
-            }
-          }),
-        )
-      else
-        LText(protocol == HostProtocol.telnet ? 'Telnet' : '终端插件'),
-    ];
+          ),
+        ),
+        if (hint != null)
+          HintButton(
+            key: const ValueKey('protocol-advice'),
+            title: '连接类型',
+            message: hint,
+          ),
+      ],
+    );
+  }
+
+  Future<void> _pickType() async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final choice = await showConnectionTypeSheet(
+      context,
+      current: protocol,
+      currentPluginId: pluginId,
+      terminalsOnly: widget.onOtherType == null,
+    );
+    if (choice == null || !mounted) return;
+    final next = choice.protocol;
+    if (next == null) {
+      // 填了的东西带不过去：换到外部 App 或 Tailscale 等于放弃这张表。
+      if (_dirty && !await _confirmDiscard()) return;
+      if (!mounted) return;
+      widget.onOtherType!(choice);
+      Navigator.pop(context);
+      return;
+    }
+    setState(() {
+      protocol = next;
+      if (next == HostProtocol.plugin) pluginId = choice.pluginId ?? pluginId;
+      if (port.text == '22' || port.text == '23') {
+        port.text = next == HostProtocol.telnet ? '23' : '22';
+      }
+    });
   }
 
   bool get _moshFilled => [moshServerPath, moshPorts, moshLocale]
@@ -580,20 +587,130 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   bool get _timeoutsFilled => [keepalive, connectTimeout, authTimeout]
       .any((c) => c.text.trim().isNotEmpty);
   bool get _startupFilled => startupCommand.text.trim().isNotEmpty;
+  bool get _organizeFilled =>
+      group.text.trim().isNotEmpty || tags.text.trim().isNotEmpty || pinned;
+  bool get _routeSet => route.usesProxy || route.jumpHostIds.isNotEmpty;
+  bool get _hasCatalog =>
+      widget.host != null && CatalogBinding.of(widget.host!) != null;
 
   Set<String> _filledGroups() => {
+        if (_routeSet) 'route',
         if (_moshFilled) 'mosh',
         if (_timeoutsFilled) 'timeouts',
         if (_startupFilled) 'startup',
+        if (_organizeFilled) 'organize',
       };
 
   void _toggle(String group) => setState(() {
         if (!_expanded.remove(group)) _expanded.add(group);
       });
 
-  /// 高级选项按组折叠（R41）。填过值的组默认展开；没填的写「自动」，输入框里也不预填默认值。
+  /// 收着的「高级」下面那一行：设过什么就写什么，不用点开就知道这台走不走代理。没设过就写里面有什么，
+  /// 要找代理的人才知道该点这里。
+  String get _advancedSummary {
+    final set = [
+      if (route.usesProxy) localized('代理'),
+      if (route.jumpHostIds.isNotEmpty) localized('跳板机'),
+      if (protocol == HostProtocol.mosh && _moshFilled) localized('Mosh 启动参数'),
+      if (protocol == HostProtocol.ssh && _startupFilled) localized('启动命令'),
+      if (_sshLike && _timeoutsFilled) localized('超时与保活'),
+      if (_organizeFilled) localized('分组和标签'),
+    ];
+    if (set.isNotEmpty) return set.join(' · ');
+    return protocol == HostProtocol.plugin ? '分组和标签' : '连接路径、分组和标签等';
+  }
+
+  bool get _sshLike =>
+      protocol == HostProtocol.ssh || protocol == HostProtocol.mosh;
+
+  /// 这台配了代理或跳板，而现在的类型用不了：必须摆在用户面前，不能收着。
+  /// Mosh 会报错、保存不了；Telnet 保存时会把它们去掉。
+  bool _routeForced(
+    ({RoutePlan? plan, String? error, List<String> warnings}) preview,
+  ) =>
+      _routeSet &&
+      (protocol == HostProtocol.telnet ||
+          (_sshLike && preview.error != null && !_quiet));
+
+  bool _advancedVisible(
+    ({RoutePlan? plan, String? error, List<String> warnings}) preview,
+  ) =>
+      _advancedOpen || _routeForced(preview);
+
+  bool _routeVisible(
+    ({RoutePlan? plan, String? error, List<String> warnings}) preview,
+  ) =>
+      _routeForced(preview) || (_advancedOpen && _expanded.contains('route'));
+
+  /// 代理、跳板那一组收起时的状态。
+  String get _routeState => protocol == HostProtocol.telnet
+      ? '仅直连'
+      : switch ((route.usesProxy, route.jumpHostIds.isNotEmpty)) {
+          (true, true) => '经代理和跳板机',
+          (true, false) => '经代理',
+          (false, true) => '经跳板机',
+          (false, false) => '直连',
+        };
+
+  /// 高级选项按组折叠（R41）。填过值的组展开高级后就是开着的；没填的写「自动」，输入框里也不预填默认值。
   /// 收起的组只是不显示，字段仍在表单里参与校验；校验没过时 [_checkedDraft] 把填过值的组展开。
-  List<Widget> _advancedGroups() => [
+  List<Widget> _advancedGroups(
+    VaultState vaultState,
+    ({RoutePlan? plan, String? error, List<String> warnings}) preview,
+  ) =>
+      [
+        if (protocol == HostProtocol.telnet)
+          _AdvancedGroup(
+            id: 'route',
+            title: '连接路径',
+            state: _routeState,
+            filled: false,
+            expanded: _routeVisible(preview),
+            onToggle: () => _toggle('route'),
+            children: [
+              const LText(
+                'Telnet 只能直连；保存时会去掉这台主机的代理和跳板。',
+                key: ValueKey('telnet-direct-only'),
+              ),
+              _routePreview(preview),
+            ],
+          ),
+        if (_sshLike)
+          _AdvancedGroup(
+            id: 'route',
+            title: '连接路径',
+            hint: '手机 →（代理）→（跳板机）→ 目标。代理只用于手机连第一跳，之后由上一台跳板转发。跳板机要先存成普通 SSH 主机。',
+            state: _routeState,
+            filled: false,
+            expanded: _routeVisible(preview),
+            onToggle: () => _toggle('route'),
+            children: [
+              ConnectionRouteEditor(
+                canConfirmRoutes: !vaultState.loading &&
+                    vaultState.error == null &&
+                    !vaultState.unreadableSecrets.any((key) =>
+                        key.startsWith('proxy.') ||
+                        key.endsWith('.proxyPassword')),
+                draft: route,
+                hosts: vaultState.data?.hosts ?? const [],
+                profiles: vaultState.data?.proxyProfiles ?? const [],
+                targetHostId: widget.host?.id,
+                plan: preview.plan,
+                error: _quiet ? null : preview.error,
+                warnings: preview.warnings,
+                targetLabel: _labelOrAddress,
+                targetDetail: hostname.text.trim().isEmpty
+                    ? ''
+                    : '${_shownUsername()}@${hostname.text}:${port.text}',
+                onSelectProxy: (inline) => selectRouteProxy(context, inline),
+                onManageProxies: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                        builder: (_) => const ProxyProfilesPage())),
+                onChanged: _refresh,
+              ),
+            ],
+          ),
         if (protocol == HostProtocol.mosh)
           _AdvancedGroup(
             id: 'mosh',
@@ -646,85 +763,13 @@ class _HostEditorState extends ConsumerState<HostEditor> {
               ),
             ],
           ),
-        _AdvancedGroup(
-          id: 'tmux',
-          title: 'tmux 与断开之后',
-          // 这组只有说明、没有要填的：不展开，说明全在 ⓘ 里。
-          hint: _hint([
-            localized('上面选的 SSH / Mosh 只管网络这一段怎么走；断开以后远端程序还在不在，要看它跑在哪。'),
-            ..._persistenceLines().map(localized),
-          ]),
-          filled: false,
-          state: '普通 shell',
-          expanded: false,
-          onToggle: () {},
-          children: const [],
-        ),
-        _AdvancedGroup(
-          id: 'timeouts',
-          title: '超时与保活',
-          // Mosh 只在启动 mosh-server 那段用 SSH，之后的 UDP 会话自己保活：这三项管不到它。
-          hint: _hint([
-            localized(protocol == HostProtocol.mosh
-                ? '只管启动 mosh-server 前那段 SSH 登录；之后的 Mosh 会话自己保活，不用这里的值。'
-                : '一般不用改。网络很慢、经多跳代理时连接总超时，再把超时调大。'),
-            _fieldHint('Keepalive 间隔', '每隔多少秒发送一次保活消息'),
-            _fieldHint('连接超时', '建立 TCP 连接的最长等待时间'),
-            _fieldHint('认证超时', 'SSH 身份认证的最长等待时间'),
-          ]),
-          filled: _timeoutsFilled,
-          expanded: _expanded.contains('timeouts'),
-          onToggle: () => _toggle('timeouts'),
-          children: [
-            LayoutBuilder(
-              builder: (context, constraints) {
-                final fields = [
-                  _AdvancedNumberField(
-                    controller: keepalive,
-                    label: 'Keepalive 间隔',
-                    fallback: _defaultKeepalive,
-                  ),
-                  _AdvancedNumberField(
-                    controller: connectTimeout,
-                    label: '连接超时',
-                    fallback: _defaultConnectTimeout,
-                  ),
-                  _AdvancedNumberField(
-                    controller: authTimeout,
-                    label: '认证超时',
-                    fallback: _defaultAuthTimeout,
-                  ),
-                ];
-                if (constraints.maxWidth < 720) {
-                  return Column(
-                    children: [
-                      for (var index = 0; index < fields.length; index++) ...[
-                        fields[index],
-                        if (index < fields.length - 1)
-                          const SizedBox(height: 12),
-                      ],
-                    ],
-                  );
-                }
-                return Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    for (var index = 0; index < fields.length; index++) ...[
-                      Expanded(child: fields[index]),
-                      if (index < fields.length - 1) const SizedBox(width: 12),
-                    ],
-                  ],
-                );
-              },
-            ),
-          ],
-        ),
         if (protocol == HostProtocol.ssh)
           _AdvancedGroup(
             id: 'startup',
             title: '启动命令',
             hint: localized('连上后在 shell 里执行一次；断线恢复时不会再执行。'),
             filled: _startupFilled,
+            state: _startupFilled ? null : '未填写',
             expanded: _expanded.contains('startup'),
             onToggle: () => _toggle('startup'),
             children: [
@@ -735,6 +780,99 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                 decoration: LInputDecoration(labelText: '连接后执行命令（可选）'),
               ),
             ],
+          ),
+        if (_sshLike)
+          _AdvancedGroup(
+            id: 'timeouts',
+            title: '超时与保活',
+            // Mosh 只在启动 mosh-server 那段用 SSH，之后的 UDP 会话自己保活：这三项管不到它。
+            hint: _hint([
+              localized(protocol == HostProtocol.mosh
+                  ? '只管启动 mosh-server 前那段 SSH 登录；之后的 Mosh 会话自己保活，不用这里的值。'
+                  : '一般不用改。网络很慢、经多跳代理时连接总超时，再把超时调大。'),
+              _fieldHint('Keepalive 间隔', '每隔多少秒发送一次保活消息'),
+              _fieldHint('连接超时', '建立 TCP 连接的最长等待时间'),
+              _fieldHint('认证超时', 'SSH 身份认证的最长等待时间'),
+            ]),
+            filled: _timeoutsFilled,
+            expanded: _expanded.contains('timeouts'),
+            onToggle: () => _toggle('timeouts'),
+            children: [
+              LayoutBuilder(
+                builder: (context, constraints) {
+                  final fields = [
+                    _AdvancedNumberField(
+                      controller: keepalive,
+                      label: 'Keepalive 间隔',
+                      fallback: _defaultKeepalive,
+                    ),
+                    _AdvancedNumberField(
+                      controller: connectTimeout,
+                      label: '连接超时',
+                      fallback: _defaultConnectTimeout,
+                    ),
+                    _AdvancedNumberField(
+                      controller: authTimeout,
+                      label: '认证超时',
+                      fallback: _defaultAuthTimeout,
+                    ),
+                  ];
+                  if (constraints.maxWidth < 720) {
+                    return Column(
+                      children: [
+                        for (var index = 0; index < fields.length; index++) ...[
+                          fields[index],
+                          if (index < fields.length - 1)
+                            const SizedBox(height: 12),
+                        ],
+                      ],
+                    );
+                  }
+                  return Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      for (var index = 0; index < fields.length; index++) ...[
+                        Expanded(child: fields[index]),
+                        if (index < fields.length - 1)
+                          const SizedBox(width: 12),
+                      ],
+                    ],
+                  );
+                },
+              ),
+            ],
+          ),
+        _AdvancedGroup(
+          id: 'organize',
+          title: '分组和标签',
+          filled: _organizeFilled,
+          state: _organizeFilled ? null : '未填写',
+          expanded: _expanded.contains('organize'),
+          onToggle: () => _toggle('organize'),
+          children: [
+            TextFormField(
+              controller: group,
+              decoration: LInputDecoration(labelText: '分组（可选）'),
+            ),
+            const FormGap(),
+            TextFormField(
+              controller: tags,
+              decoration: LInputDecoration(labelText: '标签（逗号分隔）'),
+            ),
+            SwitchListTile(
+              contentPadding: EdgeInsets.zero,
+              title: const LText('置顶显示'),
+              value: pinned,
+              onChanged: (value) => setState(() => pinned = value),
+            ),
+          ],
+        ),
+        if (_sshLike && _hasCatalog)
+          CatalogSourceSection(
+            host: widget.host!,
+            currentHostname: hostname.text.trim(),
+            unlinked: unlinkCatalog,
+            onUnlinkChanged: (value) => setState(() => unlinkCatalog = value),
           ),
       ];
 
@@ -1161,12 +1299,12 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     final base = widget.host ??
         HostProfile.create(
           id: _newId,
-          label: label.text.trim(),
+          label: _labelOrAddress,
           hostname: hostname.text.trim(),
           username: username.text.trim(),
         );
     final data = Map<String, dynamic>.from(base.data)
-      ..['label'] = label.text.trim()
+      ..['label'] = _labelOrAddress
       ..['hostname'] = hostname.text.trim()
       ..['username'] = username.text.trim()
       ..['port'] = int.tryParse(port.text.trim()) ?? 0
@@ -1332,7 +1470,11 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     if (!_triedSave) setState(() => _triedSave = true);
     if (!(_form.currentState?.validate() ?? false)) {
       // 写错的值可能在收起的高级组里：写了东西的组都展开，红字才看得见。
-      setState(() => _expanded.addAll(_filledGroups()));
+      setState(() {
+        _expanded.addAll(_filledGroups());
+        // 只有这两组有校验。地址没填而已，不必把高级打开。
+        if (_moshFilled || _timeoutsFilled) _advancedOpen = true;
+      });
       return null;
     }
     if (protocol != HostProtocol.telnet &&
@@ -1428,7 +1570,7 @@ class _AdvancedGroup extends StatelessWidget {
   const _AdvancedGroup({
     required this.id,
     required this.title,
-    required this.hint,
+    this.hint,
     required this.filled,
     required this.expanded,
     required this.onToggle,
@@ -1438,7 +1580,7 @@ class _AdvancedGroup extends StatelessWidget {
 
   final String id;
   final String title;
-  final String hint;
+  final String? hint;
   final bool filled;
   final bool expanded;
 

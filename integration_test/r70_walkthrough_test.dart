@@ -441,6 +441,19 @@ void main() {
     )));
     await settle(tester);
     await shot(tester, '20-editor-new');
+    // F39：类型在表单里切，路线收在高级里。
+    await tester.tap(find.byKey(const ValueKey('host-protocol')));
+    await settle(tester);
+    await shot(tester, '20a-editor-type-sheet');
+    await tester.tap(find.byKey(const ValueKey('connection-type-Mosh')));
+    await settle(tester);
+    await shot(tester, '20b-editor-mosh');
+    await tester.tap(find.byKey(const ValueKey('advanced-all')));
+    await settle(tester);
+    await shot(tester, '20c-editor-advanced');
+    await tester.tap(find.byKey(const ValueKey('advanced-route')));
+    await settle(tester);
+    await shot(tester, '20d-editor-route');
     navigator.pop();
     await settle(tester);
 

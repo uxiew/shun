@@ -129,16 +129,30 @@ void main() {
           where = '连接页';
           await tester.pump(const Duration(milliseconds: 300));
 
-          where = '选择连接类型';
+          where = '新建连接';
           await tester.tap(find.byIcon(Icons.add_circle_outline));
+          await settle();
+          final type = find.byKey(const ValueKey('host-protocol'));
+          final form = listAround(type);
+          await scrollThrough(form);
+
+          where = '选择连接类型';
+          await tester.ensureVisible(type);
+          await settle();
+          await tester.tap(type);
           await settle();
           final ssh = find.byKey(const ValueKey('connection-type-SSH'));
           await scrollThrough(listAround(ssh));
+          await tester.binding.handlePopRoute();
+          await settle();
 
           where = '编辑主机';
-          await tester.tap(ssh);
+          final advanced = find.byKey(const ValueKey('advanced-all'));
+          await tester.scrollUntilVisible(advanced, 200, scrollable: form);
           await settle();
-          await scrollThrough(listAround(find.text('基本信息')));
+          await tester.tap(advanced);
+          await settle();
+          await scrollThrough(form);
           await tester.binding.handlePopRoute();
           await settle();
 
@@ -159,17 +173,16 @@ void main() {
             scrollable: settingsList,
           );
           // scrollUntilVisible 只管建出来，可能还在屏幕外的缓冲区里。
-          await tester.ensureVisible(
-              find.byKey(const ValueKey('settings-app-log')));
-          await tester.pump(const Duration(milliseconds: 300));
           await tester
-              .tap(find.byKey(const ValueKey('settings-app-log')));
+              .ensureVisible(find.byKey(const ValueKey('settings-app-log')));
+          await tester.pump(const Duration(milliseconds: 300));
+          await tester.tap(find.byKey(const ValueKey('settings-app-log')));
           await settle();
           await tester.binding.handlePopRoute();
           await settle();
         } catch (error) {
           // 走到一半找不到按钮时，先把已经撞到的溢出报出来，别让导航失败把它们盖掉。
-          navigation = error;
+          navigation = StateError('在「$where」：$error');
         } finally {
           FlutterError.onError = previous;
         }

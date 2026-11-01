@@ -125,7 +125,8 @@ void main() {
     await open(tester);
     expect(find.text('必填'), findsNothing);
     expect(status(tester), '未验证');
-    // 路线编辑器在屏幕外时 ListView 根本不建它，先滚过去再看，不然这两条怎么都过。
+    // 路线编辑器收在高级里，先打开再看，不然这两条怎么都过。
+    await openRouteEditor(tester);
     await reveal(tester, key('route-legs'));
     expect(key('route-preview-error'), findsNothing,
         reason: '还没填地址，路线算不出来不是用户的错');
@@ -137,11 +138,11 @@ void main() {
     await tester.tap(key('host-editor-save'));
     await tester.pumpAndSettle();
     expect(result, isNull);
-    expect(find.text('必填'), findsNWidgets(3));
+    expect(find.text('必填'), findsNWidgets(2), reason: '名称可以不填，只有地址和用户名必填');
     expect(status(tester), '按上面红字改好才能保存');
 
     // 以前点过一次保存，「必填」会一直挂着，填好了也不走。
-    await tester.enterText(field('名称'), 'web');
+    await reveal(tester, field('主机名 / IP'));
     await tester.enterText(field('主机名 / IP'), 'web.example.com');
     await tester.enterText(field('用户名'), 'deploy');
     await tester.pumpAndSettle();
@@ -228,7 +229,8 @@ void main() {
           'sshTcpConnectTimeoutSeconds': 25,
           'startupCommand': 'uptime',
         }));
-    await reveal(tester, key('advanced-startup'));
+    await openAdvanced(tester);
+    await reveal(tester, key('advanced-organize'));
     expect(
         tester
             .widget<Text>(find.descendant(
@@ -249,17 +251,17 @@ void main() {
     await tester.enterText(field('名称'), 'web');
     await tester.enterText(field('主机名 / IP'), 'web.example.com');
     await tester.enterText(field('用户名'), 'deploy');
-    await reveal(tester, key('advanced-startup'));
+    await openAdvanced(tester);
+    await reveal(tester, key('advanced-organize'));
     expect(find.text('Keepalive 间隔'), findsNothing, reason: '收起的组不显示字段');
-    for (final group in ['timeouts', 'startup']) {
-      expect(
-          tester
-              .widget<Text>(find.descendant(
-                  of: key('advanced-$group-state'),
-                  matching: find.byType(Text)))
-              .data,
-          '自动');
-    }
+    String stateOf(String group) => tester
+        .widget<Text>(find.descendant(
+            of: key('advanced-$group-state'), matching: find.byType(Text)))
+        .data!;
+    expect(stateOf('route'), '直连');
+    expect(stateOf('timeouts'), '自动');
+    expect(stateOf('startup'), '未填写');
+    expect(stateOf('organize'), '未填写');
     // 底部栏固定在屏幕上：滚到哪里都点得到保存。
     await tester.tap(key('host-editor-save'));
     await tester.pumpAndSettle();
@@ -270,6 +272,7 @@ void main() {
 
   testWidgets('高级各组：说明和字段用法在组名旁 ⓘ 里，展开后页面上只有字段；点 ⓘ 不展开、不收起', (tester) async {
     await open(tester, host: ssh({'protocol': 'mosh'}));
+    await openAdvanced(tester);
     final mosh = await groupHint(tester, 'mosh');
     expect(mosh, contains('mosh-server 路径：留空就先按 PATH 找'));
     expect(mosh, contains('Mosh UDP 端口范围：mosh-server 只在这个范围里挑 UDP 端口'));
@@ -294,8 +297,13 @@ void main() {
 
   testWidgets('收起的组里有写错的值：保存时自己展开、红字看得见、不保存', (tester) async {
     await open(tester, host: ssh({'protocol': 'mosh', moshLocaleKey: 'en_US'}));
-    await reveal(tester, key('advanced-mosh'));
-    expect(find.text('en_US'), findsOneWidget, reason: '填过值的组默认展开');
+    expect(find.text('en_US'), findsNothing, reason: '高级整块默认收起');
+    await tester.tap(key('host-editor-save'));
+    await tester.pumpAndSettle();
+    expect(result, isNull);
+    expect(find.textContaining('Mosh locale 写得不对'), findsOneWidget,
+        reason: '高级收着也要自己打开，红字看得见');
+
     await tester.tap(key('advanced-mosh'));
     await tester.pumpAndSettle();
     expect(find.text('en_US'), findsNothing);
@@ -352,7 +360,7 @@ void main() {
     await open(tester, host: ssh({'protocol': 'mosh'}));
     expect(key('test-connection'), findsNothing);
     expect(status(tester), contains('Mosh 连接时才验证'));
-    // 建议收进「首选连接方式」旁的 ⓘ（docs/dev/ui-text.md），点开才看。
+    // 建议收进「连接类型」旁的 ⓘ（docs/dev/ui-text.md），点开才看。
     await reveal(tester, key('protocol-advice'));
     await tester.tap(key('protocol-advice'));
     await tester.pumpAndSettle();
@@ -361,10 +369,8 @@ void main() {
     expect(advice.data, isNot(contains('切网不断')));
   });
 
-  testWidgets('Mosh 主机：怎么连、要装什么在「首选连接方式」的 ⓘ 里，选项下面不再常驻一段', (tester) async {
+  testWidgets('Mosh 主机：怎么连、要装什么在「连接类型」的 ⓘ 里，页面上不常驻', (tester) async {
     await open(tester, host: ssh({'protocol': 'mosh'}));
-    // 先滚到这一节：列表是懒建的，没滚到时「页面上没有」什么也说明不了。
-    await reveal(tester, key('host-protocol'));
     expect(find.textContaining('改由 Mosh 插件经 UDP 直连'), findsNothing);
     await tester.tap(key('protocol-advice'));
     await tester.pumpAndSettle();
@@ -374,32 +380,24 @@ void main() {
     expect(inSheet('能切到 Mosh'), findsOneWidget);
   });
 
-  testWidgets('编辑已有主机：四个连接方式只写字，不带图标和对勾（带了「Telnet」会断成两行）', (tester) async {
-    await open(tester, host: ssh());
-    final protocols = key('host-protocol');
-    await reveal(tester, protocols);
-    expect(find.descendant(of: protocols, matching: find.text('Telnet')),
-        findsOneWidget);
-    expect(find.descendant(of: protocols, matching: find.byType(Icon)),
-        findsNothing);
-  });
+  /// 点开「连接类型」旁的 ⓘ，返回弹层里的字，再关掉弹层。
+  Future<String> typeHint(WidgetTester tester) async {
+    await tester.tap(key('protocol-advice'));
+    await tester.pumpAndSettle();
+    final text = tester
+        .widgetList<Text>(find.descendant(
+            of: find.byType(BottomSheet), matching: find.byType(Text)))
+        .map((t) => t.data)
+        .join('\n');
+    await tester.tap(find.text('知道了'));
+    await tester.pumpAndSettle();
+    return text;
+  }
 
   testWidgets('tmux 说明：SSH 写清普通 shell 重连是新 shell、去哪里选 tmux；不提按名字自动附着',
       (tester) async {
     await open(tester, host: ssh());
-    await reveal(tester, key('advanced-tmux'));
-    expect(
-        tester
-            .widget<Text>(find.descendant(
-                of: key('advanced-tmux-state'), matching: find.byType(Text)))
-            .data,
-        '普通 shell');
-    // 这组只有说明：不能展开，说明全在 ⓘ 里。
-    expect(
-        find.descendant(
-            of: key('advanced-tmux'), matching: find.byIcon(Icons.expand_more)),
-        findsNothing);
-    final note = await groupHint(tester, 'tmux');
+    final note = await typeHint(tester);
     expect(note, contains('重新连接得到的是一个新 shell，不是原来那个'));
     expect(note, contains('「性能监控 → tmux」'));
     expect(note, contains('只是这台手机上的历史'));
@@ -410,7 +408,7 @@ void main() {
   testWidgets('tmux 说明：Mosh 主机说明直连是普通 shell、想留住程序先 SSH 附着 tmux 再切，不写测试连接',
       (tester) async {
     await open(tester, host: ssh({'protocol': 'mosh'}));
-    final note = await groupHint(tester, 'tmux');
+    final note = await typeHint(tester);
     expect(note, contains('开的是 mosh-server 里的普通 shell'));
     expect(note, contains('接不回原来那个'));
     expect(note, contains('还是同一个 tmux 会话'));
@@ -470,9 +468,75 @@ void main() {
     Navigator.of(tester.element(key('connection-probe-sheet'))).pop();
     await tester.pumpAndSettle();
     expect(status(tester), startsWith('已验证'));
-    await reveal(tester, find.byType(ConnectionRouteEditor));
     await addRouteJump(tester, 'edge');
     expect(status(tester), startsWith('未验证：测试后改过'));
+  });
+
+  testWidgets('F39：新建首屏只有类型、地址、认证、名称；分组、路径、超时都收在高级里', (tester) async {
+    await open(tester);
+    Finder onScreen(Finder finder) => finder.hitTestable();
+    for (final label in ['主机名 / IP', 'SSH 端口', '用户名', '密码（可选）', '名称']) {
+      expect(onScreen(field(label)), findsOneWidget, reason: '$label 要在首屏');
+    }
+    expect(onScreen(key('host-protocol')), findsOneWidget);
+    expect(onScreen(key('advanced-all')), findsOneWidget, reason: '不用滚动就能看到高级');
+    for (final label in ['分组（可选）', '标签（逗号分隔）']) {
+      expect(field(label), findsNothing);
+    }
+    expect(find.byType(ConnectionRouteEditor), findsNothing);
+    expect(key('advanced-route'), findsNothing);
+    expect(key('advanced-timeouts'), findsNothing);
+    expect(find.text('连接路径、分组和标签等'), findsOneWidget);
+  });
+
+  testWidgets('F39：名称留空就用地址，地址也空时不让存', (tester) async {
+    await open(tester);
+    await tester.enterText(field('主机名 / IP'), 'web.example.com');
+    await tester.enterText(field('用户名'), 'deploy');
+    await tester.pump();
+    await tester.tap(key('host-editor-save'));
+    await tester.pumpAndSettle();
+    expect(result!.label, 'web.example.com');
+  });
+
+  testWidgets('F39：高级收着时写明设过什么，不用点开就知道走不走代理', (tester) async {
+    await open(tester,
+        host: ssh({
+          'proxyConfig': {'type': 'socks5', 'host': '127.0.0.1', 'port': 1080},
+          'startupCommand': 'uptime',
+          'group': 'prod',
+        }));
+    expect(find.byType(ConnectionRouteEditor), findsNothing, reason: '编辑也是收着的');
+    expect(find.text('代理 · 启动命令 · 分组和标签'), findsOneWidget);
+    await openAdvanced(tester);
+    expect(find.byType(ConnectionRouteEditor), findsOneWidget,
+        reason: '填过的组点开高级就是展开的');
+    expect(find.text('uptime'), findsOneWidget);
+  });
+
+  testWidgets('F39：地址写错时红字在地址下面，不用去高级里找；路线组开着就不说两遍', (tester) async {
+    await open(tester);
+    await tester.enterText(field('主机名 / IP'), 'bad host');
+    await tester.pump();
+    expect(key('host-editor-route-error'), findsOneWidget);
+    expect(status(tester), '按上面红字改好才能保存');
+    expect(find.byType(ConnectionRouteEditor), findsNothing,
+        reason: '路线是直连，没必要打开高级');
+    await openRouteEditor(tester);
+    expect(key('host-editor-route-error'), findsNothing);
+    expect(key('route-preview-error'), findsOneWidget);
+  });
+
+  testWidgets('F39：配了代理的主机换成 Mosh，路线自己摆出来说明为什么存不了', (tester) async {
+    await open(tester,
+        host: ssh({
+          'proxyConfig': {'type': 'socks5', 'host': '127.0.0.1', 'port': 1080},
+        }));
+    expect(find.byType(ConnectionRouteEditor), findsNothing);
+    await chooseConnectionType(tester, 'Mosh');
+    expect(find.byType(ConnectionRouteEditor), findsOneWidget);
+    expect(key('route-preview-error'), findsOneWidget);
+    expect(key('host-editor-route-error'), findsNothing);
   });
 
   testWidgets('F31：用户名 / 密码下面只有这两个框，没有私钥下拉框', (tester) async {

@@ -104,6 +104,7 @@ void main() {
                         },
                         child: const Text('open')))))));
     await tap(tester, find.text('open'));
+    if (!catalog) await openRouteEditor(tester);
     expect(find.byType(ConnectionRouteEditor), findsOneWidget);
     if (catalog) {
       await tester.enterText(

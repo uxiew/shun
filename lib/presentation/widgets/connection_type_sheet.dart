@@ -11,8 +11,8 @@ import '../../domain/models/host.dart';
 import '../../infrastructure/plugins/rustdesk_external.dart';
 import '../../infrastructure/plugins/uuremote_adapter.dart';
 import '../localization/localized_widgets.dart';
-import '../widgets/hint.dart';
-import '../widgets/host_type_icon.dart';
+import 'hint.dart';
+import 'host_type_icon.dart';
 
 enum RemoteConnectionType { rustdesk, uu }
 
@@ -25,7 +25,7 @@ class ConnectionTypeChoice {
         pluginId = null,
         tailscale = false;
 
-  /// 从 Tailscale 导入（R26）：打开 Tailscale 设置，不建主机。
+  /// 从 Tailscale 添加（R26）：打开 Tailscale 设置，不建主机。
   const ConnectionTypeChoice.tailscale()
       : protocol = null,
         pluginId = null,
@@ -37,15 +37,45 @@ class ConnectionTypeChoice {
   final bool tailscale;
 }
 
+/// 新建连接表单顶上的「连接类型」点开的面板（F39，取代原来挡在表单前的整页）。
+/// [terminalsOnly]：编辑已有主机时只能在终端类型里换，RustDesk、UU、Tailscale 不是同一种记录。
+Future<ConnectionTypeChoice?> showConnectionTypeSheet(
+  BuildContext context, {
+  required HostProtocol current,
+  String? currentPluginId,
+  bool terminalsOnly = false,
+}) =>
+    showModalBottomSheet<ConnectionTypeChoice>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (_) => ConnectionTypeSheet(
+        current: current,
+        currentPluginId: currentPluginId,
+        terminalsOnly: terminalsOnly,
+      ),
+    );
+
 /// Selection only: probes installed clients, never authorizes, installs or launches.
-class ConnectionTypeScreen extends ConsumerStatefulWidget {
-  const ConnectionTypeScreen({super.key});
+class ConnectionTypeSheet extends ConsumerStatefulWidget {
+  const ConnectionTypeSheet({
+    super.key,
+    required this.current,
+    this.currentPluginId,
+    this.terminalsOnly = false,
+  });
+
+  final HostProtocol current;
+  final String? currentPluginId;
+  final bool terminalsOnly;
+
   @override
-  ConsumerState<ConnectionTypeScreen> createState() =>
-      _ConnectionTypeScreenState();
+  ConsumerState<ConnectionTypeSheet> createState() =>
+      _ConnectionTypeSheetState();
 }
 
-class _ConnectionTypeScreenState extends ConsumerState<ConnectionTypeScreen> {
+class _ConnectionTypeSheetState extends ConsumerState<ConnectionTypeSheet> {
   late final AppLifecycleListener _lifecycle;
   @override
   void initState() {
@@ -122,6 +152,11 @@ class _ConnectionTypeScreenState extends ConsumerState<ConnectionTypeScreen> {
                     : mosh == null
                         ? '未装插件'
                         : 'Mosh 插件不可用：${mosh.status.name}';
+    bool selected(ConnectionTypeChoice value) =>
+        value.protocol != null &&
+        value.protocol == widget.current &&
+        (value.protocol != HostProtocol.plugin ||
+            value.pluginId == widget.currentPluginId);
     // 状态只写限制和问题；能用就不写「可用」（docs/dev/ui-text.md）。
     Widget choice(
       String title,
@@ -130,51 +165,73 @@ class _ConnectionTypeScreenState extends ConsumerState<ConnectionTypeScreen> {
       ConnectionTypeChoice value, {
       bool enabled = true,
     }) =>
-        Card(
-          child: ListTile(
-            key: ValueKey('connection-type-$title'),
-            leading: Icon(icon),
-            title: LText(title),
-            subtitle: status == null ? null : LText(status),
-            enabled: enabled,
-            onTap: enabled ? () => Navigator.pop(context, value) : null,
-          ),
+        ListTile(
+          key: ValueKey('connection-type-$title'),
+          leading: Icon(icon),
+          title: LText(title),
+          subtitle: status == null ? null : LText(status),
+          trailing: selected(value) ? const Icon(Icons.check) : null,
+          enabled: enabled,
+          onTap: enabled ? () => Navigator.pop(context, value) : null,
         );
     Widget section(String title, {String? hint}) => Padding(
-          padding: EdgeInsets.only(top: 8, bottom: hint == null ? 8 : 0),
+          padding: EdgeInsets.fromLTRB(
+            16,
+            8,
+            16,
+            hint == null ? 8 : 0,
+          ),
           child: HintTitle(
             title,
             hint: hint,
             style: Theme.of(context).textTheme.titleSmall,
           ),
         );
-    return Scaffold(
-      appBar: AppBar(title: const LText('选择连接类型')),
-      body: ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-          section('终端'),
+    return ListView(
+      shrinkWrap: true,
+      padding: const EdgeInsets.only(bottom: 16),
+      children: [
+        section('终端'),
+        choice(
+          'SSH',
+          hostProtocolIcon(HostProtocol.ssh)!,
+          null,
+          const ConnectionTypeChoice.terminal(HostProtocol.ssh),
+        ),
+        choice(
+          'Mosh',
+          hostProtocolIcon(HostProtocol.mosh)!,
+          moshStatus,
+          const ConnectionTypeChoice.terminal(HostProtocol.mosh),
+        ),
+        choice(
+          'Telnet',
+          hostProtocolIcon(HostProtocol.telnet)!,
+          '明文，仅直连',
+          const ConnectionTypeChoice.terminal(HostProtocol.telnet),
+        ),
+        for (final entry in terminalPlugins)
           choice(
-            'SSH',
-            hostProtocolIcon(HostProtocol.ssh)!,
-            null,
-            const ConnectionTypeChoice.terminal(HostProtocol.ssh),
+            entry.descriptor!.displayName,
+            hostProtocolIcon(HostProtocol.plugin)!,
+            discovery.isLoading
+                ? '正在检查插件'
+                : discovery.hasError
+                    ? '插件检查失败，请重试'
+                    : pluginHostAvailability(entries, entry.pluginId).problem,
+            ConnectionTypeChoice.terminal(
+              HostProtocol.plugin,
+              pluginId: entry.pluginId,
+            ),
+            enabled: android &&
+                !discovery.isLoading &&
+                !discovery.hasError &&
+                pluginHostAvailability(entries, entry.pluginId).entry != null,
           ),
-          choice(
-            'Mosh',
-            hostProtocolIcon(HostProtocol.mosh)!,
-            moshStatus,
-            const ConnectionTypeChoice.terminal(HostProtocol.mosh),
-          ),
-          choice(
-            'Telnet',
-            hostProtocolIcon(HostProtocol.telnet)!,
-            '明文，仅直连',
-            const ConnectionTypeChoice.terminal(HostProtocol.telnet),
-          ),
+        if (!widget.terminalsOnly) ...[
           const SizedBox(height: 8),
           section(
-            '批量导入',
+            '从 Tailscale 添加',
             hint:
                 '填一个 Tailscale 的 key，自动列出 tailnet 里的设备，点一下就导入并连接。只读设备列表，不开 VPN。',
           ),
@@ -224,37 +281,8 @@ class _ConnectionTypeScreenState extends ConsumerState<ConnectionTypeScreen> {
                 },
             const ConnectionTypeChoice.remote(RemoteConnectionType.uu),
           ),
-          const SizedBox(height: 8),
-          section(
-            '终端插件',
-            hint: '插件是单独安装的 App，装上后这里会列出来。它自己联网，不走这里配的代理或跳板。',
-          ),
-          // 以前没装时只剩一个空标题，看着像没加载出来（R25 / UX04 在模拟器上看到的）。
-          if (terminalPlugins.isEmpty && !discovery.isLoading)
-            const LText(
-              '没有插件',
-              key: ValueKey('connection-type-no-plugins'),
-            ),
-          for (final entry in terminalPlugins)
-            choice(
-              entry.descriptor!.displayName,
-              hostProtocolIcon(HostProtocol.plugin)!,
-              discovery.isLoading
-                  ? '正在检查插件'
-                  : discovery.hasError
-                      ? '插件检查失败，请重试'
-                      : pluginHostAvailability(entries, entry.pluginId).problem,
-              ConnectionTypeChoice.terminal(
-                HostProtocol.plugin,
-                pluginId: entry.pluginId,
-              ),
-              enabled: android &&
-                  !discovery.isLoading &&
-                  !discovery.hasError &&
-                  pluginHostAvailability(entries, entry.pluginId).entry != null,
-            ),
         ],
-      ),
+      ],
     );
   }
 }

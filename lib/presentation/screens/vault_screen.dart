@@ -22,6 +22,7 @@ import '../../domain/models/host.dart';
 import '../../domain/ai_cli_work.dart';
 import '../../domain/plugins/plugin_host.dart';
 import '../../application/home_navigation.dart';
+import '../widgets/connection_type_sheet.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/hint.dart';
 import '../widgets/host_editor.dart';
@@ -42,7 +43,6 @@ import '../widgets/system_management/server_panel_sheet.dart';
 import '../widgets/vault_host_items.dart';
 import 'rustdesk_screen.dart';
 import 'app_log_screen.dart';
-import 'connection_type_screen.dart';
 import 'tailscale_catalog_screen.dart';
 import 'tailscale_settings_screen.dart';
 import '../../application/rustdesk.dart';
@@ -806,42 +806,36 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
   ) =>
       keyboardInteractivePrompt(context)(name, instruction, prompts);
 
-  Future<void> _editHost([HostProfile? host]) async {
-    ConnectionTypeChoice? choice;
-    if (host == null) {
-      choice = await Navigator.of(context).push<ConnectionTypeChoice>(
-        MaterialPageRoute(builder: (_) => const ConnectionTypeScreen()),
+  /// 表单里把类型换成 Tailscale、RustDesk、UU：这些不是主机表单能建的，关掉表单走各自的流程。
+  Future<void> _openOtherType(ConnectionTypeChoice choice) async {
+    if (choice.tailscale) {
+      await _openTailscaleSettings();
+      return;
+    }
+    final name = await remoteEntryName(context);
+    if (!mounted || name == null) return;
+    try {
+      final rustdesk = choice.remote == RemoteConnectionType.rustdesk;
+      final id = rustdesk
+          ? await ref.read(rustDeskProvider.notifier).createEntry(name)
+          : await ref.read(uuRemoteProvider.notifier).createEntry(name);
+      if (!mounted) return;
+      await Navigator.of(context).push(
+        MaterialPageRoute<void>(
+          builder: (_) => rustdesk
+              ? RustDeskHostScreen(hostId: id)
+              : UuRemoteHostScreen(hostId: id),
+        ),
       );
-      if (!mounted || choice == null) return;
-      if (choice.tailscale) {
-        await _openTailscaleSettings();
-        return;
-      }
-      if (choice.remote != null) {
-        final name = await remoteEntryName(context);
-        if (!mounted || name == null) return;
-        try {
-          final rustdesk = choice.remote == RemoteConnectionType.rustdesk;
-          final id = rustdesk
-              ? await ref.read(rustDeskProvider.notifier).createEntry(name)
-              : await ref.read(uuRemoteProvider.notifier).createEntry(name);
-          if (!mounted) return;
-          await Navigator.of(context).push(
-            MaterialPageRoute<void>(
-              builder: (_) => rustdesk
-                  ? RustDeskHostScreen(hostId: id)
-                  : UuRemoteHostScreen(hostId: id),
-            ),
-          );
-        } on Object catch (e) {
-          if (mounted) {
-            ScaffoldMessenger.of(context)
-                .showSnackBar(SnackBar(content: LText('$e')));
-          }
-        }
-        return;
+    } on Object catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context)
+            .showSnackBar(SnackBar(content: LText('$e')));
       }
     }
+  }
+
+  Future<void> _editHost([HostProfile? host]) async {
     final vault = await ref.read(vaultControllerProvider.notifier).ready();
     var resolvedHost = host;
     if (host != null) {
@@ -851,6 +845,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       );
     }
     if (!mounted) return;
+    ConnectionTypeChoice? other;
     final result = await showModalBottomSheet<HostProfile>(
       context: context,
       isScrollControlled: true,
@@ -859,8 +854,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       enableDrag: false,
       builder: (_) => HostEditor(
         host: resolvedHost,
-        initialProtocol: choice?.protocol ?? HostProtocol.ssh,
-        initialPluginId: choice?.pluginId,
+        onOtherType: resolvedHost == null ? (choice) => other = choice : null,
         onDelete: resolvedHost == null
             ? null
             : () => _confirmDeleteHost(resolvedHost!),
@@ -872,6 +866,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     if (result != null) {
       await ref.read(vaultControllerProvider.notifier).upsertHost(result);
     }
+    if (other case final choice? when mounted) await _openOtherType(choice);
   }
 
   Future<bool> _confirmDeleteHost(HostProfile host) async {

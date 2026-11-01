@@ -78,5 +78,6 @@ Future<void> r39Gate(WidgetTester tester, String name) async {
 
 Future<void> r39Select(WidgetTester tester, String type) async {
   await r39Tap(tester, find.byTooltip('添加连接'));
+  await r39Tap(tester, r39Key('host-protocol'));
   await r39Tap(tester, r39Key('connection-type-$type'));
 }
