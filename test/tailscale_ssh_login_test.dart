@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/application/connection_diagnosis.dart';
 import 'package:shun/domain/connection_route.dart';
