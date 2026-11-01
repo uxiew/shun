@@ -2119,8 +2119,8 @@
     },
     {
       "id": "UXR02",
-      "action": "在真机和模拟器上点 ⊕ 新建 SSH 主机并连接；再新建 Mosh、RustDesk、UU、Telnet、插件；打开旧主机编辑。",
-      "expected": "竖屏、键盘收着时首屏不滚动看到地址、用户名、密码；填三项点一次能连上；其他类型能建；旧主机字段不丢。",
+      "action": "在真机和模拟器上点 ⊕ 新建 SSH 主机并连接；在表单里切 Mosh、Telnet、插件，换到 RustDesk、UU、Tailscale；打开旧主机编辑。",
+      "expected": "竖屏、键盘收着时首屏不滚动看到类型、地址、用户名、密码、名称、高级；切类型填过的不丢；其他类型能建；旧主机字段不丢。",
       "level": "硬门禁",
       "result": "NOT_RUN",
       "inherited_from": null,

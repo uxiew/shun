@@ -1762,7 +1762,7 @@
 
 阶段：P6；状态：NOT_STARTED；依赖：无；角色：实施代理。
 
-**范围**：F39。静态分析证明不了布局，所有者在场时在手机上看两个 App 的新建连接、Tailscale、主机列表、管理页、设置，并请所有者指认哪里怪。
+**范围**：F39。静态分析看不到实际高度和手感，所有者在场时在手机上看两个 App 的新建连接、Tailscale、主机列表、管理页、设置。所有者 11-01 说静态分析也行，这条成了补充，没有任务等它；字段顺序见 docs/23。
 
 **落点**：无
 
@@ -1780,24 +1780,25 @@
 
 ## R73 新建连接改一页：地址和账号在最上面，类型页降级
 
-阶段：P6；状态：NOT_STARTED；依赖：R72；角色：实施代理。
+阶段：P6；状态：IN_PROGRESS；依赖：无；角色：实施代理。
 
-**范围**：F39。点 ⊕ 直接进 SSH 表单，SSH、Mosh 是表单里的选择；首屏是地址、用户名、认证，名称可选；分组、标签、置顶收进「更多」；主按钮「保存并连接」；其他类型放一行入口。推翻 R39 的先选类型。
+**范围**：F39。点 ⊕ 直接进表单，所有类型都在表单顶上的「连接类型」里切；首屏是类型、地址、用户名、认证、名称（可留空）、高级；连接路径、分组、标签、置顶都收进默认折叠的高级，收起时写明设过什么。推翻 R39 的先选类型。保存并连接不做：两个参考 App 都没有。
 
-**落点**：lib/presentation/widgets/host_editor.dart；lib/presentation/screens/connection_type_screen.dart；lib/presentation/screens/vault_screen.dart
+**落点**：lib/presentation/widgets/host_editor.dart；lib/presentation/widgets/connection_type_sheet.dart；lib/presentation/screens/vault_screen.dart
 
 **交付物**：evidence/R73.md；实现、测试和使用手册更新。
 
 **验收**：
 
-- 手机竖屏、键盘收着时，首屏不滚动就能看到地址、用户名、密码
-- 从 ⊕ 到连上只要填三项点一次
-- RustDesk、UU、Telnet、插件仍能建
+- 手机竖屏、键盘收着时，首屏不滚动就能看到类型、地址、用户名、密码、名称、高级
+- 类型在表单里切，填过的不丢
+- 配了代理或跳板的主机换成 Mosh、Telnet 时，路线自己展开
+- RustDesk、UU、Telnet、插件、Tailscale 仍能建
 - 旧主机打开编辑不丢字段
 
 **关联用例**：UXR02。
 
-**停止条件**：不改数据模型，不迁移。R72 没做不定最终布局。
+**停止条件**：不改数据模型，不迁移。
 
 ## R74 认证区：就地新建凭据，显示被几台使用
 
@@ -1820,11 +1821,11 @@
 
 ## R75 Tailscale 设置减项：常用两项，其余折叠
 
-阶段：P6；状态：NOT_STARTED；依赖：R72；角色：实施代理。
+阶段：P6；状态：NOT_STARTED；依赖：无；角色：实施代理。
 
 **范围**：F39。设置改成主机列表上的底部面板，常用 API key、默认登录；端口、地址种类、连接路径、分组、tailnet 折叠；只有一个 tailnet 时不出现来源、名称。
 
-**落点**：lib/presentation/screens/tailscale_settings_screen.dart；lib/presentation/screens/connection_type_screen.dart
+**落点**：lib/presentation/screens/tailscale_settings_screen.dart；lib/presentation/widgets/connection_type_sheet.dart
 
 **交付物**：evidence/R75.md；实现、测试和使用手册更新。
 
@@ -1900,7 +1901,7 @@
 
 ## R79 「管理」页和设置分组
 
-阶段：P6；状态：NOT_STARTED；依赖：R72；角色：实施代理。
+阶段：P6；状态：NOT_STARTED；依赖：无；角色：实施代理。
 
 **范围**：F39。主机、凭据、代理、转发有统一的管理入口和搜索；设置按通用、终端、连接、安全、数据分组。只学分组，不学每项一大段说明。
 
