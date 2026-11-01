@@ -60,6 +60,7 @@ class CatalogOverviewController extends StateNotifier<List<CatalogSourceView>> {
   final TailscaleCatalogProvider _catalog;
   final DateTime Function() _now;
   var _generation = 0;
+  Future<void> _latestReload = Future.value();
 
   var _foreground = true;
   var _visible = false;
@@ -95,7 +96,8 @@ class CatalogOverviewController extends StateNotifier<List<CatalogSourceView>> {
   }
 
   Future<void> _autoRefresh(int round) async {
-    await reload();
+    unawaited(reload());
+    await _reloadsSettled();
     for (final view in state) {
       if (!mounted || round != _autoRound) return;
       if (_due(view)) await _refreshQuietly(view.catalogId);
@@ -152,9 +154,21 @@ class CatalogOverviewController extends StateNotifier<List<CatalogSourceView>> {
     super.dispose();
   }
 
+  /// 等最新的那次 [reload] 读完。切回「连接」页时页面自己也 reload，先发的那次结果会被扔掉，
+  /// 只等它的话 [state] 还是旧的：第一个来源刚加上时看到的是空列表，定时器排不上，要等下次切页才开始读。
+  Future<void> _reloadsSettled() async {
+    Future<void> latest;
+    do {
+      latest = _latestReload;
+      await latest;
+    } while (!identical(latest, _latestReload));
+  }
+
   /// 重读本机缓存。读不了（没有目录、文件坏了、测试环境没有文件系统）就当没有来源：
   /// 只影响这一节显示，主机照常在普通列表里。
-  Future<void> reload() async {
+  Future<void> reload() => _latestReload = _reload();
+
+  Future<void> _reload() async {
     final generation = ++_generation;
     // 一律复制成可改的列表再排序：仓库没有来源时返回 const 空列表，原地排序会抛 Unsupported operation。
     final caches = <CatalogCache>[];

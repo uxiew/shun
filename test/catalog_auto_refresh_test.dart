@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
@@ -135,6 +136,30 @@ void main() {
     expect(requests, hasLength(1), reason: '没满 60 秒不读');
     await walk(tester, const Duration(seconds: 31));
     expect(requests, hasLength(2));
+    overview.dispose();
+  });
+
+  // 设备上撞到的（tool/r67-device.py）：切回「连接」页时页面自己也 reload。上一轮的 reload 结果被后来的扔掉，
+  // 自动读看到的还是空列表，以为一个存了 key 的来源都没有，定时器排不上，要等下次切页。
+  testWidgets('切回这页时页面也在 reload：第一个来源也要读，定时器也要排上', (tester) async {
+    final added = repo.caches.remove(_home)!;
+    final overview = controller();
+    overview.setVisible(true);
+    await tester.pump();
+    await tester.pump();
+    expect(overview.state, isEmpty, reason: '还没有来源');
+
+    // 到设置里加上第一个来源、存好 key，再回「连接」页。
+    overview.setVisible(false);
+    repo.caches[_home] = added;
+    overview.setVisible(true);
+    unawaited(overview.reload());
+    await tester.pump();
+    await tester.pump();
+    expect(requests, hasLength(1), reason: '马上读');
+
+    await walk(tester, const Duration(seconds: 61));
+    expect(requests, hasLength(2), reason: '定时器排上了');
     overview.dispose();
   });
 
