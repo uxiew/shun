@@ -14,8 +14,9 @@ import 'screens/terminal_screen.dart';
 import 'screens/uuremote_screen.dart';
 import 'screens/vault_screen.dart';
 import 'widgets/custom_background.dart';
+import 'widgets/session_overview.dart';
 
-class HomeShell extends ConsumerWidget {
+class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
 
   static const _pages = [
@@ -27,7 +28,47 @@ class HomeShell extends ConsumerWidget {
   ];
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeShell> createState() => _HomeShellState();
+}
+
+class _HomeShellState extends ConsumerState<HomeShell>
+    with SingleTickerProviderStateMixin {
+  /// 会话总览（F35）弹出来多少：0 是没有，跟手指走，松手后自己弹到头或收回去。
+  late final _overview = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 220),
+  )..addStatusListener((_) {
+      if (mounted) setState(() {});
+    });
+
+  @override
+  void dispose() {
+    _overview.dispose();
+    super.dispose();
+  }
+
+  void _dragOverview(DragUpdateDetails details) {
+    final delta = details.primaryDelta ?? 0;
+    // 键盘弹着的话先收掉：总览盖住了终端，打的字不知道去了哪。
+    if (_overview.isDismissed && delta < 0) {
+      FocusManager.instance.primaryFocus?.unfocus();
+    }
+    _overview.value -= delta / (MediaQuery.sizeOf(context).height * .6);
+  }
+
+  void _settleOverview(DragEndDetails details) {
+    final velocity = details.primaryVelocity ?? 0;
+    if (velocity < -300 || (velocity <= 300 && _overview.value > .35)) {
+      unawaited(_overview.forward());
+    } else {
+      _closeOverview();
+    }
+  }
+
+  void _closeOverview() => unawaited(_overview.reverse());
+
+  @override
+  Widget build(BuildContext context) {
     final index = ref.watch(homeTabProvider);
     final terminalFullscreen = ref.watch(terminalFullscreenProvider);
     final terminalPictureInPicture =
@@ -39,12 +80,16 @@ class HomeShell extends ConsumerWidget {
       index,
       terminalFullscreen || terminalPictureInPicture,
     );
+    final overviewOpen = !_overview.isDismissed && !hideNavigation;
     // UU 远程的回调从 App 一启动就要接（冷启动带进来的也算），绑定回来要在任何页面都能弹确认框。
     return UuRemoteListener(
       child: PopScope(
-        canPop: !hideNavigation,
+        canPop: !hideNavigation && !overviewOpen,
         onPopInvokedWithResult: (didPop, result) {
-          if (!didPop && hideNavigation) {
+          if (didPop) return;
+          if (overviewOpen) {
+            _closeOverview();
+          } else if (hideNavigation) {
             if (terminalPictureInPicture) {
               ref.read(terminalPictureInPictureProvider.notifier).state = false;
               unawaited(TerminalPictureInPictureService.stop());
@@ -68,15 +113,15 @@ class HomeShell extends ConsumerWidget {
                             ),
                       )
                     : Theme.of(context),
-                child: IndexedStack(index: index, children: _pages),
+                child: IndexedStack(index: index, children: HomeShell._pages),
               ),
+              if (overviewOpen) _overviewLayer(),
             ],
           ),
           bottomNavigationBar: hideNavigation
               ? null
               : _navigationBar(
                   context,
-                  ref,
                   index,
                   transparent: globalBackground,
                 ),
@@ -85,44 +130,91 @@ class HomeShell extends ConsumerWidget {
     );
   }
 
+  Widget _overviewLayer() => AnimatedBuilder(
+        animation: _overview,
+        builder: (context, child) => Stack(
+          fit: StackFit.expand,
+          children: [
+            GestureDetector(
+              key: const ValueKey('session-overview-scrim'),
+              onTap: _closeOverview,
+              child: ColoredBox(
+                color: Colors.black.withValues(alpha: .5 * _overview.value),
+              ),
+            ),
+            FractionalTranslation(
+              translation: Offset(0, 1 - _overview.value),
+              child: child,
+            ),
+          ],
+        ),
+        child: GestureDetector(
+          onVerticalDragUpdate: _dragOverview,
+          onVerticalDragEnd: _settleOverview,
+          child: SessionOverview(onClose: _closeOverview),
+        ),
+      );
+
   Widget _navigationBar(
     BuildContext context,
-    WidgetRef ref,
     int selectedIndex, {
     required bool transparent,
   }) {
-    final navigation = NavigationBar(
-      key: const ValueKey('home-navigation-bar'),
-      selectedIndex: selectedIndex,
-      onDestinationSelected: (value) =>
-          ref.read(homeTabProvider.notifier).state = value,
-      destinations: [
-        NavigationDestination(
-          icon: const Icon(Icons.dns_outlined),
-          selectedIcon: const Icon(Icons.dns),
-          // 以前叫「保险库」，所有者觉得不像放主机的地方（R26）。英文表里「连接」是按钮上的 Connect，
-          // 底栏要的是页名，单独写。
-          label: ShunLocalizations.isEnglish ? 'Hosts' : '连接',
+    final navigation = Stack(
+      children: [
+        NavigationBar(
+          key: const ValueKey('home-navigation-bar'),
+          selectedIndex: selectedIndex,
+          onDestinationSelected: (value) {
+            ref.read(homeTabProvider.notifier).state = value;
+            _closeOverview();
+          },
+          destinations: [
+            NavigationDestination(
+              icon: const Icon(Icons.dns_outlined),
+              selectedIcon: const Icon(Icons.dns),
+              // 以前叫「保险库」，所有者觉得不像放主机的地方（R26）。英文表里「连接」是按钮上的 Connect，
+              // 底栏要的是页名，单独写。
+              label: ShunLocalizations.isEnglish ? 'Hosts' : '连接',
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.terminal_outlined),
+              selectedIcon: const Icon(Icons.terminal),
+              label: localized('终端'),
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.folder_outlined),
+              selectedIcon: const Icon(Icons.folder),
+              label: localized('文件'),
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.code_outlined),
+              selectedIcon: const Icon(Icons.code),
+              label: localized('片段'),
+            ),
+            NavigationDestination(
+              icon: const Icon(Icons.settings_outlined),
+              selectedIcon: const Icon(Icons.settings),
+              label: localized('设置'),
+            ),
+          ],
         ),
-        NavigationDestination(
-          icon: const Icon(Icons.terminal_outlined),
-          selectedIcon: const Icon(Icons.terminal),
-          label: localized('终端'),
-        ),
-        NavigationDestination(
-          icon: const Icon(Icons.folder_outlined),
-          selectedIcon: const Icon(Icons.folder),
-          label: localized('文件'),
-        ),
-        NavigationDestination(
-          icon: const Icon(Icons.code_outlined),
-          selectedIcon: const Icon(Icons.code),
-          label: localized('片段'),
-        ),
-        NavigationDestination(
-          icon: const Icon(Icons.settings_outlined),
-          selectedIcon: const Icon(Icons.settings),
-          label: localized('设置'),
+        // 盖在「终端」那一格上接竖直拖动（F35）。点按穿透下去，照旧切页；五格等宽，第二格就是 1/5 宽。
+        Positioned.fill(
+          child: Row(
+            children: [
+              const Spacer(),
+              Expanded(
+                child: GestureDetector(
+                  key: const ValueKey('terminal-tab-swipe'),
+                  behavior: HitTestBehavior.translucent,
+                  onVerticalDragUpdate: _dragOverview,
+                  onVerticalDragEnd: _settleOverview,
+                ),
+              ),
+              const Spacer(flex: 3),
+            ],
+          ),
         ),
       ],
     );

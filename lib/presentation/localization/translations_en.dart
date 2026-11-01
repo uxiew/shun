@@ -2272,6 +2272,12 @@ const englishTranslations = <String, String>{
   '导出前预览': 'Preview before export',
   '复制到剪贴板': 'Copy to clipboard',
   // 凭据（R26 F25）
+  // 会话总览（F35）
+  '会话总览': 'Session overview',
+  '全部重连': 'Reconnect all',
+  '没有打开的会话': 'No open sessions',
+  '还没有输出': 'No output yet',
+  '正在恢复连接…': 'Reconnecting…',
   '凭据': 'Credentials',
   '登录凭据': 'Login credentials',
   '账号密码、SSH 密钥、安全密钥': 'Logins, SSH keys, security keys',
