@@ -2,6 +2,8 @@
 
 本页分两批证据：2026-10-10 的 Android 实地观察，以及 2026-10-11 的 App Store / 开发者资料研究。后一批没有安装或操作 App，功能描述均为官方公开声明，取舍和验收要求是 shun 的规划。
 
+2026-11-01 又对照新版（TermRover 1.3.0、LobiShell 2.11.17）做了一次，结论和任务在 [docs/23](23-ux-reference-review.md)。
+
 ## 2026-10-10：TermRover、LobiShell 实地记录
 
 2026-10-10，所有者同意后，在所有者的 Pixel 9 Pro 上打开看过两个 App：

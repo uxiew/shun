@@ -1757,3 +1757,180 @@
 **关联用例**：无。
 
 **停止条件**：所有者没开口不做。
+
+## R72 手机上实地走查 TermRover、LobiShell
+
+阶段：P6；状态：NOT_STARTED；依赖：无；角色：实施代理。
+
+**范围**：F39。静态分析证明不了布局，所有者在场时在手机上看两个 App 的新建连接、Tailscale、主机列表、管理页、设置，并请所有者指认哪里怪。
+
+**落点**：无
+
+**交付物**：evidence/R72.md；docs/23 布局结论更新。
+
+**验收**：
+
+- 写明手机上两个 App 的版本
+- 每页记录字段顺序和默认展开情况
+- 所有者确认怪的清单，docs/23 按结果更新
+
+**关联用例**：UXR01。
+
+**停止条件**：要所有者当次同意和在场（LobiShell 要指纹）。只看不保存，不连真实主机。截图不进仓库。来路没核实的 APK 不执行。
+
+## R73 新建连接改一页：地址和账号在最上面，类型页降级
+
+阶段：P6；状态：NOT_STARTED；依赖：R72；角色：实施代理。
+
+**范围**：F39。点 ⊕ 直接进 SSH 表单，SSH、Mosh 是表单里的选择；首屏是地址、用户名、认证，名称可选；分组、标签、置顶收进「更多」；主按钮「保存并连接」；其他类型放一行入口。推翻 R39 的先选类型。
+
+**落点**：lib/presentation/widgets/host_editor.dart；lib/presentation/screens/connection_type_screen.dart；lib/presentation/screens/vault_screen.dart
+
+**交付物**：evidence/R73.md；实现、测试和使用手册更新。
+
+**验收**：
+
+- 手机竖屏、键盘收着时，首屏不滚动就能看到地址、用户名、密码
+- 从 ⊕ 到连上只要填三项点一次
+- RustDesk、UU、Telnet、插件仍能建
+- 旧主机打开编辑不丢字段
+
+**关联用例**：UXR02。
+
+**停止条件**：不改数据模型，不迁移。R72 没做不定最终布局。
+
+## R74 认证区：就地新建凭据，显示被几台使用
+
+阶段：P6；状态：NOT_STARTED；依赖：R73；角色：实施代理。
+
+**范围**：F39。选凭据的列表里能直接新建，建完回到表单并选中；凭据页和选择列表写被几台主机使用。
+
+**落点**：lib/presentation/widgets/host_editor.dart
+
+**交付物**：evidence/R74.md；实现、测试和使用手册更新。
+
+**验收**：
+
+- 没有凭据时不用离开表单就能建一个并选中
+- 删除被使用的凭据前写明影响几台
+
+**关联用例**：UXR03。
+
+**停止条件**：凭据不进日志、普通导出、备份；F31 的两种方式都保留。
+
+## R75 Tailscale 设置减项：常用两项，其余折叠
+
+阶段：P6；状态：NOT_STARTED；依赖：R72；角色：实施代理。
+
+**范围**：F39。设置改成主机列表上的底部面板，常用 API key、默认登录；端口、地址种类、连接路径、分组、tailnet 折叠；只有一个 tailnet 时不出现来源、名称。
+
+**落点**：lib/presentation/screens/tailscale_settings_screen.dart；lib/presentation/screens/connection_type_screen.dart
+
+**交付物**：evidence/R75.md；实现、测试和使用手册更新。
+
+**验收**：
+
+- 默认只看到两项输入
+- 已有来源的设置不丢、照常生效
+- 代理和跳板路径仍能配
+
+**关联用例**：UXR04。
+
+**停止条件**：连接路径不能删（R06、R07）。key 的存储和防截屏不变。
+
+## R76 Tailscale 设备并入主机列表，去掉导入
+
+阶段：P6；状态：NOT_STARTED；依赖：R75；角色：实施代理。
+
+**范围**：F39。设备就是主机行，点了就连；可以隐藏、显示已隐藏；收掉全部导入、只导入、关联、自定义导入这些入口。
+
+**落点**：lib/application/catalog_overview.dart；lib/presentation/widgets/catalog_host_sections.dart；lib/presentation/screens/tailscale_catalog_screen.dart
+
+**交付物**：evidence/R76.md；实现、测试和使用手册更新。
+
+**验收**：
+
+- 填完 key 回列表就看到设备和在线状态
+- 点设备走现有的首次登录框，不弹别的设置
+- 隐藏后不显示，能找回
+- 已导入的主机不重复、不丢
+- 同名同 IP 不合并
+
+**关联用例**：UXR05。
+
+**停止条件**：不暗建 tmux，不为状态去连设备，不改 R43 的同名不合并。
+
+## R77 Tailscale 连不上时直接给修法
+
+阶段：P6；状态：NOT_STARTED；依赖：R75；角色：实施代理。
+
+**范围**：F39。服务器没开 Tailscale SSH、访问策略拒绝、要到浏览器认证、手机没连 tailnet，分别给要运行的命令、改用密码或凭据、打开认证页。
+
+**落点**：lib/application/session_controller.dart；lib/presentation/screens/terminal_screen.dart
+
+**交付物**：evidence/R77.md；实现、测试和使用手册更新。
+
+**验收**：
+
+- 四种情况各有一句人话和可点的下一步
+- 一次失败不自动重试登录
+
+**关联用例**：UXR06。
+
+**停止条件**：默认登录不改成免密（F31）。真实 check 没账号写 NOT_RUN。
+
+## R78 连接页空状态给两条路
+
+阶段：P6；状态：NOT_STARTED；依赖：R76；角色：实施代理。
+
+**范围**：F39。没有主机时现在只有一个「添加连接」，改成写明加主机、连接 Tailscale 两条路；已有的搜索要覆盖并入后的 Tailscale 设备。
+
+**落点**：lib/presentation/screens/vault_screen.dart
+
+**交付物**：evidence/R78.md；实现、测试和使用手册更新。
+
+**验收**：
+
+- 空状态两个入口都能用
+- 搜索覆盖普通主机和 Tailscale 设备
+
+**关联用例**：UXR07。
+
+**停止条件**：页面文字守 ui_rules_test 的上限，不改上限。
+
+## R79 「管理」页和设置分组
+
+阶段：P6；状态：NOT_STARTED；依赖：R72；角色：实施代理。
+
+**范围**：F39。主机、凭据、代理、转发有统一的管理入口和搜索；设置按通用、终端、连接、安全、数据分组。只学分组，不学每项一大段说明。
+
+**落点**：lib/presentation/screens/settings_screen.dart
+
+**交付物**：evidence/R79.md；实现、测试和使用手册更新。
+
+**验收**：
+
+- 每个现有设置项都找得到新位置
+- 手册和走查的路径同步
+
+**关联用例**：UXR08。
+
+**停止条件**：不删功能。守 F30。
+
+## R80 tmux 日常操作：快捷行、会话加星、鼠标模式一键开
+
+阶段：P6；状态：DEFERRED；依赖：R23；角色：实施代理。
+
+**范围**：F39 候选，TermRover 有。见 docs/23。
+
+**落点**：lib/presentation/widgets/terminal_special_keys.dart
+
+**交付物**：evidence/R80.md；实现、测试和使用手册更新。
+
+**验收**：
+
+- 所有者开口后再定
+
+**关联用例**：无。
+
+**停止条件**：所有者没开口不做。不暗建、暗杀 tmux。

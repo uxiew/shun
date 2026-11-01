@@ -2105,6 +2105,94 @@
         "evidence/R70.md",
         "evidence/R26.md"
       ]
+    },
+    {
+      "id": "UXR01",
+      "action": "所有者在场，在手机上走查两个 App 的新建连接、Tailscale、主机列表、管理页、设置。",
+      "expected": "evidence/R72.md 写明版本、每页字段顺序和所有者指认的怪的清单；没有保存、没连真实主机。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": [
+        "evidence/R72.md"
+      ]
+    },
+    {
+      "id": "UXR02",
+      "action": "在真机和模拟器上点 ⊕ 新建 SSH 主机并连接；再新建 Mosh、RustDesk、UU、Telnet、插件；打开旧主机编辑。",
+      "expected": "竖屏、键盘收着时首屏不滚动看到地址、用户名、密码；填三项点一次能连上；其他类型能建；旧主机字段不丢。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": [
+        "evidence/R73.md"
+      ]
+    },
+    {
+      "id": "UXR03",
+      "action": "没有凭据时在主机表单里新建凭据；删除被使用的凭据。",
+      "expected": "不离开表单建好并选中；删除前写明影响几台；凭据不进日志和普通导出。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": [
+        "evidence/R74.md"
+      ]
+    },
+    {
+      "id": "UXR04",
+      "action": "新配 Tailscale；打开已有来源的设置；配代理和跳板路径。",
+      "expected": "默认只看到两项输入；已有设置不丢且生效；路径仍能配；key 存储和防截屏不变。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": [
+        "evidence/R75.md"
+      ]
+    },
+    {
+      "id": "UXR05",
+      "action": "填 key 后回主机列表；点设备连接；隐藏再找回；有已导入主机时升级打开。",
+      "expected": "设备带状态出现；点了走首次登录框；隐藏可找回；已导入的不重复不丢；同名同 IP 不合并。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": [
+        "evidence/R76.md"
+      ]
+    },
+    {
+      "id": "UXR06",
+      "action": "用测试环境模拟没开 Tailscale SSH、策略拒绝、要浏览器认证、手机没连 tailnet。",
+      "expected": "每种情况一句人话和可点的下一步；不自动重试登录。真实 check 没账号写 NOT_RUN。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": [
+        "evidence/R77.md"
+      ]
+    },
+    {
+      "id": "UXR07",
+      "action": "没有主机时看连接页；有主机时搜名称、地址、分组。",
+      "expected": "两个入口都能用；搜索覆盖普通主机和 Tailscale 设备。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": [
+        "evidence/R78.md"
+      ]
+    },
+    {
+      "id": "UXR08",
+      "action": "逐项核对改前设置项清单；按手册路径走一遍。",
+      "expected": "每项都有新位置；手册和走查路径一致。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": [
+        "evidence/R79.md"
+      ]
     }
   ],
   "plan_revision": "3.0",

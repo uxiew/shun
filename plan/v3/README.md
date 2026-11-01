@@ -20,6 +20,7 @@
 |[作者SDK](docs/18-plugin-author-sdk.md)|作者交付、签名、样例和调试|
 |[参考App](docs/20-reference-apps.md)|TermRover、LobiShell 实地观察；OSH、meshTerm、NovaScale、Dokodemo CLI、ShellDiver 官方资料；R39–R57 的取舍与证据边界|
 |[安全密钥、同步导出、安全设置计划](docs/21-credentials-sync-plan.md)|R26 F25、F23、F22 的调研结论、所有者 10-31 的决定和分阶段方案|
+|[交互复盘](docs/23-ux-reference-review.md)|对照 TermRover、LobiShell，新建连接和 Tailscale 怎么改，任务 R72–R80|
 |[未完成事项的优先级和计划](docs/22-priorities.md)|所有者 11-01 要的：每条的规模、难点、影响、先后|
 |[AI CLI 启动与继续](docs/02-product-scope.md)|工具发现已验收（R55）；项目启动、最近工作和继续入口的无账号矩阵已验收，R56–R57 仍待真实原生对话验证|
 |[任务](docs/08-implementation-tasks.md) / [验收](docs/09-verification.md)|81项任务（56主线/25后续），172项用例|

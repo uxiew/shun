@@ -5,7 +5,7 @@
   "base_status": "PINNED_495f5d31",
   "implementation_started": true,
   "core_count": 56,
-  "deferred_count": 30,
+  "deferred_count": 39,
   "phase_gates": {
     "P0": {
       "title": "基线与高风险排除",
@@ -3472,6 +3472,264 @@
       ],
       "test_ids": [],
       "stop_condition": "所有者没开口不做。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": ""
+    },
+    {
+      "id": "R72",
+      "phase": "P6",
+      "title": "手机上实地走查 TermRover、LobiShell",
+      "status": "NOT_STARTED",
+      "depends_on": [],
+      "scope": "F39。静态分析证明不了布局，所有者在场时在手机上看两个 App 的新建连接、Tailscale、主机列表、管理页、设置，并请所有者指认哪里怪。",
+      "code_targets": [],
+      "deliverables": [
+        "evidence/R72.md",
+        "docs/23 布局结论更新"
+      ],
+      "acceptance": [
+        "写明手机上两个 App 的版本",
+        "每页记录字段顺序和默认展开情况",
+        "所有者确认怪的清单，docs/23 按结果更新"
+      ],
+      "test_ids": [
+        "UXR01"
+      ],
+      "stop_condition": "要所有者当次同意和在场（LobiShell 要指纹）。只看不保存，不连真实主机。截图不进仓库。来路没核实的 APK 不执行。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": ""
+    },
+    {
+      "id": "R73",
+      "phase": "P6",
+      "title": "新建连接改一页：地址和账号在最上面，类型页降级",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R72"
+      ],
+      "scope": "F39。点 ⊕ 直接进 SSH 表单，SSH、Mosh 是表单里的选择；首屏是地址、用户名、认证，名称可选；分组、标签、置顶收进「更多」；主按钮「保存并连接」；其他类型放一行入口。推翻 R39 的先选类型。",
+      "code_targets": [
+        "lib/presentation/widgets/host_editor.dart",
+        "lib/presentation/screens/connection_type_screen.dart",
+        "lib/presentation/screens/vault_screen.dart"
+      ],
+      "deliverables": [
+        "evidence/R73.md",
+        "实现、测试和使用手册更新"
+      ],
+      "acceptance": [
+        "手机竖屏、键盘收着时，首屏不滚动就能看到地址、用户名、密码",
+        "从 ⊕ 到连上只要填三项点一次",
+        "RustDesk、UU、Telnet、插件仍能建",
+        "旧主机打开编辑不丢字段"
+      ],
+      "test_ids": [
+        "UXR02"
+      ],
+      "stop_condition": "不改数据模型，不迁移。R72 没做不定最终布局。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": ""
+    },
+    {
+      "id": "R74",
+      "phase": "P6",
+      "title": "认证区：就地新建凭据，显示被几台使用",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R73"
+      ],
+      "scope": "F39。选凭据的列表里能直接新建，建完回到表单并选中；凭据页和选择列表写被几台主机使用。",
+      "code_targets": [
+        "lib/presentation/widgets/host_editor.dart"
+      ],
+      "deliverables": [
+        "evidence/R74.md",
+        "实现、测试和使用手册更新"
+      ],
+      "acceptance": [
+        "没有凭据时不用离开表单就能建一个并选中",
+        "删除被使用的凭据前写明影响几台"
+      ],
+      "test_ids": [
+        "UXR03"
+      ],
+      "stop_condition": "凭据不进日志、普通导出、备份；F31 的两种方式都保留。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": ""
+    },
+    {
+      "id": "R75",
+      "phase": "P6",
+      "title": "Tailscale 设置减项：常用两项，其余折叠",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R72"
+      ],
+      "scope": "F39。设置改成主机列表上的底部面板，常用 API key、默认登录；端口、地址种类、连接路径、分组、tailnet 折叠；只有一个 tailnet 时不出现来源、名称。",
+      "code_targets": [
+        "lib/presentation/screens/tailscale_settings_screen.dart",
+        "lib/presentation/screens/connection_type_screen.dart"
+      ],
+      "deliverables": [
+        "evidence/R75.md",
+        "实现、测试和使用手册更新"
+      ],
+      "acceptance": [
+        "默认只看到两项输入",
+        "已有来源的设置不丢、照常生效",
+        "代理和跳板路径仍能配"
+      ],
+      "test_ids": [
+        "UXR04"
+      ],
+      "stop_condition": "连接路径不能删（R06、R07）。key 的存储和防截屏不变。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": ""
+    },
+    {
+      "id": "R76",
+      "phase": "P6",
+      "title": "Tailscale 设备并入主机列表，去掉导入",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R75"
+      ],
+      "scope": "F39。设备就是主机行，点了就连；可以隐藏、显示已隐藏；收掉全部导入、只导入、关联、自定义导入这些入口。",
+      "code_targets": [
+        "lib/application/catalog_overview.dart",
+        "lib/presentation/widgets/catalog_host_sections.dart",
+        "lib/presentation/screens/tailscale_catalog_screen.dart"
+      ],
+      "deliverables": [
+        "evidence/R76.md",
+        "实现、测试和使用手册更新"
+      ],
+      "acceptance": [
+        "填完 key 回列表就看到设备和在线状态",
+        "点设备走现有的首次登录框，不弹别的设置",
+        "隐藏后不显示，能找回",
+        "已导入的主机不重复、不丢",
+        "同名同 IP 不合并"
+      ],
+      "test_ids": [
+        "UXR05"
+      ],
+      "stop_condition": "不暗建 tmux，不为状态去连设备，不改 R43 的同名不合并。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": ""
+    },
+    {
+      "id": "R77",
+      "phase": "P6",
+      "title": "Tailscale 连不上时直接给修法",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R75"
+      ],
+      "scope": "F39。服务器没开 Tailscale SSH、访问策略拒绝、要到浏览器认证、手机没连 tailnet，分别给要运行的命令、改用密码或凭据、打开认证页。",
+      "code_targets": [
+        "lib/application/session_controller.dart",
+        "lib/presentation/screens/terminal_screen.dart"
+      ],
+      "deliverables": [
+        "evidence/R77.md",
+        "实现、测试和使用手册更新"
+      ],
+      "acceptance": [
+        "四种情况各有一句人话和可点的下一步",
+        "一次失败不自动重试登录"
+      ],
+      "test_ids": [
+        "UXR06"
+      ],
+      "stop_condition": "默认登录不改成免密（F31）。真实 check 没账号写 NOT_RUN。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": ""
+    },
+    {
+      "id": "R78",
+      "phase": "P6",
+      "title": "连接页空状态给两条路",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R76"
+      ],
+      "scope": "F39。没有主机时现在只有一个「添加连接」，改成写明加主机、连接 Tailscale 两条路；已有的搜索要覆盖并入后的 Tailscale 设备。",
+      "code_targets": [
+        "lib/presentation/screens/vault_screen.dart"
+      ],
+      "deliverables": [
+        "evidence/R78.md",
+        "实现、测试和使用手册更新"
+      ],
+      "acceptance": [
+        "空状态两个入口都能用",
+        "搜索覆盖普通主机和 Tailscale 设备"
+      ],
+      "test_ids": [
+        "UXR07"
+      ],
+      "stop_condition": "页面文字守 ui_rules_test 的上限，不改上限。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": ""
+    },
+    {
+      "id": "R79",
+      "phase": "P6",
+      "title": "「管理」页和设置分组",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R72"
+      ],
+      "scope": "F39。主机、凭据、代理、转发有统一的管理入口和搜索；设置按通用、终端、连接、安全、数据分组。只学分组，不学每项一大段说明。",
+      "code_targets": [
+        "lib/presentation/screens/settings_screen.dart"
+      ],
+      "deliverables": [
+        "evidence/R79.md",
+        "实现、测试和使用手册更新"
+      ],
+      "acceptance": [
+        "每个现有设置项都找得到新位置",
+        "手册和走查的路径同步"
+      ],
+      "test_ids": [
+        "UXR08"
+      ],
+      "stop_condition": "不删功能。守 F30。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": ""
+    },
+    {
+      "id": "R80",
+      "phase": "P6",
+      "title": "tmux 日常操作：快捷行、会话加星、鼠标模式一键开",
+      "status": "DEFERRED",
+      "depends_on": [
+        "R23"
+      ],
+      "scope": "F39 候选，TermRover 有。见 docs/23。",
+      "code_targets": [
+        "lib/presentation/widgets/terminal_special_keys.dart"
+      ],
+      "deliverables": [
+        "evidence/R80.md",
+        "实现、测试和使用手册更新"
+      ],
+      "acceptance": [
+        "所有者开口后再定"
+      ],
+      "test_ids": [],
+      "stop_condition": "所有者没开口不做。不暗建、暗杀 tmux。",
       "owner_role": "实施代理",
       "evidence": [],
       "commit": ""
