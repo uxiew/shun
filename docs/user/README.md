@@ -275,6 +275,8 @@ ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub
 | 服务器指纹没通过核对 | 你点了拒绝，或指纹变了 | 见 [第 5 节](#5-服务器指纹)。此时还没发送任何登录信息 |
 | 到主机编辑器重新选择凭据 | 私钥口令错、私钥被删或损坏 | 在编辑器换一个凭据，或在「设置 → 凭据」补上正确口令。还在用主机自带私钥的（以前选的），私钥删了就点「不用了」或者建一个凭据 |
 | 路线配置有问题 | 导入或同步来的主机路线有矛盾 | 打开这台主机的编辑器，红框里写着原因 |
+| 这台多半没开 Tailscale SSH | 选了「Tailscale SSH」，服务器却要密码或私钥，那边是普通 sshd | 在服务器上运行提示里的 `sudo tailscale set --ssh`（有「复制命令」），或者点「改认证方式或路线」换成密码、凭据 |
+| 这是 Tailscale 地址，手机要先连上 tailnet | 手机直连 100.x 或 `*.ts.net` 连不到 | 打开 Tailscale App 确认已连接再点重试，或者改走代理、跳板 |
 | 到 Tailscale 后台检查访问策略里的 ssh 规则 | Tailscale SSH 不让你登录，或 check 被拒、过期 | 见 [第 14 节](#14-tailscale-ssh用-tailscale-身份登录) |
 | （报错是）服务器没要任何密码或私钥就让登录了 | 普通 SSH 连上了一台不要凭据就放行的服务器，多半是 Tailscale SSH | 是 Tailscale SSH 就把认证方式改成「Tailscale SSH」 |
 | （报错是）服务器要求另外到浏览器里认证 | 普通 SSH 碰上了 Tailscale 的 check | 同上 |
