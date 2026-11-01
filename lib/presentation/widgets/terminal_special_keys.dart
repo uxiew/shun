@@ -31,6 +31,7 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
     this.onAiCli,
     this.onCopyScreen,
     this.onPerformanceMonitor,
+    this.onSessionOverview,
     this.onHostPassword,
     required this.pictureInPicture,
     required this.onPictureInPicture,
@@ -85,6 +86,9 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
   /// 「性能监控」：和「复制屏幕文字」一样平时在标签条右上角，这里只在「更多」里（所有者 11-01）。
   /// 进程、tmux、Docker 这些都在它打开的面板里。为 null 时不显示（不是 SSH、或者断开了）。
   final VoidCallback? onPerformanceMonitor;
+
+  /// 「会话总览」：平时从底栏「终端」上滑，键盘盖住底栏、全屏没有底栏时从这里进。只在「更多」里。
+  final VoidCallback? onSessionOverview;
 
   /// sudo 键：发这台主机存的密码（R66）。这台主机没存密码、没连着时是 null，不显示。
   final VoidCallback? onHostPassword;
@@ -256,8 +260,9 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                 // 和 R25 去掉的浮动「复制」是同一个问题；不是 SSH 的标签以前连「更多」都没有，点不到复制。
                 // 有只在菜单里的项时也一定在，不能看放不放得下：445dp 宽的手机上 8 个按钮刚好放得下，
                 // 「更多」就没了，所有者要的「更多里能开性能监控」（F34）在那种手机上点不到。
-                final menuOnly =
-                    widget.fullscreen || widget.onPerformanceMonitor != null;
+                final menuOnly = widget.fullscreen ||
+                    widget.onPerformanceMonitor != null ||
+                    widget.onSessionOverview != null;
                 final overflow = (widget.onAiCli != null || menuOnly) &&
                     actions.length + (menuOnly ? 1 : 0) > maxCount;
                 // Preserve the two keyboard controls when overflowing, rather
@@ -386,6 +391,13 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
           localized('性能监控'),
           Icons.monitor_heart_outlined,
           widget.onPerformanceMonitor,
+        ),
+      if (widget.onSessionOverview != null)
+        (
+          'session-overview',
+          localized('会话总览'),
+          Icons.view_carousel_outlined,
+          widget.onSessionOverview,
         ),
       (
         'port-forward',

@@ -49,10 +49,6 @@ class _HomeShellState extends ConsumerState<HomeShell>
 
   void _dragOverview(DragUpdateDetails details) {
     final delta = details.primaryDelta ?? 0;
-    // 键盘弹着的话先收掉：总览盖住了终端，打的字不知道去了哪。
-    if (_overview.isDismissed && delta < 0) {
-      FocusManager.instance.primaryFocus?.unfocus();
-    }
     _overview.value -= delta / (MediaQuery.sizeOf(context).height * .6);
   }
 
@@ -80,7 +76,11 @@ class _HomeShellState extends ConsumerState<HomeShell>
       index,
       terminalFullscreen || terminalPictureInPicture,
     );
-    final overviewOpen = !_overview.isDismissed && !hideNavigation;
+    final overviewOpen = !_overview.isDismissed && !terminalPictureInPicture;
+    ref.listen(
+      sessionOverviewRequestProvider,
+      (_, __) => unawaited(_overview.forward()),
+    );
     // UU 远程的回调从 App 一启动就要接（冷启动带进来的也算），绑定回来要在任何页面都能弹确认框。
     return UuRemoteListener(
       child: PopScope(
@@ -113,7 +113,13 @@ class _HomeShellState extends ConsumerState<HomeShell>
                             ),
                       )
                     : Theme.of(context),
-                child: IndexedStack(index: index, children: HomeShell._pages),
+                // 总览开着时下面的页不能有焦点：键盘会盖住总览，打的字也不知道去了哪。从「更多」打开时
+                // 菜单一关焦点就还给终端，只 unfocus 一次拦不住。点卡片切过去也因此不弹键盘：先看整屏输出，
+                // 底栏也还在，能接着上滑。
+                child: ExcludeFocus(
+                  excluding: overviewOpen,
+                  child: IndexedStack(index: index, children: HomeShell._pages),
+                ),
               ),
               if (overviewOpen) _overviewLayer(),
             ],

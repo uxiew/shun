@@ -2,6 +2,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 final homeTabProvider = StateProvider<int>((ref) => 0);
 
+/// 加一就打开会话总览（F35）。平时从底栏「终端」上滑；键盘弹着、全屏时够不到底栏，从快捷栏「更多」进。
+final sessionOverviewRequestProvider = StateProvider<int>((ref) => 0);
+
 final sftpNavigationRequestProvider =
     StateProvider<SftpNavigationRequest?>((ref) => null);
 

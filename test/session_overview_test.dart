@@ -15,6 +15,7 @@ import 'package:shun/domain/models/host.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/home_shell.dart';
+import 'package:shun/presentation/screens/terminal_screen.dart';
 import 'package:shun/presentation/widgets/session_overview.dart';
 
 import 'support/test_terminal.dart';
@@ -359,6 +360,56 @@ void main() {
     controller.gate!.complete();
     await settle(tester);
     expect(controller.reconnected, ['down1', 'down2']);
+    await finish(tester);
+  });
+
+  testWidgets('键盘盖住底栏时从「更多」进：打开后下面的页没有焦点，键盘不会弹回来盖住总览', (tester) async {
+    final alpha = host('a', 'alpha');
+    await open(
+      tester,
+      SessionState(sessions: [tab('s1', alpha), tab('s2', alpha)]),
+    );
+    container.read(homeTabProvider.notifier).state = 1;
+    await settle(tester);
+    // 终端页不显示时拿不到焦点，所以要在这一页上切一次标签：新标签的终端一挂上就拿焦点。
+    controller.activate(1);
+    await settle(tester);
+
+    bool inTerminal() =>
+        FocusManager.instance.primaryFocus?.context
+            ?.findAncestorWidgetOfExactType<TerminalScreen>() !=
+        null;
+    expect(inTerminal(), isTrue);
+
+    await tester.tap(find.byKey(const ValueKey('terminal-action-more')));
+    await settle(tester);
+    await tester
+        .tap(find.byKey(const ValueKey('terminal-action-session-overview')));
+    await settle(tester);
+    expect(overview, findsOneWidget);
+    expect(inTerminal(), isFalse);
+    await finish(tester);
+  });
+
+  testWidgets('全屏时没有底栏：「更多」能开总览，返回键先关总览，还在全屏', (tester) async {
+    final alpha = host('a', 'alpha');
+    await open(tester, SessionState(sessions: [tab('s1', alpha)]));
+    container.read(homeTabProvider.notifier).state = 1;
+    container.read(terminalFullscreenProvider.notifier).state = true;
+    await settle(tester);
+    expect(find.byKey(const ValueKey('home-navigation-bar')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('terminal-action-more')));
+    await settle(tester);
+    await tester
+        .tap(find.byKey(const ValueKey('terminal-action-session-overview')));
+    await settle(tester);
+    expect(overview, findsOneWidget);
+
+    await tester.binding.handlePopRoute();
+    await settle(tester);
+    expect(overview, findsNothing);
+    expect(container.read(terminalFullscreenProvider), isTrue);
     await finish(tester);
   });
 

@@ -669,6 +669,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                       showTerminalPasteSheet(context, target: inputSession),
                   onCopyScreen: () => _copyScreen(inputSession),
                   onPerformanceMonitor: _performanceMonitorFor(inputSession),
+                  onSessionOverview: () =>
+                      ref.read(sessionOverviewRequestProvider.notifier).state++,
                   onHostPassword: _hostPasswordFor(inputSession),
                   compact: layout.compact,
                   showQuickKeys: layout.showQuickKeys,
