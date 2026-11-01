@@ -1654,3 +1654,105 @@
 **关联用例**：SEC15。
 
 **停止条件**：不自动判断提示符、不自动回车。
+
+## R67 Tailscale 在线状态前台自动刷新
+
+阶段：P6；状态：NOT_STARTED；依赖：R43；角色：实施代理。
+
+**范围**：F32。列表的在线状态只来自上次手动刷新。改成 App 在前台且停在「连接」页时自动读：至少隔 60 秒，失败隔 10 分钟再试，429 按 Retry-After。超过 10 分钟没读到新状态的不画绿点、写明多久前的状态。后台不发请求。盖掉 R11、R12 的「只有手动刷新才发请求」（所有者 11-01 反馈）。
+
+**落点**：lib/application/catalog_overview.dart；lib/presentation/widgets/catalog_text.dart。
+
+**交付物**：evidence/R26.md 第五批；实现、测试和使用手册更新。
+
+**验收**：
+
+- 前台自动读，后台一条请求都没有
+- 没保存 key 的来源不发请求
+- 失败不弹框、不连续重试
+- 手动刷新照旧
+
+**关联用例**：TSC11。
+
+**停止条件**：不从 lastSeen 推断在线，不为状态去连设备。
+
+## R68 性能监控和系统管理合成一个面板
+
+阶段：P6；状态：NOT_STARTED；依赖：R24；角色：实施代理。
+
+**范围**：F34。终端右上角「性能监控」打开的面板顶部是可左右滑的 tab：概览、进程、tmux、Docker、服务、Caddy。「更多」菜单和主机菜单打开同一个面板。断线时整页变灰、概览留断开前的数。
+
+**落点**：lib/presentation/widgets/server_monitor_sheet.dart；lib/presentation/widgets/system_management/。
+
+**交付物**：evidence/R26.md 第五批；实现、测试和使用手册更新。
+
+**验收**：
+
+- 三个入口打开同一个面板
+- 点 tab 和左右滑都能切
+- 断线行为和 R24 一样
+
+**关联用例**：MON01。
+
+**停止条件**：只合并入口和布局，不加新的远端命令。
+
+## R69 所有连接的认证统一走凭据
+
+阶段：P6；状态：NOT_STARTED；依赖：R58；角色：安全代理。
+
+**范围**：F31。主机编辑器、首次登录、Tailscale 设置和导入、代理都从「凭据」选，选完回显用户名和方式。凭据类型：密码、SSH 密钥（口令在密钥上）、密钥 + 密码、安全密钥；还能选「连接时问」「Tailscale SSH」。主机自带的旧密码和私钥照常能连，一键收进凭据，不自动改。WebDAV、S3、AI 的 key、Tailscale API key 不是登录凭据，不在这条里。
+
+**落点**：lib/presentation/widgets/host_editor.dart；lib/presentation/widgets/identity_editor.dart；lib/presentation/widgets/first_login_dialog.dart；lib/domain/credential_identity.dart；lib/domain/proxy_profiles.dart。
+
+**交付物**：evidence/R69.md；实现、测试和使用手册更新。
+
+**验收**：
+
+- 选了凭据后主机编辑器显示它的用户名和方式
+- 真 OpenSSH 上每种凭据都登得进
+- 手机上已有主机不改也能连
+- 凭据不进普通存储和普通导出
+
+**关联用例**：CRD01、CRD02、CRD03。
+
+**停止条件**：不自动迁移主机上的密码；不动保险库 identities 的格式。
+
+## R70 底栏终端上滑出会话总览
+
+阶段：P6；状态：NOT_STARTED；依赖：R42；角色：实施代理。
+
+**范围**：F35。从底栏「终端」往上滑，当前页上盖一层：按机器分组的 tab（多了能滑），每台机器的活跃会话是一排预览卡（左右滑），点卡片进那个会话。预览是文字快照，不再挂一个终端视图（单视图约束）。
+
+**落点**：lib/presentation/home_shell.dart；lib/presentation/widgets/。
+
+**交付物**：evidence/R70.md；实现、测试和使用手册更新。
+
+**验收**：
+
+- 只从「终端」那一格上滑才触发，点按照旧切页
+- 同一台机器的 SSH、tmux、Mosh 标签归到一组
+- 点卡片切到那个会话，断开的卡片能重连
+- 终端内容不落盘
+
+**关联用例**：SWP01。
+
+**停止条件**：手势和系统手势的真机手感只能所有者确认，没上真机写 NOT_RUN。
+
+## R71 连接时自动进 tmux（按主机开关）
+
+阶段：P6；状态：DEFERRED；依赖：R23；角色：实施代理。
+
+**范围**：F33 的解法。普通 SSH 的 shell 随连接结束，App 被杀后接不回去；开了这个开关，连接时进一个固定命名的 tmux 会话，放回来的标签能核对后附着。默认关，要所有者同意才做（契约：不暗建 tmux）。分析见 docs/22。
+
+**落点**：lib/application/session_controller.dart；lib/presentation/widgets/host_editor.dart。
+
+**交付物**：evidence/R71.md。
+
+**验收**：
+
+- 开关默认关
+- 服务器没有 tmux 时照常进普通 shell 并说明
+
+**关联用例**：无。
+
+**停止条件**：所有者没开口不做。

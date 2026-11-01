@@ -5,7 +5,7 @@
   "base_status": "PINNED_495f5d31",
   "implementation_started": true,
   "core_count": 56,
-  "deferred_count": 25,
+  "deferred_count": 30,
   "phase_gates": {
     "P0": {
       "title": "基线与高风险排除",
@@ -3307,6 +3307,168 @@
         "evidence/R66.md"
       ],
       "commit": "0c629c9"
+    },
+    {
+      "id": "R67",
+      "phase": "P6",
+      "title": "Tailscale 在线状态前台自动刷新",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R43"
+      ],
+      "scope": "F32。列表的在线状态只来自上次手动刷新。改成 App 在前台且停在「连接」页时自动读：至少隔 60 秒，失败隔 10 分钟再试，429 按 Retry-After。超过 10 分钟没读到新状态的不画绿点、写明多久前的状态。后台不发请求。盖掉 R11、R12 的「只有手动刷新才发请求」（所有者 11-01 反馈）。",
+      "code_targets": [
+        "lib/application/catalog_overview.dart",
+        "lib/presentation/widgets/catalog_text.dart"
+      ],
+      "deliverables": [
+        "evidence/R26.md 第五批",
+        "实现、测试和使用手册更新"
+      ],
+      "acceptance": [
+        "前台自动读，后台一条请求都没有",
+        "没保存 key 的来源不发请求",
+        "失败不弹框、不连续重试",
+        "手动刷新照旧"
+      ],
+      "test_ids": [
+        "TSC11"
+      ],
+      "stop_condition": "不从 lastSeen 推断在线，不为状态去连设备。",
+      "owner_role": "实施代理",
+      "evidence": [
+        "evidence/R26.md"
+      ],
+      "commit": ""
+    },
+    {
+      "id": "R68",
+      "phase": "P6",
+      "title": "性能监控和系统管理合成一个面板",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R24"
+      ],
+      "scope": "F34。终端右上角「性能监控」打开的面板顶部是可左右滑的 tab：概览、进程、tmux、Docker、服务、Caddy。「更多」菜单和主机菜单打开同一个面板。断线时整页变灰、概览留断开前的数。",
+      "code_targets": [
+        "lib/presentation/widgets/server_monitor_sheet.dart",
+        "lib/presentation/widgets/system_management/"
+      ],
+      "deliverables": [
+        "evidence/R26.md 第五批",
+        "实现、测试和使用手册更新"
+      ],
+      "acceptance": [
+        "三个入口打开同一个面板",
+        "点 tab 和左右滑都能切",
+        "断线行为和 R24 一样"
+      ],
+      "test_ids": [
+        "MON01"
+      ],
+      "stop_condition": "只合并入口和布局，不加新的远端命令。",
+      "owner_role": "实施代理",
+      "evidence": [
+        "evidence/R26.md"
+      ],
+      "commit": ""
+    },
+    {
+      "id": "R69",
+      "phase": "P6",
+      "title": "所有连接的认证统一走凭据",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R58"
+      ],
+      "scope": "F31。主机编辑器、首次登录、Tailscale 设置和导入、代理都从「凭据」选，选完回显用户名和方式。凭据类型：密码、SSH 密钥（口令在密钥上）、密钥 + 密码、安全密钥；还能选「连接时问」「Tailscale SSH」。主机自带的旧密码和私钥照常能连，一键收进凭据，不自动改。WebDAV、S3、AI 的 key、Tailscale API key 不是登录凭据，不在这条里。",
+      "code_targets": [
+        "lib/presentation/widgets/host_editor.dart",
+        "lib/presentation/widgets/identity_editor.dart",
+        "lib/presentation/widgets/first_login_dialog.dart",
+        "lib/domain/credential_identity.dart",
+        "lib/domain/proxy_profiles.dart"
+      ],
+      "deliverables": [
+        "evidence/R69.md",
+        "实现、测试和使用手册更新"
+      ],
+      "acceptance": [
+        "选了凭据后主机编辑器显示它的用户名和方式",
+        "真 OpenSSH 上每种凭据都登得进",
+        "手机上已有主机不改也能连",
+        "凭据不进普通存储和普通导出"
+      ],
+      "test_ids": [
+        "CRD01",
+        "CRD02",
+        "CRD03"
+      ],
+      "stop_condition": "不自动迁移主机上的密码；不动保险库 identities 的格式。",
+      "owner_role": "安全代理",
+      "evidence": [
+        "evidence/R69.md"
+      ],
+      "commit": ""
+    },
+    {
+      "id": "R70",
+      "phase": "P6",
+      "title": "底栏终端上滑出会话总览",
+      "status": "NOT_STARTED",
+      "depends_on": [
+        "R42"
+      ],
+      "scope": "F35。从底栏「终端」往上滑，当前页上盖一层：按机器分组的 tab（多了能滑），每台机器的活跃会话是一排预览卡（左右滑），点卡片进那个会话。预览是文字快照，不再挂一个终端视图（单视图约束）。",
+      "code_targets": [
+        "lib/presentation/home_shell.dart",
+        "lib/presentation/widgets/"
+      ],
+      "deliverables": [
+        "evidence/R70.md",
+        "实现、测试和使用手册更新"
+      ],
+      "acceptance": [
+        "只从「终端」那一格上滑才触发，点按照旧切页",
+        "同一台机器的 SSH、tmux、Mosh 标签归到一组",
+        "点卡片切到那个会话，断开的卡片能重连",
+        "终端内容不落盘"
+      ],
+      "test_ids": [
+        "SWP01"
+      ],
+      "stop_condition": "手势和系统手势的真机手感只能所有者确认，没上真机写 NOT_RUN。",
+      "owner_role": "实施代理",
+      "evidence": [
+        "evidence/R70.md"
+      ],
+      "commit": ""
+    },
+    {
+      "id": "R71",
+      "phase": "P6",
+      "title": "连接时自动进 tmux（按主机开关）",
+      "status": "DEFERRED",
+      "depends_on": [
+        "R23"
+      ],
+      "scope": "F33 的解法。普通 SSH 的 shell 随连接结束，App 被杀后接不回去；开了这个开关，连接时进一个固定命名的 tmux 会话，放回来的标签能核对后附着。默认关，要所有者同意才做（契约：不暗建 tmux）。分析见 docs/22。",
+      "code_targets": [
+        "lib/application/session_controller.dart",
+        "lib/presentation/widgets/host_editor.dart"
+      ],
+      "deliverables": [
+        "evidence/R71.md"
+      ],
+      "acceptance": [
+        "开关默认关",
+        "服务器没有 tmux 时照常进普通 shell 并说明"
+      ],
+      "test_ids": [],
+      "stop_condition": "所有者没开口不做。",
+      "owner_role": "实施代理",
+      "evidence": [],
+      "commit": ""
     }
   ],
   "plan_revision": "3.0"

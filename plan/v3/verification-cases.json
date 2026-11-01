@@ -2015,8 +2015,74 @@
       "evidence": [
         "evidence/R66.md"
       ]
+    },
+    {
+      "id": "TSC11",
+      "action": "前台停在「连接」页超过 60 秒、切后台再回来、断网、key 失效、Tailscale 回 429；没存 key 的来源。",
+      "expected": "只在前台且存了 key 时自动读，至少隔 60 秒；失败不弹框、隔 10 分钟再试，429 按 Retry-After；超过 10 分钟没新状态不画绿点并写明多久前；后台和没存 key 的来源一条请求都没有。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": [
+        "evidence/R26.md"
+      ]
+    },
+    {
+      "id": "MON01",
+      "action": "从终端右上角、「更多」菜单、主机菜单打开性能监控；点 tab、左右滑；打开时断线。",
+      "expected": "三处打开同一个面板，tab 依次是概览、进程、tmux、Docker、服务、Caddy；断线后整页变灰，概览留断开前的数并写明。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": [
+        "evidence/R26.md"
+      ]
+    },
+    {
+      "id": "CRD01",
+      "action": "新建、编辑主机时依次选密码、SSH 密钥、带口令的密钥、密钥 + 密码、安全密钥、连接时问、Tailscale SSH，保存后连接。",
+      "expected": "选完回显名称、用户名、方式；真 OpenSSH 上前四种登录成功，安全密钥用软件认证器；连接时问会当场问；凭据改了引用它的主机全跟着变。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": [
+        "evidence/R69.md"
+      ]
+    },
+    {
+      "id": "CRD02",
+      "action": "用带主机自带密码和私钥的旧保险库升级：不操作直接连；一键收进凭据后再连；重复的账号；删凭据。",
+      "expected": "不操作照常能连；收进后相同账号合并成一个，登录结果不变，主机上的副本清掉，普通偏好和普通导出搜不到密码；删凭据先列出在用的主机。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": [
+        "evidence/R69.md"
+      ]
+    },
+    {
+      "id": "CRD03",
+      "action": "首次连接 Tailscale 设备时选凭据或新建；Tailscale 设置选默认凭据后导入；代理选凭据。",
+      "expected": "首次登录写到这一台的凭据引用；默认凭据只影响以后导入的；代理用凭据里的用户名密码，路线预览不显示密码；手填的老代理配置照常能用。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": [
+        "evidence/R69.md"
+      ]
+    },
+    {
+      "id": "SWP01",
+      "action": "底栏「终端」上滑、点按、从别的格上滑；多台机器多个标签（SSH、tmux、Mosh、连接中、断开）；点预览卡；关卡片；重连；返回键；真机手势导航。",
+      "expected": "只从「终端」格上滑才出总览；同一台机器归一组；预览是当前屏幕文字；点卡片进对应会话；返回键先关总览；内容不落盘。系统手势的手感只有真机算数。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": [
+        "evidence/R70.md"
+      ]
     }
   ],
   "plan_revision": "3.0",
-  "count": 172
+  "count": 178
 }
