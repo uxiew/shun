@@ -1750,18 +1750,21 @@ class SessionController extends StateNotifier<SessionState> {
   }
 
   /// 远端 shell 自己退出了（输入了 exit、Ctrl-D，或 shell 被结束；Mosh 是远端 shell 退出后会话正常收尾）：
-  /// 用户要的就是离开。标签直接关掉，关的是正在看的那个就回到首页第一页「连接」（R26 所有者）。
+  /// 用户要的就是离开。标签直接关掉（R26 所有者），回不回首页见 [_leaveTerminalIfEmpty]。
   /// 以前走断线恢复，exit 之后标签又自己连回去；后来改成留着「会话已结束」等人点关闭，所有者嫌多一步。
   /// 跳板和目标的 SSH 连接这时可能还开着，[close] 一并关掉（LIFE06）。
   /// tmux、AI 工具标签不走这里：它们后面还有会话可以再附着，标签留着给「重新连接」。
   void _closeExitedTab(ActiveTerminalSession session) {
     final index = state.sessions.indexOf(session);
     if (index < 0) return;
-    final looking =
-        state.selectedPending == null && identical(state.active, session);
     unawaited(close(index));
-    // 用户这时已经切到别的页（文件、设置）就不动他。
-    if (looking && ref.read(homeTabProvider) == 1) {
+  }
+
+  /// 最后一个标签没了才回首页第一页「连接」（所有者 11-01）：还有标签就留在终端页看下一个，以前连着开几个标签时
+  /// exit 一个就被带走，要点回来。只有标签真没了才算：断线的标签还留着等恢复、等点重连，这时跳走就看不到了。
+  /// 用户已经切到别的页（文件、设置）就不动他。
+  void _leaveTerminalIfEmpty() {
+    if (state.tabCount == 0 && ref.read(homeTabProvider) == 1) {
       ref.read(homeTabProvider.notifier).state = 0;
     }
   }
@@ -2212,7 +2215,8 @@ class SessionController extends StateNotifier<SessionState> {
         pending.phase != PendingConnectionPhase.failed) {
       return false;
     }
-    dismissPending(id);
+    // 不走 dismissPending：只有这一张卡片时会被当成最后一个标签没了，页面跳回首页再跳回来。
+    _removePending(id);
     return connect(
       pending.host,
       verifyHostKey,
@@ -2226,6 +2230,11 @@ class SessionController extends StateNotifier<SessionState> {
     if (pending == null || pending.phase == PendingConnectionPhase.connecting) {
       return;
     }
+    _removePending(id);
+    _leaveTerminalIfEmpty();
+  }
+
+  void _removePending(String id) {
     state = state.copyWith(
       pendingConnections: state.pendingConnections
           .where((value) => value.id != id)
@@ -2244,14 +2253,8 @@ class SessionController extends StateNotifier<SessionState> {
     if (!exists) return;
     // 先让这次尝试失效并关掉已建好的 socket / client，再改界面（docs/07：先失效代次再释放）。
     _attempts.remove(id)?.cancel();
-    state = state.copyWith(
-      pendingConnections: state.pendingConnections
-          .where((value) => value.id != id)
-          .toList(growable: false),
-      activePendingId:
-          state.activePendingId == id ? null : state.activePendingId,
-      error: null,
-    );
+    _removePending(id);
+    _leaveTerminalIfEmpty();
   }
 
   void reorderSessionTab(int oldIndex, int newIndex) {
@@ -2290,6 +2293,7 @@ class SessionController extends StateNotifier<SessionState> {
       activeIndex:
           sessions.isEmpty ? 0 : activeIndex.clamp(0, sessions.length - 1),
     );
+    _leaveTerminalIfEmpty();
     _recoveries.remove(removed.id);
     _publishRecoveries();
     if (!sessions.any((value) => value.connected)) {

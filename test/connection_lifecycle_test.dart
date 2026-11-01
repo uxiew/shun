@@ -157,7 +157,7 @@ void main() {
       expect(controller.state.recovering, isEmpty);
     });
 
-    test('远端 shell 自己退出（exit）：标签直接关掉，正在看的就回到「连接」页；不自动恢复（R26）', () async {
+    test('远端 shell 自己退出（exit）：标签直接关掉，最后一个没了才回「连接」页；不自动恢复（R26）', () async {
       final host = hostWith();
       await start(hosts: [host]);
       final other = await connected(host);
@@ -171,15 +171,14 @@ void main() {
       await settle();
       expect(controller.state.recovering, isEmpty, reason: 'exit 不是断线，不去重连');
       expect(old.aborted, isTrue, reason: '目标和跳板的连接一并释放');
-      expect(controller.state.sessions, [other],
-          reason: '不留「会话已结束」等人点关闭');
-      expect(container.read(homeTabProvider), 0,
-          reason: '正在看的标签退出了，回到首页第一页');
+      expect(controller.state.sessions, [other], reason: '不留「会话已结束」等人点关闭');
+      expect(container.read(homeTabProvider), 1,
+          reason: '还有别的标签，留在终端页看下一个（所有者 11-01）');
+      expect(controller.state.active, same(other));
 
-      // 不是正在看的标签退出（shell 被服务器结束）：也关掉，但不把人从当前页拽走。
+      // 不是正在看的标签退出（shell 被服务器结束）：也关掉，也不动当前页。
       final current = await connected(host);
       expect(controller.state.active, same(current));
-      container.read(homeTabProvider.notifier).state = 1;
       final calls = service.calls.length;
       other
         ..exited = true
@@ -194,6 +193,54 @@ void main() {
       controller.setBackgrounded(false);
       await settle();
       expect(service.calls.length, calls, reason: '回前台也不自己连');
+
+      current
+        ..exited = true
+        ..drop();
+      await settle();
+      expect(controller.state.sessions, isEmpty);
+      expect(container.read(homeTabProvider), 0, reason: '最后一个没了才回首页第一页');
+    });
+
+    test('关掉最后一个标签回「连接」页；还有标签不动，人在别的页也不动', () async {
+      final host = hostWith();
+      await start(hosts: [host]);
+      await connected(host);
+      final second = await connected(host);
+      expect(controller.state.active, same(second));
+      container.read(homeTabProvider.notifier).state = 1;
+
+      await controller.close(1);
+      expect(container.read(homeTabProvider), 1, reason: '还剩一个');
+      await controller.close(0);
+      expect(container.read(homeTabProvider), 0, reason: '关完了');
+
+      // 用户在别的页：不把人拽走。
+      await connected(host);
+      container.read(homeTabProvider.notifier).state = 2;
+      await controller.close(0);
+      expect(container.read(homeTabProvider), 2);
+    });
+
+    test('只有一张失败卡片时点重试：页面不跳回「连接」再跳回来', () async {
+      final host = hostWith();
+      await start(hosts: [host]);
+      container.read(homeTabProvider.notifier).state = 1;
+      final tabs = <int>[];
+      container.listen(homeTabProvider, (_, next) => tabs.add(next));
+      unawaited(controller.connect(host, accept).catchError((_) => false));
+      await settle();
+      service.calls.last.result.completeError(const SocketException('down'));
+      await settle();
+      final failed = controller.state.pendingConnections.single;
+      expect(failed.phase, PendingConnectionPhase.failed);
+      expect(failed.retryable, isTrue);
+
+      unawaited(
+          controller.retryPending(failed.id, accept).catchError((_) => false));
+      await settle();
+      expect(service.calls, hasLength(2));
+      expect(tabs, isEmpty);
     });
 
     test('密码错、指纹被拒、路线配置错：一次都不重试，写明原因等用户', () async {
