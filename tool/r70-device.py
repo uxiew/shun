@@ -19,6 +19,7 @@ the gesture and the layout with Chinese fonts, not logging in.
 Evidence goes to ../.toolchain/artifacts/r70-device-<time>/ (flutter log, screenshots).
 """
 import importlib.util
+import os
 from pathlib import Path
 import subprocess
 import sys
@@ -29,7 +30,8 @@ spec = importlib.util.spec_from_file_location('r39_device', ROOT / 'tool/r39-dev
 r39 = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(r39)
 
-TARGET = 'integration_test/r70_walkthrough_test.dart'
+# 只想看某一段时换目标，比如 integration_test/r73_editor_walkthrough_test.dart。
+TARGET = os.environ.get('SHUN_R70_TARGET', 'integration_test/r70_walkthrough_test.dart')
 
 
 def fingers(adb, starts, dy, size):
