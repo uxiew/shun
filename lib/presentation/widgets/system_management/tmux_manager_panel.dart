@@ -42,7 +42,9 @@ class _TmuxManagerPanelState extends State<TmuxManagerPanel> {
   Timer? _timer;
   TmuxSocketSpec _socket = const TmuxSocketSpec.standard();
   TmuxProbe? _probe;
-  bool _loading = true;
+  // 断了才打开的页 _refresh 直接返回，写死 true 进度条就永远转。
+  late bool _loading =
+      widget.session.connected && widget.session.sshClient != null;
   bool _refreshing = false;
   Object? _error;
 
@@ -356,46 +358,49 @@ class _TmuxManagerPanelState extends State<TmuxManagerPanel> {
             ],
           ),
         Expanded(
-          child: values.isEmpty && !_loading
-              ? Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(24),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        const Icon(Icons.terminal_outlined, size: 48),
-                        const SizedBox(height: 10),
-                        LText(
-                          operable ? '没有 tmux 会话' : '这里没有可操作的 tmux 会话',
-                          textAlign: TextAlign.center,
+          child: !widget.session.connected && values.isEmpty
+              // 断开时没读过，不能说没有会话：页面顶上已经写了连接断开。
+              ? const SizedBox.shrink()
+              : values.isEmpty && !_loading
+                  ? Center(
+                      child: Padding(
+                        padding: const EdgeInsets.all(24),
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.terminal_outlined, size: 48),
+                            const SizedBox(height: 10),
+                            LText(
+                              operable ? '没有 tmux 会话' : '这里没有可操作的 tmux 会话',
+                              textAlign: TextAlign.center,
+                            ),
+                          ],
                         ),
-                      ],
-                    ),
-                  ),
-                )
-              : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(8, 8, 8, 20),
-                  itemCount: values.length,
-                  itemBuilder: (context, index) {
-                    final row = values[index];
-                    return _SessionCard(
-                      key: ValueKey('${row.server.pid}${row.sessionId}'),
-                      row: row,
-                      operable: operable,
-                      boundHere: bound != null &&
-                          bound.target.server == row.server &&
-                          bound.target.sessionId == row.sessionId,
-                      boundClientTty: bound?.clientTty,
-                      loadDetails: () => widget.service.details(
-                        widget.session.sshClient!,
-                        _targetOf(row),
                       ),
-                      onAttach: () => widget.onAttach(_targetOf(row)),
-                      onKill: () => _killSession(row),
-                      onToggleMouse: () => _toggleMouse(row),
-                    );
-                  },
-                ),
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(8, 8, 8, 20),
+                      itemCount: values.length,
+                      itemBuilder: (context, index) {
+                        final row = values[index];
+                        return _SessionCard(
+                          key: ValueKey('${row.server.pid}${row.sessionId}'),
+                          row: row,
+                          operable: operable,
+                          boundHere: bound != null &&
+                              bound.target.server == row.server &&
+                              bound.target.sessionId == row.sessionId,
+                          boundClientTty: bound?.clientTty,
+                          loadDetails: () => widget.service.details(
+                            widget.session.sshClient!,
+                            _targetOf(row),
+                          ),
+                          onAttach: () => widget.onAttach(_targetOf(row)),
+                          onKill: () => _killSession(row),
+                          onToggleMouse: () => _toggleMouse(row),
+                        );
+                      },
+                    ),
         ),
       ],
     );

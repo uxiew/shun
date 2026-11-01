@@ -29,7 +29,8 @@ class _ProcessManagerPanelState extends State<ProcessManagerPanel> {
   ProcessSortKey _sort = ProcessSortKey.cpu;
   bool _ascending = false;
   bool _runningOnly = false;
-  bool _loading = true;
+  // 断了才打开的页 _refresh 直接返回，写死 true 进度条就永远转。
+  late bool _loading = widget.session.connected;
   bool _refreshing = false;
   Object? _error;
   bool _actionBusy = false;
@@ -327,7 +328,10 @@ class _ProcessManagerPanelState extends State<ProcessManagerPanel> {
           ),
         Expanded(
           child: visible.isEmpty && !_loading
-              ? const Center(child: LText('没有符合条件的进程'))
+              // 断开时没读过，不能说没有进程：页面顶上已经写了连接断开。
+              ? widget.session.connected
+                  ? const Center(child: LText('没有符合条件的进程'))
+                  : const SizedBox.shrink()
               : ListView.builder(
                   padding: const EdgeInsets.fromLTRB(8, 0, 8, 20),
                   itemCount: visible.length,

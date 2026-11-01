@@ -144,4 +144,22 @@ void main() {
     expect(absorb.absorbing, isTrue);
     await tester.pumpWidget(const SizedBox());
   });
+
+  // 断了才点开的页：不会再读，转圈就是骗人。真 SSH 上断线后才看到（MON01）。
+  for (final name in ['进程', 'tmux', 'Docker', '服务', 'Caddy']) {
+    testWidgets('断开后才打开「$name」页：不一直转', (tester) async {
+      await open(tester);
+      await tester.tap(find.text(name));
+      await settlePage(tester);
+      await tester.pump(const Duration(seconds: 1));
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is ProgressIndicator && widget.value == null,
+        ),
+        findsNothing,
+      );
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
 }
