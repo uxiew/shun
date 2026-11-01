@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/ai_cli_return.dart';
 import '../../application/catalog_overview.dart';
+import '../../application/tailscale_catalog_provider.dart';
 import '../../application/fork_features.dart';
 import '../../application/connection_events.dart';
 import '../../application/connection_switch.dart';
@@ -160,6 +161,14 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
         sectionIds.contains(CatalogBinding.of(host)?.catalogId);
     final hosts = visible.where((host) => !inSection(host)).toList();
     final sectionHosts = visible.where(inSection).toList();
+    final hiddenTotal = hiddenCount +
+        (sectionIds.isEmpty
+            ? 0
+            : hiddenCatalogDeviceCount(
+                catalogSources,
+                vault?.hosts ?? const [],
+                _search.text,
+              ));
 
     return SafeArea(
       child: Column(
@@ -376,16 +385,16 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                         allHosts: vault?.hosts ?? const [],
                         hosts: sectionHosts,
                         query: _search.text,
+                        showHidden: _showHidden,
                         onConnect: _showHostDetails,
                         onMenu: _showHostMenu,
                         onImport: _importDevice,
-                        onImportAll: (cache) =>
-                            importAllFromCatalog(context, cache),
+                        onDeviceHidden: _setDeviceHidden,
                         onRefresh: _refreshSource,
                         onSettings: _openTailscaleSettings,
                       ),
                     ),
-                  if (hiddenCount > 0)
+                  if (hiddenTotal > 0)
                     SliverToBoxAdapter(
                       child: Center(
                         child: TextButton.icon(
@@ -397,7 +406,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                               : Icons.visibility_outlined),
                           label: _showHidden
                               ? const LText('不显示已隐藏的主机')
-                              : catalogLine('显示已隐藏的主机：', '$hiddenCount'),
+                              : catalogLine('显示已隐藏的主机：', '$hiddenTotal'),
                         ),
                       ),
                     ),
@@ -676,6 +685,21 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
   /// 没导入的目录设备：按来源的默认设置导入并连接（R26）。
   Future<void> _importDevice(CatalogCache cache, String deviceId) =>
       importAndConnect(context, cache.catalogId, deviceId);
+
+  Future<void> _setDeviceHidden(
+    CatalogCache cache,
+    String deviceId,
+    bool hidden,
+  ) async {
+    try {
+      await ref
+          .read(tailscaleCatalogProvider)
+          .setDeviceHidden(cache.catalogId, deviceId, hidden: hidden);
+      await ref.read(catalogOverviewProvider.notifier).reload();
+    } on Object catch (error) {
+      _message('$error');
+    }
+  }
 
   /// 组头的刷新。本机没存 key 就读不了，打开 Tailscale 设置让用户填。
   Future<void> _refreshSource(CatalogSourceView source) async {

@@ -343,24 +343,34 @@ void main() {
     expect(requests, isEmpty);
   });
 
-  testWidgets('R26：组里「全部导入」只算还没导入、没从列表里消失的；导入后不连接', (tester) async {
+  testWidgets('UXR05：没有「全部导入」；设备 ⋮ 隐藏后不显示，「显示已隐藏」能找回；不连接、不建主机', (tester) async {
     await open(tester);
-    expect(inGroup('ts-home', find.text('全部导入：1')), findsOneWidget);
-    expect(key('vault-catalog-import-all-ts-work'), findsNothing,
-        reason: 'Work 里唯一没导入的设备 4 已经不在列表里了');
-    await tester.tap(key('vault-catalog-import-all-ts-home'));
-    await tester.pumpAndSettle();
-    expect(key('first-login-dialog'), findsNothing);
     expect(key('vault-catalog-import-all-ts-home'), findsNothing);
-    expect(key('vault-catalog-device-ts-home-2'), findsNothing);
-    expect(
-        container
-            .read(vaultControllerProvider)
-            .data!
-            .hosts
-            .where((h) => CatalogBinding.of(h)?.catalogId == 'ts-home'),
-        hasLength(3));
-    expect(container.read(sessionControllerProvider).sessions, isEmpty);
+    expect(find.textContaining('还没导入'), findsNothing);
+    final hostsBefore =
+        container.read(vaultControllerProvider).data!.hosts.length;
+    final row = key('vault-catalog-device-ts-home-2');
+    await tester.tap(key('vault-catalog-device-menu-ts-home-2'));
+    await tester.pumpAndSettle();
+    await tester.tap(key('vault-catalog-device-hide-ts-home-2'));
+    await tester.pumpAndSettle();
+    expect(row, findsNothing);
+    expect(key('first-login-dialog'), findsNothing);
+    expect(find.text('显示已隐藏的主机：1'), findsOneWidget);
+
+    await tester.tap(key('vault-show-hidden'));
+    await tester.pumpAndSettle();
+    expect(row, findsOneWidget);
+    await tester.tap(key('vault-catalog-device-menu-ts-home-2'));
+    await tester.pumpAndSettle();
+    expect(find.text('取消隐藏'), findsOneWidget);
+    await tester.tap(key('vault-catalog-device-hide-ts-home-2'));
+    await tester.pumpAndSettle();
+    expect(row, findsOneWidget);
+    expect(find.textContaining('显示已隐藏的主机'), findsNothing,
+        reason: '隐藏的都找回了，这个开关就没必要了');
+    expect(container.read(vaultControllerProvider).data!.hosts,
+        hasLength(hostsBefore));
     expect(requests, isEmpty);
   });
 

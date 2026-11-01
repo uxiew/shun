@@ -7,7 +7,6 @@ import '../../application/tailscale_catalog_import.dart';
 import '../../application/tailscale_catalog_refresh.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/models/host.dart';
-import '../../infrastructure/tailscale/catalog_cache.dart';
 import '../../infrastructure/tailscale/catalog_cache_repository.dart';
 import '../localization/localized_widgets.dart';
 import 'connection_prompts.dart';
@@ -113,44 +112,5 @@ Future<void> importAndConnect(
       content: Text(
           '${localized('Tailscale 设置里的导入设置不成立：')}${localized(error.message)}'),
     ));
-  }
-}
-
-/// 「全部导入」：这个来源里还没导入的都按默认值建成主机，不连接。返回新建了几台。
-Future<int> importAllFromCatalog(
-  BuildContext context,
-  CatalogCache listed,
-) async {
-  final container = ProviderScope.containerOf(context, listen: false);
-  final messenger = ScaffoldMessenger.of(context);
-  final controller = container.read(vaultControllerProvider.notifier);
-  try {
-    final cache = await container
-            .read(catalogCacheRepositoryProvider)
-            .load(listed.catalogId) ??
-        listed;
-    final ids = importableCatalogDevices(cache, await controller.ready());
-    if (ids.isEmpty) {
-      messenger.showSnackBar(const SnackBar(content: LText('没有还没导入的设备')));
-      return 0;
-    }
-    final result = await importCatalogDevices(controller, cache, ids);
-    messenger.showSnackBar(SnackBar(
-      content: Text([
-        '${localized('已导入主机：')}${result.added.length}',
-        if (result.skipped.isNotEmpty)
-          '${localized('跳过：')}${result.skipped.length}（${[
-            for (final skip in result.skipped)
-              '${skip.name}：${localized(skip.reason)}',
-          ].join('；')}）',
-      ].join('\n')),
-    ));
-    return result.added.length;
-  } on CatalogImportInvalid catch (error) {
-    messenger.showSnackBar(SnackBar(
-      content: Text(
-          '${localized('Tailscale 设置里的导入设置不成立：')}${localized(error.message)}'),
-    ));
-    return 0;
   }
 }

@@ -15,10 +15,11 @@ import 'vault_host_items.dart';
 
 /// 主机列表里的 Tailscale 一节（R43，R26 按所有者反馈改过）：本机每个目录来源一组。
 ///
-/// - 组头：来源名、缓存时间和多久前、刷新、Tailscale 设置、「全部导入」。点组头收起 / 展开。
-/// - 导入（或关联）过的设备显示成那台主机：名字是用户起的别名，点了、⋮ 都和普通主机一样；
+/// - 组头：来源名、缓存时间和多久前、刷新、Tailscale 设置。点组头收起 / 展开。
+/// - 连过（或关联）的设备显示成那台主机：名字是用户起的别名，点了、⋮ 都和普通主机一样；
 ///   在本机登录成功过的带「✓ 登录过」。
-/// - 没导入的设备点了就按来源的默认设置导入并连接，不再弹设置页；用户名、密码缺的在连接时问。
+/// - 没连过的设备点了就按来源的默认设置建成主机并连接（F39、R76：用户不用知道有「导入」这一步），
+///   用户名、密码缺的在连接时问。⋮ 能隐藏，「显示已隐藏的主机」能找回。
 /// - 每行一个系统图标；第二行地址前面是在线点，写「在线」「离线 · 上次在线」，和 Tailscale App 里看到的一样（[deviceOnline]）。
 /// - 两个来源里同名、同 IP 的设备各在各的组，不合并：认的是（来源 ID，设备 ID），不是名字和地址。
 class CatalogHostSections extends StatefulWidget {
@@ -28,10 +29,11 @@ class CatalogHostSections extends StatefulWidget {
     required this.allHosts,
     required this.hosts,
     required this.query,
+    required this.showHidden,
     required this.onConnect,
     required this.onMenu,
     required this.onImport,
-    required this.onImportAll,
+    required this.onDeviceHidden,
     required this.onRefresh,
     required this.onSettings,
     this.now = DateTime.now,
@@ -46,12 +48,15 @@ class CatalogHostSections extends StatefulWidget {
   /// 这一节要显示的主机：已按搜索、隐藏过滤、按主机列表的规则排好。
   final List<HostProfile> hosts;
   final String query;
+
+  /// 隐藏的设备也列出来（变暗），和隐藏的主机同一个开关。
+  final bool showHidden;
   final ValueChanged<HostProfile> onConnect;
   final ValueChanged<HostProfile> onMenu;
   final void Function(CatalogCache cache, String deviceId) onImport;
 
-  /// 把这个来源里还没导入的都导入（不连接）。
-  final ValueChanged<CatalogCache> onImportAll;
+  final void Function(CatalogCache cache, String deviceId, bool hidden)
+      onDeviceHidden;
   final ValueChanged<CatalogSourceView> onRefresh;
   final ValueChanged<String> onSettings;
   final DateTime Function() now;
@@ -67,11 +72,7 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final small = theme.textTheme.bodySmall;
-    final imported = <String>{
-      for (final host in widget.allHosts)
-        if (CatalogBinding.of(host) case final binding?)
-          '${binding.catalogId}\n${binding.deviceId}',
-    };
+    final imported = _boundDevices(widget.allHosts);
     final query = widget.query.trim().toLowerCase();
     final groups = <Widget>[];
     for (final source in widget.sources) {
@@ -83,19 +84,14 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
       final devices = [
         for (final record in cache.devices.values)
           if (!imported.contains('${cache.catalogId}\n${record.id}') &&
+              (widget.showHidden || !cache.hiddenDevices.contains(record.id)) &&
               _matches(record, query))
             record,
       ]..sort((a, b) => catalogDeviceName(a)
           .toLowerCase()
           .compareTo(catalogDeviceName(b).toLowerCase()));
       if (query.isNotEmpty && hosts.isEmpty && devices.isEmpty) continue;
-      // 「全部导入」按整个来源算，不受搜索影响：搜索时只显示了一部分，按钮上的数字也得是真会导的台数。
-      final importable = cache.devices.values
-          .where((record) =>
-              !record.missing &&
-              !imported.contains('${cache.catalogId}\n${record.id}'))
-          .length;
-      groups.add(_group(source, hosts, devices, importable, small));
+      groups.add(_group(source, hosts, devices, small));
     }
     if (groups.isEmpty) return const SizedBox.shrink();
     return Padding(
@@ -114,22 +110,10 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
     );
   }
 
-  bool _matches(CatalogDeviceRecord record, String query) {
-    if (query.isEmpty) return true;
-    final device = record.device;
-    return [
-      catalogDeviceName(record),
-      device.name ?? '',
-      ...device.addresses,
-      ...device.tags,
-    ].any((value) => value.toLowerCase().contains(query));
-  }
-
   Widget _group(
     CatalogSourceView source,
     List<HostProfile> hosts,
     List<CatalogDeviceRecord> devices,
-    int importable,
     TextStyle? small,
   ) {
     final cache = source.cache;
@@ -203,19 +187,6 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
             ),
           ),
           if (!collapsed) ...[
-            if (importable > 0)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: TextButton.icon(
-                    key: ValueKey('vault-catalog-import-all-$id'),
-                    onPressed: () => widget.onImportAll(cache),
-                    icon: const Icon(Icons.download_outlined),
-                    label: catalogLine('全部导入：', '$importable'),
-                  ),
-                ),
-              ),
             for (final host in hosts) _hostRow(host, cache, small),
             for (final record in devices) _deviceRow(cache, record, small),
             if (hosts.isEmpty && devices.isEmpty)
@@ -273,32 +244,78 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
     final device = record.device;
     final key = '${cache.catalogId}-${record.id}';
     final now = widget.now();
-    return ListTile(
-      key: ValueKey('vault-catalog-device-$key'),
-      onTap: () => widget.onImport(cache, record.id),
-      leading: SystemIcon(
-        distro: normalizeDistroId(device.os ?? ''),
-        size: 40,
-        label: device.os,
-      ),
-      title: Text(catalogDeviceName(record)),
-      subtitle: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          PresenceLine(
-            presence: deviceOnline(record),
-            child:
-                Text(device.addresses.isEmpty ? '—' : device.addresses.first),
-          ),
-          Text(deviceOnlineText(record, now, statusAt: cache.lastSuccess?.at),
-              key: ValueKey('vault-catalog-device-status-$key'), style: small),
-          LText('还没导入：点一下导入并连接', style: small),
-        ],
-      ),
-      trailing: Tooltip(
-        message: localized('导入并连接'),
-        child: const Icon(Icons.login),
+    final hidden = cache.hiddenDevices.contains(record.id);
+    return Opacity(
+      opacity: hidden ? .55 : 1,
+      child: ListTile(
+        key: ValueKey('vault-catalog-device-$key'),
+        onTap: () => widget.onImport(cache, record.id),
+        leading: SystemIcon(
+          distro: normalizeDistroId(device.os ?? ''),
+          size: 40,
+          label: device.os,
+        ),
+        title: Text(catalogDeviceName(record)),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            PresenceLine(
+              presence: deviceOnline(record),
+              child:
+                  Text(device.addresses.isEmpty ? '—' : device.addresses.first),
+            ),
+            Text(deviceOnlineText(record, now, statusAt: cache.lastSuccess?.at),
+                key: ValueKey('vault-catalog-device-status-$key'),
+                style: small),
+          ],
+        ),
+        trailing: PopupMenuButton<bool>(
+          key: ValueKey('vault-catalog-device-menu-$key'),
+          onSelected: (next) => widget.onDeviceHidden(cache, record.id, next),
+          itemBuilder: (context) => [
+            PopupMenuItem(
+              key: ValueKey('vault-catalog-device-hide-$key'),
+              value: !hidden,
+              child: LText(hidden ? '取消隐藏' : '隐藏'),
+            ),
+          ],
+        ),
       ),
     );
   }
+}
+
+Set<String> _boundDevices(List<HostProfile> hosts) => {
+      for (final host in hosts)
+        if (CatalogBinding.of(host) case final binding?)
+          '${binding.catalogId}\n${binding.deviceId}',
+    };
+
+bool _matches(CatalogDeviceRecord record, String query) {
+  if (query.isEmpty) return true;
+  final device = record.device;
+  return [
+    catalogDeviceName(record),
+    device.name ?? '',
+    ...device.addresses,
+    ...device.tags,
+  ].any((value) => value.toLowerCase().contains(query));
+}
+
+/// 隐藏了、还没连过、搜索命中的设备有几台：算进「显示已隐藏的主机」的数字。
+int hiddenCatalogDeviceCount(
+  List<CatalogSourceView> sources,
+  List<HostProfile> allHosts,
+  String query,
+) {
+  final bound = _boundDevices(allHosts);
+  final text = query.trim().toLowerCase();
+  return [
+    for (final source in sources)
+      for (final id in source.cache.hiddenDevices)
+        if (source.cache.devices[id] case final record?
+            when !bound.contains('${source.catalogId}\n$id') &&
+                _matches(record, text))
+          id,
+  ].length;
 }

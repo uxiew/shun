@@ -7,9 +7,11 @@ import 'package:http/testing.dart';
 import 'package:shun/application/tailscale_catalog_access.dart';
 import 'package:shun/application/tailscale_catalog_refresh.dart';
 import 'package:shun/domain/models/host.dart';
+import 'package:shun/infrastructure/tailscale/catalog_cache.dart';
 import 'package:shun/infrastructure/tailscale/catalog_cache_repository.dart';
 import 'package:shun/infrastructure/tailscale/catalog_secret_store.dart';
 import 'package:shun/infrastructure/tailscale/tailscale_api.dart';
+import 'package:shun/infrastructure/tailscale/tailscale_device.dart';
 
 // R12：目录缓存、来源映射与非破坏合并。
 // 服务器是 http 的 MockClient（按官方响应形状回），仓库是临时目录里的真实文件，主机表在内存。
@@ -579,5 +581,40 @@ void main() {
         {...host.data}..remove(CatalogBinding.key),
       );
     });
+  });
+
+  test('UXR05：隐藏的设备记在缓存里：刷新不丢，旧缓存和坏值都当没隐藏', () {
+    const cache = CatalogCache(
+      catalogId: 'ts-a',
+      tailnet: '-',
+      hiddenDevices: {'2'},
+    );
+    final back = CatalogCache.fromJson(jsonDecode(jsonEncode(cache.toJson())))!;
+    expect(back.hiddenDevices, {'2'});
+
+    final refreshed = back.merge(
+      TailscaleDeviceSnapshot.parse(jsonEncode({
+        'devices': [
+          {
+            'id': '2',
+            'hostname': 'nas',
+            'name': 'nas.example',
+            'addresses': ['100.64.0.2'],
+            'os': 'linux',
+          },
+        ],
+      })),
+      DateTime.utc(2026, 11, 1),
+    );
+    expect(refreshed.hiddenDevices, {'2'});
+    expect(refreshed.devices.keys, ['2']);
+
+    final json = cache.toJson();
+    expect(
+        CatalogCache.fromJson({...json}..remove('hiddenDevices'))!
+            .hiddenDevices,
+        isEmpty);
+    expect(CatalogCache.fromJson({...json, 'hiddenDevices': 3})!.hiddenDevices,
+        isEmpty);
   });
 }

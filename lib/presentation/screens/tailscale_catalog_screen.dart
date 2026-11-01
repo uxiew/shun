@@ -13,7 +13,6 @@ import '../../domain/models/server_stats.dart';
 import '../../infrastructure/tailscale/catalog_cache.dart';
 import '../../infrastructure/tailscale/catalog_cache_repository.dart';
 import '../localization/localized_widgets.dart';
-import '../widgets/catalog_import_sheet.dart';
 import '../widgets/catalog_text.dart';
 import '../widgets/connect_host.dart';
 import '../widgets/hint.dart';
@@ -24,8 +23,7 @@ import 'tailscale_settings_screen.dart';
 const _catalogAbout =
     '从 Tailscale 读设备列表，点一台就导入并连接。只读列表：不连设备、不开 VPN。手机要能到达设备（开着官方 Tailscale App，或经代理、跳板机）才连得上。';
 
-const _importHint =
-    '点一台就按 Tailscale 设置里的默认值导入并连接，用户名、密码没填的连接时问。「连接」页里已经有这台机器？点 ⋮ →「关联到已有主机」，不用再导入一台。';
+const _importHint = '点一台就按 Tailscale 设置里的默认值连接，用户名、密码没填的连接时问。不想看到的点 ⋮ 隐藏。';
 
 const _sharedDevicesNote =
     '用 OAuth client 读取时，别人共享给你的设备可能不在列表里（Tailscale 的已知问题 tailscale#16911），这不代表设备被删了。';
@@ -325,52 +323,13 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
     await _load();
   }
 
-  Future<void> _importAll() async {
-    final cache = _cache;
-    if (cache == null) return;
-    setState(() => _busy = true);
+  Future<void> _setHidden(CatalogDeviceRecord record, bool hidden) async {
     try {
-      await importAllFromCatalog(context, cache);
-    } finally {
-      if (mounted) setState(() => _busy = false);
-    }
-  }
-
-  /// 不用 Tailscale 设置里的默认值，这一批单独设（含自定义代理）。只导入，不连接。
-  Future<void> _importCustom(List<String> deviceIds) async {
-    final cache = _cache;
-    if (cache == null || deviceIds.isEmpty) return;
-    final added = await showCatalogImportSheet(
-      context,
-      cache: cache,
-      deviceIds: deviceIds,
-    );
-    if (added == null || !mounted) return;
-    final head = localized('已导入主机：');
-    final tail = localized('。还没有连接过：第一次连接时照常核对服务器指纹。');
-    _plainMessage('$head$added$tail');
-  }
-
-  /// 只导入这一台，不连接。
-  Future<void> _importOnly(CatalogDeviceRecord record) async {
-    final cache = _cache;
-    if (cache == null) return;
-    setState(() => _busy = true);
-    try {
-      final result = await importCatalogDevices(
-        ref.read(vaultControllerProvider.notifier),
-        cache,
-        [record.id],
-      );
-      final skip = result.skipped.firstOrNull;
-      _plainMessage(result.added.isNotEmpty
-          ? '${localized('已导入主机：')}${result.added.first.label}'
-          : '${localized('没有导入：')}${skip == null ? '' : localized(skip.reason)}');
-    } on CatalogImportInvalid catch (error) {
-      _plainMessage(
-          '${localized('Tailscale 设置里的导入设置不成立：')}${localized(error.message)}');
-    } finally {
-      if (mounted) setState(() => _busy = false);
+      await _catalog.setDeviceHidden(widget.catalogId, record.id,
+          hidden: hidden);
+      await _load();
+    } on Object catch (error) {
+      _message('$error');
     }
   }
 
@@ -381,38 +340,6 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
     } else {
       await importAndConnect(context, widget.catalogId, record.id,
           leavePushedPages: true);
-    }
-  }
-
-  /// 用户选一台已有主机和这台设备关联（DEV01：只有用户关联才形成关联）。只写绑定，不连接。
-  Future<void> _linkExisting(CatalogDeviceRecord record) async {
-    final hosts = [
-      for (final host in ref.read(vaultControllerProvider).data?.hosts ??
-          const <HostProfile>[])
-        if (CatalogBinding.of(host) == null) host,
-    ]..sort((a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()));
-    if (hosts.isEmpty) {
-      _message('没有可以关联的主机：已经关联了目录设备的主机，要先在编辑器里断开。');
-      return;
-    }
-    final hostId = await showDialog<String>(
-      context: context,
-      builder: (context) =>
-          _LinkHostDialog(device: catalogDeviceName(record), hosts: hosts),
-    );
-    if (hostId == null || !mounted) return;
-    setState(() => _busy = true);
-    try {
-      await _catalog.linkHost(
-        hostId: hostId,
-        catalogId: widget.catalogId,
-        deviceId: record.id,
-      );
-      _message('已关联');
-    } on Object catch (error) {
-      _message('$error');
-    } finally {
-      if (mounted) setState(() => _busy = false);
     }
   }
 
@@ -444,9 +371,6 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
     devices.sort((a, b) => catalogDeviceName(a)
         .toLowerCase()
         .compareTo(catalogDeviceName(b).toLowerCase()));
-    final importable = devices
-        .where((record) => !record.missing && linked[record.id] == null)
-        .length;
     final now = DateTime.now();
     return Scaffold(
       appBar: AppBar(
@@ -466,37 +390,8 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
             onPressed: _busy ? null : _settings,
             icon: const Icon(Icons.tune),
           ),
-          if (importable > 0)
-            PopupMenuButton<String>(
-              key: const ValueKey('catalog-more'),
-              enabled: !_busy,
-              onSelected: (_) => _importCustom([
-                for (final record in devices)
-                  if (!record.missing && linked[record.id] == null) record.id,
-              ]),
-              itemBuilder: (context) => [
-                PopupMenuItem(
-                  key: const ValueKey('catalog-import-custom'),
-                  value: 'custom',
-                  child: const LText('用自定义设置导入…'),
-                ),
-              ],
-            ),
         ],
       ),
-      bottomNavigationBar: importable == 0
-          ? null
-          : SafeArea(
-              child: Padding(
-                padding: const EdgeInsets.all(12),
-                child: FilledButton.icon(
-                  key: const ValueKey('catalog-import-all'),
-                  onPressed: _busy ? null : _importAll,
-                  icon: const Icon(Icons.download_outlined),
-                  label: catalogLine('全部导入：', '$importable'),
-                ),
-              ),
-            ),
       body: _loadError != null
           ? Padding(
               padding: const EdgeInsets.all(16),
@@ -586,6 +481,7 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
     final device = record.device;
     final linked = linkedHosts ?? const <HostProfile>[];
     final canImport = linked.isEmpty && !record.missing;
+    final hidden = _cache?.hiddenDevices.contains(record.id) ?? false;
     return ListTile(
       key: ValueKey('catalog-device-${record.id}'),
       contentPadding: EdgeInsets.zero,
@@ -600,6 +496,7 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
       subtitle: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (hidden) LText('已隐藏', style: small),
           PresenceLine(
             presence: deviceOnline(record),
             child: Text(
@@ -628,83 +525,24 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
                 if (host.lastConnectedAt > 0) LoggedInMark(style: small),
               ],
             ),
-          if (canImport) LText('还没导入：点一下导入并连接', style: small),
         ],
       ),
-      trailing: canImport
-          ? PopupMenuButton<String>(
+      trailing: linked.isEmpty
+          ? PopupMenuButton<bool>(
               key: ValueKey('catalog-device-menu-${record.id}'),
               enabled: !_busy,
-              onSelected: (value) =>
-                  value == 'link' ? _linkExisting(record) : _importOnly(record),
+              onSelected: (next) => _setHidden(record, next),
               itemBuilder: (context) => [
                 PopupMenuItem(
-                  key: ValueKey('catalog-import-only-${record.id}'),
-                  value: 'import',
-                  child: const LText('只导入，不连接'),
-                ),
-                PopupMenuItem(
-                  key: ValueKey('catalog-link-${record.id}'),
-                  value: 'link',
-                  child: const LText('关联到已有主机'),
+                  key: ValueKey('catalog-device-hide-${record.id}'),
+                  value: !hidden,
+                  child: LText(hidden ? '取消隐藏' : '隐藏'),
                 ),
               ],
             )
           : null,
     );
   }
-}
-
-/// 选一台已有主机来关联。点主机即选定；上面写清楚关联会改什么、不会改什么。
-class _LinkHostDialog extends StatelessWidget {
-  const _LinkHostDialog({required this.device, required this.hosts});
-
-  final String device;
-  final List<HostProfile> hosts;
-
-  @override
-  Widget build(BuildContext context) => AlertDialog(
-        title: catalogLine('关联设备：', device),
-        content: SizedBox(
-          width: double.maxFinite,
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const LText(
-                '只记下对应关系：主机的地址、用户名、端口、路线、指纹一概不改，刷新也不改它的地址，也不会去连。',
-              ),
-              const SizedBox(height: 8),
-              Flexible(
-                child: ListView(
-                  shrinkWrap: true,
-                  children: [
-                    for (final host in hosts)
-                      ListTile(
-                        key: ValueKey('catalog-link-host-${host.id}'),
-                        contentPadding: EdgeInsets.zero,
-                        // 只有文字的一行看不出能点：加上图标和箭头。
-                        leading: const Icon(Icons.dns_outlined),
-                        trailing: const Icon(Icons.chevron_right),
-                        title: Text(host.label),
-                        subtitle: Text(host.username.isEmpty
-                            ? host.hostname
-                            : '${host.username}@${host.hostname}'),
-                        onTap: () => Navigator.pop(context, host.id),
-                      ),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const LText('取消'),
-          ),
-        ],
-      );
 }
 
 class _Field {

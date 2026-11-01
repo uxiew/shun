@@ -912,6 +912,8 @@ const englishTranslations = <String, String>{
   '未找到受支持的服务管理器，需要 systemd 或 OpenRC。':
       'No supported service manager was found. systemd or OpenRC is required.',
   '断开并关闭': 'Disconnect & close',
+  '点一台就按 Tailscale 设置里的默认值连接，用户名、密码没填的连接时问。不想看到的点 ⋮ 隐藏。':
+      'Tap a device to connect with the defaults in Tailscale settings; a missing username or password is asked when connecting. Tap ⋮ to hide devices you don’t want to see.',
   '{n} 台主机': '{n} hosts',
   '{n} 个代理': '{n} proxies',
   r'关闭“$name”的全部会话？': r'Close all sessions on “$name”?',
@@ -2164,6 +2166,8 @@ const englishTranslations = <String, String>{
   '用 SSH 连接': 'Connect with SSH',
   '在列表里隐藏': 'Hide from list',
   '取消隐藏': 'Unhide',
+  '隐藏': 'Hide',
+  '已隐藏': 'Hidden',
   'Tailscale 设备': 'Tailscale devices',
   '还没成功读过设备列表': 'No device list read successfully yet',
   '状态截至：': 'Status as of: ',

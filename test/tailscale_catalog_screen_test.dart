@@ -654,7 +654,7 @@ void main() {
           .toJson(),
     ]);
     await open(tester, const CatalogSourceScreen(catalogId: 'ts-home'));
-    expect(find.text('还没导入：点一下导入并连接'), findsNWidgets(2));
+    expect(find.textContaining('导入'), findsNothing, reason: 'R76：用户不用知道有导入这一步');
     await tester.tap(find.byKey(const ValueKey('catalog-device-1')));
     await tester.pumpAndSettle();
 
@@ -683,30 +683,27 @@ void main() {
     expect(requests, isEmpty); // 导入不发任何网络请求
   });
 
-  testWidgets('R26：「只导入，不连接」和「全部导入」：不弹窗、不连接，已导入的不再算', (tester) async {
+  testWidgets('UXR05：设备页没有导入入口；⋮ 能隐藏、能取消；连过的没有这个菜单', (tester) async {
     seedIncomplete();
     await open(tester, const CatalogSourceScreen(catalogId: 'ts-home'));
-    expect(find.text('全部导入：2'), findsOneWidget);
+    for (final gone in ['catalog-import-all', 'catalog-more']) {
+      expect(find.byKey(ValueKey(gone)), findsNothing);
+    }
     await tester.tap(find.byKey(const ValueKey('catalog-device-menu-2')));
     await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('catalog-import-only-2')));
+    expect(find.byKey(const ValueKey('catalog-import-only-2')), findsNothing);
+    expect(find.byKey(const ValueKey('catalog-link-2')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('catalog-device-hide-2')));
     await tester.pumpAndSettle();
-    expect(find.text('已导入主机：laptop'), findsOneWidget);
-    expect(find.byKey(const ValueKey('first-login-dialog')), findsNothing);
-    expect(find.text('全部导入：1'), findsOneWidget);
-    // 提示条排队显示：先把上一条清掉，才看得到「全部导入」的那条。
-    ScaffoldMessenger.of(tester.element(find.byType(ListView)))
-        .clearSnackBars();
-    await tester.pumpAndSettle();
+    expect(repo.caches['ts-home']!.hiddenDevices, {'2'});
+    expect(find.text('已隐藏'), findsOneWidget);
+    expect((await vault.loadVault()).hosts, isEmpty, reason: '隐藏不建主机');
 
-    await tester.tap(find.byKey(const ValueKey('catalog-import-all')));
+    await tester.tap(find.byKey(const ValueKey('catalog-device-menu-2')));
     await tester.pumpAndSettle();
-    expect(find.textContaining('已导入主机：1'), findsOneWidget);
-    expect(find.byKey(const ValueKey('catalog-import-all')), findsNothing);
-    final hosts = (await vault.loadVault()).hosts;
-    expect(hosts.map((h) => h.label).toSet(), {'laptop', 'nas'});
-    expect(hosts.every((h) => h.username.isEmpty), isTrue,
-        reason: '没设默认用户名：空着，第一次连接时问，不默认 root');
+    await tester.tap(find.byKey(const ValueKey('catalog-device-hide-2')));
+    await tester.pumpAndSettle();
+    expect(repo.caches['ts-home']!.hiddenDevices, isEmpty);
     expect(requests, isEmpty);
   });
 
@@ -730,42 +727,6 @@ void main() {
             of: find.byKey(const ValueKey('catalog-device-2')),
             matching: find.byKey(const ValueKey('logged-in-mark'))),
         findsNothing);
-  });
-
-  testWidgets('X05 关联已有主机：只列没关联的主机；只写绑定、不改地址、不发请求', (tester) async {
-    seedIncomplete();
-    await saveHosts([
-      HostProfile.create(
-              id: 'manual',
-              label: 'my nas',
-              hostname: '10.0.0.5',
-              username: 'me')
-          .toJson(),
-      boundHost('bound', 'bound', 'ts-home', '9'),
-    ]);
-    await open(tester, const CatalogSourceScreen(catalogId: 'ts-home'));
-    await tester.tap(find.byKey(const ValueKey('catalog-device-menu-1')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('catalog-link-1')));
-    await tester.pumpAndSettle();
-    expect(find.textContaining('一概不改'), findsOneWidget);
-    expect(
-        find.byKey(const ValueKey('catalog-link-host-manual')), findsOneWidget);
-    expect(find.byKey(const ValueKey('catalog-link-host-bound')), findsNothing);
-    await tester.tap(find.byKey(const ValueKey('catalog-link-host-manual')));
-    await tester.pumpAndSettle();
-
-    expect(find.text('已关联'), findsOneWidget);
-    expect(find.text('已关联主机：my nas'), findsOneWidget);
-    expect(find.byKey(const ValueKey('catalog-device-menu-1')), findsNothing);
-
-    final manual =
-        (await vault.loadVault()).hosts.singleWhere((h) => h.id == 'manual');
-    expect(manual.hostname, '10.0.0.5');
-    expect(manual.username, 'me');
-    expect(CatalogBinding.of(manual)!.deviceId, '1');
-    expect(CatalogBinding.of(manual)!.appliedAddress, isNull);
-    expect(requests, isEmpty);
   });
 
   testWidgets('X05 主机引用了本机没有的来源：列出来；在本机恢复后进入来源页，主机不变、不发请求', (tester) async {
@@ -803,7 +764,7 @@ void main() {
     expect(find.byKey(const ValueKey('catalog-missing-ts-gone')), findsNothing);
   });
 
-  testWidgets('英文界面：来源页、设置页、导入页和首次登录渲染出来的文字里没有汉字', (tester) async {
+  testWidgets('英文界面：来源页、设置页和首次登录渲染出来的文字里没有汉字', (tester) async {
     ShunLocalizations.use('en');
     addTearDown(() => ShunLocalizations.use('zh'));
     seedIncomplete();
@@ -841,11 +802,9 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('catalog-device-menu-2')));
     await tester.pumpAndSettle();
     expect(han.hasMatch(allText(tester)), isFalse, reason: allText(tester));
-    await tester.tap(find.byKey(const ValueKey('catalog-link-2')));
+    await tester.tap(find.byKey(const ValueKey('catalog-device-hide-2')));
     await tester.pumpAndSettle();
     expect(han.hasMatch(allText(tester)), isFalse, reason: allText(tester));
-    await tester.tap(find.text('Cancel'));
-    await tester.pumpAndSettle();
     // Tailscale 设置页（展开「高级」）。
     await tester.tap(find.byKey(const ValueKey('catalog-settings')));
     await tester.pumpAndSettle();
@@ -853,15 +812,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(han.hasMatch(allText(tester)), isFalse, reason: allText(tester));
     await tester.tap(find.byKey(const ValueKey('ts-settings-cancel')));
-    await tester.pumpAndSettle();
-    // ⋮ →「用自定义设置导入」那一页。
-    await tester.tap(find.byKey(const ValueKey('catalog-more')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('catalog-import-custom')));
-    await tester.pumpAndSettle();
-    expect(han.hasMatch(allText(tester)), isFalse, reason: allText(tester));
-    expect(find.textContaining('root is never assumed'), findsWidgets);
-    await tester.tap(find.byType(CloseButton));
     await tester.pumpAndSettle();
     // 点设备：首次登录的对话框。
     await tester.tap(find.byKey(const ValueKey('catalog-device-1')));

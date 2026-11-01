@@ -108,6 +108,23 @@ class TailscaleCatalogProvider {
     return next;
   }
 
+  /// 在主机列表里隐藏或找回一台设备（R76）。只记本机这份缓存，不发请求，不碰主机。
+  Future<void> setDeviceHidden(
+    String catalogId,
+    String deviceId, {
+    required bool hidden,
+  }) async {
+    _require();
+    final cache = await _repository.load(catalogId);
+    if (cache == null) throw StateError('本机没有这个目录来源');
+    await _repository.save(cache.copyWith(
+      hiddenDevices: {
+        ...cache.hiddenDevices.where((id) => id != deviceId),
+        if (hidden) deviceId,
+      },
+    ));
+  }
+
   Future<bool> hasSavedCredentials(String catalogId) async {
     _require();
     return _refresher.hasSavedCredentials(catalogId);

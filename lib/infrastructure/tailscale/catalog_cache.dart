@@ -16,6 +16,7 @@ class CatalogCache {
     this.lastAttempt,
     this.lastSuccess,
     this.importDefaults = const {},
+    this.hiddenDevices = const {},
   });
 
   static const schemaVersion = 1;
@@ -37,11 +38,15 @@ class CatalogCache {
   /// （`CatalogImportDefaults`）。只有设置、没有凭据：路线只记已保存代理的 ID 和跳板主机的 ID。
   final Map<String, Object?> importDefaults;
 
+  /// 用户不想在主机列表里看到的设备（R76）。只影响显示：照常读、照常刷新，「显示已隐藏」能找回。
+  final Set<String> hiddenDevices;
+
   CatalogCache copyWith({
     Map<String, CatalogDeviceRecord>? devices,
     CatalogRefresh? lastAttempt,
     CatalogRefresh? lastSuccess,
     Map<String, Object?>? importDefaults,
+    Set<String>? hiddenDevices,
   }) =>
       CatalogCache(
         catalogId: catalogId,
@@ -51,6 +56,7 @@ class CatalogCache {
         lastAttempt: lastAttempt ?? this.lastAttempt,
         lastSuccess: lastSuccess ?? this.lastSuccess,
         importDefaults: importDefaults ?? this.importDefaults,
+        hiddenDevices: hiddenDevices ?? this.hiddenDevices,
       );
 
   /// 把一次成功的列设备结果并进缓存。**只加、只改、只标记，从不删除**。
@@ -112,6 +118,8 @@ class CatalogCache {
         if (lastAttempt != null) 'lastAttempt': lastAttempt!.toJson(),
         if (lastSuccess != null) 'lastSuccess': lastSuccess!.toJson(),
         if (importDefaults.isNotEmpty) 'importDefaults': importDefaults,
+        if (hiddenDevices.isNotEmpty)
+          'hiddenDevices': (hiddenDevices.toList()..sort()),
       };
 
   /// 读不懂（版本不对、结构坏）返回 null，由调用方当作「没有缓存」，不猜。
@@ -140,6 +148,11 @@ class CatalogCache {
       importDefaults: json['importDefaults'] is Map
           ? Map<String, Object?>.from(json['importDefaults'] as Map)
           : const {},
+      hiddenDevices: {
+        if (json['hiddenDevices'] case final List<Object?> ids)
+          for (final id in ids)
+            if (id is String) id,
+      },
     );
   }
 }
