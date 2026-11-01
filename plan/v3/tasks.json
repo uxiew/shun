@@ -1212,7 +1212,8 @@
         "SOX01",
         "JMP01",
         "TSC06",
-        "REL04"
+        "REL04",
+        "SWP02"
       ],
       "stop_condition": "无设备/权限标BLOCKED；用户之前LobiShell成功不可计本App通过。",
       "owner_role": "测试代理",
@@ -3312,7 +3313,7 @@
       "id": "R67",
       "phase": "P6",
       "title": "Tailscale 在线状态前台自动刷新",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R43"
       ],
@@ -3322,7 +3323,7 @@
         "lib/presentation/widgets/catalog_text.dart"
       ],
       "deliverables": [
-        "evidence/R26.md 第五批",
+        "evidence/R67.md",
         "实现、测试和使用手册更新"
       ],
       "acceptance": [
@@ -3337,15 +3338,15 @@
       "stop_condition": "不从 lastSeen 推断在线，不为状态去连设备。",
       "owner_role": "实施代理",
       "evidence": [
-        "evidence/R26.md"
+        "evidence/R67.md"
       ],
-      "commit": ""
+      "commit": "bbd381c 800f52f"
     },
     {
       "id": "R68",
       "phase": "P6",
       "title": "性能监控和系统管理合成一个面板",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [
         "R24"
       ],
@@ -3355,7 +3356,7 @@
         "lib/presentation/widgets/system_management/"
       ],
       "deliverables": [
-        "evidence/R26.md 第五批",
+        "evidence/R68.md",
         "实现、测试和使用手册更新"
       ],
       "acceptance": [
@@ -3369,15 +3370,15 @@
       "stop_condition": "只合并入口和布局，不加新的远端命令。",
       "owner_role": "实施代理",
       "evidence": [
-        "evidence/R26.md"
+        "evidence/R68.md"
       ],
-      "commit": ""
+      "commit": "8c0fd9d e4f5962 cb12d52 cd51735"
     },
     {
       "id": "R69",
       "phase": "P6",
       "title": "所有连接的认证统一走凭据",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [
         "R58"
       ],
@@ -3410,20 +3411,22 @@
       "evidence": [
         "evidence/R69.md"
       ],
-      "commit": ""
+      "commit": "795aaec c858ef7"
     },
     {
       "id": "R70",
       "phase": "P6",
       "title": "底栏终端上滑出会话总览",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R42"
       ],
       "scope": "F35。从底栏「终端」往上滑，当前页上盖一层：按机器分组的 tab（多了能滑），每台机器的活跃会话是一排预览卡（左右滑），点卡片进那个会话。预览是文字快照，不再挂一个终端视图（单视图约束）。",
       "code_targets": [
         "lib/presentation/home_shell.dart",
-        "lib/presentation/widgets/"
+        "lib/presentation/widgets/session_overview.dart",
+        "lib/presentation/widgets/session_tab_actions.dart",
+        "lib/presentation/screens/terminal_screen.dart"
       ],
       "deliverables": [
         "evidence/R70.md",
@@ -3443,7 +3446,7 @@
       "evidence": [
         "evidence/R70.md"
       ],
-      "commit": ""
+      "commit": "99e64ec a9c4714 ce67e5d 4b9e250 cd51735 41cbecc"
     },
     {
       "id": "R71",

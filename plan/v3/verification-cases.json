@@ -2021,10 +2021,10 @@
       "action": "前台停在「连接」页超过 60 秒、切后台再回来、断网、key 失效、Tailscale 回 429；没存 key 的来源。",
       "expected": "只在前台且存了 key 时自动读，至少隔 60 秒；失败不弹框、隔 10 分钟再试，429 按 Retry-After；超过 10 分钟没新状态不画绿点并写明多久前；后台和没存 key 的来源一条请求都没有。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
       "evidence": [
-        "evidence/R26.md"
+        "evidence/R67.md"
       ]
     },
     {
@@ -2035,7 +2035,7 @@
       "result": "NOT_RUN",
       "inherited_from": null,
       "evidence": [
-        "evidence/R26.md"
+        "evidence/R68.md"
       ]
     },
     {
@@ -2073,16 +2073,28 @@
     },
     {
       "id": "SWP01",
-      "action": "底栏「终端」上滑、点按、从别的格上滑；多台机器多个标签（SSH、tmux、Mosh、连接中、断开）；点预览卡；关卡片；重连；返回键；真机手势导航。",
-      "expected": "只从「终端」格上滑才出总览；同一台机器归一组；预览是当前屏幕文字；点卡片进对应会话；返回键先关总览；内容不落盘。系统手势的手感只有真机算数。",
+      "action": "底栏「终端」上滑、点按、从别的格上滑；多台机器多个标签（塞进去的会话：普通、tmux、连接中、失败、断开）；点预览卡；关卡片；重连（假控制器）；返回键；键盘弹着和全屏时从「更多」打开。",
+      "expected": "只从「终端」格上滑才出总览；同一台机器归一组；预览是当前屏幕文字；点卡片进对应会话，标签条跟过去；返回键先关总览；键盘不盖住总览；内容不落盘。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
       "evidence": [
         "evidence/R70.md"
       ]
+    },
+    {
+      "id": "SWP02",
+      "action": "手机上手势导航时从底栏「终端」上滑；真连着的 SSH、tmux、Mosh 标签和断开的标签；点卡片、重连。",
+      "expected": "不误触回桌面；真连接的标签按机器归组、预览是真的输出；断开的卡片能重连。系统手势的手感只有真机算数。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": [
+        "evidence/R70.md",
+        "evidence/R26.md"
+      ]
     }
   ],
   "plan_revision": "3.0",
-  "count": 178
+  "count": 179
 }

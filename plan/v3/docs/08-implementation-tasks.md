@@ -561,7 +561,7 @@
 - 源设备身份差异说明
 - 真实模型额度使用另获授权
 
-**关联用例**：NET12、TER13、LIFE03、LIFE04、LIFE07、SOX01、JMP01、TSC06、REL04。
+**关联用例**：NET12、TER13、LIFE03、LIFE04、LIFE07、SOX01、JMP01、TSC06、REL04、SWP02。
 
 **停止条件**：无设备/权限标BLOCKED；用户之前LobiShell成功不可计本App通过。
 
@@ -1657,13 +1657,13 @@
 
 ## R67 Tailscale 在线状态前台自动刷新
 
-阶段：P6；状态：NOT_STARTED；依赖：R43；角色：实施代理。
+阶段：P6；状态：DONE；依赖：R43；角色：实施代理。
 
 **范围**：F32。列表的在线状态只来自上次手动刷新。改成 App 在前台且停在「连接」页时自动读：至少隔 60 秒，失败隔 10 分钟再试，429 按 Retry-After。超过 10 分钟没读到新状态的不画绿点、写明多久前的状态。后台不发请求。盖掉 R11、R12 的「只有手动刷新才发请求」（所有者 11-01 反馈）。
 
 **落点**：lib/application/catalog_overview.dart；lib/presentation/widgets/catalog_text.dart。
 
-**交付物**：evidence/R26.md 第五批；实现、测试和使用手册更新。
+**交付物**：evidence/R67.md；实现、测试和使用手册更新。
 
 **验收**：
 
@@ -1678,13 +1678,13 @@
 
 ## R68 性能监控和系统管理合成一个面板
 
-阶段：P6；状态：NOT_STARTED；依赖：R24；角色：实施代理。
+阶段：P6；状态：IN_PROGRESS；依赖：R24；角色：实施代理。
 
 **范围**：F34。终端右上角「性能监控」打开的面板顶部是可左右滑的 tab：概览、进程、tmux、Docker、服务、Caddy。「更多」菜单和主机菜单打开同一个面板。断线时整页变灰、概览留断开前的数。
 
 **落点**：lib/presentation/widgets/system_management/server_panel_sheet.dart、server_overview_panel.dart。
 
-**交付物**：evidence/R26.md 第五批；实现、测试和使用手册更新。
+**交付物**：evidence/R68.md；实现、测试和使用手册更新。
 
 **验收**：
 
@@ -1698,7 +1698,7 @@
 
 ## R69 所有连接的认证统一走凭据
 
-阶段：P6；状态：NOT_STARTED；依赖：R58；角色：安全代理。
+阶段：P6；状态：IN_PROGRESS；依赖：R58；角色：安全代理。
 
 **范围**：F31。每个连接的认证二选一（所有者 11-01 补充「可选简单的用户/密码还是认证」，和 RoyalTSX 的「直接填账号」「用已有凭据」一样）：用户名密码直接填在连接上，或者从「凭据」选，选完回显用户名和方式。凭据类型：密码、SSH 密钥（口令在密钥上）、密钥 + 密码、安全密钥。主机编辑器、首次登录、Tailscale 设置和导入、代理都这样。手机上已有主机的账号密码就是「用户名密码」，不迁移；主机上已选的私钥照常能用，能存成凭据。WebDAV、S3、AI 的 key、Tailscale API key 不是登录凭据，不在这条里。
 
@@ -1720,11 +1720,11 @@
 
 ## R70 底栏终端上滑出会话总览
 
-阶段：P6；状态：NOT_STARTED；依赖：R42；角色：实施代理。
+阶段：P6；状态：DONE；依赖：R42；角色：实施代理。
 
 **范围**：F35。从底栏「终端」往上滑，当前页上盖一层：按机器分组的 tab（多了能滑），每台机器的活跃会话是一排预览卡（左右滑），点卡片进那个会话。预览是文字快照，不再挂一个终端视图（单视图约束）。
 
-**落点**：lib/presentation/home_shell.dart；lib/presentation/widgets/。
+**落点**：lib/presentation/home_shell.dart；lib/presentation/widgets/session_overview.dart、session_tab_actions.dart；lib/presentation/screens/terminal_screen.dart（标签条跟随）。
 
 **交付物**：evidence/R70.md；实现、测试和使用手册更新。
 
@@ -1735,7 +1735,7 @@
 - 点卡片切到那个会话，断开的卡片能重连
 - 终端内容不落盘
 
-**关联用例**：SWP01。
+**关联用例**：SWP01；SWP02 在 R26 手机清单里。
 
 **停止条件**：手势和系统手势的真机手感只能所有者确认，没上真机写 NOT_RUN。
 
