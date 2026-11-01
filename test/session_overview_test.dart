@@ -362,6 +362,29 @@ void main() {
     await finish(tester);
   });
 
+  testWidgets('切到标签条外面的标签：标签条滚过去，当前标签看得见', (tester) async {
+    await open(
+      tester,
+      SessionState(sessions: [
+        for (var i = 0; i < 12; i++) tab('s$i', host('m$i', 'machine-$i')),
+      ]),
+    );
+    container.read(homeTabProvider.notifier).state = 1;
+    await settle(tester);
+    final last = find.byKey(const ValueKey('terminal-tab-s11'));
+    expect(last, findsNothing, reason: '一开始在条外面，还没建');
+
+    controller.activate(11);
+    await settle(tester);
+    expect(last, findsOneWidget);
+    final strip =
+        tester.getRect(find.byKey(const ValueKey('terminal-tab-strip')));
+    final chip = tester.getRect(last);
+    expect(chip.left, greaterThanOrEqualTo(strip.left));
+    expect(chip.right, lessThanOrEqualTo(strip.right));
+    await finish(tester);
+  });
+
   testWidgets('正在自动恢复的标签不给按钮，写正在恢复；只断一个不显示全部重连', (tester) async {
     final alpha = host('a', 'alpha');
     await open(

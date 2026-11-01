@@ -114,7 +114,58 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
   void dispose() {
     _pictureInPictureSubscription?.cancel();
     disposeInputHost();
+    _tabStrip.dispose();
     super.dispose();
+  }
+
+  final _tabStrip = ScrollController();
+  String? _followedTab;
+
+  /// 当前标签和它在标签条里的 context。不用 GlobalKey：拖动标签时列表会把同一项再建一遍当拖影，
+  /// GlobalKey 就重复了。
+  (String, BuildContext)? _activeTab;
+
+  Widget _tabAnchor(String id, bool active, Widget chip) => Builder(
+        builder: (context) {
+          if (active) _activeTab = (id, context);
+          return chip;
+        },
+      );
+
+  /// 当前标签换了就把它滚出来：从会话总览、主机列表切过来时，它可能在标签条外面，看着像没切过去。
+  void _followActiveTab(SessionState state) {
+    final pending = state.pendingConnections
+        .indexWhere((value) => value.id == state.activePendingId);
+    final index =
+        pending >= 0 ? state.sessions.length + pending : state.activeIndex;
+    final id = pending >= 0
+        ? state.activePendingId
+        : state.sessions.elementAtOrNull(index)?.id;
+    if (id == null || id == _followedTab) return;
+    _followedTab = id;
+    _revealTab(id, index, state.tabCount);
+  }
+
+  void _revealTab(String id, int index, int count, {int tries = 3}) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || id != _followedTab || !_tabStrip.hasClients) return;
+      if (_activeTab case (final built, final context)
+          when built == id && context.mounted) {
+        unawaited(Scrollable.ensureVisible(
+          context,
+          alignment: .5,
+          duration: const Duration(milliseconds: 200),
+        ));
+        return;
+      }
+      final position = _tabStrip.position;
+      if (tries == 0 || !position.hasContentDimensions) return;
+      // 列表是懒加载的，条外面的标签还没建：先按位置估着滚过去，等它建出来再对齐。
+      position
+          .jumpTo(position.maxScrollExtent * index / math.max(count - 1, 1));
+      WidgetsBinding.instance.ensureVisualUpdate();
+      _revealTab(id, index, count, tries: tries - 1);
+    });
   }
 
   /// 现在打字发往的那一格。build 时记下来：键盘收起不走 build 的流程。
@@ -195,6 +246,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
     ref.listen(sessionControllerProvider, (_, next) {
       _drafts.forgetClosedTabs(next.sessions.map((session) => session.id));
       _announceConnectionChanges(next);
+      _followActiveTab(next);
     });
     _visibleTerminals = [
       for (final session in state.sessions)
@@ -299,6 +351,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                         child: state.tabCount == 0
                             ? const LText('终端')
                             : ReorderableListView.builder(
+                                scrollController: _tabStrip,
                                 scrollDirection: Axis.horizontal,
                                 // 标签 × 的 48dp 点击区比标签本体往右多伸出几 dp。最后一个标签贴着右边时，
                                 // 那几 dp 被这里的可视区域裁掉，真机上只剩 43dp（UX02）。末尾留出来。
@@ -332,49 +385,53 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                         vertical: 2,
                                         horizontal: 2,
                                       ),
-                                      child: InputChip(
-                                        // 看着 38dp，能点的是 48dp（UX02）。
-                                        materialTapTargetSize:
-                                            MaterialTapTargetSize.padded,
-                                        selected:
-                                            state.activePendingId == pending.id,
-                                        showCheckmark: false,
-                                        avatar: failed
-                                            ? const Icon(
-                                                Icons.error_outline,
-                                                size: 17,
-                                                color: Colors.redAccent,
-                                              )
-                                            : const SizedBox.square(
-                                                dimension: 14,
-                                                child:
-                                                    CircularProgressIndicator(
-                                                  strokeWidth: 2,
-                                                ),
-                                              ),
-                                        label: _tabLabel(
-                                          duplicateCount > 1
-                                              ? '${host.label} #$occurrence'
-                                              : host.label,
-                                        ),
-                                        onPressed: () => ref
-                                            .read(
-                                              sessionControllerProvider
-                                                  .notifier,
-                                            )
-                                            .activate(index),
-                                        // 默认读「删除」，读屏用户会以为要删主机（UX02 真机上查出来的）。
-                                        deleteButtonTooltipMessage: localized(
-                                          '关闭标签“${host.label}”',
-                                        ),
-                                        onDeleted: failed
-                                            ? () => ref
-                                                .read(
-                                                  sessionControllerProvider
-                                                      .notifier,
+                                      child: _tabAnchor(
+                                        pending.id,
+                                        state.activePendingId == pending.id,
+                                        InputChip(
+                                          // 看着 38dp，能点的是 48dp（UX02）。
+                                          materialTapTargetSize:
+                                              MaterialTapTargetSize.padded,
+                                          selected: state.activePendingId ==
+                                              pending.id,
+                                          showCheckmark: false,
+                                          avatar: failed
+                                              ? const Icon(
+                                                  Icons.error_outline,
+                                                  size: 17,
+                                                  color: Colors.redAccent,
                                                 )
-                                                .dismissPending(pending.id)
-                                            : null,
+                                              : const SizedBox.square(
+                                                  dimension: 14,
+                                                  child:
+                                                      CircularProgressIndicator(
+                                                    strokeWidth: 2,
+                                                  ),
+                                                ),
+                                          label: _tabLabel(
+                                            duplicateCount > 1
+                                                ? '${host.label} #$occurrence'
+                                                : host.label,
+                                          ),
+                                          onPressed: () => ref
+                                              .read(
+                                                sessionControllerProvider
+                                                    .notifier,
+                                              )
+                                              .activate(index),
+                                          // 默认读「删除」，读屏用户会以为要删主机（UX02 真机上查出来的）。
+                                          deleteButtonTooltipMessage: localized(
+                                            '关闭标签“${host.label}”',
+                                          ),
+                                          onDeleted: failed
+                                              ? () => ref
+                                                  .read(
+                                                    sessionControllerProvider
+                                                        .notifier,
+                                                  )
+                                                  .dismissPending(pending.id)
+                                              : null,
+                                        ),
                                       ),
                                     );
                                   }
@@ -389,44 +446,49 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                                         vertical: 2,
                                         horizontal: 2,
                                       ),
-                                      child: InputChip(
-                                        // 看着 38dp，能点的是 48dp（UX02）。
-                                        materialTapTargetSize:
-                                            MaterialTapTargetSize.padded,
-                                        selected: state.activeIndex == index,
-                                        showCheckmark: false,
-                                        // 读屏也要知道断没断：绿点、橙色叹号只靠眼睛看（UX02）。
-                                        avatar: Icon(
-                                          session.connected
-                                              ? Icons.circle
-                                              : Icons.error_outline,
-                                          size: session.connected ? 10 : 16,
-                                          color: session.connected
-                                              ? Colors.greenAccent
-                                              : Colors.orangeAccent,
-                                          semanticLabel: session.connected
-                                              ? null
-                                              : localized('已断开'),
+                                      child: _tabAnchor(
+                                        session.id,
+                                        state.activePendingId == null &&
+                                            state.activeIndex == index,
+                                        InputChip(
+                                          // 看着 38dp，能点的是 48dp（UX02）。
+                                          materialTapTargetSize:
+                                              MaterialTapTargetSize.padded,
+                                          selected: state.activeIndex == index,
+                                          showCheckmark: false,
+                                          // 读屏也要知道断没断：绿点、橙色叹号只靠眼睛看（UX02）。
+                                          avatar: Icon(
+                                            session.connected
+                                                ? Icons.circle
+                                                : Icons.error_outline,
+                                            size: session.connected ? 10 : 16,
+                                            color: session.connected
+                                                ? Colors.greenAccent
+                                                : Colors.orangeAccent,
+                                            semanticLabel: session.connected
+                                                ? null
+                                                : localized('已断开'),
+                                          ),
+                                          // 默认引擎不标；用设置里选的实验引擎开的标签标出来，
+                                          // 改了设置以后哪个标签用的是哪个引擎一眼能看出来。
+                                          // 插件主机的标签标出插件名（X12）：一眼看出这个标签由哪个插件承载。
+                                          label: _tabLabel(
+                                            '${duplicateCount > 1 ? '${session.host.label} #$occurrence' : session.host.label}'
+                                            '${session.host.protocol == HostProtocol.plugin && session.plugin != null ? ' · ${session.plugin!.protocol}' : ''}'
+                                            '${session.terminal.engine == terminalEngineName ? '' : ' · ${session.terminal.engine}'}',
+                                          ),
+                                          onPressed: () => ref
+                                              .read(
+                                                sessionControllerProvider
+                                                    .notifier,
+                                              )
+                                              .activate(index),
+                                          deleteButtonTooltipMessage: localized(
+                                            '关闭标签“${session.host.label}”',
+                                          ),
+                                          onDeleted: () =>
+                                              _confirmClose(index, session),
                                         ),
-                                        // 默认引擎不标；用设置里选的实验引擎开的标签标出来，
-                                        // 改了设置以后哪个标签用的是哪个引擎一眼能看出来。
-                                        // 插件主机的标签标出插件名（X12）：一眼看出这个标签由哪个插件承载。
-                                        label: _tabLabel(
-                                          '${duplicateCount > 1 ? '${session.host.label} #$occurrence' : session.host.label}'
-                                          '${session.host.protocol == HostProtocol.plugin && session.plugin != null ? ' · ${session.plugin!.protocol}' : ''}'
-                                          '${session.terminal.engine == terminalEngineName ? '' : ' · ${session.terminal.engine}'}',
-                                        ),
-                                        onPressed: () => ref
-                                            .read(
-                                              sessionControllerProvider
-                                                  .notifier,
-                                            )
-                                            .activate(index),
-                                        deleteButtonTooltipMessage: localized(
-                                          '关闭标签“${session.host.label}”',
-                                        ),
-                                        onDeleted: () =>
-                                            _confirmClose(index, session),
                                       ),
                                     ),
                                   );
