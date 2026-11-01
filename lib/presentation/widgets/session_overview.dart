@@ -95,10 +95,15 @@ class _SessionOverviewState extends ConsumerState<SessionOverview> {
   }
 
   /// 一个接一个连：同时连的话，指纹、密码框会叠在一起，分不清是哪台在问。
-  Future<void> _reconnectAll(List<ActiveTerminalSession> sessions) async {
+  ///
+  /// 点完重连接着点卡片切过去很常见，总览这时就收了：问答挂在 Navigator 这一层才弹得出来，
+  /// 挂在总览自己的 context 上会按拒绝处理，连接莫名失败。总览收了，没连的也接着连。
+  Future<void> _reconnect(List<ActiveTerminalSession> sessions) async {
+    final prompts = Navigator.of(context).context;
+    final controller = ref.read(sessionControllerProvider.notifier);
     for (final session in sessions) {
-      if (!mounted) return;
-      await reconnectSession(context, ref, session);
+      if (!prompts.mounted) return;
+      await reconnectSession(prompts, controller, session);
     }
   }
 
@@ -148,7 +153,7 @@ class _SessionOverviewState extends ConsumerState<SessionOverview> {
                     if (waiting.length > 1)
                       TextButton(
                         key: const ValueKey('overview-reconnect-all'),
-                        onPressed: () => _reconnectAll(waiting),
+                        onPressed: () => _reconnect(waiting),
                         child: const LText('全部重连'),
                       ),
                     IconButton(
@@ -194,8 +199,7 @@ class _SessionOverviewState extends ConsumerState<SessionOverview> {
                     state: state,
                     onOpen: _open,
                     onClose: _closeWindow,
-                    onReconnect: (session) =>
-                        reconnectSession(context, ref, session),
+                    onReconnect: (session) => _reconnect([session]),
                   ),
                 ),
               ],

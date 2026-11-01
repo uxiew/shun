@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -328,6 +329,39 @@ void main() {
     await finish(tester);
   });
 
+  testWidgets('点了全部重连接着收起总览：指纹还问得出来，后面的标签照样连', (tester) async {
+    final alpha = host('a', 'alpha');
+    await open(
+      tester,
+      SessionState(sessions: [
+        tab('down1', alpha, connected: false),
+        tab('down2', alpha, connected: false),
+      ]),
+    );
+    controller.gate = Completer<void>();
+    await swipeUp(tester);
+    await tester.tap(find.byKey(const ValueKey('overview-reconnect-all')));
+    await tester.pump();
+    expect(controller.reconnected, ['down1']);
+
+    await tester.tap(find.byKey(const ValueKey('overview-close')));
+    await settle(tester);
+    expect(overview, findsNothing);
+
+    // 总览已经没了，连接这时才问指纹：要弹得出来，不能直接按拒绝处理。
+    final answer = controller.verifier!(alpha, 'ssh-ed25519', 'SHA256:test');
+    await settle(tester);
+    expect(find.textContaining('SHA256:test'), findsOneWidget);
+    await tester.tap(find.text('拒绝'));
+    await settle(tester);
+    expect(await answer, isFalse);
+
+    controller.gate!.complete();
+    await settle(tester);
+    expect(controller.reconnected, ['down1', 'down2']);
+    await finish(tester);
+  });
+
   testWidgets('正在自动恢复的标签不给按钮，写正在恢复；只断一个不显示全部重连', (tester) async {
     final alpha = host('a', 'alpha');
     await open(
@@ -386,6 +420,10 @@ class _Seeded extends SessionController {
 
   final reconnected = <String>[];
 
+  /// 设了就卡在第一个重连上，等测试放行。
+  Completer<void>? gate;
+  HostKeyVerifier? verifier;
+
   @override
   Future<void> reconnect(
     String sessionId, {
@@ -393,5 +431,7 @@ class _Seeded extends SessionController {
     KeyboardInteractiveHandler? keyboardInteractive,
   }) async {
     reconnected.add(sessionId);
+    verifier = verifyHostKey;
+    await gate?.future;
   }
 }

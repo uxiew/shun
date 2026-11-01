@@ -835,8 +835,11 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
     }
   }
 
-  Future<void> _reconnect(ActiveTerminalSession session) =>
-      reconnectSession(context, ref, session);
+  Future<void> _reconnect(ActiveTerminalSession session) => reconnectSession(
+        context,
+        ref.read(sessionControllerProvider.notifier),
+        session,
+      );
 
   /// 只给连着的 SSH 标签：监控只借这一代连接（R24），断了点开也只有一句「已断开」。
   /// 和主机 ⋮ 菜单、快捷栏的端口转发一个规矩；以前标签条上只看是不是 SSH。

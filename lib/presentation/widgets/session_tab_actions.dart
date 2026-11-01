@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/session_controller.dart';
 import '../../domain/host_identity.dart';
@@ -81,17 +80,19 @@ Future<bool> confirmCloseSession(
 }
 
 /// 断开的标签重新连接。终端页的断线卡片和会话总览共用。
+///
+/// [context] 要活得比这次连接久：它没了，连接途中问指纹、问密码都按拒绝处理（见 connection_prompts.dart）。
 Future<void> reconnectSession(
   BuildContext context,
-  WidgetRef ref,
+  SessionController controller,
   ActiveTerminalSession session,
 ) async {
   try {
-    await ref.read(sessionControllerProvider.notifier).reconnect(
-          session.id,
-          verifyHostKey: hostKeyVerifier(context),
-          keyboardInteractive: keyboardInteractivePrompt(context),
-        );
+    await controller.reconnect(
+      session.id,
+      verifyHostKey: hostKeyVerifier(context),
+      keyboardInteractive: keyboardInteractivePrompt(context),
+    );
   } on MoshServerMissing catch (error) {
     // 等待卡片里也写了；这里再给出这台服务器的安装命令（用户确认了才去装）。
     if (!context.mounted) return;
