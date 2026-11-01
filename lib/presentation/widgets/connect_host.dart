@@ -30,11 +30,7 @@ Future<void> connectHostFromList(
       identities: vault == null ? const [] : vaultIdentityMaps(vault))) {
     final login = await askFirstLogin(context, host);
     if (login == null || !context.mounted) return;
-    final updated = HostProfile({
-      ...host.data,
-      'username': login.username,
-      if (login.password != null) 'password': login.password,
-    });
+    final updated = hostWithFirstLogin(host, login);
     await container.read(vaultControllerProvider.notifier).upsertHost(updated);
     if (!context.mounted) return;
     host = updated;

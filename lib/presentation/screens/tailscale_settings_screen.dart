@@ -10,6 +10,7 @@ import '../../application/tailscale_catalog_refresh.dart';
 import '../../application/tailscale_key_input.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/connection_route.dart';
+import '../../domain/credential_identity.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/vault.dart';
 import '../../infrastructure/tailscale/catalog_cache.dart';
@@ -18,6 +19,7 @@ import '../localization/localized_widgets.dart';
 import '../widgets/catalog_text.dart';
 import '../widgets/connection_route_draft.dart';
 import '../widgets/connection_route_editor.dart';
+import '../widgets/credential_field.dart';
 import '../widgets/form_gap.dart';
 import '../widgets/hint.dart';
 import '../widgets/proxy_profiles_page.dart';
@@ -63,6 +65,10 @@ class _TailscaleSettingsScreenState
   var _route = ConnectionRouteDraft.forCatalogImport();
   var _address = CatalogAddressKind.ipv4;
   String? _identity;
+
+  /// 以后导入的主机默认怎么登录：只带用户名（密码每台第一次连接时问），或者共用一个凭据（F31）。
+  var _login = LoginChoice.simple;
+  String? _credentialId;
 
   /// 新建时第一次保存就有了；读取失败留在本页重试时不再建第二个来源。
   String? _catalogId;
@@ -117,6 +123,8 @@ class _TailscaleSettingsScreenState
         _group.text = defaults.group;
         _address = defaults.address;
         _identity = defaults.identityFileId;
+        _credentialId = defaults.identityId;
+        if (_credentialId != null) _login = LoginChoice.credential;
         _route = ConnectionRouteDraft.forHost(HostProfile({
           if (defaults.proxyProfileId != null)
             'proxyProfileId': defaults.proxyProfileId,
@@ -148,15 +156,18 @@ class _TailscaleSettingsScreenState
   }
 
   CatalogImportDefaults _defaults() => CatalogImportDefaults(
-        username: _username.text.trim(),
+        username: _usesCredential ? '' : _username.text.trim(),
         port: int.tryParse(_port.text.trim()) ?? 0,
         address: _address,
         proxyProfileId: _route.selectedProxyProfileId,
         jumpHostIds: _route.selectedJumpHostIds,
         jumpRouteConfirmation: _route.confirmation,
-        identityFileId: _identity,
+        identityFileId: _usesCredential ? null : _identity,
+        identityId: _usesCredential ? _credentialId : null,
         group: _group.text.trim(),
       );
+
+  bool get _usesCredential => _login == LoginChoice.credential;
 
   /// 用和连接时同一个函数检查路线：跳板不在了、代理配置删了，在这里就说。
   ({RoutePlan? plan, String? error}) _routePreview(VaultData? vault) {
@@ -185,7 +196,14 @@ class _TailscaleSettingsScreenState
         return reason;
       }
     }
-    if (RegExp(r'[\s\x00-\x1f\x7f]').hasMatch(_username.text.trim())) {
+    if (_usesCredential) {
+      final chosen = vault == null
+          ? null
+          : vaultIdentities(vault)
+              .where((item) => item.id == _credentialId)
+              .firstOrNull;
+      if (chosen == null) return '选一个凭据，或者改成用户名 / 密码。';
+    } else if (RegExp(r'[\s\x00-\x1f\x7f]').hasMatch(_username.text.trim())) {
       return '用户名里不能有空格或控制字符。';
     }
     final port = int.tryParse(_port.text.trim());
@@ -409,14 +427,36 @@ class _TailscaleSettingsScreenState
                           ),
                         ),
                       const FormGap(),
-                      TextField(
-                        key: const ValueKey('ts-settings-username'),
-                        controller: _username,
-                        autocorrect: false,
-                        enableSuggestions: false,
-                        onChanged: (_) => setState(() {}),
-                        decoration: LInputDecoration(labelText: 'SSH 用户名（可选）'),
+                      LoginChoiceField(
+                        key: const ValueKey('ts-settings-login'),
+                        value: _login,
+                        onChanged: (value) => setState(() => _login = value),
                       ),
+                      const FormGap(),
+                      if (_usesCredential)
+                        CredentialField(
+                          key: const ValueKey('ts-settings-credential'),
+                          value: _credentialId,
+                          onChanged: (id) => setState(() => _credentialId = id),
+                        )
+                      else ...[
+                        TextField(
+                          key: const ValueKey('ts-settings-username'),
+                          controller: _username,
+                          autocorrect: false,
+                          enableSuggestions: false,
+                          onChanged: (_) => setState(() {}),
+                          decoration:
+                              LInputDecoration(labelText: 'SSH 用户名（可选）'),
+                        ),
+                        // 有凭据之前选的默认私钥：照常生效，现在只能清掉，要用私钥就建成凭据。
+                        if (keys.where((key) => key.id == _identity).firstOrNull
+                            case final key?)
+                          OwnKeyRow(
+                            sshKey: key,
+                            onDrop: () => setState(() => _identity = null),
+                          ),
+                      ],
                       const SizedBox(height: 8),
                       ExpansionTile(
                         key: const ValueKey('ts-settings-advanced'),
@@ -487,27 +527,6 @@ class _TailscaleSettingsScreenState
                                 MaterialPageRoute(
                                     builder: (_) => const ProxyProfilesPage())),
                             onChanged: () => setState(() {}),
-                          ),
-                          const FormGap(),
-                          DropdownButtonFormField<String?>(
-                            key: const ValueKey('ts-settings-identity'),
-                            initialValue: keys.any((k) => k.id == _identity)
-                                ? _identity
-                                : null,
-                            decoration: LInputDecoration(labelText: 'SSH 私钥'),
-                            items: [
-                              DropdownMenuItem<String?>(
-                                value: null,
-                                child: LText('不指定'),
-                              ),
-                              for (final key in keys)
-                                DropdownMenuItem<String?>(
-                                  value: key.id,
-                                  child: Text(key.label),
-                                ),
-                            ],
-                            onChanged: (value) =>
-                                setState(() => _identity = value),
                           ),
                           const FormGap(),
                           TextField(

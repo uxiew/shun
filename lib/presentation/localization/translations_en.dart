@@ -671,13 +671,10 @@ const englishTranslations = <String, String>{
   '端口': 'Port',
   '分组（可选）': 'Group (optional)',
   '标签（逗号分隔）': 'Tags (comma-separated)',
-  '身份认证': 'Authentication',
   '认证方式': 'Authentication method',
-  '自动（私钥 / 密码 / 交互式）': 'Automatic (key / password / interactive)',
   '密码': 'Password',
   '密码（可选）': 'Password (optional)',
   'SSH 私钥': 'SSH private key',
-  '管理私钥': 'Manage private keys',
   '直接连接': 'Direct connection',
   '自定义 HTTP / SOCKS5 代理': 'Custom HTTP / SOCKS5 proxy',
   '代理方式': 'Proxy type',
@@ -1123,10 +1120,6 @@ const englishTranslations = <String, String>{
       'Checks the fingerprint and login, then read-only checks. No shell, no startup command.',
   'tmux：远端没有 tmux，只能开普通 shell，App 不会替你装。':
       'tmux: not on the remote. Only a plain shell is available, and the app will not install it for you.',
-  '选了「私钥」，登录时不发密码。已存的密码留着，改回来还能用。':
-      'Private key selected: no password is sent at login. The saved password stays and works again if you switch back.',
-  '选了「密码」，登录时不发私钥。已选的私钥留着，改回来还能用。':
-      'Password selected: no private key is sent at login. The chosen key stays and works again if you switch back.',
   '不发密码和私钥，由 Tailscale 按策略放行。要 check 时在浏览器里确认。':
       'No password or key is sent; Tailscale allows it by policy. If check is required, confirm in the browser.',
   '已存的密码、私钥留着不用，改回普通 SSH 还能用。':
@@ -2280,26 +2273,33 @@ const englishTranslations = <String, String>{
   '复制到剪贴板': 'Copy to clipboard',
   // 凭据（R26 F25）
   '凭据': 'Credentials',
-  '登录身份': 'Login identities',
-  '登录身份（用户名 + 密码或密钥）、SSH 密钥':
-      'Login identities (username + password or key), SSH keys',
-  '新建登录身份': 'New login identity',
-  '编辑登录身份': 'Edit login identity',
-  '删除登录身份': 'Delete login identity',
+  '登录凭据': 'Login credentials',
+  '账号密码、SSH 密钥、安全密钥': 'Logins, SSH keys, security keys',
+  '新建凭据': 'New credential',
+  '编辑凭据': 'Edit credential',
+  '删除凭据': 'Delete credential',
+  '管理凭据': 'Manage credentials',
+  '选择凭据': 'Choose a credential',
+  '选一个凭据': 'Choose a credential',
+  '选一个凭据，或者改成用户名 / 密码。':
+      'Choose a credential, or switch to username / password.',
+  '用户名 / 密码': 'Username / password',
+  '存为凭据': 'Save as credential',
+  '不用了': 'Stop using',
+  '凭据“{name}”': 'Credential “{name}”',
+  '选一把安全密钥': 'Pick a security key',
+  '代理用的凭据要填密码': 'A credential used by a proxy needs a password',
+  '填了加密存本机，不填就连接时问':
+      'Encrypted on this device if filled in; asked when connecting if empty',
+  '用户名 / 密码只给这一台，不填密码就连接时问。凭据是多台共用的一份，改一次全跟着变，里面可以是密码、SSH 密钥或安全密钥。':
+      'A username and password belong to this host only; leave the password empty to be asked when connecting. A credential is shared by many hosts, so changing it once updates them all. It can hold a password, an SSH key or a security key.',
   '导入 SSH 私钥': 'Import SSH private key',
   '{n} 台主机在用': '{n} hosts use it',
-  '登录身份“{name}”': 'Login identity “{name}”',
-  '登录凭据': 'Login credential',
-  '不用凭据，在下面单独设置': 'No credential, set it up below',
-  '登录时用户名 {user}，{how}。这台主机自己的认证设置留着，改回「不用凭据」时照常用。':
-      'Signs in as {user} with {how}. This host’s own authentication settings are kept and used again if you switch back to “No credential”.',
   '名称（可选，默认用用户名）': 'Name (optional, defaults to the username)',
   '登录方式': 'Sign-in method',
   'SSH 密钥 + 密码': 'SSH key + password',
   '服务器要求先过公钥、再输密码时用（sshd 配了 AuthenticationMethods publickey,password）。密钥自己的口令存在密钥上，不在这里。':
       'For servers that require the public key first and then a password (sshd with AuthenticationMethods publickey,password). The key’s own passphrase is stored with the key, not here.',
-  '还没有 SSH 密钥。先在「凭据」里导入一把，再回来选。':
-      'No SSH keys yet. Import one under “Credentials” first, then come back and pick it.',
   '密码（可选，不填就连接时问）': 'Password (optional; asked when connecting if left empty)',
   '用户名不能有空格': 'The username cannot contain spaces',
   '选一把 SSH 密钥': 'Pick an SSH key',
@@ -2610,10 +2610,10 @@ const englishReplacements = <(String, String)>[
   ('自动：先试', 'Automatic: try '),
   ('，都不行再问你', ', and if none works you are asked'),
   // 凭据（R26 F25）：删除前问的话、登录方式一句话。
-  ('删除登录身份“', 'Delete login identity “'),
+  ('删除凭据“', 'Delete credential “'),
   (
-    '。删了以后它们改回用自己的用户名和认证设置；删了不能撤销。',
-    '. After deleting, they go back to their own username and authentication settings. This cannot be undone.'
+    '。删了以后，主机用自己的用户名、密码连接时问，代理不再带账号密码；删了不能撤销。',
+    '. After deleting, hosts use their own username and ask for the password when connecting, and proxies no longer send a username and password. This cannot be undone.'
   ),
   ('这些在用它：', 'In use by: '),
   (
@@ -2622,6 +2622,9 @@ const englishReplacements = <(String, String)>[
   ),
   ('” + 密码', '” + password'),
   ('SSH 密钥“', 'SSH key “'),
+  ('安全密钥“', 'Security key “'),
+  ('”用的凭据已经删了，请到代理设置里重新选。', '” uses a credential that was deleted. Choose another one in the proxy settings.'),
+  ('”用的凭据不是用户名密码，请到代理设置里换一个。', '” uses a credential that is not a username and password. Choose another one in the proxy settings.'),
   ('凭据“', 'Credential “'),
   // 私钥列表删除前问的那句，要在下面单独的「私钥“」之前。
   ('删除私钥“', 'Delete private key “'),
@@ -3461,7 +3464,7 @@ const englishReplacements = <(String, String)>[
     'and that the current network, including any VPN you have on, can reach it.'
   ),
   (
-    '到主机编辑器重新选择私钥，或在私钥管理里补上正确的口令。',
+    '到主机编辑器重新选择凭据，或在「凭据」里补上私钥的口令。',
     'Choose the private key again in the host editor, or enter the correct passphrase in key management.'
   ),
   (

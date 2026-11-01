@@ -1,6 +1,7 @@
 import 'package:uuid/uuid.dart';
 
 import '../domain/connection_route.dart';
+import '../domain/credential_identity.dart';
 import '../domain/models/host.dart';
 import '../domain/models/vault.dart';
 import '../infrastructure/tailscale/catalog_cache.dart';
@@ -29,6 +30,7 @@ class CatalogImportOptions {
     this.jumpRouteConfirmation,
     this.authMethod = HostAuthMethod.auto,
     this.identityFileId,
+    this.identityId,
     this.group,
   });
 
@@ -46,11 +48,14 @@ class CatalogImportOptions {
   final Object? jumpRouteConfirmation;
   final HostAuthMethod authMethod;
   final String? identityFileId;
+
+  /// 用「凭据」里的哪一个（F31）。选了就不看 [username]、[authMethod]、[identityFileId]。
+  final String? identityId;
   final String? group;
 }
 
 /// 来源上存的导入默认值（R26）：导入不再弹设置页，直接按它建主机。存在 [CatalogCache.importDefaults]，
-/// 只有设置、没有凭据：代理只记已保存代理的 ID（口令在安全存储里），跳板只记主机 ID。
+/// 只有设置、没有密码：代理只记已保存代理的 ID（口令在安全存储里），跳板只记主机 ID，凭据只记它的 ID。
 class CatalogImportDefaults {
   const CatalogImportDefaults({
     this.username = '',
@@ -60,6 +65,7 @@ class CatalogImportDefaults {
     this.jumpHostIds = const [],
     this.jumpRouteConfirmation,
     this.identityFileId,
+    this.identityId,
     this.group = '',
   });
 
@@ -90,6 +96,8 @@ class CatalogImportDefaults {
       identityFileId: json['identityFileId'] is String
           ? json['identityFileId'] as String
           : null,
+      identityId:
+          json['identityId'] is String ? json['identityId'] as String : null,
       group: json['group'] is String ? json['group'] as String : '',
     );
   }
@@ -102,7 +110,11 @@ class CatalogImportDefaults {
   final Object? jumpRouteConfirmation;
 
   /// 用哪把已存的私钥（只记 ID）。认证方式始终是自动：先试私钥，不行再问密码。
+  /// 有凭据之前的设置，照常生效；现在选不到新的，只能在设置页清掉（F31）。
   final String? identityFileId;
+
+  /// 所有导入的主机共用的凭据（F31）。
+  final String? identityId;
   final String group;
 
   Map<String, Object?> toJson() => {
@@ -114,6 +126,7 @@ class CatalogImportDefaults {
         if (jumpRouteConfirmation != null)
           'jumpRouteConfirmation': jumpRouteConfirmation,
         if ((identityFileId ?? '').isNotEmpty) 'identityFileId': identityFileId,
+        if ((identityId ?? '').isNotEmpty) 'identityId': identityId,
         if (group.trim().isNotEmpty) 'group': group.trim(),
       };
 
@@ -125,6 +138,7 @@ class CatalogImportDefaults {
         jumpHostIds: jumpHostIds,
         jumpRouteConfirmation: jumpRouteConfirmation,
         identityFileId: identityFileId,
+        identityId: identityId,
         group: group,
       );
 }
@@ -201,6 +215,10 @@ CatalogImportResult buildCatalogImport({
     throw const CatalogImportInvalid('跳板机最多 3 台。');
   }
 
+  // 凭据删了（默认值还记着它）就当没选，第一次连接时会问，不至于导不进来。
+  final identity = vaultIdentities(vault)
+      .where((item) => item.id == options.identityId)
+      .firstOrNull;
   final imported = <String, HostProfile>{
     for (final host in vault.hosts)
       if (CatalogBinding.of(host) case final binding?
@@ -255,6 +273,7 @@ CatalogImportResult buildCatalogImport({
         appliedAddress: address,
       ),
       os: record.device.os,
+      identity: identity,
     );
     // 和连接时同一个函数检查路线：路线矛盾（找不到跳板、循环、代理配置缺失）整批都不成立，
     // 只和这台设备有关的（地址不合法、和某台跳板是同一台机器）只跳过这台。
@@ -324,6 +343,7 @@ HostProfile _host(
   CatalogImportOptions options,
   CatalogBinding binding, {
   String? os,
+  IdentityProfile? identity,
 }) {
   final data = HostProfile.create(
     id: id,
@@ -340,6 +360,7 @@ HostProfile _host(
   if (options.authMethod != HostAuthMethod.password && keyId.isNotEmpty) {
     data['identityFileId'] = keyId;
   }
+  if (identity != null) useCredentialOn(data, identity);
   final group = options.group?.trim() ?? '';
   if (group.isNotEmpty) data['group'] = group;
   if (options.jumpHostIds.isNotEmpty) {

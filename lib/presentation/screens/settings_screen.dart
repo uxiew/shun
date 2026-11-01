@@ -502,7 +502,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       key: const ValueKey('settings-credentials'),
                       leading: const Icon(Icons.key_outlined),
                       title: const LText('凭据'),
-                      subtitle: const LText('登录身份（用户名 + 密码或密钥）、SSH 密钥'),
+                      subtitle: const LText('账号密码、SSH 密钥、安全密钥'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => showModalBottomSheet<void>(
                         context: context,

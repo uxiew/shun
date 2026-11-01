@@ -412,6 +412,65 @@ void main() {
         '2222');
   });
 
+  testWidgets('F31：默认登录可以是用户名或凭据；以前选的默认私钥照常显示，能清掉', (tester) async {
+    repo.caches['ts-home'] = const CatalogCache(
+      catalogId: 'ts-home',
+      tailnet: '-',
+      label: 'home',
+      importDefaults: {'username': 'ubuntu', 'identityFileId': 'k1'},
+    );
+    await vault.saveVault(VaultData.fromJson({
+      'hosts': [],
+      'keys': [
+        {'id': 'k1', 'label': 'laptop', 'type': 'ED25519'},
+      ],
+      'snippets': [],
+      'customGroups': [],
+      'identities': [
+        {
+          'id': 'pw',
+          'label': 'team',
+          'username': 'ops',
+          'authMethod': 'password',
+          'password': 'NOT-IN-DEFAULTS',
+        },
+      ],
+    }));
+    await openSettings(tester, 'ts-home');
+    expect(find.text('私钥“laptop”'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('own-key-drop')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+    expect(repo.caches['ts-home']!.importDefaults,
+        {'username': 'ubuntu', 'address': 'ipv4'});
+
+    await openSettings(tester, 'ts-home');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-login')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('凭据').last);
+    await tester.pumpAndSettle();
+    // 选了「凭据」却没选中：不存。
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+    expect(
+        find.byKey(const ValueKey('ts-settings-credential')), findsOneWidget);
+    expect(repo.caches['ts-home']!.importDefaults.containsKey('identityId'),
+        isFalse);
+    await tester.tap(find.byKey(const ValueKey('ts-settings-credential')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('credential-option-pw')));
+    await tester.pumpAndSettle();
+    expect(find.text('ops · 密码'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+    expect(repo.caches['ts-home']!.importDefaults,
+        {'address': 'ipv4', 'identityId': 'pw'});
+
+    await openSettings(tester, 'ts-home');
+    expect(find.text('ops · 密码'), findsOneWidget, reason: '再打开，回显还在');
+  });
+
   testWidgets('R26：设置页里删除保存的 OAuth client、移除来源（主机都留着）', (tester) async {
     seedIncomplete();
     secrets.values['tailscale.catalog.ts-home.oauth.clientId'] = 'cid';

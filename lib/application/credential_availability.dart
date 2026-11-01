@@ -1,3 +1,4 @@
+import '../domain/connection_route.dart' show proxyIdentityKey;
 import '../domain/models/host.dart';
 import '../domain/models/vault.dart';
 import '../domain/tailscale_ssh.dart';
@@ -69,9 +70,15 @@ String? unreadableCredentialProblem(
     }
     if (isTarget) {
       final proxyId = host.proxyProfileId;
+      final proxyCredential = vault.proxyProfiles
+          .where((profile) => profile.id == proxyId)
+          .firstOrNull
+          ?.data[proxyIdentityKey];
       if ((host.data['proxyConfig'] is Map &&
               unreadable.contains('host.${host.id}.proxyPassword')) ||
-          (proxyId != null && unreadable.contains('proxy.$proxyId.password'))) {
+          (proxyId != null && unreadable.contains('proxy.$proxyId.password')) ||
+          (proxyCredential != null &&
+              unreadable.contains('identity.$proxyCredential.password'))) {
         problems.add('代理口令');
       }
     }

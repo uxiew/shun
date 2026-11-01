@@ -342,7 +342,7 @@ void main() {
 
     await tester.tap(key('ssh-login-mode'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('密码').last);
+    await tester.tap(find.text('Tailscale SSH').last);
     await tester.pumpAndSettle();
     expect(status(tester), startsWith('未验证：测试后改过'));
   });
@@ -401,7 +401,7 @@ void main() {
         findsNothing);
     final note = await groupHint(tester, 'tmux');
     expect(note, contains('重新连接得到的是一个新 shell，不是原来那个'));
-    expect(note, contains('「系统管理 → tmux」'));
+    expect(note, contains('「性能监控 → tmux」'));
     expect(note, contains('只是这台手机上的历史'));
     expect(note, contains('不新建、不附着'));
     expect(note, isNot(contains('恢复原')));
@@ -475,35 +475,11 @@ void main() {
     expect(status(tester), startsWith('未验证：测试后改过'));
   });
 
-  testWidgets('R25：认证方式只显示登录时会发的；藏起来的密码不清，写明不用', (tester) async {
+  testWidgets('F31：用户名 / 密码下面只有这两个框，没有私钥下拉框', (tester) async {
     await open(tester, host: ssh({'password': 'pw'}));
-    final password = field('密码（可选）');
-    final keyPicker =
-        find.widgetWithText(DropdownButtonFormField<String>, 'SSH 私钥');
-    expect(password, findsOneWidget, reason: '自动：密码、私钥都会试');
-    expect(keyPicker, findsOneWidget);
-
-    Future<void> choose(String label) async {
-      await tester.tap(key('ssh-login-mode'));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(label).last);
-      await tester.pumpAndSettle();
-    }
-
-    await choose('私钥');
-    expect(password, findsNothing, reason: '选了私钥，登录时不发密码');
-    expect(key('auth-password-unused'), findsOneWidget);
-    expect(keyPicker, findsOneWidget);
-
-    await choose('密码');
-    expect(password, findsOneWidget);
-    expect(keyPicker, findsNothing, reason: '选了密码，登录时不发私钥');
-    expect(key('auth-key-unused'), findsNothing, reason: '没挑过私钥，不用说');
-
-    await choose('私钥');
-    await choose('自动（私钥 / 密码 / 交互式）');
-    expect(tester.widget<TextFormField>(password).controller!.text, 'pw',
-        reason: '藏起来不等于清掉');
+    expect(field('密码（可选）'), findsOneWidget);
+    expect(find.text('SSH 私钥'), findsNothing);
+    expect(key('own-key-drop'), findsNothing, reason: '没挂私钥，不用说');
   });
 }
 

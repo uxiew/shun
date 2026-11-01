@@ -2,9 +2,12 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/connection_route.dart' show proxyIdentityKey;
+import '../domain/credential_identity.dart';
 import '../domain/models/host.dart';
 import '../domain/models/vault.dart';
 import '../domain/proxy_profiles.dart';
+import '../domain/vault_secrets.dart';
 import '../infrastructure/storage/vault_repository.dart';
 import 'host_trust.dart';
 import 'vault_import.dart';
@@ -100,7 +103,7 @@ class VaultController extends StateNotifier<VaultState> {
 
   /// 主机相关的写入排队执行。每次写入都是「读当前保险库 → 改 → 保存」，两次交叠时，
   /// 后保存的那次会用它读到的旧列表盖掉先保存的——比如用户刚保存的编辑被连接回写冲掉。
-  /// 覆盖本类里的主机写入和导入；钥匙串、同步仍直接调 [replace]，不在队列里。
+  /// 覆盖本类里的主机写入、导入和凭据；SSH 密钥、同步仍直接调 [replace]，不在队列里。
   Future<T> _serialHostWrite<T>(Future<T> Function() write) {
     final result = _hostWrites.then((_) => write());
     _hostWrites = result.then((_) {}, onError: (Object _) {});
@@ -123,6 +126,66 @@ class VaultController extends StateNotifier<VaultState> {
         }
         await replace(plan.result(mode));
         return plan;
+      });
+
+  /// 存一个凭据（F31）：编辑的留在原位置，新建的接在最后。
+  /// 用户名改了，引用它的主机跟着改：列表和路线预览直接读主机上的用户名，不改就一直显示旧的。
+  Future<void> saveIdentity(Map<String, dynamic> identity) =>
+      _serialHostWrite(() async {
+        final vault = await ready();
+        final saved = IdentityProfile(identity);
+        final current = vaultIdentityMaps(vault);
+        final index = current.indexWhere((item) => item['id'] == saved.id);
+        await replace(vault.copyWith(
+          hosts: [
+            for (final host in vault.hosts)
+              if (host.data['identityId'] == saved.id &&
+                  saved.username.isNotEmpty &&
+                  host.username != saved.username)
+                HostProfile({...host.data, 'username': saved.username})
+              else
+                host,
+          ],
+          extras: {
+            ...vault.extras,
+            'identities': [
+              for (final (i, item) in current.indexed)
+                if (i == index) identity else item,
+              if (index < 0) identity,
+            ],
+          },
+        ));
+      });
+
+  /// 删一个凭据，引用一并去掉：不去掉的话编辑器里挂着一个找不到的凭据。
+  /// 之后主机用自己的用户名、密码连接时问，代理不再带账号密码。
+  Future<void> deleteIdentity(String id) => _serialHostWrite(() async {
+        final vault = await ready();
+        await replace(vault.copyWith(
+          hosts: [
+            for (final host in vault.hosts)
+              if (host.data['identityId'] == id)
+                HostProfile(
+                    Map<String, dynamic>.from(host.data)..remove('identityId'))
+              else
+                host,
+          ],
+          proxyProfiles: [
+            for (final profile in vault.proxyProfiles)
+              if (profile.data[proxyIdentityKey] == id)
+                ProxyProfile(Map<String, dynamic>.from(profile.data)
+                  ..remove(proxyIdentityKey))
+              else
+                profile,
+          ],
+          extras: {
+            ...vault.extras,
+            'identities': [
+              for (final item in vaultIdentityMaps(vault))
+                if (item['id'] != id) item,
+            ],
+          },
+        ));
       });
 
   /// Proxy writes share the host/import queue, so references cannot be lost to

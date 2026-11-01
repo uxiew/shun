@@ -142,7 +142,7 @@ void main() {
       );
       await tester.tap(find.byKey(const ValueKey('ssh-login-mode')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('自动（私钥 / 密码 / 交互式）').last);
+      await tester.tap(find.text('用户名 / 密码').last);
       await tester.pumpAndSettle();
       expect(find.text('密码（可选）'), findsOneWidget);
       await tester.tap(find.text('保存'));

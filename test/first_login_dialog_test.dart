@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shun/application/tailscale_catalog_refresh.dart';
 import 'package:shun/domain/models/host.dart';
+import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/widgets/first_login_dialog.dart';
 
 // R26：Tailscale 导入时不统一填用户名和密码，单独连接时再配。什么时候先问、问完得到什么。
@@ -45,16 +48,21 @@ void main() {
   });
 
   testWidgets('用户名必填、不能带空格；密码可以不填；取消什么都不给', (tester) async {
-    ({String username, String? password})? result;
+    FirstLogin? result;
     var closed = false;
-    await tester.pumpWidget(MaterialApp(
-      home: Builder(
-        builder: (context) => TextButton(
-          onPressed: () async {
-            result = await askFirstLogin(context, host({}));
-            closed = true;
-          },
-          child: const Text('go'),
+    SharedPreferences.setMockInitialValues({});
+    final repository = await VaultRepository.open();
+    await tester.pumpWidget(ProviderScope(
+      overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
+      child: MaterialApp(
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () async {
+              result = await askFirstLogin(context, host({}));
+              closed = true;
+            },
+            child: const Text('go'),
+          ),
         ),
       ),
     ));

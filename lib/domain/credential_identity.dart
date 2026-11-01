@@ -1,6 +1,7 @@
 import 'host_identity.dart';
 import 'models/host.dart';
 import 'models/vault.dart';
+import 'security_key.dart';
 import 'vault_secrets.dart';
 
 /// 「凭据」里的一个身份（R26 F25）：用户名 + 登录方式，可以被多台主机引用。
@@ -93,6 +94,27 @@ void applyHostIdentity(
   }
 }
 
+/// 让主机改用这个凭据（F31）。用户名同步到主机上：列表和路线预览直接读它。
+///
+/// 主机上旧的密码和私钥引用不留：[applyHostIdentity] 规定身份没填的用主机自己的，留着的话，
+/// 没存密码的凭据写着「连接时问」，连接时却悄悄发一份旧密码。
+void useCredentialOn(Map<String, dynamic> data, IdentityProfile identity) {
+  data['identityId'] = identity.id;
+  if (identity.username.isNotEmpty) data['username'] = identity.username;
+  data['authMethod'] = HostAuthMethod.auto.name;
+  data.remove('password');
+  data.remove('identityFileId');
+}
+
+/// 这个凭据引用的是不是安全密钥。存法和 SSH 密钥一样（都是 `keyId`），只有看密钥本身才分得出。
+bool identityUsesSecurityKey(
+  IdentityProfile identity,
+  List<SshKeyProfile> keys,
+) {
+  final key = keys.where((value) => value.id == identity.keyId).firstOrNull;
+  return key != null && SecurityKeyStub.isStubPem(key.privateKey);
+}
+
 /// sudo 键（R66）要发的密码：[tabHost] 这个标签对应的那台主机现在存的密码，身份展开后。
 ///
 /// 按 id 回保险库查，不用标签上那份：那份可能是临时拷贝（tmux、AI 工具），后台满 10 分钟凭据还会被清掉。
@@ -114,17 +136,20 @@ String? storedHostPassword(
   return null;
 }
 
-/// 登录方式一句话：凭据列表、主机编辑器的选择框里用。不带密码内容。
+/// 登录方式一句话：凭据列表、选凭据后的回显里用。不带密码内容。
 String identityAuthText(
   IdentityProfile identity,
-  Map<String, String> keyLabels,
+  List<SshKeyProfile> keys,
 ) {
-  final key =
-      identity.keyId == null ? null : keyLabels[identity.keyId] ?? '（已删除的密钥）';
+  final id = identity.keyId;
+  final label = id == null
+      ? ''
+      : keys.where((key) => key.id == id).firstOrNull?.label ?? '（已删除的密钥）';
+  final kind = identityUsesSecurityKey(identity, keys) ? '安全密钥' : 'SSH 密钥';
   return switch (identity.auth) {
     IdentityAuth.password => identity.password == null ? '密码（连接时问）' : '密码',
-    IdentityAuth.key => 'SSH 密钥“${key ?? ''}”',
-    IdentityAuth.keyAndPassword => 'SSH 密钥“${key ?? ''}” + 密码',
+    IdentityAuth.key => '$kind“$label”',
+    IdentityAuth.keyAndPassword => '$kind“$label” + 密码',
   };
 }
 

@@ -253,7 +253,7 @@ void main() {
 
       await tester.tap(find.byKey(const ValueKey('keychain-add')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('新建登录身份').last);
+      await tester.tap(find.text('新建凭据').last);
       await tester.pumpAndSettle();
       await tester.enterText(
           find.byKey(const ValueKey('identity-username')), 'admin');
@@ -294,7 +294,7 @@ void main() {
       await tester
           .tap(find.byKey(const ValueKey('keychain-delete-identity-pw')));
       await tester.pumpAndSettle();
-      expect(find.textContaining('这些主机在用它：web。'), findsOneWidget);
+      expect(find.textContaining('这些在用它：web。'), findsOneWidget);
       await tester
           .tap(find.byKey(const ValueKey('keychain-confirm-delete-identity')));
       await tester.pumpAndSettle();
@@ -321,10 +321,10 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('keychain-delete-k1')));
       await tester.pumpAndSettle();
-      expect(find.textContaining('登录身份“deploy”'), findsOneWidget);
+      expect(find.textContaining('凭据“deploy”'), findsOneWidget);
     });
 
-    testWidgets('主机编辑器：选了身份就收起自己的认证设置，保存时记下 identityId', (tester) async {
+    testWidgets('主机编辑器：选了凭据就收起用户名和密码，保存时记下 identityId', (tester) async {
       HostProfile? saved;
       final container = await open(
         tester,
@@ -350,26 +350,32 @@ void main() {
       expect(container, isNotNull);
       await tester.tap(find.text('Edit'));
       await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('credential-summary')), findsOneWidget);
+      expect(find.text('ops · 密码（连接时问）'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, '用户名'), findsNothing,
+          reason: '用户名在凭据里');
+
+      await tester.tap(find.byKey(const ValueKey('ssh-login-mode')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('用户名 / 密码').last);
+      await tester.pumpAndSettle();
       expect(
-          find.byKey(const ValueKey('host-identity-summary')), findsOneWidget);
-      expect(find.textContaining('登录时用户名 ops'), findsOneWidget);
-      expect(find.byKey(const ValueKey('ssh-login-mode')), findsNothing,
-          reason: '认证方式由身份决定，不再显示主机自己的');
+        tester
+            .widget<TextFormField>(find.widgetWithText(TextFormField, '用户名'))
+            .controller!
+            .text,
+        'host-user',
+        reason: '切回来，主机自己的账号还在',
+      );
 
-      await tester.tap(find.byKey(const ValueKey('host-identity')));
+      await tester.tap(find.byKey(const ValueKey('ssh-login-mode')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('不用凭据，在下面单独设置').last);
-      await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('ssh-login-mode')), findsOneWidget);
-
-      await tester.tap(find.byKey(const ValueKey('host-identity')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('pw（ops）').last);
+      await tester.tap(find.text('凭据').last);
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('host-editor-save')));
       await tester.pumpAndSettle();
       expect(saved?.data['identityId'], 'pw');
-      expect(saved?.username, 'host-user', reason: '主机自己的用户名留着当兜底');
+      expect(saved?.username, 'ops', reason: '列表和路线预览读主机上的用户名');
     });
   });
 }

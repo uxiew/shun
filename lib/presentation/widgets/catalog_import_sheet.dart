@@ -6,11 +6,12 @@ import '../../application/tailscale_catalog_import.dart';
 import '../../application/tailscale_catalog_refresh.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/connection_route.dart';
-import '../../domain/models/host.dart';
+import '../../domain/credential_identity.dart';
 import '../../domain/models/vault.dart';
 import '../../infrastructure/tailscale/catalog_cache.dart';
 import '../localization/localized_widgets.dart';
 import 'connection_route_draft.dart';
+import 'credential_field.dart';
 import 'connection_route_editor.dart';
 import 'form_gap.dart';
 import 'hint.dart';
@@ -52,8 +53,8 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
   final _group = TextEditingController();
   final _routeDraft = ConnectionRouteDraft.forCatalogImport();
   CatalogAddressKind _address = CatalogAddressKind.ipv4;
-  HostAuthMethod _auth = HostAuthMethod.auto;
-  String? _keyId;
+  LoginChoice _login = LoginChoice.simple;
+  String? _credentialId;
   bool _saving = false;
 
   @override
@@ -68,6 +69,8 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
     super.dispose();
   }
 
+  bool get _usesCredential => _login == LoginChoice.credential;
+
   CatalogImportOptions _options() => CatalogImportOptions(
         username: _username.text,
         port: int.tryParse(_port.text.trim()) ?? 0,
@@ -76,8 +79,7 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
         proxyConfig: _routeDraft.selectedProxyConfig,
         jumpHostIds: _routeDraft.selectedJumpHostIds,
         jumpRouteConfirmation: _routeDraft.confirmation,
-        authMethod: _auth,
-        identityFileId: _auth == HostAuthMethod.password ? null : _keyId,
+        identityId: _usesCredential ? _credentialId : null,
         group: _group.text,
       );
 
@@ -85,8 +87,12 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
     VaultData vault,
     String Function() newId,
   ) {
-    // 这一页是「统一设置一批」，还是要填用户名；不填用户名的导入走来源设置里的默认值（R26）。
-    if (_username.text.trim().isEmpty) {
+    if (_usesCredential) {
+      if (!vaultIdentities(vault).any((item) => item.id == _credentialId)) {
+        return (result: null, error: '选一个凭据，或者改成用户名 / 密码。');
+      }
+    } else if (_username.text.trim().isEmpty) {
+      // 这一页是「统一设置一批」，还是要填用户名；不填用户名的导入走来源设置里的默认值（R26）。
       return (
         result: null,
         error: '要填登录用户名：目录不知道服务器上的 Unix 用户，不会默认用 root。',
@@ -165,18 +171,35 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
         children: [
           const LText('选中的设备建成新主机，只存不连，第一次连接时照常核对指纹。'),
           const FormGap(),
-          TextField(
-            key: const ValueKey('catalog-import-username'),
-            controller: _username,
-            autocorrect: false,
-            enableSuggestions: false,
-            onChanged: (_) => setState(() {}),
-            decoration: InputDecoration(
-              labelText: localized('登录用户名'),
-              helperText: localized('服务器上的 Unix 用户，比如 ubuntu。必须填，不会默认用 root。'),
-              helperMaxLines: 2,
-            ),
+          LoginChoiceField(
+            key: const ValueKey('catalog-import-login'),
+            value: _login,
+            onChanged: (value) => setState(() => _login = value),
           ),
+          const FormGap(),
+          if (_usesCredential)
+            CredentialField(
+              key: const ValueKey('catalog-import-credential'),
+              value: _credentialId,
+              onChanged: (id) => setState(() => _credentialId = id),
+            )
+          else ...[
+            TextField(
+              key: const ValueKey('catalog-import-username'),
+              controller: _username,
+              autocorrect: false,
+              enableSuggestions: false,
+              onChanged: (_) => setState(() {}),
+              decoration: InputDecoration(
+                labelText: localized('登录用户名'),
+                helperText:
+                    localized('服务器上的 Unix 用户，比如 ubuntu。必须填，不会默认用 root。'),
+                helperMaxLines: 2,
+              ),
+            ),
+            const SizedBox(height: 4),
+            LText('密码不在这里批量填：导入后到各主机的编辑器里填。', style: small),
+          ],
           // 用户名的提示有两行，贴着下一个输入框会压住它的浮动标签。
           const FormGap(),
           TextField(
@@ -235,45 +258,6 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
                 MaterialPageRoute(builder: (_) => const ProxyProfilesPage())),
             onChanged: () => setState(() {}),
           ),
-          const SizedBox(height: 16),
-          const LText('身份认证'),
-          const SizedBox(height: 4),
-          SegmentedButton<HostAuthMethod>(
-            segments: [
-              ButtonSegment(
-                value: HostAuthMethod.auto,
-                label: LText('自动'),
-              ),
-              ButtonSegment(
-                value: HostAuthMethod.key,
-                label: LText('私钥'),
-              ),
-            ],
-            selected: {
-              _auth == HostAuthMethod.password ? HostAuthMethod.auto : _auth,
-            },
-            onSelectionChanged: (value) => setState(() => _auth = value.first),
-          ),
-          const FormGap(),
-          DropdownButtonFormField<String?>(
-            key: const ValueKey('catalog-import-key'),
-            initialValue: _keyId,
-            decoration: InputDecoration(labelText: localized('SSH 私钥')),
-            items: [
-              DropdownMenuItem<String?>(
-                value: null,
-                child: LText('不指定'),
-              ),
-              for (final key in vault?.keys ?? const <SshKeyProfile>[])
-                DropdownMenuItem<String?>(
-                  value: key.id,
-                  child: Text(key.label),
-                ),
-            ],
-            onChanged: (value) => setState(() => _keyId = value),
-          ),
-          const SizedBox(height: 4),
-          LText('密码不在这里批量填：导入后到各主机的编辑器里填。', style: small),
           const FormGap(),
           TextField(
             controller: _group,

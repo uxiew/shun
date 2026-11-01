@@ -507,7 +507,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                   HostProtocol.telnet =>
                     'TELNET  ${host.hostname}:${host.port}',
                   _ =>
-                    '${host.protocol.name.toUpperCase()}  ${host.username}@${host.hostname}:${host.port}',
+                    '${host.protocol.name.toUpperCase()}  ${effective.username}@${host.hostname}:${host.port}',
                 },
               ),
               if (host.systemInfo != null)

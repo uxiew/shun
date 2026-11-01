@@ -658,7 +658,7 @@ void main() {
       expect(outcome.tmux?.availability, TmuxAvailability.ready);
       expect(outcome.tmux!.sessions, hasLength(1));
       expect(describeProbeTmux(outcome), contains('有 1 个会话'));
-      expect(describeProbeTmux(outcome), contains('「系统管理 → tmux」'));
+      expect(describeProbeTmux(outcome), contains('「性能监控 → tmux」'));
       expect(await sessions(), before);
       expect(await asUser('tmux list-clients 2>/dev/null | wc -l'), '0',
           reason: '测试连接不附着');

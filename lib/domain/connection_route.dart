@@ -22,6 +22,10 @@ class RouteConfigException implements Exception {
 /// 跳板机最多几跳（产品初始上限，见 plan/v3/docs/04）。超过就拨号前拒绝。
 const maxJumpHosts = 3;
 
+/// 代理配置引用的「凭据」（F31），存在 [ProxyProfile] 上。桌面端不认这个字段，原样留着，
+/// 所以同一份配置在桌面端连这个代理时不带账号密码。
+const proxyIdentityKey = 'identityId';
+
 enum EndpointKind { ipv4, ipv6, domain }
 
 /// 校验过的 host:port。地址规则只在这里定义一处（NET04）：
@@ -260,13 +264,15 @@ class RoutePlan {
 ///   后面每一跳经上一跳 SSH 转发，不再经过代理。代理放在目标上，是因为它不可能作用在
 ///   「最后一跳到目标」那一段——那段是从跳板机发出的，手机的代理够不着。
 ///
+/// [identities] 不传时只算路线的样子（校验代理配置、编辑器算跳板选项），不展开凭据：这些地方不会真的拨号。
+///
 /// 出错一律抛 [RouteConfigException]，调用方此时还没有拨出任何连接。
 RoutePlan resolveRoutePlan(
   HostProfile target, {
   required List<HostProfile> hosts,
   required List<ProxyProfile> proxyProfiles,
   List<SshKeyProfile> keys = const [],
-  List<Map<String, dynamic>> identities = const [],
+  List<Map<String, dynamic>>? identities,
 }) {
   if (target.protocol == HostProtocol.unknown) {
     throw const RouteConfigException('此连接类型暂不支持，原配置已保留，不会改用 SSH。');
@@ -276,7 +282,8 @@ RoutePlan resolveRoutePlan(
     throw const RouteConfigException('插件主机不走本 App 的连接路径：插件自己联网，不经过代理和跳板。');
   }
   final targetName = '目标“${target.label}”';
-  final targetHop = _hop(target, targetName, keys, identities);
+  final logins = identities ?? const <Map<String, dynamic>>[];
+  final targetHop = _hop(target, targetName, keys, logins);
   final jumpIds = _jumpIds(target, targetName);
 
   if (target.protocol == HostProtocol.telnet) {
@@ -288,7 +295,7 @@ RoutePlan resolveRoutePlan(
     }
   }
 
-  final entry = _entry(target, targetName, proxyProfiles);
+  final entry = _entry(target, targetName, proxyProfiles, identities);
   if (jumpIds.length > maxJumpHosts) {
     throw RouteConfigException(
       '$targetName的跳板机数量超过上限（最多 $maxJumpHosts 个）：${jumpIds.length}',
@@ -318,7 +325,7 @@ RoutePlan resolveRoutePlan(
         '$jumpName自己又配置了跳板机，不支持嵌套。请在$targetName上按顺序列出全部跳板机。',
       );
     }
-    jumps.add(_hop(jump, jumpName, keys, identities));
+    jumps.add(_hop(jump, jumpName, keys, logins));
   }
 
   final hops = [...jumps, targetHop];
@@ -360,8 +367,9 @@ List<String> _jumpIds(HostProfile host, String name) {
 RouteEntry _entry(
   HostProfile host,
   String name,
-  List<ProxyProfile> profiles,
-) {
+  List<ProxyProfile> profiles, [
+  List<Map<String, dynamic>>? identities,
+]) {
   final profileId = host.proxyProfileId;
   final hasProfile = profileId != null && profileId.isNotEmpty;
   final inline = host.data['proxyConfig'];
@@ -372,6 +380,7 @@ RouteEntry _entry(
   }
   final ProxyConfig config;
   final String proxyName;
+  IdentityProfile? credential;
   if (hasProfile) {
     final profile =
         profiles.where((value) => value.id == profileId).firstOrNull;
@@ -380,6 +389,7 @@ RouteEntry _entry(
     config = profile.config ??
         (throw RouteConfigException('代理配置“${profile.label}”内容缺失'));
     proxyName = '代理配置“${profile.label}”';
+    credential = _proxyCredential(profile, identities);
   } else if (inline != null) {
     if (inline is! Map) throw const RouteConfigException('主机的代理配置格式无效');
     config = ProxyConfig.fromJson(Map<String, dynamic>.from(inline));
@@ -392,9 +402,28 @@ RouteEntry _entry(
   return ProxyEntry(
     type: config.type!,
     endpoint: Endpoint.parse(config.host, config.port, what: proxyName),
-    username: config.username,
-    password: config.password,
+    username: credential == null ? config.username : credential.username,
+    password: credential == null ? config.password : credential.password,
   );
+}
+
+/// 代理配置引用的凭据。代理只认用户名和密码，凭据删了或者换成了密钥，在拨号前说清楚：
+/// 不带账号去连只会得到代理的一句「认证失败」，看不出是这里的问题。
+IdentityProfile? _proxyCredential(
+  ProxyProfile profile,
+  List<Map<String, dynamic>>? identities,
+) {
+  final id = profile.data[proxyIdentityKey]?.toString() ?? '';
+  if (id.isEmpty || identities == null) return null;
+  final found =
+      identities.where((item) => item['id']?.toString() == id).firstOrNull;
+  if (found == null) {
+    throw RouteConfigException('代理配置“${profile.label}”用的凭据已经删了，请到代理设置里重新选。');
+  }
+  if (found['authMethod'] != 'password') {
+    throw RouteConfigException('代理配置“${profile.label}”用的凭据不是用户名密码，请到代理设置里换一个。');
+  }
+  return IdentityProfile(found);
 }
 
 /// 这一跳的快照里，主机引用的「凭据」身份已经展开（[applyHostIdentity]）：后面的登录、私钥解析、

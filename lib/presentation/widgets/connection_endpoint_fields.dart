@@ -5,39 +5,31 @@ import '../localization/localized_widgets.dart';
 import 'form_gap.dart';
 
 /// Endpoint form only; the editor retains draft ownership and route validation.
-/// Hidden SSH identity remains in its controller when switching protocols.
+/// 用户名不在这里：它属于认证，选了凭据就不用填（F31）。
 class ConnectionEndpointFields extends StatelessWidget {
   const ConnectionEndpointFields(
       {super.key,
       required this.protocol,
       required this.hostname,
-      required this.username,
       required this.port});
 
   final HostProtocol protocol;
-  final TextEditingController hostname, username, port;
+  final TextEditingController hostname, port;
 
   @override
   Widget build(BuildContext context) {
     final ssh = protocol == HostProtocol.ssh || protocol == HostProtocol.mosh;
     return Column(children: [
       const FormGap(),
-      TextFormField(
-          controller: hostname,
-          decoration: LInputDecoration(labelText: '主机名 / IP'),
-          keyboardType: TextInputType.url,
-          validator: _required),
-      const FormGap(),
-      Row(children: [
-        if (ssh) ...[
-          Expanded(
-              flex: 2,
-              child: TextFormField(
-                  controller: username,
-                  decoration: LInputDecoration(labelText: '用户名'),
-                  validator: _required)),
-          const SizedBox(width: 12),
-        ],
+      Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Expanded(
+            flex: 2,
+            child: TextFormField(
+                controller: hostname,
+                decoration: LInputDecoration(labelText: '主机名 / IP'),
+                keyboardType: TextInputType.url,
+                validator: _required)),
+        const SizedBox(width: 12),
         Expanded(
             child: TextFormField(
                 controller: port,

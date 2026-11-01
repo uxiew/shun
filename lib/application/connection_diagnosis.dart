@@ -196,7 +196,7 @@ String? _hint(ConnectionFailureKind kind) => switch (kind) {
       ConnectionFailureKind.tailscaleDenied =>
         '到 Tailscale 后台检查访问策略里的 ssh 规则：来源要包含这次连接的来源节点（经代理时是代理出口那台，不是手机），'
             '登录用户名要在允许的列表里。',
-      ConnectionFailureKind.identity => '到主机编辑器重新选择私钥，或在私钥管理里补上正确的口令。',
+      ConnectionFailureKind.identity => '到主机编辑器重新选择凭据，或在「凭据」里补上私钥的口令。',
       ConnectionFailureKind.proxy =>
         '检查代理的地址、端口、用户名和密码。代理之后怎么走由代理决定，App 只看得到代理返回的结果。',
       ConnectionFailureKind.unreachable =>

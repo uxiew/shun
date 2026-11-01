@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/plugin_host_session.dart';
 import '../../application/plugin_registry.dart';
+import '../../application/vault_controller.dart';
+import '../../domain/credential_identity.dart';
 import '../../domain/models/host.dart';
 import '../../domain/plugins/plugin_host.dart';
 import '../localization/localized_widgets.dart';
@@ -29,6 +31,20 @@ class HostAddressLine extends ConsumerWidget {
   final TextOverflow? overflow;
   final TextAlign? textAlign;
 
+  /// 选了凭据的主机写凭据的用户名：桌面端同步来的主机，自己那份可能是空的或者旧的。
+  String _username(WidgetRef ref) {
+    if (host.data['identityId'] == null) return host.username;
+    final vault = ref.watch(vaultControllerProvider).data;
+    final identity = vault == null
+        ? null
+        : vaultIdentities(vault)
+            .where((item) => item.id == host.data['identityId'])
+            .firstOrNull;
+    return identity == null || identity.username.isEmpty
+        ? host.username
+        : identity.username;
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (host.protocol == HostProtocol.unknown) {
@@ -40,7 +56,7 @@ class HostAddressLine extends ConsumerWidget {
           textAlign: textAlign);
     }
     if (host.protocol != HostProtocol.plugin) {
-      final address = '${host.username}@${host.hostname}:${host.port}';
+      final address = '${_username(ref)}@${host.hostname}:${host.port}';
       return LText(
         withProtocol
             ? '${host.protocol.name.toUpperCase()}  $address'

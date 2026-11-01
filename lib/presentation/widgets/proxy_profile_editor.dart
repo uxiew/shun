@@ -7,6 +7,7 @@ import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
 import '../../domain/proxy_profiles.dart';
 import '../localization/localized_widgets.dart';
+import 'credential_field.dart';
 import 'form_gap.dart';
 import 'secret_content.dart';
 
@@ -29,6 +30,10 @@ class _ProxyProfileEditorState extends ConsumerState<ProxyProfileEditor> {
   bool _saving = false, _obscure = true;
   String? _error;
 
+  /// 代理的账号密码：直接填，或者用「凭据」里的一个（F31）。选凭据时只记它的 ID，连接时展开。
+  late LoginChoice _login;
+  String? _credentialId;
+
   Map<String, dynamic> get _originalConfig {
     final value = widget.profile?.data['config'] ?? widget.inlineConfig;
     return value is Map ? Map<String, dynamic>.from(value) : {};
@@ -48,6 +53,9 @@ class _ProxyProfileEditorState extends ConsumerState<ProxyProfileEditor> {
         TextEditingController(text: config.port == 0 ? '' : '${config.port}');
     _user = TextEditingController(text: config.username);
     _password = TextEditingController(text: config.password);
+    _credentialId = widget.profile?.data[proxyIdentityKey]?.toString();
+    _login =
+        _credentialId == null ? LoginChoice.simple : LoginChoice.credential;
   }
 
   @override
@@ -58,8 +66,14 @@ class _ProxyProfileEditorState extends ConsumerState<ProxyProfileEditor> {
     super.dispose();
   }
 
+  bool get _usesCredential => _login == LoginChoice.credential;
+
   Future<void> _save() async {
     if (!_form.currentState!.validate() || _saving) return;
+    if (_usesCredential && _credentialId == null) {
+      setState(() => _error = '选一个凭据，或者改成用户名 / 密码。');
+      return;
+    }
     setState(() {
       _saving = true;
       _error = null;
@@ -75,14 +89,21 @@ class _ProxyProfileEditorState extends ConsumerState<ProxyProfileEditor> {
                 password: _password.text)
             .toJson()
       };
-      if (_user.text.trim().isEmpty) config.remove('username');
-      if (_password.text.isEmpty) config.remove('password');
+      if (_usesCredential || _user.text.trim().isEmpty) {
+        config.remove('username');
+      }
+      if (_usesCredential || _password.text.isEmpty) config.remove('password');
       final profile = ProxyProfile({
         ...?widget.profile?.data,
         'id': _id,
         'label': _label.text.trim(),
         'config': config,
       });
+      if (_usesCredential) {
+        profile.data[proxyIdentityKey] = _credentialId;
+      } else {
+        profile.data.remove(proxyIdentityKey);
+      }
       await ref
           .read(vaultControllerProvider.notifier)
           .saveProxyProfile(profile, expected: widget.profile);
@@ -151,29 +172,48 @@ class _ProxyProfileEditorState extends ConsumerState<ProxyProfileEditor> {
                   keyboardType: TextInputType.number,
                   decoration: LInputDecoration(labelText: '代理端口')),
               const FormGap(),
-              TextFormField(
-                  controller: _user,
-                  enabled: !_saving,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  decoration: LInputDecoration(labelText: '代理用户名（可选）')),
+              LoginChoiceField(
+                  key: const ValueKey('proxy-login-choice'),
+                  value: _login,
+                  onChanged: (value) => setState(() => _login = value)),
               const FormGap(),
-              TextFormField(
-                  controller: _password,
-                  enabled: !_saving,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  enableIMEPersonalizedLearning: false,
-                  obscureText: _obscure,
-                  decoration: LInputDecoration(
-                      labelText: '代理密码（可选）',
-                      helperText: '明文发给代理',
-                      suffixIcon: IconButton(
-                          onPressed: () => setState(() => _obscure = !_obscure),
-                          tooltip: localized('显示或隐藏密码'),
-                          icon: Icon(_obscure
-                              ? Icons.visibility
-                              : Icons.visibility_off)))),
+              if (_usesCredential) ...[
+                CredentialField(
+                    key: const ValueKey('proxy-credential'),
+                    value: _credentialId,
+                    passwordOnly: true,
+                    onChanged: (id) => setState(() {
+                          _credentialId = id;
+                          _error = null;
+                        })),
+                const SizedBox(height: 6),
+                LText('明文发给代理', style: Theme.of(context).textTheme.bodySmall),
+              ] else ...[
+                TextFormField(
+                    controller: _user,
+                    enabled: !_saving,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    decoration: LInputDecoration(labelText: '代理用户名（可选）')),
+                const FormGap(),
+                TextFormField(
+                    controller: _password,
+                    enabled: !_saving,
+                    autocorrect: false,
+                    enableSuggestions: false,
+                    enableIMEPersonalizedLearning: false,
+                    obscureText: _obscure,
+                    decoration: LInputDecoration(
+                        labelText: '代理密码（可选）',
+                        helperText: '明文发给代理',
+                        suffixIcon: IconButton(
+                            onPressed: () =>
+                                setState(() => _obscure = !_obscure),
+                            tooltip: localized('显示或隐藏密码'),
+                            icon: Icon(_obscure
+                                ? Icons.visibility
+                                : Icons.visibility_off)))),
+              ],
               if (_error != null)
                 LText(_error!,
                     key: const ValueKey('proxy-error'),

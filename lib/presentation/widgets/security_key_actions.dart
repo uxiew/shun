@@ -14,7 +14,11 @@ import 'security_key_prompt.dart';
 const _application = 'ssh:';
 
 /// 「添加安全密钥」：在钥匙上生成新的，或者读钥匙里已有的。文件导入走原来的「导入 SSH 私钥」，不重复一个入口。
-Future<void> addSecurityKey(BuildContext context, WidgetRef ref) async {
+/// 返回这次新存的几把：凭据编辑框要把刚加的选上（F31）。
+Future<List<SshKeyProfile>> addSecurityKey(
+  BuildContext context,
+  WidgetRef ref,
+) async {
   final choice = await showDialog<String>(
     context: context,
     builder: (context) => SimpleDialog(
@@ -33,21 +37,20 @@ Future<void> addSecurityKey(BuildContext context, WidgetRef ref) async {
       ],
     ),
   );
-  if (choice == null || !context.mounted) return;
+  if (choice == null || !context.mounted) return const [];
   final channel = ref.read(securityKeyChannelProvider);
   try {
-    if (choice == 'create') {
-      await _create(context, ref, channel);
-    } else {
-      await _readResident(context, ref, channel);
-    }
+    return choice == 'create'
+        ? await _create(context, ref, channel)
+        : await _readResident(context, ref, channel);
   } on SecurityKeyException catch (error) {
     if (error.failure == SecurityKeyFailure.cancelled || !context.mounted) {
-      return;
+      return const [];
     }
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('$error')),
     );
+    return const [];
   }
 }
 
@@ -59,7 +62,7 @@ class _CreateOptions {
   final bool requirePin;
 }
 
-Future<void> _create(
+Future<List<SshKeyProfile>> _create(
   BuildContext context,
   WidgetRef ref,
   SecurityKeyChannel channel,
@@ -68,7 +71,7 @@ Future<void> _create(
     context: context,
     builder: (context) => const _CreateDialog(),
   );
-  if (options == null || !context.mounted) return;
+  if (options == null || !context.mounted) return const [];
   final created = await showSecurityKeyPrompt<SecurityKeyCreated>(
     context,
     channel,
@@ -91,13 +94,15 @@ Future<void> _create(
     keyHandle: parsed.credentialId,
     comment: options.label,
   );
-  await _save(ref, [securityKeyProfile(stub, options.label)]);
+  final saved = [securityKeyProfile(stub, options.label)];
+  await _save(ref, saved);
   if (context.mounted) {
     await showSecurityKeyPublicKey(context, stub.publicKeyLine);
   }
+  return saved;
 }
 
-Future<void> _readResident(
+Future<List<SshKeyProfile>> _readResident(
   BuildContext context,
   WidgetRef ref,
   SecurityKeyChannel channel,
@@ -129,12 +134,13 @@ Future<void> _readResident(
     }
   }
   await _save(ref, fresh);
-  if (!context.mounted) return;
+  if (!context.mounted) return fresh;
   final total = found.length;
   final added = fresh.length;
   ScaffoldMessenger.of(context).showSnackBar(
     SnackBar(content: LText('找到 $total 把，新增 $added 把')),
   );
+  return fresh;
 }
 
 /// 存进保险库的样子，字段和桌面端一样。句柄文件放在 `privateKey`，和普通私钥走同一条安全存储的路。

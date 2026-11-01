@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/vault_controller.dart';
+import '../../domain/connection_route.dart' show proxyIdentityKey;
+import '../../domain/credential_identity.dart';
 import '../../domain/models/host.dart';
 import '../../domain/proxy_profiles.dart';
 import '../localization/localized_widgets.dart';
@@ -119,6 +121,11 @@ class _ProxyProfilesPageState extends ConsumerState<ProxyProfilesPage> {
     final state = ref.watch(vaultControllerProvider);
     final profiles = state.data?.proxyProfiles ?? const <ProxyProfile>[];
     final enabled = !_busy && !state.loading && state.error == null;
+    final credentials = {
+      if (state.data case final vault?)
+        for (final identity in vaultIdentities(vault))
+          identity.id: identity.label,
+    };
     return Scaffold(
         appBar:
             AppBar(title: LText(widget.selecting ? '选择代理' : '代理管理'), actions: [
@@ -140,8 +147,12 @@ class _ProxyProfilesPageState extends ConsumerState<ProxyProfilesPage> {
                   key: ValueKey('proxy-profile-${profile.id}'),
                   leading: const Icon(Icons.public),
                   title: Text(profile.label),
-                  subtitle: Text(
-                      '${profile.config?.host ?? ''}:${profile.config?.port ?? ''}'),
+                  subtitle: Text([
+                    '${profile.config?.host ?? ''}:${profile.config?.port ?? ''}',
+                    if (credentials[profile.data[proxyIdentityKey]]
+                        case final credential?)
+                      credential,
+                  ].join(' · ')),
                   onTap: widget.selecting && enabled
                       ? () => Navigator.pop(context, profile.id)
                       : null),
