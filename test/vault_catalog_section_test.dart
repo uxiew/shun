@@ -306,8 +306,8 @@ void main() {
     expect(inGroup('ts-home', key('presence-online')), findsOneWidget);
     expect(inGroup('ts-work', key('presence-online')), findsNothing,
         reason: '不见了的设备不画点');
-    expect(inGroup('ts-work', key('presence-offline')), findsNothing,
-        reason: '3 天前的状态不画点，免得被当成现在的');
+    expect(inGroup('ts-work', key('presence-offline')), findsOneWidget,
+        reason: '3 天前读的也画点，旧不旧看文字；所有者 11-01：绿点要留着');
     expect(status('vault-catalog-age-ts-home'), endsWith('5 分钟前'));
     expect(status('vault-catalog-age-ts-work'), endsWith('3 天前'));
     expect(

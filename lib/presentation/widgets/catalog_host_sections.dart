@@ -245,8 +245,7 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             PresenceLine(
-              presence:
-                  deviceOnline(record, stale: catalogStatusStale(cache, now)),
+              presence: deviceOnline(record),
               child: HostAddressLine(host),
             ),
             Wrap(
@@ -287,8 +286,7 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PresenceLine(
-            presence:
-                deviceOnline(record, stale: catalogStatusStale(cache, now)),
+            presence: deviceOnline(record),
             child:
                 Text(device.addresses.isEmpty ? '—' : device.addresses.first),
           ),

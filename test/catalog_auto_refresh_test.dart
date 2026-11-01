@@ -292,22 +292,24 @@ void main() {
     test('10 分钟内照 Tailscale 说的', () {
       final cache = cacheAt(now.subtract(const Duration(minutes: 9)));
       final record = cache.devices['1'];
-      expect(catalogStatusStale(cache, now), isFalse);
-      expect(deviceOnline(record, stale: false), DeviceOnline.online);
+      expect(deviceOnline(record), DeviceOnline.online);
       expect(
           deviceOnlineText(record, now, statusAt: cache.lastSuccess!.at), '在线');
     });
 
-    test('过了 10 分钟不画绿点，也不画灰点，文字写明多久前', () {
-      for (final connected in [true, false]) {
+    // 所有者 11-01：绿点要留着。没存 key、读取一直失败时，不画点等于永远看不到状态。
+    test('过了 10 分钟还按最后读到的画点，文字写明多久前', () {
+      for (final (connected, presence) in [
+        (true, DeviceOnline.online),
+        (false, DeviceOnline.offline),
+      ]) {
         final cache = cacheAt(
           now.subtract(const Duration(hours: 3)),
           connected: connected,
         );
         final record = cache.devices['1'];
-        expect(catalogStatusStale(cache, now), isTrue);
-        expect(deviceOnline(record, stale: true), DeviceOnline.unknown);
-        expect(deviceOnlineColor(DeviceOnline.unknown), isNull);
+        expect(deviceOnline(record), presence);
+        expect(deviceOnlineColor(presence), isNotNull);
         expect(
           deviceOnlineText(record, now, statusAt: cache.lastSuccess!.at),
           connected ? '3 小时前：在线' : '3 小时前：离线',
@@ -317,7 +319,6 @@ void main() {
 
     test('手机时钟往回调过：不说负数，也不算过期', () {
       final cache = cacheAt(now.add(const Duration(hours: 3)));
-      expect(catalogStatusStale(cache, now), isFalse);
       expect(
         deviceOnlineText(cache.devices['1'], now,
             statusAt: cache.lastSuccess!.at),
@@ -328,7 +329,7 @@ void main() {
     test('不见了的设备一直写不见了，不加时间前缀', () {
       final cache = cacheAt(now.subtract(const Duration(hours: 3)));
       final gone = cache.devices['1']!.markMissing(now);
-      expect(deviceOnline(gone, stale: true), DeviceOnline.gone);
+      expect(deviceOnline(gone), DeviceOnline.gone);
       expect(
         deviceOnlineText(gone, now, statusAt: cache.lastSuccess!.at),
         '最近的设备列表里没有它了',

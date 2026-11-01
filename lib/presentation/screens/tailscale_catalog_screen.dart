@@ -601,10 +601,7 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PresenceLine(
-            presence: deviceOnline(
-              record,
-              stale: _cache != null && catalogStatusStale(_cache!, now),
-            ),
+            presence: deviceOnline(record),
             child: Text(
               device.addresses.isEmpty ? '—' : device.addresses.join('  '),
               style: small,

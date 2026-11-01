@@ -66,18 +66,14 @@ Widget catalogLine(String label, String value, {TextStyle? style, Key? key}) =>
 /// 状态截至缓存时间，组头写着。
 enum DeviceOnline { online, offline, unknown, gone }
 
-/// 读到的状态过了这么久就不再当真（R67）：自动刷新每分钟一次，10 分钟都没读到新的，
-/// 多半是没网、key 失效或没存 key。这时绿点会误导人，不画点，文字写明是多久前的。
+/// 读到的状态过了这么久，文字就写上是多久前的（R67）：自动刷新每分钟一次，10 分钟都没读到新的，
+/// 多半是没网、key 失效或没存 key。
+///
+/// 点照画（所有者 11-01）：R67 曾经过期就不画点，结果没存 key、读取一直失败的来源永远看不到状态。
 const catalogStatusFreshFor = Duration(minutes: 10);
 
-bool catalogStatusStale(CatalogCache cache, DateTime now) {
-  final at = cache.lastSuccess?.at;
-  return at != null && now.difference(at) >= catalogStatusFreshFor;
-}
-
-DeviceOnline deviceOnline(CatalogDeviceRecord? record, {bool stale = false}) {
+DeviceOnline deviceOnline(CatalogDeviceRecord? record) {
   if (record == null || record.missing) return DeviceOnline.gone;
-  if (stale) return DeviceOnline.unknown;
   return switch (record.device.connectedToControl) {
     true => DeviceOnline.online,
     false => DeviceOnline.offline,
