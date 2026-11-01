@@ -3318,7 +3318,7 @@
       "depends_on": [
         "R43"
       ],
-      "scope": "F32。列表的在线状态只来自上次手动刷新。改成 App 在前台且停在「连接」页时自动读：至少隔 60 秒，失败隔 10 分钟再试，429 按 Retry-After。超过 10 分钟没读到新状态的不画绿点、写明多久前的状态。后台不发请求。盖掉 R11、R12 的「只有手动刷新才发请求」（所有者 11-01 反馈）。",
+      "scope": "F32。列表的在线状态只来自上次手动刷新。改成 App 在前台且停在「连接」页时自动读：至少隔 60 秒，失败隔 10 分钟再试，429 按 Retry-After。超过 10 分钟没读到新状态的照画最后读到的点、写明多久前（所有者 11-01 要求留着绿点）。后台不发请求。盖掉 R11、R12 的「只有手动刷新才发请求」（所有者 11-01 反馈）。",
       "code_targets": [
         "lib/application/catalog_overview.dart",
         "lib/presentation/widgets/catalog_text.dart"
@@ -3417,24 +3417,25 @@
     {
       "id": "R70",
       "phase": "P6",
-      "title": "底栏终端上滑出会话总览",
+      "title": "终端页两指上滑出会话总览",
       "status": "DONE",
       "depends_on": [
         "R42"
       ],
-      "scope": "F35。从底栏「终端」往上滑，当前页上盖一层：按机器分组的 tab（多了能滑），每台机器的活跃会话是一排预览卡（左右滑），点卡片进那个会话。预览是文字快照，不再挂一个终端视图（单视图约束）。",
+      "scope": "F35，手势和大小按 F37、F38 改过。选中终端页时两指从屏幕任何地方往上滑，底部升起一层：按机器分组的 tab（多了能滑），每台机器的活跃会话是一排小预览卡（左右滑），点卡片进那个会话。预览是文字快照，不再挂一个终端视图（单视图约束）。",
       "code_targets": [
         "lib/presentation/home_shell.dart",
+        "lib/presentation/screens/terminal_screen.dart",
         "lib/presentation/widgets/session_overview.dart",
         "lib/presentation/widgets/session_tab_actions.dart",
-        "lib/presentation/screens/terminal_screen.dart"
+        "lib/presentation/widgets/two_finger_swipe.dart"
       ],
       "deliverables": [
         "evidence/R70.md",
         "实现、测试和使用手册更新"
       ],
       "acceptance": [
-        "只从「终端」那一格上滑才触发，点按照旧切页",
+        "只在选中终端页时两指上滑才触发，屏幕哪里起手都算；单指照旧滚动，两指同时按键照旧，别的底栏页不出；终端不跟着滚、不向远端发字节",
         "同一台机器的 SSH、tmux、Mosh 标签归到一组",
         "点卡片切到那个会话，断开的卡片能重连",
         "终端内容不落盘"
@@ -3447,7 +3448,7 @@
       "evidence": [
         "evidence/R70.md"
       ],
-      "commit": "99e64ec a9c4714 ce67e5d 4b9e250 cd51735 41cbecc"
+      "commit": "99e64ec a9c4714 ce67e5d 4b9e250 cd51735 41cbecc 39beddf 6ee07b0"
     },
     {
       "id": "R71",
