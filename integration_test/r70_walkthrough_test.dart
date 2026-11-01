@@ -323,6 +323,37 @@ void main() {
     expect(find.byType(HomeShell), findsOneWidget);
     await shot(tester, '09b-back-closed-overview');
 
+    // 点一下终端叫键盘（盖住底栏），从「更多」进总览：键盘要收起来，不能盖住总览。
+    expect(tester.view.viewInsets.bottom, 0, reason: '点卡片过来不弹键盘');
+    await realTap(tester, const Offset(200, 300));
+    await waitFor(
+      tester,
+      () => tester.view.viewInsets.bottom > 0,
+      what: '点终端叫出键盘',
+    );
+    await shot(tester, '09c-keyboard-up');
+    await realTap(
+      tester,
+      tester.getCenter(find.byKey(const ValueKey('terminal-action-more'))),
+    );
+    await shot(tester, '09d-more-menu');
+    await realTap(
+      tester,
+      tester.getCenter(
+        find.byKey(const ValueKey('terminal-action-session-overview')),
+      ),
+    );
+    await waitFor(tester, () => overview.evaluate().isNotEmpty,
+        what: '从更多打开总览');
+    await waitFor(
+      tester,
+      () => tester.view.viewInsets.bottom == 0,
+      what: '键盘收起',
+    );
+    await shot(tester, '09e-overview-from-more');
+    await realBack(tester);
+    await waitFor(tester, () => overview.evaluate().isEmpty, what: '返回键关总览 2');
+
     final context = tester.element(find.byType(HomeShell));
     final navigator = Navigator.of(context);
 
