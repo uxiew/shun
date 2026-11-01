@@ -604,6 +604,37 @@ void main() {
         expect(tester.testTextInput.isVisible, isTrue);
       });
 
+      testWidgets('一行摆法的「…」：菜单一开键盘就收、换回多行摆法，选的项不能丢', (tester) async {
+        final page = await _Page.open(tester, newTerminal);
+        tester.view.physicalSize = const Size(2400, 1080);
+        await page.settle();
+        await tester.tap(toggle);
+        await page.settle();
+        tester.testTextInput.hide();
+        await tester
+            .tap(find.byKey(const ValueKey('terminal-input-tab-compose')));
+        await page.settle();
+        await page.keyboard(200);
+        await tester.enterText(find.byType(EditableText), 'draft');
+        await page.settle();
+
+        await tester.tap(find.byKey(const ValueKey('terminal-compose-more')));
+        await tester.pump();
+        // 菜单抢走焦点，系统把键盘收了，框换回多行摆法，「…」这个按钮没了。
+        await page.keyboard(0);
+        expect(
+            find.byKey(const ValueKey('terminal-compose-more')), findsNothing);
+        await tester.tap(find.text('清空').last);
+        await page.settle();
+        expect(
+          tester
+              .widget<EditableText>(find.byType(EditableText))
+              .controller
+              .text,
+          isEmpty,
+        );
+      });
+
       testWidgets('键盘比面板矮时换回系统键盘：空出来的是键盘的位置，远端只收到一次尺寸、就是最后的尺寸', (
         tester,
       ) async {

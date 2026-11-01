@@ -363,19 +363,20 @@ class _TerminalComposeBoxState extends ConsumerState<TerminalComposeBox> {
                   onPressed: () => widget.drafts.retarget(_tabId, live),
                   icon: const Icon(Icons.swap_horiz),
                 ),
-              PopupMenuButton<VoidCallback>(
+              // 用 onTap，不用 onSelected：菜单一开框就丢了焦点、键盘收起，这个紧凑摆法换回完整摆法，
+              // 按钮被卸载后 onSelected 不再回调，点了没反应。
+              PopupMenuButton<void>(
                 key: const ValueKey('terminal-compose-more'),
                 tooltip: localized('更多'),
-                onSelected: (action) => action(),
                 itemBuilder: (_) => [
-                  PopupMenuItem(
+                  PopupMenuItem<void>(
                     enabled: canFill,
-                    value: () => _send(enter: false),
+                    onTap: () => _send(enter: false),
                     child: const LText('只填入'),
                   ),
-                  PopupMenuItem(
+                  PopupMenuItem<void>(
                     enabled: _editor.text.isNotEmpty,
-                    value: _editor.clear,
+                    onTap: _editor.clear,
                     child: const LText('清空'),
                   ),
                 ],
