@@ -577,6 +577,52 @@ void main() {
     mark('report back screen=[${screenText()}]');
     expect(screenText(), contains('deploy@web'));
 
+    // ── 总览的关闭（所有者 11-01）：tab 和卡片都有 ×，先问；最后一个没了才回「连接」页 ──
+    final tabs = container.read(sessionControllerProvider.notifier);
+    for (final id in ['s6', 's5', 's4', 's3']) {
+      final index = container
+          .read(sessionControllerProvider)
+          .sessions
+          .indexWhere((session) => session.id == id);
+      await tabs.close(index);
+    }
+    await settle(tester);
+    expect(container.read(homeTabProvider), 1, reason: '还有标签，留在终端页');
+    await twoFingersUp(tester, tester.getCenter(find.byType(HomeShell)));
+    await waitFor(tester, () => overview.evaluate().isNotEmpty,
+        what: '打开总览准备关');
+    await shot(tester, '50-overview-close-buttons');
+    Finder key(String value) => find.byKey(ValueKey(value));
+    await realTap(tester, tester.getCenter(key('overview-close-machine-nas')));
+    await waitFor(tester, () => find.text('取消').evaluate().isNotEmpty,
+        what: 'tab 上的 × 弹窗');
+    await shot(tester, '51-machine-close-dialog');
+    await realTap(tester, tester.getCenter(find.text('取消')));
+    expect(container.read(sessionControllerProvider).sessions, hasLength(3),
+        reason: '取消就都留着');
+    await realTap(tester, tester.getCenter(key('overview-close-machine-nas')));
+    await waitFor(
+        tester, () => key('overview-close-confirm').evaluate().isNotEmpty,
+        what: 'tab 上的 × 再次弹窗');
+    await realTap(tester, tester.getCenter(key('overview-close-confirm')));
+    await waitFor(
+      tester,
+      () => container.read(sessionControllerProvider).sessions.length == 1,
+      what: '这台机器的标签都关掉',
+    );
+    expect(container.read(homeTabProvider), 1, reason: '还剩一个，不回首页');
+    expect(overview, findsOneWidget, reason: '还剩一个，总览留着');
+    await shot(tester, '52-machine-closed');
+    await realTap(tester, tester.getCenter(key('overview-close-s7')));
+    await waitFor(tester, () => find.text('断开并关闭').evaluate().isNotEmpty,
+        what: '卡片上的 × 弹窗');
+    await shot(tester, '53-card-close-dialog');
+    await realTap(tester, tester.getCenter(find.text('断开并关闭')));
+    await waitFor(tester, () => container.read(homeTabProvider) == 0,
+        what: '关完最后一个回连接页');
+    await waitFor(tester, () => overview.evaluate().isEmpty, what: '总览跟着收起');
+    await shot(tester, '54-last-closed-home');
+
     await tester.pumpWidget(const SizedBox());
     for (final session in sessions) {
       session.abort();
