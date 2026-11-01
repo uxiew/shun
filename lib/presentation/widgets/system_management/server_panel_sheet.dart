@@ -255,7 +255,10 @@ class _ServerPanelSheetState extends ConsumerState<ServerPanelSheet>
                 ),
                 LText(
                   system == null
-                      ? '正在读取系统信息…'
+                      // 读失败或断开后不会再读了，不能还写「正在读取」。
+                      ? live && _monitor.error == null
+                          ? '正在读取系统信息…'
+                          : '读取不到系统信息'
                       : '${system.prettyName} · ${system.kernel}',
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,

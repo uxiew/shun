@@ -2272,6 +2272,7 @@ const englishTranslations = <String, String>{
   '导出前预览': 'Preview before export',
   '复制到剪贴板': 'Copy to clipboard',
   // 凭据（R26 F25）
+  '读取不到系统信息': 'System info unavailable',
   // 会话总览（F35）
   '会话总览': 'Session overview',
   '全部重连': 'Reconnect all',

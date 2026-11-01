@@ -120,6 +120,8 @@ void main() {
 
   testWidgets('断开时：概览不变灰，管理页整页点不动', (tester) async {
     await open(tester);
+    expect(find.text('读取不到系统信息'), findsOneWidget, reason: '不再读了就别写正在读');
+    expect(find.text('正在读取系统信息…'), findsNothing);
     expect(
       tester
           .widgetList<AbsorbPointer>(find.ancestor(
