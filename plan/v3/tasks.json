@@ -1213,7 +1213,8 @@
         "JMP01",
         "TSC06",
         "REL04",
-        "SWP02"
+        "SWP02",
+        "CRD04"
       ],
       "stop_condition": "无设备/权限标BLOCKED；用户之前LobiShell成功不可计本App通过。",
       "owner_role": "测试代理",
@@ -3346,7 +3347,7 @@
       "id": "R68",
       "phase": "P6",
       "title": "性能监控和系统管理合成一个面板",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "depends_on": [
         "R24"
       ],
@@ -3372,13 +3373,13 @@
       "evidence": [
         "evidence/R68.md"
       ],
-      "commit": "8c0fd9d e4f5962 cb12d52 cd51735"
+      "commit": "8c0fd9d e4f5962 cb12d52 cd51735 2ddb5b0 d1936cd"
     },
     {
       "id": "R69",
       "phase": "P6",
       "title": "所有连接的认证统一走凭据",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "depends_on": [
         "R58"
       ],
@@ -3411,7 +3412,7 @@
       "evidence": [
         "evidence/R69.md"
       ],
-      "commit": "795aaec c858ef7"
+      "commit": "795aaec c858ef7 d4b7d90"
     },
     {
       "id": "R70",

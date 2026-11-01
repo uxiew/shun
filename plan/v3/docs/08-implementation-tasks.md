@@ -561,7 +561,7 @@
 - 源设备身份差异说明
 - 真实模型额度使用另获授权
 
-**关联用例**：NET12、TER13、LIFE03、LIFE04、LIFE07、SOX01、JMP01、TSC06、REL04、SWP02。
+**关联用例**：NET12、TER13、LIFE03、LIFE04、LIFE07、SOX01、JMP01、TSC06、REL04、SWP02、CRD04。
 
 **停止条件**：无设备/权限标BLOCKED；用户之前LobiShell成功不可计本App通过。
 
@@ -1714,7 +1714,7 @@
 - 手机上已有主机不改也能连
 - 凭据不进普通存储和普通导出
 
-**关联用例**：CRD01、CRD02、CRD03。
+**关联用例**：CRD01、CRD02、CRD03；CRD04 在 R26 手机清单里。
 
 **停止条件**：不自动迁移主机上的密码；不动保险库 identities 的格式。
 
