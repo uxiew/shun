@@ -254,7 +254,10 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                 // 全屏时标签条藏起来了，它上面的「复制屏幕文字」「性能监控」只能从「更多」进：
                 // 这时「更多」一定在。以前性能监控是浮在终端右上角的圆钮，盖住 tmux 状态栏、vim 行尾，
                 // 和 R25 去掉的浮动「复制」是同一个问题；不是 SSH 的标签以前连「更多」都没有，点不到复制。
-                final menuOnly = widget.fullscreen;
+                // 有只在菜单里的项时也一定在，不能看放不放得下：445dp 宽的手机上 8 个按钮刚好放得下，
+                // 「更多」就没了，所有者要的「更多里能开性能监控」（F34）在那种手机上点不到。
+                final menuOnly =
+                    widget.fullscreen || widget.onPerformanceMonitor != null;
                 final overflow = (widget.onAiCli != null || menuOnly) &&
                     actions.length + (menuOnly ? 1 : 0) > maxCount;
                 // Preserve the two keyboard controls when overflowing, rather

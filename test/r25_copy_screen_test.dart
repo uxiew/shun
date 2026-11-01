@@ -118,6 +118,30 @@ void main() {
     expect(monitors, 1);
   });
 
+  // F34：445dp 宽（Pixel 9 Pro）时按钮刚好放得下。不能因为放得下就没有「更多」，不然性能监控只剩右上角一个入口。
+  testWidgets('连着 SSH：按钮放得下也有「更多」，里面能开性能监控', (tester) async {
+    tester.view.physicalSize = const Size(445, 900);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.reset);
+    final terminal = newTestTerminal();
+    addTearDown(terminal.dispose);
+    var monitors = 0;
+    await tester.pumpWidget(_keys(
+      compact: false,
+      onCopyScreen: () {},
+      onPerformanceMonitor: () => monitors++,
+      terminal: terminal,
+    ));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const ValueKey('terminal-action-more')));
+    await tester.pumpAndSettle();
+    await tester
+        .tap(find.byKey(const ValueKey('terminal-action-performance-monitor')));
+    await tester.pumpAndSettle();
+    expect(monitors, 1);
+  });
+
   testWidgets('不是连着的 SSH（没给性能监控）：「更多」里没有这一项', (tester) async {
     final terminal = newTestTerminal();
     addTearDown(terminal.dispose);
