@@ -54,6 +54,19 @@ class LoginChoiceField extends StatelessWidget {
       );
 }
 
+/// 在用这个凭据的主机。选凭据的列表、凭据页、删除前的确认都按这个数。
+List<HostProfile> hostsUsingIdentity(
+  List<HostProfile> hosts,
+  IdentityProfile identity,
+) =>
+    hosts.where((host) => host.data['identityId'] == identity.id).toList();
+
+/// 「3 台主机在用」，没人用是 null。
+String? identityUsageText(List<HostProfile> hosts, IdentityProfile identity) {
+  final count = hostsUsingIdentity(hosts, identity).length;
+  return count == 0 ? null : localized('{n} 台主机在用').replaceAll('{n}', '$count');
+}
+
 /// 凭据的用户名和登录方式，一行。
 String credentialDetail(IdentityProfile identity, List<SshKeyProfile> keys) => [
       if (identity.username.isNotEmpty) identity.username,
@@ -166,6 +179,7 @@ class _CredentialSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final vault = ref.watch(vaultControllerProvider).data;
     final keys = vault?.keys ?? const <SshKeyProfile>[];
+    final hosts = vault?.hosts ?? const <HostProfile>[];
     final items =
         vault == null ? const <IdentityProfile>[] : vaultIdentities(vault);
     return SafeArea(
@@ -186,7 +200,12 @@ class _CredentialSheet extends ConsumerWidget {
                 key: ValueKey('credential-option-${item.id}'),
                 leading: Icon(credentialIcon(item, keys)),
                 title: Text(item.label),
-                subtitle: Text(credentialDetail(item, keys)),
+                subtitle: Text(
+                  [
+                    credentialDetail(item, keys),
+                    if (identityUsageText(hosts, item) case final usage?) usage,
+                  ].join(' · '),
+                ),
                 trailing: item.id == selected ? const Icon(Icons.check) : null,
                 onTap: () => Navigator.pop(context, item.id),
               ),

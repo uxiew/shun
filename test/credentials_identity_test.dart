@@ -294,7 +294,7 @@ void main() {
       await tester
           .tap(find.byKey(const ValueKey('keychain-delete-identity-pw')));
       await tester.pumpAndSettle();
-      expect(find.textContaining('这些在用它：web。'), findsOneWidget);
+      expect(find.textContaining('1 台主机在用它：web。'), findsOneWidget);
       await tester
           .tap(find.byKey(const ValueKey('keychain-confirm-delete-identity')));
       await tester.pumpAndSettle();

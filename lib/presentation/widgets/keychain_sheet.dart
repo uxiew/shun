@@ -88,9 +88,8 @@ class KeychainSheet extends ConsumerWidget {
                 subtitle: Text(
                   [
                     credentialDetail(identity, keys),
-                    if (_hostsUsing(hosts, identity).isNotEmpty)
-                      localized('{n} 台主机在用').replaceAll(
-                          '{n}', '${_hostsUsing(hosts, identity).length}'),
+                    if (identityUsageText(hosts, identity) case final usage?)
+                      usage,
                   ].join(' · '),
                   style: small,
                 ),
@@ -159,12 +158,6 @@ class KeychainSheet extends ConsumerWidget {
         ),
       );
 
-  static List<HostProfile> _hostsUsing(
-    List<HostProfile> hosts,
-    IdentityProfile identity,
-  ) =>
-      hosts.where((host) => host.data['identityId'] == identity.id).toList();
-
   /// 先问再删，写出哪些主机和代理在用；确认后它们的引用一并去掉（[VaultController.deleteIdentity]）。
   Future<void> _deleteIdentity(
     BuildContext context,
@@ -173,11 +166,22 @@ class KeychainSheet extends ConsumerWidget {
   ) async {
     final controller = ref.read(vaultControllerProvider.notifier);
     final vault = await controller.ready();
-    final users = [
-      ..._hostsUsing(vault.hosts, identity).map((h) => h.label),
+    final hosts = hostsUsingIdentity(vault.hosts, identity);
+    final proxies = [
       for (final profile in vault.proxyProfiles)
-        if (profile.data[proxyIdentityKey] == identity.id) profile.label,
+        if (profile.data[proxyIdentityKey] == identity.id) profile,
     ];
+    final users = [
+      ...hosts.map((h) => h.label),
+      ...proxies.map((p) => p.label)
+    ];
+    // 先写影响几台再列名字：主机多了名字一长串，数不过来。
+    final impact = [
+      if (hosts.isNotEmpty)
+        localized('{n} 台主机').replaceAll('{n}', '${hosts.length}'),
+      if (proxies.isNotEmpty)
+        localized('{n} 个代理').replaceAll('{n}', '${proxies.length}'),
+    ].join('、');
     if (!context.mounted) return;
     final confirmed = await showDialog<bool>(
           context: context,
@@ -185,7 +189,7 @@ class KeychainSheet extends ConsumerWidget {
             title: LText('删除凭据“${identity.label}”？'),
             content: LText(users.isEmpty
                 ? '没有主机在用它。删了不能撤销。'
-                : '这些在用它：${users.join('、')}。删了以后，主机用自己的用户名、密码连接时问，代理不再带账号密码；删了不能撤销。'),
+                : '$impact在用它：${users.join('、')}。删了以后，主机用自己的用户名、密码连接时问，代理不再带账号密码；删了不能撤销。'),
             actions: [
               FilledButton(
                 autofocus: true,

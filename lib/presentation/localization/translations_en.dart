@@ -912,6 +912,8 @@ const englishTranslations = <String, String>{
   '未找到受支持的服务管理器，需要 systemd 或 OpenRC。':
       'No supported service manager was found. systemd or OpenRC is required.',
   '断开并关闭': 'Disconnect & close',
+  '{n} 台主机': '{n} hosts',
+  '{n} 个代理': '{n} proxies',
   r'关闭“$name”的全部会话？': r'Close all sessions on “$name”?',
   r'关闭“${machine.name}”的全部会话': r'Close all sessions on “${machine.name}”',
   r'将关闭这台机器的 $total 个标签。': r'This closes all $total tabs on this machine. ',
@@ -2641,6 +2643,7 @@ const englishReplacements = <(String, String)>[
     '. After deleting, hosts use their own username and ask for the password when connecting, and proxies no longer send a username and password. This cannot be undone.'
   ),
   ('这些在用它：', 'In use by: '),
+  ('在用它：', ' use it: '),
   (
     '。删了以后，其中用私钥登录的会连不上，要重新选一把；删了不能撤销。',
     '. After deleting, those that sign in with this key cannot connect until another key is picked. This cannot be undone.'

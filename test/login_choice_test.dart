@@ -276,6 +276,15 @@ void main() {
       expect(saved!.password, 'OLD-PW');
     });
 
+    testWidgets('UXR03：选凭据的列表写被几台主机用，没人用的不写', (tester) async {
+      await openEditor(tester, host: hostJson('web', {'identityId': 'pw'}));
+      await tester.tap(find.byKey(const ValueKey('host-identity')));
+      await tester.pumpAndSettle();
+      expect(find.text('ops · 密码 · 1 台主机在用'), findsOneWidget);
+      expect(find.textContaining('asker · 密码'), findsOneWidget);
+      expect(find.textContaining('asker · 密码 ·'), findsNothing);
+    });
+
     testWidgets('选凭据时能当场新建：存进保险库、马上选中；密码只进安全存储', (tester) async {
       await openEditor(tester, host: hostJson('web'));
       await choose(tester, '凭据');
