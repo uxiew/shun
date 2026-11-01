@@ -62,7 +62,7 @@ dart analyze packages/flterm/lib packages/libghostty/lib
 | 30540e0 | flterm：`TerminalController.setDetachedTheme`，没挂视图时换掉上一行那套默认深色；挂着视图时不起作用 | 54c19ed 只会回深色，浅色主题下后台标签里的 vim 问背景色拿到深色、按深色配色。App 在根部把当前主题交给它（fe076d9） |
 | ad153a0 | flterm：`TerminalTheme.minimumContrast` 真的生效（`rendering/contrast.dart`）。只管默认背景上的字：前景往黑或白按比例混到刚好够，色相保留；程序自己配了背景、反显、选中、搜索高亮、完全没样式的字不动。默认 1.0 仍是不调 | 上游只声明了字段，渲染从没读它。R25 浅色主题里程序打的白字、亮黄字在浅底上看不见。Ghostty 自己是整个换成纯黑纯白，这里改成渐变，黄字变深仍是黄的；配了背景的不动是因为 tmux 状态栏、powerline 箭头靠前景和邻格背景同色拼形状 |
 | 1bb5203 | flterm：`LinkInteraction` 加 `isDisposed`；`TerminalRenderBox.attach` 遇到已销毁的 links 不加监听，等同一帧的重建经 `links` 的 setter 换上新的 | 终端视图用 GlobalKey 搬家时，`TerminalView.activate` 先换了新的视图连接（旧的连同 links 一起销毁），渲染对象却在重建前就重新 attach，给旧 links 加监听。调试包断言失败，搬家半路中断，整页从路由上脱落、黑屏；正式包不跑这条断言。Android 14 起的预测性返回拖动任何上层页面，都会把底下的首页（连同终端页）搬一次（10-22 Pixel 上撞到，`test/terminal_reparent_test.dart`）。这两处是上游 `9e40b11` 原样的代码，上游之后改没改没查 |
-| 本次提交 | flterm：行数变少之前先放掉选字手势的锚点（`_commitGeometry`） | 点一下终端后，Ghostty 留着 `left_click_pin` 判断双击；缩小时裁尾部空行碰到它就停，字被挤进回滚区、放大也回不来。画中画小窗是空的就是这个（R70）。缩小那一下正好在双击或拖选中的话，这一下手势会断掉，已选中的字不动 |
+| f9824b9 | flterm：行数变少之前先放掉选字手势的锚点（`_commitGeometry`） | 点一下终端后，Ghostty 留着 `left_click_pin` 判断双击；缩小时裁尾部空行碰到它就停，字被挤进回滚区、放大也回不来。画中画小窗是空的就是这个（R70）。缩小那一下正好在双击或拖选中的话，这一下手势会断掉，已选中的字不动 |
 
 0.0.5 时期的 04df082（输入法补丁）、8caeb73（改用预编译库）已被同步覆盖，补丁移进了 1dda0c8。
 
