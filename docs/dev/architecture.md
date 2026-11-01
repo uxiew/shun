@@ -96,7 +96,7 @@ sequenceDiagram
 
 主机列表点「连接」走 `presentation/screens/vault_screen.dart` 的 `_connect`：先把页签切到终端（`homeTabProvider` 置 1），再 `await SessionController.connect(host, _verifyHostKey, keyboardInteractive: …)`。返回 `false` 表示被取消或结果迟到，这时不能提示「已连接」。
 
-其他入口最后都变成一次 `connect`：`openTmuxTerminal`（附着 tmux）、`openManagedTerminal`（系统管理开的一次性命令标签）、`openMoshInstallTerminal`、`openAiCliTerminal` / `openAiTmuxTerminal`、`switchTransport`、Mosh 和插件标签的 `reconnect`。它们多数先拷一份临时主机：data 里带 `_ephemeralTerminal: true`，`_sourceHostId`（`domain/host_identity.dart` 的 `sourceHostIdKey`）指回保险库里那台；之后凡是要找「这个标签对应哪台主机」都用 `sourceHostIdOf`。
+其他入口最后都变成一次 `connect`：`openTmuxTerminal`（附着 tmux）、`openManagedTerminal`（性能监控面板开的一次性命令标签）、`openMoshInstallTerminal`、`openAiCliTerminal` / `openAiTmuxTerminal`、`switchTransport`、Mosh 和插件标签的 `reconnect`。它们多数先拷一份临时主机：data 里带 `_ephemeralTerminal: true`，`_sourceHostId`（`domain/host_identity.dart` 的 `sourceHostIdKey`）指回保险库里那台；之后凡是要找「这个标签对应哪台主机」都用 `sourceHostIdOf`。
 
 还没连上的标签是 `PendingTerminalConnection`，放在 `SessionState.pendingConnections`，和标签一起排在标签条上（`tabCount` = 标签数 + 待连接数）。字段：
 
@@ -191,7 +191,7 @@ Tailscale SSH 是**一跳的登录方式**：主机 data 里写着 `shunSshLogin
 - PTY 类型 `xterm-256color`，先按 80x24 开，终端视图量出尺寸后由绑定补发；环境变量来自主机的 `environmentVariables`。
 - 先 `terminal.bind(…)` 再订阅输出：标签在途中被关、终端已释放时绑定直接失败，一个订阅都不留。
 - 远端字节原样 `terminal.feed`，不在网络分包处转字符串；stderr 也进同一条流。
-- 主机的「连接后执行命令」（`startupCommand`）只在 `ConnectionPurpose.fresh` 时发。`restore`（断线恢复）和 `probe`（测试连接）都不发：系统管理开的一次性标签，启动命令就是那条管理命令（比如重启服务），恢复时重跑等于替用户再执行一遍。
+- 主机的「连接后执行命令」（`startupCommand`）只在 `ConnectionPurpose.fresh` 时发。`restore`（断线恢复）和 `probe`（测试连接）都不发：性能监控面板开的一次性标签，启动命令就是那条管理命令（比如重启服务），恢复时重跑等于替用户再执行一遍。
 - 恢复出来的连接输入先关着，`SessionController` 把它正式换进标签后调 `activateInput()` 才放开。恢复过程中敲的字直接丢，不攒着发给新 shell。
 
 测试连接 `SshService.probe`（入口 `presentation/widgets/connection_probe_sheet.dart`）走同样的逐跳和指纹，只带 PTY 跑一条 `tty`、顺带只读查一下 tmux，然后全部关掉。不开交互 shell，因为那会触发用户 `.bashrc` 里自动起 tmux 之类的东西。
@@ -227,7 +227,7 @@ Tailscale SSH 是**一跳的登录方式**：主机 data 里写着 `shunSshLogin
 | Mosh | `plugin`（`MoshTerminalProvider`），`sshClients` 为空 | `MoshBootstrapCoordinator` |
 | 插件主机 | `plugin`（`PluginTerminalProvider`） | `PluginHostConnector` |
 
-`isSsh` 只看 `sshClient`（`sshClients.last`）在不在，所以 SFTP、端口转发、系统管理、监控这些借 SSH 的功能在 Mosh、Telnet、插件标签上都不出现。
+`isSsh` 只看 `sshClient`（`sshClients.last`）在不在，所以 SFTP、端口转发、性能监控面板这些借 SSH 的功能在 Mosh、Telnet、插件标签上都不出现。
 
 释放顺序在 `abort()`：停监控采样 → 放掉输入绑定 → 按登记顺序调借用者的释放钩子（下一节）→ 关 PTY 通道（传输层已断就跳过）→ 逆序关各跳 client（每个 client 关掉自己脚下的 socket）→ 关 Telnet socket → 通知插件关会话。一个钩子抛错不挡后面的；`abort()` 本身不抛。这时**不断**输出订阅：dartssh2 的 `done` 先于 stdout 结束，立刻断会吞掉断线前最后一屏；换上新连接或关标签时才 `detachOutput()`。
 
@@ -237,13 +237,13 @@ Tailscale SSH 是**一跳的登录方式**：主机 data 里写着 `shunSshLogin
 
 ### 借用标签连接的功能（R24）
 
-文件页、端口转发、性能监控、系统管理都不自己拨号，借标签上已经登录的那条 SSH：`SshLease.of(session)`（`infrastructure/ssh/ssh_lease.dart`）。一个 `ActiveTerminalSession` 对象就是一代连接，重连换的是对象（标签 id 不变），所以借用者跟着对象走，断了就是断了，不会接到新连接上。
+文件页、端口转发、性能监控面板都不自己拨号，借标签上已经登录的那条 SSH：`SshLease.of(session)`（`infrastructure/ssh/ssh_lease.dart`）。一个 `ActiveTerminalSession` 对象就是一代连接，重连换的是对象（标签 id 不变），所以借用者跟着对象走，断了就是断了，不会接到新连接上。
 
 - 借不到（已断开、不是 SSH）就报 `ConnectionGone`。借到以后每个操作都和「连接断了」赛跑：`client.done`，加上 `session.onRelease` 登记的释放钩子（`abort()` 里在关 client 之前调）。要赛跑是因为 dartssh2 的 SFTP 在连接断掉后不再回复还在等的请求，不赛跑的话上传、列目录会一直等（实测断线后 15 秒仍不返回）。
-- `lease.read`：只读，断了报 `ConnectionGone`（没做什么）。`lease.write(动作, …)`：会改服务器的，发出去以后断了报 `OutcomeUnknown(动作)`，不重发。系统管理里会改服务器的命令包在 `_changing` 里，`_executeSession` 从 Zone 读这个标记选 read / write，新加一个会改服务器的操作忘了包，断线时就会误报成「没有执行」。
+- `lease.read`：只读，断了报 `ConnectionGone`（没做什么）。`lease.write(动作, …)`：会改服务器的，发出去以后断了报 `OutcomeUnknown(动作)`，不重发。性能监控面板的管理页里会改服务器的命令包在 `_changing` 里，`_executeSession` 从 Zone 读这个标记选 read / write，新加一个会改服务器的操作忘了包，断线时就会误报成「没有执行」。
 - 传文件先写临时文件再改名（`writeStreamAtomically`、`transferEntry`）：写临时文件时断了是 `TransferInterrupted`（目标没动），只有改名那一步是「结果未知」。改名前再查一次目标在不在，因为 dartssh2 的 `rename` 优先走 posix-rename，会悝悝替换已有文件；查完到改名之间仍有一次来回的空当。
 - 数据流报错（用户取消、本机文件读失败）时，`_writeSftpStream` 先把错误截下、停掉 writer 再抛。这是给 2.22.5 打的补丁（那时 `SftpFileWriter` 不挂 onError，`done` 永远不完成）；4.1.0 自己也会停了，但取消、续传的回归测试都是按这层跑通的，留着没坏处，要删就重跑 R24 那组。
-- 长期开着的（监控采样、系统管理）用 `SshLease.reuse(Expando, session)`，每个会话只借一次。每次操作都 `SshLease.of` 的话，每 3 秒一次的采样会在标签上越攒越多释放钩子。
+- 长期开着的（监控采样、面板的管理页）用 `SshLease.reuse(Expando, session)`，每个会话只借一次。每次操作都 `SshLease.of` 的话，每 3 秒一次的采样会在标签上越攒越多释放钩子。
 - 同理，借用里的赛跑不能写成在 `lease.lost` 上挂 `.then`：连接不断那个 future 就不完成，每一步挂的回调连同那一步的结果要留到断线（复用的借用上就是每 3 秒留一份采样输出，10-25 LIFE06 查到、e40534d 修了）。现在是 `_watchLoss` 登记、做完就撤；`lease.lost` 只给「每个借用者只挂一次」的场合用（端口转发一条一个、SFTP 一个客户端一个）。
 - 端口转发在 `lease.lost` 时关本机端口和已接进来的 socket，条目留在列表里、带 `endedReason`；`forwardsOn` 只算还在跑的（R42 切 Mosh 前用它列会停掉哪几条）。
 
@@ -330,7 +330,7 @@ App 只经一个接口用终端：`infrastructure/terminal/terminal_session_adap
 | `domain/tmux/tmux_target.dart` | `TmuxTarget`（一个会话的完整身份）、`TmuxClientBinding`（一个标签和它的 tmux 客户端） |
 | `infrastructure/tmux/tmux_protocol.dart` | 远端脚本、输出解析、退出码：95 没有 tmux，96 登录用户换了，97 目标不在了，98 要分离的客户端不在了 |
 | `infrastructure/tmux/tmux_service.dart` | `TmuxService`：在一条**已登录**的 SSH 上跑这些命令，查询 10 秒、操作 15 秒，都有输出上限；不另建连接、不换路线 |
-| `presentation/widgets/system_management/tmux_manager_panel.dart` | 「系统管理 → tmux」面板 |
+| `presentation/widgets/system_management/tmux_manager_panel.dart` | 「性能监控 → tmux」那一页 |
 | `presentation/widgets/connection_transport_sheet.dart` | 标签条连接方式菜单里的「选 tmux 会话」 |
 
 **为什么目标要记这么多**：tmux 的 `-t 名字` 先精确匹配，找不到就按前缀、再按通配符——实测 tmux 2.7 和 3.5a 上 `kill-session -t work` 在 work 已经不在时结束的是 workshop；session ID（`$3`）只在同一个 server 进程里唯一，server 重启后又从 `$0` 数起。所以 `TmuxTarget` = `hostKey`（路线最终到达的 `主机:端口`）+ 远端 `id -u` 报的 uid + socket（默认、`-L 名字`、`-S 路径`）+ server 代次（socket 路径、pid、启动时间）+ session ID + session 创建时间。附着、结束、恢复都整体核对，任何一项对不上就当目标不在了。
@@ -398,15 +398,15 @@ flowchart TD
 
 ## 7. 其他功能的入口和数据流
 
-先记一条：SFTP、端口转发、系统管理、性能监控、从终端打开的 AI 工具检测都**不另开连接**，借当前标签的 `sshClient`（跳板链最后一跳，就是目标）开新通道，走的就是终端那条已核过指纹的路线。标签断线恢复后换成了新连接，借旧连接的东西随之失效，不会跟过去。
+先记一条：SFTP、端口转发、性能监控面板、从终端打开的 AI 工具检测都**不另开连接**，借当前标签的 `sshClient`（跳板链最后一跳，就是目标）开新通道，走的就是终端那条已核过指纹的路线。标签断线恢复后换成了新连接，借旧连接的东西随之失效，不会跟过去。
 
 | 功能 | 入口 | 代码 | 数据流和约束 |
 |---|---|---|---|
 | SFTP | 底部「文件」页 `SftpScreen`，只列 `isSsh && connected` 的标签 | `infrastructure/ssh/sftp_service.dart`、`screens/sftp_screen*.dart` | `sshClient.sftp()` 开子系统，握手限 10 秒（dartssh2 不看服务器回复，服务器没开 SFTP 时会一直转圈）。读写都是 `Stream<Uint8List>`，不整份读进内存；先写 `<文件>.shun-part` 再改名，可续传；进度至少隔 200ms 或 256 KiB 才刷新；超过 1 MiB 的文件不进编辑器。`SftpServiceCache` 按标签缓存，关掉的标签必须 `retainOnly` 删掉（R20 实测开关 500 次后 504 个会话全被这张表拿住）。手机这一侧在 Android 上走 SAF 目录授权（`android_document_tree_service.dart` ↔ `DocumentTreeChannel.kt`） |
 | 跨服务器传输 | 「文件」页 | `infrastructure/ssh/file_selection.dart` 的 `TransferRoute` | 默认经手机中转；同一台服务器内用 `cp`/`mv`；「源服务器直传」要用户明确同意（这条连接不走手机为目标选的路线），目标带代理或跳板时拒绝，命令带 `BatchMode=yes`、`StrictHostKeyChecking=yes`（`server_transfer_commands.dart`） |
 | 端口转发 | 快捷键栏 → `PortForwardSheet` | `application/port_forward_controller.dart` | 只有本地转发（`ServerSocket.bind(127.0.0.1)` + `forwardLocal`）和动态 SOCKS（`forwardDynamic`），没有远程转发。每条记下当时的 `client`，按连接对象认 |
-| 系统管理 | 快捷键栏 → `SystemManagementSheet`：进程、Docker（含 Compose）、服务、Caddy、tmux | `infrastructure/ssh/system_management_service.dart`、`widgets/system_management/` | 每条命令 `sshClient.execute`（exec 通道），默认 15 秒。服务对象每次打开面板新建，关面板就丢。「在终端里执行」开的是一次性标签（`openManagedTerminal`）。参数怎么过滤、哪些操作有确认框、sudo 怎么试，见[安全文档第 8 节](security.md#8-会在服务器上执行命令的功能) |
-| 性能监控 | 快捷键栏 → `ServerMonitorSheet` | `infrastructure/ssh/server_monitor_service.dart` 的 `SessionMonitor` | 连上就开始采样，不是打开面板才开始；每 3 秒开一次 exec 读 `/proc`，留 60 个点；App 进后台 `pause()`，回前台 `resume()` |
+| 性能监控面板 | 终端右上角、快捷键栏「更多」、主机菜单 → `showServerPanel` → `ServerPanelSheet`：概览、进程、tmux、Docker（含 Compose）、服务、Caddy | `infrastructure/ssh/system_management_service.dart`、`widgets/system_management/` | 每条命令 `sshClient.execute`（exec 通道），默认 15 秒。服务对象每次打开面板新建，关面板就丢。「在终端里执行」开的是一次性标签（`openManagedTerminal`）。参数怎么过滤、哪些操作有确认框、sudo 怎么试，见[安全文档第 8 节](security.md#8-会在服务器上执行命令的功能) |
+| 面板的「概览」页 | `ServerOverviewPanel` | `infrastructure/ssh/server_monitor_service.dart` 的 `SessionMonitor` | 连上就开始采样，不是打开面板才开始；每 3 秒开一次 exec 读 `/proc`，留 60 个点；App 进后台 `pause()`，回前台 `resume()` |
 | AI 命令行工具 | 快捷键栏，或保险库主机菜单 → `AiCliToolsSheet` | `domain/ai_cli*.dart`、`infrastructure/ssh/ai_cli_*.dart`、`infrastructure/tmux/ai_cli_tmux_service.dart` | 检测：exec `/bin/sh -s`、不带 PTY，只看文件和相邻的 `package.json`，不运行发现的程序（连 `--version` 都不跑），10 秒、64 KiB；从主机菜单进来时先借路线形状相同的活标签，没有才按同一 `RoutePlan` 临时拨一条，用完释放。启动：每次新开专用标签，`requestId` 只能用一次（超时也算用过，防止界面重试悄悄发第二次）；带 PTY exec，等就绪标记最多 15 秒，标记前不放行键盘输入；确认前退出码 125/126 才算「明确被拒」，其余一律「结果未知」。最近工作存安全存储，键由 `domain/ai_cli_identity.dart` 的 `aiCliHostScope` 算——改这个序列化，已保存的记录全看不见。不受 `ForkFeatures` 控制。用户可见行为见[使用手册第 19 节](../user/README.md#19-发现启动与继续-ai-命令行工具) |
 | 连接日志 | 主机 ⋮ 菜单（有记录才列）、连接失败页、设置 → 连接 → 日志 → `AppLogScreen` | `application/connection_events.dart`、`screens/app_log_screen.dart` | 见 2.10。只读本机文件，打开页面不联网；导出只到剪贴板 |
 | AI 聊天 | 快捷键栏 AI 按钮，`ForkFeatures.ai` 为真才出现（默认关） | `infrastructure/ai/` | OpenAI 兼容的 `chat/completions`；服务商配置和密钥只存本机安全存储，不进保险库 |

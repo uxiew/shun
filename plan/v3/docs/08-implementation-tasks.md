@@ -1682,7 +1682,7 @@
 
 **范围**：F34。终端右上角「性能监控」打开的面板顶部是可左右滑的 tab：概览、进程、tmux、Docker、服务、Caddy。「更多」菜单和主机菜单打开同一个面板。断线时整页变灰、概览留断开前的数。
 
-**落点**：lib/presentation/widgets/server_monitor_sheet.dart；lib/presentation/widgets/system_management/。
+**落点**：lib/presentation/widgets/system_management/server_panel_sheet.dart、server_overview_panel.dart。
 
 **交付物**：evidence/R26.md 第五批；实现、测试和使用手册更新。
 
@@ -1700,7 +1700,7 @@
 
 阶段：P6；状态：NOT_STARTED；依赖：R58；角色：安全代理。
 
-**范围**：F31。主机编辑器、首次登录、Tailscale 设置和导入、代理都从「凭据」选，选完回显用户名和方式。凭据类型：密码、SSH 密钥（口令在密钥上）、密钥 + 密码、安全密钥；还能选「连接时问」「Tailscale SSH」。主机自带的旧密码和私钥照常能连，一键收进凭据，不自动改。WebDAV、S3、AI 的 key、Tailscale API key 不是登录凭据，不在这条里。
+**范围**：F31。每个连接的认证二选一（所有者 11-01 补充「可选简单的用户/密码还是认证」，和 RoyalTSX 的「直接填账号」「用已有凭据」一样）：用户名密码直接填在连接上，或者从「凭据」选，选完回显用户名和方式。凭据类型：密码、SSH 密钥（口令在密钥上）、密钥 + 密码、安全密钥。主机编辑器、首次登录、Tailscale 设置和导入、代理都这样。手机上已有主机的账号密码就是「用户名密码」，不迁移；主机上已选的私钥照常能用，能存成凭据。WebDAV、S3、AI 的 key、Tailscale API key 不是登录凭据，不在这条里。
 
 **落点**：lib/presentation/widgets/host_editor.dart；lib/presentation/widgets/identity_editor.dart；lib/presentation/widgets/first_login_dialog.dart；lib/domain/credential_identity.dart；lib/domain/proxy_profiles.dart。
 
@@ -1708,7 +1708,8 @@
 
 **验收**：
 
-- 选了凭据后主机编辑器显示它的用户名和方式
+- 连接上能选用户名密码或凭据
+- 选了凭据后显示它的名称、用户名和方式
 - 真 OpenSSH 上每种凭据都登得进
 - 手机上已有主机不改也能连
 - 凭据不进普通存储和普通导出

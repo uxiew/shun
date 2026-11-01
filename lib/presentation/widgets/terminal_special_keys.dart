@@ -28,7 +28,6 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
     required this.inputController,
     required this.onAi,
     required this.onPortForward,
-    required this.onSystemManagement,
     this.onAiCli,
     this.onCopyScreen,
     this.onPerformanceMonitor,
@@ -77,15 +76,14 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
   /// 为 null 时隐藏 AI 按钮（本 fork 默认关闭 AI，见 ForkFeatures）。
   final VoidCallback? onAi;
   final VoidCallback? onPortForward;
-  final VoidCallback? onSystemManagement;
   final VoidCallback? onAiCli;
 
   /// 「复制屏幕文字」：弹出整屏文字的快照、在里面选了复制。只在「更多」菜单里（收成一行时、
   /// 按钮放不下时），平时在终端页标签条上；不占操作按钮那一行的位置。为 null 时不显示。
   final VoidCallback? onCopyScreen;
 
-  /// 「性能监控」：和「复制屏幕文字」一样平时在标签条上，这里只在「更多」里。为 null 时不显示
-  /// （不是 SSH、或者断开了）。
+  /// 「性能监控」：和「复制屏幕文字」一样平时在标签条右上角，这里只在「更多」里（所有者 11-01）。
+  /// 进程、tmux、Docker 这些都在它打开的面板里。为 null 时不显示（不是 SSH、或者断开了）。
   final VoidCallback? onPerformanceMonitor;
 
   /// sudo 键：发这台主机存的密码（R66）。这台主机没存密码、没连着时是 null，不显示。
@@ -207,12 +205,6 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                     tooltip: localized('端口转发'),
                     onPressed: widget.onPortForward,
                     icon: const Icon(Icons.swap_horiz),
-                  ),
-                  IconButton(
-                    key: const ValueKey('terminal-action-system-management'),
-                    tooltip: localized('系统管理'),
-                    onPressed: widget.onSystemManagement,
-                    icon: const Icon(Icons.admin_panel_settings_outlined),
                   ),
                   IconButton(
                     key: const ValueKey('terminal-action-picture-in-picture'),
@@ -397,12 +389,6 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
         localized('端口转发'),
         Icons.swap_horiz,
         widget.onPortForward,
-      ),
-      (
-        'system-management',
-        localized('系统管理'),
-        Icons.admin_panel_settings_outlined,
-        widget.onSystemManagement,
       ),
       (
         'picture-in-picture',

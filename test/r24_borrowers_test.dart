@@ -15,8 +15,8 @@ import 'package:shun/application/vault_controller.dart';
 import 'package:shun/infrastructure/ssh/server_monitor_service.dart';
 import 'package:shun/infrastructure/ssh/system_management_service.dart';
 import 'package:shun/presentation/screens/terminal_screen.dart';
-import 'package:shun/presentation/widgets/server_monitor_sheet.dart';
-import 'package:shun/presentation/widgets/system_management/system_management_sheet.dart';
+import 'package:shun/presentation/widgets/system_management/process_manager_panel.dart';
+import 'package:shun/presentation/widgets/system_management/server_panel_sheet.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/presentation/widgets/port_forward_sheet.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
@@ -438,19 +438,7 @@ void monitorAndSystem(
   });
 
   group('断开以后的面板和入口（停止条件：不留点了没用的按钮）', () {
-    testWidgets('监控面板：断开的标签写明原因，刷新点不了', (tester) async {
-      final tab = session()..connected = false;
-      await tester.pumpWidget(
-          MaterialApp(home: Scaffold(body: ServerMonitorSheet(session: tab))));
-      await tester.pump();
-      expect(
-          find.byKey(const ValueKey('monitor-disconnected')), findsOneWidget);
-      final refresh = tester
-          .widget<IconButton>(find.widgetWithIcon(IconButton, Icons.refresh));
-      expect(refresh.onPressed, isNull);
-    });
-
-    testWidgets('系统管理面板：断开的标签写明原因，整页点不动', (tester) async {
+    testWidgets('性能监控面板：断开的标签，概览写明原因、刷新点不了；管理页写明原因、整页点不动', (tester) async {
       SharedPreferences.setMockInitialValues({});
       final repository = await VaultRepository.open();
       final tab = session()..connected = false;
@@ -458,7 +446,7 @@ void monitorAndSystem(
         overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
         child: MaterialApp(
           home: Scaffold(
-            body: SystemManagementSheet(
+            body: ServerPanelSheet(
               session: tab,
               snippets: const [],
               onOpenTerminal: (_, __) async {},
@@ -468,17 +456,30 @@ void monitorAndSystem(
         ),
       ));
       await tester.pump();
+      expect(
+          find.byKey(const ValueKey('monitor-disconnected')), findsOneWidget);
+      final refresh = tester
+          .widget<IconButton>(find.widgetWithIcon(IconButton, Icons.refresh));
+      expect(refresh.onPressed, isNull);
+      expect(find.byKey(const ValueKey('system-management-disconnected')),
+          findsNothing,
+          reason: '概览留着断开前的数，有自己的提示，不变灰');
+
+      await tester.tap(find.text('进程'));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
       expect(find.byKey(const ValueKey('system-management-disconnected')),
           findsOneWidget);
       final absorb = tester.widget<AbsorbPointer>(find
           .ancestor(
-              of: find.byType(TabBarView), matching: find.byType(AbsorbPointer))
+              of: find.byType(ProcessManagerPanel),
+              matching: find.byType(AbsorbPointer))
           .first);
       expect(absorb.absorbing, isTrue);
       await tester.pumpWidget(const SizedBox());
     });
 
-    testWidgets('终端快捷栏：SSH 标签断开后「端口转发」「系统管理」变灰，连着时能点', (tester) async {
+    testWidgets('终端：SSH 标签断开后「端口转发」「性能监控」变灰，连着时能点', (tester) async {
       SharedPreferences.setMockInitialValues({});
       final repository = await VaultRepository.open();
       final messenger = tester.binding.defaultBinaryMessenger;
@@ -510,16 +511,16 @@ void monitorAndSystem(
         child: const MaterialApp(home: Scaffold(body: TerminalScreen())),
       ));
       await tester.pump(const Duration(milliseconds: 500));
-      IconButton action(String name) => tester
-          .widget<IconButton>(find.byKey(ValueKey('terminal-action-$name')));
-      expect(action('port-forward').onPressed, isNotNull);
-      expect(action('system-management').onPressed, isNotNull);
+      IconButton button(String key) =>
+          tester.widget<IconButton>(find.byKey(ValueKey(key)));
+      expect(button('terminal-action-port-forward').onPressed, isNotNull);
+      expect(button('terminal-performance-monitor').onPressed, isNotNull);
 
       tab.connected = false;
       controller.publish(SessionState(sessions: [tab]));
       await tester.pump(const Duration(milliseconds: 500));
-      expect(action('port-forward').onPressed, isNull);
-      expect(action('system-management').onPressed, isNull);
+      expect(button('terminal-action-port-forward').onPressed, isNull);
+      expect(button('terminal-performance-monitor').onPressed, isNull);
 
       tab.abort();
       await tester.pumpWidget(const SizedBox());

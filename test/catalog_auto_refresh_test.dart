@@ -12,7 +12,6 @@ import 'package:shun/application/home_navigation.dart';
 import 'package:shun/application/tailscale_catalog_access.dart';
 import 'package:shun/application/tailscale_catalog_provider.dart';
 import 'package:shun/application/tailscale_catalog_refresh.dart';
-import 'package:shun/application/vault_controller.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/tailscale/catalog_cache.dart';
 import 'package:shun/infrastructure/tailscale/catalog_cache_repository.dart';

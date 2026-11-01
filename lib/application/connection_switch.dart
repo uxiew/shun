@@ -45,7 +45,7 @@ TabTransport? transportOf(ActiveTerminalSession session) {
 }
 
 /// 切换开出来的主机副本上的记号。有它的临时标签 App 被结束后也放回来（和普通标签一样），
-/// 「系统管理」的一次性命令标签、AI 标签没有它，照旧不放回。
+/// 「性能监控」的一次性命令标签、AI 标签没有它，照旧不放回。
 const transportCopyKey = '_shunTransportCopy';
 
 /// 保险库主机 [source] 按 [to] 连的一份临时副本：地址、账号、路线、Mosh 选项都照保险库现在的，
@@ -67,7 +67,7 @@ HostProfile transportCopy(
       transportCopyKey: true,
     });
 
-/// 一次性命令标签（「系统管理」里开的、安装 mosh 开的）：临时主机、带着那条命令、不是 tmux。
+/// 一次性命令标签（「性能监控」里开的、安装 mosh 开的）：临时主机、带着那条命令、不是 tmux。
 bool isManagedTerminal(ActiveTerminalSession session) =>
     session.host.data['_ephemeralTerminal'] == true &&
     session.host.data[transportCopyKey] != true &&

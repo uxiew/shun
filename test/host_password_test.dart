@@ -256,7 +256,6 @@ void main() {
               inputController: TerminalInputController(),
               onAi: null,
               onPortForward: null,
-              onSystemManagement: null,
               pictureInPicture: false,
               onPictureInPicture: null,
               fullscreen: false,

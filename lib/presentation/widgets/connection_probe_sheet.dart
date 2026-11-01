@@ -245,9 +245,9 @@ String? describeProbeTmux(ProbeOutcome outcome) {
     TmuxAvailability.unsupported =>
       'tmux：远端的 $version 不在本 App 实测过的版本里，只能当普通 shell 用。',
     TmuxAvailability.noServer =>
-      'tmux：远端有 $version，默认 socket 上还没有会话。要用就连上后在「系统管理 → tmux」里新建。',
+      'tmux：远端有 $version，默认 socket 上还没有会话。要用就连上后在「性能监控 → tmux」里新建。',
     TmuxAvailability.ready =>
-      'tmux：远端有 $version，默认 socket 上有 ${tmux.sessions.length} 个会话。连上后在「系统管理 → tmux」里选一个附着。',
+      'tmux：远端有 $version，默认 socket 上有 ${tmux.sessions.length} 个会话。连上后在「性能监控 → tmux」里选一个附着。',
     TmuxAvailability.failed => 'tmux：远端有 $version，但会话列表没读出来：$problem',
   };
 }

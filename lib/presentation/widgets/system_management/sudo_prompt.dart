@@ -66,7 +66,7 @@ class _SudoDialogState extends State<_SudoDialog> {
     }
   }
 
-  // 对话框开着时防截屏（R44），关了底下的系统管理面板照常能截。
+  // 对话框开着时防截屏（R44），关了底下的面板照常能截。
   @override
   Widget build(BuildContext context) => SecretContent(child: _dialog(context));
 
@@ -91,8 +91,8 @@ class _SudoDialogState extends State<_SudoDialog> {
                 decoration: LInputDecoration(
                   labelText: 'sudo 密码',
                   helperText: _optional
-                      ? '免密 sudo 的服务器可以留空；密码只在这次系统管理面板打开期间保留'
-                      : '密码仅在本次系统管理面板打开期间保留',
+                      ? '免密 sudo 的服务器可以留空；密码只在这次面板打开期间保留'
+                      : '密码仅在本次面板打开期间保留',
                   helperMaxLines: 3,
                   suffixIcon: IconButton(
                     onPressed: () => setState(() => _obscure = !_obscure),

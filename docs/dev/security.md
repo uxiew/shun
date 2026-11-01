@@ -356,7 +356,7 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 
 AI 命令行的「按会话 ID 继续」「同项目新建」点一下就启动，不再弹确认框。AI 助手的终端上下文默认不发（`aiIncludeTerminalContext` 默认 false），发的话最多 80 行、12 000 字符（`terminalAiContextText`），并先过 `redactAiText`。
 
-**系统管理**（`lib/infrastructure/ssh/system_management_service.dart`）：命令都经 `_executeSession` 走 exec，默认 15 秒；参数用 `shellQuote` 包单引号，PID 必须大于 0，容器和镜像 ID 只收字母数字，服务名只收字母数字和 `_.:@+-`，Caddyfile 的内容先 base64 再在远端解码，改之前备份、校验、失败回滚。现状里要知道三件事：
+**性能监控面板的管理页**（`lib/infrastructure/ssh/system_management_service.dart`）：命令都经 `_executeSession` 走 exec，默认 15 秒；参数用 `shellQuote` 包单引号，PID 必须大于 0，容器和镜像 ID 只收字母数字，服务名只收字母数字和 `_.:@+-`，Caddyfile 的内容先 base64 再在远端解码，改之前备份、校验、失败回滚。现状里要知道三件事：
 
 - **确认框**：会中断、删除或下次开机才发现的操作都先确认——进程 KILL/TERM/STOP；容器 stop/restart/pause、强杀、删除；镜像删除；Compose 的 stop/restart/pause/update/recreate/rebuild/down；服务的 stop/restart/disable；删 Caddy 站点。点了就执行的只剩不中断什么的：进程 CONT、容器 start/unpause、Compose start/unpause/pull、服务 start/enable、拉镜像、改优先级（本身有输入框）。新加的操作只要会中断服务就要确认：手机上误触很常见，停的要是 sshd，用户就连不回来了。测试：`test/system_management_confirm_test.dart`。
 - **sudo 先问用户**：命令报权限错时，服务层不自己试 sudo，抛 `SudoRequired`（`passwordOptional: true`）；界面由 `runWithSudo`（`lib/presentation/widgets/system_management/sudo_prompt.dart`）弹「用 sudo 再试？」，用户点了「用 sudo 继续」（密码可空）才调 `set*SudoPassword` 记下同意，之后先试 `sudo -n`，要密码再问。同意按 Docker（含 Compose）、系统服务、Caddy 分开记，和密码一样只存在这个面板的 `SystemManagementService` 实例里；密码经 stdin 交给 `sudo -S -p ''`。以前一碰到权限错就自动试 `sudo -n`，免密 sudo 的机器上直接以 root 执行了。新加会提权的入口也走 `runWithSudo`，别在服务层自己重试。测试：`test/system_management_sudo_test.dart`。
@@ -366,7 +366,7 @@ AI 命令行的「按会话 ID 继续」「同项目新建」点一下就启动�
 
 ## 9. 网络与路由
 
-- **一条路线**：每次连接前由 `resolveRoutePlan`（`lib/domain/connection_route.dart`）算出一份 `RoutePlan`，配置有问题就在拨号前抛 `RouteConfigException`，不退回直连；规则逐条见[架构 2.4](architecture.md#24-routeplan拨号前一次算好的路线)，用户侧见[手册第 3 节](../user/README.md#3-连接路径直连经代理经跳板机)。安全上要记的是：终端、SFTP、监控、系统管理、端口转发都借这一条已核过指纹的连接，不另拨。测试 `test/route_plan_test.dart`、`test/route_fail_closed_test.dart`。
+- **一条路线**：每次连接前由 `resolveRoutePlan`（`lib/domain/connection_route.dart`）算出一份 `RoutePlan`，配置有问题就在拨号前抛 `RouteConfigException`，不退回直连；规则逐条见[架构 2.4](architecture.md#24-routeplan拨号前一次算好的路线)，用户侧见[手册第 3 节](../user/README.md#3-连接路径直连经代理经跳板机)。安全上要记的是：终端、SFTP、性能监控面板、端口转发都借这一条已核过指纹的连接，不另拨。测试 `test/route_plan_test.dart`、`test/route_fail_closed_test.dart`。
 - **谁拨号**：只有第一跳由手机拨（`Socket.connect`，走系统网络和用户自己开的 VPN）；后面每一跳是上一跳 SSH 的 `forwardLocal(next.host, next.port)`。
 - **DNS**：`Endpoint` 只做语法检查，不解析。经 SOCKS5 时域名按地址类型 3 原样交给代理解析，经 HTTP 代理时把 `主机:端口` 交给代理，经跳板时由上一跳解析下一跳——这些情况手机都不查目标名。手机自己解析的只有：直连的目标名、代理本身的地址；Mosh 的 UDP 直接用 SSH 连上的 IP，不再解析。中文域名不自动转 Punycode：转换规则有多个版本，转错就连到另一台，所以直接拒绝，让用户填 `xn--` 写法。
 - **加密算法**：每条连接都用 `shunSshAlgorithms`（`lib/infrastructure/ssh/ssh_client_defaults.dart`），顺序 chacha20-poly1305、aes128-ctr、aes256-ctr、aes-gcm。CBC、SHA-1 密钥交换、ssh-rsa 主机密钥不提供，只认这些的老设备报「只支持已淘汰的加密算法」。严格密钥交换（防 Terrapin）由 dartssh2 3.1.0 起自动协商：服务器没打补丁（OpenSSH < 9.6）时 chacha20-poly1305 仍可被中间人删掉握手后的个别消息，影响有限，数字和取舍见 `plan/v3/evidence/R58.md`。

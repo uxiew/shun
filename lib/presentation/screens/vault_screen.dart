@@ -38,7 +38,7 @@ import '../widgets/host_actions_sheet.dart';
 import '../widgets/host_system_icon.dart';
 import '../widgets/port_forward_sheet.dart';
 import '../widgets/route_legs_view.dart';
-import '../widgets/server_monitor_sheet.dart';
+import '../widgets/system_management/server_panel_sheet.dart';
 import '../widgets/vault_host_items.dart';
 import 'rustdesk_screen.dart';
 import 'app_log_screen.dart';
@@ -645,12 +645,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
             SftpNavigationRequest(sessionId: session!.id);
         ref.read(homeTabProvider.notifier).state = 2;
       case HostMenuAction.monitor:
-        await showModalBottomSheet<void>(
-          context: context,
-          useSafeArea: true,
-          isScrollControlled: true,
-          builder: (_) => ServerMonitorSheet(session: session!),
-        );
+        await showServerPanel(context, ref, session!);
       case HostMenuAction.testConnection:
         await showModalBottomSheet<void>(
           context: context,

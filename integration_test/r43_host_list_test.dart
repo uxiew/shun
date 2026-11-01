@@ -29,7 +29,7 @@ import 'package:shun/infrastructure/tailscale/catalog_secret_store.dart';
 import 'package:shun/infrastructure/tailscale/tailscale_api.dart';
 import 'package:shun/presentation/screens/tailscale_settings_screen.dart';
 import 'package:shun/presentation/widgets/port_forward_sheet.dart';
-import 'package:shun/presentation/widgets/server_monitor_sheet.dart';
+import 'package:shun/presentation/widgets/system_management/server_panel_sheet.dart';
 
 const _raw = String.fromEnvironment('R43_SSH');
 final Map<String, dynamic> config =
@@ -289,7 +289,7 @@ void main() {
     await openMenu(homeHost.id);
     await tester.tap(key('host-menu-monitor'));
     await waitFor(
-        tester, () => find.byType(ServerMonitorSheet).evaluate().isNotEmpty,
+        tester, () => find.byType(ServerPanelSheet).evaluate().isNotEmpty,
         what: '性能监控');
     await settle(tester, 3000);
     await shot('06c-monitor');

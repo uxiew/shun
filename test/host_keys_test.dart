@@ -65,7 +65,6 @@ class _Harness {
                   inputController: input,
                   onAi: null,
                   onPortForward: null,
-                  onSystemManagement: null,
                   pictureInPicture: false,
                   onPictureInPicture: null,
                   fullscreen: false,

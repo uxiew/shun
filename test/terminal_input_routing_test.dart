@@ -290,9 +290,6 @@ void main() {
       testWidgets('分屏（R25）：快捷栏的端口转发对的是正在打字的那一格', (tester) async {
         final page = await _Page.open(tester, newTerminal, ssh: true);
         final engineView = flterm.TerminalView;
-        // SSH 标签多了「AI 命令行工具」，分屏挤进了「更多」。
-        await tester.tap(find.byKey(const ValueKey('terminal-action-more')));
-        await page.settle();
         await tester.tap(find.byKey(const ValueKey('terminal-action-split')));
         await page.settle();
         expect(find.byType(engineView), findsNWidgets(2));

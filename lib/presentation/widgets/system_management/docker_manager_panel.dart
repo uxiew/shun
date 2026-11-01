@@ -306,6 +306,8 @@ class _DockerManagerPanelState extends State<DockerManagerPanel>
           Expanded(
             child: TabBarView(
               controller: _tabs,
+              // 这一层只能点：外面的性能监控面板也是左右滑的，这里再抢横滑，滑到 Docker 就滑不走了（R68）。
+              physics: const NeverScrollableScrollPhysics(),
               children: [
                 _buildContainers(),
                 _buildImages(),

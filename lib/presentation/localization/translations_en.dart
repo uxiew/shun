@@ -774,7 +774,7 @@ const englishTranslations = <String, String>{
   '全屏': 'Fullscreen',
   '退出全屏': 'Exit fullscreen',
   '性能监控': 'Performance monitor',
-  '系统管理': 'System management',
+  '概览': 'Overview',
   '未检测到 Caddy，请先安装 Caddy 后再重试。':
       'Caddy was not detected. Install Caddy and try again.',
   '搜索站点或上游地址': 'Search sites or upstreams',
@@ -806,8 +806,8 @@ const englishTranslations = <String, String>{
       'Managing Caddy configuration requires administrator access and a sudo password.',
   '用 sudo 再试？': 'Retry with sudo?',
   '需要 sudo 密码': 'Sudo password required',
-  '免密 sudo 的服务器可以留空；密码只在这次系统管理面板打开期间保留':
-      'Leave empty if sudo needs no password on this server. The password is kept only while this system-management panel is open',
+  '免密 sudo 的服务器可以留空；密码只在这次面板打开期间保留':
+      'Leave empty if sudo needs no password on this server. The password is kept only while this panel is open',
   '用 sudo 继续': 'Continue with sudo',
   '停止 Compose 项目？': 'Stop Compose project?',
   '重启 Compose 项目？': 'Restart Compose project?',
@@ -1993,16 +1993,16 @@ const englishTranslations = <String, String>{
       'The SSH / Mosh choice above only decides how the network leg works; whether remote programs survive a disconnect depends on where they run.',
   '普通 shell：现在连这台主机开的都是它。连接一断，shell 和里面前台的程序一起结束；重新连接得到的是一个新 shell，不是原来那个。':
       'Plain shell: what connecting to this host opens today. When the connection drops, the shell and its foreground programs end; reconnecting gives you a new shell, not the old one.',
-  'tmux 会话：程序跑在服务器上的 tmux 里，连接断了也继续跑。连上后在终端快捷键栏「系统管理 → tmux」里选一个已有会话附着；认的是那个会话本身，同名新建的不会被当成它，也不会悄悄新建。':
-      'tmux session: programs run inside tmux on the server and keep running when the connection drops. After connecting, attach an existing session from “System management → tmux” in the terminal shortcut bar. It tracks that exact session: one recreated under the same name is not treated as it, and nothing is created silently.',
+  'tmux 会话：程序跑在服务器上的 tmux 里，连接断了也继续跑。连上后在终端快捷键栏「性能监控 → tmux」里选一个已有会话附着；认的是那个会话本身，同名新建的不会被当成它，也不会悄悄新建。':
+      'tmux session: programs run inside tmux on the server and keep running when the connection drops. After connecting, attach an existing session from “Performance monitor → tmux” in the terminal shortcut bar. It tracks that exact session: one recreated under the same name is not treated as it, and nothing is created silently.',
   'App 里留着的终端画面只是这台手机上的历史，不代表远端还开着。':
       'The terminal screen kept in the app is only history on this phone; it does not mean the remote side is still running.',
   '「测试连接」会只读查一次远端有没有 tmux、有几个会话，不新建、不附着。':
       '“Test connection” checks read-only whether the server has tmux and how many sessions it has; it creates and attaches nothing.',
   '从主机列表直接连 Mosh，开的是 mosh-server 里的普通 shell。关标签或服务器重启时，mosh-server 和里面的程序一起结束；「重新连接」是新起的 mosh-server，接不回原来那个。':
       'Connecting with Mosh from the host list opens a plain shell inside mosh-server. Closing the tab or rebooting the server ends mosh-server and its programs; Reconnect starts a new mosh-server and cannot get the old one back.',
-  '想断开后程序还在：先用 SSH 连上，在「系统管理 → tmux」里附着一个 tmux 会话，再点终端顶上的徽标切到 Mosh——还是同一个 tmux 会话。这样的 Mosh 标签断了，点「重新连接」会核对后附着回那个会话。':
-      'To keep programs running after a disconnect: connect with SSH, attach a tmux session in System management → tmux, then tap the badge at the top of the terminal to switch to Mosh — it stays the same tmux session. If such a Mosh tab drops, Reconnect verifies that session and attaches it again.',
+  '想断开后程序还在：先用 SSH 连上，在「性能监控 → tmux」里附着一个 tmux 会话，再点终端顶上的徽标切到 Mosh——还是同一个 tmux 会话。这样的 Mosh 标签断了，点「重新连接」会核对后附着回那个会话。':
+      'To keep programs running after a disconnect: connect with SSH, attach a tmux session in Performance monitor → tmux, then tap the badge at the top of the terminal to switch to Mosh — it stays the same tmux session. If such a Mosh tab drops, Reconnect verifies that session and attaches it again.',
   '会话密钥已清除': 'The session key has been wiped',
   r'MoshBootstrapResult(port: $port, serverPid: $serverPid, key: <已隐藏>)':
       r'MoshBootstrapResult(port: $port, serverPid: $serverPid, key: <hidden>)',
@@ -2017,8 +2017,8 @@ const englishTranslations = <String, String>{
       'This tab is disconnected. Tap Reconnect first, then switch once it is connected.',
   'AI 工具的专用标签不切换连接方式。':
       'Dedicated AI tool tabs do not switch connection method.',
-  '一次性命令标签（「系统管理」或安装 mosh 开的）不切换连接方式。':
-      'One-off command tabs (opened from System management or for installing mosh) do not switch connection method.',
+  '一次性命令标签（「性能监控」或安装 mosh 开的）不切换连接方式。':
+      'One-off command tabs (opened from Performance monitor or for installing mosh) do not switch connection method.',
   '正在切换，等这一次结束。': 'A switch is in progress. Wait for it to finish.',
   '拿不到这条 SSH 实际连上的 IP，不知道 Mosh 的 UDP 该发往哪里。':
       'Could not get the IP this SSH connection actually reached, so there is nowhere to send Mosh UDP.',
@@ -2559,8 +2559,8 @@ const englishTranslations = <String, String>{
       r'Only this tab’s tmux client is detached: once the Mosh session closes, the tmux client inside it exits, and tmux session ${session.tmux!.target.displayName} (${session.tmux!.target.sessionId}) and its programs stay on the remote; no Ctrl-C is sent and the session is not terminated.',
   r'将断开 ${session.host.label} 的 Mosh 会话：服务器上这次的 mosh-server 和里面的 shell 会一起退出，没在 tmux 之类工具里运行的程序也会结束。':
       r'This disconnects the Mosh session to ${session.host.label}: this mosh-server on the server exits together with its shell, and programs not running inside something like tmux end too.',
-  r'${widget.session.host.username}@${tmuxHostKeyOf(widget.session)} · ${_socket.describe()}。只读列出；要新建、结束或换 socket，用「系统管理 → tmux」。':
-      r'${widget.session.host.username}@${tmuxHostKeyOf(widget.session)} · ${_socket.describe()}. Read-only list. To create, end or change socket, use System management → tmux.',
+  r'${widget.session.host.username}@${tmuxHostKeyOf(widget.session)} · ${_socket.describe()}。只读列出；要新建、结束或换 socket，用「性能监控 → tmux」。':
+      r'${widget.session.host.username}@${tmuxHostKeyOf(widget.session)} · ${_socket.describe()}. Read-only list. To create, end or change socket, use Performance monitor → tmux.',
   '要管理员权限：sudo 会在那个终端里问你的密码，你自己输。App 看不到、也不保存这个密码。服务器上没有 sudo 的，会报「sudo: not found」：用 root 登录再装，或者自己换成 doas。':
       'This needs administrator rights: sudo will ask for your password in that terminal and you type it yourself. The app neither sees nor stores it. If the server has no sudo you will see “sudo: not found”: sign in as root and install again, or use doas yourself.',
   'mosh 从这台服务器自己配的软件源下载，服务器要能上网。包管理器问「要不要继续」时，也在那个终端里回答。标签断线恢复时不会再执行一次。':
@@ -2746,13 +2746,13 @@ const englishReplacements = <(String, String)>[
   ),
   ('tmux：远端有 ', 'tmux: the server has '),
   (
-    '，默认 socket 上还没有会话。要用就连上后在「系统管理 → tmux」里新建。',
-    ', with no session on the default socket yet. To use it, create one under “System management → tmux” after connecting.'
+    '，默认 socket 上还没有会话。要用就连上后在「性能监控 → tmux」里新建。',
+    ', with no session on the default socket yet. To use it, create one under “Performance monitor → tmux” after connecting.'
   ),
   ('，默认 socket 上有 ', ', with '),
   (
-    ' 个会话。连上后在「系统管理 → tmux」里选一个附着。',
-    ' session(s) on the default socket. After connecting, pick one to attach under “System management → tmux”.'
+    ' 个会话。连上后在「性能监控 → tmux」里选一个附着。',
+    ' session(s) on the default socket. After connecting, pick one to attach under “Performance monitor → tmux”.'
   ),
   ('，但会话列表没读出来：', ', but its session list could not be read: '),
   ('Mosh 插件不可用：', 'Mosh plugin unavailable: '),
@@ -2834,8 +2834,8 @@ const englishReplacements = <(String, String)>[
     'The tmux client exited (detached, or the session ended). It will not be re-attached automatically; '
   ),
   (
-    ' 还在，可在「系统管理 → tmux」里重新附着。',
-    ' still exists, you can re-attach it from “System management → tmux”.'
+    ' 还在，可在「性能监控 → tmux」里重新附着。',
+    ' still exists, you can re-attach it from “Performance monitor → tmux”.'
   ),
   (
     '这个标签已经断开，关掉只是把它移走。tmux 会话 ',
@@ -4059,7 +4059,6 @@ const englishReplacements = <(String, String)>[
     '性能监控仅支持 SSH 连接',
     'Performance monitoring is available only for SSH connections'
   ),
-  ('系统管理仅支持 SSH 连接', 'System management is available only for SSH connections'),
   (
     '未找到 tmux 命令，请先安装 tmux 后再重试。',
     'tmux was not found. Install tmux and try again.'
@@ -4067,7 +4066,7 @@ const englishReplacements = <(String, String)>[
   ('需要活动 SSH 会话', 'An active SSH session is required'),
   ('读取服务器性能信息超时', 'Timed out while reading server performance'),
   ('远程监控命令失败', 'Remote monitoring command failed'),
-  ('远程系统管理命令执行超时', 'Remote system-management command timed out'),
+  ('远程命令执行超时', 'Remote command timed out'),
   ('远程命令执行失败', 'Remote command failed'),
   ('无法读取性能数据', 'Unable to read performance data'),
   ('正在读取系统信息', 'Reading system information'),
@@ -4250,8 +4249,8 @@ const englishReplacements = <(String, String)>[
   ('需要 sudo 权限', 'Sudo access required'),
   ('sudo 密码验证失败，请重新输入', 'Sudo password verification failed. Try again'),
   (
-    '密码仅在本次系统管理面板打开期间保留',
-    'The password is retained only while this system-management panel is open'
+    '密码仅在本次面板打开期间保留',
+    'The password is retained only while this panel is open'
   ),
   (
     'session 名称不能为空，且不能包含冒号或句点',

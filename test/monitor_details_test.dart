@@ -6,7 +6,7 @@ import 'package:shun/domain/models/server_stats.dart';
 import 'package:shun/infrastructure/ssh/server_monitor_service.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/ssh/sftp_service.dart';
-import 'package:shun/presentation/widgets/server_monitor_sheet.dart';
+import 'package:shun/presentation/widgets/system_management/server_overview_panel.dart';
 import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 
 void main() {
@@ -49,7 +49,7 @@ void main() {
     monitor.stop();
     session.monitor = monitor;
     await tester.pumpWidget(MaterialApp(
-        home: Scaffold(body: ServerMonitorSheet(session: session))));
+        home: Scaffold(body: ServerOverviewPanel(session: session))));
     await tester.pump();
     expect(find.byType(CircularProgressIndicator), findsNothing);
     expect(find.text('累计：1.0 GB'), findsOneWidget);

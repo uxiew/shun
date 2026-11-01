@@ -818,7 +818,7 @@ class SessionController extends StateNotifier<SessionState> {
     } else if (session.aiLaunch != null || session.aiTmuxRun != null) {
       blocked = 'AI 工具的专用标签不切换连接方式。';
     } else if (isManagedTerminal(session)) {
-      blocked = '一次性命令标签（「系统管理」或安装 mosh 开的）不切换连接方式。';
+      blocked = '一次性命令标签（「性能监控」或安装 mosh 开的）不切换连接方式。';
     } else if (source == null) {
       blocked = '这台主机已经从保险库里删掉了。';
     } else if (state.switching.containsKey(sessionId)) {
@@ -1848,7 +1848,7 @@ class SessionController extends StateNotifier<SessionState> {
       session.abort();
       session.terminal.showNotice(
         '\r\n\x1b[33mtmux 客户端已退出（分离了，或会话已结束）。不会自动重新附着；'
-        '如果会话 ${tmux.target.sessionId} 还在，可在「系统管理 → tmux」里重新附着。\x1b[0m\r\n',
+        '如果会话 ${tmux.target.sessionId} 还在，可在「性能监控 → tmux」里重新附着。\x1b[0m\r\n',
       );
       if (!mounted) return;
       state = state.copyWith(sessions: [...state.sessions]);
@@ -2068,7 +2068,7 @@ class SessionController extends StateNotifier<SessionState> {
   }
 
   /// 记下现在开着的标签，App 被系统结束后下次放回来（只有主机和 tmux 目标，见 [RestorableTab]）。
-  /// 托管终端（「系统管理」里开的一次性命令）不记：放回来也只是一个普通 shell，原来那条命令不会再跑。
+  /// 托管终端（「性能监控」里开的一次性命令）不记：放回来也只是一个普通 shell，原来那条命令不会再跑。
   Future<void> _persistTabs() async {
     if (!_restoreDone) return;
     final store = await _store();

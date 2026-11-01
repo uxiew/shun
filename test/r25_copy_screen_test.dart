@@ -31,7 +31,6 @@ Widget _keys({
               onCopyScreen: onCopyScreen,
               onPerformanceMonitor: onPerformanceMonitor,
               onPortForward: () {},
-              onSystemManagement: () {},
               pictureInPicture: false,
               onPictureInPicture: () {},
               fullscreen: fullscreen,

@@ -1256,7 +1256,7 @@ class SystemManagementService {
       );
     }
     if (!session.isSsh) {
-      throw UnsupportedError('系统管理仅支持 SSH 连接');
+      throw UnsupportedError('性能监控仅支持 SSH 连接');
     }
     Future<_RemoteResult> run(SSHClient client) async {
       final opening = client.execute(command);
@@ -1269,7 +1269,7 @@ class SystemManagementService {
           (late) => client.isClosed ? null : late.close(),
           onError: (Object _) {},
         ));
-        throw TimeoutException('远程系统管理命令执行超时');
+        throw TimeoutException('远程命令执行超时');
       }
       try {
         if (stdinText != null) {
@@ -1291,7 +1291,7 @@ class SystemManagementService {
         );
       } on TimeoutException {
         process.close();
-        throw TimeoutException('远程系统管理命令执行超时');
+        throw TimeoutException('远程命令执行超时');
       } catch (_) {
         // 别的错也关通道；已经结束的通道 close 什么都不做。
         if (!client.isClosed) process.close();

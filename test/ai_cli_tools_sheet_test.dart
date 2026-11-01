@@ -101,7 +101,6 @@ void main() {
                       opened++;
                     },
                     onPortForward: () {},
-                    onSystemManagement: () {},
                     pictureInPicture: false,
                     onPictureInPicture: () {},
                     fullscreen: false,
@@ -121,8 +120,8 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('terminal-action-more')));
     await tester.pumpAndSettle();
     expect(find.text('AI 命令行工具'), findsOneWidget);
-    expect(find.byKey(const ValueKey('terminal-action-fullscreen')),
-        findsOneWidget);
+    // 行里放不下的，「更多」里有。
+    expect(find.byKey(const ValueKey('terminal-action-edit')), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
   testWidgets(

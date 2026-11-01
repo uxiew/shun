@@ -505,7 +505,6 @@ void main() {
                     onKey: (_) {},
                     onAi: _ignore,
                     onPortForward: null,
-                    onSystemManagement: null,
                     pictureInPicture: false,
                     onPictureInPicture: _ignore,
                     fullscreen: false,
@@ -615,7 +614,6 @@ void main() {
     final actionKeys = [
       'terminal-action-ai',
       'terminal-action-port-forward',
-      'terminal-action-system-management',
       'terminal-action-picture-in-picture',
       'terminal-action-fullscreen',
       'terminal-action-split',
@@ -668,7 +666,6 @@ void main() {
               onKey: sent.add,
               onAi: _ignore,
               onPortForward: null,
-              onSystemManagement: null,
               pictureInPicture: false,
               onPictureInPicture: _ignore,
               fullscreen: false,

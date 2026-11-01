@@ -428,7 +428,7 @@ class _Facts extends StatelessWidget {
 
 /// 只读的 tmux 会话选择（R42 「选会话」）。只查默认 socket（或这个标签正附着的那个），不启动 server、
 /// 不新建、不结束；选了就按完整目标在新标签里附着，远端核对不过就停。要新建、结束、换 socket，
-/// 到「系统管理 → tmux」。
+/// 到「性能监控 → tmux」。
 class TmuxPickerSheet extends ConsumerStatefulWidget {
   const TmuxPickerSheet({super.key, required this.session});
 
@@ -484,7 +484,7 @@ class _TmuxPickerSheetState extends ConsumerState<TmuxPickerSheet> {
             ),
             LText(
               '${widget.session.host.username}@${tmuxHostKeyOf(widget.session)} · ${_socket.describe()}。'
-              '只读列出；要新建、结束或换 socket，用「系统管理 → tmux」。',
+              '只读列出；要新建、结束或换 socket，用「性能监控 → tmux」。',
               style: theme.textTheme.bodySmall,
             ),
             const SizedBox(height: 8),

@@ -45,12 +45,11 @@ import '../widgets/host_address_line.dart';
 import '../widgets/host_system_icon.dart';
 import '../widgets/port_forward_sheet.dart';
 import '../widgets/route_legs_view.dart';
-import '../widgets/server_monitor_sheet.dart';
 import '../widgets/terminal_input_panel.dart';
 import '../widgets/terminal_key_button.dart';
 import '../widgets/terminal_paste_sheet.dart';
 import '../widgets/terminal_special_keys.dart';
-import '../widgets/system_management/system_management_sheet.dart';
+import '../widgets/system_management/server_panel_sheet.dart';
 import '../widgets/tailscale_check_card.dart';
 import '../terminal/terminal_view.dart';
 import 'app_log_screen.dart';
@@ -616,44 +615,15 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                   onAi: ref.watch(forkFeaturesProvider).ai
                       ? () => _openAi(visibleSession)
                       : null,
-                  // 断开的标签不给这两个入口（按钮变灰）：它们只借这一代连接，点开也做不了事（R24）。
+                  // 断开的标签不给这个入口（按钮变灰）：它只借这一代连接，点开也做不了事（R24）。
                   // 对的是正在打字的那一格，和快捷键、粘贴、AI 工具一样：分屏时以前对的是上面那格，
-                  // 在下面那格打完字点「系统管理」会打开另一台主机（里面能停服务）。
+                  // 在下面那格打完字点开会是另一台主机（里面能停服务）。
                   onPortForward: inputSession.isSsh && inputSession.connected
                       ? () => showModalBottomSheet<void>(
                             context: context,
                             isScrollControlled: true,
                             builder: (_) =>
                                 PortForwardSheet(session: inputSession),
-                          )
-                      : null,
-                  onSystemManagement: inputSession.isSsh &&
-                          inputSession.connected
-                      ? () => showModalBottomSheet<void>(
-                            context: context,
-                            useSafeArea: true,
-                            isScrollControlled: true,
-                            backgroundColor: Colors.transparent,
-                            builder: (_) => SystemManagementSheet(
-                              session: inputSession,
-                              snippets: snippets,
-                              onOpenTerminal: (label, command) =>
-                                  _openManagedTerminal(
-                                inputSession,
-                                label,
-                                command,
-                              ),
-                              onOpenSftp: (filePath) {
-                                ref
-                                    .read(
-                                        sftpNavigationRequestProvider.notifier)
-                                    .state = SftpNavigationRequest(
-                                  sessionId: inputSession.id,
-                                  filePath: filePath,
-                                );
-                                ref.read(homeTabProvider.notifier).state = 2;
-                              },
-                            ),
                           )
                       : null,
                   onAiCli: inputSession.connected && inputSession.isSsh
@@ -888,7 +858,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
   }
 
   /// 只给连着的 SSH 标签：监控只借这一代连接（R24），断了点开也只有一句「已断开」。
-  /// 和主机 ⋮ 菜单、快捷栏的端口转发、系统管理一个规矩；以前标签条上只看是不是 SSH。
+  /// 和主机 ⋮ 菜单、快捷栏的端口转发一个规矩；以前标签条上只看是不是 SSH。
   VoidCallback? _performanceMonitorFor(ActiveTerminalSession session) =>
       session.isSsh && session.connected
           ? () => _openPerformanceMonitor(session)
@@ -966,14 +936,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
     }
   }
 
-  void _openPerformanceMonitor(ActiveTerminalSession session) {
-    showModalBottomSheet<void>(
-      context: context,
-      useSafeArea: true,
-      isScrollControlled: true,
-      builder: (_) => ServerMonitorSheet(session: session),
-    );
-  }
+  void _openPerformanceMonitor(ActiveTerminalSession session) =>
+      unawaited(showServerPanel(context, ref, session));
 
   /// 关插件标签前说清楚：本 App 只管自己这一端，插件那边连着的东西怎么收尾由插件决定。
   String _pluginCloseText(ActiveTerminalSession session) {
@@ -1045,25 +1009,6 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
         false;
     if (!close || !mounted) return;
     await ref.read(sessionControllerProvider.notifier).close(index);
-  }
-
-  Future<void> _openManagedTerminal(
-    ActiveTerminalSession parent,
-    String label,
-    String command,
-  ) async {
-    try {
-      await ref.read(sessionControllerProvider.notifier).openManagedTerminal(
-            parent,
-            label: label,
-            command: command,
-          );
-    } catch (error) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: LText('无法打开 $label：$error')),
-      );
-    }
   }
 
   bool _openingAi = false;
