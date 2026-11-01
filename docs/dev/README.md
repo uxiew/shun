@@ -61,7 +61,7 @@ MON01（性能监控面板的三个入口、真数据、真断线）：先起 `t
 
 R67 / TSC11（Tailscale 状态自动刷新）：不用测试环境，开好模拟器、拿锁，再 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r67-device.py`，约 11 分钟，每一步都要真等 60 秒的间隔。真前后台切换、真实时钟、真 HTTP，Tailscale API 是本机假服务器。脚本最后自己核对假 API 的日志：后台 0 次、429 和 401 之后 70 秒内 0 次，这些在界面上看不出来。mock 测试抓不到页面和自动读同时 reload 的那种问题（11-01 真撞到了：自动刷新没启动，单测全过）。
 
-R25 / UX04（从常见错误进诊断、看实际引擎和路线）：同样先起测试环境、开好模拟器、拿锁，再 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r25-ux04-device.py`，约 2 分钟（不用 docker 命令）。它跑 `integration_test/r25_ux04_test.dart`：直连密码错、经 SOCKS 密码错、代理连不上（模拟器的 1 号端口）、代理配置被删，各看失败页提示、实际路线和连接日志，再看主机详情、「选择连接类型」和设置里的终端引擎。页面上的字以 `UX04 <键>=<值>` 打在输出里，截图和日志在 `../.toolchain/artifacts/r25-ux04-<时间>/`。类型页的状态跟模拟器上装了什么走，`device.txt` 里记了装没装 Mosh 插件、RustDesk、UU。
+R25 / UX04（从常见错误进诊断、看实际引擎和路线）：同样先起测试环境、开好模拟器、拿锁，再 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r25-ux04-device.py`，约 2 分钟（不用 docker 命令）。它跑 `integration_test/r25_ux04_test.dart`：直连密码错、经 SOCKS 密码错、代理连不上（模拟器的 1 号端口）、代理配置被删，各看失败页提示、实际路线和连接日志，再看主机详情、「选择连接类型」和设置里的终端引擎。页面上的字以 `UX04 <键>=<值>` 打在输出里，截图和日志在 `../.toolchain/artifacts/r25-ux04-<时间>/`。类型面板的状态跟模拟器上装了什么走，`device.txt` 里记了装没装 Mosh 插件、RustDesk、UU。
 
 SEC12（崩溃、通知、Intent、最近任务、整机日志里有没有密码、私钥、按键、终端原文）：同样先起测试环境、开好模拟器、拿锁，再 `SHUN_R39_AVD=shun-r39-a30 python3 tool/sec12-device.py native`（再跑一遍 `java`），每遍约 1.5 分钟。`native` 用 `run-as … kill -SEGV` 弄崩（项目模拟器是 Play 镜像，没有 root），`java` 用 `am crash`。脚本每轮随机生成标记，跑完在两份 logcat、`dumpsys dropbox`（崩溃记录和 tombstone 全文）、通知、Activity、最近任务、App 私有文件里搜，只打名字和个数；还往 logcat 写一个对照标记，搜不到就算失败（说明搜索本身不灵）。两个坑：不加 `--no-uninstall` 的话 `flutter test` 一结束就卸掉 App，私有目录跟着没了，脚本打包时报 `truncated header`；`app_flutter/flutter_assets/kernel_blob.bin` 是调试包自己的代码，测试经 `--dart-define` 拿到的标记和登录会被编进去，脚本不搜这个目录，否则全是误报。结果只看 `plan/v3/evidence/R25.md` 第六部分。
 
