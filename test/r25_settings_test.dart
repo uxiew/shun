@@ -151,7 +151,7 @@ void main() {
       expect(saved.sftpSyntaxHighlight, isFalse);
     });
 
-    testWidgets('分组顺序：外观 → 终端 → 文件 → 连接 → 安全 → 数据，连接记录在「连接」里', (tester) async {
+    testWidgets('分组顺序：通用 → 终端 → 连接 → 安全 → 数据，连接记录在「连接」里', (tester) async {
       await openSettings(tester);
       final settings = find.byType(ListView).last;
       double top(String header) => tester
@@ -159,12 +159,27 @@ void main() {
               find.descendant(of: settings, matching: find.text(header)))
           .dy;
 
-      final order = ['外观', '终端', '文件', '连接', '安全', '数据'].map(top).toList();
+      final order = ['通用', '终端', '连接', '安全', '数据'].map(top).toList();
       expect(order, orderedEquals([...order]..sort()));
 
       double keyTop(String key) =>
           tester.getTopLeft(find.byKey(ValueKey(key))).dy;
-      for (final key in ['settings-app-log', 'settings-tailscale-catalog']) {
+      // UXR08：改之前散在「外观」「文件」「关于与更新」的，都归到通用；这些旧标题不留。
+      for (final key in ['settings-language', 'settings-sftp-highlight']) {
+        expect(keyTop(key), inExclusiveRange(top('通用'), top('终端')),
+            reason: key);
+      }
+      for (final old in ['外观', '文件', '关于与更新', '远程桌面', '插件']) {
+        expect(find.descendant(of: settings, matching: find.text(old)),
+            findsNothing,
+            reason: old);
+      }
+      for (final key in [
+        'settings-manage',
+        'settings-credentials',
+        'settings-app-log',
+        'settings-tailscale-catalog',
+      ]) {
         expect(keyTop(key), inExclusiveRange(top('连接'), top('安全')),
             reason: key);
       }

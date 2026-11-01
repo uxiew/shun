@@ -137,12 +137,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     }
     final matching = (vault?.hosts ?? const <HostProfile>[]).where((host) {
       final query = _search.text.toLowerCase();
-      final matchesQuery = query.isEmpty ||
-          host.label.toLowerCase().contains(query) ||
-          host.hostname.toLowerCase().contains(query) ||
-          (host.group ?? '').toLowerCase().contains(query) ||
-          host.tags.any((tag) => tag.toLowerCase().contains(query));
-      return matchesQuery &&
+      return hostMatchesQuery(host, query) &&
           (selectedGroup == null || host.group == selectedGroup);
     }).toList();
     final hiddenCount = matching.where((host) => host.hidden).length;
@@ -741,7 +736,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
   }
 
   /// Tailscale 设置。[catalogId] 为 null 是新建；只有一个来源时「新建连接 → Tailscale」打开的就是它，
-  /// 不再建第二个（要接第二个 tailnet，到设置 → Tailscale 设备目录里添加）。
+  /// 不再建第二个（要接第二个 tailnet，到设置 → 连接 → Tailscale 设备目录里添加）。
   Future<void> _openTailscaleSettings([String? catalogId]) async {
     if (catalogId == null) {
       final sources = await ref.read(catalogCacheRepositoryProvider).loadAll();

@@ -917,6 +917,17 @@ const englishTranslations = <String, String>{
   '未找到受支持的服务管理器，需要 systemd 或 OpenRC。':
       'No supported service manager was found. systemd or OpenRC is required.',
   '断开并关闭': 'Disconnect & close',
+  '转发': 'Forwards',
+  '通用': 'General',
+  '管理': 'Manage',
+  '搜主机、凭据、代理、转发': 'Find hosts, credentials, proxies, forwards',
+  '搜索主机、凭据、代理、转发': 'Search hosts, credentials, proxies, forwards',
+  '没有匹配的项目': 'No matches',
+  '在「连接」页添加': 'Add one on the Connect page',
+  '还没有凭据': 'No credentials yet',
+  '在终端或主机菜单里开': 'Start one from a terminal or host menu',
+  '远程桌面交给手机上装的 UU 远程或 RustDesk，它们用自己的网络。插件是单独安装的 App，每个都要你批准后才会用。':
+      'Remote desktop goes through the UU Remote or RustDesk app on your phone, on their own network. Plugins are separate apps, and each needs your approval before use.',
   '已复制': 'Copied',
   '这台多半没开 Tailscale SSH。在它上面运行下面的命令，或者改用密码、凭据。':
       'This machine probably doesn’t have Tailscale SSH on. Run the command below on it, or use a password or credential.',
@@ -1180,8 +1191,8 @@ const englishTranslations = <String, String>{
   '选一个会话，在新标签里附着': 'Pick a session to attach in a new tab',
   '在浏览器确认后回到这里会自动继续。回到 App 不代表已经通过。':
       'After confirming in the browser, come back here and it continues by itself. Coming back does not mean the check passed.',
-  '还没有能用的插件。装好后到「设置 → 插件（实验）」批准；Mosh 请选 Mosh 协议。':
-      'No usable plugin yet. Install one, then approve it in Settings → Plugins (experimental). For Mosh, choose the Mosh protocol.',
+  '还没有能用的插件。装好后到「设置 → 连接 → 插件（实验）」批准；Mosh 请选 Mosh 协议。':
+      'No usable plugin yet. Install one, then approve it in Settings → Connect → Plugins (experimental). For Mosh, choose the Mosh protocol.',
   '插件自己联网，不走代理和跳板，也拿不到这台主机的地址和凭据。':
       'The plugin uses its own network, without proxies or jump hosts, and never gets this host\'s address or credentials.',
   '等了 10 分钟 UU 没有回报，这次绑定结果未确认。可以重新发起。':
@@ -1409,11 +1420,11 @@ const englishTranslations = <String, String>{
       r"Plugin “$name” was uninstalled: reinstalling a package with the same certificate restores it, and this host's settings are kept.",
   r'插件“$name”没有声明终端会话能力（terminal-session），不能用来连接。':
       r'Plugin “$name” does not declare the terminal session capability (terminal-session) and cannot be used to connect.',
-  r'插件“$name”被停用了：到「设置 → 插件（实验）」启用它，再连。':
-      r'Plugin “$name” is disabled: enable it in Settings → Plugins (experimental), then connect.',
+  r'插件“$name”被停用了：到「设置 → 连接 → 插件（实验）」启用它，再连。':
+      r'Plugin “$name” is disabled: enable it in Settings → Connect → Plugins (experimental), then connect.',
   r'插件“$name”被拒绝了：$reason': r'Plugin “$name” was rejected: $reason',
-  r'插件“$name”还没批准：到「设置 → 插件（实验）」核对证书后批准，再连。':
-      r'Plugin “$name” is not approved yet: check its certificate in Settings → Plugins (experimental) and approve it, then connect.',
+  r'插件“$name”还没批准：到「设置 → 连接 → 插件（实验）」核对证书后批准，再连。':
+      r'Plugin “$name” is not approved yet: check its certificate in Settings → Connect → Plugins (experimental) and approve it, then connect.',
   '插件主机不走本 App 的连接路径：插件自己联网，不经过代理和跳板。':
       'Plugin hosts do not use this app\'s connection route: the plugin uses its own network, without proxies or jump hosts.',
   '插件主机要经插件连接，不能按普通 SSH 终端打开。':
@@ -1434,8 +1445,8 @@ const englishTranslations = <String, String>{
       'This app closed the session (the plugin was disabled, revoked or updated); the plugin confirmed that it stopped.',
   r'正在核对本机的插件“$label”（还没打开会话）':
       r'Checking the plugin “$label” on this device (no session opened yet)',
-  r'没有装插件“$pluginId”。装好后到「设置 → 插件（实验）」核对证书并批准，再连。':
-      r'Plugin “$pluginId” is not installed. Install it, check its certificate and approve it in Settings → Plugins (experimental), then connect.',
+  r'没有装插件“$pluginId”。装好后到「设置 → 连接 → 插件（实验）」核对证书并批准，再连。':
+      r'Plugin “$pluginId” is not installed. Install it, check its certificate and approve it in Settings → Connect → Plugins (experimental), then connect.',
   '用哪个插件': 'Which plugin',
   r'要再连，从「连接」页重新连这台主机。\x1b[0m\r\n':
       r'To connect again, connect this host from the Hosts page again.\x1b[0m\r\n',
@@ -1889,18 +1900,18 @@ const englishTranslations = <String, String>{
       r'The Mosh plugin did not respond properly: ${error.message}',
   r'连不上 Mosh 插件：${error.message}':
       r'Could not connect to the Mosh plugin: ${error.message}',
-  '没有装 Mosh 插件（top.xdwa.shun.mosh）。装好后到「设置 → 插件（实验）」核对证书并批准，再连。':
-      'The Mosh plugin (top.xdwa.shun.mosh) is not installed. After installing it, verify its certificate and approve it in “Settings → Plugins (experimental)”, then connect again.',
-  'Mosh 插件还没批准：到「设置 → 插件（实验）」核对证书后批准，再连。':
-      'The Mosh plugin is not approved yet: verify its certificate in “Settings → Plugins (experimental)”, approve it, then connect again.',
-  'Mosh 插件被停用了：到「设置 → 插件（实验）」启用它，再连。':
-      'The Mosh plugin is disabled: enable it in “Settings → Plugins (experimental)”, then connect again.',
+  '没有装 Mosh 插件（top.xdwa.shun.mosh）。装好后到「设置 → 连接 → 插件（实验）」核对证书并批准，再连。':
+      'The Mosh plugin (top.xdwa.shun.mosh) is not installed. After installing it, verify its certificate and approve it in “Settings → Connect → Plugins (experimental)”, then connect again.',
+  'Mosh 插件还没批准：到「设置 → 连接 → 插件（实验）」核对证书后批准，再连。':
+      'The Mosh plugin is not approved yet: verify its certificate in “Settings → Connect → Plugins (experimental)”, approve it, then connect again.',
+  'Mosh 插件被停用了：到「设置 → 连接 → 插件（实验）」启用它，再连。':
+      'The Mosh plugin is disabled: enable it in “Settings → Connect → Plugins (experimental)”, then connect again.',
   'Mosh 插件已被卸载：装回同一证书的包会直接恢复。':
       'The Mosh plugin was uninstalled: reinstalling a package with the same certificate restores it.',
-  'Mosh 插件被拒绝了，原因见「设置 → 插件（实验）」里它的条目。':
-      'The Mosh plugin was rejected; see its entry in “Settings → Plugins (experimental)” for why.',
-  'Mosh 插件和这个 App 不兼容，原因见「设置 → 插件（实验）」里它的条目。':
-      'The Mosh plugin is incompatible with this app; see its entry in “Settings → Plugins (experimental)” for why.',
+  'Mosh 插件被拒绝了，原因见「设置 → 连接 → 插件（实验）」里它的条目。':
+      'The Mosh plugin was rejected; see its entry in “Settings → Connect → Plugins (experimental)” for why.',
+  'Mosh 插件和这个 App 不兼容，原因见「设置 → 连接 → 插件（实验）」里它的条目。':
+      'The Mosh plugin is incompatible with this app; see its entry in “Settings → Connect → Plugins (experimental)” for why.',
   'Mosh 插件现在不可用。': 'The Mosh plugin is not available right now.',
   'Mosh 会话已关闭，但插件没有确认 mosh-client 已退出。远端可能还有旧会话（mosh-server）。':
       'The Mosh session was closed, but the plugin did not confirm that mosh-client exited. An old session (mosh-server) may still be on the server.',
@@ -1941,8 +1952,8 @@ const englishTranslations = <String, String>{
       r'SSH ${target.host.username}@${target.endpoint.authority} starts mosh-server; the Mosh session then runs directly over UDP',
   '要经代理或跳板机，把这台主机的协议改回 SSH（想断线后接着用，可以配合 tmux）；要用 Mosh，把连接路径改成「直连」。':
       'To go through a proxy or jump host, switch this host back to SSH (pair it with tmux to keep working after disconnects); to use Mosh, set the route to “Direct”.',
-  'Mosh 插件在「设置 → 插件（实验）」里管理。这一步只查了本机，还没连服务器。':
-      'Manage the Mosh plugin in “Settings → Plugins (experimental)”. This step only checked the phone; the server was not contacted.',
+  'Mosh 插件在「设置 → 连接 → 插件（实验）」里管理。这一步只查了本机，还没连服务器。':
+      'Manage the Mosh plugin in “Settings → Connect → Plugins (experimental)”. This step only checked the phone; the server was not contacted.',
   '点下面的「看安装命令」：认出了服务器的系统就给出对应命令，可以复制了自己装，也可以点「安装…」、确认后在新开的 SSH 标签里装一次（sudo 密码在那个终端里自己输）。':
       'Tap “Show install command” below: if the server’s system was recognised it gives the matching command, which you can copy and run yourself, or tap “Install…” to confirm and run it once in a new SSH tab (you type the sudo password in that terminal). ',
   'SSH 这一段是通的。': 'The SSH leg works.',
@@ -1954,12 +1965,12 @@ const englishTranslations = <String, String>{
       'The connection details from mosh-server could not be trusted and were not used; the SSH leg works. Check whether the server\'s login scripts print anything.',
   'Mosh 先用 SSH 登录这台主机、在上面启动 mosh-server，然后断开 SSH，改由 Mosh 插件经 UDP 直连。':
       'Mosh first logs in to this host over SSH and starts mosh-server there, then closes SSH and lets the Mosh plugin connect directly over UDP. ',
-  '要先装好 Mosh 插件并在「设置 → 插件（实验）」批准；服务器上要有 mosh-server，没有时连接会停下、给出安装命令。':
-      'Install the Mosh plugin and approve it in “Settings → Plugins (experimental)” first; the server needs mosh-server, and if it is missing the connection stops and shows install commands. ',
+  '要先装好 Mosh 插件并在「设置 → 连接 → 插件（实验）」批准；服务器上要有 mosh-server，没有时连接会停下、给出安装命令。':
+      'Install the Mosh plugin and approve it in “Settings → Connect → Plugins (experimental)” first; the server needs mosh-server, and if it is missing the connection stops and shows install commands. ',
   '只能直连：UDP 走不了代理和跳板机。':
       'Direct connections only: UDP cannot go through proxies or jump hosts.',
-  'Mosh 先用 SSH 登录这台主机、在上面启动 mosh-server，然后断开 SSH，改由 Mosh 插件经 UDP 直连。要先装好 Mosh 插件并在「设置 → 插件（实验）」批准；服务器上要有 mosh-server，没有时连接会停下、给出安装命令。只能直连：UDP 走不了代理和跳板机。':
-      'Mosh first logs in to this host over SSH and starts mosh-server there, then closes SSH and lets the Mosh plugin connect directly over UDP. Install the Mosh plugin and approve it in “Settings → Plugins (experimental)” first; the server needs mosh-server, and if it is missing the connection stops and shows install commands. Direct connections only: UDP cannot go through proxies or jump hosts.',
+  'Mosh 先用 SSH 登录这台主机、在上面启动 mosh-server，然后断开 SSH，改由 Mosh 插件经 UDP 直连。要先装好 Mosh 插件并在「设置 → 连接 → 插件（实验）」批准；服务器上要有 mosh-server，没有时连接会停下、给出安装命令。只能直连：UDP 走不了代理和跳板机。':
+      'Mosh first logs in to this host over SSH and starts mosh-server there, then closes SSH and lets the Mosh plugin connect directly over UDP. Install the Mosh plugin and approve it in “Settings → Connect → Plugins (experimental)” first; the server needs mosh-server, and if it is missing the connection stops and shows install commands. Direct connections only: UDP cannot go through proxies or jump hosts.',
   'Mosh UDP 端口范围（可选）': 'Mosh UDP port range (optional)',
   'mosh-server 只在这个范围里挑 UDP 端口。服务器或防火墙只放行了某几个端口时填它，比如 60001 或 60001:60010。':
       'mosh-server picks its UDP port only from this range. Fill it in when the server or a firewall only allows certain ports, for example 60001 or 60001:60010.',
@@ -2202,8 +2213,8 @@ const englishTranslations = <String, String>{
       'The SSH handshake broke off midway: this happens on an unstable network or while the server restarts. Automatic recovery after a drop retries on its own; if it keeps happening, first make sure this port runs an SSH service.',
   '原来的 tmux 会话不在了（或者核对没通过），没有新建也没有附着别的。到 tmux 面板里自己选一个会话。':
       'The original tmux session is gone (or failed the check); nothing was created and nothing else was attached. Pick a session yourself in the tmux panel.',
-  '本机的插件不可用：到「设置 → 插件（实验）」看它装着没有、批准了没有。这一步还没连服务器。':
-      'The plugin on this phone is unavailable: check in “Settings → Plugins (experimental)” whether it is installed and approved. No server was contacted at this step.',
+  '本机的插件不可用：到「设置 → 连接 → 插件（实验）」看它装着没有、批准了没有。这一步还没连服务器。':
+      'The plugin on this phone is unavailable: check in “Settings → Connect → Plugins (experimental)” whether it is installed and approved. No server was contacted at this step.',
   '这类失败没有现成的建议。当时的失败页上有完整原话，这里只记了分类。':
       'There is no ready-made advice for this kind of failure. The failure page at the time showed the full message; only the category is recorded here.',
   '路线配置有问题': 'Route configuration problem',

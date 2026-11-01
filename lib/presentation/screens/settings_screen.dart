@@ -36,6 +36,7 @@ import 'app_log_screen.dart';
 import 'cloud_backup_screen.dart';
 import 'known_hosts_screen.dart';
 import 'lan_transfer_screen.dart';
+import 'manage_screen.dart';
 import 'plugins_screen.dart';
 import 'rustdesk_screen.dart';
 import 'tailscale_catalog_screen.dart';
@@ -154,7 +155,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
           body: ListView(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
             children: [
-              _header('外观'),
+              _header('通用'),
               Card(
                 child: Padding(
                   padding: const EdgeInsets.all(14),
@@ -384,6 +385,35 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
               ),
+              Card(
+                child: SwitchListTile(
+                  key: const ValueKey('settings-sftp-highlight'),
+                  title: const LText('SFTP 代码高亮'),
+                  value: sftpSyntaxHighlight,
+                  onChanged: (value) {
+                    setState(() => sftpSyntaxHighlight = value);
+                    _saveSetting(
+                      (s) => s.copyWith(sftpSyntaxHighlight: value),
+                    );
+                  },
+                ),
+              ),
+              if (features.ai)
+                _header(
+                  'shu Agent',
+                  // 标题没有中文：和提示写在同一行，本地化覆盖测试会把两段当成一句。
+                  hint: '用 OpenAI 兼容接口对话。它要执行的命令，每条都先问你。',
+                ),
+              if (features.ai)
+                ListTile(
+                  leading: const Icon(Icons.dns_outlined),
+                  title: const LText('管理多个 AI 服务商'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: _openAiProviders,
+                ),
+              if (features.updateCheck) ...[
+                Card(child: _updateCheckTile()),
+              ],
               _header('终端'),
               Card(
                 child: Padding(
@@ -470,24 +500,27 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
               ),
-              _header('文件'),
-              Card(
-                child: SwitchListTile(
-                  key: const ValueKey('settings-sftp-highlight'),
-                  title: const LText('SFTP 代码高亮'),
-                  value: sftpSyntaxHighlight,
-                  onChanged: (value) {
-                    setState(() => sftpSyntaxHighlight = value);
-                    _saveSetting(
-                      (s) => s.copyWith(sftpSyntaxHighlight: value),
-                    );
-                  },
-                ),
+              _header(
+                '连接',
+                hint: Platform.isAndroid
+                    ? '远程桌面交给手机上装的 UU 远程或 RustDesk，它们用自己的网络。插件是单独安装的 App，每个都要你批准后才会用。'
+                    : null,
               ),
-              _header('连接'),
               Card(
                 child: Column(
                   children: [
+                    ListTile(
+                      key: const ValueKey('settings-manage'),
+                      leading: const Icon(Icons.manage_search),
+                      title: const LText('管理'),
+                      subtitle: const LText('搜主机、凭据、代理、转发'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const ManageScreen(),
+                        ),
+                      ),
+                    ),
                     ListTile(
                       leading: const Icon(Icons.public),
                       title: const LText('代理管理'),
@@ -539,6 +572,46 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                 ),
               ),
               // 存储和指纹两条以前各占一行卡片，点了没反应，只是在说明；收进分组的 ⓘ。
+              if (Platform.isAndroid) ...[
+                Card(
+                  child: ListTile(
+                    key: const ValueKey('settings-uuremote'),
+                    leading: const Icon(Icons.desktop_windows_outlined),
+                    title: const LText('UU 远程'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const UuRemoteSettingsScreen(),
+                      ),
+                    ),
+                  ),
+                ),
+                Card(
+                  child: ListTile(
+                    key: const ValueKey('settings-rustdesk'),
+                    leading: const Icon(Icons.connected_tv_outlined),
+                    title: const Text('RustDesk'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const RustDeskSettingsScreen(),
+                      ),
+                    ),
+                  ),
+                ),
+                Card(
+                  child: ListTile(
+                    leading: const Icon(Icons.extension_outlined),
+                    title: const LText('插件（实验）'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute<void>(
+                        builder: (_) => const PluginsScreen(),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
               _header(
                 '安全',
                 hint: '密码和私钥只存在系统的安全存储里。第一次连一台服务器要你核对指纹；以后指纹变了直接拦下，不发登录信息。',
@@ -662,66 +735,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ],
                 ),
               ),
-              if (features.ai)
-                _header(
-                  'shu Agent',
-                  // 标题没有中文：和提示写在同一行，本地化覆盖测试会把两段当成一句。
-                  hint: '用 OpenAI 兼容接口对话。它要执行的命令，每条都先问你。',
-                ),
-              if (features.ai)
-                ListTile(
-                  leading: const Icon(Icons.dns_outlined),
-                  title: const LText('管理多个 AI 服务商'),
-                  trailing: const Icon(Icons.chevron_right),
-                  onTap: _openAiProviders,
-                ),
-              if (Platform.isAndroid) ...[
-                _header('远程桌面',
-                    hint: '交给手机上装的 UU 远程或 RustDesk 去控制电脑，它们用自己的网络。'),
-                Card(
-                  child: ListTile(
-                    key: const ValueKey('settings-uuremote'),
-                    leading: const Icon(Icons.desktop_windows_outlined),
-                    title: const LText('UU 远程'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const UuRemoteSettingsScreen(),
-                      ),
-                    ),
-                  ),
-                ),
-                Card(
-                  child: ListTile(
-                    key: const ValueKey('settings-rustdesk'),
-                    leading: const Icon(Icons.connected_tv_outlined),
-                    title: const Text('RustDesk'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const RustDeskSettingsScreen(),
-                      ),
-                    ),
-                  ),
-                ),
-                _header('插件', hint: '插件是单独安装的 App，每个都要你批准后才会用。'),
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.extension_outlined),
-                    title: const LText('插件（实验）'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const PluginsScreen(),
-                      ),
-                    ),
-                  ),
-                ),
-              ],
-              if (features.updateCheck) ...[
-                _header('关于与更新'),
-                Card(child: _updateCheckTile()),
-              ],
               const SizedBox(height: 20),
               Center(
                 child: FutureBuilder<PackageInfo>(

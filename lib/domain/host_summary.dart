@@ -83,3 +83,11 @@ String? _describeLogin(HostProfile host, SshKeyProfile? key) {
           : '自动：先试${tries.join('，再试')}，都不行再问你';
   }
 }
+
+/// 按名称、地址、分组、标签搜。[query] 已转小写；空串都算命中。
+bool hostMatchesQuery(HostProfile host, String query) =>
+    query.isEmpty ||
+    host.label.toLowerCase().contains(query) ||
+    host.hostname.toLowerCase().contains(query) ||
+    (host.group ?? '').toLowerCase().contains(query) ||
+    host.tags.any((tag) => tag.toLowerCase().contains(query));

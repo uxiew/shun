@@ -163,7 +163,7 @@ void main() {
           where = '设置';
           await tester.tap(find.byIcon(Icons.settings_outlined));
           await tester.pump(const Duration(milliseconds: 500));
-          final settingsList = listAround(find.text('外观'));
+          final settingsList = listAround(find.text('通用'));
           await scrollThrough(settingsList);
 
           where = '连接记录';

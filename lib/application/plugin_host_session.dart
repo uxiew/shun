@@ -35,15 +35,15 @@ PluginHostAvailability pluginHostAvailability(
   if (seen == null) {
     return (
       entry: null,
-      problem: '没有装插件“$pluginId”。装好后到「设置 → 插件（实验）」核对证书并批准，再连。',
+      problem: '没有装插件“$pluginId”。装好后到「设置 → 连接 → 插件（实验）」核对证书并批准，再连。',
     );
   }
   final name = seen.descriptor?.displayName ?? pluginId;
   final reason = seen.reason ?? '';
   final problem = switch (seen.status) {
     PluginStatus.ready => _whyNotTerminal(seen.descriptor!, name),
-    PluginStatus.needsApproval => '插件“$name”还没批准：到「设置 → 插件（实验）」核对证书后批准，再连。',
-    PluginStatus.disabled => '插件“$name”被停用了：到「设置 → 插件（实验）」启用它，再连。',
+    PluginStatus.needsApproval => '插件“$name”还没批准：到「设置 → 连接 → 插件（实验）」核对证书后批准，再连。',
+    PluginStatus.disabled => '插件“$name”被停用了：到「设置 → 连接 → 插件（实验）」启用它，再连。',
     PluginStatus.missing => '插件“$name”已被卸载：装回同一证书的包会直接恢复，这台主机的设置还在。',
     PluginStatus.rejected => '插件“$name”被拒绝了：$reason',
     PluginStatus.incompatible => '插件“$name”和这个 App 不兼容：$reason',
