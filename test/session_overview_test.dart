@@ -653,6 +653,30 @@ void main() {
     await finish(tester);
   });
 
+  testWidgets('慢慢往下拖：从卡片起手拖到面板底就收，只碰一下不收', (tester) async {
+    await open(tester, const SessionState());
+    await swipeUp(tester);
+    final sheet = find.byKey(const ValueKey('session-overview'));
+
+    await tester.timedDrag(
+      sheet,
+      const Offset(0, 30),
+      const Duration(seconds: 1),
+    );
+    await settle(tester);
+    expect(overview, findsOneWidget, reason: '只拖 30dp 是手抖，要弹回去');
+
+    // 真机量的：面板 296dp 高，从卡片起手到面板底 126dp。走得慢也得收。
+    await tester.timedDrag(
+      sheet,
+      const Offset(0, 126),
+      const Duration(seconds: 2),
+    );
+    await settle(tester);
+    expect(overview, findsNothing);
+    await finish(tester);
+  });
+
   testWidgets('× 先问再关，取消就留着；关完卡片没了', (tester) async {
     final alpha = host('a', 'alpha');
     await open(

@@ -55,8 +55,13 @@ class _HomeShellState extends ConsumerState<HomeShell>
     _overview.value -= delta / _overviewDragDistance;
   }
 
-  void _settleOverview(double velocity) {
-    if (velocity < -300 || (velocity <= 300 && _overview.value > .35)) {
+  /// 松手后总览去哪：甩得快看方向，慢慢拖看停在哪。
+  ///
+  /// 拉出来和往下收的线不同：拉出来过 35% 就开，往下收拖掉 25% 就收。共用一条的话，收的时候要拖过
+  /// 面板的 65%，而从卡片起手拖到面板底只有 42%，手慢一点就弹回去，看着像滑不动。
+  void _settleOverview(double velocity, {double keepOpenAbove = .35}) {
+    if (velocity < -300 ||
+        (velocity <= 300 && _overview.value > keepOpenAbove)) {
       unawaited(_overview.forward());
     } else {
       _closeOverview();
@@ -176,8 +181,10 @@ class _HomeShellState extends ConsumerState<HomeShell>
         child: GestureDetector(
           onVerticalDragUpdate: (details) =>
               _dragOverview(details.primaryDelta ?? 0),
-          onVerticalDragEnd: (details) =>
-              _settleOverview(details.primaryVelocity ?? 0),
+          onVerticalDragEnd: (details) => _settleOverview(
+            details.primaryVelocity ?? 0,
+            keepOpenAbove: .75,
+          ),
           child: SessionOverview(onClose: _closeOverview),
         ),
       );
