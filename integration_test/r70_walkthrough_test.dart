@@ -13,6 +13,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
@@ -317,6 +318,10 @@ void main() {
     seeded.activate(1);
     await settle(tester);
     final scrolling = sessions[1].terminal as GhosttyTerminalAdapter;
+    // 先收键盘：总览一开键盘就收，终端从 18 行变 36 行，顶行跟着挤上去 8 行，下面的断言会当成两指滚了。
+    await SystemChannels.textInput.invokeMethod<void>('TextInput.hide');
+    await binding.delayed(const Duration(milliseconds: 800));
+    await settle(tester);
     // 先单指滚进历史：手指往上是往新的方向滚，停在最底下时滚不动，比了也白比。
     // 位置现量：切标签后键盘可能弹着，终端比全屏时矮，全屏时算的中心点会落到键盘上。
     final scrollArea =
