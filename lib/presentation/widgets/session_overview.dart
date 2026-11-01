@@ -56,8 +56,8 @@ List<_Machine> _machines(SessionState state, List<HostProfile> hosts) {
   return machines.values.toList();
 }
 
-/// 从底栏「终端」往上滑出来的一层（F35）：所有开着的会话按机器分组，机器多了 tab 条能滑，
-/// 每台机器的会话左右滑着看。点卡片切过去。
+/// 在终端页两指往上滑出来的一层（F35，手势和大小所有者 11-01 改过）：所有开着的会话按机器分组，
+/// 机器多了 tab 条能滑，每台机器的会话是一排小卡片。点卡片切过去。
 ///
 /// 预览是文字快照：一个终端只能挂一个视图（单 view 约束），这里再挂一个会抢走终端页的画面和尺寸。
 class SessionOverview extends ConsumerStatefulWidget {
@@ -131,67 +131,72 @@ class _SessionOverviewState extends ConsumerState<SessionOverview> {
         if (_canReconnect(session, state)) session,
     ];
     final theme = Theme.of(context);
+    // 只占底下一截：上面还看得见终端，点那里就关。
     return SafeArea(
-      child: Padding(
-        // 顶上露一条背后的页面：知道这是盖在上面的一层，点那里就关。
-        padding: const EdgeInsets.only(top: 40),
-        child: Material(
-          key: const ValueKey('session-overview'),
-          color: theme.colorScheme.surface,
-          clipBehavior: Clip.antiAlias,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 4, 4, 0),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: LText('会话总览', style: theme.textTheme.titleMedium),
+      child: Material(
+        key: const ValueKey('session-overview'),
+        color: theme.colorScheme.surface,
+        clipBehavior: Clip.antiAlias,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 4, 0),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: LText('会话总览', style: theme.textTheme.titleMedium),
+                  ),
+                  if (waiting.length > 1)
+                    TextButton(
+                      key: const ValueKey('overview-reconnect-all'),
+                      onPressed: () => _reconnect(waiting),
+                      child: const LText('全部重连'),
                     ),
-                    if (waiting.length > 1)
-                      TextButton(
-                        key: const ValueKey('overview-reconnect-all'),
-                        onPressed: () => _reconnect(waiting),
-                        child: const LText('全部重连'),
+                  IconButton(
+                    key: const ValueKey('overview-close'),
+                    tooltip: localized('关闭'),
+                    onPressed: widget.onClose,
+                    icon: const Icon(Icons.close),
+                  ),
+                ],
+              ),
+            ),
+            if (selected == null)
+              const Padding(
+                padding: EdgeInsets.fromLTRB(16, 24, 16, 40),
+                child: Center(child: LText('没有打开的会话')),
+              )
+            else ...[
+              // 机器里少了、多了就换一个控制器，起始位置设成现在选的那台。
+              DefaultTabController(
+                key: ValueKey(machines.map((m) => m.id).join('\n')),
+                length: machines.length,
+                initialIndex: machines.indexOf(selected),
+                child: TabBar(
+                  key: const ValueKey('overview-machines'),
+                  isScrollable: true,
+                  tabAlignment: TabAlignment.start,
+                  onTap: (index) =>
+                      setState(() => _machineId = machines[index].id),
+                  tabs: [
+                    for (final machine in machines)
+                      Tab(
+                        key: ValueKey('overview-machine-${machine.id}'),
+                        text: machine.windows.length > 1
+                            ? '${machine.name} · ${machine.windows.length}'
+                            : machine.name,
                       ),
-                    IconButton(
-                      key: const ValueKey('overview-close'),
-                      tooltip: localized('关闭'),
-                      onPressed: widget.onClose,
-                      icon: const Icon(Icons.close),
-                    ),
                   ],
                 ),
               ),
-              if (selected == null)
-                const Expanded(child: Center(child: LText('没有打开的会话')))
-              else ...[
-                // 机器里少了、多了就换一个控制器，起始位置设成现在选的那台。
-                DefaultTabController(
-                  key: ValueKey(machines.map((m) => m.id).join('\n')),
-                  length: machines.length,
-                  initialIndex: machines.indexOf(selected),
-                  child: TabBar(
-                    key: const ValueKey('overview-machines'),
-                    isScrollable: true,
-                    tabAlignment: TabAlignment.start,
-                    onTap: (index) =>
-                        setState(() => _machineId = machines[index].id),
-                    tabs: [
-                      for (final machine in machines)
-                        Tab(
-                          key: ValueKey('overview-machine-${machine.id}'),
-                          text: machine.windows.length > 1
-                              ? '${machine.name} · ${machine.windows.length}'
-                              : machine.name,
-                        ),
-                    ],
-                  ),
-                ),
-                // 外层不做横滑：卡片已经在左右滑了，两层都滑的话手指到头就切了机器，分不清在翻什么。
-                Expanded(
+              // 外层不做横滑：卡片已经在左右滑了，两层都滑的话手指到头就切了机器，分不清在翻什么。
+              // Flexible：横屏弹着键盘时放不下整张卡，卡片跟着矮，不溟出。
+              Flexible(
+                child: SizedBox(
+                  height: _cardRowHeight,
                   child: _WindowPager(
                     key: ValueKey('overview-pager-${selected.id}'),
                     machine: selected,
@@ -202,9 +207,9 @@ class _SessionOverviewState extends ConsumerState<SessionOverview> {
                     onReconnect: (session) => _reconnect([session]),
                   ),
                 ),
-              ],
+              ),
             ],
-          ),
+          ],
         ),
       ),
     );
@@ -217,6 +222,10 @@ bool _canReconnect(ActiveTerminalSession session, SessionState state) =>
     !session.closedByUser &&
     session.aiTmuxRun == null &&
     !state.recovering.contains(session.id);
+
+/// 小卡片（所有者 11-01：原来一张占满屏，太大）。392dp 宽的手机上一屏放得下两张多，露出半张就知道还能滑。
+const _cardWidth = 156.0;
+const _cardRowHeight = 196.0;
 
 class _WindowPager extends StatefulWidget {
   const _WindowPager({
@@ -241,24 +250,27 @@ class _WindowPager extends StatefulWidget {
 }
 
 class _WindowPagerState extends State<_WindowPager> {
-  // 两边露出一点相邻的卡：一眼看得出还能滑。
-  late final _pages = PageController(
-    viewportFraction: .86,
-    initialPage: widget.machine.windows
-        .indexWhere((window) => window.tabIndex == widget.activeTabIndex)
-        .clamp(0, widget.machine.windows.length - 1),
+  // 开在当前会话那张；超出可滑范围时列表自己回弹到头。
+  late final _scroll = ScrollController(
+    initialScrollOffset: widget.machine.windows
+            .indexWhere((window) => window.tabIndex == widget.activeTabIndex)
+            .clamp(0, widget.machine.windows.length - 1) *
+        _cardWidth,
   );
 
   @override
   void dispose() {
-    _pages.dispose();
+    _scroll.dispose();
     super.dispose();
   }
 
   @override
-  Widget build(BuildContext context) => PageView.builder(
+  Widget build(BuildContext context) => ListView.builder(
         key: const ValueKey('overview-windows'),
-        controller: _pages,
+        controller: _scroll,
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 8),
+        itemExtent: _cardWidth,
         itemCount: widget.machine.windows.length,
         itemBuilder: (context, index) {
           final window = widget.machine.windows[index];
@@ -267,6 +279,7 @@ class _WindowPagerState extends State<_WindowPager> {
             window: window,
             title: _title(window),
             state: widget.state,
+            active: window.tabIndex == widget.activeTabIndex,
             onOpen: () => widget.onOpen(window),
             onClose: () => widget.onClose(window),
             onReconnect: widget.onReconnect,
@@ -296,6 +309,7 @@ class _WindowCard extends StatelessWidget {
     required this.window,
     required this.title,
     required this.state,
+    required this.active,
     required this.onOpen,
     required this.onClose,
     required this.onReconnect,
@@ -304,6 +318,9 @@ class _WindowCard extends StatelessWidget {
   final _Window window;
   final String title;
   final SessionState state;
+
+  /// 现在在看的那个标签。一屏几张卡片，要分得出来。
+  final bool active;
   final VoidCallback onOpen;
   final VoidCallback onClose;
   final ValueChanged<ActiveTerminalSession> onReconnect;
@@ -314,8 +331,17 @@ class _WindowCard extends StatelessWidget {
     final pending = window.pending;
     final failed = pending?.phase == PendingConnectionPhase.failed;
     return Card(
-      margin: const EdgeInsets.fromLTRB(6, 8, 6, 12),
+      margin: const EdgeInsets.fromLTRB(4, 8, 4, 12),
       clipBehavior: Clip.antiAlias,
+      shape: active
+          ? RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+              side: BorderSide(
+                color: Theme.of(context).colorScheme.primary,
+                width: 2,
+              ),
+            )
+          : null,
       child: InkWell(
         onTap: onOpen,
         child: Column(
@@ -323,15 +349,15 @@ class _WindowCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                const SizedBox(width: 12),
+                const SizedBox(width: 10),
                 _statusIcon(session, failed),
-                const SizedBox(width: 8),
+                const SizedBox(width: 6),
                 Expanded(
                   child: Text(
                     title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.titleSmall,
+                    style: Theme.of(context).textTheme.labelMedium,
                   ),
                 ),
                 // 还在连的不给关：和标签条一样，要停到等待页点「终止连接」。
@@ -358,12 +384,12 @@ class _WindowCard extends StatelessWidget {
             ),
             if (session != null && state.recovering.contains(session.id))
               const Padding(
-                padding: EdgeInsets.all(12),
+                padding: EdgeInsets.all(8),
                 child: LText('正在恢复连接…', textAlign: TextAlign.center),
               )
             else if (session != null && _canReconnect(session, state))
               Padding(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(4),
                 child: FilledButton.tonal(
                   key: ValueKey('overview-reconnect-${session.id}'),
                   onPressed: () => onReconnect(session),
@@ -411,8 +437,8 @@ class _PreviewState extends State<_Preview> {
 
   String _read() => terminalPictureInPictureText(
         widget.terminal,
-        maxLines: 40,
-        maxColumns: 120,
+        maxLines: 24,
+        maxColumns: 80,
       );
 
   @override
@@ -449,7 +475,7 @@ class _PreviewState extends State<_Preview> {
             )
           : ClipRect(
               child: Padding(
-                padding: const EdgeInsets.all(8),
+                padding: const EdgeInsets.all(5),
                 // 文字比卡片高时保留最后几行，比卡片宽时裁掉右边：和终端看到的一致。
                 child: OverflowBox(
                   alignment: Alignment.bottomLeft,
@@ -461,8 +487,8 @@ class _PreviewState extends State<_Preview> {
                     textScaler: TextScaler.noScaling,
                     style: const TextStyle(
                       fontFamily: 'monospace',
-                      fontSize: 10,
-                      height: 1.25,
+                      fontSize: 7,
+                      height: 1.2,
                       color: color,
                     ),
                   ),
