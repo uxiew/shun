@@ -443,16 +443,17 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
         _hideKeyboard
       ),
     ];
-    return PopupMenuButton<VoidCallback>(
+    return PopupMenuButton<void>(
       key: const ValueKey('terminal-action-more'),
       tooltip: localized('更多'),
       icon: const Icon(Icons.more_horiz),
-      onSelected: (action) => action(),
       itemBuilder: (context) => [
         for (final (id, label, icon, onPressed) in actions)
-          PopupMenuItem<VoidCallback>(
+          // 用 onTap，不用 onSelected：键盘弹着时点开菜单，焦点被菜单抢走、键盘一收，快捷栏换了摆法，
+          // 「…」这个按钮就被卸载了。onSelected 跟着按钮走，这时不再回调：菜单关了，点什么都没反应。
+          PopupMenuItem<void>(
             key: ValueKey('terminal-action-$id'),
-            value: onPressed,
+            onTap: onPressed,
             enabled: onPressed != null,
             child: ListTile(
               leading: Icon(icon),

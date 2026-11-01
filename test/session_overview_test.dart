@@ -391,6 +391,31 @@ void main() {
     await finish(tester);
   });
 
+  testWidgets('键盘弹着时点「更多」，菜单一开键盘就收了：选的项不能丢', (tester) async {
+    final alpha = host('a', 'alpha');
+    await open(
+      tester,
+      SessionState(sessions: [tab('s1', alpha), tab('s2', alpha)]),
+    );
+    container.read(homeTabProvider.notifier).state = 1;
+    await settle(tester);
+    controller.activate(1);
+    tester.view.viewInsets = const FakeViewPadding(bottom: 800);
+    addTearDown(tester.view.resetViewInsets);
+    await settle(tester);
+
+    await tester.tap(find.byKey(const ValueKey('terminal-action-more')));
+    await tester.pump();
+    // 菜单抢走焦点，系统把键盘收了。
+    tester.view.viewInsets = FakeViewPadding.zero;
+    await settle(tester);
+    await tester
+        .tap(find.byKey(const ValueKey('terminal-action-session-overview')));
+    await settle(tester);
+    expect(overview, findsOneWidget);
+    await finish(tester);
+  });
+
   testWidgets('全屏时没有底栏：「更多」能开总览，返回键先关总览，还在全屏', (tester) async {
     final alpha = host('a', 'alpha');
     await open(tester, SessionState(sessions: [tab('s1', alpha)]));
