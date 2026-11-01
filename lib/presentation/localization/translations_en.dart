@@ -2302,12 +2302,11 @@ const englishTranslations = <String, String>{
       'A username and password belong to this host only; leave the password empty to be asked when connecting. A credential is shared by many hosts, so changing it once updates them all. It can hold a password, an SSH key or a security key.',
   '导入 SSH 私钥': 'Import SSH private key',
   '{n} 台主机在用': '{n} hosts use it',
-  '名称（可选，默认用用户名）': 'Name (optional, defaults to the username)',
   '登录方式': 'Sign-in method',
   'SSH 密钥 + 密码': 'SSH key + password',
-  '服务器要求先过公钥、再输密码时用（sshd 配了 AuthenticationMethods publickey,password）。密钥自己的口令存在密钥上，不在这里。':
-      'For servers that require the public key first and then a password (sshd with AuthenticationMethods publickey,password). The key’s own passphrase is stored with the key, not here.',
-  '密码（可选，不填就连接时问）': 'Password (optional; asked when connecting if left empty)',
+  '要先过公钥、再输密码的服务器用。这里的密码不是密钥口令。':
+      'For servers that want a key and then a password. This is not the key passphrase.',
+  '不填就连接时问': 'Asked when connecting if empty',
   '用户名不能有空格': 'The username cannot contain spaces',
   '选一把 SSH 密钥': 'Pick an SSH key',
   '「密钥 + 密码」要填密码': '“Key + password” needs a password',
@@ -2630,8 +2629,14 @@ const englishReplacements = <(String, String)>[
   ('” + 密码', '” + password'),
   ('SSH 密钥“', 'SSH key “'),
   ('安全密钥“', 'Security key “'),
-  ('”用的凭据已经删了，请到代理设置里重新选。', '” uses a credential that was deleted. Choose another one in the proxy settings.'),
-  ('”用的凭据不是用户名密码，请到代理设置里换一个。', '” uses a credential that is not a username and password. Choose another one in the proxy settings.'),
+  (
+    '”用的凭据已经删了，请到代理设置里重新选。',
+    '” uses a credential that was deleted. Choose another one in the proxy settings.'
+  ),
+  (
+    '”用的凭据不是用户名密码，请到代理设置里换一个。',
+    '” uses a credential that is not a username and password. Choose another one in the proxy settings.'
+  ),
   ('凭据“', 'Credential “'),
   // 私钥列表删除前问的那句，要在下面单独的「私钥“」之前。
   ('删除私钥“', 'Delete private key “'),
@@ -4258,10 +4263,7 @@ const englishReplacements = <(String, String)>[
   ('强杀 (KILL)', 'Kill (KILL)'),
   ('需要 sudo 权限', 'Sudo access required'),
   ('sudo 密码验证失败，请重新输入', 'Sudo password verification failed. Try again'),
-  (
-    '密码仅在本次面板打开期间保留',
-    'The password is retained only while this panel is open'
-  ),
+  ('密码仅在本次面板打开期间保留', 'The password is retained only while this panel is open'),
   (
     'session 名称不能为空，且不能包含冒号或句点',
     'The session name is required and cannot contain colons or periods'

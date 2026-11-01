@@ -203,6 +203,7 @@ class _IdentityDialogState extends ConsumerState<_IdentityDialog> {
     final choices = _choices(
       ref.watch(vaultControllerProvider).data?.keys ?? const [],
     );
+    final askable = _kind == _Kind.password && !widget.passwordOnly;
     return AlertDialog(
       title: LText(widget.existing == null ? '新建凭据' : '编辑凭据'),
       content: SingleChildScrollView(
@@ -213,7 +214,7 @@ class _IdentityDialogState extends ConsumerState<_IdentityDialog> {
             TextField(
               key: const ValueKey('identity-label'),
               controller: _label,
-              decoration: LInputDecoration(labelText: '名称（可选，默认用用户名）'),
+              decoration: LInputDecoration(labelText: '名称（可选）'),
             ),
             const FormGap(),
             TextField(
@@ -258,13 +259,12 @@ class _IdentityDialogState extends ConsumerState<_IdentityDialog> {
             if (_kind == _Kind.keyAndPassword) ...[
               const SizedBox(height: 6),
               LText(
-                '服务器要求先过公钥、再输密码时用（sshd 配了 AuthenticationMethods publickey,password）。'
-                '密钥自己的口令存在密钥上，不在这里。',
+                '要先过公钥、再输密码的服务器用。这里的密码不是密钥口令。',
                 style: hint,
               ),
             ],
             if (_usesKey) ...[
-              const SizedBox(height: 10),
+              const FormGap(),
               if (choices.isNotEmpty)
                 // initialValue 只认第一次：刚导入的那把要显示成选中，得换 key。
                 KeyedSubtree(
@@ -309,7 +309,7 @@ class _IdentityDialogState extends ConsumerState<_IdentityDialog> {
               ),
             ],
             if (_usesPassword) ...[
-              const SizedBox(height: 10),
+              const FormGap(),
               TextField(
                 key: const ValueKey('identity-password'),
                 controller: _password,
@@ -320,9 +320,8 @@ class _IdentityDialogState extends ConsumerState<_IdentityDialog> {
                 autocorrect: false,
                 onChanged: (_) => setState(() {}),
                 decoration: LInputDecoration(
-                  labelText: _kind == _Kind.password && !widget.passwordOnly
-                      ? '密码（可选，不填就连接时问）'
-                      : '密码',
+                  labelText: askable ? '密码（可选）' : '密码',
+                  hintText: askable ? '不填就连接时问' : null,
                   errorText: _tried ? _passwordError : null,
                   suffixIcon: IconButton(
                     onPressed: () => setState(() => _obscure = !_obscure),
