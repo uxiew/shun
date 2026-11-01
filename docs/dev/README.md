@@ -55,6 +55,8 @@ R59 安全密钥：不连网的 `flutter test test/security_key_test.dart test/s
 
 R25 连接日志：值从哪来、存在哪、哪些名字不能改见 [architecture.md 2.10](architecture.md#210-连接日志r25)。不连网的 `flutter test --no-pub test/r25_connection_events_test.dart test/r25_connection_log_screen_test.dart test/r25_probe_record_test.dart`（约 10 秒）；起了 `tool/fixture-environment/up.sh` 再跑 `flutter test --no-pub test/integration_ssh_fixture_test.dart --plain-name 'R25 连接日志'`（约 5 秒，会杀 ssh-edge 里的 sshd 会话）。设备上：模拟器开好、拿了锁以后 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r25-device.py`，约 1.5 分钟，docker 要在 PATH 里；脚本在清除前把 App 的记录文件拷到证据目录、在本机再查一遍有没有登录信息和地址，跑完清掉 App 数据。结果只看 `plan/v3/evidence/R25.md`。
 
+F31–F35 走查（会话总览的真实触摸、中文字体下性能监控和凭据各页的布局）：不用测试环境，开好模拟器、拿锁，再 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r70-device.py`，约 2 分半，截图在 `../.toolchain/artifacts/r70-device-<时间>/`。会话是塞进去的，没有真 SSH，所以性能监控各页都读不到数，这里只证明手势和布局，不证明登录。报 `Could not resolve androidx.test:runner:1.2+` 见第 7 节。
+
 R25 / UX04（从常见错误进诊断、看实际引擎和路线）：同样先起测试环境、开好模拟器、拿锁，再 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r25-ux04-device.py`，约 2 分钟（不用 docker 命令）。它跑 `integration_test/r25_ux04_test.dart`：直连密码错、经 SOCKS 密码错、代理连不上（模拟器的 1 号端口）、代理配置被删，各看失败页提示、实际路线和连接日志，再看主机详情、「选择连接类型」和设置里的终端引擎。页面上的字以 `UX04 <键>=<值>` 打在输出里，截图和日志在 `../.toolchain/artifacts/r25-ux04-<时间>/`。类型页的状态跟模拟器上装了什么走，`device.txt` 里记了装没装 Mosh 插件、RustDesk、UU。
 
 SEC12（崩溃、通知、Intent、最近任务、整机日志里有没有密码、私钥、按键、终端原文）：同样先起测试环境、开好模拟器、拿锁，再 `SHUN_R39_AVD=shun-r39-a30 python3 tool/sec12-device.py native`（再跑一遍 `java`），每遍约 1.5 分钟。`native` 用 `run-as … kill -SEGV` 弄崩（项目模拟器是 Play 镜像，没有 root），`java` 用 `am crash`。脚本每轮随机生成标记，跑完在两份 logcat、`dumpsys dropbox`（崩溃记录和 tombstone 全文）、通知、Activity、最近任务、App 私有文件里搜，只打名字和个数；还往 logcat 写一个对照标记，搜不到就算失败（说明搜索本身不灵）。两个坑：不加 `--no-uninstall` 的话 `flutter test` 一结束就卸掉 App，私有目录跟着没了，脚本打包时报 `truncated header`；`app_flutter/flutter_assets/kernel_blob.bin` 是调试包自己的代码，测试经 `--dart-define` 拿到的标记和登录会被编进去，脚本不搜这个目录，否则全是误报。结果只看 `plan/v3/evidence/R25.md` 第六部分。
@@ -411,6 +413,15 @@ Android SDK 在 `../.toolchain/android-sdk`（3.3 GB）：`build-tools`、`cmake
 
 ## 7. 撞墙时
 
+- **编集成测试包报 `Could not resolve androidx.test:runner:1.2+`、`Remote host terminated the handshake`**：看着像依赖坏了，其实是这台机器连 Google、Maven 时好时坏（11-01 实测：直连 `dl.google.com` 通、`dl-ssl.google.com` 超时，走 7890 代理正好反过来）。`integration_test` 插件写的是动态版本，Gradle 的版本列表 24 小时过期就要联网刷新，依赖本身都在缓存里。离线编就行，编完把这个文件删掉（留着的话，以后真要下新依赖会报 `No cached version`）：
+
+  ```bash
+  echo 'gradle.startParameter.offline = true' > ../.toolchain/gradle-home/init.d/offline.gradle
+  SHUN_R39_AVD=shun-r39-a30 python3 tool/r70-device.py
+  rm ../.toolchain/gradle-home/init.d/offline.gradle
+  ```
+- **集成测试里 `adb shell input swipe` 没反应，看着像手势坏了**：测试框架默认丢掉设备发来的触摸，要写 `binding.shouldPropagateDevicePointerEvents = true`（`integration_test/r70_walkthrough_test.dart`）。
+- **`adb exec-out screencap` 得到 0 字节的文件**：屏幕上有带密码框的页面，窗口带 FLAG_SECURE（R44），不是 adb 坏了。测试里调 `updateAllowSensitiveScreenshots(true)`，只开在用完就清数据的测试 App 上。
 - **`git push` 报 `Repository not found`**：`uxiew/shun` 在 GitHub 上还没建（或还没从 `uxiew/xwshun` 改名过去），或者这把 SSH 钥匙没有写权限。推送等所有者说，见 `docs/decisions/base-decision.md`。
 - **zsh 里把命令存进变量再执行，报 `command not found: adb -s ...`**：zsh 不按空格拆变量，改用 `bash -c '...'` 或函数。`export ANDROID_SERIAL=emulator-5580` 后 adb 默认就打到那台，最省事。
 - **`adb shell input text` 打字，分号后面的东西在模拟器上被当成命令执行了**：参数是交给模拟器的 shell 解释的，`;`、`$` 都会生效。整段用单引号包起来再传（`adb shell input text "'echo%s\$HOME'"`，`%s` 是空格），或者一次只打一条不带分号的命令。
