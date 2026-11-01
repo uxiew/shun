@@ -607,6 +607,8 @@ const englishTranslations = <String, String>{
   '命令已粘贴到': 'Command pasted into',
   '粘贴到终端': 'Paste into terminal',
   '复制命令': 'Copy command',
+  '服务器不接受 Tailscale SSH 的登录方式':
+      'The server does not accept Tailscale SSH login',
   '有什么可以帮你？': 'How can I help?',
   '每次提问会将当前终端的近期输出发送给已配置的 AI 服务。':
       'Each question sends recent output from the current terminal to the configured AI service.',
@@ -915,6 +917,12 @@ const englishTranslations = <String, String>{
   '未找到受支持的服务管理器，需要 systemd 或 OpenRC。':
       'No supported service manager was found. systemd or OpenRC is required.',
   '断开并关闭': 'Disconnect & close',
+  '已复制': 'Copied',
+  '这台多半没开 Tailscale SSH。在它上面运行下面的命令，或者改用密码、凭据。':
+      'This machine probably doesn’t have Tailscale SSH on. Run the command below on it, or use a password or credential.',
+  '这是 Tailscale 地址，手机要先连上 tailnet：打开 Tailscale App 确认已连接，再点重试。或者改走代理、跳板。':
+      'This is a Tailscale address, so the phone must be on the tailnet: check the Tailscale app is connected, then retry. Or go through a proxy or jump host.',
+  '改认证方式或路线': 'Change login or route',
   '点一台就按 Tailscale 设置里的默认值连接，用户名、密码没填的连接时问。不想看到的点 ⋮ 隐藏。':
       'Tap a device to connect with the defaults in Tailscale settings; a missing username or password is asked when connecting. Tap ⋮ to hide devices you don’t want to see.',
   '{n} 台主机': '{n} hosts',

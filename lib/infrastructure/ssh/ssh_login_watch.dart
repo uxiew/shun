@@ -47,15 +47,21 @@ class TailscaleCheckPrompt {
 /// Tailscale 拒绝了这次登录。它拒绝时不发「认证失败」，只发一条 banner 就断开 TCP
 /// （tailssh v1.104.0 的 errDenied / errTerminal），所以这里靠 banner 区分「拒绝」和「网络断了」。
 class TailscaleLoginDenied implements Exception {
-  const TailscaleLoginDenied(this.serverMessage);
+  const TailscaleLoginDenied(this.serverMessage, {this.refusedNone = false});
+
+  /// 服务器按普通规矩回「none 不行，换一种」，不是掐断：那边多半是普通 sshd，没开 Tailscale SSH。
+  /// Tailscale 按策略拒绝时是断开连接（R77 用来分开这两种修法）。
+  final bool refusedNone;
 
   /// 服务器发来的最后一条无链接 banner（已清洗）；没有时为 null。
   final String? serverMessage;
 
   @override
-  String toString() => serverMessage == null
-      ? '登录完成前连接断了：可能是 Tailscale 不让你登录（它拒绝时可以不给原因就断开），也可能是网络断了'
-      : 'Tailscale 拒绝了这次登录，服务器说：$serverMessage';
+  String toString() => refusedNone
+      ? '服务器不接受 Tailscale SSH 的登录方式'
+      : serverMessage == null
+          ? '登录完成前连接断了：可能是 Tailscale 不让你登录（它拒绝时可以不给原因就断开），也可能是网络断了'
+          : 'Tailscale 拒绝了这次登录，服务器说：$serverMessage';
 }
 
 /// 等登录结果超时了。[checkPending] 为 true 表示是在等你做 check 时超时的。
@@ -224,7 +230,10 @@ class SshLoginWatch {
   Object _explain(Object error) {
     if (mode != SshLoginMode.tailscale || !_hostKeyAccepted) return error;
     if (error is SSHAuthAbortError || error is SSHAuthFailError) {
-      return TailscaleLoginDenied(_lastPlain?.text);
+      return TailscaleLoginDenied(
+        _lastPlain?.text,
+        refusedNone: error is SSHAuthFailError,
+      );
     }
     return error;
   }

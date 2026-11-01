@@ -4,8 +4,10 @@ import 'dart:io';
 import 'package:dartssh2/dartssh2.dart';
 
 import '../domain/connection_route.dart';
+import '../domain/models/host.dart';
 import '../domain/plugins/mosh_bootstrap.dart';
 import '../domain/plugins/mosh_route.dart';
+import '../domain/tailscale_ssh.dart';
 import '../infrastructure/ssh/ssh_client_defaults.dart';
 import '../infrastructure/ssh/ssh_identity.dart';
 import '../infrastructure/ssh/ssh_login_watch.dart';
@@ -17,6 +19,7 @@ import 'connection_lifecycle.dart';
 import 'credential_availability.dart';
 import 'mosh_session.dart';
 import 'plugin_host_session.dart';
+import 'tailscale_catalog_refresh.dart';
 
 /// 连接失败按什么分类（R25 连接记录只存这个名字，不存报错原话）。
 ///
@@ -114,6 +117,58 @@ ConnectionFailureKind classifyConnectionFailure(Object error) {
 /// 只按真实的失败类型说：代理之后的链路 App 看不到，就不替它下结论；
 /// 报错本身已经说清怎么改的（比如凭据解不开），返回 null，不重复。
 String? connectionHint(Object error) => _hint(classifyConnectionFailure(error));
+
+/// Tailscale 设备连不上时的修法（F39、R77）。只给建议：不替用户改设置，也不自动重试登录。
+class TailscaleFix {
+  const TailscaleFix({this.text, this.command});
+
+  /// 换掉通用提示的那句人话。null：通用提示已经说清了，只多一个「改认证方式」。
+  final String? text;
+
+  /// 要用户到服务器上自己运行的命令。
+  final String? command;
+}
+
+/// 这台是不是 Tailscale 设备：选了 Tailscale SSH、连着目录，或地址就是 tailnet 的。
+bool isTailscaleHost(HostProfile host) =>
+    sshLoginModeOf(host) == SshLoginMode.tailscale ||
+    CatalogBinding.of(host) != null ||
+    _isTailnetAddress(host.hostname);
+
+/// 100.64.0.0/10 或 MagicDNS 名字。别的地址走 Tailscale 也可能，但看不出来，不瞎猜。
+bool _isTailnetAddress(String address) {
+  final host = address.trim().toLowerCase();
+  if (host.endsWith('.ts.net')) return true;
+  final parts = host.split('.').map(int.tryParse).toList();
+  if (parts.length != 4 || parts.contains(null)) return false;
+  return parts[0] == 100 && parts[1]! >= 64 && parts[1]! <= 127;
+}
+
+TailscaleFix? tailscaleFix(HostProfile host, Object error) {
+  if (!isTailscaleHost(host)) return null;
+  // 只发了 none 认证，服务器却要密码或私钥：那边是普通 sshd，不是 Tailscale SSH。
+  final cause = error is RouteHopException ? error.cause : error;
+  if (cause case TailscaleLoginDenied(refusedNone: true)) {
+    return const TailscaleFix(
+      text: '这台多半没开 Tailscale SSH。在它上面运行下面的命令，或者改用密码、凭据。',
+      command: 'sudo tailscale set --ssh',
+    );
+  }
+  return switch (classifyConnectionFailure(error)) {
+    ConnectionFailureKind.tailscaleDenied ||
+    ConnectionFailureKind.tailscaleCheckNeedsUser ||
+    ConnectionFailureKind.loginMode =>
+      const TailscaleFix(),
+    // 代理、跳板之后的那一段 App 看不到，这句只对手机直连的说。
+    ConnectionFailureKind.unreachable
+        when error is! RouteHopException && _isTailnetAddress(host.hostname) =>
+      const TailscaleFix(
+        text:
+            '这是 Tailscale 地址，手机要先连上 tailnet：打开 Tailscale App 确认已连接，再点重试。或者改走代理、跳板。',
+      ),
+    _ => null,
+  };
+}
 
 /// 连接记录里的「下一步」（R25）。记录里没有报错原话，所以失败页上「原话已经说清」的那几类也要有一句。
 ///

@@ -17,6 +17,9 @@ import 'package:shun/domain/plugins/mosh_install_hint.dart';
 import 'package:shun/domain/route_description.dart';
 import 'package:shun/domain/tmux/ai_cli_tmux_run.dart';
 import 'package:shun/domain/tmux/tmux_target.dart';
+import 'package:shun/domain/tailscale_ssh.dart';
+import 'package:shun/infrastructure/ssh/ssh_login_watch.dart';
+import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shun/infrastructure/ssh/ssh_identity.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
@@ -345,6 +348,11 @@ void main() {
       await tester.pump();
     }
 
+    Future<void> saveInVault(WidgetTester tester, HostProfile host) =>
+        ProviderScope.containerOf(tester.element(find.byType(TerminalScreen)))
+            .read(vaultControllerProvider.notifier)
+            .upsertHost(host);
+
     PendingTerminalConnection failedDirect({required bool retryable}) {
       final target = host('web');
       return PendingTerminalConnection(
@@ -369,6 +377,115 @@ void main() {
       expect(controller.connected.map((h) => h.id), ['web']);
       expect(controller.state.pendingConnections, isEmpty,
           reason: '旧的失败卡片关掉，新的一次自己开卡片');
+    });
+
+    PendingTerminalConnection failedTailscale(
+      Object error, {
+      Map<String, dynamic> extra = const {},
+      String address = '100.64.0.9',
+    }) {
+      final target = HostProfile({
+        ...host('web').data,
+        'hostname': address,
+        ...extra,
+      });
+      return PendingTerminalConnection(
+        id: 'p1',
+        host: target,
+        phase: PendingConnectionPhase.failed,
+        error: error,
+        routePlan:
+            resolveRoutePlan(target, hosts: const [], proxyProfiles: const []),
+        retryable: true,
+      );
+    }
+
+    final hint = find.byKey(const ValueKey('connection-failure-hint'));
+    final command = find.byKey(const ValueKey('tailscale-fix-command'));
+
+    testWidgets('UXR06：没开 Tailscale SSH：给命令能复制；不自动重试', (tester) async {
+      await open(
+        tester,
+        failedTailscale(
+          const TailscaleLoginDenied(null, refusedNone: true),
+          extra: {sshLoginModeKey: 'tailscale'},
+        ),
+      );
+      expect(
+          find.descendant(
+              of: hint, matching: find.textContaining('没开 Tailscale SSH')),
+          findsOneWidget);
+      expect(tester.widget<SelectableText>(command).data,
+          'sudo tailscale set --ssh');
+      String? copied;
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        if (call.method == 'Clipboard.setData') {
+          copied = (call.arguments as Map)['text'] as String?;
+        }
+        return null;
+      });
+      addTearDown(() => TestDefaultBinaryMessengerBinding
+          .instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(SystemChannels.platform, null));
+      await tester.tap(find.byKey(const ValueKey('tailscale-fix-copy')));
+      await tester.pump();
+      expect(copied, 'sudo tailscale set --ssh');
+      expect(controller.connected, isEmpty, reason: '一次失败不自动重试');
+    });
+
+    testWidgets('UXR06：策略拒绝、普通 SSH 碰上 check：说原来的话，不给命令', (tester) async {
+      await open(
+        tester,
+        failedTailscale(
+          const TailscaleLoginDenied('policy'),
+          extra: {sshLoginModeKey: 'tailscale'},
+        ),
+      );
+      expect(find.descendant(of: hint, matching: find.textContaining('访问策略')),
+          findsOneWidget);
+      expect(command, findsNothing);
+    });
+
+    testWidgets('UXR06：手机没连 tailnet：Tailscale 地址说打开 App', (tester) async {
+      await open(tester, failedTailscale(const SocketException('timed out')));
+      expect(
+          find.descendant(
+              of: hint, matching: find.textContaining('连上 tailnet')),
+          findsOneWidget);
+    });
+
+    testWidgets('UXR06：不是 Tailscale 地址：还是通用提示', (tester) async {
+      await open(
+        tester,
+        failedTailscale(
+          const SocketException('timed out'),
+          address: '192.0.2.9',
+        ),
+      );
+      expect(find.textContaining('连上 tailnet'), findsNothing);
+      expect(
+          find.descendant(of: hint, matching: find.textContaining('手机连不到这个地址')),
+          findsOneWidget);
+    });
+
+    testWidgets('UXR06：保险库里有这台才给「改认证方式或路线」，点了进编辑器，不重连', (tester) async {
+      final pending = failedTailscale(const SocketException('timed out'));
+      await open(tester, pending);
+      final edit = find.byKey(const ValueKey('tailscale-fix-edit'));
+      expect(edit, findsNothing, reason: '这台不在保险库里');
+
+      await saveInVault(tester, pending.host);
+      await tester.pump();
+      await tester
+          .tap(find.byKey(const ValueKey('terminal-connection-status-dialog')));
+      await tester.pump();
+      expect(edit, findsOneWidget);
+      await tester.ensureVisible(edit);
+      await tester.tap(edit);
+      await tester.pumpAndSettle();
+      expect(find.byType(HostEditor), findsOneWidget);
+      expect(controller.connected, isEmpty);
     });
 
     testWidgets('附着 tmux、启动 AI 工具、换方式这类失败不给「重试」，只能关掉', (tester) async {

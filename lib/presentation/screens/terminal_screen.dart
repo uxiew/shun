@@ -37,6 +37,7 @@ import '../../infrastructure/terminal/terminal_session_adapter.dart';
 import '../../infrastructure/terminal/terminal_text.dart';
 import '../../infrastructure/storage/vault_repository.dart';
 import '../widgets/empty_state.dart';
+import '../widgets/host_editor.dart';
 import '../widgets/custom_background.dart';
 import '../widgets/ai_chat_sheet.dart';
 import '../widgets/connection_prompts.dart';
@@ -541,6 +542,10 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                   child: selectedPending != null
                       ? _ConnectionStatusPane(
                           pending: selectedPending,
+                          onEditHost: _savedHostOf(selectedPending.host) == null
+                              ? null
+                              : () =>
+                                  unawaited(_editSavedHost(selectedPending)),
                           onReturn: state.sessions.isEmpty
                               ? null
                               : () => ref
@@ -997,6 +1002,33 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
     } on StoredPasswordException catch (error) {
       messenger.showSnackBar(SnackBar(content: LText(error.message)));
     }
+  }
+
+  /// 保险库里的那一份：连接用的可能是临时拷贝（tmux、AI 工具的标签）。
+  HostProfile? _savedHostOf(HostProfile from) {
+    final id = sourceHostIdOf(from);
+    return ref
+        .read(vaultControllerProvider)
+        .data
+        ?.hosts
+        .where((host) => host.id == id)
+        .firstOrNull;
+  }
+
+  /// 失败页去改这台的设置。改完不替用户连：重试按保险库现在的样子连，点不点由用户定（R77 不自动重试）。
+  Future<void> _editSavedHost(PendingTerminalConnection pending) async {
+    final host = _savedHostOf(pending.host);
+    if (host == null) return;
+    final result = await showModalBottomSheet<HostProfile>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      // 下滑关闭会绕过编辑器「有没保存的改动」的确认（R41）。
+      enableDrag: false,
+      builder: (_) => HostEditor(host: host),
+    );
+    if (result == null) return;
+    await ref.read(vaultControllerProvider.notifier).upsertHost(result);
   }
 
   void _openPerformanceMonitor(ActiveTerminalSession session) =>

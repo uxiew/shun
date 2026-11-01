@@ -7,6 +7,7 @@ class _ConnectionStatusPane extends StatelessWidget {
     this.onRetry,
     this.onClose,
     this.onCancel,
+    this.onEditHost,
   });
 
   final PendingTerminalConnection pending;
@@ -15,6 +16,9 @@ class _ConnectionStatusPane extends StatelessWidget {
   final VoidCallback? onClose;
   final VoidCallback? onCancel;
 
+  /// 去编辑器改这台的认证方式、路线。主机不在保险库里（比如已经删了）是 null。
+  final VoidCallback? onEditHost;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
@@ -22,6 +26,10 @@ class _ConnectionStatusPane extends StatelessWidget {
     // 直连只有「手机 → 目标」两段，画出来等于把上面的地址再写一遍；经代理、跳板才有看头。
     final route = pending.routePlan;
     final showRoute = route != null && describeRoute(route).length > 2;
+    final error = pending.error;
+    final fix =
+        failed && error != null ? tailscaleFix(pending.host, error) : null;
+    final hint = fix?.text ?? (error == null ? null : connectionHint(error));
     return ColoredBox(
       color: scheme.surface,
       child: Center(
@@ -99,8 +107,7 @@ class _ConnectionStatusPane extends StatelessWidget {
                               color: scheme.onSurfaceVariant,
                             ),
                       ),
-                      if (pending.error != null &&
-                          connectionHint(pending.error!) != null) ...[
+                      if (hint != null) ...[
                         const SizedBox(height: 12),
                         Container(
                           key: const ValueKey('connection-failure-hint'),
@@ -121,7 +128,7 @@ class _ConnectionStatusPane extends StatelessWidget {
                               const SizedBox(width: 8),
                               Expanded(
                                 child: LText(
-                                  connectionHint(pending.error!)!,
+                                  hint,
                                   style: Theme.of(context)
                                       .textTheme
                                       .bodySmall
@@ -134,6 +141,34 @@ class _ConnectionStatusPane extends StatelessWidget {
                           ),
                         ),
                       ],
+                      if (fix?.command case final command?) ...[
+                        const SizedBox(height: 8),
+                        SelectableText(
+                          command,
+                          key: const ValueKey('tailscale-fix-command'),
+                          style: const TextStyle(fontFamily: 'monospace'),
+                        ),
+                        TextButton.icon(
+                          key: const ValueKey('tailscale-fix-copy'),
+                          onPressed: () async {
+                            await Clipboard.setData(
+                                ClipboardData(text: command));
+                            if (!context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(content: LText('已复制')),
+                            );
+                          },
+                          icon: const Icon(Icons.copy),
+                          label: const LText('复制命令'),
+                        ),
+                      ],
+                      if (fix != null && onEditHost != null)
+                        TextButton.icon(
+                          key: const ValueKey('tailscale-fix-edit'),
+                          onPressed: onEditHost,
+                          icon: const Icon(Icons.edit_outlined),
+                          label: const LText('改认证方式或路线'),
+                        ),
                       // 服务器上没有 mosh-server（R42）：给这台发行版的安装命令，用户自己执行。
                       if (pending.error
                           case final MoshServerMissing missing) ...[
