@@ -530,6 +530,42 @@ void main() {
     });
   }
 
+  // Ghostty 选字手势点完还留着锚点，窗口变矮时裁空行碰到它就停，字被挤进回滚区，放大也回不来。
+  testWidgets('点过终端再进画中画：小窗和回来后字都还在', (tester) async {
+    await open(
+      tester,
+      SessionState(sessions: [
+        tab(
+          's0',
+          host('m0', 'machine-0'),
+          output: 'root@web:~# uptime\r\nup 3 days\r\n',
+        ),
+      ]),
+    );
+    container.read(homeTabProvider.notifier).state = 1;
+    await settle(tester);
+    final terminal = opened.first.terminal;
+    String visible() => terminal
+        .recentLines(terminal.viewRows)
+        .map((line) => line.text.trimRight())
+        .where((text) => text.isNotEmpty)
+        .join('\n');
+    await tester.tapAt(const Offset(200, 300));
+    await settle(tester);
+
+    container.read(terminalPictureInPictureProvider.notifier).state = true;
+    await settle(tester);
+    tester.view.physicalSize = const Size(528, 297);
+    await settle(tester);
+    expect(visible(), contains('up 3 days'));
+
+    tester.view.physicalSize = const Size(1080, 2340);
+    container.read(terminalPictureInPictureProvider.notifier).state = false;
+    await settle(tester);
+    expect(visible(), 'root@web:~# uptime\nup 3 days');
+    await finish(tester);
+  });
+
   testWidgets('正在自动恢复的标签不给按钮，写正在恢复；只断一个不显示全部重连', (tester) async {
     final alpha = host('a', 'alpha');
     await open(

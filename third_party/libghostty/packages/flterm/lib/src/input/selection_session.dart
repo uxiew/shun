@@ -420,6 +420,9 @@ final class SelectionSession {
 
   void disposeInteraction() => _interaction?.dispose();
 
+  /// shun: Drops the pin a finished click keeps for double-click detection.
+  void resetGesture() => _interaction?.resetGesture();
+
   bool extend(Key key) {
     final SelectionAdjust? adjustment = switch (key) {
       .arrowRight => .right,

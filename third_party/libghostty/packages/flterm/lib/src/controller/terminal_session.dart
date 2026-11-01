@@ -710,6 +710,11 @@ final class TerminalSession extends TerminalController with ChangeNotifier {
           current.widthPx != geometry.cols * geometry.cellWidthPx ||
           current.heightPx != geometry.rows * geometry.cellHeightPx;
       if (gridChanged || pixelGeometryChanged) {
+        // shun: Ghostty stops trimming trailing blank rows at any tracked pin,
+        // and a finished click keeps one on the tapped row. Without this, a
+        // tap below the text pushes the text into scrollback when rows shrink
+        // (picture in picture, keyboard) and growing never brings it back.
+        if (geometry.rows < current.rows) _selection.resetGesture();
         _terminal.resize(
           cols: geometry.cols,
           rows: geometry.rows,
