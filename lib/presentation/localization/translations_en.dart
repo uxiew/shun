@@ -1190,6 +1190,11 @@ const englishTranslations = <String, String>{
   '移除这个来源？': 'Remove this source?',
   '关联它的主机：': 'Hosts linked to it: ',
   '移除来源': 'Remove source',
+  '移除 Tailscale': 'Remove Tailscale',
+  '移除 Tailscale？': 'Remove Tailscale?',
+  '改用凭据': 'Use a credential',
+  '改用用户名': 'Use a username',
+  '端口、连接路径、分组': 'Port, connection path, group',
   '已导入主机：': 'Hosts imported: ',
   '。还没有连接过：第一次连接时照常核对服务器指纹。':
       '. Not connected yet: you will verify the server fingerprint on first connection as usual.',

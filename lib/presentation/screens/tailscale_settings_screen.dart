@@ -33,14 +33,19 @@ Future<TailscaleSettingsResult?> openTailscaleSettings(
   BuildContext context, {
   String? catalogId,
 }) =>
-    Navigator.of(context).push<TailscaleSettingsResult>(MaterialPageRoute(
-      fullscreenDialog: catalogId == null,
+    showModalBottomSheet<TailscaleSettingsResult>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      // 点外面、下滑都不关：刚粘进来的 key 会一声不吐地没了。关走「取消」或返回键。
+      enableDrag: false,
+      isDismissible: false,
       builder: (_) => TailscaleSettingsScreen(catalogId: catalogId),
-    ));
+    );
 
-/// Tailscale 设置（R26，照 TermRover 的设置页，多了路线、地址类型、私钥和分组）。
+/// Tailscale 设置（R26、R75，学 TermRover：盖在列表上的面板，常用的就两项；多了路线、地址类型和分组，都收进高级）。
 ///
-/// 一页填完：API key、默认 SSH 用户名；「高级」里是端口、地址、路线、私钥、分组、tailnet 和名称。
+/// 默认只有 API key 和默认登录（用户名或凭据）；「高级」里是端口、地址、路线、分组、tailnet，接第二个 tailnet 时还有名称。
 /// 保存 = 存下这些导入默认值，填了 key（或本机存着 OAuth client）就马上读一次设备列表。
 /// 只存设置，不导入、不连接：导入在设备列表里点一下，或「全部导入」。
 class TailscaleSettingsScreen extends ConsumerStatefulWidget {
@@ -78,6 +83,13 @@ class _TailscaleSettingsScreenState
   bool _busy = false;
   String? _loadError;
 
+  /// 这是本机唯一的来源（或正在建第一个）：不用起名，也不必让人知道有「来源」这回事。
+  bool _onlySource = true;
+
+  /// 面板底下那句话。不用 SnackBar：它弹在面板下面的页上，正好被面板挡住，保存失败了看着像没反应。
+  ({String text, bool error})? _notice;
+  final _advanced = ExpansibleController();
+
   TailscaleCatalogProvider get _catalog => ref.read(tailscaleCatalogProvider);
 
   @override
@@ -108,8 +120,9 @@ class _TailscaleSettingsScreenState
     try {
       final repository = ref.read(catalogCacheRepositoryProvider);
       final id = _catalogId;
+      final sources = await repository.loadAll();
+      _onlySource = sources.where((value) => value.catalogId != id).isEmpty;
       if (id == null) {
-        final sources = await repository.loadAll();
         _name.text = _suggestedName(sources);
       } else {
         final cache = await repository.load(id);
@@ -188,8 +201,22 @@ class _TailscaleSettingsScreenState
     }
   }
 
-  /// 设置哪里不成立。都对返回 null。
-  String? _invalid(VaultData? vault) {
+  /// 收着的「高级」下面那一行：设过什么就写什么，不用点开就知道走不走代理。没设过就写里面有什么。
+  String get _advancedSummary {
+    final port = _port.text.trim();
+    final set = [
+      if (port != '22') '${localized('端口')} $port',
+      if (_address == CatalogAddressKind.ipv6) 'IPv6',
+      if (_address == CatalogAddressKind.fqdn) localized('MagicDNS 名称'),
+      if (_route.selectedProxyProfileId != null) localized('代理'),
+      if (_route.selectedJumpHostIds.isNotEmpty) localized('跳板机'),
+      if (_group.text.trim().isNotEmpty) localized('分组'),
+    ];
+    return set.isEmpty ? localized('端口、连接路径、分组') : set.join(' · ');
+  }
+
+  /// 默认就看得见的两项哪里不成立。都对返回 null。
+  String? _invalidBasics(VaultData? vault) {
     final key = _key.text.trim();
     if (key.isNotEmpty) {
       if (parseTailscaleKey(key) case TailscaleKeyRejected(:final reason)) {
@@ -206,6 +233,11 @@ class _TailscaleSettingsScreenState
     } else if (RegExp(r'[\s\x00-\x1f\x7f]').hasMatch(_username.text.trim())) {
       return '用户名里不能有空格或控制字符。';
     }
+    return null;
+  }
+
+  /// 「高级」里哪里不成立。都对返回 null。
+  String? _invalidAdvanced(VaultData? vault) {
     final port = int.tryParse(_port.text.trim());
     if (port == null || port < 1 || port > 65535) return '端口要在 1–65535 之间。';
     if (_catalogId == null) {
@@ -219,14 +251,20 @@ class _TailscaleSettingsScreenState
 
   Future<void> _save() async {
     final vault = ref.read(vaultControllerProvider).data;
-    final invalid = _invalid(vault);
+    final advanced = _invalidAdvanced(vault);
+    final invalid = _invalidBasics(vault) ?? advanced;
     if (invalid != null) {
+      // 错在收着的高级里就打开：不然底下说端口不对，面板上却找不到端口。
+      if (advanced != null) _advanced.expand();
       _message(invalid);
       return;
     }
     final key = _key.text.trim();
     final input = key.isEmpty ? null : parseTailscaleKey(key);
-    setState(() => _busy = true);
+    setState(() {
+      _busy = true;
+      _notice = null;
+    });
     try {
       var id = _catalogId;
       if (id == null) {
@@ -273,8 +311,14 @@ class _TailscaleSettingsScreenState
     if (id == null) return;
     await _catalog.forgetCredentials(id);
     if (!mounted) return;
-    setState(() => _hasSaved = false);
-    _message('已删除本机保存的 key。它在 Tailscale 那边仍然有效，要彻底作废请到 Tailscale 后台撤销。');
+    setState(() {
+      _hasSaved = false;
+      _notice = (
+        text: localized(
+            '已删除本机保存的 key。它在 Tailscale 那边仍然有效，要彻底作废请到 Tailscale 后台撤销。'),
+        error: false,
+      );
+    });
   }
 
   Future<void> _remove() async {
@@ -288,7 +332,7 @@ class _TailscaleSettingsScreenState
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const LText('移除这个来源？'),
+        title: LText(_onlySource ? '移除 Tailscale？' : '移除这个来源？'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -307,7 +351,7 @@ class _TailscaleSettingsScreenState
           FilledButton(
             key: const ValueKey('ts-settings-remove-confirm'),
             onPressed: () => Navigator.pop(context, true),
-            child: const LText('移除来源'),
+            child: LText(_onlySource ? '移除 Tailscale' : '移除来源'),
           ),
         ],
       ),
@@ -317,80 +361,65 @@ class _TailscaleSettingsScreenState
     if (mounted) Navigator.of(context).pop((catalogId: id, removed: true));
   }
 
-  void _message(String value) {
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: LText(value)));
-  }
+  void _message(String value) => _plainMessage(localized(value));
 
   /// 已经翻译好、拼上了数据的提示。
   void _plainMessage(String value) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(value)));
+    setState(() => _notice = (text: value, error: true));
   }
 
   @override
   Widget build(BuildContext context) {
     final vaultState = ref.watch(vaultControllerProvider);
     final vault = vaultState.data;
-    final small = Theme.of(context).textTheme.bodySmall;
+    final theme = Theme.of(context);
+    final small = theme.textTheme.bodySmall;
     final existing = _catalogId != null && _cache != null;
     final keys = vault?.keys ?? const <SshKeyProfile>[];
     final route = _routePreview(vault);
-    // API key 框在页面上：整页防截屏（R44）。
+    final notice = _notice;
+    // API key 框在面板上：防截屏（R44）。面板按内容的高度来，展开高级放不下时中间滚，底下的按钮一直在。
     return SecretContent(
-      child: Scaffold(
-        appBar: AppBar(
-          title: const LText('Tailscale 设置'),
-          actions: const [
-            HintButton(
-              title: 'Tailscale 设置',
-              message:
-                  '自动列出 tailnet 里的设备，点一下就导入并连接。只读设备列表：不开 VPN，手机要能到达设备（比如开着 Tailscale App）。',
-            ),
-          ],
-        ),
-        bottomNavigationBar: !_loaded
-            ? null
-            : SafeArea(
-                child: Padding(
-                  padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-                  child: Row(
-                    children: [
-                      if (existing)
-                        TextButton(
-                          key: const ValueKey('ts-settings-remove'),
-                          onPressed: _busy ? null : _remove,
-                          style: TextButton.styleFrom(
-                            foregroundColor:
-                                Theme.of(context).colorScheme.error,
-                          ),
-                          child: const LText('移除来源'),
-                        ),
-                      const Spacer(),
-                      TextButton(
-                        key: const ValueKey('ts-settings-cancel'),
-                        onPressed: _busy ? null : () => Navigator.pop(context),
-                        child: const LText('取消'),
+      child: Padding(
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+        child: SafeArea(
+          top: false,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 4, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: LText(
+                        'Tailscale 设置',
+                        style: theme.textTheme.titleMedium,
                       ),
-                      const SizedBox(width: 8),
-                      FilledButton(
-                        key: const ValueKey('ts-settings-save'),
-                        onPressed: _busy ? null : _save,
-                        child: const LText('保存'),
-                      ),
-                    ],
-                  ),
+                    ),
+                    const HintButton(
+                      title: 'Tailscale 设置',
+                      message:
+                          '自动列出 tailnet 里的设备，点一下就导入并连接。只读设备列表：不开 VPN，手机要能到达设备（比如开着 Tailscale App）。',
+                    ),
+                  ],
                 ),
               ),
-        body: _loadError != null
-            ? Padding(
-                padding: const EdgeInsets.all(16),
-                child: LText(_loadError!),
-              )
-            : !_loaded
-                ? const LinearProgressIndicator()
-                : ListView(
-                    padding: const EdgeInsets.all(16),
+              if (_loadError != null)
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: LText(_loadError!),
+                )
+              else if (!_loaded)
+                const LinearProgressIndicator()
+              else
+                Flexible(
+                  child: ListView(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                     children: [
                       if (_busy) ...[
                         const LinearProgressIndicator(),
@@ -427,12 +456,6 @@ class _TailscaleSettingsScreenState
                           ),
                         ),
                       const FormGap(),
-                      LoginChoiceField(
-                        key: const ValueKey('ts-settings-login'),
-                        value: _login,
-                        onChanged: (value) => setState(() => _login = value),
-                      ),
-                      const FormGap(),
                       if (_usesCredential)
                         CredentialField(
                           key: const ValueKey('ts-settings-credential'),
@@ -457,9 +480,24 @@ class _TailscaleSettingsScreenState
                             onDrop: () => setState(() => _identity = null),
                           ),
                       ],
-                      const SizedBox(height: 8),
+                      // 不摆下拉框：多数人填用户名，多一个选择就是多一项要看的东西。凭据一点就换。
+                      Align(
+                        alignment: Alignment.centerLeft,
+                        child: TextButton(
+                          key: const ValueKey('ts-settings-login'),
+                          onPressed: () => setState(() {
+                            _login = _usesCredential
+                                ? LoginChoice.simple
+                                : LoginChoice.credential;
+                          }),
+                          child: LText(_usesCredential ? '改用用户名' : '改用凭据'),
+                        ),
+                      ),
                       ExpansionTile(
                         key: const ValueKey('ts-settings-advanced'),
+                        controller: _advanced,
+                        // 打开就是坏的（跳板删了、代理没了）：摆出来，别等点保存才知道。
+                        initiallyExpanded: route.error != null,
                         tilePadding: EdgeInsets.zero,
                         childrenPadding:
                             const EdgeInsets.only(top: 8, bottom: 8),
@@ -467,6 +505,11 @@ class _TailscaleSettingsScreenState
                         title: const HintTitle(
                           '高级',
                           hint: '这些只用于以后导入的主机，已经导入的不动。密码不在这里填：每台第一次连接时问。',
+                        ),
+                        subtitle: Text(
+                          _advancedSummary,
+                          key: const ValueKey('ts-settings-advanced-summary'),
+                          style: small,
                         ),
                         children: [
                           TextField(
@@ -532,6 +575,7 @@ class _TailscaleSettingsScreenState
                           TextField(
                             key: const ValueKey('ts-settings-group'),
                             controller: _group,
+                            onChanged: (_) => setState(() {}),
                             decoration: LInputDecoration(labelText: '分组（可选）'),
                           ),
                           const FormGap(),
@@ -548,17 +592,63 @@ class _TailscaleSettingsScreenState
                                 helperText: '- 表示凭据所属的 tailnet',
                               ),
                             ),
-                            const FormGap(),
-                            TextField(
-                              key: const ValueKey('ts-settings-name'),
-                              controller: _name,
-                              decoration: LInputDecoration(labelText: '名称（可选）'),
-                            ),
+                            if (!_onlySource) ...[
+                              const FormGap(),
+                              TextField(
+                                key: const ValueKey('ts-settings-name'),
+                                controller: _name,
+                                decoration:
+                                    LInputDecoration(labelText: '名称（可选）'),
+                              ),
+                            ],
                           ],
                         ],
                       ),
                     ],
                   ),
+                ),
+              if (notice != null)
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                  child: Text(
+                    notice.text,
+                    key: const ValueKey('ts-settings-notice'),
+                    style: theme.textTheme.bodyMedium?.copyWith(
+                      color: notice.error ? theme.colorScheme.error : null,
+                    ),
+                  ),
+                ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
+                child: Row(
+                  children: [
+                    if (existing)
+                      TextButton(
+                        key: const ValueKey('ts-settings-remove'),
+                        onPressed: _busy ? null : _remove,
+                        style: TextButton.styleFrom(
+                          foregroundColor: theme.colorScheme.error,
+                        ),
+                        child: LText(_onlySource ? '移除 Tailscale' : '移除来源'),
+                      ),
+                    const Spacer(),
+                    TextButton(
+                      key: const ValueKey('ts-settings-cancel'),
+                      onPressed: _busy ? null : () => Navigator.pop(context),
+                      child: const LText('取消'),
+                    ),
+                    const SizedBox(width: 8),
+                    FilledButton(
+                      key: const ValueKey('ts-settings-save'),
+                      onPressed: _busy || !_loaded ? null : _save,
+                      child: const LText('保存'),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

@@ -130,7 +130,11 @@ void main() {
   });
 
   testWidgets('Tailscale 设置', skip: skip != null, (tester) async {
-    await pumpPage(tester, const TailscaleSettingsScreen(), height: 1500);
+    await pumpPage(
+      tester,
+      const Scaffold(body: TailscaleSettingsScreen()),
+      height: 1500,
+    );
     await settle(tester);
     await tester
         .ensureVisible(find.byKey(const ValueKey('ts-settings-advanced')));

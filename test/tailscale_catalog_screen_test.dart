@@ -21,6 +21,7 @@ import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:shun/presentation/screens/tailscale_catalog_screen.dart';
 import 'package:shun/presentation/screens/tailscale_settings_screen.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
+import 'package:shun/presentation/widgets/secret_content.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'support/route_editor_actions.dart';
 
@@ -414,6 +415,154 @@ void main() {
         '2222');
   });
 
+  testWidgets('UXR04：底部面板，默认只有两项输入；key 框防截屏；第一个来源不问名称', (tester) async {
+    await openSettings(tester, null);
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(find.byType(TextField), findsNWidgets(2));
+    final field = find.byKey(const ValueKey('ts-settings-key'));
+    expect(field, findsOneWidget);
+    expect(find.ancestor(of: field, matching: find.byType(SecretContent)),
+        findsOneWidget);
+    expect(find.byKey(const ValueKey('ts-settings-username')), findsOneWidget);
+    expect(find.text('端口、连接路径、分组'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('ts-settings-advanced')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('ts-settings-port')), findsOneWidget);
+    expect(find.byKey(const ValueKey('ts-settings-tailnet')), findsOneWidget);
+    expect(find.text('连接路径'), findsOneWidget);
+    expect(find.byKey(const ValueKey('ts-settings-name')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+    expect(repo.caches.values.single.label, 'Tailscale');
+  });
+
+  testWidgets('UXR04：只有一个来源时不提「来源」；接第二个才问名称，按钮才写「移除来源」', (tester) async {
+    repo.caches['ts-home'] = const CatalogCache(
+        catalogId: 'ts-home', tailnet: '-', label: 'Tailscale');
+    await openSettings(tester, 'ts-home');
+    expect(find.text('移除 Tailscale'), findsOneWidget);
+    expect(find.textContaining('来源'), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('ts-settings-cancel')));
+    await tester.pumpAndSettle();
+
+    await openSettings(tester, null);
+    await tester.tap(find.byKey(const ValueKey('ts-settings-advanced')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('ts-settings-name')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('ts-settings-cancel')));
+    await tester.pumpAndSettle();
+
+    repo.caches['ts-work'] =
+        const CatalogCache(catalogId: 'ts-work', tailnet: '-', label: 'work');
+    await openSettings(tester, 'ts-home');
+    expect(find.text('移除来源'), findsOneWidget);
+  });
+
+  testWidgets('UXR04：已有来源的代理、端口、分组收着也看得见，保存不丢', (tester) async {
+    repo.caches['ts-home'] = const CatalogCache(
+      catalogId: 'ts-home',
+      tailnet: '-',
+      label: 'home',
+      importDefaults: {'port': 2222, 'proxyProfileId': 'p', 'group': 'lab'},
+    );
+    await vault.saveVault(VaultData.fromJson({
+      'hosts': [],
+      'keys': [],
+      'snippets': [],
+      'customGroups': [],
+      'proxyProfiles': [
+        {
+          'id': 'p',
+          'label': 'office',
+          'config': {'type': 'socks5', 'host': '192.0.2.1', 'port': 1080},
+        },
+      ],
+    }));
+    await openSettings(tester, 'ts-home');
+    expect(find.text('端口 2222 · 代理 · 分组'), findsOneWidget);
+    expect(find.byKey(const ValueKey('ts-settings-port')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+    expect(repo.caches['ts-home']!.importDefaults, {
+      'port': 2222,
+      'address': 'ipv4',
+      'proxyProfileId': 'p',
+      'group': 'lab',
+    });
+  });
+
+  testWidgets('UXR04：面板里照样能配代理和跳板（R06、R07），存进默认值', (tester) async {
+    repo.caches['ts-home'] =
+        const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
+    await vault.saveVault(VaultData.fromJson({
+      'hosts': [
+        HostProfile.create(
+                id: 'edge',
+                label: 'edge',
+                hostname: 'edge.example',
+                username: 'ops')
+            .data,
+      ],
+      'keys': [],
+      'snippets': [],
+      'customGroups': [],
+      'proxyProfiles': [
+        {
+          'id': 'p',
+          'label': 'office',
+          'config': {'type': 'socks5', 'host': '192.0.2.1', 'port': 1080},
+        },
+      ],
+    }));
+    await openSettings(tester, 'ts-home');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-advanced')));
+    await tester.pumpAndSettle();
+    await addRouteJump(tester, 'edge');
+    await tapRoute(tester, find.byKey(const ValueKey('route-add-proxy')));
+    await tapRoute(tester, find.byKey(const ValueKey('proxy-profile-p')));
+    expect(find.text('代理 · 跳板机'), findsOneWidget);
+
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+    final saved = repo.caches['ts-home']!.importDefaults;
+    expect(saved['proxyProfileId'], 'p');
+    expect(saved['jumpHostIds'], ['edge']);
+  });
+
+  testWidgets('UXR04：错在收着的高级里就自己打开，话写在面板上；路径坏了一打开就摆出来', (tester) async {
+    repo.caches['ts-home'] =
+        const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
+    await openSettings(tester, 'ts-home');
+    // 点标题：展开后整块的中心落在里面的输入框上，点不到收起。
+    final advanced = find.text('高级');
+    await tester.tap(advanced);
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byKey(const ValueKey('ts-settings-port')), '0');
+    await tester.tap(advanced);
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('ts-settings-port')), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+    expect(find.text('端口要在 1–65535 之间。'), findsOneWidget);
+    expect(find.byKey(const ValueKey('ts-settings-port')), findsOneWidget);
+    expect(requests, isEmpty);
+    await tester.tap(find.byKey(const ValueKey('ts-settings-cancel')));
+    await tester.pumpAndSettle();
+
+    repo.caches['ts-home'] = const CatalogCache(
+      catalogId: 'ts-home',
+      tailnet: '-',
+      label: 'home',
+      importDefaults: {'proxyProfileId': 'gone'},
+    );
+    await openSettings(tester, 'ts-home');
+    expect(find.byKey(const ValueKey('ts-settings-port')), findsOneWidget);
+  });
+
   testWidgets('F31：默认登录可以是用户名或凭据；以前选的默认私钥照常显示，能清掉', (tester) async {
     repo.caches['ts-home'] = const CatalogCache(
       catalogId: 'ts-home',
@@ -449,8 +598,6 @@ void main() {
 
     await openSettings(tester, 'ts-home');
     await tester.tap(find.byKey(const ValueKey('ts-settings-login')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('凭据').last);
     await tester.pumpAndSettle();
     // 选了「凭据」却没选中：不存。
     await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
