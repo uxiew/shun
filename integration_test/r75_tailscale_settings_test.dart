@@ -1,17 +1,21 @@
-// Tailscale 设置走查（F39、R75）：真 App 页面、中文字体、真屏幕尺寸、真键盘，看面板放不放得下。
+// Tailscale 设置和设备走查（F39、R75、R76、R78）：真 App 页面、中文字体、真屏幕尺寸、真键盘，看面板放不放得下。
 // 不连网，没有真的 Tailscale 账号。只用工具跑：
 //   SHUN_R39_AVD=shun-r39-a30 SHUN_R70_TARGET=integration_test/r75_tailscale_settings_test.dart python3 tool/r70-device.py
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 import 'package:shun/app.dart';
+import 'package:shun/application/catalog_overview.dart';
 import 'package:shun/application/settings_controller.dart';
 import 'package:shun/application/tailscale_catalog_provider.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/models/vault.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/tailscale/catalog_cache_repository.dart';
+import 'package:shun/infrastructure/tailscale/tailscale_device.dart';
 import 'package:shun/presentation/home_shell.dart';
 import 'package:shun/presentation/widgets/connection_route_editor.dart';
 
@@ -62,6 +66,23 @@ void main() {
     addTearDown(container.dispose);
     final controller = container.read(vaultControllerProvider.notifier);
     final vault = await controller.ready();
+    // 带密码框的页面默认防截屏，adb screencap 得到 0 字节。只开在这个用完就清数据的测试 App 上。
+    await container
+        .read(settingsControllerProvider.notifier)
+        .updateAllowSensitiveScreenshots(true);
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const ShunApp(),
+    ));
+    for (var i = 0; i < 600 && find.byType(HomeShell).evaluate().isEmpty; i++) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    await settle(tester);
+
+    // R78：还没有主机时给两条路。
+    await shot(tester, '00-empty');
+    expect(find.byKey(const ValueKey('vault-empty-add-host')), findsOneWidget);
+    expect(find.byKey(const ValueKey('vault-empty-tailscale')), findsOneWidget);
     await controller.replace(VaultData.fromJson({
       ...vault.toJson(),
       'hosts': [
@@ -82,17 +103,6 @@ void main() {
         },
       ],
     }));
-    // 带密码框的页面默认防截屏，adb screencap 得到 0 字节。只开在这个用完就清数据的测试 App 上。
-    await container
-        .read(settingsControllerProvider.notifier)
-        .updateAllowSensitiveScreenshots(true);
-    await tester.pumpWidget(UncontrolledProviderScope(
-      container: container,
-      child: const ShunApp(),
-    ));
-    for (var i = 0; i < 600 && find.byType(HomeShell).evaluate().isEmpty; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
     await settle(tester);
 
     await openFromNew(tester);
@@ -175,6 +185,40 @@ void main() {
     await shot(tester, '08-reopened');
     expect(find.text('端口 2222 · 代理 · 跳板机 · 分组'), findsOneWidget);
     await tapKey(tester, 'ts-settings-cancel');
+
+    // R76：设备不提导入，能隐藏、能找回。设备是塞进缓存的，没连真 Tailscale。
+    final repo = container.read(catalogCacheRepositoryProvider);
+    final cached = (await repo.load('ts-r75'))!;
+    await repo.save(cached.merge(
+      TailscaleDeviceSnapshot.parse(jsonEncode({
+        'devices': [
+          for (final (id, name) in [('1', 'nas'), ('2', 'laptop')])
+            {
+              'id': id,
+              'hostname': name,
+              'name': '$name.tail1234.ts.net',
+              'addresses': ['100.64.0.$id'],
+              'os': 'linux',
+            },
+        ],
+      })),
+      DateTime.now(),
+    ));
+    await container.read(catalogOverviewProvider.notifier).reload();
+    await settle(tester);
+    await shot(tester, '09-devices');
+    expect(find.textContaining('导入'), findsNothing);
+    await tapKey(tester, 'vault-catalog-device-menu-ts-r75-2');
+    await tapKey(tester, 'vault-catalog-device-hide-ts-r75-2');
+    await binding.delayed(const Duration(milliseconds: 500));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('vault-catalog-device-ts-r75-2')),
+        findsNothing);
+    await shot(tester, '10-device-hidden');
+    await tapKey(tester, 'vault-show-hidden');
+    expect(find.byKey(const ValueKey('vault-catalog-device-ts-r75-2')),
+        findsOneWidget);
+    await shot(tester, '11-device-shown');
 
     await tester.pumpWidget(const SizedBox());
   });
