@@ -79,19 +79,59 @@ class _SessionOverviewState extends ConsumerState<SessionOverview> {
   }
 
   Future<void> _closeWindow(_Window window) async {
+    final confirmed = switch (window) {
+      _Window(:final session?) => confirmCloseSession(context, session),
+      _Window(:final pending?) => confirmClosePending(context, pending),
+      _ => Future.value(false),
+    };
+    if (!await confirmed || !mounted) return;
+    _stayOn(sourceHostIdOf(window.host));
+    await _closeTabs([window]);
+  }
+
+  /// 机器 tab 上的 ×。只有一个标签就和卡片上的 × 问一样的话：那句写得最准。
+  Future<void> _closeMachine(_Machine machine) async {
+    final windows = [...machine.windows];
+    if (windows.length == 1) return _closeWindow(windows.single);
+    final confirmed = await confirmCloseMachine(
+      context,
+      name: machine.name,
+      sessions: [
+        for (final window in windows)
+          if (window.session case final session?) session,
+      ],
+      pending: [
+        for (final window in windows)
+          if (window.pending case final pending?) pending,
+      ],
+    );
+    if (!confirmed || !mounted) return;
+    await _closeTabs(windows);
+  }
+
+  /// 关掉正在看的那个标签，当前会话会换到别的机器：没选过 tab 的话总览跟着跳走，这台剩下的卡片就看不见了。
+  void _stayOn(String machineId) => setState(() => _machineId = machineId);
+
+  /// 对话框开着的时候别的标签可能关了，下标按 ID 重新找。[SessionController.close] 先改界面再慢慢关连接，
+  /// 所以一次全改完再等：等着上一个关完再关下一个的话，总览这时被收起来，剩下的就没人关了。
+  Future<void> _closeTabs(List<_Window> windows) async {
     final controller = ref.read(sessionControllerProvider.notifier);
-    final session = window.session;
-    if (session == null) {
-      controller.dismissPending(window.id);
-      return;
+    final closing = <Future<void>>[];
+    for (final window in windows) {
+      final index = ref
+          .read(sessionControllerProvider)
+          .sessions
+          .indexWhere((value) => value.id == window.id);
+      if (index >= 0) {
+        closing.add(controller.close(index));
+      } else {
+        // 各自只认自己那种状态：对话框开着时连接可能刚失败。
+        controller
+          ..dismissPending(window.id)
+          ..cancelPendingConnection(window.id);
+      }
     }
-    if (!await confirmCloseSession(context, session) || !mounted) return;
-    // 对话框开着的时候别的标签可能关了，下标要重新找。
-    final index = ref
-        .read(sessionControllerProvider)
-        .sessions
-        .indexWhere((value) => value.id == session.id);
-    if (index >= 0) await controller.close(index);
+    await Future.wait(closing);
   }
 
   /// 一个接一个连：同时连的话，指纹、密码框会叠在一起，分不清是哪台在问。
@@ -179,15 +219,34 @@ class _SessionOverviewState extends ConsumerState<SessionOverview> {
                   key: const ValueKey('overview-machines'),
                   isScrollable: true,
                   tabAlignment: TabAlignment.start,
+                  // 右边不留：× 自己带 48dp 的点按区，够它和下一个机器名隔开。
+                  labelPadding: const EdgeInsets.only(left: 16),
                   onTap: (index) =>
                       setState(() => _machineId = machines[index].id),
                   tabs: [
                     for (final machine in machines)
                       Tab(
                         key: ValueKey('overview-machine-${machine.id}'),
-                        text: machine.windows.length > 1
-                            ? '${machine.name} · ${machine.windows.length}'
-                            : machine.name,
+                        height: 48,
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              machine.windows.length > 1
+                                  ? '${machine.name} · ${machine.windows.length}'
+                                  : machine.name,
+                            ),
+                            IconButton(
+                              key: ValueKey(
+                                'overview-close-machine-${machine.id}',
+                              ),
+                              tooltip: localized('关闭“${machine.name}”的全部会话'),
+                              iconSize: 18,
+                              onPressed: () => _closeMachine(machine),
+                              icon: const Icon(Icons.close),
+                            ),
+                          ],
+                        ),
                       ),
                   ],
                 ),
@@ -360,16 +419,13 @@ class _WindowCard extends StatelessWidget {
                     style: Theme.of(context).textTheme.labelMedium,
                   ),
                 ),
-                // 还在连的不给关：和标签条一样，要停到等待页点「终止连接」。
-                if (session != null || failed)
-                  IconButton(
-                    key: ValueKey('overview-close-${window.id}'),
-                    tooltip: localized('关闭标签“${window.host.label}”'),
-                    onPressed: onClose,
-                    icon: const Icon(Icons.close),
-                  )
-                else
-                  const SizedBox(height: 48),
+                // 还在连的也给关（所有者 11-01）：点了先问，确认才终止，不会误触。
+                IconButton(
+                  key: ValueKey('overview-close-${window.id}'),
+                  tooltip: localized('关闭标签“${window.host.label}”'),
+                  onPressed: onClose,
+                  icon: const Icon(Icons.close),
+                ),
               ],
             ),
             Expanded(

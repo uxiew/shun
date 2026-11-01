@@ -912,6 +912,21 @@ const englishTranslations = <String, String>{
   '未找到受支持的服务管理器，需要 systemd 或 OpenRC。':
       'No supported service manager was found. systemd or OpenRC is required.',
   '断开并关闭': 'Disconnect & close',
+  r'关闭“$name”的全部会话？': r'Close all sessions on “$name”?',
+  r'关闭“${machine.name}”的全部会话': r'Close all sessions on “${machine.name}”',
+  r'将关闭这台机器的 $total 个标签。': r'This closes all $total tabs on this machine. ',
+  '没在 tmux 之类工具里运行的程序，通常会随连接一起结束。':
+      'Programs not running in something like tmux usually end with the connection. ',
+  'tmux 标签只分离客户端，会话和里面的程序留在远端。':
+      'tmux tabs only detach the client; the session and its programs stay on the remote. ',
+  '插件那边连着的东西怎么收尾由插件决定。':
+      'What the plugin has connected is up to the plugin to wind down. ',
+  '还在连的会终止。': 'Connections still in progress are cancelled.',
+  '终止连接？': 'Cancel connection?',
+  r'还在连 ${pending.host.label}，终止后这次连接作废。':
+      r'Still connecting to ${pending.host.label}. Cancelling drops this attempt.',
+  '关闭这个标签？': 'Close this tab?',
+  '这次连接失败了，关掉只是把它移走。': 'This connection failed; closing only removes it.',
   '关闭 SSH 标签页？': 'Close SSH tab?',
   '关闭标签页': 'Close tab',
   '返回当前终端': 'Return to current terminal',

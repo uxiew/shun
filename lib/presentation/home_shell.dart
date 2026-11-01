@@ -88,6 +88,10 @@ class _HomeShellState extends ConsumerState<HomeShell>
       sessionOverviewRequestProvider,
       (_, __) => unawaited(_overview.forward()),
     );
+    // 总览只属于终端页：关掉最后一个标签会被带回连接页，不收的话一层空总览盖在连接页上。
+    ref.listen(homeTabProvider, (_, tab) {
+      if (tab != 1) _closeOverview();
+    });
     // UU 远程的回调从 App 一启动就要接（冷启动带进来的也算），绑定回来要在任何页面都能弹确认框。
     return UuRemoteListener(
       child: PopScope(

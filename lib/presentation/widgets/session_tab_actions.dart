@@ -79,6 +79,79 @@ Future<bool> confirmCloseSession(
       false;
 }
 
+/// 关一个还没连上的标签前问一句：还在连的会被终止，失败的只是移走。
+Future<bool> confirmClosePending(
+  BuildContext context,
+  PendingTerminalConnection pending,
+) {
+  final connecting = pending.phase == PendingConnectionPhase.connecting;
+  return _confirmClose(
+    context,
+    title: connecting ? '终止连接？' : '关闭这个标签？',
+    content: localized(
+      connecting ? '还在连 ${pending.host.label}，终止后这次连接作废。' : '这次连接失败了，关掉只是把它移走。',
+    ),
+    action: connecting ? '终止连接' : '关闭',
+  );
+}
+
+/// 关一台机器的全部标签前问一句（会话总览的机器 tab）。后果按这几个标签实际的样子写，没有的不提，
+/// 同 [confirmCloseSession]：不承诺普通 shell 里的程序还活着。
+Future<bool> confirmCloseMachine(
+  BuildContext context, {
+  required String name,
+  required List<ActiveTerminalSession> sessions,
+  required List<PendingTerminalConnection> pending,
+}) {
+  final total = sessions.length + pending.length;
+  final live = sessions.where((session) => session.connected);
+  return _confirmClose(
+    context,
+    title: '关闭“$name”的全部会话？',
+    content: [
+      localized('将关闭这台机器的 $total 个标签。'),
+      if (live.any((session) => session.tmux == null))
+        localized('没在 tmux 之类工具里运行的程序，通常会随连接一起结束。'),
+      if (live.any((session) => session.tmux != null))
+        localized('tmux 标签只分离客户端，会话和里面的程序留在远端。'),
+      if (live.any((session) => session.host.protocol == HostProtocol.plugin))
+        localized('插件那边连着的东西怎么收尾由插件决定。'),
+      if (pending.any(
+        (value) => value.phase == PendingConnectionPhase.connecting,
+      ))
+        localized('还在连的会终止。'),
+    ].join(),
+    action: '断开并关闭',
+  );
+}
+
+Future<bool> _confirmClose(
+  BuildContext context, {
+  required String title,
+  required String content,
+  required String action,
+}) async =>
+    await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        icon: const Icon(Icons.warning_amber_outlined),
+        title: LText(title),
+        content: Text(content),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const LText('取消'),
+          ),
+          FilledButton(
+            key: const ValueKey('overview-close-confirm'),
+            onPressed: () => Navigator.pop(context, true),
+            child: LText(action),
+          ),
+        ],
+      ),
+    ) ??
+    false;
+
 /// 断开的标签重新连接。终端页的断线卡片和会话总览共用。
 ///
 /// [context] 要活得比这次连接久：它没了，连接途中问指纹、问密码都按拒绝处理（见 connection_prompts.dart）。

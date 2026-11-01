@@ -949,19 +949,24 @@ void main() {
     await finish(tester);
   });
 
-  testWidgets('连接中和失败的也在分组里：连接中不能关，失败的能关', (tester) async {
+  testWidgets('连接中和失败的也在分组里：× 都能关，都先问一句', (tester) async {
     final alpha = host('a', 'alpha');
+    final beta = host('b', 'beta');
     await open(
       tester,
-      SessionState(pendingConnections: [
-        PendingTerminalConnection(id: 'p1', host: alpha),
-        PendingTerminalConnection(
-          id: 'p2',
-          host: alpha,
-          phase: PendingConnectionPhase.failed,
-          error: 'boom',
-        ),
-      ], activePendingId: 'p2'),
+      SessionState(
+        sessions: [tab('s1', beta)],
+        pendingConnections: [
+          PendingTerminalConnection(id: 'p1', host: alpha),
+          PendingTerminalConnection(
+            id: 'p2',
+            host: alpha,
+            phase: PendingConnectionPhase.failed,
+            error: 'boom',
+          ),
+        ],
+        activePendingId: 'p2',
+      ),
     );
     await swipeUp(tester);
     expect(
@@ -971,17 +976,113 @@ void main() {
       ),
       findsOneWidget,
     );
+    List<String> pending() => container
+        .read(sessionControllerProvider)
+        .pendingConnections
+        .map((value) => value.id)
+        .toList();
+
     await tester.tap(find.byKey(const ValueKey('overview-close-p2')));
     await settle(tester);
-    expect(
-      container
-          .read(sessionControllerProvider)
-          .pendingConnections
-          .map((value) => value.id),
-      ['p1'],
-    );
+    await tester.tap(find.text('取消'));
+    await settle(tester);
+    expect(pending(), ['p1', 'p2'], reason: '取消就留着');
+
+    await tester.tap(find.byKey(const ValueKey('overview-close-p2')));
+    await settle(tester);
+    expect(find.text('这次连接失败了，关掉只是把它移走。'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('overview-close-confirm')));
+    await settle(tester);
+    expect(pending(), ['p1']);
+
     expect(find.text('正在连接…'), findsWidgets);
-    expect(find.byKey(const ValueKey('overview-close-p1')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('overview-close-p1')));
+    await settle(tester);
+    expect(find.text('终止连接？'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('overview-close-confirm')));
+    await settle(tester);
+    expect(pending(), isEmpty);
+    await finish(tester);
+  });
+
+  testWidgets('机器 tab 上的 ×：先问，只关这台的全部标签，别的机器和总览都还在', (tester) async {
+    final alpha = host('a', 'alpha');
+    final beta = host('b', 'beta');
+    await open(
+      tester,
+      SessionState(
+        sessions: [
+          tab('s1', alpha),
+          tab('s2', alpha, connected: false),
+          tab('s3', beta),
+        ],
+        pendingConnections: [
+          PendingTerminalConnection(id: 'p1', host: alpha),
+        ],
+      ),
+      hosts: [alpha, beta],
+    );
+    await swipeUp(tester);
+    final close = find.byKey(const ValueKey('overview-close-machine-a'));
+    await tester.tap(close);
+    await settle(tester);
+    expect(find.text('关闭“alpha”的全部会话？'), findsOneWidget);
+    expect(find.textContaining('这台机器的 3 个标签'), findsOneWidget);
+    expect(find.textContaining('还在连的会终止'), findsOneWidget);
+    await tester.tap(find.text('取消'));
+    await settle(tester);
+    expect(container.read(sessionControllerProvider).tabCount, 4);
+
+    await tester.tap(close);
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('overview-close-confirm')));
+    await settle(tester);
+    final left = container.read(sessionControllerProvider);
+    expect(left.sessions.map((value) => value.id), ['s3']);
+    expect(left.pendingConnections, isEmpty);
+    expect(overview, findsOneWidget, reason: '还有别的机器，总览留着');
+    expect(container.read(homeTabProvider), 1);
+    expect(find.text('beta'), findsWidgets);
+    await finish(tester);
+  });
+
+  testWidgets('只有一个标签的机器：tab 上的 × 问的和卡片上的一样；关完最后一个回「连接」页，总览收起', (tester) async {
+    final alpha = host('a', 'alpha');
+    await open(tester, SessionState(sessions: [tab('s1', alpha)]));
+    await swipeUp(tester);
+    await tester.tap(find.byKey(const ValueKey('overview-close-machine-a')));
+    await settle(tester);
+    expect(find.text('关闭 SSH 标签页？'), findsOneWidget);
+    await tester.tap(find.text('断开并关闭'));
+    await settle(tester);
+    expect(container.read(sessionControllerProvider).sessions, isEmpty);
+    expect(container.read(homeTabProvider), 0);
+    expect(overview, findsNothing);
+    await finish(tester);
+  });
+
+  testWidgets('最后一个是失败的卡片：关掉也回「连接」页', (tester) async {
+    await open(
+      tester,
+      SessionState(
+        pendingConnections: [
+          PendingTerminalConnection(
+            id: 'p1',
+            host: host('a', 'alpha'),
+            phase: PendingConnectionPhase.failed,
+            error: 'boom',
+          ),
+        ],
+        activePendingId: 'p1',
+      ),
+    );
+    await swipeUp(tester);
+    await tester.tap(find.byKey(const ValueKey('overview-close-p1')));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('overview-close-confirm')));
+    await settle(tester);
+    expect(container.read(homeTabProvider), 0);
+    expect(overview, findsNothing);
     await finish(tester);
   });
 }
