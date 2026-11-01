@@ -3538,7 +3538,7 @@
       "id": "R74",
       "phase": "P6",
       "title": "认证区：就地新建凭据，显示被几台使用",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [
         "R73"
       ],
@@ -3559,7 +3559,9 @@
       ],
       "stop_condition": "凭据不进日志、普通导出、备份；F31 的两种方式都保留。",
       "owner_role": "实施代理",
-      "evidence": [],
+      "evidence": [
+        "evidence/R74.md"
+      ],
       "commit": ""
     },
     {
@@ -3596,7 +3598,7 @@
       "id": "R76",
       "phase": "P6",
       "title": "Tailscale 设备并入主机列表，去掉导入",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [
         "R75"
       ],
@@ -3622,14 +3624,16 @@
       ],
       "stop_condition": "不暗建 tmux，不为状态去连设备，不改 R43 的同名不合并。",
       "owner_role": "实施代理",
-      "evidence": [],
+      "evidence": [
+        "evidence/R76.md"
+      ],
       "commit": ""
     },
     {
       "id": "R77",
       "phase": "P6",
       "title": "Tailscale 连不上时直接给修法",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [
         "R75"
       ],
@@ -3651,14 +3655,16 @@
       ],
       "stop_condition": "默认登录不改成免密（F31）。真实 check 没账号写 NOT_RUN。",
       "owner_role": "实施代理",
-      "evidence": [],
+      "evidence": [
+        "evidence/R77.md"
+      ],
       "commit": ""
     },
     {
       "id": "R78",
       "phase": "P6",
       "title": "连接页空状态给两条路",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [
         "R76"
       ],
@@ -3679,7 +3685,9 @@
       ],
       "stop_condition": "页面文字守 ui_rules_test 的上限，不改上限。",
       "owner_role": "实施代理",
-      "evidence": [],
+      "evidence": [
+        "evidence/R78.md"
+      ],
       "commit": ""
     },
     {
