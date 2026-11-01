@@ -12,6 +12,7 @@ import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/host_identity.dart';
 import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/tmux/tmux_target.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/home_shell.dart';
@@ -35,6 +36,7 @@ void main() {
     HostProfile host, {
     bool connected = true,
     String? output,
+    TmuxClientBinding? tmux,
   }) {
     final terminal = newTestTerminal();
     if (output != null) terminal.feed(utf8.encode(output));
@@ -44,6 +46,7 @@ void main() {
       terminal: terminal,
       verifyHostKey: (_, __, ___) async => true,
       keyboardInteractive: null,
+      tmux: tmux,
     )..connected = connected;
   }
 
@@ -204,6 +207,38 @@ void main() {
     await settle(tester);
     expect(find.textContaining('copy screen'), findsOneWidget);
     expect(find.text('alpha #2'), findsOneWidget);
+    await finish(tester);
+  });
+
+  testWidgets('tmux 标签的卡片写 tmux 会话名；同一台只剩一个普通标签时不带序号', (tester) async {
+    final alpha = host('a', 'alpha');
+    const binding = TmuxClientBinding(
+      target: TmuxTarget(
+        hostKey: 'box.example.com:22',
+        unixUser: 'ops',
+        uid: 1000,
+        socket: TmuxSocketSpec.standard(),
+        server: TmuxServerIdentity(
+          socketPath: '/tmp/tmux-1000/default',
+          pid: 70,
+          startTime: 1700000000,
+        ),
+        sessionId: r'$3',
+        sessionCreated: 1700000100,
+        displayName: 'work',
+      ),
+      clientTty: '/dev/pts/3',
+      clientPid: 71,
+    );
+    await open(
+      tester,
+      SessionState(
+          sessions: [tab('s1', alpha), tab('s2', alpha, tmux: binding)]),
+    );
+    await swipeUp(tester);
+    expect(find.text('alpha · 2'), findsOneWidget, reason: 'tmux 标签和普通标签是同一台');
+    expect(find.text('alpha'), findsOneWidget);
+    expect(find.text('tmux work'), findsOneWidget);
     await finish(tester);
   });
 
