@@ -3566,7 +3566,7 @@
       "id": "R75",
       "phase": "P6",
       "title": "Tailscale 设置减项：常用两项，其余折叠",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [],
       "scope": "F39。设置改成主机列表上的底部面板，常用 API key、默认登录；端口、地址种类、连接路径、分组、tailnet 折叠；只有一个 tailnet 时不出现来源、名称。",
       "code_targets": [
@@ -3587,7 +3587,9 @@
       ],
       "stop_condition": "连接路径不能删（R06、R07）。key 的存储和防截屏不变。",
       "owner_role": "实施代理",
-      "evidence": [],
+      "evidence": [
+        "evidence/R75.md"
+      ],
       "commit": ""
     },
     {
