@@ -80,7 +80,16 @@ Future<void> main(List<String> args) async {
         RegExp(r'^/api/v2/tailnet/[^/]+/devices$').hasMatch(path)) {
       response.headers.contentType = ContentType.json;
       if (devicesFile != null) {
-        response.write(await devicesFile.readAsString());
+        final served = await devicesFile.readAsString();
+        // 文件里写了 __status 就回这个状态码（R67 用它模拟 429、401），__retryAfter 放进响应头。
+        final fake = jsonDecode(served) as Map<String, dynamic>;
+        if (fake['__status'] case final int status) {
+          response.statusCode = status;
+          if (fake['__retryAfter'] case final String seconds) {
+            response.headers.set('retry-after', seconds);
+          }
+        }
+        response.write(served);
       } else {
         response.write(jsonEncode({
           'devices': [
