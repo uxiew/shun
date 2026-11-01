@@ -11,6 +11,7 @@ import '../../infrastructure/tailscale/catalog_cache_repository.dart';
 import '../localization/localized_widgets.dart';
 import 'connection_prompts.dart';
 import 'first_login_dialog.dart';
+import 'host_editor.dart';
 import '../../domain/vault_secrets.dart';
 
 /// 从列表里点一台主机去连：保险库页和 Tailscale 目录页共用（R26），两边表现一样。
@@ -113,4 +114,26 @@ Future<void> importAndConnect(
           '${localized('Tailscale 设置里的导入设置不成立：')}${localized(error.message)}'),
     ));
   }
+}
+
+/// 不在连接页时改一台已保存的主机：失败页、管理页。保存了只写回，不替用户连。
+Future<void> editSavedHost(
+  BuildContext context,
+  WidgetRef ref,
+  HostProfile host,
+) async {
+  final result = await showModalBottomSheet<HostProfile>(
+    context: context,
+    isScrollControlled: true,
+    useSafeArea: true,
+    // 下滑关闭会绕过编辑器「有没保存的改动」的确认（R41）。
+    enableDrag: false,
+    builder: (_) => HostEditor(
+      host: host,
+      verifyHostKey: hostKeyVerifier(context),
+      keyboardInteractive: keyboardInteractivePrompt(context),
+    ),
+  );
+  if (result == null) return;
+  await ref.read(vaultControllerProvider.notifier).upsertHost(result);
 }
