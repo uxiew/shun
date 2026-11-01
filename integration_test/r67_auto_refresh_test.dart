@@ -126,6 +126,8 @@ void main() {
         final elapsed = await waitFor(
           () => attempt()!.at != before && !attempt()!.ok,
           '自动读撞上 $name',
+          // 手动刷新之后第一次到点时还不满 60 秒，这一轮跳过，最晚两个间隔才读。
+          timeout: const Duration(seconds: 130),
         );
         final hit = attempt()!.at;
         mark('report $name.hitAfter=${elapsed.inSeconds}s');
