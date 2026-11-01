@@ -70,7 +70,8 @@ Map<String, Object?> device(String id, String hostname, String ip,
       if (connected != null) 'connectedToControl': connected,
     };
 
-final at = DateTime.utc(2026, 9, 30, 8, 5);
+// 状态过了 10 分钟就不再当真（R67），这里要的是刚读到的。
+final at = DateTime.now().toUtc().subtract(const Duration(minutes: 1));
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -267,7 +268,7 @@ void main() {
     for (final word in ['可连接', 'SSH 可用', '控制面']) {
       expect(text, isNot(contains(word)));
     }
-    expect(requests, isEmpty); // 打开页面不发请求：只在用户操作时读
+    expect(requests, isEmpty); // 没存 key：打开页面不发请求
   });
 
   /// 从一个按钮打开 Tailscale 设置页，记下它返回的结果（设置页保存后会自己关掉）。

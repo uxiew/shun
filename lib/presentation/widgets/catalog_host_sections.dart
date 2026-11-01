@@ -231,6 +231,7 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
 
   Widget _hostRow(HostProfile host, CatalogCache cache, TextStyle? small) {
     final record = cache.devices[CatalogBinding.of(host)!.deviceId];
+    final now = widget.now();
     return dimIfHidden(
       host,
       ListTile(
@@ -244,14 +245,17 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             PresenceLine(
-              presence: deviceOnline(record),
+              presence:
+                  deviceOnline(record, stale: catalogStatusStale(cache, now)),
               child: HostAddressLine(host),
             ),
             Wrap(
               spacing: 8,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                Text(deviceOnlineText(record, widget.now()),
+                Text(
+                    deviceOnlineText(record, now,
+                        statusAt: cache.lastSuccess?.at),
                     key: ValueKey('vault-catalog-status-${host.id}'),
                     style: small),
                 if (host.lastConnectedAt > 0) LoggedInMark(style: small),
@@ -269,6 +273,7 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
       CatalogCache cache, CatalogDeviceRecord record, TextStyle? small) {
     final device = record.device;
     final key = '${cache.catalogId}-${record.id}';
+    final now = widget.now();
     return ListTile(
       key: ValueKey('vault-catalog-device-$key'),
       onTap: () => widget.onImport(cache, record.id),
@@ -282,11 +287,12 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PresenceLine(
-            presence: deviceOnline(record),
+            presence:
+                deviceOnline(record, stale: catalogStatusStale(cache, now)),
             child:
                 Text(device.addresses.isEmpty ? '—' : device.addresses.first),
           ),
-          Text(deviceOnlineText(record, widget.now()),
+          Text(deviceOnlineText(record, now, statusAt: cache.lastSuccess?.at),
               key: ValueKey('vault-catalog-device-status-$key'), style: small),
           LText('还没导入：点一下导入并连接', style: small),
         ],

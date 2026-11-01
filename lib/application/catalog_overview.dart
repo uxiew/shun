@@ -4,8 +4,16 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../infrastructure/tailscale/catalog_cache.dart';
 import '../infrastructure/tailscale/catalog_cache_repository.dart';
+import '../infrastructure/tailscale/tailscale_api.dart';
+import 'home_navigation.dart';
 import 'tailscale_catalog_provider.dart';
 import 'tailscale_catalog_refresh.dart';
+
+/// App 在前台、停在「连接」页时，多久向 Tailscale 读一次设备列表（R67）。
+const catalogAutoRefreshInterval = Duration(seconds: 60);
+
+/// 上次读失败后，多久才自动再试。key 失效或没网时每分钟撞一次没有意义；用户点刷新不受这个限制。
+const catalogAutoRefreshBackoff = Duration(minutes: 10);
 
 /// 主机列表里一个目录来源那一组要的东西（R43）。
 class CatalogSourceView {
@@ -34,20 +42,115 @@ class CatalogSourceView {
 
 /// 主机列表的 Tailscale 分节用的数据（R43）：本机每个目录来源的缓存，按名字排。
 ///
-/// 只有用户点「刷新」才向 Tailscale 发请求：打开列表、切回首页、下拉都只重读本机缓存文件。
-/// 一次一个来源，正在刷的再点不会再发。这是 R11、R12 的规矩：没有后台轮询、不自动重试，
-/// 不为了显示控制面状态去频繁要列表（Tailscale 会回 429）。
+/// 在线状态要新（R67，所有者 11-01：以前只有点「刷新」才读，绿点可能是几天前的）：
+/// App 在前台、停在「连接」页时，存了 key 的来源隔 [catalogAutoRefreshInterval] 读一次。
+/// 后台不发请求；没存 key 的不发；读失败不弹框，隔 [catalogAutoRefreshBackoff] 再试，
+/// 429 按 Retry-After（Tailscale 自己说多久就等多久）。一次一个来源，正在刷的不会再发。
 class CatalogOverviewController extends StateNotifier<List<CatalogSourceView>> {
   CatalogOverviewController({
     required CatalogCacheRepository repository,
     required TailscaleCatalogProvider catalog,
+    DateTime Function()? now,
   })  : _repository = repository,
         _catalog = catalog,
+        _now = now ?? DateTime.now,
         super(const []);
 
   final CatalogCacheRepository _repository;
   final TailscaleCatalogProvider _catalog;
+  final DateTime Function() _now;
   var _generation = 0;
+
+  var _foreground = true;
+  var _visible = false;
+  Timer? _timer;
+
+  /// 每进入一次「该自动读」的状态加一：离开再回来时，上一轮等着的那些步骤看到号变了就不再往下走。
+  var _autoRound = 0;
+
+  /// 429 带 Retry-After 时，这个时间之前不自动读。放内存：重启后最多多撞一次。
+  final _notBefore = <String, DateTime>{};
+
+  bool get _autoActive => _foreground && _visible;
+
+  /// App 切到前台、后台（只认 resumed 和进后台，通知栏下拉这种一闪而过的 inactive 不算）。
+  void setForeground(bool foreground) {
+    if (_foreground == foreground) return;
+    _foreground = foreground;
+    _autoActiveChanged();
+  }
+
+  /// 底栏是不是停在「连接」页。别的页看不到状态，不为它们发请求。
+  void setVisible(bool visible) {
+    if (_visible == visible) return;
+    _visible = visible;
+    _autoActiveChanged();
+  }
+
+  void _autoActiveChanged() {
+    _timer?.cancel();
+    _timer = null;
+    final round = ++_autoRound;
+    if (_autoActive) unawaited(_autoRefresh(round));
+  }
+
+  Future<void> _autoRefresh(int round) async {
+    await reload();
+    for (final view in state) {
+      if (!mounted || round != _autoRound) return;
+      if (_due(view)) await _refreshQuietly(view.catalogId);
+    }
+    if (!mounted || round != _autoRound) return;
+    // 一个存了 key 的来源都没有就不留定时器：加来源、存 key 之后回到这页会 [reload]，那时再排。
+    if (state.any((view) => view.hasSavedCredentials)) _schedule(round);
+  }
+
+  void _schedule(int round) {
+    _timer?.cancel();
+    // 这一轮读完才排下一轮：按「读完的时间」算间隔，下一轮到点时一定已经满 60 秒，不会被 [_due] 跳过。
+    _timer = Timer(catalogAutoRefreshInterval, () => _autoRefresh(round));
+  }
+
+  bool _due(CatalogSourceView view) {
+    if (!view.hasSavedCredentials || view.refreshing) return false;
+    final now = _now();
+    final notBefore = _notBefore[view.catalogId];
+    if (notBefore != null && now.isBefore(notBefore)) return false;
+    final attempt = view.cache.lastAttempt;
+    if (attempt == null) return true;
+    final age = now.difference(attempt.at);
+    // 手机时钟被往回调过：负数当作该读了，不然要等时钟追上来才会再读。
+    return age.isNegative ||
+        age >=
+            (attempt.ok
+                ? catalogAutoRefreshInterval
+                : catalogAutoRefreshBackoff);
+  }
+
+  /// 打开单个来源的设备页时用：离上次读够久了就读一次，否则什么都不做。
+  /// 读了返回结果；不用读或读不了返回 null，不弹任何提示。
+  Future<CatalogRefreshOutcome?> refreshIfDue(String catalogId) async {
+    await reload();
+    final view = state.where((v) => v.catalogId == catalogId).firstOrNull;
+    if (view == null || !_due(view)) return null;
+    return _refreshQuietly(catalogId);
+  }
+
+  Future<CatalogRefreshOutcome?> _refreshQuietly(String catalogId) async {
+    try {
+      return await refresh(catalogId);
+    } on Object {
+      // 走不到 Tailscale 那一步（内置目录被停用之类）：同样隔一阵再试，别每分钟重来。
+      _notBefore[catalogId] = _now().add(catalogAutoRefreshBackoff);
+      return null;
+    }
+  }
+
+  @override
+  void dispose() {
+    _timer?.cancel();
+    super.dispose();
+  }
 
   /// 重读本机缓存。读不了（没有目录、文件坏了、测试环境没有文件系统）就当没有来源：
   /// 只影响这一节显示，主机照常在普通列表里。
@@ -95,7 +198,16 @@ class CatalogOverviewController extends StateNotifier<List<CatalogSourceView>> {
     if (view == null || view.refreshing) return null;
     _mark(catalogId, true);
     try {
-      return await _catalog.refreshSaved(catalogId);
+      final outcome = await _catalog.refreshSaved(catalogId);
+      final error = outcome.error;
+      final retryAfter =
+          error is TailscaleRateLimited ? error.retryAfter : null;
+      if (retryAfter == null) {
+        _notBefore.remove(catalogId);
+      } else {
+        _notBefore[catalogId] = _now().add(retryAfter);
+      }
+      return outcome;
     } finally {
       _mark(catalogId, false);
       await reload();
@@ -121,5 +233,10 @@ final catalogOverviewProvider =
     catalog: ref.watch(tailscaleCatalogProvider),
   );
   unawaited(controller.reload());
+  ref.listen(
+    homeTabProvider,
+    (_, tab) => controller.setVisible(tab == 0),
+    fireImmediately: true,
+  );
   return controller;
 });

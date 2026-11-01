@@ -62,11 +62,22 @@ Widget catalogLine(String label, String value, {TextStyle? style, Key? key}) =>
 /// 设备在 Tailscale 里在不在线（R26：所有者要像 Tailscale App 那样看在线状态）。
 ///
 /// 和 Tailscale App、后台显示的是同一回事：设备连没连着 Tailscale 的协调服务器。它不说明手机连得到、
-/// SSH 开着——那要真连一次才知道。状态截至缓存时间，组头写着。
+/// SSH 开着——那要真连一次才知道。官方的说法是「最近」连着，所以设备刚掉线时可能还显示在线一小会儿。
+/// 状态截至缓存时间，组头写着。
 enum DeviceOnline { online, offline, unknown, gone }
 
-DeviceOnline deviceOnline(CatalogDeviceRecord? record) {
+/// 读到的状态过了这么久就不再当真（R67）：自动刷新每分钟一次，10 分钟都没读到新的，
+/// 多半是没网、key 失效或没存 key。这时绿点会误导人，不画点，文字写明是多久前的。
+const catalogStatusFreshFor = Duration(minutes: 10);
+
+bool catalogStatusStale(CatalogCache cache, DateTime now) {
+  final at = cache.lastSuccess?.at;
+  return at != null && now.difference(at) >= catalogStatusFreshFor;
+}
+
+DeviceOnline deviceOnline(CatalogDeviceRecord? record, {bool stale = false}) {
   if (record == null || record.missing) return DeviceOnline.gone;
+  if (stale) return DeviceOnline.unknown;
   return switch (record.device.connectedToControl) {
     true => DeviceOnline.online,
     false => DeviceOnline.offline,
@@ -74,10 +85,23 @@ DeviceOnline deviceOnline(CatalogDeviceRecord? record) {
   };
 }
 
-/// 「在线」「离线 · 3 小时前在线」「列表里没有它了」。
-String deviceOnlineText(CatalogDeviceRecord? record, DateTime now) {
+/// 「在线」「离线 · 3 小时前在线」「列表里没有它了」。[statusAt] 是读到这份状态的时间，
+/// 过期了（[catalogStatusFreshFor]）前面写上多久前：「3 小时前：在线」。
+String deviceOnlineText(
+  CatalogDeviceRecord? record,
+  DateTime now, {
+  DateTime? statusAt,
+}) {
   if (record == null) return localized('缓存里没有这台设备');
   if (record.missing) return localized('最近的设备列表里没有它了');
+  final text = _deviceOnlineNow(record, now);
+  if (statusAt == null || now.difference(statusAt) < catalogStatusFreshFor) {
+    return text;
+  }
+  return '${catalogAge(statusAt, now) ?? catalogTime(statusAt)}${localized('：')}$text';
+}
+
+String _deviceOnlineNow(CatalogDeviceRecord record, DateTime now) {
   final lastSeen = record.device.lastSeen;
   return switch (record.device.connectedToControl) {
     true => localized('在线'),

@@ -156,7 +156,7 @@ class TailscaleDeviceListing {
 /// 一个目录来源的读取会话：持有凭据（内存）和当前 access token（内存）。
 ///
 /// - 401：OAuth 模式下作废 token、重新换一次、重试一次；仍 401 或粘贴 token 的 401 → 要求重新授权。
-/// - 403 / 404 / 429 / 5xx：不重试，原样报给用户。没有后台轮询、没有保活定时器。
+/// - 403 / 404 / 429 / 5xx：这里不重试，原样报给调用方。这个类没有定时器；前台自动刷新的节奏归 [CatalogOverviewController]。
 /// - 不跟随任何重定向；只访问 token 端点和列设备端点。
 class TailscaleCatalogClient {
   TailscaleCatalogClient._(

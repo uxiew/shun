@@ -121,7 +121,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       if (tab == 0) {
         final hosts = ref.read(vaultControllerProvider).data?.hosts;
         if (hosts != null) unawaited(_loadRecentAi(hosts, force: true));
-        // 在设置里的目录页增删过来源、读过列表：回到首页重读本机缓存（不发请求）。
+        // 在设置里的目录页增删过来源、读过列表：回到首页重读本机缓存。向 Tailscale 读新列表的节奏归 catalogOverviewProvider。
         unawaited(ref.read(catalogOverviewProvider.notifier).reload());
       }
     });
@@ -309,7 +309,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
             child: RefreshIndicator(
               onRefresh: () async {
                 await ref.read(vaultControllerProvider.notifier).load();
-                // 只重读目录的本机缓存；向 Tailscale 要新列表要点那一组的刷新。
+                // 只重读目录的本机缓存；向 Tailscale 读新列表是前台自动的，也可以点那一组的刷新。
                 await ref.read(catalogOverviewProvider.notifier).reload();
                 await ref.read(rustDeskProvider.notifier).retryLoad();
                 await ref.read(uuRemoteProvider.notifier).retryLoad();

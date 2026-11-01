@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../application/catalog_overview.dart';
 import '../../application/tailscale_catalog_import.dart';
 import '../../application/tailscale_catalog_provider.dart';
 import '../../application/tailscale_catalog_refresh.dart';
@@ -273,7 +274,15 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
   @override
   void initState() {
     super.initState();
-    unawaited(_load());
+    unawaited(_load().then((_) => _refreshIfDue()));
+  }
+
+  /// 打开这页时状态要新（R67）：够久没读就读一次，不打扰人，读完重画。这里的刷新键不受影响。
+  Future<void> _refreshIfDue() async {
+    final outcome = await ref
+        .read(catalogOverviewProvider.notifier)
+        .refreshIfDue(widget.catalogId);
+    if (outcome != null && mounted) await _load();
   }
 
   Future<void> _load() async {
@@ -592,13 +601,17 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PresenceLine(
-            presence: deviceOnline(record),
+            presence: deviceOnline(
+              record,
+              stale: _cache != null && catalogStatusStale(_cache!, now),
+            ),
             child: Text(
               device.addresses.isEmpty ? '—' : device.addresses.join('  '),
               style: small,
             ),
           ),
-          Text(deviceOnlineText(record, now), style: small),
+          Text(deviceOnlineText(record, now, statusAt: _cache?.lastSuccess?.at),
+              style: small),
           if (record.missingSince != null)
             catalogLine('最近完整列表里没有它，标记于：', catalogTime(record.missingSince!),
                 style: small),

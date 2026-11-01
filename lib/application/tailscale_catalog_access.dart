@@ -18,7 +18,7 @@ class CatalogReadResult {
 /// 4. 用已保存的 key 刷新：OAuth 的 401 时受控刷新一次；还不行就要求重新授权，**不删**已保存的 key、
 ///    也不碰已导入的设备和主机——删不删由用户决定。
 ///
-/// 没有定时刷新、没有后台保活：只在用户操作时发请求。
+/// 这里不排定时器、不做后台保活。前台的自动刷新在 [CatalogOverviewController]（R67）。
 class TailscaleCatalogAccess {
   TailscaleCatalogAccess(this._store, this._clientFor);
 

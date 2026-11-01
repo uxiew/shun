@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shun/application/home_navigation.dart';
 import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/tailscale_catalog_access.dart';
 import 'package:shun/application/tailscale_catalog_refresh.dart';
@@ -26,7 +27,8 @@ import 'package:shun/presentation/widgets/catalog_import_sheet.dart';
 
 // R43 / UX09：主机列表里的 Tailscale 分节。
 // 两个来源里放同名、同 IP、同设备 ID 的设备；控制面已连接 / 未连接 / 不知道 / 列表里不见了；
-// 一个来源缓存 3 小时前、另一个 3 天前且最近一次读取失败。
+// 一个来源 5 分钟前读的、另一个 3 天前读的且最近一次读取失败。
+// 这里底栏不停在「连接」页：前台自动刷新另有 catalog_auto_refresh_test，这份只看手动操作和显示。
 // 服务器是 MockClient（按官方响应形状回），缓存仓库在内存里（widget 测试的假时钟下真实文件读写不会完成）。
 
 class _MemoryRepository extends CatalogCacheRepository {
@@ -176,6 +178,7 @@ void main() {
       return http.Response(jsonEncode({'devices': listed}), 200);
     });
     container = ProviderContainer(overrides: [
+      homeTabProvider.overrideWith((ref) => 4),
       vaultRepositoryProvider.overrideWithValue(vault),
       catalogCacheRepositoryProvider.overrideWithValue(repo),
       tailscaleCatalogAccessProvider.overrideWithValue(TailscaleCatalogAccess(
@@ -222,7 +225,7 @@ void main() {
         device('2', 'laptop', '100.64.0.2', connected: false),
         device('3', 'pc', '100.64.0.3'),
       ],
-      now.subtract(const Duration(hours: 3, minutes: 5)),
+      now.subtract(const Duration(minutes: 5, seconds: 5)),
     );
     repo.caches['ts-work'] = source(
       'ts-work',
@@ -294,8 +297,8 @@ void main() {
             of: key(k), matching: find.byType(Text), matchRoot: true))
         .data!;
     expect(status('vault-catalog-status-a-nas'), '在线');
-    expect(status('vault-catalog-status-b-nas'), '离线',
-        reason: '同一个设备 ID，另一个来源说的是另一回事');
+    expect(status('vault-catalog-status-b-nas'), '3 天前：离线',
+        reason: '同一个设备 ID，另一个来源说的是另一回事；3 天前读的要写明');
     expect(status('vault-catalog-status-a-pc'), '在线状态不明');
     expect(status('vault-catalog-device-status-ts-home-2'), '离线');
     expect(status('vault-catalog-device-status-ts-work-4'), '最近的设备列表里没有它了',
@@ -303,7 +306,9 @@ void main() {
     expect(inGroup('ts-home', key('presence-online')), findsOneWidget);
     expect(inGroup('ts-work', key('presence-online')), findsNothing,
         reason: '不见了的设备不画点');
-    expect(status('vault-catalog-age-ts-home'), endsWith('3 小时前'));
+    expect(inGroup('ts-work', key('presence-offline')), findsNothing,
+        reason: '3 天前的状态不画点，免得被当成现在的');
+    expect(status('vault-catalog-age-ts-home'), endsWith('5 分钟前'));
     expect(status('vault-catalog-age-ts-work'), endsWith('3 天前'));
     expect(
         inGroup('ts-work', find.textContaining('最近一次读取失败：')), findsOneWidget);

@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'application/app_lock.dart';
 import 'application/auto_sync_controller.dart';
+import 'application/catalog_overview.dart';
 import 'application/connection_events.dart';
 import 'application/fork_features.dart';
 import 'application/sensitive_screen.dart';
@@ -88,11 +89,13 @@ class _ShunAppState extends ConsumerState<ShunApp> with WidgetsBindingObserver {
       unawaited(platform.endBackgroundGrace());
       ref.read(sessionControllerProvider.notifier).setBackgrounded(false);
       ref.read(autoSyncControllerProvider.notifier).onAppResumed();
+      ref.read(catalogOverviewProvider.notifier).setForeground(true);
     } else {
       unawaited(platform.beginBackgroundGrace());
       // detached：界面（Activity）走了、引擎还留着（有会话时，R22），会话在后台接着跑。
       if (state != AppLifecycleState.inactive) {
         ref.read(sessionControllerProvider.notifier).setBackgrounded(true);
+        ref.read(catalogOverviewProvider.notifier).setForeground(false);
       }
     }
   }
