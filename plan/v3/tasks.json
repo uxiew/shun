@@ -3694,7 +3694,7 @@
       "id": "R79",
       "phase": "P6",
       "title": "「管理」页和设置分组",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [],
       "scope": "F39。主机、凭据、代理、转发有统一的管理入口和搜索；设置按通用、终端、连接、安全、数据分组。只学分组，不学每项一大段说明。",
       "code_targets": [
@@ -3713,7 +3713,9 @@
       ],
       "stop_condition": "不删功能。守 F30。",
       "owner_role": "实施代理",
-      "evidence": [],
+      "evidence": [
+        "evidence/R79.md"
+      ],
       "commit": ""
     },
     {
