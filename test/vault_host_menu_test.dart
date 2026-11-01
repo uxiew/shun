@@ -193,4 +193,22 @@ void main() {
     expect(find.text('还没有终端连接'), findsNothing);
     expect(find.byKey(const ValueKey('vault-show-hidden')), findsOneWidget);
   });
+
+  testWidgets('UXR07：搜分组也搜得到；搜不到不说「还没有」，也不摆新建按钮', (tester) async {
+    await open(tester, [
+      host('web', 'ssh', {'group': 'prod'}),
+      host('db', 'ssh'),
+    ]);
+    final search = find.byType(TextField).first;
+    await tester.enterText(search, 'PROD');
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('vault-host-menu-web')), findsOneWidget);
+    expect(find.byKey(const ValueKey('vault-host-menu-db')), findsNothing);
+
+    await tester.enterText(search, 'nothing-like-this');
+    await tester.pumpAndSettle();
+    expect(find.text('没有匹配的主机'), findsOneWidget);
+    expect(find.text('还没有终端连接'), findsNothing);
+    expect(find.byKey(const ValueKey('vault-empty-add-host')), findsNothing);
+  });
 }

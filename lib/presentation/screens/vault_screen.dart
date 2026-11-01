@@ -140,6 +140,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       final matchesQuery = query.isEmpty ||
           host.label.toLowerCase().contains(query) ||
           host.hostname.toLowerCase().contains(query) ||
+          (host.group ?? '').toLowerCase().contains(query) ||
           host.tags.any((tag) => tag.toLowerCase().contains(query));
       return matchesQuery &&
           (selectedGroup == null || host.group == selectedGroup);
@@ -260,7 +261,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
               onChanged: (_) => setState(() {}),
               decoration: LInputDecoration(
                 prefixIcon: Icon(Icons.search),
-                hintText: '搜索主机、地址或标签',
+                hintText: '搜索主机、地址、分组或标签',
                 isDense: true,
               ),
             ),
@@ -339,15 +340,37 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                       hiddenCount == 0 &&
                       sectionIds.isEmpty)
                     SliverToBoxAdapter(
-                      child: EmptyState(
-                        icon: Icons.dns_outlined,
-                        title: '还没有终端连接',
-                        action: FilledButton.icon(
-                          onPressed: () => _editHost(),
-                          icon: const Icon(Icons.add),
-                          label: const LText('添加连接'),
-                        ),
-                      ),
+                      // 搜不到不是没有：这时说「还没有」、摆新建按钮，看着像主机全丢了。
+                      child: _search.text.trim().isNotEmpty
+                          ? const EmptyState(
+                              icon: Icons.search_off,
+                              title: '没有匹配的主机',
+                            )
+                          : EmptyState(
+                              icon: Icons.dns_outlined,
+                              title: '还没有终端连接',
+                              // 两条路都摆出来（F39、R78）：用 Tailscale 的人不会想到去「添加连接」里找。
+                              action: Wrap(
+                                spacing: 8,
+                                runSpacing: 8,
+                                alignment: WrapAlignment.center,
+                                children: [
+                                  FilledButton.icon(
+                                    key: const ValueKey('vault-empty-add-host'),
+                                    onPressed: () => _editHost(),
+                                    icon: const Icon(Icons.add),
+                                    label: const LText('添加主机'),
+                                  ),
+                                  OutlinedButton.icon(
+                                    key:
+                                        const ValueKey('vault-empty-tailscale'),
+                                    onPressed: () => _openTailscaleSettings(),
+                                    icon: const Icon(Icons.hub_outlined),
+                                    label: const LText('连接 Tailscale'),
+                                  ),
+                                ],
+                              ),
+                            ),
                     )
                   else if (viewMode == 'grid')
                     SliverPadding(

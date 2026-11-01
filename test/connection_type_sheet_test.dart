@@ -158,6 +158,21 @@ void main() {
     expect(find.byType(TailscaleSettingsScreen), findsOneWidget);
   });
 
+  testWidgets('UXR07：连接页没有主机时给两条路：加主机进表单，连接 Tailscale 进设置', (tester) async {
+    await open(tester, const VaultScreen());
+    expect(find.text('还没有终端连接'), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('vault-empty-add-host')));
+    await tester.pumpAndSettle();
+    expect(find.byType(HostEditor), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.close).first);
+    await tester.pumpAndSettle();
+    expect(find.byType(HostEditor), findsNothing);
+
+    await tester.tap(find.byKey(const ValueKey('vault-empty-tailscale')));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(find.byType(TailscaleSettingsScreen), findsOneWidget);
+  });
+
   testWidgets('换到 RustDesk：关掉表单，问名字后进它自己的页面，不启动客户端', (tester) async {
     await open(tester, const VaultScreen());
     await select(tester, 'RustDesk');
