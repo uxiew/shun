@@ -6,6 +6,7 @@
 //   R70 SWIPE <x0> <y0> <x1> <y1>    设备像素，脚本用 adb input swipe 滑一下
 //   R70 TAP <x> <y>                  设备像素，脚本用 adb input tap 点一下
 //   R70 BACK                         脚本按一下 Android 返回键
+//   R70 FRONT                        脚本把 App 叫回全屏（退出画中画）
 import 'dart:async';
 import 'dart:convert';
 
@@ -24,6 +25,7 @@ import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:shun/presentation/home_shell.dart';
+import 'package:shun/presentation/screens/terminal_screen.dart';
 import 'package:shun/presentation/widgets/first_login_dialog.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shun/presentation/widgets/proxy_profile_editor.dart';
@@ -465,6 +467,32 @@ void main() {
     await shot(tester, '31-first-login-credential');
     navigator.pop();
     await settle(tester);
+
+    // 画中画（evidence/R46.md 留的 18 像素溢出：调试版报过，没抓到是哪一步）。
+    // 溢出在调试版是 FlutterError，这个测试会直接失败；要点的按钮和真人点的是同一个。
+    container.read(homeTabProvider.notifier).state = 1;
+    await settle(tester);
+    await realTap(
+      tester,
+      tester.getCenter(
+        find.byKey(const ValueKey('terminal-action-picture-in-picture')),
+      ),
+    );
+    final deadline = DateTime.now().add(const Duration(seconds: 10));
+    while (!container.read(terminalPictureInPictureProvider) &&
+        DateTime.now().isBefore(deadline)) {
+      await tester.pump(const Duration(milliseconds: 100));
+    }
+    mark(
+        'report pip entered=${container.read(terminalPictureInPictureProvider)} '
+        'size=${tester.view.physicalSize}');
+    await shot(tester, '40-picture-in-picture');
+    mark('FRONT');
+    await binding.delayed(const Duration(milliseconds: 2500));
+    await settle(tester);
+    mark('report pip left=${!container.read(terminalPictureInPictureProvider)} '
+        'size=${tester.view.physicalSize}');
+    await shot(tester, '41-back-from-picture-in-picture');
 
     await tester.pumpWidget(const SizedBox());
     for (final session in sessions) {

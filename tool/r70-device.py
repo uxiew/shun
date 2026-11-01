@@ -11,6 +11,7 @@ integration_test/r70_walkthrough_test.dart and answers its markers:
   R70 SWIPE <x0> <y0> <x1> <y1> -> adb shell input swipe (a real touch event, not a synthetic one)
   R70 TAP <x> <y>            -> adb shell input tap
   R70 BACK                   -> adb shell input keyevent BACK
+  R70 FRONT                  -> am start the app's activity (leaves picture in picture)
 Afterwards it clears the test app's data. Sessions in that test are seeded, so this proves the UI,
 the gesture and the layout with Chinese fonts, not logging in.
 Evidence goes to ../.toolchain/artifacts/r70-device-<time>/ (flutter log, screenshots).
@@ -69,6 +70,8 @@ def main():
                 adb_run('shell', 'input', 'tap', *marker[2:])
             elif marker[1] == 'BACK':
                 adb_run('shell', 'input', 'keyevent', 'BACK')
+            elif marker[1] == 'FRONT':
+                adb_run('shell', 'am', 'start', '-n', f'{r39.PKG}/top.xdwa.shun.MainActivity')
         code = proc.wait()
         log.close()
     finally:

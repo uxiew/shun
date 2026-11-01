@@ -15,6 +15,7 @@ adb logcat -s flutter | grep "R11 seed"             # 三条路径的结果摘�
 - 18480 是假 API；tailnet 写成 `redirect-me` 时回 302 指向 18481。
 - 18481 收到任何请求都会打一行带 `"STOLEN":true` 的日志——出现就说明 App 跟随了重定向，是缺陷。
 - 日志不含凭据原文：Authorization 只记「是不是本服务发出的 token」，token 端点只记表单参数名和 scope。
+- 传了设备文件时，文件里写 `"__status": 429`（可加 `"__retryAfter": "120"`）就回这个状态码，用来模拟限流、key 失效（`tool/r67-device.py`）。
 - 种子入口和正式 App 同一个包名，会**覆盖设备上这个 App 的数据**，只在测试设备/模拟器上跑。
   验完装回正式版：`flutter build apk --debug && adb install -r build/app/outputs/flutter-apk/app-debug.apk`。
 
