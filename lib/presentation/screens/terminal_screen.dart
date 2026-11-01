@@ -120,6 +120,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
 
   final _tabStrip = ScrollController();
   String? _followedTab;
+  var _tabStripShown = false;
 
   /// 当前标签和它在标签条里的 context。不用 GlobalKey：拖动标签时列表会把同一项再建一遍当拖影，
   /// GlobalKey 就重复了。
@@ -133,7 +134,8 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
       );
 
   /// 当前标签换了就把它滚出来：从会话总览、主机列表切过来时，它可能在标签条外面，看着像没切过去。
-  void _followActiveTab(SessionState state) {
+  /// [stripRebuilt]：全屏、画中画、横屏弹键盘回来时标签条是新建的，偏移归零，标签没换也要滚。
+  void _followActiveTab(SessionState state, {bool stripRebuilt = false}) {
     final pending = state.pendingConnections
         .indexWhere((value) => value.id == state.activePendingId);
     final index =
@@ -141,7 +143,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
     final id = pending >= 0
         ? state.activePendingId
         : state.sessions.elementAtOrNull(index)?.id;
-    if (id == null || id == _followedTab) return;
+    if (id == null || (id == _followedTab && !stripRebuilt)) return;
     _followedTab = id;
     _revealTab(id, index, state.tabCount);
   }
@@ -323,6 +325,11 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
     required _InputLayout layout,
   }) {
     final tight = layout.tight;
+    final tabStripShown = !fullscreen && !pictureInPicture && !tight;
+    if (tabStripShown && !_tabStripShown) {
+      _followActiveTab(state, stripRebuilt: true);
+    }
+    _tabStripShown = tabStripShown;
     final keysHost = inputSession == null ? null : _vaultHostOf(inputSession);
     // 用按键面板、大输入框时点终端不叫系统键盘；从面板换回系统键盘那一下让输入那一格叫出键盘。
     final softKeyboard = inputMode == terminalInputSystem;
@@ -335,7 +342,7 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
         Positioned.fill(
           child: Column(
             children: [
-              if (!fullscreen && !pictureInPicture && !tight)
+              if (tabStripShown)
                 SizedBox(
                   key: const ValueKey('terminal-tab-strip'),
                   height: 52,

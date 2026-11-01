@@ -496,6 +496,40 @@ void main() {
     await finish(tester);
   });
 
+  for (final (name, provider) in [
+    ('全屏', terminalFullscreenProvider),
+    ('画中画', terminalPictureInPictureProvider),
+  ]) {
+    testWidgets('从$name回来：标签条重建后滚回当前标签', (tester) async {
+      await open(
+        tester,
+        SessionState(sessions: [
+          for (var i = 0; i < 12; i++) tab('s$i', host('m$i', 'machine-$i')),
+        ]),
+      );
+      container.read(homeTabProvider.notifier).state = 1;
+      await settle(tester);
+      controller.activate(11);
+      await settle(tester);
+      final last = find.byKey(const ValueKey('terminal-tab-s11'));
+      expect(last, findsOneWidget);
+
+      container.read(provider.notifier).state = true;
+      await settle(tester);
+      expect(find.byKey(const ValueKey('terminal-tab-strip')), findsNothing);
+
+      container.read(provider.notifier).state = false;
+      await settle(tester);
+      expect(last, findsOneWidget, reason: '当前标签没变，标签条却退回了第一个');
+      final strip =
+          tester.getRect(find.byKey(const ValueKey('terminal-tab-strip')));
+      final chip = tester.getRect(last);
+      expect(chip.left, greaterThanOrEqualTo(strip.left));
+      expect(chip.right, lessThanOrEqualTo(strip.right));
+      await finish(tester);
+    });
+  }
+
   testWidgets('正在自动恢复的标签不给按钮，写正在恢复；只断一个不显示全部重连', (tester) async {
     final alpha = host('a', 'alpha');
     await open(
