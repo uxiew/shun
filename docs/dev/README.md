@@ -55,7 +55,7 @@ R59 安全密钥：不连网的 `flutter test test/security_key_test.dart test/s
 
 R25 连接日志：值从哪来、存在哪、哪些名字不能改见 [architecture.md 2.10](architecture.md#210-连接日志r25)。不连网的 `flutter test --no-pub test/r25_connection_events_test.dart test/r25_connection_log_screen_test.dart test/r25_probe_record_test.dart`（约 10 秒）；起了 `tool/fixture-environment/up.sh` 再跑 `flutter test --no-pub test/integration_ssh_fixture_test.dart --plain-name 'R25 连接日志'`（约 5 秒，会杀 ssh-edge 里的 sshd 会话）。设备上：模拟器开好、拿了锁以后 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r25-device.py`，约 1.5 分钟，docker 要在 PATH 里；脚本在清除前把 App 的记录文件拷到证据目录、在本机再查一遍有没有登录信息和地址，跑完清掉 App 数据。结果只看 `plan/v3/evidence/R25.md`。
 
-F31–F35 走查（会话总览的真实触摸、中文字体下性能监控和凭据各页的布局）：不用测试环境，开好模拟器、拿锁，再 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r70-device.py`，约 2 分半，截图在 `../.toolchain/artifacts/r70-device-<时间>/`。会话是塞进去的，没有真 SSH，所以性能监控各页都读不到数，这里只证明手势和布局，不证明登录。报 `Could not resolve androidx.test:runner:1.2+` 见第 7 节。
+F31–F37 走查（会话总览的真实单指、两指触摸、中文字体下性能监控和凭据各页的布局）：不用测试环境，开好模拟器、拿锁，再 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r70-device.py`，约 2 分半，截图在 `../.toolchain/artifacts/r70-device-<时间>/`。会话是塞进去的，没有真 SSH，所以性能监控各页都读不到数，这里只证明手势和布局，不证明登录。报 `Could not resolve androidx.test:runner:1.2+` 见第 7 节。
 
 MON01（性能监控面板的三个入口、真数据、真断线）：先起 `tool/fixture-environment`，开好模拟器、拿锁，再 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r68-device.py`，约 2 分钟。结果只看 `plan/v3/evidence/R68.md`。
 

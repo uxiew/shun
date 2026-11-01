@@ -87,7 +87,7 @@ class TerminalSpecialKeys extends ConsumerStatefulWidget {
   /// 进程、tmux、Docker 这些都在它打开的面板里。为 null 时不显示（不是 SSH、或者断开了）。
   final VoidCallback? onPerformanceMonitor;
 
-  /// 「会话总览」：平时从底栏「终端」上滑，键盘盖住底栏、全屏没有底栏时从这里进。只在「更多」里。
+  /// 「会话总览」：平时在终端页两指上滑，读屏时从这里进。只在「更多」里。
   final VoidCallback? onSessionOverview;
 
   /// sudo 键：发这台主机存的密码（R66）。这台主机没存密码、没连着时是 null，不显示。
