@@ -402,4 +402,39 @@ Future<void> main() async {
       expect(prompts.single!.link, isNotNull);
     });
   });
+
+  group('UXR06：回「认证失败」和断开是两种修法', () {
+    Future<TailscaleLoginDenied> denied(Object error) async {
+      final watch = SshLoginWatch(
+        mode: SshLoginMode.tailscale,
+        allowCheck: true,
+        authWait: const Duration(seconds: 30),
+        checkWait: const Duration(minutes: 10),
+        describePrompt: (banner, deadline) => throw UnimplementedError(),
+        onPrompt: (_) {},
+      )..hostKeyAccepted();
+      final thrown = await watch
+          .authenticated(_FailingClient(error))
+          .then<Object?>((_) => null, onError: (Object e) => e);
+      return thrown! as TailscaleLoginDenied;
+    }
+
+    test('普通 sshd 回认证失败：多半没开 Tailscale SSH', () async {
+      expect((await denied(SSHAuthFailError('none'))).refusedNone, isTrue);
+    });
+
+    test('Tailscale 按策略拒绝是断开：不算没开', () async {
+      expect((await denied(SSHAuthAbortError('closed'))).refusedNone, isFalse);
+    });
+  });
+}
+
+class _FailingClient implements SSHClient {
+  _FailingClient(Object error) : authenticated = Future.error(error);
+
+  @override
+  final Future<void> authenticated;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
