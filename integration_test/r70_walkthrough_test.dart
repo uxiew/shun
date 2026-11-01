@@ -472,6 +472,12 @@ void main() {
     // 溢出在调试版是 FlutterError，这个测试会直接失败；要点的按钮和真人点的是同一个。
     container.read(homeTabProvider.notifier).state = 1;
     await settle(tester);
+    final terminal = container.read(sessionControllerProvider).active!.terminal;
+    String screenText() => terminal
+        .recentLines(terminal.viewRows)
+        .map((line) => line.text.trimRight())
+        .where((text) => text.isNotEmpty)
+        .join(' | ');
     await realTap(
       tester,
       tester.getCenter(
@@ -487,12 +493,17 @@ void main() {
         'report pip entered=${container.read(terminalPictureInPictureProvider)} '
         'size=${tester.view.physicalSize}');
     await shot(tester, '40-picture-in-picture');
+    mark('report pip screen=[${screenText()}]');
+    // 上面点过终端：选字手势留下的锚点曾经把字全挤进回滚区，小窗是空的。
+    expect(screenText(), contains('GET /health 200'));
     mark('FRONT');
     await binding.delayed(const Duration(milliseconds: 2500));
     await settle(tester);
     mark('report pip left=${!container.read(terminalPictureInPictureProvider)} '
         'size=${tester.view.physicalSize}');
     await shot(tester, '41-back-from-picture-in-picture');
+    mark('report back screen=[${screenText()}]');
+    expect(screenText(), contains('deploy@web'));
 
     await tester.pumpWidget(const SizedBox());
     for (final session in sessions) {
