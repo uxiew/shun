@@ -500,12 +500,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                   ),
                 ),
               ),
-              _header(
-                '连接',
-                hint: Platform.isAndroid
-                    ? '远程桌面交给手机上装的 UU 远程或 RustDesk，它们用自己的网络。插件是单独安装的 App，每个都要你批准后才会用。'
-                    : null,
-              ),
+              _header('连接'),
               Card(
                 child: Column(
                   children: [
@@ -573,42 +568,49 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               ),
               // 存储和指纹两条以前各占一行卡片，点了没反应，只是在说明；收进分组的 ⓘ。
               if (Platform.isAndroid) ...[
-                Card(
-                  child: ListTile(
-                    key: const ValueKey('settings-uuremote'),
-                    leading: const Icon(Icons.desktop_windows_outlined),
-                    title: const LText('UU 远程'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const UuRemoteSettingsScreen(),
-                      ),
-                    ),
-                  ),
+                _header(
+                  '插件',
+                  hint:
+                      '远程桌面交给手机上装的 UU 远程或 RustDesk，它们用自己的网络。插件是单独安装的 App，每个都要你批准后才会用。',
                 ),
                 Card(
-                  child: ListTile(
-                    key: const ValueKey('settings-rustdesk'),
-                    leading: const Icon(Icons.connected_tv_outlined),
-                    title: const Text('RustDesk'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const RustDeskSettingsScreen(),
+                  child: Column(
+                    children: [
+                      ListTile(
+                        key: const ValueKey('settings-uuremote'),
+                        leading: const Icon(Icons.desktop_windows_outlined),
+                        title: const LText('UU 远程'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const UuRemoteSettingsScreen(),
+                          ),
+                        ),
                       ),
-                    ),
-                  ),
-                ),
-                Card(
-                  child: ListTile(
-                    leading: const Icon(Icons.extension_outlined),
-                    title: const LText('插件（实验）'),
-                    trailing: const Icon(Icons.chevron_right),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute<void>(
-                        builder: (_) => const PluginsScreen(),
+                      const Divider(height: 1),
+                      ListTile(
+                        key: const ValueKey('settings-rustdesk'),
+                        leading: const Icon(Icons.connected_tv_outlined),
+                        title: const Text('RustDesk'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const RustDeskSettingsScreen(),
+                          ),
+                        ),
                       ),
-                    ),
+                      const Divider(height: 1),
+                      ListTile(
+                        leading: const Icon(Icons.extension_outlined),
+                        title: const LText('插件（实验）'),
+                        trailing: const Icon(Icons.chevron_right),
+                        onTap: () => Navigator.of(context).push(
+                          MaterialPageRoute<void>(
+                            builder: (_) => const PluginsScreen(),
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
