@@ -22,6 +22,7 @@ class MainActivity : FlutterActivity() {
     private var pictureInPictureChannel: MethodChannel? = null
     private var uuRemoteBridge: UuRemoteBridge? = null
     private var rustDeskBridge: RustDeskBridge? = null
+    private var tailscaleAppBridge: TailscaleAppBridge? = null
 
     // 自己拉起、等结果的页面（选文件、扫码）开着：应用锁在这种离开上宽松一点，见 AppLockController。
     private var launchedOwnActivity = false
@@ -118,6 +119,7 @@ class MainActivity : FlutterActivity() {
         appLockChannel = AppLockChannel(this, flutterEngine.dartExecutor.binaryMessenger)
         uuRemoteBridge = UuRemoteBridge(this, flutterEngine.dartExecutor.binaryMessenger)
         rustDeskBridge = RustDeskBridge(this, flutterEngine.dartExecutor.binaryMessenger)
+        tailscaleAppBridge = TailscaleAppBridge(this, flutterEngine.dartExecutor.binaryMessenger)
         pictureInPictureChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
             "top.xdwa.shun/picture_in_picture",
@@ -184,6 +186,8 @@ class MainActivity : FlutterActivity() {
         uuRemoteBridge = null
         rustDeskBridge?.dispose()
         rustDeskBridge = null
+        tailscaleAppBridge?.dispose()
+        tailscaleAppBridge = null
         pictureInPictureChannel?.setMethodCallHandler(null)
         pictureInPictureChannel = null
         if (ProcessEngine.currentActivity === this) ProcessEngine.currentActivity = null

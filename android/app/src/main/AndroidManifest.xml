@@ -121,5 +121,7 @@
             <data android:scheme="rustdesk" android:host="connect" />
         </intent>
         <package android:name="com.carriez.flutter_hbb" />
+        <!-- 失败页的「打开 Tailscale」（R77）：不列的话 Android 11 起查不到它，装了也说没装。 -->
+        <package android:name="com.tailscale.ipn" />
     </queries>
 </manifest>

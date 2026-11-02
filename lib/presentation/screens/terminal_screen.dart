@@ -33,6 +33,7 @@ import '../widgets/ai_cli_tools_sheet.dart';
 import '../widgets/ai_providers_page.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import '../../infrastructure/ssh/terminal_picture_in_picture_service.dart';
+import '../../infrastructure/tailscale/tailscale_app.dart';
 import '../../infrastructure/terminal/terminal_session_adapter.dart';
 import '../../infrastructure/terminal/terminal_text.dart';
 import '../../infrastructure/storage/vault_repository.dart';

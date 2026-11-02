@@ -162,6 +162,21 @@ class _ConnectionStatusPane extends StatelessWidget {
                           label: const LText('复制命令'),
                         ),
                       ],
+                      if (fix?.openApp == true && TailscaleApp.supported)
+                        TextButton.icon(
+                          key: const ValueKey('tailscale-fix-open'),
+                          onPressed: () async {
+                            final opened = await TailscaleApp.open();
+                            if (opened || !context.mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: LText('没找到 Tailscale App'),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.open_in_new),
+                          label: const LText('打开 Tailscale'),
+                        ),
                       if (fix != null && onEditHost != null)
                         TextButton.icon(
                           key: const ValueKey('tailscale-fix-edit'),

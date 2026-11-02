@@ -933,6 +933,8 @@ const englishTranslations = <String, String>{
       'This machine probably doesn’t have Tailscale SSH on. Run the command below on it, or use a password or credential.',
   '这是 Tailscale 地址，手机要先连上 tailnet：打开 Tailscale App 确认已连接，再点重试。或者改走代理、跳板。':
       'This is a Tailscale address, so the phone must be on the tailnet: check the Tailscale app is connected, then retry. Or go through a proxy or jump host.',
+  '打开 Tailscale': 'Open Tailscale',
+  '没找到 Tailscale App': 'Tailscale app not found',
   '改认证方式或路线': 'Change login or route',
   '点一台就按 Tailscale 设置里的默认值连接，用户名、密码没填的连接时问。不想看到的点 ⋮ 隐藏。':
       'Tap a device to connect with the defaults in Tailscale settings; a missing username or password is asked when connecting. Tap ⋮ to hide devices you don’t want to see.',

@@ -469,6 +469,39 @@ void main() {
           findsOneWidget);
     });
 
+    testWidgets('UXR06：手机没连 tailnet 给「打开 Tailscale」，没装说一声，都不重连', (tester) async {
+      var result = true;
+      var calls = 0;
+      const channel = MethodChannel('top.xdwa.shun/tailscale_app');
+      tester.binding.defaultBinaryMessenger.setMockMethodCallHandler(channel,
+          (call) async {
+        calls++;
+        return result;
+      });
+      addTearDown(() => tester.binding.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, null));
+      await open(tester, failedTailscale(const SocketException('timed out')));
+      final button = find.byKey(const ValueKey('tailscale-fix-open'));
+      await tester.ensureVisible(button);
+      await tester.tap(button);
+      await tester.pump();
+      expect(calls, 1);
+      expect(find.text('没找到 Tailscale App'), findsNothing);
+
+      result = false;
+      await tester.tap(button);
+      await tester.pump();
+      expect(calls, 2);
+      expect(find.text('没找到 Tailscale App'), findsOneWidget);
+      expect(controller.connected, isEmpty);
+    });
+
+    testWidgets('UXR06：不是手机这头的问题不给「打开 Tailscale」', (tester) async {
+      await open(tester,
+          failedTailscale(const TailscaleLoginDenied(null, refusedNone: true)));
+      expect(find.byKey(const ValueKey('tailscale-fix-open')), findsNothing);
+    });
+
     testWidgets('UXR06：保险库里有这台才给「改认证方式或路线」，点了进编辑器，不重连', (tester) async {
       final pending = failedTailscale(const SocketException('timed out'));
       await open(tester, pending);

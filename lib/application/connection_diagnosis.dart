@@ -120,13 +120,16 @@ String? connectionHint(Object error) => _hint(classifyConnectionFailure(error));
 
 /// Tailscale 设备连不上时的修法（F39、R77）。只给建议：不替用户改设置，也不自动重试登录。
 class TailscaleFix {
-  const TailscaleFix({this.text, this.command});
+  const TailscaleFix({this.text, this.command, this.openApp = false});
 
   /// 换掉通用提示的那句人话。null：通用提示已经说清了，只多一个「改认证方式」。
   final String? text;
 
   /// 要用户到服务器上自己运行的命令。
   final String? command;
+
+  /// 给「打开 Tailscale」：手机这头的问题，修法在 Tailscale App 里。
+  final bool openApp;
 }
 
 /// 这台是不是 Tailscale 设备：选了 Tailscale SSH、连着目录，或地址就是 tailnet 的。
@@ -165,6 +168,7 @@ TailscaleFix? tailscaleFix(HostProfile host, Object error) {
       const TailscaleFix(
         text:
             '这是 Tailscale 地址，手机要先连上 tailnet：打开 Tailscale App 确认已连接，再点重试。或者改走代理、跳板。',
+        openApp: true,
       ),
     _ => null,
   };
