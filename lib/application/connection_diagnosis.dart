@@ -202,7 +202,7 @@ String failureNextStep(ConnectionFailureKind kind) =>
       ConnectionFailureKind.tmuxTarget =>
         '原来的 tmux 会话不在了（或者核对没通过），没有新建也没有附着别的。到 tmux 面板里自己选一个会话。',
       ConnectionFailureKind.pluginUnavailable =>
-        '本机的插件不可用：到「设置 → 连接 → 插件（实验）」看它装着没有、批准了没有。这一步还没连服务器。',
+        '本机的插件不可用：到「设置 → 插件 → 插件（实验）」看它装着没有、批准了没有。这一步还没连服务器。',
       _ => '这类失败没有现成的建议。当时的失败页上有完整原话，这里只记了分类。',
     };
 
@@ -244,7 +244,7 @@ String? _hint(ConnectionFailureKind kind) => switch (kind) {
       ConnectionFailureKind.moshRoute =>
         '要经代理或跳板机，把这台主机的协议改回 SSH（想断线后接着用，可以配合 tmux）；要用 Mosh，把连接路径改成「直连」。',
       ConnectionFailureKind.moshPlugin =>
-        'Mosh 插件在「设置 → 连接 → 插件（实验）」里管理。这一步只查了本机，还没连服务器。',
+        'Mosh 插件在「设置 → 插件 → 插件（实验）」里管理。这一步只查了本机，还没连服务器。',
       // R42 起能在 App 里确认后装（所有者 10-17 同意）；以前这里还写着「不会替你安装」。
       ConnectionFailureKind.moshServerMissing =>
         '点下面的「看安装命令」：认出了服务器的系统就给出对应命令，可以复制了自己装，也可以点「安装…」、确认后在新开的 SSH 标签里装一次（sudo 密码在那个终端里自己输）。'

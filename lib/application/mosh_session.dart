@@ -137,12 +137,12 @@ class PluginMoshRuntime implements MoshRuntime {
         .where((e) => e.pluginId == pluginId || e.packageName == packageName)
         .firstOrNull;
     return switch (seen?.status) {
-      null => '没有装 Mosh 插件（top.xdwa.shun.mosh）。装好后到「设置 → 连接 → 插件（实验）」核对证书并批准，再连。',
-      PluginStatus.needsApproval => 'Mosh 插件还没批准：到「设置 → 连接 → 插件（实验）」核对证书后批准，再连。',
-      PluginStatus.disabled => 'Mosh 插件被停用了：到「设置 → 连接 → 插件（实验）」启用它，再连。',
+      null => '没有装 Mosh 插件（top.xdwa.shun.mosh）。装好后到「设置 → 插件 → 插件（实验）」核对证书并批准，再连。',
+      PluginStatus.needsApproval => 'Mosh 插件还没批准：到「设置 → 插件 → 插件（实验）」核对证书后批准，再连。',
+      PluginStatus.disabled => 'Mosh 插件被停用了：到「设置 → 插件 → 插件（实验）」启用它，再连。',
       PluginStatus.missing => 'Mosh 插件已被卸载：装回同一证书的包会直接恢复。',
-      PluginStatus.rejected => 'Mosh 插件被拒绝了，原因见「设置 → 连接 → 插件（实验）」里它的条目。',
-      PluginStatus.incompatible => 'Mosh 插件和这个 App 不兼容，原因见「设置 → 连接 → 插件（实验）」里它的条目。',
+      PluginStatus.rejected => 'Mosh 插件被拒绝了，原因见「设置 → 插件 → 插件（实验）」里它的条目。',
+      PluginStatus.incompatible => 'Mosh 插件和这个 App 不兼容，原因见「设置 → 插件 → 插件（实验）」里它的条目。',
       PluginStatus.ready => 'Mosh 插件现在不可用。',
     };
   }

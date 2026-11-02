@@ -518,7 +518,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
       HostProtocol.mosh => _hint([
           localized('建议先用 SSH，连上后点终端顶上的「SSH」徽标能切到 Mosh。'),
           localized(
-              'Mosh 先用 SSH 登录这台主机、在上面启动 mosh-server，然后断开 SSH，改由 Mosh 插件经 UDP 直连。要先装好 Mosh 插件并在「设置 → 连接 → 插件（实验）」批准；服务器上要有 mosh-server，没有时连接会停下、给出安装命令。只能直连：UDP 走不了代理和跳板机。'),
+              'Mosh 先用 SSH 登录这台主机、在上面启动 mosh-server，然后断开 SSH，改由 Mosh 插件经 UDP 直连。要先装好 Mosh 插件并在「设置 → 插件 → 插件（实验）」批准；服务器上要有 mosh-server，没有时连接会停下、给出安装命令。只能直连：UDP 走不了代理和跳板机。'),
           localized('上面选的 SSH / Mosh 只管网络这一段怎么走；断开以后远端程序还在不在，要看它跑在哪。'),
           ..._persistenceLines().map(localized),
         ]),
@@ -1167,7 +1167,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         Padding(
           padding: const EdgeInsets.only(top: 6),
           child: LText(
-            '还没有能用的插件。装好后到「设置 → 连接 → 插件（实验）」批准；Mosh 请选 Mosh 协议。',
+            '还没有能用的插件。装好后到「设置 → 插件 → 插件（实验）」批准；Mosh 请选 Mosh 协议。',
             key: const ValueKey('plugin-none-usable'),
             style: small,
           ),
