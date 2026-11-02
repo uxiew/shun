@@ -232,7 +232,7 @@ void main() {
     await binding.delayed(const Duration(milliseconds: 500));
     await settle(tester);
     expect(find.text('没有隐藏的主机'), findsOneWidget);
-    await tester.pageBack();
+    await tester.tap(find.byType(BackButton));
     await settle(tester);
     await tester.tap(find.text('连接').last);
     await settle(tester);
