@@ -447,8 +447,13 @@ void main() {
       expect(command, findsNothing);
     });
 
+    // 真实连接失败都包成 RouteHopException（SshService._atHop）。第一版只测了裸 SocketException，
+    // 条件写反了也是绿的，真 App 里这句提示一次都不出现。
+    const dialFailed =
+        RouteHopException(0, '直连失败', SocketException('timed out'));
+
     testWidgets('UXR06：手机没连 tailnet：Tailscale 地址说打开 App', (tester) async {
-      await open(tester, failedTailscale(const SocketException('timed out')));
+      await open(tester, failedTailscale(dialFailed));
       expect(
           find.descendant(
               of: hint, matching: find.textContaining('连上 tailnet')),
@@ -456,20 +461,15 @@ void main() {
     });
 
     testWidgets('UXR06：不是 Tailscale 地址：还是通用提示', (tester) async {
-      await open(
-        tester,
-        failedTailscale(
-          const SocketException('timed out'),
-          address: '192.0.2.9',
-        ),
-      );
+      await open(tester, failedTailscale(dialFailed, address: '192.0.2.9'));
       expect(find.textContaining('连上 tailnet'), findsNothing);
       expect(
           find.descendant(of: hint, matching: find.textContaining('手机连不到这个地址')),
           findsOneWidget);
     });
 
-    testWidgets('UXR06：手机没连 tailnet 给「打开 Tailscale」，没装说一声，都不重连', (tester) async {
+    testWidgets('UXR06：手机没连 tailnet 给「打开 Tailscale」，没装说一声，都不重连',
+        (tester) async {
       var result = true;
       var calls = 0;
       const channel = MethodChannel('top.xdwa.shun/tailscale_app');
@@ -480,7 +480,7 @@ void main() {
       });
       addTearDown(() => tester.binding.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, null));
-      await open(tester, failedTailscale(const SocketException('timed out')));
+      await open(tester, failedTailscale(dialFailed));
       final button = find.byKey(const ValueKey('tailscale-fix-open'));
       await tester.ensureVisible(button);
       await tester.tap(button);
@@ -494,6 +494,56 @@ void main() {
       expect(calls, 2);
       expect(find.text('没找到 Tailscale App'), findsOneWidget);
       expect(controller.connected, isEmpty);
+    });
+
+    test('UXR06：只有手机自己拨的 tailnet 地址才说手机没连 tailnet', () {
+      HostProfile profile(String id, String address,
+              [Map<String, dynamic> extra = const {}]) =>
+          HostProfile({
+            ...host(id).data,
+            'id': id,
+            'hostname': address,
+            ...extra,
+          });
+      bool opensApp(HostProfile target, RouteHopException error,
+          {List<HostProfile> hosts = const []}) {
+        final route =
+            resolveRoutePlan(target, hosts: hosts, proxyProfiles: const []);
+        return tailscaleFix(target, error, route: route)?.openApp ?? false;
+      }
+
+      final direct = profile('t', '100.64.0.9');
+      expect(opensApp(direct, dialFailed), isTrue);
+      expect(
+          opensApp(
+              direct,
+              const RouteHopException(0, '经代理连接失败', SocketException('x'),
+                  relayed: true)),
+          isFalse,
+          reason: '经代理：代理之后那段 App 看不到');
+
+      final publicJump = profile('j', '192.0.2.1');
+      final behindPublicJump = profile('t', '100.64.0.9', {
+        'hostChain': {
+          'hostIds': ['j'],
+        },
+      });
+      expect(
+          opensApp(behindPublicJump, dialFailed, hosts: [publicJump]), isFalse,
+          reason: '拨的是公网跳板，和手机连没连 tailnet 无关');
+
+      final tailnetJump = profile('j', '100.64.0.1');
+      expect(
+          opensApp(behindPublicJump, dialFailed, hosts: [tailnetJump]), isTrue,
+          reason: '跳板本身在 tailnet 上，手机拨不通就是没连');
+      expect(
+          opensApp(
+              behindPublicJump,
+              const RouteHopException(1, '跳板之后', SocketException('x'),
+                  relayed: true),
+              hosts: [tailnetJump]),
+          isFalse,
+          reason: '第二跳是跳板转发的，不是手机拨的');
     });
 
     testWidgets('UXR06：不是手机这头的问题不给「打开 Tailscale」', (tester) async {

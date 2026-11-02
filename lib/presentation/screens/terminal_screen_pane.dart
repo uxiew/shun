@@ -27,8 +27,9 @@ class _ConnectionStatusPane extends StatelessWidget {
     final route = pending.routePlan;
     final showRoute = route != null && describeRoute(route).length > 2;
     final error = pending.error;
-    final fix =
-        failed && error != null ? tailscaleFix(pending.host, error) : null;
+    final fix = failed && error != null
+        ? tailscaleFix(pending.host, error, route: route)
+        : null;
     final hint = fix?.text ?? (error == null ? null : connectionHint(error));
     return ColoredBox(
       color: scheme.surface,

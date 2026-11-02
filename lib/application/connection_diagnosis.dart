@@ -147,7 +147,15 @@ bool _isTailnetAddress(String address) {
   return parts[0] == 100 && parts[1]! >= 64 && parts[1]! <= 127;
 }
 
-TailscaleFix? tailscaleFix(HostProfile host, Object error) {
+/// 这次失败是手机自己拨的哪个地址。经代理、跳板转发的那段 App 看不到，返回 null。
+String? _dialledByPhone(HostProfile host, Object error, RoutePlan? route) {
+  // 真实连接失败都包成 RouteHopException；跳板的第一跳也是手机拨的，但拨的不是目标地址。
+  if (error is! RouteHopException) return host.hostname;
+  if (error.relayed || route == null) return null;
+  return route.hops.elementAtOrNull(error.hop)?.endpoint.host;
+}
+
+TailscaleFix? tailscaleFix(HostProfile host, Object error, {RoutePlan? route}) {
   if (!isTailscaleHost(host)) return null;
   // 只发了 none 认证，服务器却要密码或私钥：那边是普通 sshd，不是 Tailscale SSH。
   final cause = error is RouteHopException ? error.cause : error;
@@ -162,9 +170,8 @@ TailscaleFix? tailscaleFix(HostProfile host, Object error) {
     ConnectionFailureKind.tailscaleCheckNeedsUser ||
     ConnectionFailureKind.loginMode =>
       const TailscaleFix(),
-    // 代理、跳板之后的那一段 App 看不到，这句只对手机直连的说。
     ConnectionFailureKind.unreachable
-        when error is! RouteHopException && _isTailnetAddress(host.hostname) =>
+        when _isTailnetAddress(_dialledByPhone(host, error, route) ?? '') =>
       const TailscaleFix(
         text:
             '这是 Tailscale 地址，手机要先连上 tailnet：打开 Tailscale App 确认已连接，再点重试。或者改走代理、跳板。',
