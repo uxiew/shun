@@ -532,7 +532,18 @@ void main() {
       expect(await refresher().hasSavedCredentials('cat-a'), isFalse);
     });
 
-    test('失败时不保存，缓存里的设备不动', () async {
+    test('Tailscale 明确不接受：不保存，缓存里的设备不动', () async {
+      final r = await sourceWithHosts([]);
+      await r.refreshWithToken('cat-a', 'tok');
+      replies = [http.Response('{"message":"no"}', 401)];
+      final outcome =
+          await r.refreshWithOAuthClient('cat-a', client, persist: true);
+      expect(outcome.error, isNotNull);
+      expect(outcome.cache.devices, contains('A'));
+      expect(await r.hasSavedCredentials('cat-a'), isFalse);
+    });
+
+    test('只是这次没读到（Tailscale 出错）：key 存下，缓存里的设备不动', () async {
       final r = await sourceWithHosts([]);
       await r.refreshWithToken('cat-a', 'tok');
       replies = [http.Response('{"message":"boom"}', 500)];
@@ -540,7 +551,7 @@ void main() {
           await r.refreshWithOAuthClient('cat-a', client, persist: true);
       expect(outcome.error, isNotNull);
       expect(outcome.cache.devices, contains('A'));
-      expect(await r.hasSavedCredentials('cat-a'), isFalse);
+      expect(await r.hasSavedCredentials('cat-a'), isTrue);
     });
   });
 

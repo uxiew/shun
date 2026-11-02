@@ -216,6 +216,29 @@ void main() {
         findsNothing);
     await shot(tester, '10-device-hidden');
     expect(find.byKey(const ValueKey('vault-show-hidden')), findsNothing);
+    // 所有者 11-02：恢复只在「设置 → 安全 → 隐藏的主机」。
+    await tester.tap(find.text('设置').last);
+    await settle(tester);
+    await tester.scrollUntilVisible(
+      find.byKey(const ValueKey('settings-hidden-hosts')),
+      300,
+      scrollable: find.byType(Scrollable).last,
+    );
+    await settle(tester);
+    await shot(tester, '11-settings-security');
+    await tapKey(tester, 'settings-hidden-hosts');
+    await shot(tester, '12-hidden-page');
+    await tapKey(tester, 'hidden-restore-ts-r75-2');
+    await binding.delayed(const Duration(milliseconds: 500));
+    await settle(tester);
+    expect(find.text('没有隐藏的主机'), findsOneWidget);
+    await tester.pageBack();
+    await settle(tester);
+    await tester.tap(find.text('连接').last);
+    await settle(tester);
+    expect(find.byKey(const ValueKey('vault-catalog-device-ts-r75-2')),
+        findsOneWidget);
+    await shot(tester, '13-device-restored');
 
     await tester.pumpWidget(const SizedBox());
   });
