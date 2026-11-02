@@ -3482,7 +3482,7 @@
       "title": "手机上实地走查 TermRover、LobiShell",
       "status": "NOT_STARTED",
       "depends_on": [],
-      "scope": "F39。静态分析看不到实际高度和手感，所有者在场时在手机上看两个 App 的新建连接、Tailscale、主机列表、管理页、设置。所有者 11-01 说静态分析也行，这条成了补充，没有任务等它；字段顺序见 docs/23。",
+      "scope": "F39、F41。所有者 11-02 明确说静态分析学错了，管理页「莫名其妙」要照实际操作重做：要在手机上打开两个 App 操作，看新建连接、Tailscale、主机列表、管理页、设置的布局和手感。",
       "code_targets": [],
       "deliverables": [
         "evidence/R72.md",
@@ -3491,12 +3491,13 @@
       "acceptance": [
         "写明手机上两个 App 的版本",
         "每页记录字段顺序和默认展开情况",
-        "所有者确认怪的清单，docs/23 按结果更新"
+        "管理页按走查结果重做或写明为什么不改",
+        "docs/23 按结果更新"
       ],
       "test_ids": [
         "UXR01"
       ],
-      "stop_condition": "要所有者当次同意和在场（LobiShell 要指纹）。只看不保存，不连真实主机。截图不进仓库。来路没核实的 APK 不执行。",
+      "stop_condition": "代理不安装、不运行工作区里来路没核实的两个包（TermRover.apks 带 apkcube.com 标记，Lobishell.apk 来路不明），所有者要求也一样；由所有者自己装到手机上并连上 adb，代理只操作这两个 App。LobiShell 的指纹所有者来按。只看不保存，不连真实主机。截图不进仓库。",
       "owner_role": "实施代理",
       "evidence": [],
       "commit": ""
