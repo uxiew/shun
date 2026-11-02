@@ -215,10 +215,7 @@ void main() {
     expect(find.byKey(const ValueKey('vault-catalog-device-ts-r75-2')),
         findsNothing);
     await shot(tester, '10-device-hidden');
-    await tapKey(tester, 'vault-show-hidden');
-    expect(find.byKey(const ValueKey('vault-catalog-device-ts-r75-2')),
-        findsOneWidget);
-    await shot(tester, '11-device-shown');
+    expect(find.byKey(const ValueKey('vault-show-hidden')), findsNothing);
 
     await tester.pumpWidget(const SizedBox());
   });

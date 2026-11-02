@@ -19,7 +19,7 @@ import 'vault_host_items.dart';
 /// - 连过（或关联）的设备显示成那台主机：名字是用户起的别名，点了、⋮ 都和普通主机一样；
 ///   在本机登录成功过的带「✓ 登录过」。
 /// - 没连过的设备点了就按来源的默认设置建成主机并连接（F39、R76：用户不用知道有「导入」这一步），
-///   用户名、密码缺的在连接时问。⋮ 能隐藏，「显示已隐藏的主机」能找回。
+///   用户名、密码缺的在连接时问。⋮ 能隐藏，到「设置 → 安全 → 隐藏的主机」恢复。
 /// - 每行一个系统图标；第二行地址前面是在线点，写「在线」「离线 · 上次在线」，和 Tailscale App 里看到的一样（[deviceOnline]）。
 /// - 两个来源里同名、同 IP 的设备各在各的组，不合并：认的是（来源 ID，设备 ID），不是名字和地址。
 class CatalogHostSections extends StatefulWidget {
@@ -29,11 +29,10 @@ class CatalogHostSections extends StatefulWidget {
     required this.allHosts,
     required this.hosts,
     required this.query,
-    required this.showHidden,
     required this.onConnect,
     required this.onMenu,
     required this.onImport,
-    required this.onDeviceHidden,
+    required this.onDeviceHide,
     required this.onRefresh,
     required this.onSettings,
     this.now = DateTime.now,
@@ -49,14 +48,12 @@ class CatalogHostSections extends StatefulWidget {
   final List<HostProfile> hosts;
   final String query;
 
-  /// 隐藏的设备也列出来（变暗），和隐藏的主机同一个开关。
-  final bool showHidden;
   final ValueChanged<HostProfile> onConnect;
   final ValueChanged<HostProfile> onMenu;
   final void Function(CatalogCache cache, String deviceId) onImport;
 
-  final void Function(CatalogCache cache, String deviceId, bool hidden)
-      onDeviceHidden;
+  final void Function(CatalogCache cache, CatalogDeviceRecord record)
+      onDeviceHide;
   final ValueChanged<CatalogSourceView> onRefresh;
   final ValueChanged<String> onSettings;
   final DateTime Function() now;
@@ -84,7 +81,7 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
       final devices = [
         for (final record in cache.devices.values)
           if (!imported.contains('${cache.catalogId}\n${record.id}') &&
-              (widget.showHidden || !cache.hiddenDevices.contains(record.id)) &&
+              !cache.hiddenDevices.contains(record.id) &&
               _matches(record, query))
             record,
       ]..sort((a, b) => catalogDeviceName(a)
@@ -203,39 +200,36 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
   Widget _hostRow(HostProfile host, CatalogCache cache, TextStyle? small) {
     final record = cache.devices[CatalogBinding.of(host)!.deviceId];
     final now = widget.now();
-    return dimIfHidden(
-      host,
-      ListTile(
-        key: ValueKey('vault-catalog-host-${host.id}'),
-        onTap: () => widget.onConnect(host),
-        onLongPress: () => widget.onMenu(host),
-        leading:
-            HostLeadingIcon(host: host, size: 40, catalogOs: record?.device.os),
-        title: LText(host.label),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            PresenceLine(
-              presence: deviceOnline(record),
-              child: HostAddressLine(host),
-            ),
-            Wrap(
-              spacing: 8,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text(
-                    deviceOnlineText(record, now,
-                        statusAt: cache.lastSuccess?.at),
-                    key: ValueKey('vault-catalog-status-${host.id}'),
-                    style: small),
-                if (host.lastConnectedAt > 0) LoggedInMark(style: small),
-              ],
-            ),
-          ],
-        ),
-        trailing: vaultHostMenuButton(
-            host, () => widget.onMenu(host), Icons.more_vert),
+    return ListTile(
+      key: ValueKey('vault-catalog-host-${host.id}'),
+      onTap: () => widget.onConnect(host),
+      onLongPress: () => widget.onMenu(host),
+      leading:
+          HostLeadingIcon(host: host, size: 40, catalogOs: record?.device.os),
+      title: LText(host.label),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PresenceLine(
+            presence: deviceOnline(record),
+            child: HostAddressLine(host),
+          ),
+          Wrap(
+            spacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(
+                  deviceOnlineText(record, now,
+                      statusAt: cache.lastSuccess?.at),
+                  key: ValueKey('vault-catalog-status-${host.id}'),
+                  style: small),
+              if (host.lastConnectedAt > 0) LoggedInMark(style: small),
+            ],
+          ),
+        ],
       ),
+      trailing:
+          vaultHostMenuButton(host, () => widget.onMenu(host), Icons.more_vert),
     );
   }
 
@@ -244,42 +238,37 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
     final device = record.device;
     final key = '${cache.catalogId}-${record.id}';
     final now = widget.now();
-    final hidden = cache.hiddenDevices.contains(record.id);
-    return Opacity(
-      opacity: hidden ? .55 : 1,
-      child: ListTile(
-        key: ValueKey('vault-catalog-device-$key'),
-        onTap: () => widget.onImport(cache, record.id),
-        leading: SystemIcon(
-          distro: normalizeDistroId(device.os ?? ''),
-          size: 40,
-          label: device.os,
-        ),
-        title: Text(catalogDeviceName(record)),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            PresenceLine(
-              presence: deviceOnline(record),
-              child:
-                  Text(device.addresses.isEmpty ? '—' : device.addresses.first),
-            ),
-            Text(deviceOnlineText(record, now, statusAt: cache.lastSuccess?.at),
-                key: ValueKey('vault-catalog-device-status-$key'),
-                style: small),
-          ],
-        ),
-        trailing: PopupMenuButton<bool>(
-          key: ValueKey('vault-catalog-device-menu-$key'),
-          onSelected: (next) => widget.onDeviceHidden(cache, record.id, next),
-          itemBuilder: (context) => [
-            PopupMenuItem(
-              key: ValueKey('vault-catalog-device-hide-$key'),
-              value: !hidden,
-              child: LText(hidden ? '取消隐藏' : '隐藏'),
-            ),
-          ],
-        ),
+    return ListTile(
+      key: ValueKey('vault-catalog-device-$key'),
+      onTap: () => widget.onImport(cache, record.id),
+      leading: SystemIcon(
+        distro: normalizeDistroId(device.os ?? ''),
+        size: 40,
+        label: device.os,
+      ),
+      title: Text(catalogDeviceName(record)),
+      subtitle: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          PresenceLine(
+            presence: deviceOnline(record),
+            child:
+                Text(device.addresses.isEmpty ? '—' : device.addresses.first),
+          ),
+          Text(deviceOnlineText(record, now, statusAt: cache.lastSuccess?.at),
+              key: ValueKey('vault-catalog-device-status-$key'), style: small),
+        ],
+      ),
+      trailing: PopupMenuButton<bool>(
+        key: ValueKey('vault-catalog-device-menu-$key'),
+        onSelected: (_) => widget.onDeviceHide(cache, record),
+        itemBuilder: (context) => [
+          PopupMenuItem(
+            key: ValueKey('vault-catalog-device-hide-$key'),
+            value: true,
+            child: const LText('隐藏'),
+          ),
+        ],
       ),
     );
   }
@@ -302,20 +291,17 @@ bool _matches(CatalogDeviceRecord record, String query) {
   ].any((value) => value.toLowerCase().contains(query));
 }
 
-/// 隐藏了、还没连过、搜索命中的设备有几台：算进「显示已隐藏的主机」的数字。
-int hiddenCatalogDeviceCount(
+/// 隐藏了、还没连过的设备。连过的已经是主机，跟着主机自己的隐藏走，不在这里重复一行。
+List<({CatalogCache cache, CatalogDeviceRecord record})> hiddenCatalogDevices(
   List<CatalogSourceView> sources,
   List<HostProfile> allHosts,
-  String query,
 ) {
   final bound = _boundDevices(allHosts);
-  final text = query.trim().toLowerCase();
   return [
     for (final source in sources)
       for (final id in source.cache.hiddenDevices)
         if (source.cache.devices[id] case final record?
-            when !bound.contains('${source.catalogId}\n$id') &&
-                _matches(record, text))
-          id,
-  ].length;
+            when !bound.contains('${source.catalogId}\n$id'))
+          (cache: source.cache, record: record),
+  ];
 }

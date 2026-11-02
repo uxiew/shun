@@ -14,6 +14,7 @@ import '../../application/connection_switch.dart';
 import '../../application/host_actions.dart';
 import '../../application/session_controller.dart';
 import '../../application/settings_controller.dart';
+import '../../application/tailscale_catalog_import.dart';
 import '../../application/tailscale_catalog_refresh.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/ai_cli_identity.dart';
@@ -44,6 +45,7 @@ import '../widgets/system_management/server_panel_sheet.dart';
 import '../widgets/vault_host_items.dart';
 import 'rustdesk_screen.dart';
 import 'app_log_screen.dart';
+import 'hidden_hosts_screen.dart';
 import 'tailscale_catalog_screen.dart';
 import 'tailscale_settings_screen.dart';
 import '../../application/rustdesk.dart';
@@ -70,9 +72,6 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
   HostProfile? _recentAiHost;
   String? _recentSignature;
   bool _recentLoading = false;
-
-  /// 用户点了「显示已隐藏的主机」。只在这一页记着，重新打开 App 又藏起来。
-  bool _showHidden = false;
 
   Future<void> _loadRecentAi(List<HostProfile> hosts,
       {bool force = false}) async {
@@ -141,12 +140,11 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
           (selectedGroup == null || host.group == selectedGroup);
     }).toList();
     final hiddenCount = matching.where((host) => host.hidden).length;
-    final visible =
-        matching.where((host) => _showHidden || !host.hidden).toList()
-          ..sort((a, b) {
-            if (a.pinned != b.pinned) return a.pinned ? -1 : 1;
-            return a.label.toLowerCase().compareTo(b.label.toLowerCase());
-          });
+    final visible = matching.where((host) => !host.hidden).toList()
+      ..sort((a, b) {
+        if (a.pinned != b.pinned) return a.pinned ? -1 : 1;
+        return a.label.toLowerCase().compareTo(b.label.toLowerCase());
+      });
     // 绑定到本机目录来源的主机放进 Tailscale 那一节，不在普通列表里重复。来源不在本机的（被移除过、
     // 从别的手机同步来的）没有组可放，留在普通列表。选了自定义分组时不分节：那一组的主机都在普通列表。
     final catalogSources = ref.watch(catalogOverviewProvider);
@@ -157,14 +155,6 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
         sectionIds.contains(CatalogBinding.of(host)?.catalogId);
     final hosts = visible.where((host) => !inSection(host)).toList();
     final sectionHosts = visible.where(inSection).toList();
-    final hiddenTotal = hiddenCount +
-        (sectionIds.isEmpty
-            ? 0
-            : hiddenCatalogDeviceCount(
-                catalogSources,
-                vault?.hosts ?? const [],
-                _search.text,
-              ));
 
     return SafeArea(
       child: Column(
@@ -332,8 +322,26 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                       child: Center(child: CircularProgressIndicator()),
                     )
                   else if (hosts.isEmpty &&
-                      hiddenCount == 0 &&
-                      sectionIds.isEmpty)
+                      sectionIds.isEmpty &&
+                      hiddenCount > 0 &&
+                      _search.text.trim().isEmpty)
+                    // 全藏了别说「还没有」：看着像主机全丢了。
+                    SliverToBoxAdapter(
+                      child: EmptyState(
+                        icon: Icons.visibility_off_outlined,
+                        title: '主机都隐藏了',
+                        action: TextButton(
+                          key: const ValueKey('vault-open-hidden'),
+                          onPressed: () => Navigator.of(context).push(
+                            MaterialPageRoute<void>(
+                              builder: (_) => const HiddenHostsScreen(),
+                            ),
+                          ),
+                          child: const LText('查看隐藏的主机'),
+                        ),
+                      ),
+                    )
+                  else if (hosts.isEmpty && sectionIds.isEmpty)
                     SliverToBoxAdapter(
                       // 搜不到不是没有：这时说「还没有」、摆新建按钮，看着像主机全丢了。
                       child: _search.text.trim().isNotEmpty
@@ -403,29 +411,12 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                         allHosts: vault?.hosts ?? const [],
                         hosts: sectionHosts,
                         query: _search.text,
-                        showHidden: _showHidden,
                         onConnect: _showHostDetails,
                         onMenu: _showHostMenu,
                         onImport: _importDevice,
-                        onDeviceHidden: _setDeviceHidden,
+                        onDeviceHide: _hideDevice,
                         onRefresh: _refreshSource,
                         onSettings: _openTailscaleSettings,
-                      ),
-                    ),
-                  if (hiddenTotal > 0)
-                    SliverToBoxAdapter(
-                      child: Center(
-                        child: TextButton.icon(
-                          key: const ValueKey('vault-show-hidden'),
-                          onPressed: () =>
-                              setState(() => _showHidden = !_showHidden),
-                          icon: Icon(_showHidden
-                              ? Icons.visibility_off_outlined
-                              : Icons.visibility_outlined),
-                          label: _showHidden
-                              ? const LText('不显示已隐藏的主机')
-                              : catalogLine('显示已隐藏的主机：', '$hiddenTotal'),
-                        ),
                       ),
                     ),
                 ],
@@ -704,16 +695,20 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
   Future<void> _importDevice(CatalogCache cache, String deviceId) =>
       importAndConnect(context, cache.catalogId, deviceId);
 
-  Future<void> _setDeviceHidden(
+  Future<void> _hideDevice(
     CatalogCache cache,
-    String deviceId,
-    bool hidden,
+    CatalogDeviceRecord record,
   ) async {
-    try {
+    Future<void> set(bool hidden) async {
       await ref
           .read(tailscaleCatalogProvider)
-          .setDeviceHidden(cache.catalogId, deviceId, hidden: hidden);
+          .setDeviceHidden(cache.catalogId, record.id, hidden: hidden);
       await ref.read(catalogOverviewProvider.notifier).reload();
+    }
+
+    try {
+      await set(true);
+      _hiddenNotice(catalogDeviceName(record), () => unawaited(set(false)));
     } on Object catch (error) {
       _message('$error');
     }
@@ -769,20 +764,26 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     }
   }
 
-  /// 只改「隐藏」这一个字段。藏起来时给一个撤销，免得点错了找不到在哪里恢复。
+  /// 只改「隐藏」这一个字段。
   Future<void> _setHidden(HostProfile host, bool hidden) async {
     final vault = ref.read(vaultControllerProvider.notifier);
     await vault.updateHost(host.id, (current) => withHidden(current, hidden));
-    if (!mounted || !hidden) return;
+    if (!hidden) return;
+    _hiddenNotice(
+      host.label,
+      () => unawaited(
+          vault.updateHost(host.id, (current) => withHidden(current, false))),
+    );
+  }
+
+  /// 藏起来时给一个撤销、说清去哪恢复：列表上已经没有入口了，点错了不能让人找不着。
+  void _hiddenNotice(String name, VoidCallback undo) {
+    if (!mounted) return;
     final head = localized('已隐藏：');
-    final tail = localized('。照常能连，列表底部能找回来。');
+    final tail = localized('。到「设置 → 安全 → 隐藏的主机」恢复。');
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-      content: Text('$head${host.label}$tail'),
-      action: SnackBarAction(
-        label: localized('撤销'),
-        onPressed: () => unawaited(
-            vault.updateHost(host.id, (current) => withHidden(current, false))),
-      ),
+      content: Text('$head$name$tail'),
+      action: SnackBarAction(label: localized('撤销'), onPressed: undo),
     ));
   }
 

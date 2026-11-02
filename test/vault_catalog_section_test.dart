@@ -9,6 +9,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shun/presentation/screens/hidden_hosts_screen.dart';
 import 'package:shun/application/home_navigation.dart';
 import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/tailscale_catalog_access.dart';
@@ -343,7 +344,8 @@ void main() {
     expect(requests, isEmpty);
   });
 
-  testWidgets('UXR05：没有「全部导入」；设备 ⋮ 隐藏后不显示，「显示已隐藏」能找回；不连接、不建主机', (tester) async {
+  testWidgets('UXR05：没有「全部导入」；设备 ⋮ 隐藏后不显示，连接页不留入口，能撤销；不连接、不建主机',
+      (tester) async {
     await open(tester);
     expect(key('vault-catalog-import-all-ts-home'), findsNothing);
     expect(find.textContaining('还没导入'), findsNothing);
@@ -356,19 +358,12 @@ void main() {
     await tester.pumpAndSettle();
     expect(row, findsNothing);
     expect(key('first-login-dialog'), findsNothing);
-    expect(find.text('显示已隐藏的主机：1'), findsOneWidget);
+    expect(find.textContaining('设置 → 安全 → 隐藏的主机'), findsOneWidget);
+    expect(key('vault-show-hidden'), findsNothing);
 
-    await tester.tap(key('vault-show-hidden'));
+    await tester.tap(find.widgetWithText(SnackBarAction, '撤销'));
     await tester.pumpAndSettle();
     expect(row, findsOneWidget);
-    await tester.tap(key('vault-catalog-device-menu-ts-home-2'));
-    await tester.pumpAndSettle();
-    expect(find.text('取消隐藏'), findsOneWidget);
-    await tester.tap(key('vault-catalog-device-hide-ts-home-2'));
-    await tester.pumpAndSettle();
-    expect(row, findsOneWidget);
-    expect(find.textContaining('显示已隐藏的主机'), findsNothing,
-        reason: '隐藏的都找回了，这个开关就没必要了');
     expect(container.read(vaultControllerProvider).data!.hosts,
         hasLength(hostsBefore));
     expect(requests, isEmpty);
@@ -464,6 +459,29 @@ void main() {
     expect(requests, isEmpty);
   });
 
+  testWidgets('隐藏的设备到「隐藏的主机」页恢复，回列表又在', (tester) async {
+    await open(tester);
+    final row = key('vault-catalog-device-ts-home-2');
+    await tester.tap(key('vault-catalog-device-menu-ts-home-2'));
+    await tester.pumpAndSettle();
+    await tester.tap(key('vault-catalog-device-hide-ts-home-2'));
+    await tester.pumpAndSettle();
+    expect(row, findsNothing);
+    final navigator = tester.state<NavigatorState>(find.byType(Navigator));
+    unawaited(navigator.push(MaterialPageRoute<void>(
+      builder: (_) => const HiddenHostsScreen(),
+    )));
+    await tester.pumpAndSettle();
+    expect(key('hidden-device-ts-home-2'), findsOneWidget);
+    await tester.tap(key('hidden-restore-ts-home-2'));
+    await tester.pumpAndSettle();
+    expect(find.text('没有隐藏的主机'), findsOneWidget);
+    navigator.pop();
+    await tester.pumpAndSettle();
+    expect(row, findsOneWidget);
+    expect(requests, isEmpty);
+  });
+
   testWidgets('藏起来的已导入主机：行不见了，对应设备也不变成「没导入」', (tester) async {
     await open(tester, extraHosts: [
       bound('h-nas', '藏起来的', 'ts-home', '2',
@@ -473,10 +491,7 @@ void main() {
     ]);
     expect(key('vault-catalog-host-h-nas'), findsNothing);
     expect(key('vault-catalog-device-ts-home-2'), findsNothing);
-    expect(key('vault-show-hidden'), findsOneWidget);
-    await tester.tap(key('vault-show-hidden'));
-    await tester.pumpAndSettle();
-    expect(inGroup('ts-home', key('vault-hidden-host-h-nas')), findsOneWidget);
+    expect(find.textContaining('藏起来的'), findsNothing);
   });
 
   testWidgets('搜索只留命中的组；选了自定义分组就不分节', (tester) async {

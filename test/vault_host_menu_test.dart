@@ -145,7 +145,7 @@ void main() {
   });
 
   for (final view in ['list', 'grid', 'tree']) {
-    testWidgets('隐藏只管列表：藏起来、底部能显示、能取消（$view）', (tester) async {
+    testWidgets('隐藏只管列表：藏起来、连接页不留入口、能撤销（$view）', (tester) async {
       await open(tester, [host('web', 'ssh'), host('db', 'ssh')], view: view);
       expect(await menuOf(tester, 'web'), contains('hide'));
       await tester.tap(find.byKey(const ValueKey('host-menu-hide')));
@@ -153,7 +153,7 @@ void main() {
 
       expect(find.byKey(const ValueKey('vault-host-menu-web')), findsNothing);
       expect(find.byKey(const ValueKey('vault-host-menu-db')), findsOneWidget);
-      expect(find.text('显示已隐藏的主机：1'), findsOneWidget);
+      expect(find.byKey(const ValueKey('vault-show-hidden')), findsNothing);
       final saved = container.read(vaultControllerProvider).data!.hosts;
       final web = saved.firstWhere((h) => h.id == 'web');
       expect(web.hidden, isTrue);
@@ -164,13 +164,7 @@ void main() {
             ..remove('updatedAt'),
           {hiddenHostKey});
 
-      await tester.tap(find.byKey(const ValueKey('vault-show-hidden')));
-      await tester.pumpAndSettle();
-      expect(
-          find.byKey(const ValueKey('vault-hidden-host-web')), findsOneWidget,
-          reason: '显示出来也淡一点，和没藏的分开');
-      expect(await menuOf(tester, 'web'), contains('unhide'));
-      await tester.tap(find.byKey(const ValueKey('host-menu-unhide')));
+      await tester.tap(find.widgetWithText(SnackBarAction, '撤销'));
       await tester.pumpAndSettle();
       expect(
           container
@@ -181,8 +175,7 @@ void main() {
               .data
               .containsKey(hiddenHostKey),
           isFalse);
-      expect(find.byKey(const ValueKey('vault-show-hidden')), findsNothing);
-      expect(find.byKey(const ValueKey('vault-hidden-host-web')), findsNothing);
+      expect(find.byKey(const ValueKey('vault-host-menu-web')), findsOneWidget);
     });
   }
 
@@ -191,7 +184,21 @@ void main() {
       host('web', 'ssh', {hiddenHostKey: true})
     ]);
     expect(find.text('还没有终端连接'), findsNothing);
-    expect(find.byKey(const ValueKey('vault-show-hidden')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('vault-open-hidden')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('hidden-host-web')), findsOneWidget);
+    await tester.tap(find.byKey(const ValueKey('hidden-restore-web')));
+    await tester.pumpAndSettle();
+    expect(find.text('没有隐藏的主机'), findsOneWidget);
+    expect(
+      container
+          .read(vaultControllerProvider)
+          .data!
+          .hosts
+          .firstWhere((h) => h.id == 'web')
+          .hidden,
+      isFalse,
+    );
   });
 
   testWidgets('UXR07：搜分组也搜得到；搜不到不说「还没有」，也不摆新建按钮', (tester) async {

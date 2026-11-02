@@ -34,6 +34,7 @@ import '../widgets/terminal_key_feel_tiles.dart';
 import 'app_lock_settings_screen.dart';
 import 'app_log_screen.dart';
 import 'cloud_backup_screen.dart';
+import 'hidden_hosts_screen.dart';
 import 'known_hosts_screen.dart';
 import 'lan_transfer_screen.dart';
 import 'manage_screen.dart';
@@ -654,6 +655,18 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                         ),
                       ),
                     ],
+                    const Divider(height: 1),
+                    ListTile(
+                      key: const ValueKey('settings-hidden-hosts'),
+                      leading: const Icon(Icons.visibility_off_outlined),
+                      title: const LText('隐藏的主机'),
+                      trailing: const Icon(Icons.chevron_right),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute<void>(
+                          builder: (_) => const HiddenHostsScreen(),
+                        ),
+                      ),
+                    ),
                     const Divider(height: 1),
                     ListTile(
                       key: const ValueKey('settings-known-hosts'),

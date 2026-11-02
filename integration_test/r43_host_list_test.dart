@@ -389,21 +389,16 @@ void main() {
     await tester.tap(key('vault-catalog-toggle-$work'));
     await settle(tester);
 
-    // ---- 隐藏 Work 那台，底部能找回来 ----
+    // ---- 隐藏 Work 那台，列表上没入口，提示条能撤销（恢复页在设置里，见 test/vault_host_menu_test.dart） ----
     await openMenu(workHost.id);
     await tester.tap(key('host-menu-hide'));
     await settle(tester, 1000);
     expect(key('vault-catalog-host-${workHost.id}'), findsNothing);
     expect(key('vault-catalog-device-$work-2001'), findsNothing,
         reason: '藏起来的主机对应的设备不变成「没导入」');
-    await reveal(key('vault-show-hidden'));
-    report('hidden.footer', texts(key('vault-show-hidden')));
+    expect(key('vault-show-hidden'), findsNothing);
     await shot('08-hidden');
-    await tester.tap(key('vault-show-hidden'));
-    await settle(tester);
-    expect(key('vault-hidden-host-${workHost.id}'), findsOneWidget);
-    await openMenu(workHost.id);
-    await tester.tap(key('host-menu-unhide'));
+    await tester.tap(find.widgetWithText(SnackBarAction, '撤销'));
     await settle(tester, 1000);
     expect(saved(workHost.id).hidden, isFalse);
 

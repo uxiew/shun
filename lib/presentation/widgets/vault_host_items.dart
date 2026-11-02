@@ -4,15 +4,6 @@ import '../localization/localized_widgets.dart';
 import 'host_address_line.dart';
 import 'host_type_icon.dart';
 
-/// 隐藏的主机只在用户点了「显示已隐藏的主机」后才出现，淡一点，和平时的分开（R43）。
-Widget dimIfHidden(HostProfile host, Widget child) => host.hidden
-    ? Opacity(
-        key: ValueKey('vault-hidden-host-${host.id}'),
-        opacity: 0.55,
-        child: child,
-      )
-    : child;
-
 /// 三种视图共用的 ⋮ 按钮：弹出这台主机的操作菜单。
 /// 一律 48dp：网格卡片以前用紧凑密度，真机上只有 40dp（UX02）。
 Widget vaultHostMenuButton(
@@ -80,21 +71,16 @@ class VaultHostTree extends StatelessWidget {
             subtitle: LText('${children.length} 台服务器'),
             children: [
               for (final host in children)
-                dimIfHidden(
-                  host,
-                  ListTile(
-                    contentPadding: const EdgeInsets.only(left: 28, right: 8),
-                    onTap: () => onConnect(host),
-                    onLongPress: () => onMenu(host),
-                    leading: HostLeadingIcon(
-                        host: host,
-                        size: 38,
-                        catalogOs: catalogOsOf?.call(host)),
-                    title: LText(host.label),
-                    subtitle: HostAddressLine(host),
-                    trailing: vaultHostMenuButton(
-                        host, () => onMenu(host), Icons.more_vert),
-                  ),
+                ListTile(
+                  contentPadding: const EdgeInsets.only(left: 28, right: 8),
+                  onTap: () => onConnect(host),
+                  onLongPress: () => onMenu(host),
+                  leading: HostLeadingIcon(
+                      host: host, size: 38, catalogOs: catalogOsOf?.call(host)),
+                  title: LText(host.label),
+                  subtitle: HostAddressLine(host),
+                  trailing: vaultHostMenuButton(
+                      host, () => onMenu(host), Icons.more_vert),
                 ),
             ],
           ),
@@ -118,9 +104,7 @@ class VaultHostCard extends StatelessWidget {
   final String? catalogOs;
 
   @override
-  Widget build(BuildContext context) => dimIfHidden(host, _card(context));
-
-  Widget _card(BuildContext context) => Card(
+  Widget build(BuildContext context) => Card(
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onConnect,
@@ -181,18 +165,14 @@ class VaultHostTile extends StatelessWidget {
   final VoidCallback onMenu;
   final String? catalogOs;
   @override
-  Widget build(BuildContext context) => dimIfHidden(
-        host,
-        Card(
-          child: ListTile(
-            onTap: onConnect,
-            onLongPress: onMenu,
-            leading:
-                HostLeadingIcon(host: host, size: 42, catalogOs: catalogOs),
-            title: LText(host.label),
-            subtitle: HostAddressLine(host),
-            trailing: vaultHostMenuButton(host, onMenu, Icons.more_vert),
-          ),
+  Widget build(BuildContext context) => Card(
+        child: ListTile(
+          onTap: onConnect,
+          onLongPress: onMenu,
+          leading: HostLeadingIcon(host: host, size: 42, catalogOs: catalogOs),
+          title: LText(host.label),
+          subtitle: HostAddressLine(host),
+          trailing: vaultHostMenuButton(host, onMenu, Icons.more_vert),
         ),
       );
 }
