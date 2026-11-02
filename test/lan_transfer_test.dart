@@ -185,6 +185,20 @@ void main() {
       );
     });
 
+    // 传完马上关端口：再连可能正好撞上关闭，dart:io 这时抛的是 OSError，不是 SocketException。
+    // 只有这一瞬间才有，单跑一次很少撞上，所以多跑几遍。
+    test('端口正在关的时候连上：还是算没连上，不把系统报错甩给用户', () async {
+      for (var i = 0; i < 300; i++) {
+        final sender = await startSender();
+        await receiveLanTransfer(sender.pairing);
+        await expectLater(
+          receiveLanTransfer(sender.pairing),
+          throwsA(isA<LanTransferUnreachable>()),
+          reason: '第 $i 遍',
+        );
+      }
+    }, timeout: const Timeout(Duration(minutes: 3)));
+
     test('错密钥：报不是同一台，拿不到密文；发送方继续等，正主还能拿', () async {
       final sender = await startSender();
       final relay = await Relay.start(sender.pairing.port);

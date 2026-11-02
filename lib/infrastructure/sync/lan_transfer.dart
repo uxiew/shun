@@ -387,6 +387,8 @@ class LanTransferSender {
       return;
     } on SocketException {
       return;
+    } on OSError {
+      return;
     } finally {
       await reader.cancel();
     }
@@ -431,6 +433,9 @@ Future<Uint8List> _fetch(
         await Socket.connect(address, pairing.port, timeout: connectTimeout);
   } on SocketException {
     throw const LanTransferUnreachable();
+  } on OSError {
+    // 对方端口正在关时连上，dart:io 抛的是 OSError，不接的话界面上直接显示英文的系统报错。
+    throw const LanTransferUnreachable();
   }
   final reader = _Reader(socket);
   var verified = false;
@@ -470,6 +475,10 @@ Future<Uint8List> _fetch(
         ? const LanTransferDamaged()
         : const LanTransferUnreachable();
   } on SocketException {
+    throw verified
+        ? const LanTransferDamaged()
+        : const LanTransferUnreachable();
+  } on OSError {
     throw verified
         ? const LanTransferDamaged()
         : const LanTransferUnreachable();
