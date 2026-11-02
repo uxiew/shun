@@ -9,7 +9,12 @@
 - 任务 95 条：DONE 60、IN_PROGRESS 10（R26、R59、R62、R73、R74、R75、R76、R77、R78、R79）、NOT_STARTED 6、DEFERRED 19（DEFERRED 是 P6 后续功能，启用顺序由所有者定）。
 - 用例 188 条：PASS 157、FAIL 0、BLOCKED 6、NOT_RUN 25。每条实际做了什么、看到了什么在 `evidence/`。
 - 门禁只有 G0、G3 PASS，其余 NOT_RUN（各差什么见「早期进展」的门禁一条），离 CORE_READY / FULL_READY 还远。
-- 最近一次全量单测（11-02，`2b5fe49`；没开 Docker，`-j 4`）：1887 过 / 223 跳过 / 0 失败。跳过的都是要测试环境的，算没跑。开着 Docker 串行跑真 SSH 的 6 个文件这次没跑，上次在更早的代码上：146 过 / 1 跳过 / 0 失败（`evidence/R69.md`）。
+- 最近一次全量单测（11-02，`0f2c90a`；没起测试环境，`-j 4`）：1890 过 / 224 跳过 / 0 失败。跳过的都是要测试环境的，算没跑，下面单独跑了。
+- 11-02 开着测试环境补跑（`docker` 要 `~/.orbstack/bin` 在 PATH 上，之前几次写的「没开 Docker」其实是没起测试环境，OrbStack 一直开着）：
+  真 SSH 7 个文件 `-j 1`：147 过 / 1 跳过 / 0 失败（命令见 `evidence/R69.md`，多了 `test/r77_tailscale_refused_fixture_test.dart`；跳过的是 AI 工具检测冒烟）；tmux、Mosh、AI tmux 三个文件 `-j 1`：64 过 / 0 跳过。这些在 `fb3fa90` 之前的代码上跑，`fb3fa90` 只改失败页提示的判断。
+  模拟器走查全过（产物都在 `../.toolchain/artifacts/`）：`r43-device-20261102-170036`、`r25-ux04-20261102-171634`、`r41-device-20261102-171828`、`r24-device-20261102-171914`、`r25-device-20261102-172119`、`r68-device-20261102-172247`、`r40-simulator-0a9318f`、`r39-device-20261102-173309`、`x12-host-20261102-173818`；R77 的见 `evidence/R77.md`。
+  r39 第一次失败是模拟器上留着 10-31 装的 release 包 `top.xdwa.shun`，它也声明了 UU 回调地址，App 按防冒名逻辑拒绝（符合设计）；卸掉后过。
+  **还是没跑：** 21 条 Tailscale SSH 仿制服务器用例要 Go，这台没有。
 - 30 包代码那次（10-31，`bea5c99`）：1776 过 / 275 跳过 / 0 失败；
   真实 SSH 那些文件同一天逐个跑过：入口信任 44、主测试环境 69、安全密钥 7、AI CLI 7 + 5 + 7（1 条跳过）、AI 故障矩阵 44、R39 2、tmux 32、Mosh 27，全过。
 - 开齐测试环境的上一次（10-29，X11 改完之后；开着 Docker 主测试环境、tmux 四个版本、Mosh 测试环境）：1632 过 / 23 跳过 / 0 失败。

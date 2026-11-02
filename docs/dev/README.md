@@ -57,6 +57,8 @@ R25 连接日志：值从哪来、存在哪、哪些名字不能改见 [architec
 
 F31–F37 走查（会话总览的真实单指、两指触摸、中文字体下性能监控和凭据各页的布局）：不用测试环境，开好模拟器、拿锁，再 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r70-device.py`，约 2 分半，截图在 `../.toolchain/artifacts/r70-device-<时间>/`。会话是塞进去的，没有真 SSH，所以性能监控各页都读不到数，这里只证明手势和布局，不证明登录。报 `Could not resolve androidx.test:runner:1.2+` 见第 7 节。
 
+R77 Tailscale 失败页：不连网的 `flutter test --no-pub test/connection_diagnosis_test.dart`；真 OpenSSH、模拟器上真连接失败和拉起 App 的走法见 `plan/v3/evidence/R77.md`。
+
 MON01（性能监控面板的三个入口、真数据、真断线）：先起 `tool/fixture-environment`，开好模拟器、拿锁，再 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r68-device.py`，约 2 分钟。结果只看 `plan/v3/evidence/R68.md`。
 
 R67 / TSC11（Tailscale 状态自动刷新）：不用测试环境，开好模拟器、拿锁，再 `SHUN_R39_AVD=shun-r39-a30 python3 tool/r67-device.py`，约 11 分钟，每一步都要真等 60 秒的间隔。真前后台切换、真实时钟、真 HTTP，Tailscale API 是本机假服务器。脚本最后自己核对假 API 的日志：后台 0 次、429 和 401 之后 70 秒内 0 次，这些在界面上看不出来。mock 测试抓不到页面和自动读同时 reload 的那种问题（11-01 真撞到了：自动刷新没启动，单测全过）。
