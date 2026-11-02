@@ -22,14 +22,16 @@ Future<void> r39Forms(
     expect(find.byType(HostEditor), findsOneWidget);
     expect(find.widgetWithText(TextFormField, '用户名'),
         type == 'Telnet' ? findsNothing : findsOneWidget);
-    await r39Type(
-        tester, find.widgetWithText(TextFormField, '名称'), 'R39 $type');
+    // 从上往下填，名称在最下面：键盘弹着、滚到下面时，上面的地址框已被列表回收，回头找不到。
     await r39Type(
         tester, find.widgetWithText(TextFormField, '主机名 / IP'), 'r39.invalid');
     if (type != 'Telnet') {
       await r39Type(
           tester, find.widgetWithText(TextFormField, '用户名'), 'fixture');
     }
+    await r39HideKeyboard(tester);
+    await r39Type(
+        tester, find.widgetWithText(TextFormField, '名称'), 'R39 $type');
     await r39HideKeyboard(tester);
     await r39Tap(tester, r39Key('host-editor-save'));
     await r39WaitFor(
