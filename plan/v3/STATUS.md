@@ -11,7 +11,7 @@
 - 门禁只有 G0、G3 PASS，其余 NOT_RUN（各差什么见「早期进展」的门禁一条），离 CORE_READY / FULL_READY 还远。
 - 最近一次全量单测（11-02，`0f2c90a`；没起测试环境，`-j 4`）：1890 过 / 224 跳过 / 0 失败。跳过的都是要测试环境的，算没跑，下面单独跑了。
 - 11-02 开着测试环境补跑（`docker` 要 `~/.orbstack/bin` 在 PATH 上，之前几次写的「没开 Docker」其实是没起测试环境，OrbStack 一直开着）：
-  真 SSH 7 个文件 `-j 1`：147 过 / 1 跳过 / 0 失败（命令见 `evidence/R69.md`，多了 `test/r77_tailscale_refused_fixture_test.dart`；跳过的是 AI 工具检测冒烟）；tmux、Mosh、AI tmux 三个文件 `-j 1`：64 过 / 0 跳过。这些在 `fb3fa90` 之前的代码上跑，`fb3fa90` 只改失败页提示的判断。
+  真 SSH 7 个文件 `-j 1`：147 过 / 1 跳过 / 0 失败（命令见 `evidence/R69.md`，多了 `test/r77_tailscale_refused_fixture_test.dart`；跳过的是 AI 工具检测冒烟）；tmux、Mosh、AI tmux 三个文件 `-j 1`：64 过 / 0 跳过。真 SSH 那 7 个在 `dc8647b` 上跑，之后的 `fb3fa90` 只改失败页提示的判断；tmux、Mosh 那 3 个在 `fb3fa90` 之后跑。
   模拟器走查全过（产物都在 `../.toolchain/artifacts/`）：`r43-device-20261102-170036`、`r25-ux04-20261102-171634`、`r41-device-20261102-171828`、`r24-device-20261102-171914`、`r25-device-20261102-172119`、`r68-device-20261102-172247`、`r40-simulator-0a9318f`、`r39-device-20261102-173309`、`x12-host-20261102-173818`；R77 的见 `evidence/R77.md`。
   r39 第一次失败是模拟器上留着 10-31 装的 release 包 `top.xdwa.shun`，它也声明了 UU 回调地址，App 按防冒名逻辑拒绝（符合设计）；卸掉后过。
   **还是没跑：** 21 条 Tailscale SSH 仿制服务器用例要 Go，这台没有。
