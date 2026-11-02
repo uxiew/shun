@@ -183,6 +183,8 @@ void main() {
         expect(keyTop(key), inExclusiveRange(top('连接'), top('安全')),
             reason: key);
       }
+      expect(keyTop('settings-hidden-hosts'),
+          inExclusiveRange(top('安全'), top('数据')));
       expect(
         keyTop('settings-allow-sensitive-screenshots'),
         inExclusiveRange(top('安全'), top('数据')),

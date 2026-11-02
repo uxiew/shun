@@ -2180,6 +2180,8 @@ const englishTranslations = <String, String>{
   '打不开这台主机的文件：对应的 SSH 会话已断开':
       'Cannot open this host’s files: its SSH session has disconnected',
   '隐藏的主机': 'Hidden hosts',
+  '管理 tailnet': 'Manage tailnets',
+  'key 已保存，之后自动再读。': 'Key saved. It will retry automatically.',
   '状态同步间隔': 'Status sync interval',
   '只在打开连接页时': 'Only when opening Connect',
   '30 秒': '30 s',

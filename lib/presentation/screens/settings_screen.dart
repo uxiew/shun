@@ -544,13 +544,9 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                     ListTile(
                       key: const ValueKey('settings-tailscale-catalog'),
                       leading: const Icon(Icons.lan_outlined),
-                      title: const LText('Tailscale 设备目录'),
+                      title: const Text('Tailscale'),
                       trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const TailscaleCatalogScreen(),
-                        ),
-                      ),
+                      onTap: () => openTailscale(context, ref),
                     ),
                     const Divider(height: 1),
                     ListTile(

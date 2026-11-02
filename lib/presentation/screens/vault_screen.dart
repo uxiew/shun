@@ -31,7 +31,6 @@ import '../widgets/host_editor.dart';
 import '../widgets/ai_cli_tools_sheet.dart';
 import '../../infrastructure/storage/ai_cli_recent_work.dart';
 import '../../infrastructure/tailscale/catalog_cache.dart';
-import '../../infrastructure/tailscale/catalog_cache_repository.dart';
 import '../widgets/catalog_host_sections.dart';
 import '../widgets/connect_host.dart';
 import '../widgets/catalog_text.dart';
@@ -730,21 +729,9 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     }
   }
 
-  /// Tailscale 设置。[catalogId] 为 null 是新建；只有一个来源时「新建连接 → Tailscale」打开的就是它，
-  /// 不再建第二个（要接第二个 tailnet，到设置 → 连接 → Tailscale 设备目录里添加）。
+  /// Tailscale 设置。[catalogId] 为 null 时看本机有几个来源，见 [openTailscale]。
   Future<void> _openTailscaleSettings([String? catalogId]) async {
-    if (catalogId == null) {
-      final sources = await ref.read(catalogCacheRepositoryProvider).loadAll();
-      if (!mounted) return;
-      if (sources.length > 1) {
-        await Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (_) => const TailscaleCatalogScreen(),
-        ));
-        if (mounted) await ref.read(catalogOverviewProvider.notifier).reload();
-        return;
-      }
-      catalogId = sources.firstOrNull?.catalogId;
-    }
+    if (catalogId == null) return openTailscale(context, ref);
     await openTailscaleSettings(context, catalogId: catalogId);
     // 设置页里可能建了来源、读过列表、删了 key、移除了来源。
     if (mounted) await ref.read(catalogOverviewProvider.notifier).reload();

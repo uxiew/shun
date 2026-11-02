@@ -7,6 +7,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
+import 'package:shun/application/settings_controller.dart';
+import 'package:shun/application/home_navigation.dart';
 import 'package:shun/application/tailscale_catalog_access.dart';
 import 'package:shun/application/tailscale_catalog_refresh.dart';
 import 'package:shun/domain/models/host.dart';
@@ -280,9 +282,9 @@ void main() {
     final results = <TailscaleSettingsResult?>[];
     await open(
       tester,
-      Builder(
-        builder: (context) => Scaffold(
-          body: TextButton(
+      Scaffold(
+        body: Builder(
+          builder: (context) => TextButton(
             onPressed: () async => results.add(
                 await openTailscaleSettings(context, catalogId: catalogId)),
             child: const Text('open'),
@@ -356,6 +358,121 @@ void main() {
     expect(requests, isEmpty);
     expect(results, isEmpty);
     expect(find.byKey(const ValueKey('ts-settings-key')), findsOneWidget);
+  });
+
+  testWidgets('所有者 11-02：存过的再打开都在，key 显示成已保存，才有东西可移除', (tester) async {
+    repo.caches['ts-home'] =
+        const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
+    await openSettings(tester, 'ts-home');
+    await tester.enterText(
+        find.byKey(const ValueKey('ts-settings-key')), 'tskey-api-CANARY');
+    await tester.enterText(
+        find.byKey(const ValueKey('ts-settings-username')), 'ubuntu');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+    expect(find.byKey(const ValueKey('ts-settings-key')), findsNothing);
+
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    final field =
+        tester.widget<TextField>(find.byKey(const ValueKey('ts-settings-key')));
+    expect(field.controller!.text, isEmpty, reason: 'key 本身不解出来');
+    expect(field.decoration!.hintText, '••••••••••••');
+    expect(field.decoration!.helperText, contains('已加密保存'));
+    expect(
+        tester
+            .widget<TextField>(
+                find.byKey(const ValueKey('ts-settings-username')))
+            .controller!
+            .text,
+        'ubuntu');
+    expect(find.byKey(const ValueKey('ts-settings-remove')), findsOneWidget);
+  });
+
+  testWidgets('没网时填的 key 也存下：框里换成已保存，说一声；保留设备', (tester) async {
+    seedIncomplete();
+    replies = [http.Response('{"message":"boom"}', 500)];
+    final results = await openSettings(tester, 'ts-home');
+    await tester.enterText(
+        find.byKey(const ValueKey('ts-settings-key')), 'tskey-api-CANARY');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+    expect(find.textContaining('key 已保存'), findsOneWidget);
+    expect(results, isEmpty);
+    expect(secrets.values,
+        {'tailscale.catalog.ts-home.accessToken': 'tskey-api-CANARY'});
+    final field =
+        tester.widget<TextField>(find.byKey(const ValueKey('ts-settings-key')));
+    expect(field.controller!.text, isEmpty);
+    expect(field.decoration!.hintText, '••••••••••••');
+    expect(repo.caches['ts-home']!.devices, hasLength(2));
+  });
+
+  testWidgets('Tailscale 明确不接受的 key 不存，框里留着', (tester) async {
+    repo.caches['ts-home'] =
+        const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
+    replies = [http.Response('{}', 401)];
+    await openSettings(tester, 'ts-home');
+    await tester.enterText(
+        find.byKey(const ValueKey('ts-settings-key')), 'tskey-api-BAD');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+    expect(secrets.values, isEmpty);
+    expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('ts-settings-key')))
+            .controller!
+            .text,
+        'tskey-api-BAD');
+  });
+
+  testWidgets('所有者 11-02：面板非模态，背后的按钮点得到；下滑能关', (tester) async {
+    repo.caches['ts-home'] =
+        const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
+    final results = await openSettings(tester, 'ts-home');
+    expect(find.byType(ModalBarrier), findsOneWidget,
+        reason: '只有页面路由自己那一层（不可见、不拦点击）');
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(results, [null], reason: '背后的按钮真点到了：又开一个，旧的关掉');
+    expect(find.byType(TailscaleSettingsScreen), findsOneWidget);
+
+    await tester.fling(
+        find.text('Tailscale 设置').first, const Offset(0, 800), 2000);
+    await tester.pumpAndSettle();
+    expect(find.byType(TailscaleSettingsScreen), findsNothing);
+  });
+
+  testWidgets('所有者 11-02：切底栏就关', (tester) async {
+    repo.caches['ts-home'] =
+        const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
+    final results = await openSettings(tester, 'ts-home');
+    ProviderScope.containerOf(tester.element(find.text('open')))
+        .read(homeTabProvider.notifier)
+        .state = 2;
+    await tester.pumpAndSettle();
+    expect(find.byType(TailscaleSettingsScreen), findsNothing);
+    expect(results, [null]);
+  });
+
+  testWidgets('状态同步间隔：存进设置，再打开还是它', (tester) async {
+    repo.caches['ts-home'] =
+        const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
+    await openSettings(tester, 'ts-home');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-sync')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('5 分钟').last);
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+    expect(
+        ProviderScope.containerOf(tester.element(find.text('open')))
+            .read(settingsControllerProvider)
+            .tailscaleSyncSeconds,
+        300);
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+    expect(find.text('5 分钟'), findsOneWidget);
   });
 
   testWidgets('读取失败：写明失败、留在设置页、缓存里的设备不动', (tester) async {

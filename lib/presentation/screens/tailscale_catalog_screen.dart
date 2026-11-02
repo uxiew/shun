@@ -31,6 +31,24 @@ const _sharedDevicesNote =
 /// 几段说明逐句本地化再拼：拼好的整段在英文表里查不到。
 String _paragraphs(List<String> sources) => sources.map(localized).join('\n\n');
 
+/// 打开 Tailscale 设置：没有来源是新建，一个来源就打开它（填过的都在），多个才先进列表选。
+Future<void> openTailscale(BuildContext context, WidgetRef ref) async {
+  final sources = await ref.read(catalogCacheRepositoryProvider).loadAll();
+  if (!context.mounted) return;
+  if (sources.length > 1) {
+    await Navigator.of(context).push(MaterialPageRoute<void>(
+      builder: (_) => const TailscaleCatalogScreen(),
+    ));
+  } else {
+    await openTailscaleSettings(
+      context,
+      catalogId: sources.firstOrNull?.catalogId,
+    );
+  }
+  // 设置页里可能建了来源、读过列表、删了 key、移除了来源。
+  await ref.read(catalogOverviewProvider.notifier).reload();
+}
+
 /// Tailscale 设备目录（R13）：来源列表。
 class TailscaleCatalogScreen extends ConsumerStatefulWidget {
   const TailscaleCatalogScreen({super.key});
@@ -42,6 +60,8 @@ class TailscaleCatalogScreen extends ConsumerStatefulWidget {
 
 class _TailscaleCatalogScreenState
     extends ConsumerState<TailscaleCatalogScreen> {
+  final _scaffold = GlobalKey<ScaffoldState>();
+
   List<CatalogCache>? _sources;
   List<MissingCatalogSource> _missing = const [];
   String? _error;
@@ -124,7 +144,7 @@ class _TailscaleCatalogScreenState
 
   /// 新建来源走 Tailscale 设置页（R26）：填 key、默认用户名，保存后读一次，再进它的设备页。
   Future<void> _add() async {
-    final result = await openTailscaleSettings(context);
+    final result = await showTailscaleSettingsOn(_scaffold.currentState!);
     if (result == null || result.removed || !mounted) {
       await _load();
       return;
@@ -171,6 +191,7 @@ class _TailscaleCatalogScreenState
     final sources = _sources;
     final small = Theme.of(context).textTheme.bodySmall;
     return Scaffold(
+      key: _scaffold,
       appBar: AppBar(
         title: const LText('Tailscale 设备目录'),
         actions: const [
@@ -262,6 +283,8 @@ class CatalogSourceScreen extends ConsumerStatefulWidget {
 }
 
 class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
+  final _scaffold = GlobalKey<ScaffoldState>();
+
   CatalogCache? _cache;
   bool _hasSaved = false;
   bool _busy = false;
@@ -313,8 +336,10 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
   }
 
   Future<void> _settings() async {
-    final result =
-        await openTailscaleSettings(context, catalogId: widget.catalogId);
+    final result = await showTailscaleSettingsOn(
+      _scaffold.currentState!,
+      catalogId: widget.catalogId,
+    );
     if (!mounted) return;
     if (result?.removed == true) {
       Navigator.of(context).pop();
@@ -373,6 +398,7 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
         .compareTo(catalogDeviceName(b).toLowerCase()));
     final now = DateTime.now();
     return Scaffold(
+      key: _scaffold,
       appBar: AppBar(
         // 还没读到缓存时先空着，别闪一下内部 ID。
         title: Text(cache == null ? '' : catalogSourceName(cache)),

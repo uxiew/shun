@@ -4,6 +4,12 @@ import '../infrastructure/http_client_provider.dart';
 import '../infrastructure/tailscale/catalog_secret_store.dart';
 import '../infrastructure/tailscale/tailscale_api.dart';
 
+/// 这次没读到，但不是 key 的问题：没网、Tailscale 自己出错、请求太频繁。key 留着，下次自动读就好了。
+bool keepKeyAfter(Object? error) =>
+    error is TailscaleNetworkError ||
+    error is TailscaleServerError ||
+    error is TailscaleRateLimited;
+
 class CatalogReadResult {
   const CatalogReadResult(this.listing, {required this.persisted});
   final TailscaleDeviceListing listing;
@@ -13,8 +19,9 @@ class CatalogReadResult {
 /// 目录读取的四个入口（R11）。界面是 presentation/screens/tailscale_catalog_screen.dart（R13）。
 ///
 /// 1. 访问令牌读一次：只在内存里，读完即丢。
-/// 2. 访问令牌读成功后存下来（[readWithToken]）。读失败不存：不留一个读不了的 key。
-/// 3. 用自己的 OAuth client 读，[readWithOAuthClient] 的 persist 决定存不存，同样读成功才存。
+/// 2. 访问令牌读成功后存下来（[readWithToken]）。对方明确不接受才不存；只是这次没读到（[keepKeyAfter]）也存，
+///    不然没网时填的 key 关掉面板就没了。
+/// 3. 用自己的 OAuth client 读，[readWithOAuthClient] 的 persist 决定存不存，规矩同上。
 /// 4. 用已保存的 key 刷新：OAuth 的 401 时受控刷新一次；还不行就要求重新授权，**不删**已保存的 key、
 ///    也不碰已导入的设备和主机——删不删由用户决定。
 ///
@@ -49,8 +56,14 @@ class TailscaleCatalogAccess {
     final TailscaleDeviceListing listing;
     try {
       listing = await client.listDevices(tailnet: tailnet);
-    } on Object {
-      client.forgetToken();
+    } on Object catch (error) {
+      if (keepKeyAfter(error)) {
+        await _store.saveAccessToken(catalogId, token);
+        _saved.remove(catalogId)?.forgetToken();
+        _saved[catalogId] = client;
+      } else {
+        client.forgetToken();
+      }
       rethrow;
     }
     await _store.saveAccessToken(catalogId, token);
@@ -69,8 +82,14 @@ class TailscaleCatalogAccess {
     final TailscaleDeviceListing listing;
     try {
       listing = await client.listDevices(tailnet: tailnet);
-    } on Object {
-      client.forgetToken();
+    } on Object catch (error) {
+      if (persist && keepKeyAfter(error)) {
+        await _store.saveOAuthClient(catalogId, credential);
+        _saved.remove(catalogId)?.forgetToken();
+        _saved[catalogId] = client;
+      } else {
+        client.forgetToken();
+      }
       rethrow;
     }
     if (!persist) {

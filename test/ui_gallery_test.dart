@@ -132,7 +132,7 @@ void main() {
   testWidgets('Tailscale 设置', skip: skip != null, (tester) async {
     await pumpPage(
       tester,
-      const Scaffold(body: TailscaleSettingsScreen()),
+      Scaffold(body: TailscaleSettingsScreen(onDone: (_) {})),
       height: 1500,
     );
     await settle(tester);
