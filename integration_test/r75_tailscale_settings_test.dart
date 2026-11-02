@@ -15,6 +15,7 @@ import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/models/vault.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/tailscale/catalog_cache_repository.dart';
+import 'package:shun/infrastructure/tailscale/catalog_secret_store.dart';
 import 'package:shun/infrastructure/tailscale/tailscale_device.dart';
 import 'package:shun/presentation/home_shell.dart';
 import 'package:shun/presentation/widgets/connection_route_editor.dart';
@@ -184,6 +185,29 @@ void main() {
     await openFromNew(tester);
     await shot(tester, '08-reopened');
     expect(find.text('端口 2222 · 代理 · 跳板机 · 分组'), findsOneWidget);
+    await tapKey(tester, 'ts-settings-cancel');
+
+    // 所有者 11-02：存过 key 只有掩码和改、删。key 是假的，直接写进安全存储，走完就删，后面的步骤不会拿它去请求。
+    await const TailscaleCatalogSecretStore(FlutterSecureCatalogBackend())
+        .saveAccessToken('ts-r75', 'tskey-api-R75-FAKE');
+    await openFromNew(tester);
+    await shot(tester, '08a-key-masked');
+    expect(find.byKey(const ValueKey('ts-settings-saved-key')), findsOneWidget);
+    await tapKey(tester, 'ts-settings-change-key');
+    await binding.delayed(const Duration(milliseconds: 1500));
+    await settle(tester);
+    await shot(tester, '08b-key-replacing');
+    await tapKey(tester, 'ts-settings-cancel-change-key');
+    FocusManager.instance.primaryFocus?.unfocus();
+    await binding.delayed(const Duration(milliseconds: 1000));
+    await settle(tester);
+    await tapKey(tester, 'ts-settings-forget-key');
+    await shot(tester, '08c-key-delete-confirm');
+    await tapKey(tester, 'ts-settings-forget-key-confirm');
+    await binding.delayed(const Duration(milliseconds: 500));
+    await settle(tester);
+    expect(find.byKey(const ValueKey('ts-settings-key')), findsOneWidget);
+    await shot(tester, '08d-key-deleted');
     await tapKey(tester, 'ts-settings-cancel');
 
     // R76：设备不提导入，能隐藏、能找回。设备是塞进缓存的，没连真 Tailscale。
