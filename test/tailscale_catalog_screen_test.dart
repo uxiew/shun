@@ -297,6 +297,26 @@ void main() {
     return results;
   }
 
+  void seedSavedToken() {
+    repo.caches['ts-home'] =
+        const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
+    secrets.values['tailscale.catalog.ts-home.accessToken'] = 'tskey-api-OLD';
+  }
+
+  /// 存着 key 时：只有写死的圆点和改、删，没有输入框、没有「显示」，key 的内容不在界面上。
+  void expectMaskedKey(WidgetTester tester) {
+    expect(find.byKey(const ValueKey('ts-settings-saved-key')), findsOneWidget);
+    expect(find.text('••••••••••••'), findsOneWidget);
+    expect(find.byKey(const ValueKey('ts-settings-key')), findsNothing);
+    expect(
+        find.byKey(const ValueKey('ts-settings-change-key')), findsOneWidget);
+    expect(
+        find.byKey(const ValueKey('ts-settings-forget-key')), findsOneWidget);
+    expect(find.byIcon(Icons.visibility), findsNothing);
+    expect(find.byIcon(Icons.visibility_off), findsNothing);
+    expect(find.textContaining('tskey-'), findsNothing);
+  }
+
   testWidgets('TSC09：设置页的 key 框一直遮着、关联想；tskey-api 读成功存进安全存储，不进缓存',
       (tester) async {
     repo.caches['ts-home'] =
@@ -374,11 +394,8 @@ void main() {
 
     await tester.tap(find.text('open'));
     await tester.pumpAndSettle();
-    final field =
-        tester.widget<TextField>(find.byKey(const ValueKey('ts-settings-key')));
-    expect(field.controller!.text, isEmpty, reason: 'key 本身不解出来');
-    expect(field.decoration!.hintText, '••••••••••••');
-    expect(field.decoration!.helperText, contains('已加密保存'));
+    expectMaskedKey(tester);
+    expect(find.textContaining('已加密保存'), findsOneWidget);
     expect(
         tester
             .widget<TextField>(
@@ -387,6 +404,76 @@ void main() {
             .text,
         'ubuntu');
     expect(find.byKey(const ValueKey('ts-settings-remove')), findsOneWidget);
+  });
+
+  testWidgets('所有者 11-02：改 key：换成输入框，新 key 保存后替换旧的', (tester) async {
+    seedSavedToken();
+    await openSettings(tester, 'ts-home');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-change-key')));
+    await tester.pumpAndSettle();
+    final field =
+        tester.widget<TextField>(find.byKey(const ValueKey('ts-settings-key')));
+    expect(field.controller!.text, isEmpty, reason: '不把旧的填回来');
+    expect(field.obscureText, isTrue);
+    expect(find.byKey(const ValueKey('ts-settings-saved-key')), findsNothing);
+
+    await tester.enterText(
+        find.byKey(const ValueKey('ts-settings-key')), 'tskey-api-NEW');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+    expect(requests.single.headers['authorization'], 'Bearer tskey-api-NEW');
+    expect(secrets.values,
+        {'tailscale.catalog.ts-home.accessToken': 'tskey-api-NEW'});
+  });
+
+  testWidgets('所有者 11-02：点了修改又不填：取消回到掩码；空着保存用旧的', (tester) async {
+    seedSavedToken();
+    final results = await openSettings(tester, 'ts-home');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-change-key')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+        find.byKey(const ValueKey('ts-settings-key')), 'tskey-api-DRAFT');
+    await tester
+        .tap(find.byKey(const ValueKey('ts-settings-cancel-change-key')));
+    await tester.pumpAndSettle();
+    expectMaskedKey(tester);
+
+    await tester.tap(find.byKey(const ValueKey('ts-settings-change-key')));
+    await tester.pumpAndSettle();
+    expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('ts-settings-key')))
+            .controller!
+            .text,
+        isEmpty,
+        reason: '取消掉的不留');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+    expect(requests.single.headers['authorization'], 'Bearer tskey-api-OLD');
+    expect(secrets.values,
+        {'tailscale.catalog.ts-home.accessToken': 'tskey-api-OLD'});
+    expect(results.single?.catalogId, 'ts-home');
+  });
+
+  testWidgets('所有者 11-02：新 key 被拒绝：旧的还在，新的留在框里能改', (tester) async {
+    seedSavedToken();
+    replies = [http.Response('{}', 401)];
+    final results = await openSettings(tester, 'ts-home');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-change-key')));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+        find.byKey(const ValueKey('ts-settings-key')), 'tskey-api-BAD');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-save')));
+    await tester.pumpAndSettle();
+    expect(results, isEmpty);
+    expect(secrets.values,
+        {'tailscale.catalog.ts-home.accessToken': 'tskey-api-OLD'});
+    expect(
+        tester
+            .widget<TextField>(find.byKey(const ValueKey('ts-settings-key')))
+            .controller!
+            .text,
+        'tskey-api-BAD');
   });
 
   testWidgets('没网时填的 key 也存下：框里换成已保存，说一声；保留设备', (tester) async {
@@ -401,10 +488,7 @@ void main() {
     expect(results, isEmpty);
     expect(secrets.values,
         {'tailscale.catalog.ts-home.accessToken': 'tskey-api-CANARY'});
-    final field =
-        tester.widget<TextField>(find.byKey(const ValueKey('ts-settings-key')));
-    expect(field.controller!.text, isEmpty);
-    expect(field.decoration!.hintText, '••••••••••••');
+    expectMaskedKey(tester);
     expect(repo.caches['ts-home']!.devices, hasLength(2));
   });
 
@@ -485,7 +569,7 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.textContaining('读取失败，缓存里的设备和主机都没动'), findsOneWidget);
     expect(results, isEmpty);
-    expect(find.byKey(const ValueKey('ts-settings-key')), findsOneWidget);
+    expect(find.byKey(const ValueKey('ts-settings-saved-key')), findsOneWidget);
     expect(repo.caches['ts-home']!.devices, hasLength(2));
   });
 
@@ -744,11 +828,21 @@ void main() {
     await saveHosts(
         [boundHost('h1', 'nas', 'ts-home', '1', applied: '100.64.0.1')]);
     final results = await openSettings(tester, 'ts-home');
-    expect(find.text('已加密保存，不填就用它'), findsOneWidget);
+    expectMaskedKey(tester);
     await tester.tap(find.byKey(const ValueKey('ts-settings-forget-key')));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('取消').last);
+    await tester.pumpAndSettle();
+    expect(secrets.values, hasLength(2), reason: '确认框点取消，什么都不删');
+    await tester.tap(find.byKey(const ValueKey('ts-settings-forget-key')));
+    await tester.pumpAndSettle();
+    await tester
+        .tap(find.byKey(const ValueKey('ts-settings-forget-key-confirm')));
     await tester.pumpAndSettle();
     expect(secrets.values, isEmpty);
     expect(find.byKey(const ValueKey('ts-settings-forget-key')), findsNothing);
+    expect(find.byKey(const ValueKey('ts-settings-key')), findsOneWidget,
+        reason: '删了就回到能填新 key');
 
     await tester.tap(find.byKey(const ValueKey('ts-settings-remove')));
     await tester.pumpAndSettle();

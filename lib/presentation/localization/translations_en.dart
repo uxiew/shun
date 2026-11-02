@@ -286,10 +286,14 @@ const englishTranslations = <String, String>{
   '只导入，不连接': 'Import only, don’t connect',
   '自动列出 tailnet 里的设备，点一下就导入并连接。只读设备列表：不开 VPN，手机要能到达设备（比如开着 Tailscale App）。':
       'Lists the devices in your tailnet; tap one to import and connect. Only reads the device list: no VPN is started, and the phone must be able to reach the device (for example with the Tailscale app on).',
-  '已加密保存，不填就用它': 'Saved encrypted; leave blank to use it',
+  '已加密保存，不能查看': 'Saved encrypted; can’t be viewed',
+  '填了替换旧的，不填不变': 'Replaces the old key; leave blank to keep it',
+  '修改': 'Change',
+  '取消修改': 'Cancel change',
   '推荐 OAuth client（tskey-client-…）：在 Tailscale 后台 Settings → OAuth clients 创建，只勾 devices:core:read。访问令牌（tskey-api-…）也能用，但它带着你账号的全部权限。\n\n读成功就加密存在这台手机上：只有 shun 能解开，不进备份和同步。':
       'Recommended: an OAuth client (tskey-client-…), created in the Tailscale admin console under Settings → OAuth clients with only devices:core:read. An access token (tskey-api-…) works too, but it carries your account\'s full permissions.\n\nOnce a read succeeds it is saved encrypted on this phone: only shun can decrypt it, and it stays out of backups and sync.',
-  '删除保存的 key': 'Delete the saved key',
+  '删除保存的 key？': 'Delete the saved key?',
+  '删了找不回来，要用得重新填。': 'It can’t be recovered; you’ll have to enter it again to use it.',
   '已删除本机保存的 key。它在 Tailscale 那边仍然有效，要彻底作废请到 Tailscale 后台撤销。':
       'Deleted the key saved on this phone. It is still valid at Tailscale; revoke it in the Tailscale admin console to disable it.',
   '会删除本机的设备缓存和保存的 key。':

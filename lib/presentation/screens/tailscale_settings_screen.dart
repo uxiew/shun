@@ -121,6 +121,9 @@ class _TailscaleSettingsScreenState
   String? _catalogId;
   CatalogCache? _cache;
   bool _hasSaved = false;
+
+  /// 点了「修改」：掩码换成输入框。新填的 key 保存成功才替换旧的。
+  bool _replacingKey = false;
   bool _loaded = false;
   bool _busy = false;
   String? _loadError;
@@ -352,6 +355,7 @@ class _TailscaleSettingsScreenState
           if (input != null && keepKeyAfter(outcome.error)) {
             _key.clear();
             _hasSaved = true;
+            _replacingKey = false;
             _plainMessage('$report ${localized('key 已保存，之后自动再读。')}');
           } else {
             _plainMessage(report);
@@ -372,6 +376,26 @@ class _TailscaleSettingsScreenState
   Future<void> _forgetKey() async {
     final id = _catalogId;
     if (id == null) return;
+    // key 看不回来，OAuth client 的 secret 在 Tailscale 后台也只显示一次：误点就得重新建，所以要问。
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const LText('删除保存的 key？'),
+        content: const LText('删了找不回来，要用得重新填。'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: const LText('取消'),
+          ),
+          FilledButton(
+            key: const ValueKey('ts-settings-forget-key-confirm'),
+            onPressed: () => Navigator.pop(context, true),
+            child: const LText('删除'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true || !mounted) return;
     await _catalog.forgetCredentials(id);
     if (!mounted) return;
     setState(() {
@@ -423,6 +447,45 @@ class _TailscaleSettingsScreenState
     await _catalog.removeSource(id);
     if (mounted) widget.onDone((catalogId: id, removed: true));
   }
+
+  void _cancelReplacingKey() => setState(() {
+        _key.clear();
+        _replacingKey = false;
+        _notice = null;
+      });
+
+  /// 存着的 key 看不了，只能换或删（所有者 11-02）。这里根本没解密：圆点是写死的，长度也不漏。
+  Widget _savedKey(ThemeData theme) => InputDecorator(
+        key: const ValueKey('ts-settings-saved-key'),
+        decoration: LInputDecoration(
+          labelText: 'API key',
+          floatingLabelBehavior: FloatingLabelBehavior.always,
+          helperText: '已加密保存，不能查看',
+          suffixIcon: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              IconButton(
+                key: const ValueKey('ts-settings-change-key'),
+                tooltip: localized('修改'),
+                onPressed: _busy
+                    ? null
+                    : () => setState(() {
+                          _replacingKey = true;
+                          _notice = null;
+                        }),
+                icon: const Icon(Icons.edit_outlined),
+              ),
+              IconButton(
+                key: const ValueKey('ts-settings-forget-key'),
+                tooltip: localized('删除'),
+                onPressed: _busy ? null : _forgetKey,
+                icon: const Icon(Icons.delete_outline),
+              ),
+            ],
+          ),
+        ),
+        child: Text('••••••••••••', style: theme.textTheme.bodyLarge),
+      );
 
   /// 接第二个 tailnet、看目录的细节都在这页。面板里不再开一层。
   void _openSources() {
@@ -496,37 +559,38 @@ class _TailscaleSettingsScreenState
                       const LinearProgressIndicator(),
                       const SizedBox(height: 8),
                     ],
-                    TextField(
-                      key: const ValueKey('ts-settings-key'),
-                      controller: _key,
-                      // 一直遮着、不给「显示」：遮挡的框不能复制剪切，key 不会经剪贴板流出去（TSC09）。
-                      obscureText: true,
-                      autocorrect: false,
-                      enableSuggestions: false,
-                      enableIMEPersonalizedLearning: false,
-                      onChanged: (_) => setState(() {}),
-                      decoration: LInputDecoration(
-                        labelText: 'API key',
-                        // 存着就摆出来：打开什么都没有，看着像刚才白填了（所有者 11-02）。key 本身不解出来显示。
-                        floatingLabelBehavior:
-                            _hasSaved ? FloatingLabelBehavior.always : null,
-                        hintText: _hasSaved ? '••••••••••••' : 'tskey-…',
-                        helperText: _hasSaved ? '已加密保存，不填就用它' : null,
-                        suffixIcon: const HintButton(
-                          title: 'API key',
-                          message:
-                              '推荐 OAuth client（tskey-client-…）：在 Tailscale 后台 Settings → OAuth clients 创建，只勾 devices:core:read。访问令牌（tskey-api-…）也能用，但它带着你账号的全部权限。\n\n读成功就加密存在这台手机上：只有 shun 能解开，不进备份和同步。',
+                    if (_hasSaved && !_replacingKey)
+                      _savedKey(theme)
+                    else
+                      TextField(
+                        key: const ValueKey('ts-settings-key'),
+                        controller: _key,
+                        // 点「修改」才出现，光标直接进来。第一次填不抢焦点：一开面板就弹键盘会挡住别的项。
+                        autofocus: _replacingKey,
+                        // 一直遮着、不给「显示」：遮挡的框不能复制剪切，key 不会经剪贴板流出去（TSC09）。
+                        obscureText: true,
+                        autocorrect: false,
+                        enableSuggestions: false,
+                        enableIMEPersonalizedLearning: false,
+                        onChanged: (_) => setState(() {}),
+                        decoration: LInputDecoration(
+                          labelText: 'API key',
+                          hintText: 'tskey-…',
+                          helperText: _replacingKey ? '填了替换旧的，不填不变' : null,
+                          suffixIcon: const HintButton(
+                            title: 'API key',
+                            message:
+                                '推荐 OAuth client（tskey-client-…）：在 Tailscale 后台 Settings → OAuth clients 创建，只勾 devices:core:read。访问令牌（tskey-api-…）也能用，但它带着你账号的全部权限。\n\n读成功就加密存在这台手机上：只有 shun 能解开，不进备份和同步。',
+                          ),
                         ),
                       ),
-                    ),
-                    if (_hasSaved)
+                    if (_replacingKey)
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: TextButton.icon(
-                          key: const ValueKey('ts-settings-forget-key'),
-                          onPressed: _busy ? null : _forgetKey,
-                          icon: const Icon(Icons.key_off_outlined),
-                          label: const LText('删除保存的 key'),
+                        child: TextButton(
+                          key: const ValueKey('ts-settings-cancel-change-key'),
+                          onPressed: _busy ? null : _cancelReplacingKey,
+                          child: const LText('取消修改'),
                         ),
                       ),
                     const FormGap(),
