@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../../application/settings_controller.dart';
 import '../../application/tailscale_catalog_import.dart';
 import '../../application/tailscale_catalog_provider.dart';
 import '../../application/tailscale_catalog_refresh.dart';
@@ -12,6 +13,7 @@ import '../../application/vault_controller.dart';
 import '../../domain/connection_route.dart';
 import '../../domain/credential_identity.dart';
 import '../../domain/models/host.dart';
+import '../../domain/models/settings.dart';
 import '../../domain/models/vault.dart';
 import '../../infrastructure/tailscale/catalog_cache.dart';
 import '../../infrastructure/tailscale/catalog_cache_repository.dart';
@@ -89,6 +91,8 @@ class _TailscaleSettingsScreenState
   /// 面板底下那句话。不用 SnackBar：它弹在面板下面的页上，正好被面板挡住，保存失败了看着像没反应。
   ({String text, bool error})? _notice;
   final _advanced = ExpansibleController();
+
+  late var _sync = ref.read(settingsControllerProvider).tailscaleSyncSeconds;
 
   TailscaleCatalogProvider get _catalog => ref.read(tailscaleCatalogProvider);
 
@@ -181,6 +185,12 @@ class _TailscaleSettingsScreenState
       );
 
   bool get _usesCredential => _login == LoginChoice.credential;
+
+  static String _syncLabel(int seconds) => switch (seconds) {
+        0 => '只在打开连接页时',
+        < 60 => '$seconds 秒',
+        _ => '${seconds ~/ 60} 分钟',
+      };
 
   /// 用和连接时同一个函数检查路线：跳板不在了、代理配置删了，在这里就说。
   ({RoutePlan? plan, String? error}) _routePreview(VaultData? vault) {
@@ -279,6 +289,12 @@ class _TailscaleSettingsScreenState
         _cache = created;
       }
       await _catalog.saveImportDefaults(id, _defaults().toJson());
+      final settings = ref.read(settingsControllerProvider);
+      if (settings.tailscaleSyncSeconds != _sync) {
+        await ref
+            .read(settingsControllerProvider.notifier)
+            .update(settings.copyWith(tailscaleSyncSeconds: _sync));
+      }
       final outcome = switch (input) {
         TailscaleOAuthClientKey(:final credential) =>
           await _catalog.refreshWithOAuthClient(id, credential, persist: true),
@@ -492,6 +508,21 @@ class _TailscaleSettingsScreenState
                           }),
                           child: LText(_usesCredential ? '改用用户名' : '改用凭据'),
                         ),
+                      ),
+                      const FormGap(),
+                      DropdownButtonFormField<int>(
+                        key: const ValueKey('ts-settings-sync'),
+                        initialValue: _sync,
+                        decoration: LInputDecoration(labelText: '状态同步间隔'),
+                        items: [
+                          for (final seconds in tailscaleSyncChoices)
+                            DropdownMenuItem(
+                              value: seconds,
+                              child: LText(_syncLabel(seconds)),
+                            ),
+                        ],
+                        onChanged: (value) =>
+                            setState(() => _sync = value ?? _sync),
                       ),
                       ExpansionTile(
                         key: const ValueKey('ts-settings-advanced'),

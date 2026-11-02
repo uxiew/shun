@@ -197,6 +197,96 @@ void main() {
     overview.dispose();
   });
 
+  testWidgets('所有者 11-02：进这页就读，不用等满间隔；几秒内来回切不重复读', (tester) async {
+    final overview = controller();
+    overview.setVisible(true);
+    await tester.pump();
+    await tester.pump();
+    expect(requests, hasLength(1));
+
+    overview.setVisible(false);
+    clock = clock.add(const Duration(seconds: 5));
+    overview.setVisible(true);
+    await tester.pump();
+    await tester.pump();
+    expect(requests, hasLength(1), reason: '5 秒前刚读过');
+
+    overview.setVisible(false);
+    clock = clock.add(const Duration(seconds: 6));
+    overview.setVisible(true);
+    await tester.pump();
+    await tester.pump();
+    expect(requests, hasLength(2), reason: '过了 10 秒，一进来就读，不等 60 秒');
+    overview.dispose();
+  });
+
+  testWidgets('上次读失败：定时读隔 10 分钟，再进这页马上试', (tester) async {
+    final overview = controller();
+    replies.add(http.Response('{"message":"boom"}', 500));
+    overview.setVisible(true);
+    await tester.pump();
+    await tester.pump();
+    expect(requests, hasLength(1));
+    overview.setVisible(false);
+    clock = clock.add(const Duration(seconds: 11));
+    overview.setVisible(true);
+    await tester.pump();
+    await tester.pump();
+    expect(requests, hasLength(2));
+    overview.dispose();
+  });
+
+  testWidgets('同步间隔能改：5 分钟就隔 5 分钟读，改完立刻按新的排', (tester) async {
+    final overview = controller();
+    overview.setSyncInterval(300);
+    overview.setVisible(true);
+    await tester.pump();
+    await tester.pump();
+    expect(requests, hasLength(1));
+    await walk(tester, const Duration(minutes: 4));
+    expect(requests, hasLength(1));
+    await walk(tester, const Duration(seconds: 61));
+    expect(requests, hasLength(2));
+
+    overview.setSyncInterval(30);
+    await walk(tester, const Duration(seconds: 31));
+    expect(requests, hasLength(3));
+    overview.dispose();
+  });
+
+  testWidgets('间隔选「只在打开连接页时」：停着不读，再进来才读', (tester) async {
+    final overview = controller();
+    overview.setSyncInterval(0);
+    overview.setVisible(true);
+    await tester.pump();
+    await tester.pump();
+    expect(requests, hasLength(1));
+    await walk(tester, const Duration(minutes: 30));
+    expect(requests, hasLength(1));
+    overview.setVisible(false);
+    overview.setVisible(true);
+    await tester.pump();
+    await tester.pump();
+    expect(requests, hasLength(2));
+    overview.dispose();
+  });
+
+  testWidgets('停在这页时第一次存 key：页面没换，定时器也要排上', (tester) async {
+    final saved = {...secrets.values};
+    secrets.values.clear();
+    final overview = controller();
+    overview.setVisible(true);
+    await tester.pump();
+    await tester.pump();
+    expect(requests, isEmpty);
+
+    secrets.values.addAll(saved);
+    await overview.reload();
+    await walk(tester, const Duration(seconds: 61));
+    expect(requests, hasLength(1));
+    overview.dispose();
+  });
+
   testWidgets('没存 key 的来源不发请求，也不留定时器', (tester) async {
     repo.caches
       ..remove(_home)

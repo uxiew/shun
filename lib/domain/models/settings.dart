@@ -64,6 +64,9 @@ class TerminalCustomKey {
       };
 }
 
+const defaultTailscaleSyncSeconds = 60;
+const tailscaleSyncChoices = [30, 60, 300, 900, 0];
+
 class AppSettings {
   const AppSettings({
     this.themeMode = 'dark',
@@ -74,6 +77,7 @@ class AppSettings {
     this.terminalFullscreenSwipe = false,
     this.terminalInputMode = terminalInputSystem,
     this.allowSensitiveScreenshots = false,
+    this.tailscaleSyncSeconds = defaultTailscaleSyncSeconds,
     this.appLockEnabled = false,
     this.appLockGraceSeconds = 60,
     this.appLockSkipWhileConnected = false,
@@ -147,6 +151,10 @@ class AppSettings {
               ? json['terminalInputMode'] as String
               : terminalInputSystem,
       allowSensitiveScreenshots: json['allowSensitiveScreenshots'] == true,
+      tailscaleSyncSeconds:
+          tailscaleSyncChoices.contains(json['tailscaleSyncSeconds'])
+              ? json['tailscaleSyncSeconds'] as int
+              : defaultTailscaleSyncSeconds,
       appLockEnabled: json['appLockEnabled'] == true,
       appLockGraceSeconds: (json['appLockGraceSeconds'] as num?)?.toInt() ?? 60,
       appLockSkipWhileConnected: json['appLockSkipWhileConnected'] == true,
@@ -203,6 +211,9 @@ class AppSettings {
   /// 截屏、录屏、最近任务里都是黑的。只管 Android；终端页不管开不开都能截。
   final bool allowSensitiveScreenshots;
 
+  /// 停在「连接」页时隔多久读一次 Tailscale 设备状态。0：不定时读，只在进这页时读。
+  final int tailscaleSyncSeconds;
+
   /// 应用锁（R46）。只挡住打开 App，不授权任何签名或访问请求。
   final bool appLockEnabled;
 
@@ -255,6 +266,7 @@ class AppSettings {
     bool? terminalFullscreenSwipe,
     String? terminalInputMode,
     bool? allowSensitiveScreenshots,
+    int? tailscaleSyncSeconds,
     bool? appLockEnabled,
     int? appLockGraceSeconds,
     bool? appLockSkipWhileConnected,
@@ -292,6 +304,7 @@ class AppSettings {
         terminalInputMode: terminalInputMode ?? this.terminalInputMode,
         allowSensitiveScreenshots:
             allowSensitiveScreenshots ?? this.allowSensitiveScreenshots,
+        tailscaleSyncSeconds: tailscaleSyncSeconds ?? this.tailscaleSyncSeconds,
         appLockEnabled: appLockEnabled ?? this.appLockEnabled,
         appLockGraceSeconds: appLockGraceSeconds ?? this.appLockGraceSeconds,
         appLockSkipWhileConnected:
@@ -335,6 +348,7 @@ class AppSettings {
         'terminalFullscreenSwipe': terminalFullscreenSwipe,
         'terminalInputMode': terminalInputMode,
         'allowSensitiveScreenshots': allowSensitiveScreenshots,
+        'tailscaleSyncSeconds': tailscaleSyncSeconds,
         'appLockEnabled': appLockEnabled,
         'appLockGraceSeconds': appLockGraceSeconds,
         'appLockSkipWhileConnected': appLockSkipWhileConnected,

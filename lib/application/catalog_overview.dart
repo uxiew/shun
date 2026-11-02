@@ -2,15 +2,17 @@ import 'dart:async';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../domain/models/settings.dart';
 import '../infrastructure/tailscale/catalog_cache.dart';
 import '../infrastructure/tailscale/catalog_cache_repository.dart';
 import '../infrastructure/tailscale/tailscale_api.dart';
 import 'home_navigation.dart';
+import 'settings_controller.dart';
 import 'tailscale_catalog_provider.dart';
 import 'tailscale_catalog_refresh.dart';
 
-/// App 在前台、停在「连接」页时，多久向 Tailscale 读一次设备列表（R67）。
-const catalogAutoRefreshInterval = Duration(seconds: 60);
+/// 进「连接」页、切回前台时马上读一次，但刚读过这么久以内不再读：来回切底栏不该连着撞 Tailscale。
+const catalogEnterRefreshFloor = Duration(seconds: 10);
 
 /// 上次读失败后，多久才自动再试。key 失效或没网时每分钟撞一次没有意义；用户点刷新不受这个限制。
 const catalogAutoRefreshBackoff = Duration(minutes: 10);
@@ -43,8 +45,9 @@ class CatalogSourceView {
 /// 主机列表的 Tailscale 分节用的数据（R43）：本机每个目录来源的缓存，按名字排。
 ///
 /// 在线状态要新（R67，所有者 11-01：以前只有点「刷新」才读，绿点可能是几天前的）：
-/// App 在前台、停在「连接」页时，存了 key 的来源隔 [catalogAutoRefreshInterval] 读一次。
-/// 后台不发请求；没存 key 的不发；读失败不弹框，隔 [catalogAutoRefreshBackoff] 再试，
+/// 进这页马上读（[catalogEnterRefreshFloor]），停着时隔用户设的间隔读（[setSyncInterval]）。只能轮询：
+/// Tailscale 的 webhook 要有公网服务器收，手机上的 Tailscale App 也不把状态给别的 App。
+/// 后台不发请求；没存 key 的不发；读失败不弹框，定时读隔 [catalogAutoRefreshBackoff] 再试，
 /// 429 按 Retry-After（Tailscale 自己说多久就等多久）。一次一个来源，正在刷的不会再发。
 class CatalogOverviewController extends StateNotifier<List<CatalogSourceView>> {
   CatalogOverviewController({
@@ -65,6 +68,9 @@ class CatalogOverviewController extends StateNotifier<List<CatalogSourceView>> {
   var _foreground = true;
   var _visible = false;
   Timer? _timer;
+
+  /// null：不定时读，只在进这页时读。
+  Duration? _interval = const Duration(seconds: defaultTailscaleSyncSeconds);
 
   /// 每进入一次「该自动读」的状态加一：离开再回来时，上一轮等着的那些步骤看到号变了就不再往下走。
   var _autoRound = 0;
@@ -88,44 +94,73 @@ class CatalogOverviewController extends StateNotifier<List<CatalogSourceView>> {
     _autoActiveChanged();
   }
 
+  /// 用户改了同步间隔。0 秒是不定时读。
+  void setSyncInterval(int seconds) {
+    final next = seconds <= 0 ? null : Duration(seconds: seconds);
+    if (_interval == next) return;
+    _interval = next;
+    _timer?.cancel();
+    _timer = null;
+    if (_autoActive) _armTimer(_autoRound);
+  }
+
   void _autoActiveChanged() {
     _timer?.cancel();
     _timer = null;
     final round = ++_autoRound;
-    if (_autoActive) unawaited(_autoRefresh(round));
+    if (_autoActive) unawaited(_autoRefresh(round, entering: true));
   }
 
-  Future<void> _autoRefresh(int round) async {
+  Future<void> _autoRefresh(int round, {bool entering = false}) async {
     unawaited(reload());
     await _reloadsSettled();
     for (final view in state) {
       if (!mounted || round != _autoRound) return;
-      if (_due(view)) await _refreshQuietly(view.catalogId);
+      if (entering ? _dueOnEnter(view) : _due(view)) {
+        await _refreshQuietly(view.catalogId);
+      }
     }
     if (!mounted || round != _autoRound) return;
-    // 一个存了 key 的来源都没有就不留定时器：加来源、存 key 之后回到这页会 [reload]，那时再排。
-    if (state.any((view) => view.hasSavedCredentials)) _schedule(round);
+    _armTimer(round);
   }
 
-  void _schedule(int round) {
+  /// 没有存 key 的来源就不留定时器：存 key 后 [reload] 会再来这里排。
+  void _armTimer(int round) {
+    final interval = _interval;
     _timer?.cancel();
-    // 这一轮读完才排下一轮：按「读完的时间」算间隔，下一轮到点时一定已经满 60 秒，不会被 [_due] 跳过。
-    _timer = Timer(catalogAutoRefreshInterval, () => _autoRefresh(round));
+    _timer = null;
+    if (interval == null || !state.any((view) => view.hasSavedCredentials)) {
+      return;
+    }
+    // 这一轮读完才排下一轮：按「读完的时间」算间隔，下一轮到点时一定已经满间隔，不会被 [_due] 跳过。
+    _timer = Timer(interval, () => _autoRefresh(round));
+  }
+
+  bool _readable(CatalogSourceView view) {
+    if (!view.hasSavedCredentials || view.refreshing) return false;
+    final notBefore = _notBefore[view.catalogId];
+    return notBefore == null || !_now().isBefore(notBefore);
+  }
+
+  /// 刚进来就是要看新的：上次读失败也试，只挡住几秒内重复进出。
+  bool _dueOnEnter(CatalogSourceView view) {
+    if (!_readable(view)) return false;
+    final attempt = view.cache.lastAttempt;
+    if (attempt == null) return true;
+    final age = _now().difference(attempt.at);
+    return age.isNegative || age >= catalogEnterRefreshFloor;
   }
 
   bool _due(CatalogSourceView view) {
-    if (!view.hasSavedCredentials || view.refreshing) return false;
-    final now = _now();
-    final notBefore = _notBefore[view.catalogId];
-    if (notBefore != null && now.isBefore(notBefore)) return false;
+    if (!_readable(view)) return false;
     final attempt = view.cache.lastAttempt;
     if (attempt == null) return true;
-    final age = now.difference(attempt.at);
+    final age = _now().difference(attempt.at);
     // 手机时钟被往回调过：负数当作该读了，不然要等时钟追上来才会再读。
     return age.isNegative ||
         age >=
             (attempt.ok
-                ? catalogAutoRefreshInterval
+                ? _interval ?? catalogAutoRefreshBackoff
                 : catalogAutoRefreshBackoff);
   }
 
@@ -202,6 +237,8 @@ class CatalogOverviewController extends StateNotifier<List<CatalogSourceView>> {
             ? view.copyWith(refreshing: true)
             : view,
     ];
+    // 这页开着时第一次存了 key：页面没换，没有别的时机来排定时器。
+    if (_autoActive && _timer == null) _armTimer(_autoRound);
   }
 
   /// 用本机保存的凭据刷新一个来源。这个来源正在刷、或已经不在本机，返回 null，不发请求。
@@ -250,6 +287,11 @@ final catalogOverviewProvider =
   ref.listen(
     homeTabProvider,
     (_, tab) => controller.setVisible(tab == 0),
+    fireImmediately: true,
+  );
+  ref.listen(
+    settingsControllerProvider.select((value) => value.tailscaleSyncSeconds),
+    (_, seconds) => controller.setSyncInterval(seconds),
     fireImmediately: true,
   );
   return controller;
