@@ -509,7 +509,7 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
                       key: const ValueKey('settings-manage'),
                       leading: const Icon(Icons.manage_search),
                       title: const LText('管理'),
-                      subtitle: const LText('搜主机、凭据、代理、转发'),
+                      subtitle: const LText('主机、凭据、代理、转发'),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => Navigator.of(context).push(
                         MaterialPageRoute<void>(

@@ -8,7 +8,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/ai_cli_return.dart';
 import '../../application/catalog_overview.dart';
 import '../../application/tailscale_catalog_provider.dart';
-import '../../application/fork_features.dart';
 import '../../application/connection_events.dart';
 import '../../application/connection_switch.dart';
 import '../../application/host_actions.dart';
@@ -899,34 +898,8 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     if (other case final choice? when mounted) await _openOtherType(choice);
   }
 
-  Future<bool> _confirmDeleteHost(HostProfile host) async {
-    final confirmed = await showDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-            icon: const Icon(Icons.delete_outline),
-            title: const LText('删除服务器？'),
-            // 没开自动同步就不说「会传到其他设备」，那句是上游留下的。
-            content: LText(ref.read(forkFeaturesProvider).cloudSync &&
-                    ref.read(settingsControllerProvider).autoSyncEnabled
-                ? '将从保险库中删除“${host.label}”，此操作可通过云端备份传播到其他设备。'
-                : '将从保险库中删除“${host.label}”，删了不能撤销。'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const LText('取消'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const LText('删除'),
-              ),
-            ],
-          ),
-        ) ??
-        false;
-    if (!confirmed || !mounted) return false;
-    await ref.read(vaultControllerProvider.notifier).deleteHost(host.id);
-    return true;
-  }
+  Future<bool> _confirmDeleteHost(HostProfile host) =>
+      confirmDeleteHost(context, ref, host);
 }
 
 class _VaultGroupChip extends StatelessWidget {

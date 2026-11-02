@@ -8,6 +8,7 @@ import '../../domain/credential_identity.dart';
 import '../../domain/models/host.dart';
 import '../../domain/security_key.dart';
 import 'credential_field.dart';
+import 'empty_state.dart';
 import 'identity_editor.dart';
 import 'security_key_actions.dart';
 import 'ssh_key_import.dart';
@@ -21,12 +22,6 @@ class KeychainSheet extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final vault = ref.watch(vaultControllerProvider).data;
-    final keys = vault?.keys ?? const <SshKeyProfile>[];
-    final identities =
-        vault == null ? const <IdentityProfile>[] : vaultIdentities(vault);
-    final hosts = vault?.hosts ?? const <HostProfile>[];
-    final small = Theme.of(context).textTheme.bodySmall;
     return SafeArea(
       child: Scaffold(
         appBar: AppBar(
@@ -40,26 +35,91 @@ class KeychainSheet extends ConsumerWidget {
               key: const ValueKey('keychain-add'),
               tooltip: localized('添加'),
               icon: const Icon(Icons.add),
-              onSelected: (value) => switch (value) {
-                'identity' => editAndSaveIdentity(context, ref),
-                'security-key' => addSecurityKey(context, ref),
-                _ => importSshKey(context, ref),
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem(value: 'identity', child: LText('新建凭据')),
-                PopupMenuItem(value: 'key', child: LText('导入 SSH 私钥')),
-                PopupMenuItem(
-                  value: 'security-key',
-                  child: LText('添加安全密钥'),
-                ),
+              onSelected: (value) => _runAdd(context, ref, value),
+              itemBuilder: (_) => [
+                for (final (value, label) in _addChoices)
+                  PopupMenuItem(value: value, child: LText(label)),
               ],
             ),
           ],
         ),
-        body: ListView(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
-          children: [
-            _header(context, '登录凭据'),
+        body: const KeychainList(),
+      ),
+    );
+  }
+}
+
+const _addChoices = [
+  ('identity', '新建凭据'),
+  ('key', '导入 SSH 私钥'),
+  ('security-key', '添加安全密钥'),
+];
+
+Future<void> _runAdd(BuildContext context, WidgetRef ref, String value) =>
+    switch (value) {
+      'identity' => editAndSaveIdentity(context, ref),
+      'security-key' => addSecurityKey(context, ref),
+      _ => importSshKey(context, ref),
+    };
+
+/// 管理页的 ＋：列表上没有顶栏，同样三项从底下弹出来。
+Future<void> showKeychainAddSheet(BuildContext context, WidgetRef ref) async {
+  final value = await showModalBottomSheet<String>(
+    context: context,
+    builder: (context) => SafeArea(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          for (final (value, label) in _addChoices)
+            ListTile(
+              key: ValueKey('keychain-add-$value'),
+              title: LText(label),
+              onTap: () => Navigator.pop(context, value),
+            ),
+        ],
+      ),
+    ),
+  );
+  if (value == null || !context.mounted) return;
+  await _runAdd(context, ref, value);
+}
+
+bool identityMatchesQuery(IdentityProfile item, String query) =>
+    item.label.toLowerCase().contains(query) ||
+    item.username.toLowerCase().contains(query);
+
+bool keyMatchesQuery(SshKeyProfile item, String query) =>
+    item.label.toLowerCase().contains(query);
+
+/// 凭据和 SSH 密钥的列表：[KeychainSheet] 和管理页共用，增删改都在这里。
+/// [query] 是小写的搜索词。
+class KeychainList extends ConsumerWidget {
+  const KeychainList({super.key, this.query = ''});
+
+  final String query;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final vault = ref.watch(vaultControllerProvider).data;
+    final allKeys = vault?.keys ?? const <SshKeyProfile>[];
+    final identities =
+        (vault == null ? const <IdentityProfile>[] : vaultIdentities(vault))
+            .where((item) => identityMatchesQuery(item, query))
+            .toList();
+    final keys = allKeys.where((item) => keyMatchesQuery(item, query)).toList();
+    final hosts = vault?.hosts ?? const <HostProfile>[];
+    final small = Theme.of(context).textTheme.bodySmall;
+    final searching = query.isNotEmpty;
+    if (searching && identities.isEmpty && keys.isEmpty) {
+      return const EmptyState(icon: Icons.search_off, title: '没有匹配的项目');
+    }
+    return ListView(
+      // 底下留出管理页 ＋ 的位置。
+      padding: const EdgeInsets.fromLTRB(12, 4, 12, 88),
+      children: [
+        if (!searching || identities.isNotEmpty) ...[
+          _header(context, '登录凭据'),
+          if (!searching)
             Padding(
               padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
               child: LText(
@@ -67,84 +127,83 @@ class KeychainSheet extends ConsumerWidget {
                 style: small,
               ),
             ),
-            if (identities.isEmpty)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  key: const ValueKey('keychain-new-identity'),
-                  onPressed: () => editAndSaveIdentity(context, ref),
-                  icon: const Icon(Icons.person_add_alt),
-                  label: const LText('新建凭据'),
-                ),
-              ),
-            for (final identity in identities)
-              ListTile(
-                key: ValueKey('keychain-identity-${identity.id}'),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                leading: CircleAvatar(
-                  child: Icon(credentialIcon(identity, keys)),
-                ),
-                title: Text(identity.label),
-                subtitle: Text(
-                  [
-                    credentialDetail(identity, keys),
-                    if (identityUsageText(hosts, identity) case final usage?)
-                      usage,
-                  ].join(' · '),
-                  style: small,
-                ),
-                onTap: () =>
-                    editAndSaveIdentity(context, ref, existing: identity),
-                trailing: IconButton(
-                  key: ValueKey('keychain-delete-identity-${identity.id}'),
-                  tooltip: localized('删除凭据'),
-                  onPressed: () => _deleteIdentity(context, ref, identity),
+        ],
+        if (identities.isEmpty && !searching)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              key: const ValueKey('keychain-new-identity'),
+              onPressed: () => editAndSaveIdentity(context, ref),
+              icon: const Icon(Icons.person_add_alt),
+              label: const LText('新建凭据'),
+            ),
+          ),
+        for (final identity in identities)
+          ListTile(
+            key: ValueKey('keychain-identity-${identity.id}'),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+            leading: CircleAvatar(
+              child: Icon(credentialIcon(identity, allKeys)),
+            ),
+            title: Text(identity.label),
+            subtitle: Text(
+              [
+                credentialDetail(identity, allKeys),
+                if (identityUsageText(hosts, identity) case final usage?) usage,
+              ].join(' · '),
+              style: small,
+            ),
+            onTap: () => editAndSaveIdentity(context, ref, existing: identity),
+            trailing: IconButton(
+              key: ValueKey('keychain-delete-identity-${identity.id}'),
+              tooltip: localized('删除凭据'),
+              onPressed: () => _deleteIdentity(context, ref, identity),
+              icon: const Icon(Icons.delete_outline),
+            ),
+          ),
+        if (!searching || keys.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          _header(context, 'SSH 密钥'),
+        ],
+        if (keys.isEmpty && !searching)
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: () => importSshKey(context, ref),
+              icon: const Icon(Icons.key),
+              label: const LText('导入私钥'),
+            ),
+          ),
+        for (final key in keys)
+          ListTile(
+            key: ValueKey('keychain-key-${key.id}'),
+            contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+            leading: const CircleAvatar(child: Icon(Icons.key)),
+            title: LText(key.label),
+            subtitle: LText(
+              key.data['type']?.toString() ?? 'OpenSSH / PEM',
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (SecurityKeyStub.publicKeyLineOf(key.privateKey)
+                    case final line?)
+                  IconButton(
+                    key: ValueKey('keychain-public-key-${key.id}'),
+                    tooltip: localized('公钥'),
+                    onPressed: () => showSecurityKeyPublicKey(context, line),
+                    icon: const Icon(Icons.content_copy_outlined),
+                  ),
+                IconButton(
+                  key: ValueKey('keychain-delete-${key.id}'),
+                  tooltip: localized('删除私钥'),
+                  onPressed: () => _delete(context, ref, key),
                   icon: const Icon(Icons.delete_outline),
                 ),
-              ),
-            const SizedBox(height: 12),
-            _header(context, 'SSH 密钥'),
-            if (keys.isEmpty)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: () => importSshKey(context, ref),
-                  icon: const Icon(Icons.key),
-                  label: const LText('导入私钥'),
-                ),
-              ),
-            for (final key in keys)
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                leading: const CircleAvatar(child: Icon(Icons.key)),
-                title: LText(key.label),
-                subtitle: LText(
-                  key.data['type']?.toString() ?? 'OpenSSH / PEM',
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (SecurityKeyStub.publicKeyLineOf(key.privateKey)
-                        case final line?)
-                      IconButton(
-                        key: ValueKey('keychain-public-key-${key.id}'),
-                        tooltip: localized('公钥'),
-                        onPressed: () =>
-                            showSecurityKeyPublicKey(context, line),
-                        icon: const Icon(Icons.content_copy_outlined),
-                      ),
-                    IconButton(
-                      key: ValueKey('keychain-delete-${key.id}'),
-                      tooltip: localized('删除私钥'),
-                      onPressed: () => _delete(context, ref, key),
-                      icon: const Icon(Icons.delete_outline),
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
-      ),
+              ],
+            ),
+          ),
+      ],
     );
   }
 

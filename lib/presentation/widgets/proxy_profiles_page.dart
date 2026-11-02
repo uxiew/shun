@@ -18,6 +18,10 @@ Future<String?> selectRouteProxy(
                 ? const ProxyProfilesPage(selecting: true)
                 : ProxyProfileEditor(inlineConfig: inlineConfig)));
 
+bool proxyMatchesQuery(ProxyProfile item, String query) =>
+    item.label.toLowerCase().contains(query) ||
+    (item.config?.host ?? '').toLowerCase().contains(query);
+
 class ProxyProfilesPage extends ConsumerStatefulWidget {
   const ProxyProfilesPage({super.key, this.selecting = false});
   final bool selecting;
@@ -26,8 +30,39 @@ class ProxyProfilesPage extends ConsumerStatefulWidget {
 }
 
 class _ProxyProfilesPageState extends ConsumerState<ProxyProfilesPage> {
+  final _list = GlobalKey<ProxyProfilesListState>();
+
+  @override
+  Widget build(BuildContext context) {
+    final state = ref.watch(vaultControllerProvider);
+    return Scaffold(
+        appBar:
+            AppBar(title: LText(widget.selecting ? '选择代理' : '代理管理'), actions: [
+          TextButton(
+              key: const ValueKey('proxy-create'),
+              onPressed: !state.loading && state.error == null
+                  ? () => _list.currentState?.create()
+                  : null,
+              child: const LText('新建代理'))
+        ]),
+        body: ProxyProfilesList(key: _list, selecting: widget.selecting));
+  }
+}
+
+/// 代理的列表：[ProxyProfilesPage] 和管理页共用，增删改都在这里。[query] 是小写的搜索词。
+class ProxyProfilesList extends ConsumerStatefulWidget {
+  const ProxyProfilesList({super.key, this.selecting = false, this.query = ''});
+  final bool selecting;
+  final String query;
+  @override
+  ConsumerState<ProxyProfilesList> createState() => ProxyProfilesListState();
+}
+
+class ProxyProfilesListState extends ConsumerState<ProxyProfilesList> {
   bool _busy = false;
   String? _error;
+
+  Future<void> create() => _edit();
 
   Future<void> _edit([String? id]) async {
     if (_busy) return;
@@ -119,27 +154,25 @@ class _ProxyProfilesPageState extends ConsumerState<ProxyProfilesPage> {
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(vaultControllerProvider);
-    final profiles = state.data?.proxyProfiles ?? const <ProxyProfile>[];
+    final all = state.data?.proxyProfiles ?? const <ProxyProfile>[];
+    final profiles =
+        all.where((item) => proxyMatchesQuery(item, widget.query)).toList();
     final enabled = !_busy && !state.loading && state.error == null;
     final credentials = {
       if (state.data case final vault?)
         for (final identity in vaultIdentities(vault))
           identity.id: identity.label,
     };
-    return Scaffold(
-        appBar:
-            AppBar(title: LText(widget.selecting ? '选择代理' : '代理管理'), actions: [
-          TextButton(
-              key: const ValueKey('proxy-create'),
-              onPressed: enabled ? () => _edit() : null,
-              child: const LText('新建代理'))
-        ]),
-        body: ListView(padding: const EdgeInsets.all(16), children: [
+    // 底下留出管理页 ＋ 的位置。
+    return ListView(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 88),
+        children: [
           if (state.loading) const LinearProgressIndicator(),
           if (state.error != null) const LText('代理无法读取或已变化，请重新打开后再操作。'),
           if (_error != null)
             LText(_error!, key: const ValueKey('proxy-manager-error')),
-          if (profiles.isEmpty && !state.loading) const LText('还没有代理'),
+          if (profiles.isEmpty && !state.loading)
+            LText(widget.query.isEmpty ? '还没有代理' : '没有匹配的项目'),
           for (final profile in profiles)
             Card(
                 child: Column(children: [
@@ -167,6 +200,6 @@ class _ProxyProfilesPageState extends ConsumerState<ProxyProfilesPage> {
                     child: const LText('删除')),
               ]),
             ])),
-        ]));
+        ]);
   }
 }
