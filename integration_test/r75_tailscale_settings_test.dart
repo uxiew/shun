@@ -49,12 +49,12 @@ void main() {
     await settle(tester);
   }
 
-  /// 走用户的路：⊕ → 表单顶上的连接类型 → Tailscale。
+  /// 走用户的路：⊕ → 表单顶上的「更多」→ Tailscale。
   Future<void> openFromNew(WidgetTester tester) async {
     await tester.tap(find.byTooltip('添加连接').first);
     await settle(tester);
     await binding.delayed(const Duration(milliseconds: 500));
-    await tapKey(tester, 'host-protocol');
+    await tapKey(tester, 'host-type-more');
     await tapKey(tester, 'connection-type-Tailscale');
     await binding.delayed(const Duration(milliseconds: 800));
     await settle(tester);

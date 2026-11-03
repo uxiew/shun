@@ -97,11 +97,11 @@ void main() {
         .map((t) => t.data ?? t.textSpan?.toPlainText() ?? '')
         .join('\n');
 
-    // ---- 1. 「添加连接」→ 表单顶上的连接类型里点这个插件（插件已选好）→ 保存 ----
+    // ---- 1. 「添加连接」→ 表单顶上的「更多」里点这个插件（插件已选好）→ 保存 ----
     container.read(homeTabProvider.notifier).state = 0;
     await settle(tester);
     await tap(find.byTooltip('添加连接').first);
-    await tap(find.byKey(const ValueKey('host-protocol')));
+    await tap(find.byKey(const ValueKey('host-type-more')));
     final typeTile = find.byKey(const ValueKey('connection-type-$pluginName'));
     await waitFor(
         tester,

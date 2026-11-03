@@ -220,10 +220,10 @@ void main() {
       await settle(tester);
     }
 
-    // 支持清单：表单顶上「连接类型」的面板，只看不选。
+    // 支持清单：表单顶上「更多」的面板，只看不选。
     await tester.tap(find.byTooltip('添加连接'));
     await settle(tester);
-    await tester.tap(key('host-protocol'));
+    await tester.tap(key('host-type-more'));
     await waitFor(
         tester, () => find.byType(ConnectionTypeSheet).evaluate().isNotEmpty,
         what: '类型面板');

@@ -96,7 +96,7 @@ Future<void> r39Forms(
   for (final type in ['RustDesk', 'UU 远程']) {
     await r39Select(tester, type);
     await r39Type(tester, r39Key('remote-entry-name'), 'R39 new $type');
-    await r39Tap(tester, r39Key('remote-entry-save'));
+    await r39Tap(tester, r39Key('host-editor-save'));
     await r39WaitFor(
         tester, () => r39Key('remote-entry-actions').evaluate().isNotEmpty,
         reason: 'Remote entry must be persisted and opened');

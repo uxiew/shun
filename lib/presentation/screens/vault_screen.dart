@@ -49,7 +49,6 @@ import 'tailscale_catalog_screen.dart';
 import 'tailscale_settings_screen.dart';
 import '../../application/rustdesk.dart';
 import '../../application/uuremote.dart';
-import '../widgets/remote_entry_widgets.dart';
 import '../widgets/remote_connections.dart';
 import 'uuremote_screen.dart';
 import '../../domain/vault_secrets.dart';
@@ -842,8 +841,8 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
       await _openTailscaleSettings();
       return;
     }
-    final name = await remoteEntryName(context);
-    if (!mounted || name == null) return;
+    final name = choice.name;
+    if (name == null) return;
     try {
       final rustdesk = choice.remote == RemoteConnectionType.rustdesk;
       final id = rustdesk

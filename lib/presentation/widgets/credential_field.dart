@@ -4,9 +4,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/credential_identity.dart';
 import '../../domain/models/host.dart';
+import '../../domain/security_key.dart';
 import '../localization/localized_widgets.dart';
 import 'identity_editor.dart';
 import 'keychain_sheet.dart';
+import 'security_key_actions.dart';
+import 'ssh_key_import.dart';
 
 /// 一个连接怎么登录（F31）：直接填用户名和密码，或者用「凭据」里的一个。
 enum LoginChoice { simple, credential, tailscale }
@@ -109,6 +112,29 @@ class CredentialField extends ConsumerWidget {
     final selected = vault == null
         ? null
         : vaultIdentities(vault).where((item) => item.id == value).firstOrNull;
+    // 一个都没有：下拉里也只有「新建」，不如直接摆按钮，少点一下。
+    if (vault != null &&
+        !vaultIdentities(vault).any((item) => _listed(item))) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          OutlinedButton.icon(
+            key: const ValueKey('credential-new-direct'),
+            onPressed: () => _create(context, ref),
+            icon: const Icon(Icons.add),
+            label: const LText('新建凭据'),
+          ),
+          if (errorText case final error?)
+            Padding(
+              padding: const EdgeInsets.only(top: 6, left: 4),
+              child: LText(
+                error,
+                style: TextStyle(color: Theme.of(context).colorScheme.error),
+              ),
+            ),
+        ],
+      );
+    }
     return InkWell(
       onTap: () => _pick(context, ref),
       child: InputDecorator(
@@ -142,6 +168,16 @@ class CredentialField extends ConsumerWidget {
     );
   }
 
+  bool _listed(IdentityProfile item) =>
+      !passwordOnly ||
+      (item.auth == IdentityAuth.password && item.password != null);
+
+  Future<void> _create(BuildContext context, WidgetRef ref) async {
+    final id =
+        await editAndSaveIdentity(context, ref, passwordOnly: passwordOnly);
+    if (id != null) onChanged(id);
+  }
+
   Future<void> _pick(BuildContext context, WidgetRef ref) async {
     final choice = await showModalBottomSheet<String>(
       context: context,
@@ -162,10 +198,11 @@ class CredentialField extends ConsumerWidget {
       );
       return;
     }
-    final id = choice == _newCredential
-        ? await editAndSaveIdentity(context, ref, passwordOnly: passwordOnly)
-        : choice;
-    if (id != null) onChanged(id);
+    if (choice == _newCredential) {
+      await _create(context, ref);
+    } else {
+      onChanged(choice);
+    }
   }
 }
 
@@ -253,4 +290,117 @@ class OwnKeyRow extends StatelessWidget {
           ),
         ],
       );
+}
+
+const _importKey = '__import__';
+const _addSecurityKey = '__security__';
+
+/// 选这台用哪把密钥：列出已有的，没有合适的当场导入，不用退出表单。
+class SshKeyField extends ConsumerWidget {
+  const SshKeyField({
+    super.key,
+    required this.value,
+    required this.onChanged,
+    this.errorText,
+  });
+
+  final String? value;
+  final ValueChanged<String> onChanged;
+  final String? errorText;
+
+  static String _detail(SshKeyProfile key) =>
+      SecurityKeyStub.isStubPem(key.privateKey)
+          ? localized('安全密钥')
+          : key.data['type']?.toString() ?? 'OpenSSH / PEM';
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final keys = ref.watch(vaultControllerProvider).data?.keys ??
+        const <SshKeyProfile>[];
+    final selected = keys.where((key) => key.id == value).firstOrNull;
+    return InkWell(
+      onTap: () => _pick(context, ref, keys),
+      child: InputDecorator(
+        isEmpty: selected == null,
+        decoration: LInputDecoration(
+          labelText: '密钥',
+          errorText: errorText,
+          suffixIcon: const Icon(Icons.arrow_drop_down),
+        ),
+        child: selected == null
+            ? null
+            : Column(
+                key: const ValueKey('ssh-key-summary'),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    selected.label,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  Text(
+                    _detail(selected),
+                    style: Theme.of(context).textTheme.bodySmall,
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+
+  Future<void> _pick(
+    BuildContext context,
+    WidgetRef ref,
+    List<SshKeyProfile> keys,
+  ) async {
+    FocusManager.instance.primaryFocus?.unfocus();
+    final choice = await showModalBottomSheet<String>(
+      context: context,
+      isScrollControlled: true,
+      useSafeArea: true,
+      showDragHandle: true,
+      builder: (context) => ListView(
+        shrinkWrap: true,
+        padding: const EdgeInsets.only(bottom: 16),
+        children: [
+          for (final key in keys)
+            ListTile(
+              key: ValueKey('ssh-key-option-${key.id}'),
+              leading: Icon(
+                SecurityKeyStub.isStubPem(key.privateKey)
+                    ? Icons.usb
+                    : Icons.key,
+              ),
+              title: Text(key.label),
+              subtitle: Text(_detail(key)),
+              trailing: key.id == value ? const Icon(Icons.check) : null,
+              onTap: () => Navigator.pop(context, key.id),
+            ),
+          ListTile(
+            key: const ValueKey('ssh-key-import'),
+            leading: const Icon(Icons.file_open_outlined),
+            title: const LText('导入 SSH 私钥'),
+            onTap: () => Navigator.pop(context, _importKey),
+          ),
+          ListTile(
+            key: const ValueKey('ssh-key-add-security'),
+            leading: const Icon(Icons.usb),
+            title: const LText('添加安全密钥'),
+            onTap: () => Navigator.pop(context, _addSecurityKey),
+          ),
+        ],
+      ),
+    );
+    if (choice == null || !context.mounted) return;
+    if (choice == _importKey) {
+      final added = await importSshKey(context, ref);
+      if (added != null) onChanged(added.id);
+    } else if (choice == _addSecurityKey) {
+      final added = await addSecurityKey(context, ref);
+      if (added.isNotEmpty) onChanged(added.first.id);
+    } else {
+      onChanged(choice);
+    }
+  }
 }

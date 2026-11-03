@@ -676,8 +676,6 @@ const englishTranslations = <String, String>{
   '编辑连接': 'Edit connection',
   '留空用地址': 'Uses the address if empty',
   '未填写': 'Not set',
-  '分组和标签': 'Group and tags',
-  '连接路径、分组和标签等': 'Route, group, tags and more',
   '经代理和跳板机': 'Via proxy and jump host',
   '主机名 / IP': 'Hostname / IP',
   '端口': 'Port',
@@ -921,15 +919,7 @@ const englishTranslations = <String, String>{
   '未找到受支持的服务管理器，需要 systemd 或 OpenRC。':
       'No supported service manager was found. systemd or OpenRC is required.',
   '断开并关闭': 'Disconnect & close',
-  '转发': 'Forwards',
   '通用': 'General',
-  '管理': 'Manage',
-  '搜主机、凭据、代理、转发': 'Find hosts, credentials, proxies, forwards',
-  '搜索主机、凭据、代理、转发': 'Search hosts, credentials, proxies, forwards',
-  '没有匹配的项目': 'No matches',
-  '在「连接」页添加': 'Add one on the Connect page',
-  '还没有凭据': 'No credentials yet',
-  '在终端或主机菜单里开': 'Start one from a terminal or host menu',
   '远程桌面交给手机上装的 UU 远程或 RustDesk，它们用自己的网络。插件是单独安装的 App，每个都要你批准后才会用。':
       'Remote desktop goes through the UU Remote or RustDesk app on your phone, on their own network. Plugins are separate apps, and each needs your approval before use.',
   '已复制': 'Copied',
@@ -2360,8 +2350,6 @@ const englishTranslations = <String, String>{
   '代理用的凭据要填密码': 'A credential used by a proxy needs a password',
   '填了加密存本机，不填就连接时问':
       'Encrypted on this device if filled in; asked when connecting if empty',
-  '用户名 / 密码只给这一台，不填密码就连接时问。凭据是多台共用的一份，改一次全跟着变，里面可以是密码、SSH 密钥或安全密钥。':
-      'A username and password belong to this host only; leave the password empty to be asked when connecting. A credential is shared by many hosts, so changing it once updates them all. It can hold a password, an SSH key or a security key.',
   '导入 SSH 私钥': 'Import SSH private key',
   '{n} 台主机在用': '{n} hosts use it',
   '登录方式': 'Sign-in method',
@@ -2656,6 +2644,27 @@ const englishTranslations = <String, String>{
       'Managing Caddy configuration requires administrator access and a sudo password.\n\${error.message}',
   '未命名来源': 'Unnamed source',
   'ID：': 'ID: ',
+  // 新建连接：类型和认证改成单选行，分组改成选择（R72 第二轮）。
+  '保存后到下一页设置':
+      'Set it up on the next page',
+  '密钥':
+      'Key',
+  '不分组':
+      'No group',
+  '新建分组':
+      'New group',
+  '组名':
+      'Group name',
+  '连接路径、启动命令、超时等':
+      'Route, startup command, timeouts and more',
+  '标签和置顶':
+      'Tags and pinning',
+  '选一把密钥':
+      'Choose a key',
+  '选一把密钥，或者改用密码。':
+      'Choose a key, or use a password instead.',
+  '密码、密钥只给这一台，不填密码就连接时问。凭据是多台共用的一份，改一次全跟着变。Tailscale 不发密码和密钥，由 Tailscale 放行。':
+      'A password or key belongs to this host only; leave the password empty to be asked when connecting. A credential is shared by several hosts: change it once and they all follow. Tailscale sends no password or key; Tailscale decides who gets in.',
 };
 
 /// Ordered fragments cover dynamic values and infrastructure errors that are

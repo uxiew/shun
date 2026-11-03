@@ -129,6 +129,31 @@ void main() {
     await save(tester, 'host-editor');
   });
 
+  testWidgets('新建连接：首屏、密钥、凭据、高级、RustDesk', skip: skip != null, (tester) async {
+    await pumpPage(tester, HostEditor(onOtherType: (_) {}), height: 844);
+    await save(tester, 'host-new-first');
+    await tester.tap(find.byKey(const ValueKey('login-kind-key')));
+    await save(tester, 'host-new-key');
+    await tester.tap(find.byKey(const ValueKey('login-kind-credential')));
+    await save(tester, 'host-new-credential');
+    await tester.tap(find.byKey(const ValueKey('login-kind-password')));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('host-group')));
+    await save(tester, 'host-new-group');
+    await tester.tap(find.byKey(const ValueKey('host-group-none')));
+    await settle(tester);
+    await tester.tap(find.byKey(const ValueKey('host-type-more')));
+    await save(tester, 'host-new-more');
+    await tester.tap(find.byKey(const ValueKey('connection-type-RustDesk')));
+    await save(tester, 'host-new-rustdesk');
+  });
+
+  testWidgets('新建连接：高级展开', skip: skip != null, (tester) async {
+    await pumpPage(tester, const HostEditor(), height: 1900);
+    await tester.tap(find.byKey(const ValueKey('advanced-all')));
+    await save(tester, 'host-new-advanced');
+  });
+
   testWidgets('Tailscale 设置', skip: skip != null, (tester) async {
     await pumpPage(
       tester,

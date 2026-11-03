@@ -298,15 +298,7 @@ void main() {
         'proxyConfig': {'type': 'socks5', 'host': '127.0.0.1', 'port': 1080},
       }),
     );
-    await tapRoute(tester, find.byKey(const ValueKey('host-protocol')));
-    expect(
-        tester
-            .widget<ListTile>(
-                find.byKey(const ValueKey('connection-type-Mosh')))
-            .enabled,
-        isTrue);
-    await tapRoute(
-        tester, find.byKey(const ValueKey('connection-type-Telnet')));
+    expect(find.byKey(const ValueKey('host-type-Mosh')), findsOneWidget);
     expect(find.byKey(const ValueKey('telnet-direct-only')), findsOneWidget,
         reason: '这台配了代理、保存时会被去掉：不能收在高级里');
     expect(find.widgetWithText(TextFormField, 'Telnet 端口'), findsOneWidget);
@@ -351,8 +343,6 @@ void main() {
           reason: '测试连接只测 SSH 那段，给 Mosh 主机一个「通过」会误导');
       await openRouteEditor(tester);
       expect(preview(tester), contains('启动 mosh-server，之后 Mosh 会话走 UDP 直连'));
-      // R41：端口范围在默认收起的「高级 → Mosh 启动参数」里。
-      await tapRoute(tester, find.byKey(const ValueKey('advanced-mosh')));
       await tester.enterText(
           find.byKey(const ValueKey('mosh-ports')), '60001:70000');
       await save(tester);

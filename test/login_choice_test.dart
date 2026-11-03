@@ -185,9 +185,13 @@ void main() {
     }
 
     Future<void> choose(WidgetTester tester, String label) async {
-      await tester.tap(find.byKey(const ValueKey('ssh-login-mode')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text(label).last);
+      final kind = switch (label) {
+        '用户名 / 密码' => 'password',
+        '密钥' => 'key',
+        '凭据' => 'credential',
+        _ => 'tailscale',
+      };
+      await tester.tap(find.byKey(ValueKey('login-kind-$kind')));
       await tester.pumpAndSettle();
     }
 
@@ -209,8 +213,8 @@ void main() {
 
     testWidgets('新建默认用户名 / 密码：只有这两个框，存在主机上', (tester) async {
       await openEditor(tester);
-      expect(find.text('用户名 / 密码'), findsOneWidget);
-      expect(find.text('SSH 私钥'), findsNothing);
+      expect(field('密码（可选）'), findsOneWidget);
+      expect(find.byKey(const ValueKey('host-key')), findsNothing);
       await tester.enterText(field('名称'), 'nas');
       await tester.enterText(field('主机名 / IP'), '192.0.2.20');
       await tester.enterText(field('用户名'), 'admin');
@@ -309,13 +313,19 @@ void main() {
       expect(prefs.getString('shun_vault_v1'), isNot(contains('NEW-SECRET')));
     });
 
-    testWidgets('老主机自带私钥又存了密码：不动就原样存；点「不用了」才去掉私钥', (tester) async {
+    testWidgets('老主机自带私钥又存了密码：显示在「密钥」下，不动就原样存；切到「密码」就不再发私钥', (tester) async {
       await openEditor(
         tester,
         host: hostJson('old', {'identityFileId': 'k1'}),
         stored: {'host.old.password': 'OLD-PW'},
       );
-      expect(find.text('私钥“laptop”'), findsOneWidget);
+      expect(
+        find.descendant(
+          of: find.byKey(const ValueKey('ssh-key-summary')),
+          matching: find.text('laptop'),
+        ),
+        findsOneWidget,
+      );
       expect(field('密码（可选）'), findsOneWidget, reason: '自动：私钥和密码都会试');
       await save(tester);
       expect(saved!.identityFileId, 'k1');
@@ -324,27 +334,107 @@ void main() {
 
       await tester.tap(find.text('Edit'));
       await tester.pumpAndSettle();
-      await tester.tap(find.byKey(const ValueKey('own-key-drop')));
-      await tester.pumpAndSettle();
-      expect(find.text('私钥“laptop”'), findsNothing);
+      await choose(tester, '用户名 / 密码');
+      expect(find.byKey(const ValueKey('host-key')), findsNothing);
       await save(tester);
-      expect(saved!.identityFileId, isNull);
       expect(saved!.password, 'OLD-PW');
+      expect(saved!.authMethod, HostAuthMethod.password, reason: '记着那把，但不发');
     });
 
-    testWidgets('老主机只用私钥：登录不发密码所以不显示密码框；不用了以后存的密码还在', (tester) async {
+    testWidgets('老主机只用私钥：登录不发密码所以不显示密码框；切到「密码」存的密码还在', (tester) async {
       await openEditor(
         tester,
         host: hostJson('old', {'authMethod': 'key', 'identityFileId': 'k1'}),
         stored: {'host.old.password': 'KEPT'},
       );
       expect(field('密码（可选）'), findsNothing);
-      await tester.tap(find.byKey(const ValueKey('own-key-drop')));
-      await tester.pumpAndSettle();
+      await choose(tester, '用户名 / 密码');
       expect(text(tester, '密码（可选）'), 'KEPT');
       await save(tester);
+      expect(saved!.authMethod, HostAuthMethod.password);
+    });
+
+    testWidgets('新建选密钥：没选不让存；从已有的里选一把，只发密钥不发密码', (tester) async {
+      await openEditor(tester);
+      await tester.enterText(field('主机名 / IP'), '192.0.2.20');
+      await tester.enterText(field('用户名'), 'admin');
+      await choose(tester, '密钥');
+      expect(field('密码（可选）'), findsNothing);
+      await save(tester);
+      expect(saved, isNull);
+      expect(find.text('选一把密钥'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('host-key')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('ssh-key-import')), findsOneWidget);
+      expect(
+          find.byKey(const ValueKey('ssh-key-add-security')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('ssh-key-option-k1')));
+      await tester.pumpAndSettle();
+      await save(tester);
+      expect(saved!.identityFileId, 'k1');
+      expect(saved!.authMethod, HostAuthMethod.key);
+    });
+
+    testWidgets('切来切去不丢：填过密码再切密钥，两样都发，页面上也都摆着', (tester) async {
+      await openEditor(tester);
+      await tester.enterText(field('主机名 / IP'), '192.0.2.20');
+      await tester.enterText(field('用户名'), 'admin');
+      await tester.enterText(field('密码（可选）'), 'PW');
+      await choose(tester, '密钥');
+      expect(text(tester, '用户名'), 'admin');
+      expect(text(tester, '密码（可选）'), 'PW');
+      await tester.tap(find.byKey(const ValueKey('host-key')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('ssh-key-option-k1')));
+      await tester.pumpAndSettle();
+      await save(tester);
       expect(saved!.authMethod, HostAuthMethod.auto);
-      expect(saved!.identityFileId, isNull);
+      expect(saved!.identityFileId, 'k1');
+      expect(saved!.password, 'PW');
+    });
+
+    testWidgets('分组：列出已有的和各有几台，选一个；新建一个就选中它；能改回不分组', (tester) async {
+      await openEditor(tester, host: hostJson('web', {'group': 'prod'}));
+      Finder group() => find.byKey(const ValueKey('host-group'));
+      expect(
+        find.descendant(of: group(), matching: find.text('prod')),
+        findsOneWidget,
+      );
+      await tester.ensureVisible(group());
+      await tester.pump();
+      await tester.tap(group());
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('host-group-option-prod')), findsOneWidget);
+      expect(find.text('1 台主机'), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('host-group-new')));
+      await tester.pumpAndSettle();
+      final create = tester.widget<FilledButton>(
+          find.byKey(const ValueKey('host-group-new-save')));
+      expect(create.onPressed, isNull, reason: '没填名字不能建');
+      await tester.enterText(
+          find.byKey(const ValueKey('host-group-new-name')), '  staging ');
+      await tester.pump();
+      await tester.tap(find.byKey(const ValueKey('host-group-new-save')));
+      await tester.pumpAndSettle();
+      expect(
+        find.descendant(of: group(), matching: find.text('staging')),
+        findsOneWidget,
+      );
+      await save(tester);
+      expect(saved!.group, 'staging');
+
+      await tester.tap(find.text('Edit'));
+      await tester.pumpAndSettle();
+      await tester.ensureVisible(group());
+      await tester.pump();
+      await tester.tap(group());
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('host-group-none')));
+      await tester.pumpAndSettle();
+      await save(tester);
+      expect(saved!.group, isNull);
     });
 
     testWidgets('只用私钥但私钥已经删了：按用户名 / 密码存，不卡住保存', (tester) async {

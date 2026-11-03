@@ -355,9 +355,7 @@ void main() {
       expect(find.widgetWithText(TextFormField, '用户名'), findsNothing,
           reason: '用户名在凭据里');
 
-      await tester.tap(find.byKey(const ValueKey('ssh-login-mode')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('用户名 / 密码').last);
+      await tester.tap(find.byKey(const ValueKey('login-kind-password')));
       await tester.pumpAndSettle();
       expect(
         tester
@@ -368,9 +366,7 @@ void main() {
         reason: '切回来，主机自己的账号还在',
       );
 
-      await tester.tap(find.byKey(const ValueKey('ssh-login-mode')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('凭据').last);
+      await tester.tap(find.byKey(const ValueKey('login-kind-credential')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('host-editor-save')));
       await tester.pumpAndSettle();

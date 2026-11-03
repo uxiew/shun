@@ -19,8 +19,9 @@ enum RemoteConnectionType { rustdesk, uu }
 class ConnectionTypeChoice {
   const ConnectionTypeChoice.terminal(this.protocol, {this.pluginId})
       : remote = null,
+        name = null,
         tailscale = false;
-  const ConnectionTypeChoice.remote(this.remote)
+  const ConnectionTypeChoice.remote(this.remote, {this.name})
       : protocol = null,
         pluginId = null,
         tailscale = false;
@@ -30,19 +31,96 @@ class ConnectionTypeChoice {
       : protocol = null,
         pluginId = null,
         remote = null,
+        name = null,
         tailscale = true;
   final HostProtocol? protocol;
   final String? pluginId;
   final RemoteConnectionType? remote;
+
+  /// RustDesk、UU 的条目名称：在表单里填好带过来。
+  final String? name;
   final bool tailscale;
 }
 
-/// 新建连接表单顶上的「连接类型」点开的面板（F39，取代原来挡在表单前的整页）。
+/// 能当终端类型选的第三方插件。Mosh 单独占一段，不算在内。
+List<PluginEntry> terminalPluginEntries(List<PluginEntry> entries) => entries
+    .where(
+      (e) =>
+          !e.isBuiltin &&
+          e.pluginId != 'shun.mosh' &&
+          e.descriptor?.capabilities.contains(Capability.terminalSession) ==
+              true &&
+          e.descriptor?.permissions.contains(
+                Permission.ownSessionEphemeralSecret,
+              ) ==
+              false,
+    )
+    .toList();
+
+/// Mosh 现在能不能选上用：写在类型那一行下面。
+String moshTypeStatus(WidgetRef ref) {
+  final discovery = ref.watch(pluginHostDiscoveryProvider);
+  final entries = ref.watch(pluginRegistryProvider);
+  final mosh = entries.where((e) => e.pluginId == 'shun.mosh').firstOrNull;
+  final ready = mosh?.status == PluginStatus.ready &&
+      mosh!.descriptor!.capabilities.contains(Capability.terminalSession) &&
+      mosh.descriptor!.permissions.contains(
+        Permission.ownSessionEphemeralSecret,
+      ) &&
+      checkRoute(
+        mosh.descriptor!,
+        TransportKind.udp,
+        RequestedRoute.systemDefault,
+      ) is! RouteUnsupported;
+  if (defaultTargetPlatform != TargetPlatform.android) return '仅支持 Android';
+  if (discovery.isLoading) return '正在检查插件';
+  if (discovery.hasError) return '插件检查失败，请重试';
+  if (ready) return '仅直连';
+  return mosh == null ? '未装插件' : 'Mosh 插件不可用：${mosh.status.name}';
+}
+
+/// RustDesk、UU 客户端的状态。能用就没有字（UU 始终写它只能控制什么）。
+String? remoteTypeStatus(WidgetRef ref, RemoteConnectionType type) {
+  switch (type) {
+    case RemoteConnectionType.rustdesk:
+      final rd = ref.watch(rustDeskProvider);
+      return rd.notice ??
+          switch (rd.app) {
+            RustDeskReady() => null,
+            RustDeskNotInstalled() => '未安装',
+            RustDeskPlatformUnsupported() => '仅支持 Android',
+            RustDeskVersionTooOld() => '版本过旧，请更新客户端',
+            RustDeskSignerNeedsApproval() => '签名证书待批准',
+            RustDeskSignerChanged() => '签名证书已变化，需要重新核对',
+            RustDeskSignerUnsupported() => '不支持多签名客户端',
+            null => '正在检查客户端',
+          };
+    case RemoteConnectionType.uu:
+      final uu = ref.watch(uuRemoteProvider);
+      return uu.notice ??
+          switch (uu.app) {
+            UuReady() => uu.callbackRivals.isEmpty
+                ? '只能控制 Windows/macOS'
+                : '回调地址冲突，绑定不可用',
+            UuNotInstalled() => '未安装',
+            UuPlatformUnsupported() => '仅支持 Android',
+            UuVersionTooOld() => '版本过旧，请更新客户端',
+            UuSchemeNotHandled() => '客户端不接受跨 App 请求',
+            UuSignerNeedsApproval() => '签名证书待批准',
+            UuSignerChanged() => '签名证书已变化，需要重新核对',
+            UuSignerUnsupported() => '不支持多签名客户端',
+            null => '正在检查客户端',
+          };
+  }
+}
+
+/// 「连接类型」里「更多」点开的面板（F39）。SSH、Mosh、Telnet 在表单上点一下就换，不在这里。
 /// [terminalsOnly]：编辑已有主机时只能在终端类型里换，RustDesk、UU、Tailscale 不是同一种记录。
 Future<ConnectionTypeChoice?> showConnectionTypeSheet(
   BuildContext context, {
   required HostProtocol current,
   String? currentPluginId,
+  RemoteConnectionType? currentRemote,
   bool terminalsOnly = false,
 }) =>
     showModalBottomSheet<ConnectionTypeChoice>(
@@ -53,6 +131,7 @@ Future<ConnectionTypeChoice?> showConnectionTypeSheet(
       builder: (_) => ConnectionTypeSheet(
         current: current,
         currentPluginId: currentPluginId,
+        currentRemote: currentRemote,
         terminalsOnly: terminalsOnly,
       ),
     );
@@ -63,11 +142,13 @@ class ConnectionTypeSheet extends ConsumerStatefulWidget {
     super.key,
     required this.current,
     this.currentPluginId,
+    this.currentRemote,
     this.terminalsOnly = false,
   });
 
   final HostProtocol current;
   final String? currentPluginId;
+  final RemoteConnectionType? currentRemote;
   final bool terminalsOnly;
 
   @override
@@ -112,51 +193,14 @@ class _ConnectionTypeSheetState extends ConsumerState<ConnectionTypeSheet> {
   Widget build(BuildContext context) {
     final discovery = ref.watch(pluginHostDiscoveryProvider);
     final entries = ref.watch(pluginRegistryProvider);
-    final rd = ref.watch(rustDeskProvider);
-    final uu = ref.watch(uuRemoteProvider);
     final android = defaultTargetPlatform == TargetPlatform.android;
-    final mosh = entries.where((e) => e.pluginId == 'shun.mosh').firstOrNull;
-    final moshReady = mosh?.status == PluginStatus.ready &&
-        mosh!.descriptor!.capabilities.contains(Capability.terminalSession) &&
-        mosh.descriptor!.permissions.contains(
-          Permission.ownSessionEphemeralSecret,
-        ) &&
-        checkRoute(
-          mosh.descriptor!,
-          TransportKind.udp,
-          RequestedRoute.systemDefault,
-        ) is! RouteUnsupported;
-    final terminalPlugins = entries
-        .where(
-          (e) =>
-              !e.isBuiltin &&
-              e.pluginId != 'shun.mosh' &&
-              e.descriptor?.capabilities.contains(
-                    Capability.terminalSession,
-                  ) ==
-                  true &&
-              e.descriptor?.permissions.contains(
-                    Permission.ownSessionEphemeralSecret,
-                  ) ==
-                  false,
-        )
-        .toList();
-    final moshStatus = !android
-        ? '仅支持 Android'
-        : discovery.isLoading
-            ? '正在检查插件'
-            : discovery.hasError
-                ? '插件检查失败，请重试'
-                : moshReady
-                    ? '仅直连'
-                    : mosh == null
-                        ? '未装插件'
-                        : 'Mosh 插件不可用：${mosh.status.name}';
-    bool selected(ConnectionTypeChoice value) =>
-        value.protocol != null &&
-        value.protocol == widget.current &&
-        (value.protocol != HostProtocol.plugin ||
-            value.pluginId == widget.currentPluginId);
+    final terminalPlugins = terminalPluginEntries(entries);
+    bool selected(ConnectionTypeChoice value) => value.remote != null
+        ? value.remote == widget.currentRemote
+        : widget.currentRemote == null &&
+            value.protocol != null &&
+            value.protocol == widget.current &&
+            value.pluginId == widget.currentPluginId;
     // 状态只写限制和问题；能用就不写「可用」（docs/dev/ui-text.md）。
     Widget choice(
       String title,
@@ -191,25 +235,7 @@ class _ConnectionTypeSheetState extends ConsumerState<ConnectionTypeSheet> {
       shrinkWrap: true,
       padding: const EdgeInsets.only(bottom: 16),
       children: [
-        section('终端'),
-        choice(
-          'SSH',
-          hostProtocolIcon(HostProtocol.ssh)!,
-          null,
-          const ConnectionTypeChoice.terminal(HostProtocol.ssh),
-        ),
-        choice(
-          'Mosh',
-          hostProtocolIcon(HostProtocol.mosh)!,
-          moshStatus,
-          const ConnectionTypeChoice.terminal(HostProtocol.mosh),
-        ),
-        choice(
-          'Telnet',
-          hostProtocolIcon(HostProtocol.telnet)!,
-          '明文，仅直连',
-          const ConnectionTypeChoice.terminal(HostProtocol.telnet),
-        ),
+        if (terminalPlugins.isNotEmpty) section('终端插件'),
         for (final entry in terminalPlugins)
           choice(
             entry.descriptor!.displayName,
@@ -249,36 +275,13 @@ class _ConnectionTypeSheetState extends ConsumerState<ConnectionTypeSheet> {
           choice(
             'RustDesk',
             Icons.connected_tv_outlined,
-            rd.notice ??
-                switch (rd.app) {
-                  RustDeskReady() => null,
-                  RustDeskNotInstalled() => '未安装',
-                  RustDeskPlatformUnsupported() => '仅支持 Android',
-                  RustDeskVersionTooOld() => '版本过旧，请更新客户端',
-                  RustDeskSignerNeedsApproval() => '签名证书待批准',
-                  RustDeskSignerChanged() => '签名证书已变化，需要重新核对',
-                  RustDeskSignerUnsupported() => '不支持多签名客户端',
-                  null => '正在检查客户端',
-                },
+            remoteTypeStatus(ref, RemoteConnectionType.rustdesk),
             const ConnectionTypeChoice.remote(RemoteConnectionType.rustdesk),
           ),
           choice(
             'UU 远程',
             Icons.desktop_windows_outlined,
-            uu.notice ??
-                switch (uu.app) {
-                  UuReady() => uu.callbackRivals.isEmpty
-                      ? '只能控制 Windows/macOS'
-                      : '回调地址冲突，绑定不可用',
-                  UuNotInstalled() => '未安装',
-                  UuPlatformUnsupported() => '仅支持 Android',
-                  UuVersionTooOld() => '版本过旧，请更新客户端',
-                  UuSchemeNotHandled() => '客户端不接受跨 App 请求',
-                  UuSignerNeedsApproval() => '签名证书待批准',
-                  UuSignerChanged() => '签名证书已变化，需要重新核对',
-                  UuSignerUnsupported() => '不支持多签名客户端',
-                  null => '正在检查客户端',
-                },
+            remoteTypeStatus(ref, RemoteConnectionType.uu),
             const ConnectionTypeChoice.remote(RemoteConnectionType.uu),
           ),
         ],

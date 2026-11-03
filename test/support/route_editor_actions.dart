@@ -4,6 +4,8 @@ import 'package:shun/presentation/widgets/connection_route_editor.dart';
 
 Future<void> tapRoute(WidgetTester tester, Finder finder) async {
   await tester.ensureVisible(finder);
+  // ensureVisible 只改滚动位置，不重新布局；不等这一帧，tap 还是按滚动前的位置点。
+  await tester.pump();
   await tester.tap(finder);
   await tester.pumpAndSettle();
 }
@@ -28,9 +30,13 @@ Future<void> openRouteEditor(WidgetTester tester) async {
   await tapRoute(tester, find.byKey(const ValueKey('advanced-route')));
 }
 
-/// 在表单顶上的「连接类型」里换一个。[type] 是面板里显示的名字：SSH、Mosh、Telnet、插件名。
+/// 在表单顶上的「连接类型」里换一个。[type]：SSH、Mosh、Telnet 或「更多」面板里的名字。
 Future<void> chooseConnectionType(WidgetTester tester, String type) async {
-  await tapRoute(tester, find.byKey(const ValueKey('host-protocol')));
+  if (const {'SSH', 'Mosh', 'Telnet'}.contains(type)) {
+    await tapRoute(tester, find.byKey(ValueKey('host-type-$type')));
+    return;
+  }
+  await tapRoute(tester, find.byKey(const ValueKey('host-type-more')));
   await tapRoute(tester, find.byKey(ValueKey('connection-type-$type')));
 }
 

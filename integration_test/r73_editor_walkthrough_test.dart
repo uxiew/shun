@@ -87,14 +87,31 @@ void main() {
         'advanced=${tester.getRect(find.byKey(const ValueKey('advanced-all')))} '
         'save=${tester.getRect(find.byKey(const ValueKey('host-editor-save')))}');
 
-    await tapKey(tester, 'host-protocol');
-    await shot(tester, '02-type-sheet');
-    await tapKey(tester, 'connection-type-Mosh');
+    await tapKey(tester, 'login-kind-key');
+    await shot(tester, '01a-login-key');
+    await tapKey(tester, 'host-key');
+    await shot(tester, '01b-key-picker');
+    await tester.binding.handlePopRoute();
+    await settle(tester);
+    await tapKey(tester, 'login-kind-credential');
+    await shot(tester, '01c-login-credential');
+    await tapKey(tester, 'login-kind-tailscale');
+    await shot(tester, '01d-login-tailscale');
+    await tapKey(tester, 'login-kind-password');
+    await tapKey(tester, 'host-group');
+    await shot(tester, '01e-group-picker');
+    await tapKey(tester, 'host-group-new');
+    await shot(tester, '01f-group-new');
+    await tester.binding.handlePopRoute();
+    await settle(tester);
+    await tapKey(tester, 'host-type-more');
+    await shot(tester, '02-type-more');
+    await tapKey(tester, 'connection-type-RustDesk');
+    await shot(tester, '02a-rustdesk-in-place');
+    await tapKey(tester, 'host-type-Mosh');
     await shot(tester, '03-mosh');
     await tapKey(tester, 'advanced-all');
     await shot(tester, '04-advanced');
-    await tapKey(tester, 'advanced-route');
-    await shot(tester, '05-route');
     // 滚下去以后顶上那行已经被列表回收了。
     tester
         .state<ScrollableState>(find
@@ -104,8 +121,7 @@ void main() {
         .position
         .jumpTo(0);
     await settle(tester);
-    await tapKey(tester, 'host-protocol');
-    await tapKey(tester, 'connection-type-Telnet');
+    await tapKey(tester, 'host-type-Telnet');
     await shot(tester, '06-telnet');
     await tester.tap(find.byIcon(Icons.close).first);
     await settle(tester);

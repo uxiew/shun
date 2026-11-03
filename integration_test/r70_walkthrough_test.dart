@@ -447,18 +447,12 @@ void main() {
     await settle(tester);
     await shot(tester, '20-editor-new');
     // F39：类型在表单里切，路线收在高级里。
-    await tester.tap(find.byKey(const ValueKey('host-protocol')));
-    await settle(tester);
-    await shot(tester, '20a-editor-type-sheet');
-    await tester.tap(find.byKey(const ValueKey('connection-type-Mosh')));
+    await tester.tap(find.byKey(const ValueKey('host-type-Mosh')));
     await settle(tester);
     await shot(tester, '20b-editor-mosh');
     await tester.tap(find.byKey(const ValueKey('advanced-all')));
     await settle(tester);
     await shot(tester, '20c-editor-advanced');
-    await tester.tap(find.byKey(const ValueKey('advanced-route')));
-    await settle(tester);
-    await shot(tester, '20d-editor-route');
     navigator.pop();
     await settle(tester);
 
@@ -478,10 +472,7 @@ void main() {
     await settle(tester);
     await shot(tester, '21-editor-own-key');
 
-    await tester.tap(mode);
-    await settle(tester);
-    await shot(tester, '22-editor-mode-menu');
-    await tester.tap(find.text('凭据').last);
+    await tester.tap(find.byKey(const ValueKey('login-kind-credential')));
     await settle(tester);
     await tester.tap(find.byKey(const ValueKey('host-identity')));
     await settle(tester);

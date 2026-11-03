@@ -78,6 +78,10 @@ Future<void> r39Gate(WidgetTester tester, String name) async {
 
 Future<void> r39Select(WidgetTester tester, String type) async {
   await r39Tap(tester, find.byTooltip('添加连接'));
-  await r39Tap(tester, r39Key('host-protocol'));
+  if (const {'SSH', 'Mosh', 'Telnet'}.contains(type)) {
+    await r39Tap(tester, r39Key('host-type-$type'));
+    return;
+  }
+  await r39Tap(tester, r39Key('host-type-more'));
   await r39Tap(tester, r39Key('connection-type-$type'));
 }

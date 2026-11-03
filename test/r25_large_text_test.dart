@@ -139,10 +139,11 @@ void main() {
           where = '选择连接类型';
           await tester.ensureVisible(type);
           await settle();
-          await tester.tap(type);
+          await tester.tap(find.byKey(const ValueKey('host-type-more')));
           await settle();
-          final ssh = find.byKey(const ValueKey('connection-type-SSH'));
-          await scrollThrough(listAround(ssh));
+          final tailscale =
+              find.byKey(const ValueKey('connection-type-Tailscale'));
+          await scrollThrough(listAround(tailscale));
           await tester.binding.handlePopRoute();
           await settle();
 

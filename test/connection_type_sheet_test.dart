@@ -79,15 +79,25 @@ void main() {
         tester.element(find.byType(home.runtimeType).first));
   }
 
-  Future<void> select(WidgetTester tester, String type) async {
-    await tester.tap(find.byTooltip('添加连接'));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('host-protocol')));
+  /// SSH、Mosh、Telnet 点一下就换，其余在「更多」里。
+  Future<void> pickType(WidgetTester tester, String type) async {
+    if (const {'SSH', 'Mosh', 'Telnet'}.contains(type)) {
+      await tester.tap(find.byKey(ValueKey('host-type-$type')));
+      await tester.pumpAndSettle();
+      return;
+    }
+    await tester.tap(find.byKey(const ValueKey('host-type-more')));
     await tester.pumpAndSettle();
     final tile = find.byKey(ValueKey('connection-type-$type'));
     await tester.ensureVisible(tile);
     await tester.tap(tile);
     await tester.pumpAndSettle();
+  }
+
+  Future<void> select(WidgetTester tester, String type) async {
+    await tester.tap(find.byTooltip('添加连接'));
+    await tester.pumpAndSettle();
+    await pickType(tester, type);
   }
 
   /// 面板本身：terminalsOnly 为假时列全部类型。
@@ -114,18 +124,12 @@ void main() {
         find.widgetWithText(TextFormField, '主机名 / IP'), 'host.example');
     final telnetPort = find.widgetWithText(TextFormField, 'Telnet 端口');
     expect(tester.widget<TextFormField>(telnetPort).controller!.text, '23');
-    await tester.tap(find.byKey(const ValueKey('host-protocol')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('connection-type-SSH')));
-    await tester.pumpAndSettle();
+    await pickType(tester, 'SSH');
     expect(find.text('host.example'), findsOneWidget);
     final sshPort = find.widgetWithText(TextFormField, 'SSH 端口');
     expect(tester.widget<TextFormField>(sshPort).controller!.text, '22');
     await tester.enterText(sshPort, '2200');
-    await tester.tap(find.byKey(const ValueKey('host-protocol')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('connection-type-Mosh')));
-    await tester.pumpAndSettle();
+    await pickType(tester, 'Mosh');
     expect(tester.widget<TextFormField>(sshPort).controller!.text, '2200');
   });
 
@@ -136,10 +140,7 @@ void main() {
     await tester.enterText(
         find.widgetWithText(TextFormField, '主机名 / IP'), 'host.example');
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('host-protocol')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('connection-type-Tailscale')));
-    await tester.pumpAndSettle();
+    await pickType(tester, 'Tailscale');
     expect(find.text('放弃没保存的改动？'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('host-editor-keep-editing')));
     await tester.pumpAndSettle();
@@ -148,10 +149,7 @@ void main() {
 
     await tester.enterText(find.widgetWithText(TextFormField, '主机名 / IP'), '');
     await tester.pump();
-    await tester.tap(find.byKey(const ValueKey('host-protocol')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.byKey(const ValueKey('connection-type-Tailscale')));
-    await tester.pumpAndSettle();
+    await pickType(tester, 'Tailscale');
     expect(find.byType(HostEditor), findsNothing);
     // 设置页打开就在读，转圈不停，pumpAndSettle 等不到头。
     await tester.pump(const Duration(milliseconds: 500));
@@ -173,26 +171,40 @@ void main() {
     expect(find.byType(TailscaleSettingsScreen), findsOneWidget);
   });
 
-  testWidgets('换到 RustDesk：关掉表单，问名字后进它自己的页面，不启动客户端', (tester) async {
+  testWidgets('换到 RustDesk：不离开表单，只留名称；切回 SSH 填过的都在；保存才进它的页面，不启动客户端',
+      (tester) async {
     await open(tester, const VaultScreen());
-    await select(tester, 'RustDesk');
-    expect(find.byType(HostEditor), findsNothing);
-    await tester.enterText(find.byType(TextField).last, 'desk');
-    await tester.tap(find.text('保存').last);
+    await tester.tap(find.byTooltip('添加连接'));
     await tester.pumpAndSettle();
+    await tester.enterText(
+        find.widgetWithText(TextFormField, '主机名 / IP'), 'host.example');
+    await pickType(tester, 'RustDesk');
+    expect(find.byType(HostEditor), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, '主机名 / IP'), findsNothing);
+    expect(find.byKey(const ValueKey('test-connection')), findsNothing);
+    await tester.tap(find.byKey(const ValueKey('host-editor-save')));
+    await tester.pumpAndSettle();
+    expect(find.text('必填'), findsOneWidget, reason: '没名称不让存');
+
+    await pickType(tester, 'SSH');
+    expect(find.text('host.example'), findsOneWidget);
+
+    await pickType(tester, 'RustDesk');
+    await tester.enterText(
+        find.byKey(const ValueKey('remote-entry-name')), 'desk');
+    await tester.tap(find.byKey(const ValueKey('host-editor-save')));
+    await tester.pumpAndSettle();
+    expect(find.byType(HostEditor), findsNothing);
     expect(find.byType(RustDeskHostScreen), findsOneWidget);
     expect(rd.launched, isEmpty);
+    expect((await vault.loadVault()).hosts, isEmpty);
   });
 
   testWidgets('编辑已有主机只能换终端类型：RustDesk、UU、Tailscale 不是同一种记录', (tester) async {
     await open(tester, sheet(terminalsOnly: true));
-    for (final type in ['SSH', 'Mosh', 'Telnet']) {
-      expect(find.byKey(ValueKey('connection-type-$type')), findsOneWidget);
-    }
     for (final type in ['Tailscale', 'RustDesk', 'UU 远程']) {
       expect(find.byKey(ValueKey('connection-type-$type')), findsNothing);
     }
-    expect(find.byIcon(Icons.check), findsOneWidget, reason: '当前选中的打勾');
   });
 
   for (final type in ['SSH', 'Mosh', 'Telnet']) {
@@ -248,7 +260,7 @@ void main() {
       await select(tester, type);
       await tester.enterText(
           find.byKey(const ValueKey('remote-entry-name')), 'remote only');
-      await tester.tap(find.byKey(const ValueKey('remote-entry-save')));
+      await tester.tap(find.byKey(const ValueKey('host-editor-save')));
       await tester.pumpAndSettle();
       expect(
           find.byType(
