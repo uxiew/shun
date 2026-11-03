@@ -37,7 +37,6 @@ import 'cloud_backup_screen.dart';
 import 'hidden_hosts_screen.dart';
 import 'known_hosts_screen.dart';
 import 'lan_transfer_screen.dart';
-import 'manage_screen.dart';
 import 'plugins_screen.dart';
 import 'rustdesk_screen.dart';
 import 'tailscale_catalog_screen.dart';
@@ -505,18 +504,6 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
               Card(
                 child: Column(
                   children: [
-                    ListTile(
-                      key: const ValueKey('settings-manage'),
-                      leading: const Icon(Icons.manage_search),
-                      title: const LText('管理'),
-                      subtitle: const LText('搜主机、凭据、代理、转发'),
-                      trailing: const Icon(Icons.chevron_right),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute<void>(
-                          builder: (_) => const ManageScreen(),
-                        ),
-                      ),
-                    ),
                     ListTile(
                       leading: const Icon(Icons.public),
                       title: const LText('代理管理'),
