@@ -460,6 +460,14 @@ void main() {
     expect(find.text('连接路径、启动命令、超时等'), findsOneWidget);
   });
 
+  testWidgets('点开高级自己滚到它：内容不能全压在底栏下面，看着像没反应', (tester) async {
+    await open(tester);
+    await tester.tap(key('advanced-all'));
+    await tester.pumpAndSettle();
+    final bar = tester.getTopLeft(key('host-editor-verification')).dy;
+    expect(tester.getTopLeft(key('advanced-route')).dy, lessThan(bar));
+  });
+
   testWidgets('F39：名称留空就用地址，地址也空时不让存', (tester) async {
     await open(tester);
     await tester.enterText(field('主机名 / IP'), 'web.example.com');

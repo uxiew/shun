@@ -130,6 +130,8 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   bool get _quiet =>
       widget.host == null && !_triedSave && hostname.text.trim().isEmpty;
 
+  final _advancedKey = GlobalKey();
+
   /// 「高级」整块展开没有。默认收起，填过什么写在它的摘要里（F39，学 LobiShell 的高级卡片）。
   var _advancedOpen = false;
 
@@ -409,11 +411,12 @@ class _HostEditorState extends ConsumerState<HostEditor> {
               ),
               const SizedBox(height: 12),
               _AdvancedGroup(
+                key: _advancedKey,
                 id: 'all',
                 title: '高级',
                 state: _advancedSummary,
                 expanded: _advancedVisible(preview),
-                onToggle: () => setState(() => _advancedOpen = !_advancedOpen),
+                onToggle: _toggleAdvanced,
                 children: _advancedGroups(vaultState, preview),
               ),
               if (widget.host != null && widget.onDelete != null) ...[
@@ -748,6 +751,20 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   bool get _routeSet => route.usesProxy || route.jumpHostIds.isNotEmpty;
   bool get _hasCatalog =>
       widget.host != null && CatalogBinding.of(widget.host!) != null;
+
+  /// 高级这一行常常贴着底栏，展开的内容全在屏幕外，看着像没反应：打开时滚到它。
+  void _toggleAdvanced() {
+    setState(() => _advancedOpen = !_advancedOpen);
+    if (!_advancedOpen) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final context = _advancedKey.currentContext;
+      if (context == null) return;
+      unawaited(Scrollable.ensureVisible(
+        context,
+        duration: const Duration(milliseconds: 200),
+      ));
+    });
+  }
 
   /// 收着的「高级」下面那一行：设过什么就写什么，不用点开就知道这台走不走代理。没设过就写里面有什么，
   /// 要找代理的人才知道该点这里。
@@ -1706,6 +1723,7 @@ class _AdvancedNumberField extends StatelessWidget {
 /// 外层的「高级」。收起时用 Offstage 藏起来而不是不建：字段还在表单里，保存时照样校验。
 class _AdvancedGroup extends StatelessWidget {
   const _AdvancedGroup({
+    super.key,
     required this.id,
     required this.title,
     required this.state,

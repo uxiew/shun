@@ -175,7 +175,6 @@ void main() {
             reason: old);
       }
       for (final key in [
-        'settings-manage',
         'settings-credentials',
         'settings-app-log',
         'settings-tailscale-catalog',
