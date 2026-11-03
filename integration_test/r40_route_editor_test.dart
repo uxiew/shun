@@ -183,6 +183,8 @@ void main() {
     Future<void>? hostResult;
     Future<void> edit(String id) async {
       final current = await host(id);
+      // 上一页拒绝保存时的提示条还没消失的话，会挡住贴着底栏的「高级」，tap 点不中。
+      ScaffoldMessenger.of(navigator.currentContext!).clearSnackBars();
       // The real parent also persists the HostEditor result, outside the form.
       hostResult = navigator.currentState!
           .push<HostProfile>(
