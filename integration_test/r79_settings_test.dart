@@ -114,7 +114,7 @@ void main() {
       await shot(tester, '${(shots++).toString().padLeft(2, '0')}-$group');
     }
 
-    // 管理页：从「设置 → 连接 → 管理」走进去，一类一个 tab，一个框搜四类。
+    // 管理页：从「设置 → 连接 → 管理」走进去，一个框搜四类。
     final manage = find.byKey(const ValueKey('settings-manage'));
     await tester.scrollUntilVisible(manage, -200,
         scrollable: scrollable, maxScrolls: 200);
@@ -125,23 +125,12 @@ void main() {
     await settle(tester);
     expect(find.byType(ManageScreen), findsOneWidget);
     await shot(tester, '10-manage');
-    for (final tab in ['credentials', 'proxies', 'forwards']) {
-      await tester.tap(find.byKey(ValueKey('manage-tab-$tab')));
-      await binding.delayed(const Duration(milliseconds: 500));
-      await settle(tester);
-      await shot(tester, '10-manage-$tab');
-    }
-    await tester.tap(find.byKey(const ValueKey('manage-tab-hosts')));
-    await binding.delayed(const Duration(milliseconds: 500));
-    await settle(tester);
     for (final (text, key) in [
       ('prod', 'manage-host-web'),
-      ('deployer', 'keychain-identity-i1'),
-      ('proxy.example', 'proxy-profile-p1'),
+      ('deployer', 'manage-identity-i1'),
+      ('proxy.example', 'manage-proxy-p1'),
     ]) {
       await tester.enterText(find.byKey(const ValueKey('manage-search')), text);
-      // 当前 tab 没有命中会自己跳过去，等它滑完。
-      await binding.delayed(const Duration(milliseconds: 500));
       await settle(tester);
       expect(find.byKey(ValueKey(key)), findsOneWidget, reason: text);
       await shot(tester, '11-manage-$text');

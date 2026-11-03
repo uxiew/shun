@@ -1,10 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../application/fork_features.dart';
 import '../../application/home_navigation.dart';
 import '../../application/session_controller.dart';
-import '../../application/settings_controller.dart';
 import '../../application/tailscale_catalog_import.dart';
 import '../../application/tailscale_catalog_refresh.dart';
 import '../../application/vault_controller.dart';
@@ -118,14 +116,12 @@ Future<void> importAndConnect(
   }
 }
 
-/// 不在连接页时新建或改一台主机：失败页、管理页。保存了只写回，不替用户连。
-/// host 是 null 就是新建，只能选终端类型：Tailscale、RustDesk 这些走连接页的 ⊕。
+/// 不在连接页时改一台已保存的主机：失败页、管理页。保存了只写回，不替用户连。
 Future<void> editSavedHost(
   BuildContext context,
   WidgetRef ref,
-  HostProfile? host, {
-  bool canDelete = false,
-}) async {
+  HostProfile host,
+) async {
   final result = await showModalBottomSheet<HostProfile>(
     context: context,
     isScrollControlled: true,
@@ -134,47 +130,10 @@ Future<void> editSavedHost(
     enableDrag: false,
     builder: (_) => HostEditor(
       host: host,
-      onDelete: canDelete && host != null
-          ? () => confirmDeleteHost(context, ref, host)
-          : null,
       verifyHostKey: hostKeyVerifier(context),
       keyboardInteractive: keyboardInteractivePrompt(context),
     ),
   );
   if (result == null) return;
   await ref.read(vaultControllerProvider.notifier).upsertHost(result);
-}
-
-/// 先问再删一台主机。删了返回 true。
-Future<bool> confirmDeleteHost(
-  BuildContext context,
-  WidgetRef ref,
-  HostProfile host,
-) async {
-  final confirmed = await showDialog<bool>(
-        context: context,
-        builder: (context) => AlertDialog(
-          icon: const Icon(Icons.delete_outline),
-          title: const LText('删除服务器？'),
-          // 没开自动同步就不说「会传到其他设备」，那句是上游留下的。
-          content: LText(ref.read(forkFeaturesProvider).cloudSync &&
-                  ref.read(settingsControllerProvider).autoSyncEnabled
-              ? '将从保险库中删除“${host.label}”，此操作可通过云端备份传播到其他设备。'
-              : '将从保险库中删除“${host.label}”，删了不能撤销。'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const LText('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const LText('删除'),
-            ),
-          ],
-        ),
-      ) ??
-      false;
-  if (!confirmed || !context.mounted) return false;
-  await ref.read(vaultControllerProvider.notifier).deleteHost(host.id);
-  return true;
 }
