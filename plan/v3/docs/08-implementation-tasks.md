@@ -1,10 +1,10 @@
 # 08 实施路线与任务分解 V3
 
-共81项：56项主线、25项后续；172个验收用例，结果只看 docs/09。Rxx保留原二开任务编号，Xxx是本轮插件主线。任务ID不按数字简单串行，必须按depends_on推进。
+共113项：74项非P6主线、39项P6；210个验收用例。这里的分类数量不代表任务状态，当前进度见 [STATUS](../STATUS.md)。Rxx保留原二开编号，Xxx为插件主线，U0–U5为本次UI迁移阶段；必须按depends_on推进。
 
-首批R00–R04与X00；随后网络/终端/插件三条主线，独立测试APK先于真实Mosh。R30现在依赖X13，V2核心通过不能替代完整V3验收。
+**当前入口：R81。** 按 [UI迁移方案](24-ui-migration.md) 完成 R81–R98，再交 R26 新候选日用与原发布链。原首批R00–R04/X00已是历史入口，不重跑基座选型。R30继续直接依赖X13，并覆盖全部当前用例。
 
-任务DONE必须实现、测试、证据、文档和审查齐全；证据包含commit、APK哈希、signer、依赖与真实执行者。状态合法值：NOT_STARTED/READY/IN_PROGRESS/REVIEW/DONE/BLOCKED/DEFERRED。
+任务DONE必须实现、测试、证据、文档和审查齐全；证据绑定实际commit、构建/依赖和执行环境。状态合法值：NOT_STARTED/IN_PROGRESS/DONE/BLOCKED/DEFERRED，按set_status.py维护。新增UI任务均NOT_STARTED，不能把本次规划校验当作实施完成。
 
 ## 阶段门禁
 
@@ -21,6 +21,12 @@
 |P5 真机、release和独立交接|G5|R31|同候选完整证据；签名/分发授权另算|
 |E3 插件组合交付|GX3|X13|同候选组合证据及插件作者SDK通过|
 |P6 后续候选|—|另行决定|另行授权，不自动执行|
+|U0 基线与单宿主接入|GU0|R81, R82|唯一目标与基线冻结；依赖可构建；单 Navigator、Material 兼容、锁罩层级与非模态最小契约实测通过|
+|U1 视觉基础与导航外壳|GU1|R83, R84, R85|主题/公共控件/UI 规则和五入口外壳通过；旧设置、状态连续及焦点保留|
+|U2 设置与连接主流程|GU2|R86, R87, R88, R89|设置完整垂直切片、主机目录/表单/凭据/Tailscale 完成；F41/F42 及敏感边界保留|
+|U3 文件、管理与扩展页面|GU3|R90, R91, R92|SFTP、监控、插件/外部远控/AI 可达和受控回归通过；业务接口不改|
+|U4 终端与会话交互|GU4|R93, R94, R95|终端外壳/输入/总览完成；单 view/单输入、手势/返回/全屏/PiP 不回退|
+|U5 全界面收口与候选交接|GU5|R96, R97, R98|覆盖/无障碍/本地性能与回归通过，UIM01–UIM21 有证据；UIM22 交 R26 真机，GU5 不等于 FULL_READY|
 
 ## R00 基座、授权、许可与源码冻结
 
@@ -547,21 +553,23 @@
 
 ## R26 用户手机VPN + TailSocks真实日用
 
-阶段：P5；状态：IN_PROGRESS；依赖：R15, R20, R23, R24, R25；角色：测试代理。
+阶段：P5；状态：IN_PROGRESS；依赖：R15, R20, R23, R24, R25, R98；角色：测试代理。
 
-**范围**：明确授权后在用户手机验证同一候选，比较LobiShell行为基线；测试网络切换、目录、跳板、IME和SFTP。
+**范围**：明确授权后在用户手机验证同一候选，比较LobiShell行为基线；测试网络切换、目录、跳板、IME和SFTP。 2026-11-05 起，UI 迁移新候选的正式日用出口先等 R98；旧包反馈可以继续收集但不转移为新候选通过。
 
 **落点**：evidence/R26.md；device/version matrix；故障复现与问题清单。
 
 **交付物**：evidence/R26.md（实际执行后填写）；与范围对应的实现、测试及文档；不能只交截图或接口空壳。
 
 **验收**：
+
 - 不占VPN且完整核心路径可用
 - 关键负向场景实测
 - 源设备身份差异说明
 - 真实模型额度使用另获授权
+- UI 新候选执行 UIM22 与受影响原清单，绑定新源码/APK/设备；旧 33 包证据单列
 
-**关联用例**：NET12、TER13、LIFE03、LIFE04、LIFE07、SOX01、JMP01、TSC06、REL04、SWP02、CRD04。
+**关联用例**：NET12、TER13、LIFE03、LIFE04、LIFE07、SOX01、JMP01、TSC06、REL04、SWP02、CRD04、UIM22。
 
 **停止条件**：无设备/权限标BLOCKED；用户之前LobiShell成功不可计本App通过。
 
@@ -629,9 +637,9 @@
 
 ## R30 同一候选全量回归与独立复现
 
-阶段：P5；状态：NOT_STARTED；依赖：R27, R28, R29, X13；角色：独立审查代理。
+阶段：P5；状态：NOT_STARTED；依赖：R27, R28, R29, X13, R98；角色：独立审查代理。
 
-**范围**：重跑本包全部硬用例及保留功能的上游回归；安全和设备证据都绑定同SHA/APK。
+**范围**：重跑本包全部硬用例及保留功能的上游回归；安全和设备证据都绑定同SHA/APK。 2026-11-05 校正 test_ids 为 verification-cases.json 全部用例（含补漏 CRD/SWP/UXR 与新增 UIM01–UIM22），不能沿用旧 160 条列表。
 
 **落点**：verification-cases.json结果副本；evidence/R30.md；independent review。
 
@@ -644,7 +652,7 @@
 - 同候选完成网络/目录/Ghostty/平台
 - 已知缺陷与未测如实记录
 
-**关联用例**：NET01, NET02, NET03, NET04, NET05, NET06, NET07, NET08, NET09, NET10, NET11, NET12, SEC01, SEC02, SEC03, SEC04, SEC05, SEC06, SEC07, SEC08, SEC09, SEC10, SEC11, SEC12, TER01, TER02, TER03, TER04, TER05, TER06, TER07, TER08, TER09, TER10, TER11, TER12, TER13, TMX01, TMX02, TMX03, TMX04, TMX05, TMX06, TMX07, TMX08, LIFE01, LIFE02, LIFE03, LIFE04, LIFE05, LIFE06, LIFE07, UX01, UX02, UX03, UX04, REL01, REL02, REL03, REL04, REL05, BAS01, BAS02, BAS03, BAS04, RTE01, RTE02, RTE03, RTE04, RTE05, SOX01, SOX02, SOX03, SOX04, JMP01, JMP02, JMP03, JMP04, TSC01, TSC02, TSC03, TSC04, TSC05, TSC06, TSC07, TSC08, TSC09, TSC10, GST01, GST02, GST03, GST04, GST05, REG01, REG02, REG03, REG04, SUP01, SUP02, PLG01, PLG02, PLG03, PLG04, PLG05, PLG06, PLG07, PLG08, PLG09, PLG10, PLG11, PLG12, PLG13, PLG14, PLG15, PLG16, MOS01, MOS02, MOS03, MOS04, MOS05, MOS06, MOS07, MOS08, UUR01, UUR02, UUR03, UUR04, UUR05, UUR06, UUR07, UUR08, RDX01, RDX02, RDX03, RDX04, RDX05, SDK01, SDK02, SDK03, SDK04, DEV01, DEV02, UX05, UX06, UX07, UX08, UX09, SEC13, UX10, UX11, UX12, AIC01, AIC02, AIC03, AIC04, AIC05, AIC06, AIC07, AIC08, AIC09。
+**关联用例**：NET01、NET02、NET03、NET04、NET05、NET06、NET07、NET08、NET09、NET10、NET11、NET12、SEC01、SEC02、SEC03、SEC04、SEC05、SEC06、SEC07、SEC08、SEC09、SEC10、SEC11、SEC12、TER01、TER02、TER03、TER04、TER05、TER06、TER07、TER08、TER09、TER10、TER11、TER12、TER13、TMX01、TMX02、TMX03、TMX04、TMX05、TMX06、TMX07、TMX08、LIFE01、LIFE02、LIFE03、LIFE04、LIFE05、LIFE06、LIFE07、UX01、UX02、UX03、UX04、REL01、REL02、REL03、REL04、REL05、BAS01、BAS02、BAS03、BAS04、RTE01、RTE02、RTE03、RTE04、RTE05、SOX01、SOX02、SOX03、SOX04、JMP01、JMP02、JMP03、JMP04、TSC01、TSC02、TSC03、TSC04、TSC05、TSC06、TSC07、TSC08、TSC09、TSC10、GST01、GST02、GST03、GST04、GST05、REG01、REG02、REG03、REG04、SUP01、SUP02、PLG01、PLG02、PLG03、PLG04、PLG05、PLG06、PLG07、PLG08、PLG09、PLG10、PLG11、PLG12、PLG13、PLG14、PLG15、PLG16、MOS01、MOS02、MOS03、MOS04、MOS05、MOS06、MOS07、MOS08、UUR01、UUR02、UUR03、UUR04、UUR05、UUR06、UUR07、UUR08、RDX01、RDX02、RDX03、RDX04、RDX05、SDK01、SDK02、SDK03、SDK04、DEV01、DEV02、UX05、UX06、UX07、UX08、UX09、SEC13、UX10、UX11、UX12、AIC01、AIC02、AIC03、AIC04、AIC05、AIC06、AIC07、AIC08、AIC09、DEP01、SKY01、SKY02、SKY03、SKY04、SKY05、SYN01、SYN02、SYN03、SYN04、SEC14、SEC15、TSC11、MON01、CRD01、CRD02、CRD03、CRD04、SWP01、SWP02、UXR01、UXR02、UXR03、UXR04、UXR05、UXR06、UXR07、UXR08、UIM01、UIM02、UIM03、UIM04、UIM05、UIM06、UIM07、UIM08、UIM09、UIM10、UIM11、UIM12、UIM13、UIM14、UIM15、UIM16、UIM17、UIM18、UIM19、UIM20、UIM21、UIM22。
 
 **停止条件**：任何必需NOT_RUN或FAIL不标完整READY；不能借另一版本或基座结果补齐。
 
@@ -1899,13 +1907,13 @@
 
 **停止条件**：页面文字守 ui_rules_test 的上限，不改上限。
 
-## R79 「管理」页和设置分组
+## R79 设置分组
 
 阶段：P6；状态：IN_PROGRESS；依赖：无；角色：实施代理。
 
-**范围**：F39。主机、凭据、代理、转发有统一的管理入口和搜索；设置按通用、终端、连接、安全、数据分组。只学分组，不学每项一大段说明。
+**范围**：F39。设置按通用、终端、连接、安全、数据分组。只学分组，不学每项一大段说明。
 
-**落点**：lib/presentation/screens/settings_screen.dart
+**落点**：lib/presentation/screens/settings_screen.dart。
 
 **交付物**：evidence/R79.md；实现、测试和使用手册更新。
 
@@ -1935,3 +1943,404 @@
 **关联用例**：无。
 
 **停止条件**：所有者没开口不做。不暗建、暗杀 tmux。
+
+## R81 冻结单一 UI 目标与 shun 迁移基线
+
+阶段：U0；状态：NOT_STARTED；依赖：R25, R70, R72；角色：UI 基础实施代理。
+
+**范围**：以 FlClash 固定快照和 prism_ui 固定提交为唯一迁移目标；建立当前页面、弹层、行为、截图与性能基线，不试装其他 UI 库。本任务才开始实际截图和应用基线验证，规划资料阅读不等于完成。
+
+**落点**：plan/v3/docs/24-ui-migration.md；docs/decisions/ui-system-decision.md；test/ui_gallery_test.dart；test/r25_large_text_test.dart；plan/v3/evidence/R81.md。
+
+**交付物**：evidence/R81.md（实际执行后填写）；当前源码 SHA、工作区状态、SDK/锁文件摘要；页面和弹层覆盖表、单一视觉对照表、迁移前截图索引与测量原始记录。
+
+**验收**：
+
+- 读完 F26/F30/F41/F42 和应用入口，逐项记录已有行为及所属后续任务；R73–R79 的真机缺口单列
+- 在已有出图测试补齐连接、终端、总览、SFTP 基线；实际检查图片，记录字体、视口、字号、语言和主题
+- 按 docs/24 固定同一 profile 测量环境与场景；基线数据真实可复跑，缺项写明原因，不能填估算值
+- 冻结可见部件映射和测试选择器清单；不增加新页面、功能或候选库
+
+**关联用例**：UIM01。
+
+**停止条件**：基线无法复现时先修最小测试/环境问题；未取得截图与可比较性能基线不得启动 R82，不把旧包 PASS 填入新用例。
+
+## R82 锁定 Prism 依赖并验证单宿主兼容边界
+
+阶段：U0；状态：NOT_STARTED；依赖：R81；角色：UI 基础实施代理。
+
+**范围**：仅接入固定 prism_ui 提交和一个薄 ShunUiHost；用公开 Prism 组件组合单个 WidgetsApp/Navigator，保留现有 key、home、生命周期和安全边界。完成可构建的最小页面、输入、提示、模态与非模态样例，不做批量页面迁移。
+
+**落点**：pubspec.yaml；pubspec.lock；lib/app.dart；lib/presentation/ui/shun_ui_host.dart；lib/presentation/ui/material_compat.dart；lib/presentation/ui/prism_localizations.dart；lib/presentation/widgets/app_lock_gate.dart；lib/presentation/terminal/ghostty_terminal_view.dart；test/ui_host_test.dart；test/app_lock_test.dart；test/terminal_detached_theme_test.dart；NOTICE.md。
+
+**交付物**：evidence/R82.md（实际执行后填写）；evidence/R82.md 中的依赖解析、受影响依赖差异、构建和宿主测试记录；固定 Git ref 与 lock、来源/许可清单、可工作的兼容宿主。
+
+**验收**：
+
+- 固定 prism_ui 63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185；不得浮动 main 或顺手升级 Riverpod、dartssh2、libghostty
+- 原 _navigatorKey 和 HomeShell 接入同一 Navigator；WidgetsApp 显式提供 pageRouteBuilder，HomeShell/live 终端用无截图根路由，不套 CardRouteMixin；保留 session 初始化、应用锁、后台保活、同步及目录前后台通知
+- Material Theme 在 GhosttyDetachedThemeSync 外；保留实际需要的 ScaffoldMessenger、Material/Widgets/Cupertino 本地化，接通现有 LText/localized 的 Prism 文案代理
+- RemoteFocusAdapter 明确 enabled:false；终端持续输出时 push/pop 保持原 view 身份、输出和输入焦点，不把标准 allowSnapshotting:false 当成关闭 Prism 私有快照的保证
+- AppLockGate 包住 BannerHost、Overlay、路由与全部视觉层；锁定/遮挡时无旧图、提示、读屏或按键穿透，解锁保留原导航树和终端焦点
+- 不安装 ThemeCrossFade 或靠换 key 重建会话树；完成真非模态面板最小验证，透明 ModalBarrier 不算
+- 依赖解析、相关静态检查/单测和隔离 Android debug 构建通过；记录 GPL 与 NOTICE，未测试真实设备如实标记
+
+**关联用例**：UIM02、UIM03。
+
+**停止条件**：锁罩、根导航、终端依赖、焦点或非模态契约任一失败即阻断后续 UI 任务；先修同一目标内的薄适配，不静默换库、重写业务或引入第二 App/Navigator。
+
+## R83 统一 Prism 主题、字阶、形状与动效
+
+阶段：U1；状态：NOT_STARTED；依赖：R82；角色：UI 基础实施代理。
+
+**范围**：把 FlClash 的分层表面、连续圆角、分组列表和轻量反馈映射为 shun 的语义主题；保留已有主题 ID、浅深/系统模式、字体与背景设置，不新增主题数据迁移。
+
+**落点**：lib/presentation/theme.dart；lib/presentation/ui/prism_theme.dart；lib/presentation/ui/material_compat.dart；lib/presentation/widgets/custom_background.dart；test/vault_logo_theme_test.dart；test/terminal_detached_theme_test.dart。
+
+**交付物**：evidence/R83.md（实际执行后填写）；语义色、字阶、圆角、间距与动效映射表；主题切换/旧设置兼容证据及浅深对照图。
+
+**验收**：
+
+- 同一设置生成 Prism 与兼容 Material 主题，旧 uiThemeId 和自定义背景保持可读有效
+- 表单间隔仍为 FormGap 20dp，界面字体与终端等宽字体各守原用途
+- light/dark/system 切换不重建连接、丢草稿或改变后台终端主题同步
+- 使用公开形状/动效 API，终端正文不加玻璃或整页截图过渡；减少动画设置有效
+- 默认只确立一套视觉规则，额外样式不形成另一个 UI 方案
+
+**关联用例**：UIM04。
+
+**停止条件**：旧设置失效、终端背景回答不同步、文字不可辨或状态重建时先修主题映射，不靠删主题选项或新增数据库迁移绕过。
+
+## R84 迁移公共控件并加固 UI 规则识别
+
+阶段：U1；状态：NOT_STARTED；依赖：R83；角色：UI 基础实施代理。
+
+**范围**：仅封装 shun 实际复用的表单、列表行、按钮、分段选择、空状态、帮助与面板表面；让新控件继续接受既有文案、间距、焦点和语义约束。
+
+**落点**：lib/presentation/ui/components.dart；lib/presentation/ui/non_modal_panel.dart；lib/presentation/widgets/form_gap.dart；lib/presentation/widgets/hint.dart；lib/presentation/widgets/choice_segments.dart；lib/presentation/widgets/empty_state.dart；test/ui_rules_test.dart；test/support/dart_ui_scan.dart；test/ui_spacing_regression_test.dart；test/hint_test.dart；test/ux02_a11y_test.dart；test/secret_content_test.dart。
+
+**交付物**：evidence/R84.md（实际执行后填写）；薄公共控件及非模态面板接口；Prism/本地封装规则识别、稳定 ValueKey/语义约定与控件图库。
+
+**验收**：
+
+- 输入框、段落扫描覆盖真实 Prism 和本地包装控件；增加一个能抓住绕过的新回归，不能放宽文字上限或屏蔽目录
+- helper/subtitle ≤16 汉字、单段 ≤30 汉字、FormGap 20dp 保持；ⓘ 48dp 且与开关为独立语义节点
+- 加载、禁用、校验失败、键盘焦点与错误反馈都有可操作状态
+- 普通确认可用模态；Tailscale 等指定非模态面板不新增阻断背景的面板遮罩，背后操作可达；不要求整棵路由树的 ModalBarrier 数量为零
+- 类型断言改为稳定 key、语义和行为断言，原缺陷仍能被测试捕捉；不建立泛化多 UI 库抽象
+- secret_content_test 的秘密输入扫描覆盖 Prism/包装参数与控件，继续检验禁学习、禁联想、禁自动更正和敏感屏保护，并补运行时行为断言；不能因改名漏检
+
+**关联用例**：UIM05。
+
+**停止条件**：规则漏检、读屏合并、背景点击被拦或输入法回退时暂停调用方迁移，不能以截图好看代替公共契约。
+
+## R85 迁移主导航外壳并保留页面状态
+
+阶段：U1；状态：NOT_STARTED；依赖：R84；角色：UI 基础实施代理。
+
+**范围**：按 FlClash 方向实现一致的导航、标题与页面表面；保留 HomeShell 五入口、IndexedStack 和现有 Navigator。只迁移外壳，终端内部留到 U4。
+
+**落点**：lib/presentation/home_shell.dart；lib/app.dart；lib/presentation/ui/shun_ui_host.dart；test/session_overview_test.dart；test/terminal_pip_update_test.dart；test/terminal_reparent_test.dart；test/ui_host_test.dart。
+
+**交付物**：evidence/R85.md（实际执行后填写）；五入口外壳与窄/宽/横屏布局；导航往返、返回键、全屏/PiP 与应用锁回归记录。
+
+**验收**：
+
+- 连接、终端、文件、片段、设置全部可达，切页保留滚动、草稿、标签和会话；没有新增管理页
+- 全屏和 PiP 时导航隐藏与恢复行为等价；普通返回、弹层返回和锁定返回各走原契约
+- 不为动画重建 IndexedStack 页面或创建终端预览视图；终端内层状态稳定
+- 无需启用当前未使用的 go_router；HomeShell/live 终端路由无截图，CardPageRoute 只用于不承载 live 终端的普通二级页；持续输出中 push/pop 与主 tab 切换分别验证
+- 共享基础接口冻结，后续模块只消费；记录尚存 Material 兼容点及所属任务
+
+**关联用例**：UIM06。
+
+**停止条件**：切页新增连接、焦点丢失、空白终端、返回顺序改变或管理页复活即不通过 GU1。
+
+## R86 迁移设置、片段与安全数据页面
+
+阶段：U2；状态：NOT_STARTED；依赖：R85；角色：页面实施代理。
+
+**范围**：先用设置页校准唯一视觉规则，再迁移同组二级页：外观、应用锁、可信主机、隐藏主机、日志、云端备份与文件恢复、局域网互传及片段。所有业务仍调用原控制器。
+
+**落点**：lib/presentation/screens/settings_screen.dart；lib/presentation/screens/settings_screen_dialogs.dart；lib/presentation/screens/snippets_screen.dart；lib/presentation/screens/app_lock_settings_screen.dart；lib/presentation/screens/known_hosts_screen.dart；lib/presentation/screens/hidden_hosts_screen.dart；lib/presentation/screens/app_log_screen.dart；lib/presentation/screens/cloud_backup_screen.dart；lib/presentation/screens/lan_transfer_screen.dart；lib/presentation/widgets/vault_import_dialog.dart；lib/presentation/widgets/vault_passphrase_dialog.dart；test/r25_settings_test.dart；test/cloud_backup_screen_test.dart；test/snippets_screen_test.dart；lib/presentation/widgets/terminal_key_feel_tiles.dart；lib/presentation/widgets/terminal_engine_status.dart。
+
+**交付物**：evidence/R86.md（实际执行后填写）；设置完整垂直切片与二级入口覆盖表；对应假服务/页面测试、截图、真实路径使用手册更新。
+
+**验收**：
+
+- 设置项一一对应旧清单，无项消失；隐藏主机留在安全组，插件/UU/RustDesk 留在插件组
+- 即时保存与失败回退、主题实时生效、片段删除确认保持
+- 应用锁、防截屏、备份口令与恢复确认不退化；云同步未配置不产生新请求
+- 保留数据格式和加密实现；扫码/互传真机未知继续留在 SYN04/R26，局部页面证据不冒充两台手机验收
+- 第一张完整设置页的布局/字阶/控件实测符合单一目标后再开始 R87
+- 终端按键手感设置项与引擎状态部件明确迁移或保留兼容，状态文案仍反映真实引擎
+
+**关联用例**：UIM07。
+
+**停止条件**：保存时机、恢复覆盖确认、隐藏主机入口或敏感保护变化先修；不顺便接 Drive/OneDrive 等 DEFERRED 功能。
+
+## R87 迁移连接首页、目录列表与空状态
+
+阶段：U2；状态：NOT_STARTED；依赖：R86；角色：页面实施代理。
+
+**范围**：迁移主机列表/网格/树、分组、搜索、菜单与 Tailscale 目录展示；保留 F41 的刷新、隐藏恢复和来源隔离。
+
+**落点**：lib/presentation/screens/vault_screen.dart；lib/presentation/screens/tailscale_catalog_screen.dart；lib/presentation/widgets/catalog_host_sections.dart；lib/presentation/widgets/vault_host_items.dart；lib/presentation/widgets/catalog_source_section.dart；lib/presentation/widgets/host_actions_sheet.dart；test/vault_catalog_section_test.dart；test/vault_host_menu_test.dart；test/vault_loading_test.dart；integration_test/r43_host_list_test.dart。
+
+**交付物**：evidence/R87.md（实际执行后填写）；首页各数据状态对照图；搜索/列表/目录/菜单回归与使用手册对应路径。
+
+**验收**：
+
+- 空状态保留添加主机、连接 Tailscale 两条路径；搜索涵盖普通主机与目录设备
+- 分组、置顶、列表/网格/树、隐藏/撤销及安全页恢复均保持可达
+- 来源身份不因同名/同 IP 合并；在线点是目录状态，旧状态显示时间，不伪装 SSH 已连接
+- 进入连接页/回前台刷新及配置间隔仍由原控制器驱动；刷新失败不自动连接或反复弹窗
+- 编辑器打开/保存回调接口不变，页面实现不改 RoutePlan 与存储
+
+**关联用例**：UIM08。
+
+**停止条件**：设备重复/丢失、入口失踪、状态含义误导或列表渲染触发连接即停；不恢复已删除的导入中转流程。
+
+## R88 迁移主机表单并固化 F42 原地选择
+
+阶段：U2；状态：NOT_STARTED；依赖：R87；角色：表单实施代理。
+
+**范围**：按现有 F42 流程替换主机编辑器的视觉控件；类型、认证、分组、高级在同一表单完成，保留输入与旧配置兼容。 同步迁移用户主动发起的测试连接页和阶段结果。
+
+**落点**：lib/presentation/widgets/host_editor.dart；lib/presentation/widgets/connection_endpoint_fields.dart；lib/presentation/widgets/connection_type_sheet.dart；lib/presentation/widgets/host_group_field.dart；lib/presentation/widgets/connection_route_editor.dart；lib/presentation/widgets/credential_field.dart；test/host_editor_layout_test.dart；test/host_editor_r41_test.dart；test/host_route_editor_test.dart；test/connection_type_sheet_test.dart；integration_test/r73_editor_walkthrough_test.dart；integration_test/r41_host_editor_keyboard_test.dart；lib/presentation/widgets/connection_probe_sheet.dart；test/r25_probe_record_test.dart。
+
+**交付物**：evidence/R88.md（实际执行后填写）；各协议/认证分支表单、字段保持矩阵；键盘/返回/校验回归与新旧主机对照。
+
+**验收**：
+
+- ⊕ 直接进入表单；常用类型和密码/密钥/凭据/Tailscale 原地切换，已填内容保留
+- 名称下方选择或新建分组；高级只有一层，路线摘要脱敏；不增加管理页或强迫先建凭据
+- 旧主机编辑不丢字段，自定义端口不被协议默认值覆盖；不支持的 Mosh 路线仍明确拒绝
+- 正常字号首屏遵守当前核心字段布局；大字号允许滚动但不裁字、不压缩到不可读
+- 保存验证、未保存退出确认与输入法行为等价；不自动连接/执行 startup
+- 测试连接只由用户主动触发，停止/完成与阶段结果准确，不自动保存、连生产主机或泄露探测记录中的秘密
+
+**关联用例**：UIM09。
+
+**停止条件**：为适配组件而改认证语义、丢字段、删类型或降低原首屏/可访问性测试要求时阻断。
+
+## R89 迁移凭据、代理与 Tailscale 非模态面板
+
+阶段：U2；状态：NOT_STARTED；依赖：R88；角色：表单实施代理。
+
+**范围**：完成首次登录、凭据选择/新建/删除、代理路线编辑、密钥交互及 Tailscale 设置表面。复用 R84 的真非模态面板，保持 F41 的保存/掩码/关闭行为。 交互式认证、服务器指纹和安全密钥添加/导入弹层均由本任务负责。
+
+**落点**：lib/presentation/screens/tailscale_settings_screen.dart；lib/presentation/widgets/first_login_dialog.dart；lib/presentation/widgets/keychain_sheet.dart；lib/presentation/widgets/identity_editor.dart；lib/presentation/widgets/proxy_profile_editor.dart；lib/presentation/widgets/proxy_profiles_page.dart；lib/presentation/widgets/ssh_key_import.dart；lib/presentation/widgets/security_key_prompt.dart；lib/presentation/widgets/secret_content.dart；test/first_login_dialog_test.dart；test/credentials_identity_test.dart；test/proxy_profiles_page_test.dart；test/security_key_prompt_test.dart；test/tailscale_catalog_screen_test.dart；integration_test/r75_tailscale_settings_test.dart；integration_test/r40_route_editor_test.dart；lib/presentation/widgets/connection_prompts.dart；lib/presentation/widgets/host_key_dialogs.dart；lib/presentation/widgets/security_key_actions.dart；test/connection_prompts_test.dart；test/host_keys_test.dart；test/security_key_actions_test.dart。
+
+**交付物**：evidence/R89.md（实际执行后填写）；凭据/代理/Tailscale 完整回归与非模态触摸证据；敏感信息遮蔽和帮助/确认语义验证。
+
+**验收**：
+
+- 凭据就地创建并选中，引用数和删除影响提示保留；旧密码、私钥、安全密钥与代理凭据兼容
+- Tailscale 设置无遮罩，背后列表可点击；下滑、返回、切底栏关闭，未保存草稿不留
+- 保存的 key 固定掩码，不提供查看；修改成功才替换、删除有确认；默认常用两项、其余高级
+- RoutePlan 预览不泄露秘密，代理失败不直连；host-key 在认证前的全局询问可显示
+- 防截屏、密码禁学习、锁屏期间不弹安全密钥询问保持；真实钥匙/tailnet 未测不改 SKY/CRD/UXR 结果
+
+**关联用例**：UIM10、UIM11。
+
+**停止条件**：透明模态冒充非模态、key 可回显、锁屏穿透或新增隐藏连接/保存副作用即失败，不能削弱原安全测试。
+
+## R90 迁移 SFTP、文件编辑与端口转发界面
+
+阶段：U3；状态：NOT_STARTED；依赖：R89；角色：文件页面实施代理。
+
+**范围**：迁移文件页、单/双栏、目录工具条、权限/传输弹层和文件编辑器；稳定借用现有会话与服务缓存。 端口转发表面由本任务唯一负责，保留现有监听/停止/会话借用契约。
+
+**落点**：lib/presentation/screens/sftp_screen.dart；lib/presentation/screens/sftp_screen_pane.dart；lib/presentation/widgets/sftp_editor.dart；lib/presentation/widgets/sftp_permissions_dialog.dart；lib/presentation/widgets/sftp_transfer_dialogs.dart；test/sftp_service_cache_test.dart；test/sftp_terminal_usability_test.dart；test/sftp_editor_test.dart；test/r24_borrowers_test.dart；integration_test/r24_files_test.dart；lib/presentation/widgets/port_forward_sheet.dart。
+
+**交付物**：evidence/R90.md（实际执行后填写）；文件页与长文件名/双栏/键盘场景截图；取消、保存失败、换会话代次、标签关闭的回归证据。
+
+**验收**：
+
+- 双栏各自来源和目录、共享剪贴板、长文件名、选择和菜单操作完整
+- 传输进度/取消真实，保存失败保留编辑内容，返回和覆盖仍有确认
+- 会话换代更新服务、关标签释放缓存，不创建隐藏 SSH、不绕过 RoutePlan
+- Android 文档树与权限行为沿用；模拟器与用户真机证据分开
+- 从终端或主机菜单进入同一转发界面；新增、停止、去除及错误状态真实，断线后不自动重开监听，不改变监听地址和授权范围
+
+**关联用例**：UIM12。
+
+**停止条件**：UI 动效影响传输取消、文件内容丢失、服务借用泄漏或操作串到另一台主机时停。
+
+## R91 迁移监控与系统管理面板
+
+阶段：U3；状态：NOT_STARTED；依赖：R89；角色：管理面板实施代理。
+
+**范围**：迁移现有概览、进程、tmux、Docker、服务和 Caddy 面板以及操作确认；只改呈现，不新增 tmux 快捷功能。
+
+**落点**：lib/presentation/widgets/system_management/；test/server_panel_test.dart；test/monitor_details_test.dart；test/caddy_manager_panel_test.dart；test/system_management_confirm_test.dart；test/system_management_sudo_test.dart；integration_test/r68_panel_ssh_test.dart；lib/presentation/widgets/server_network_chart.dart；test/server_network_chart_test.dart。
+
+**交付物**：evidence/R91.md（实际执行后填写）；所有监控 tab/弹层覆盖与真实受控 SSH 回归；断线状态、危险操作确认和 sudo 脱敏证据。
+
+**验收**：
+
+- 右上角、更多、主机菜单仍打开同一面板，顶部 tab 顺序和左右滑保持
+- 断线后控件禁用，保留最后数据并明示；不把陈旧数据当实时
+- 危险操作仍经原确认/控制器，sudo 只发当前会话，不暗建/杀 tmux
+- R71/R80 保持 DEFERRED；此次不增加远端命令或轮询频率
+- 目录外的 server_network_chart 一并检查主题/图例/断线状态；保留自绘时说明消费者与理由
+
+**关联用例**：UIM13。
+
+**停止条件**：移植引入额外远端副作用、改变 sudo 目标或绕过确认即失败；无 fixture 时不以静态图替代行为证据。
+
+## R92 迁移插件、外部远控及 AI 工具界面
+
+阶段：U3；状态：NOT_STARTED；依赖：R89；角色：扩展页面实施代理。
+
+**范围**：迁移插件列表/详情/测试页、UU/RustDesk 配置与入口、AI 提供方/对话/CLI 工具界面，清点相关剩余二级页；业务与权限保持原样。
+
+**落点**：lib/presentation/screens/plugins_screen.dart；lib/presentation/screens/plugin_detail_screen.dart；lib/presentation/screens/plugin_session_test_screen.dart；lib/presentation/screens/uuremote_screen.dart；lib/presentation/screens/rustdesk_screen.dart；lib/presentation/widgets/ai_providers_page.dart；lib/presentation/widgets/ai_chat_sheet.dart；lib/presentation/widgets/ai_cli_tools_sheet.dart；lib/presentation/widgets/ai_panel.dart；lib/presentation/widgets/ai_markdown.dart；test/plugins_screen_test.dart；test/plugin_session_test_screen_test.dart；test/rustdesk_screen_test.dart；test/ai_chat_sheet_test.dart；test/ai_cli_tools_sheet_test.dart；integration_test/r39_remote_entries_test.dart；lib/presentation/widgets/remote_entry_widgets.dart。
+
+**交付物**：evidence/R92.md（实际执行后填写）；插件/远控/AI 界面覆盖与假服务/隔离 fixture 证据；可达入口、错误/拒绝态、使用手册与未测真实账号清单。
+
+**验收**：
+
+- 插件发现、授权、撤销、详情与会话测试仍走原 UID/签名/session 机制
+- UU/RustDesk 拉起与已连接状态区分，密码不进入 URI，原回调拒绝规则保留
+- AI 工具发现/启动/继续到正确目标，会话状态和错误反馈不因新动画重放请求
+- 关闭页面取消与资源释放保持；不使用真实账号/模型额度补假服务测试
+- 所有现有入口可达；真实绑定/对端/账号未知仍保留原 BLOCKED/NOT_RUN
+- remote_entry_widgets 等被多入口引用的远控控件纳入覆盖；保留时列明兼容理由
+
+**关联用例**：UIM14。
+
+**停止条件**：视觉迁移改变插件授权、外部状态判断、远端命令或真实账号使用范围时暂停，不扩大为插件重构。
+
+## R93 迁移终端外壳、标签与状态反馈
+
+阶段：U4；状态：NOT_STARTED；依赖：R90, R91, R92；角色：终端 UI 实施代理。
+
+**范围**：由同一终端负责人迁移标签、标题、连接状态、菜单、分屏周边和全屏/PiP；终端渲染器与传输适配保持稳定边界。 SSH/Mosh 切换、tmux 选择、Mosh 安装提示与确认弹层在本任务迁移。
+
+**落点**：lib/presentation/screens/terminal_screen.dart；lib/presentation/screens/terminal_screen_pane.dart；lib/presentation/widgets/session_tab_actions.dart；lib/presentation/widgets/terminal_link_sheet.dart；lib/presentation/home_shell.dart；test/terminal_connection_banner_test.dart；test/terminal_connection_dialog_test.dart；test/terminal_transport_ui_test.dart；test/terminal_view_ownership_test.dart；test/terminal_reparent_test.dart；test/terminal_pip_update_test.dart；integration_test/r19_terminal_test.dart；lib/presentation/widgets/connection_transport_sheet.dart。
+
+**交付物**：evidence/R93.md（实际执行后填写）；终端外壳与连接/失败/断开/分屏/PiP 状态图；单 view、会话代次、焦点和生命周期回归证据。
+
+**验收**：
+
+- 每个 controller 始终最多一个 live view，不为过渡/预览创建第二视图
+- 重排/旋转/主题/全屏/PiP 保留连接与原始字节输出，不重连、不回放输入/startup
+- 活动标签与焦点窗格真实对应；连接失败提示仍给已有可执行下一步
+- 终端正文无玻璃滤镜、整页截图动画或高频外壳全量重建
+- 已有 libghostty/flterm、controller/adapter API 不因 UI 换库改变
+- 协议/tmux 切换与 Mosh 安装确认沿用现有流程；不支持代理/跳板的 Mosh 仍在 bootstrap 前拒绝，不暗建 tmux 或自动安装远端软件
+
+**关联用例**：UIM15。
+
+**停止条件**：空白终端、重复挂载、串会话输入或恢复副作用出现即先修，不以换引擎、截断 VT 或降输入能力掩盖。
+
+## R94 迁移终端输入面板、快捷键与粘贴
+
+阶段：U4；状态：NOT_STARTED；依赖：R93；角色：终端 UI 实施代理。
+
+**范围**：迁移终端输入面板、三种输入方式、修饰键、快捷行、大输入框、粘贴预览和相关设置；继续使用当前输入路由。
+
+**落点**：lib/presentation/screens/terminal_screen_input.dart；lib/presentation/widgets/terminal_input_panel.dart；lib/presentation/widgets/terminal_compose_box.dart；lib/presentation/widgets/terminal_key_button.dart；lib/presentation/widgets/terminal_keys.dart；lib/presentation/widgets/terminal_special_keys.dart；lib/presentation/widgets/terminal_key_settings_sheet.dart；lib/presentation/widgets/terminal_paste_sheet.dart；test/terminal_input_panel_test.dart；test/terminal_input_routing_test.dart；test/terminal_compose_drafts_test.dart；test/terminal_hardware_keys_test.dart；test/terminal_paste_page_test.dart；integration_test/r25_input_panel_test.dart。
+
+**交付物**：evidence/R94.md（实际执行后填写）；输入方式/横竖屏/键盘升降/焦点场景回归；真实字节断言、IME 设备待测分项与截图。
+
+**验收**：
+
+- 三种输入方式和修饰键行为完整；所有字节只发焦点窗格且不重复
+- 组合输入、换行、快捷键、粘贴确认和草稿生命周期保持；不私自持久化草稿
+- 键盘升降、横屏和大字号不遮住主要操作，不反复 resize 或错误抢焦点
+- 使用现有 IME replay/隔离设备流程验证可测部分；用户输入法手感归 UIM22/R26，不能由 widget 测试宣布真机通过
+
+**关联用例**：UIM16。
+
+**停止条件**：字节重复/遗漏、修饰键粘住、IME composing 断裂或错误焦点属于硬失败；不为视觉一致改终端协议层。
+
+## R95 迁移会话总览并保持双指手势契约
+
+阶段：U4；状态：NOT_STARTED；依赖：R94；角色：终端 UI 实施代理。
+
+**范围**：迁移按机器分组的小预览卡、切换/关闭/重连与总览表面；终端负责人统一处理 HomeShell、手势和返回层级。
+
+**落点**：lib/presentation/widgets/session_overview.dart；lib/presentation/widgets/two_finger_swipe.dart；lib/presentation/widgets/session_tab_actions.dart；lib/presentation/home_shell.dart；test/session_overview_test.dart；test/terminal_view_ownership_test.dart；integration_test/r70_walkthrough_test.dart。
+
+**交付物**：evidence/R95.md（实际执行后填写）；总览全部状态与手势竞争回归；文本快照/单视图/焦点/返回/最后标签行为证据。
+
+**验收**：
+
+- 仅选中终端页时、任意区域起手的两指上滑打开；更多菜单入口保留
+- 单指滚动、双指同时按键和远端鼠标跟踪不被误吞；手势不发送远端字节
+- 预览继续为内存文字快照、小卡按机器分组；不创建第二终端、不落盘输出
+- 打开总览排除底层焦点；返回先关总览，关闭有确认，最后标签关闭才回连接页
+- 切换与逐个重连只作用对应会话；真手指/系统导航手感留给 UIM22/SWP02
+
+**关联用例**：UIM17。
+
+**停止条件**：手势冲突、底层输入穿透、无可见替代入口或单视图契约退化不通过 GU4。
+
+## R96 完成全界面覆盖、无障碍与兼容清理
+
+阶段：U5；状态：NOT_STARTED；依赖：R95；角色：UI 集成与审查代理。
+
+**范围**：对 R81 清单逐项收口，迁移遗漏页面/弹层/空错态；清理旧 UI 专用实现与无用依赖，保留有实际消费者的 Material 兼容，不追求删除所有 Material import。
+
+**落点**：lib/presentation/；lib/app.dart；test/ui_gallery_test.dart；test/ui_rules_test.dart；test/ui_spacing_regression_test.dart；test/hint_test.dart；test/localization_coverage_test.dart；test/r25_large_text_test.dart；test/ux02_a11y_test.dart；pubspec.yaml；pubspec.lock；docs/user/README.md。
+
+**交付物**：evidence/R96.md（实际执行后填写）；逐项覆盖表、兼容保留清单、前后截图与实际目检结论；中英/浅深/字号/方向/无障碍矩阵及遗漏修复。
+
+**验收**：
+
+- 清单所有页面和弹层有 Prism 迁移结果或有文件/消费者/原因的必要兼容记录；不存在未说明的旧视觉孤岛
+- 窄屏、横屏、宽屏，1.0/1.3/2.0 字号及中英/浅深代表组合无溢出；帮助、错误、状态对比可读
+- TalkBack/键盘焦点顺序、触达区、开关/帮助独立语义及减少动画均验证
+- ui_rules/localization 检测覆盖新控件；截图实际查看，图库通过不冒充自动视觉回归
+- 无运行时双 UI 方案切换器、重复主题来源、废弃适配层或无用依赖；未触碰 R71/R80 等候选功能
+
+**关联用例**：UIM18。
+
+**停止条件**：存在未盘点页面、漏检规则、不可访问关键操作或测试通过但截图错位时不进入最终性能回归。
+
+## R97 同候选性能、生命周期与受影响回归
+
+阶段：U5；状态：NOT_STARTED；依赖：R96；角色：UI 集成与独立审查代理。
+
+**范围**：在固定源码与锁文件候选上按 R81 同条件复测帧时、内存、输入与页面交互，执行受影响的本地/受控 fixture/模拟器回归；保留真机未知。
+
+**落点**：test/；integration_test/；tool/r25-appearance-device.py；tool/r24-device.py；tool/r70-device.py；tool/life06-device.py；plan/v3/evidence/R97.md。
+
+**交付物**：evidence/R97.md（实际执行后填写）；前后性能原始数据/统计与预算判定；同候选回归命令、设备/fixture 标识、退出码、跳过/未测原因、独立审查结论。
+
+**验收**：
+
+- 按 docs/24 的 profile 同条件预算记录 UI/raster p95、卡顿率、Dart+native 内存与输入延迟，满足已冻结门槛
+- 4 会话/5MiB VT、100 次开关、50 次键盘变化等现有相关场景不丢字节、不新增持续资源增长
+- 关键安全/路线/恢复/输入/单 view 回归及受影响页面测试在同候选完成；fixture 缺失不得把 skip 算 PASS
+- 旧 PASS 保留历史来源，不自动转移到新候选；修代码后重跑受影响项，真实手机/外部账号状态不伪造
+- 独立审查核对实际 diff、关键源码和证据，R30 的全量发布门禁不由本任务代替
+
+**关联用例**：UIM19、UIM20。
+
+**停止条件**：硬预算超限、行为回归或候选/证据不一致时回到具体任务修复；不可降低阈值、删测试或降低 VT 正确性换绿。
+
+## R98 冻结 UI 代码候选并交接 R26 真机验收
+
+阶段：U5；状态：NOT_STARTED；依赖：R97；角色：UI 集成与交接代理。
+
+**范围**：整理已验证 UI 代码候选、使用手册、截图、依赖许可和待测清单，接回原发布链路；本任务的出口是代码/本地验证交接，不是假称用户真机完成。
+
+**落点**：docs/user/README.md；docs/user/mosh.md；docs/dev/README.md；docs/decisions/ui-system-decision.md；NOTICE.md；plan/v3/evidence/R98.md；plan/v3/evidence/R98-candidate.json；plan/v3/evidence/R26.md；plan/v3/STATUS.md。
+
+**交付物**：evidence/R98.md（实际执行后填写）；R98-candidate.json：源码/lock/SDK、已构建 APK 类型与 hash、设备/测试/图像索引、未测与回退提交；更新手册及 R26 新候选清单，UIM22 明确待真机；GU0–GU5 范围结论与原发布任务交接。
+
+**验收**：
+
+- R81–R97 各任务交付/证据齐全，UIM01–UIM21 通过；UIM22 保持实际 NOT_RUN/BLOCKED，不反向卡本任务
+- 新候选与旧 33 包分开记录；正式签名/用户手机安装遵循现有当次授权，未产生的制品字段为 null
+- 逐项给出 R26 新候选要重跑的 IME、双指、应用锁、VPN+TailSocks、切网/后台及受影响原清单
+- R73–R79 等历史未完成任务不自动 DONE，硬件/账号缺口不转移；不自动 push/发布
+- 下一链为 R26 → R27/R29/X13 → R30 → R31（依赖以 tasks.json 为准）；GU5 只表示 UI 代码与本地验证出口
+
+**关联用例**：UIM21。
+
+**停止条件**：候选不唯一、手册描述未实现功能、缺关键本地证据或把真机未知抹掉时不得交接；不得依赖 R26/R30 形成循环。

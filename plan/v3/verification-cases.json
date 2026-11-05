@@ -2193,8 +2193,206 @@
       "evidence": [
         "evidence/R79.md"
       ]
+    },
+    {
+      "id": "UIM01",
+      "action": "固定当前 shun 源码/lock/SDK，按覆盖表采集原界面、唯一参考与 profile 基线。",
+      "expected": "所有现有页面、弹层与关键状态有归属；图片实际查看，字体/视口/语言/主题和性能场景可复跑；未发生的测试无虚构数据。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM02",
+      "action": "解析固定 Prism Git 依赖、核对传递依赖/许可，运行最小宿主静态检查、测试并构建隔离 Android debug 包。",
+      "expected": "ref 与 lock 精确指向 63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185；SDK 匹配、构建成功、NOTICE 完整；无无关框架/引擎升级，无第二 App/Navigator。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM03",
+      "action": "在新宿主下交错操作主题、Banner/SnackBar、认证弹框、非模态样例、锁定/解锁、返回与前后台；检查现有终端标签。",
+      "expected": "锁罩盖住全部全局层且阻断底层触摸/读屏/硬件键盘；无旧主题截图回放；根 key、会话树、焦点、Material 主题/本地化/ScaffoldMessenger 持续有效；非模态样例背景可点。真实预测返回另归 UIM22。 根 pageRouteBuilder 明确，HomeShell/live 终端不用 CardRouteMixin；RemoteFocusAdapter 关闭遥控键导航，持续输出时 push/pop 保留视图和焦点。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM04",
+      "action": "切换浅深/系统主题、旧主题 ID、自定义背景和字体，核对可见及未展示的 Ghostty 标签。",
+      "expected": "Prism 与 Material 桥共享语义主题；旧设置有效，后台终端颜色同步，无连接/草稿重建；FormGap 20dp，终端无玻璃/整页截图动效，减少动画生效。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM05",
+      "action": "走新公共控件的正常、禁用、加载、错误、焦点和帮助状态；用故意超限样例检验 UI 扫描器。",
+      "expected": "Prism/包装控件不能绕过 ≤16/≤30 汉字和 FormGap 20dp 规则；ⓘ 48dp 且语义独立；秘密输入仍受禁学习/联想/更正与敏感屏检查；稳定 key/行为断言抓原缺陷。非模态面板不新增阻断背景的遮罩，不要求全树 ModalBarrier 为零。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM06",
+      "action": "在五入口间往返，打开二级页/菜单，操作返回、锁定、全屏/PiP、横竖屏和宽屏。",
+      "expected": "五入口完整、IndexedStack 状态连续；返回优先级不变，锁定不 pop 底层；全屏/PiP 正确隐藏恢复导航；无管理页，无额外连接或终端视图。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM07",
+      "action": "逐项走设置/片段/安全/日志/备份恢复/互传页面，使用现有假服务或隔离环境模拟保存失败与取消。",
+      "expected": "原设置项和入口齐全，保存/失败回退和删除/恢复确认保持；未配置同步无新外连；防截屏、应用锁、秘密处理和数据格式不变。真钥匙/两机互传不在此用例冒充通过。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM08",
+      "action": "检查无数据、加载、失败、搜索、分组/网格/列表/树、菜单及多 Tailscale 来源和过期状态。",
+      "expected": "空状态两条路径可用；来源不串、同名同 IP 不误合并、隐藏可在安全页恢复；目录状态与 SSH 连接区分；刷新间隔与进入/回前台行为不变。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM09",
+      "action": "在新建/编辑表单切协议、四类认证、分组与高级，升降键盘，取消再返回，并读旧主机配置。 主动点测试连接，查看阶段结果并取消。",
+      "expected": "⊕ 直接到表单；原地切换保留输入，名称下分组，高级仅一层；自定义端口/旧字段不丢，路线限制与保存/未保存确认保持；正常字号核心首屏、大字号可滚动。 测试连接需显式触发、可停止，结果和脱敏准确，不自动保存。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM10",
+      "action": "在首次登录/凭据/代理/密钥页面创建、选择、修改、删除并取消；在隔离 SSH fixture 核对认证与路线。",
+      "expected": "凭据引用/影响数、旧认证方式、每跳 host-key 先于认证、代理失败无直连保持；秘密不进日志/URI/普通导出；全局询问及锁屏保护有效。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM11",
+      "action": "在新建和已有 Tailscale 来源打开设置，背景点列表，下滑/返回/切底栏，分别保存、修改、取消和删除 key。",
+      "expected": "面板无遮罩且背景可操作；三种关闭方式有效，未存草稿丢弃；常用两项/高级保留；已存 key 固定掩码只可修改或删除，保存成功才替换，原来源/路线和敏感保护不变。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM12",
+      "action": "在受控 SSH/SFTP 环境走单/双栏、长文件名、剪贴板、文档树、传输/取消/权限/编辑保存失败、换会话与关闭标签。 从原两入口新增/停止/去除端口转发并模拟断线。",
+      "expected": "功能与原行为等价，错误保留待保存文本；服务跟随代次并正确释放；不新增隐藏 SSH，不改变 RoutePlan，不把模拟器文件权限结果当用户设备证据。 端口转发状态、监听地址和授权范围不变，断线后不自动重开。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM13",
+      "action": "从三个原入口打开监控，点/滑六个 tab，断线，取消和确认受控系统操作。",
+      "expected": "入口汇合、tab 次序与左右滑保持；断线禁操作并标记旧值；危险操作/sudo 走原确认与当前目标；未增加远端副作用、R71/R80 功能或轮询。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM14",
+      "action": "使用现有 fake bridge/隔离 fixture 走插件、UU/RustDesk、AI 对话/CLI 的可达入口、拒绝、取消、返回和继续。",
+      "expected": "权限/签名/session 校验、外部启动状态、URI 脱敏、AI 正确目标与取消保持；页面关闭不重放请求；真实账号/对端缺口独立保留。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM15",
+      "action": "连接中/成功/失败/断开时切终端标签、分屏、主题、方向、全屏/PiP，再恢复。 操作 SSH/Mosh 切换、tmux 选择及 Mosh 安装提示/取消。",
+      "expected": "同 controller 仅一个 live view、一个输入所有者；无空白或重复挂载，无自动重连/输入重放；原始 VT 完整，状态与焦点正确，正文不加高成本玻璃。 保留原协议限制与明确确认，无暗建 tmux 或自动安装。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM16",
+      "action": "用现有输入测试与隔离设备流程切三种输入方式，组合输入/修饰键/硬件键/草稿/多行粘贴，并反复升降键盘。",
+      "expected": "字节仅发焦点窗格且无重复遗漏；composing/草稿/粘贴确认保持；尺寸稳定、主要操作可见；真实用户输入法体验单列 UIM22，不以模拟输入替代。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM17",
+      "action": "在各入口区域两指上滑，混合单指滚动/双指按键/鼠标跟踪；用更多入口操作总览、返回、卡片关闭和重连。",
+      "expected": "仅选中终端时开启；不误发远端字节；小卡按机器分组且只用内存文字快照；焦点隔离、返回先关闭、最后标签回连接页；无第二终端视图。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM18",
+      "action": "按 R81 清单检查全部页面/弹层；执行中英、浅深、窄/横/宽屏、1.0/1.3/2.0 字号代表矩阵与读屏/焦点检查，实际审阅截图。",
+      "expected": "全清单有迁移结果或必要兼容说明；无溢出、关键操作不可达、文案漏译或旧视觉孤岛；UI 规则未削弱，减少动画有效，无长期双 UI 方案。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM19",
+      "action": "在 R81 同一 profile 环境与场景重复测 UI/raster 帧时、卡顿、Dart+native 内存、输入延迟和 VT 正确性。",
+      "expected": "满足 docs/24 冻结的相对预算及原输入预算；记录原始数据和统计口径，无持续资源增长、VT 丢字节或用 debug 帧率声称流畅；真机性能结论单列 UIM22。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM20",
+      "action": "冻结迁移源码与 lock，运行受影响单测、受控 SSH/插件/恢复/输入 fixture 和模拟器流程，由独立审查者核对 diff/源码/证据。",
+      "expected": "受影响本地硬项通过，skip/环境缺口如实区分；源/包/设备一致，旧 PASS 不转移；若修改代码重跑受影响项。未满足的本地关键回归阻止 GU5，不替代 R30。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM21",
+      "action": "核对 R98 候选清单、R81–R97 证据、手册、依赖许可及 R26 交接项目。",
+      "expected": "UIM01–UIM20 的本地范围有真实证据，本次候选核对有独立记录，源码/制品类型/hash/未测清晰；正式签名包未产出填 null；UIM22 留待用户真机，旧任务状态不被批量完成，发布链无循环。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
+    },
+    {
+      "id": "UIM22",
+      "action": "R98 出口后，在获当次授权的用户手机上安装同一代码候选，走受影响 R26 日用及 IME、双指、预测返回、锁屏/主题、大字号、长会话与切网场景。",
+      "expected": "真实输入法/手指/系统返回和前后台表现通过；VPN+TailSocks、SSH/tmux/Mosh、SFTP 原行为保持；结果绑定源码/APK/签名/设备/输入法；未测明确 NOT_RUN/BLOCKED，不能拿本地或旧包通过补齐。",
+      "level": "硬门禁",
+      "result": "NOT_RUN",
+      "inherited_from": null,
+      "evidence": []
     }
   ],
   "plan_revision": "3.0",
-  "count": 180
+  "count": 210
 }

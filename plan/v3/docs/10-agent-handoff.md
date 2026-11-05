@@ -4,7 +4,29 @@
 
 读取AGENTS、STATUS、docs/00/01/03/04/05/06/07/15/19及tasks.json。旧Txx是退役计划，V2草稿不再作为门禁。目标repo未指定时不写入历史powell/xdo等仓库；此包可放入指定新fork，已有AGENTS/README先合并不覆盖。
 
-## 首批提示词
+## 当前入口：UI迁移 R81（2026-11-05）
+
+已确定FlClash / prism_ui单一目标，读 [docs/24](24-ui-migration.md) 与 [UI决策](../../../docs/decisions/ui-system-decision.md)。R81–R98按tasks.json依赖执行；本次规划不代表R81已完成，也不要求重新选库。
+
+```text
+在shun当前分支按V3计划执行UI迁移，本批只做R81。
+先读根AGENTS、plan/v3/AGENTS、STATUS及规定的契约文档，再读docs/24、
+docs/decisions/ui-system-decision.md、tasks.json的R81条目和相关现有evidence。
+记录实际HEAD/dirty/SDK/lock，不覆盖其他人的改动。
+唯一目标是FlClash固定快照和prism_ui固定SHA；不试其他库，不改业务/数据/终端引擎。
+建立全部页面、弹层、关键状态与后续任务对应表，冻结现有F26/F30/F41/F42及终端手势契约。
+复用ui_gallery_test补当前连接、终端、总览、SFTP基线并实际看图；
+按docs/24记录可复跑的profile性能基线、字体/视口/主题/语言及真实执行命令。
+本批不引入Prism依赖，不批量换页面，不操作真实账号/主机/正式签名/用户手机。
+按任务验收写evidence/R81.md；只在交付、测试和证据真实完成后更新状态并作粒度提交。
+运行sync_docs.py和validate_plan.py；报告完成ID、commit、证据、未测和下一任务R82。
+```
+
+继续时只把任务ID替换为当前依赖满足的一项，重新读取它的scope/code_targets/acceptance/test_ids/stop_condition，不复用R81的实施内容。U3可按docs/24文件边界并行，终端R93–R95必须串行。每个模型交接必须能回答：改了什么、哪些行为受保护、真实跑了什么、缺什么、下一项是谁。
+
+R98先交代码/本地验证，R26再验新候选真机；R98不能反向等待R26。GU5不是FULL_READY。历史PASS保留原候选来源，UIM22和真实账号/硬件缺口不靠截图、mock或规划检查补齐。
+
+## 历史首批提示词（R00–R04/X00，不是当前入口）
 
 ```text
 按Flutter移动终端V3二开计划实施，本批只做R00–R04与X00。

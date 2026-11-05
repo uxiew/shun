@@ -12,7 +12,8 @@
 | 改界面上的字：什么常驻、什么收进 ⓘ、改字要连带改哪些 | [dev/ui-text.md](dev/ui-text.md) |
 | R39 真机验收怎么做 | [dev/r39-device-acceptance.md](dev/r39-device-acceptance.md) |
 | 写插件：契约、能力、兼容、签名、许可、排错 | [plugin-authors/README.md](plugin-authors/README.md) |
-| 为什么这么定：基座选择、Mosh 运行时选择 | [decisions/](decisions/) |
+| 为什么这么定：基座、Mosh运行时、FlClash/Prism UI选择 | [decisions/](decisions/) |
+| 按阶段迁移UI：目标、文件边界、验收、后续模型任务 | [UI迁移方案](../plan/v3/docs/24-ui-migration.md) |
 
 不在 `docs/` 里的：项目规矩在 [../AGENTS.md](../AGENTS.md)，进度和任务在 [../plan/v3/STATUS.md](../plan/v3/STATUS.md)，
 每个任务的验证记录在 `../plan/v3/evidence/`，代码来源和许可在 [../NOTICE.md](../NOTICE.md)。

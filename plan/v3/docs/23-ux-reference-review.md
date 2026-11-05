@@ -1,6 +1,8 @@
 # 23 交互复盘：对照 TermRover、LobiShell，新建连接和 Tailscale 怎么改
 
-所有者 11-01 反馈（F39）：新建连接的布局、Tailscale 的设置方式，还有一些别的功能「怪怪的」，要参考这两个 App 学交互和功能，先记录分析、再拆任务。任务详情在 [docs/08](08-implementation-tasks.md) 的 R72–R80，用例 UXR01–UXR08 都是 NOT_RUN。新建连接已按下面「所有者指认」改了（[R73](../evidence/R73.md)），其余还是计划。
+**2026-11-05 更新：** 主要视觉移植目标已统一为FlClash / prism_ui，实施见 [docs/24](24-ui-migration.md)。本页的F41/F42业务交互仍是必须保留的契约，不再据此试用第二套UI；R80仍DEFERRED。
+
+所有者 11-01 反馈（F39）：新建连接的布局、Tailscale 的设置方式，还有一些别的功能「怪怪的」，要参考这两个 App 学交互和功能，先记录分析、再拆任务。任务详情在 [docs/08](08-implementation-tasks.md) 的 R72–R80，用例 UXR01–UXR08 都是 NOT_RUN。本文保留当时复盘和后续纠正；各项当前实现与未测边界以tasks.json及对应evidence为准，不能把下文早期提案当成最新界面。
 
 ## 结论
 

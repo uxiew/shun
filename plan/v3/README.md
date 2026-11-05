@@ -10,6 +10,8 @@
 
 ## 阅读入口
 
+**2026-11-05当前主线：** FlClash / prism_ui单一目标迁移，入口R81；本轮完成计划，UI尚未移植。任务/用例的当前数量和结果统一看STATUS与对应JSON，不把下方初始研究描述当成未开始整个项目。
+
 |文档|用途|
 |---|---|
 |[修订结论](docs/00-revision-overview.md)|覆盖旧方案的决策与边界|
@@ -20,12 +22,13 @@
 |[作者SDK](docs/18-plugin-author-sdk.md)|作者交付、签名、样例和调试|
 |[参考App](docs/20-reference-apps.md)|TermRover、LobiShell 实地观察；OSH、meshTerm、NovaScale、Dokodemo CLI、ShellDiver 官方资料；R39–R57 的取舍与证据边界|
 |[安全密钥、同步导出、安全设置计划](docs/21-credentials-sync-plan.md)|R26 F25、F23、F22 的调研结论、所有者 10-31 的决定和分阶段方案|
-|[交互复盘](docs/23-ux-reference-review.md)|对照 TermRover、LobiShell，新建连接和 Tailscale 怎么改，任务 R72–R80|
+|[交互复盘](docs/23-ux-reference-review.md)|F41/F42保留行为，新建连接和Tailscale流程|
+|[UI迁移方案](docs/24-ui-migration.md) / [选型决策](../../docs/decisions/ui-system-decision.md)|唯一目标FlClash / prism_ui；六阶段R81–R98、门禁与模型执行边界|
 |[未完成事项的优先级和计划](docs/22-priorities.md)|所有者 11-01 要的：每条的规模、难点、影响、先后|
 |[AI CLI 启动与继续](docs/02-product-scope.md)|工具发现已验收（R55）；项目启动、最近工作和继续入口的无账号矩阵已验收，R56–R57 仍待真实原生对话验证|
-|[任务](docs/08-implementation-tasks.md) / [验收](docs/09-verification.md)|81项任务（56主线/25后续），172项用例|
+|[任务](docs/08-implementation-tasks.md) / [验收](docs/09-verification.md)|全部当前任务、依赖与验收；数量/状态以JSON和STATUS为准|
 |[交接](docs/10-agent-handoff.md) / [里程碑](docs/19-revised-milestones.md)|其他模型的启动与持续实施|
-|[来源](docs/13-sources.md)|88项公开原始资料及证据限制|
+|[来源](docs/13-sources.md)|公开原始资料及证据限制，含固定FlClash/Prism来源S89–S102|
 
 **实施进度、已做的改动和下一批只看 [STATUS.md](STATUS.md)**，本页不重复。规划检查结果不当App测试。
 

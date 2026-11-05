@@ -631,3 +631,101 @@ S80–S88 均为本轮读取的官方资料，未安装参考应用、未连接�
 [OpenCode CLI reference](https://opencode.ai/docs/cli/)
 
 访问：2026-10-11；证据层级：PRIMARY_SOURCE_READ。官方列出 --session、--continue 及 session list / JSON 形式；项目关联、版本和解析必须实际验证。启动器不默认开启服务监听、分享或自动批准。
+
+<a id="s89"></a>
+## S89 FlClash 固定参考快照 README
+
+https://github.com/chen08209/FlClash/blob/be84736605527034689c95bf27828ff27d912c5e/README.md
+
+读取日期：2026-11-05；固定提交：`be84736605527034689c95bf27828ff27d912c5e`。官方说明动态色、浅深主题、连续圆角、分级 sheet 和自适应布局；作为唯一视觉/交互参照，不证明 shun 帧率或性能。
+
+<a id="s90"></a>
+## S90 FlClash 固定快照的 prism_ui submodule
+
+https://api.github.com/repos/chen08209/FlClash/contents/plugins/prism_ui?ref=be84736605527034689c95bf27828ff27d912c5e
+
+读取日期：2026-11-05；固定提交：`be84736605527034689c95bf27828ff27d912c5e`。GitHub Contents 返回 type=submodule，指向 chen08209/prism_ui，SHA 为 63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185；依赖按实际 gitlink 冻结，不跟随 main。
+
+<a id="s91"></a>
+## S91 prism_ui 固定提交 README
+
+https://github.com/chen08209/prism_ui/blob/63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185/README.md
+
+读取日期：2026-11-05；固定提交：`63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185`。公开的主题、导航、表面、控件与 sheet，基于 Flutter widgets；同名类型需使用前缀；组件本地化由应用实现。库早期版本不等于 shun 已验证成熟。
+
+<a id="s92"></a>
+## S92 prism_ui pubspec 与 SDK 约束
+
+https://github.com/chen08209/prism_ui/blob/63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185/pubspec.yaml
+
+读取日期：2026-11-05；固定提交：`63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185`。版本 0.1.2，Dart >=3.10.0 <4.0.0、Flutter >=3.47.0；未声明 Riverpod/go_router 依赖。shun 文档 SDK 满足声明下限，实际求解/构建留待 R82。
+
+<a id="s93"></a>
+## S93 prism_ui PrismApp 宿主源码
+
+https://github.com/chen08209/prism_ui/blob/63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185/lib/app.dart
+
+读取日期：2026-11-05；固定提交：`63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185`。PrismApp 使用 WidgetsApp/home/onGenerateRoute，没有 PrismApp.router；builder 收到 RemoteFocusAdapter/Overlay 包装，外侧仍有 BannerHost/ThemeCrossFade。shun 因锁罩层级采用公开组件薄宿主候选，尚未运行验证。
+
+<a id="s94"></a>
+## S94 prism_ui sheet 入口源码
+
+https://github.com/chen08209/prism_ui/blob/63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185/lib/sheet.dart
+
+读取日期：2026-11-05；固定提交：`63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185`。showSheet/showFormSheet 等推入 SnapSheetRoute/FormSheetRoute 或 showModalSideSheet；不能用透明 scrim 声称满足 shun F41 非模态背景可点击契约。
+
+<a id="s95"></a>
+## S95 prism_ui motion 公共动效
+
+https://github.com/chen08209/prism_ui/blob/63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185/lib/motion.dart
+
+读取日期：2026-11-05；固定提交：`63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185`。公开 SpringCurve、ArrivingSimulation、dropletSpring 和 tab 淡入参数；只作动效实现依据，不据此保证流畅或抄固定终端动画。
+
+<a id="s96"></a>
+## S96 prism_ui LICENSE
+
+https://github.com/chen08209/prism_ui/blob/63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185/LICENSE
+
+读取日期：2026-11-05；固定提交：`63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185`。GPL v3 许可文本；接入时保留来源与许可证，并纳入既有 R27/R29 交付检查。本轮未引入依赖或复制业务代码。
+
+<a id="s97"></a>
+## S97 prism_ui NOTICE
+
+https://github.com/chen08209/prism_ui/blob/63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185/NOTICE
+
+读取日期：2026-11-05；固定提交：`63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185`。列明 material_color_utilities、material_new_shapes、super_sliver_list、navigator_resizable、Flutter shader 的各自署名/许可；接入时不能丢弃。
+
+<a id="s98"></a>
+## S98 prism_ui BannerHost 绘制层级
+
+https://github.com/chen08209/prism_ui/blob/63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185/lib/banner.dart
+
+读取日期：2026-11-05；固定提交：`63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185`。BannerHost 的 Stack 先画 child 后画 banners；推断只在 PrismApp.builder 内包旧锁罩会留下提示层覆盖风险。R82 必须用实际锁定测试验证新宿主。
+
+<a id="s99"></a>
+## S99 prism_ui ThemeCrossFade 快照层级
+
+https://github.com/chen08209/prism_ui/blob/63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185/lib/theme_cross_fade.dart
+
+读取日期：2026-11-05；固定提交：`63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185`。旧主题帧截图在当前 child 后绘制；公开 API 没有 enabled/cancel/clearSnapshot。为保持锁屏与终端状态，本方案不安装全应用截图式主题过渡，不以换 key 重建 Navigator 清图。
+
+<a id="s100"></a>
+## S100 prism_ui CardRouteMixin 独立路由快照
+
+https://github.com/chen08209/prism_ui/blob/63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185/lib/page_transition.dart
+
+读取日期：2026-11-05；固定提交：`63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185`。CardRouteMixin 有独立 _motionSnapshot/SnapshotController，与 ThemeCrossFade 不同；所读开关不依赖标准 allowSnapshotting。HomeShell/live 终端使用不套此 mixin 的无截图根路由，普通非终端页才可用 CardPageRoute。
+
+<a id="s101"></a>
+## S101 prism_ui RemoteFocusAdapter
+
+https://github.com/chen08209/prism_ui/blob/63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185/lib/focus.dart
+
+读取日期：2026-11-05；固定提交：`63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185`。enabled 为 true 时包装遥控/方向键焦点导航；shun 当前 Android 终端宿主明确使用 enabled:false，防止接入时把遥控键处理误当通用必需能力。
+
+<a id="s102"></a>
+## S102 Flutter WidgetsApp.home 官方 API
+
+https://api.flutter.dev/flutter/widgets/WidgetsApp/home.html
+
+读取日期：2026-11-05。指定 home 时必须提供 pageRouteBuilder，由默认路由处理器生成 PageRoute；单 WidgetsApp 薄宿主不能遗漏此项。具体当前 SDK 构造仍由 R82 编译验证。
