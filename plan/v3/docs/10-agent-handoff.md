@@ -8,11 +8,22 @@
 
 R81基线和R82固定依赖/薄宿主已完成，UIM01–UIM03及GU0 PASS；实际范围见[evidence/R81](../evidence/R81.md)与[evidence/R82](../evidence/R82.md)。R82完成93项本地回归和隔离Android debug构建，未安装用户手机。继续采用FlClash / prism_ui单一目标，读[docs/24](24-ui-migration.md)与[UI决策](../../../docs/decisions/ui-system-decision.md)。
 
+### Claude Code 首次接手
+
+本机代码仓库是 `/Users/bing/xdw/shun/shun`，上一层是工具链工作区；在代码仓库内开始。最近已核验分支为 `shun/v3`，R82实现提交 `531c403d54c20854c7eb0b287fbb8fa008380912`，验收交接提交 `9a7f8291638765637dd2fba9d102f6df3f853017`。这些是历史核验锚点，后续文档提交会使HEAD前进，不要求回退到该提交。
+
+先读取现场分支、HEAD、dirty以及适用的CLAUDE.md（若存在）；显式读取根AGENTS.md和plan/v3/AGENTS.md，不依赖宿主自动加载。保留他人改动，不为对齐交接执行reset、强制checkout或清理工作区。若R83已有进展，按tasks.json和实际diff续接，不重复实现。
+
+环境按 `docs/dev/README.md`：当前已核验Flutter 3.47.7、Dart 3.13.5、Zig 0.16.0；重新核对实际版本并设置项目Zig、环境脚本及NO_PROXY。R81/R82归档在 `../.toolchain/artifacts/r81-baseline-20261105/`、`../.toolchain/artifacts/r82-host-20261106/`，详见各自evidence；不依赖上一模型的会话句柄或临时草稿。Flutter测试、截图与构建串行运行。
+
+下面是本轮执行提示词；任务定义只维护在tasks.json，结果只按实际验证填写。
+
 ```text
-在shun当前分支按V3计划执行UI迁移，本批只做R83。
+在 /Users/bing/xdw/shun/shun 接手shun，按V3计划直接完成R83的实现、验证、证据和本地提交。
 先读根AGENTS、plan/v3/AGENTS、STATUS及规定的契约文档，再读docs/24、
 docs/decisions/ui-system-decision.md、tasks.json的R83条目和evidence/R81、R82。
-记录实际HEAD/dirty/SDK/lock，不覆盖其他人的改动。
+记录实际分支/HEAD/dirty/SDK/lock，核对R82证据仍对应当前代码；保留他人改动。
+交接SHA是核验锚点，不为匹配旧SHA回退；若R83已开始，按现场状态续接。
 Prism固定63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185，不重选库、不升级业务依赖。
 读取现有theme、uiThemeId、字体和自定义背景消费者，再建立同一语义主题、
 字阶、形状、间距与局部动效映射；实现prism_theme.dart并收敛material_compat。
@@ -22,14 +33,18 @@ FormGap保持20dp；界面字体和终端等宽字体各守原用途，背景叠
 保留R82单WidgetsApp/Navigator、原key、HomeShell和生命周期；
 Material Theme仍在GhosttyDetachedThemeSync外，锁罩覆盖全部提示和路由；
 HomeShell/live终端不用CardRouteMixin，RemoteFocusAdapter保持enabled:false。
+保留R82的covered保护：遮挡时断开底层焦点和旧IME，返回后恢复原节点；不恢复旧的焦点常驻行为。
 验证浅/深/系统主题、旧设置、已显示和未显示终端的OSC11同步；
 切主题不重建连接/终端、不丢草稿/焦点，不改原MediaQuery非线性字号。
 按同一fixture/视口采集并实际查看浅深对照图，记录主题映射和可读性结论。
 运行UIM04对应受影响测试、宿主/锁/本地化回归和静态检查；
 不靠删选项、放宽UI文字/字号限制或改断言换取通过。
-本批不迁移业务页面、不推进R84之后任务、不操作正式签名或用户手机。
+本批仅做R83；R84公共控件/规则扫描和后续页面迁移留给下一批。
+不升级无关依赖、不改数据格式/RoutePlan/终端引擎，不操作正式签名、用户手机或push/发布。
 写evidence/R83.md并同步使用手册中实际变化、任务/用例及状态，作粒度提交；
-运行sync_docs.py和validate_plan.py。报告完成ID、commit、未测及下一任务R84。
+使用plan/v3/scripts/set_status.py登记实际结果，再运行sync_docs.py和validate_plan.py。
+R83/UIM04满足验收后才完成；GU1还依赖R84/R85，不因本批通过而标PASS。
+完成本批后停止，报告完成ID、commit、验证数量/skip、截图位置、未测及下一任务R84。
 旧设置失效、终端配色不同步、文字不可辨或状态重建时先修当前主题映射。
 ```
 
@@ -53,14 +68,14 @@ R98先交代码/本地验证，R26再验新候选真机；R98不能反向等待R
 同步tasks、verification、STATUS和evidence，粒度commit，结束给出门禁与下一批依赖。
 ```
 
-## 插件实施入口
+## 历史插件实施入口（不作为当前任务）
 
 第二批按依赖做X01–X03（registry、独立fixture APK、签名与FD），同步R05–R10路线。
 X06 UU以本次raw协议为基准，先复核已安装版本：全屏不回调，小窗才可能回调；nonce不等于签名认证。
 X07 RustDesk先外部启动，不传密码URL，不擅自复制native核心。
 X08–X10 Mosh必须真实runtime；不支持SOCKS CONNECT/ProxyJump的UDP，启动前拒绝，不偷直连。
 
-## 继续提示词
+## 通用续接提示词（当前任务以STATUS为准）
 
 ```text
 读取V3 STATUS、tasks.json、实际git diff及上一批evidence，只领依赖满足的最小批次。
@@ -73,6 +88,8 @@ UU/RustDesk外部启动不代表连接成功，也不继承SSH代理；Mosh缺UD
 
 ## 独立审查重点
 
+以下是全V3审查索引，按当前任务的影响范围选取；不因交接自动重跑全部项。
+
 读源码而非仅实施摘要，复现：无效SOCKS无直连、每跳指纹改变、旧startup不重放、跨包UTF8；再复现未授权Binder caller、换签插件、跨session handle、插件crash不影响SSH、撤销挂死、UU callback重放/全屏误判、RustDesk密码URI拒绝、Mosh proxy route在bootstrap前拒绝。核对同候选APK哈希、签名、依赖、FGS/native/16KiB与许可证来源。
 
-每批只报完成ID与证据、具体阻塞、下一项依赖；不重复整套规划。项目名称、applicationId、分发、正式签名及公开发布仍须所有者确认。
+每批只报完成ID与证据、具体阻塞、下一项依赖；不重复整套规划。项目名称和applicationId沿用根AGENTS的既定值；分发、正式签名和公开发布按当次有效授权执行。
