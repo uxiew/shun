@@ -2199,9 +2199,11 @@
       "action": "固定当前 shun 源码/lock/SDK，按覆盖表采集原界面、唯一参考与 profile 基线。",
       "expected": "所有现有页面、弹层与关键状态有归属；图片实际查看，字体/视口/语言/主题和性能场景可复跑；未发生的测试无虚构数据。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R81.md"
+      ]
     },
     {
       "id": "UIM02",

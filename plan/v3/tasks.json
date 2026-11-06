@@ -3870,7 +3870,7 @@
       "id": "R81",
       "phase": "U0",
       "title": "冻结单一 UI 目标与 shun 迁移基线",
-      "status": "IN_PROGRESS",
+      "status": "DONE",
       "depends_on": [
         "R25",
         "R70",
@@ -3908,7 +3908,7 @@
       "evidence": [
         "evidence/R81.md"
       ],
-      "commit": null
+      "commit": "25c3064349d540fe73362222cbd6adc0b8547997"
     },
     {
       "id": "R82",

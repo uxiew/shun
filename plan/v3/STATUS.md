@@ -4,23 +4,24 @@
 
 ## 现在（2026-11-06）
 
-**当前主线：按 FlClash 的视觉/交互方向、以 prism_ui 为唯一目标组件体系迁移 UI。R81 正在建立迁移前截图、页面覆盖与 profile 性能基线；本批不接入 Prism、不修改生产 UI。R82 等待 R81 的实际验收结果。**
+**当前主线：按 FlClash 的视觉/交互方向、以 prism_ui 为唯一目标组件体系迁移 UI。R81 基线已完成，UIM01 PASS；下一批只做 R82 固定依赖与薄宿主。GU0 仍待 R82 的实际构建、锁罩、焦点及非模态验证。**
 
 - 方案：[docs/24](docs/24-ui-migration.md)；决策：[ui-system-decision](../../docs/decisions/ui-system-decision.md)；模型入口：[docs/10](docs/10-agent-handoff.md)。
-- U0–U5 六阶段、R81–R98 共18项；R81 IN_PROGRESS，其余17项 NOT_STARTED；UIM01–UIM22 仍全部 NOT_RUN。
-- 任务113条：DONE 61、IN_PROGRESS 11、NOT_STARTED 22、DEFERRED 19。分类为74项非P6、39项P6，分类不是完成状态。
-- 用例210条：PASS 157、FAIL 0、BLOCKED 6、NOT_RUN 47。原188项结果/证据和原95项状态/提交均保留，新UI没有借用旧PASS。
+- U0–U5 六阶段、R81–R98 共18项；R81 DONE，其余17项 NOT_STARTED；UIM01 PASS，UIM02–UIM22 NOT_RUN。
+- 任务113条：DONE 62、IN_PROGRESS 10、NOT_STARTED 22、DEFERRED 19。分类为74项非P6、39项P6，分类不是完成状态。
+- 用例210条：PASS 158、FAIL 0、BLOCKED 6、NOT_RUN 46。原188项结果/证据和原95项状态/提交均保留，新UI没有借用旧PASS。
 - 原门禁仍只有G0、G3 PASS；新增GU0–GU5均NOT_RUN。GU5是UI代码/本地验证出口，不表示CORE_READY/FULL_READY。
 - 规划前基线：`shun/v3 @ 92fe59340515ac26db51cb3a18397d2f42e3c012`，工作区干净。固定参考和依赖SHA见决策。
-- 最近的仓库安装记录是11-03的33包（F42）；本轮未重新查询手机。那次单测1905过/226跳过/0失败及模拟器r73/r75/r79/r40通过属于旧候选历史。本轮图库26项、大字4项与定向静态检查通过，44张截图已逐张检查；未重跑旧全量回归。正式profile新候选执行中。
-- 首轮profile的lists完成、panels因SSH关闭而失败；GLD连接恢复后保留旧证据，11-06重建隔离fixture及相同源码候选，完整重采四阶段。新一轮lists已完成，panels执行中；最终结果统一写入R81，不混合不同候选。
-- 上批规划一致性检查见 [规划证据](evidence/ui-migration-plan-20261105.md)。R81 实际实施记录见 [R81](evidence/R81.md) 与 [页面覆盖](evidence/R81-ui-coverage.md)；未完成测量前不将 UIM01 改成 PASS。
+- 最近的仓库安装记录是11-03的33包（F42）；本轮未重新查询手机。旧单测1905过/226跳过/0失败及模拟器r73/r75/r79/r40通过保留原候选归属。本轮图库26项、大字4项、定向静态检查通过，44张截图已逐张检查；未重跑旧全量回归。
+- 11-06新候选完成profile四阶段：21轮、27,859帧、100次真实会话循环，全部exit 0并完成归档/清理。旧冒烟及旧panels失败记录保留，旧SSH错误根因未确定；最终基线没有混用旧候选。
+- R81保留性能观察：模拟器七场景raster p95均超一帧预算，切换卡顿比例中位数91.286%；VT/总览后关闭会话，Native allocated仍比载入高28.76MiB、PSS高25.55MiB，交R95/R97定位。100次循环的引擎/view检查通过不能抵消该观察，也不代表性能预算PASS。
+- 实现提交：`25c3064349d540fe73362222cbd6adc0b8547997`。R81实测、失败记录、源码EOF格式对应和未测边界见 [R81](evidence/R81.md)，完整归属见 [页面覆盖](evidence/R81-ui-coverage.md)；原规划检查见 [规划证据](evidence/ui-migration-plan-20261105.md)。
 
 ### 当前推进与待测边界
 
 | 项 | 当前动作 | 完成出口 |
 |---|---|---|
-| R81–R98 UI迁移 | 从R81基线开始，按依赖推进；GU0先验证薄宿主、锁罩、焦点和非模态 | UIM01–UIM21本地范围通过后交R98 |
+| R81–R98 UI迁移 | R81已完成；接下来R82验证固定依赖、薄宿主、锁罩、焦点和非模态 | GU0有实际证据后继续；UIM01–UIM21本地范围通过后交R98 |
 | R26 新候选日用 | 保持IN_PROGRESS；旧包反馈可收集，新UI正式完成先等R98 | UIM22及受影响原清单，同候选/手机证据 |
 | R27/R29/X13/R30/R31 | 原发布依赖保留；R30补齐全部210项，仍直接依赖X13 | 原V3完整门禁 |
 | R59/R62及真实账号/对端缺口 | 保留实际IN_PROGRESS/BLOCKED/NOT_RUN | 有硬件/账号和适用授权时验，不伪造 |
@@ -76,7 +77,7 @@
 
 ## 下一批
 
-**只领R81：冻结当前UI和唯一参考的页面/弹层覆盖、截图、行为及profile性能基线。** 读取docs/24和当前源码，补现有图库缺的首页、终端、总览、SFTP场景；不加其他UI库，不提前标R81 DONE。R81完成后做R82固定Prism依赖和薄宿主，GU0通过才迁移公共控件与页面。
+**只领R82：锁定Prism依赖并验证一个薄ShunUiHost。** 先读R81实际基线、docs/24、决策与当前源码；保持一个Navigator、原key/生命周期、Material兼容和Ghostty主题读取顺序，验证锁罩、终端焦点及真非模态。执行UIM02/UIM03相关检查和隔离Android debug构建，完成后再按证据判GU0；本批不批量迁移页面。
 
 R90/R91/R92是基础完成后唯一可并行的模块批次；终端R93–R95同一负责人串行。模型逐项提示词在docs/10，所有任务和停止条件在tasks.json。R71/R80不随UI计划启动。
 
@@ -106,6 +107,8 @@ R90/R91/R92是基础完成后唯一可并行的模块批次；终端R93–R95同
   同一目录先用过 Claude 2.1.314 再用 1.0.0，1.0.0 会崩（工具自己的问题，App 不降级）。详见 `evidence/R56-R57-real-cli.md`「没测的」。
 
 ## 进展记录（新的在上）
+
+11-06 **R81基线完成，下一项R82。** 本地实现提交 `25c3064349d540fe73362222cbd6adc0b8547997`；UIM01 PASS。30项定向widget测试通过、44张截图目检、7场景三轮共27,859帧和100次真实会话循环完成，四阶段exit 0；完整证据已归档，项目fixture/临时凭据/profile包/reverse/模拟器与锁已清理。保留旧失败、模拟器高raster/噪声、VT总览后的native/PSS增长、adapter可达引用和监听/真机未测。测量后仅移除两处EOF换行，精确采样稿与哈希映射已归档。GU0仍NOT_RUN，原真机和账号缺口不变；见[R81](evidence/R81.md)。
 
 11-05 **确定FlClash / prism_ui单一目标并建立迁移任务（F43）。** 新增决策、docs/24、R81–R98和UIM01–UIM22；当前入口R81。核实真实入口为MaterialApp/HomeShell，采用单Navigator薄Prism宿主设计以保护应用锁；Tailscale保留真非模态。R26新候选增加R98前提，R30补齐全量用例；原任务/用例结果保留。本轮只改规划，未改App源码、未引依赖、未构建/装包，检查见规划证据。
 
