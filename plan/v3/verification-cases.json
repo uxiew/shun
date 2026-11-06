@@ -2210,18 +2210,22 @@
       "action": "解析固定 Prism Git 依赖、核对传递依赖/许可，运行最小宿主静态检查、测试并构建隔离 Android debug 包。",
       "expected": "ref 与 lock 精确指向 63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185；SDK 匹配、构建成功、NOTICE 完整；无无关框架/引擎升级，无第二 App/Navigator。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R82.md"
+      ]
     },
     {
       "id": "UIM03",
       "action": "在新宿主下交错操作主题、Banner/SnackBar、认证弹框、非模态样例、锁定/解锁、返回与前后台；检查现有终端标签。",
       "expected": "锁罩盖住全部全局层且阻断底层触摸/读屏/硬件键盘；无旧主题截图回放；根 key、会话树、焦点、Material 主题/本地化/ScaffoldMessenger 持续有效；非模态样例背景可点。真实预测返回另归 UIM22。 根 pageRouteBuilder 明确，HomeShell/live 终端不用 CardRouteMixin；RemoteFocusAdapter 关闭遥控键导航，持续输出时 push/pop 保留视图和焦点。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R82.md"
+      ]
     },
     {
       "id": "UIM04",

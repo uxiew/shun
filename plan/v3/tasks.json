@@ -122,7 +122,7 @@
         "R82"
       ],
       "exit": "唯一目标与基线冻结；依赖可构建；单 Navigator、Material 兼容、锁罩层级与非模态最小契约实测通过",
-      "status": "NOT_RUN"
+      "status": "PASS"
     },
     "U1": {
       "title": "视觉基础与导航外壳",
@@ -3914,7 +3914,7 @@
       "id": "R82",
       "phase": "U0",
       "title": "锁定 Prism 依赖并验证单宿主兼容边界",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R81"
       ],
@@ -3953,8 +3953,10 @@
       ],
       "stop_condition": "锁罩、根导航、终端依赖、焦点或非模态契约任一失败即阻断后续 UI 任务；先修同一目标内的薄适配，不静默换库、重写业务或引入第二 App/Navigator。",
       "owner_role": "UI 基础实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R82.md"
+      ],
+      "commit": "531c403d54c20854c7eb0b287fbb8fa008380912"
     },
     {
       "id": "R83",

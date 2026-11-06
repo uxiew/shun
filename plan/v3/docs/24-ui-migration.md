@@ -1,6 +1,6 @@
 # 24 FlClash / Prism UI 迁移实施方案
 
-决策日期：2026-11-05，实施更新：2026-11-06。所有者决定：只选一个主要目标，不逐库试用；把移植落实为大模型按阶段可执行的任务。**R81基线已完成、UIM01 PASS；当前入口R82。R82–R98尚未开始，UIM02–UIM22与GU0仍待实际验证。** 实际进度以[STATUS](../STATUS.md)和对应证据为准。
+决策日期：2026-11-05，实施更新：2026-11-06。所有者决定：只选一个主要目标，不逐库试用；把移植落实为大模型按阶段可执行的任务。**R81/R82已完成、UIM01–UIM03及GU0 PASS；当前入口R83。R83–R98尚未开始，UIM04–UIM22保持NOT_RUN。** 实际进度以[STATUS](../STATUS.md)和对应证据为准。
 
 ## 1. 唯一目标与文档权威
 
@@ -33,11 +33,11 @@
 
 规划前源码为 `shun/v3 @ 92fe59340515ac26db51cb3a18397d2f42e3c012`，工作区干净。入口是 `lib/app.dart` → `lib/presentation/home_shell.dart`，后者用 IndexedStack 保存连接、终端、文件、片段、设置五页。没有 `main_screen.dart` 或 `manage_screen.dart`；不能按不存在的页面拆任务。
 
-`MaterialApp` 的 root key 用于跨页面安全密钥询问；会话初始化、应用锁、后台保活、自动同步、目录前后台通知均在现有应用状态中。它们不属于 UI 风格调整。pubspec 声明 go_router 不代表运行时使用了它，本迁移不启用或重构路由框架。
+R82前MaterialApp的root key用于跨页面安全密钥询问；R82已由ShunUiHost保留同一把key。会话初始化、应用锁、后台保活、自动同步、目录前后台通知均在原应用状态中，职责未迁移。pubspec声明go_router不代表运行时使用了它，本迁移不启用或重构路由框架。
 
 ### 3.2 一个薄宿主，单个 Navigator
 
-R82 新增 `lib/presentation/ui/shun_ui_host.dart`，用公开 API 实现单个 WidgetsApp，保留原 key、home、locale、delegates。从外到内的约束如下；具体构造必须通过 GU0 后才算实装：
+R82已新增 `lib/presentation/ui/shun_ui_host.dart`，用公开API实现单个WidgetsApp，保留原key、home、locale、delegates。以下层级通过GU0实际验证，构造、93项回归、隔离debug构建及未测边界见[R82](../evidence/R82.md)：
 
 | 顺序 | 层级 | 硬约束 |
 |---|---|---|
@@ -185,4 +185,4 @@ R98 生成 `evidence/R98-candidate.json`（实施时新增），字段至少含�
 
 ## 11. 后续模型的唯一启动任务
 
-现在只执行 **R82**：固定Prism依赖与单宿主兼容边界。R81已提供真实截图、覆盖、性能/资源基线及未测范围，先阅读对应证据；执行提示词见[模型交接](10-agent-handoff.md)。完成UIM02/UIM03和隔离构建、满足GU0后，才继续R83及页面迁移；没有第二套候选UI，也不自动执行DEFERRED功能。
+现在只执行 **R83**：统一Prism语义主题、字阶、形状与动效，保留旧主题ID、系统模式、背景/字体及终端配色同步。R81已提供基线，R82已通过单宿主/锁罩/焦点/非模态与隔离构建，UIM01–UIM03及GU0 PASS；先读对应证据。执行提示词见[模型交接](10-agent-handoff.md)。按UIM04完成主题回归和浅深对照图后交R84；没有第二套候选UI，也不自动执行DEFERRED功能。

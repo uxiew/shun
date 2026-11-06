@@ -253,8 +253,8 @@ G0基线与关键风险；G1连接路线；G2目录及外部认证支持；G3 Gh
 | ID | 操作 | 通过条件 | 结果 |
 |---|---|---|---|
 | UIM01 | 固定当前 shun 源码/lock/SDK，按覆盖表采集原界面、唯一参考与 profile 基线。 | 所有现有页面、弹层与关键状态有归属；图片实际查看，字体/视口/语言/主题和性能场景可复跑；未发生的测试无虚构数据。 | PASS |
-| UIM02 | 解析固定 Prism Git 依赖、核对传递依赖/许可，运行最小宿主静态检查、测试并构建隔离 Android debug 包。 | ref 与 lock 精确指向 63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185；SDK 匹配、构建成功、NOTICE 完整；无无关框架/引擎升级，无第二 App/Navigator。 | NOT_RUN |
-| UIM03 | 在新宿主下交错操作主题、Banner/SnackBar、认证弹框、非模态样例、锁定/解锁、返回与前后台；检查现有终端标签。 | 锁罩盖住全部全局层且阻断底层触摸/读屏/硬件键盘；无旧主题截图回放；根 key、会话树、焦点、Material 主题/本地化/ScaffoldMessenger 持续有效；非模态样例背景可点。真实预测返回另归 UIM22。 根 pageRouteBuilder 明确，HomeShell/live 终端不用 CardRouteMixin；RemoteFocusAdapter 关闭遥控键导航，持续输出时 push/pop 保留视图和焦点。 | NOT_RUN |
+| UIM02 | 解析固定 Prism Git 依赖、核对传递依赖/许可，运行最小宿主静态检查、测试并构建隔离 Android debug 包。 | ref 与 lock 精确指向 63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185；SDK 匹配、构建成功、NOTICE 完整；无无关框架/引擎升级，无第二 App/Navigator。 | PASS |
+| UIM03 | 在新宿主下交错操作主题、Banner/SnackBar、认证弹框、非模态样例、锁定/解锁、返回与前后台；检查现有终端标签。 | 锁罩盖住全部全局层且阻断底层触摸/读屏/硬件键盘；无旧主题截图回放；根 key、会话树、焦点、Material 主题/本地化/ScaffoldMessenger 持续有效；非模态样例背景可点。真实预测返回另归 UIM22。 根 pageRouteBuilder 明确，HomeShell/live 终端不用 CardRouteMixin；RemoteFocusAdapter 关闭遥控键导航，持续输出时 push/pop 保留视图和焦点。 | PASS |
 | UIM04 | 切换浅深/系统主题、旧主题 ID、自定义背景和字体，核对可见及未展示的 Ghostty 标签。 | Prism 与 Material 桥共享语义主题；旧设置有效，后台终端颜色同步，无连接/草稿重建；FormGap 20dp，终端无玻璃/整页截图动效，减少动画生效。 | NOT_RUN |
 | UIM05 | 走新公共控件的正常、禁用、加载、错误、焦点和帮助状态；用故意超限样例检验 UI 扫描器。 | Prism/包装控件不能绕过 ≤16/≤30 汉字和 FormGap 20dp 规则；ⓘ 48dp 且语义独立；秘密输入仍受禁学习/联想/更正与敏感屏检查；稳定 key/行为断言抓原缺陷。非模态面板不新增阻断背景的遮罩，不要求全树 ModalBarrier 为零。 | NOT_RUN |
 | UIM06 | 在五入口间往返，打开二级页/菜单，操作返回、锁定、全屏/PiP、横竖屏和宽屏。 | 五入口完整、IndexedStack 状态连续；返回优先级不变，锁定不 pop 底层；全屏/PiP 正确隐藏恢复导航；无管理页，无额外连接或终端视图。 | NOT_RUN |

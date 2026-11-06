@@ -4,35 +4,38 @@
 
 读取AGENTS、STATUS、docs/00/01/03/04/05/06/07/15/19及tasks.json。旧Txx是退役计划，V2草稿不再作为门禁。目标repo未指定时不写入历史powell/xdo等仓库；此包可放入指定新fork，已有AGENTS/README先合并不覆盖。
 
-## 当前入口：UI迁移 R82（2026-11-06）
+## 当前入口：UI迁移 R83（2026-11-06）
 
-R81已完成当前界面、唯一参考、覆盖表与profile基线，实际范围和限制见[evidence/R81](../evidence/R81.md)。UIM01 PASS；GU0仍为NOT_RUN，必须完成R82后按真实证据判定。继续采用FlClash / prism_ui单一目标，读[docs/24](24-ui-migration.md)与[UI决策](../../../docs/decisions/ui-system-decision.md)。
+R81基线和R82固定依赖/薄宿主已完成，UIM01–UIM03及GU0 PASS；实际范围见[evidence/R81](../evidence/R81.md)与[evidence/R82](../evidence/R82.md)。R82完成93项本地回归和隔离Android debug构建，未安装用户手机。继续采用FlClash / prism_ui单一目标，读[docs/24](24-ui-migration.md)与[UI决策](../../../docs/decisions/ui-system-decision.md)。
 
 ```text
-在shun当前分支按V3计划执行UI迁移，本批只做R82。
+在shun当前分支按V3计划执行UI迁移，本批只做R83。
 先读根AGENTS、plan/v3/AGENTS、STATUS及规定的契约文档，再读docs/24、
-docs/decisions/ui-system-decision.md、tasks.json的R82条目和evidence/R81.md。
+docs/decisions/ui-system-decision.md、tasks.json的R83条目和evidence/R81、R82。
 记录实际HEAD/dirty/SDK/lock，不覆盖其他人的改动。
-锁定prism_ui 63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185，
-只做依赖解析所需最小变更；不连带升级Riverpod、dartssh2、libghostty或存储。
-实现一个薄ShunUiHost和一个WidgetsApp/Navigator，保留原_navigatorKey、
-HomeShell及初始化/生命周期；显式提供pageRouteBuilder。
-HomeShell/live终端route不用CardRouteMixin；
-不要把allowSnapshotting:false当作Prism私有快照已关闭。
-Material Theme放在GhosttyDetachedThemeSync外；按真实消费者保留ScaffoldMessenger、
-Material/Widgets/Cupertino delegates，接通当前LText/localized的Prism文案代理。
-AppLockGate包住BannerHost、Overlay、路由和全部视觉层；
-RemoteFocusAdapter(enabled:false)，不安装ThemeCrossFade，不靠换key重建会话树。
-用持续输出的终端验证push/pop时view身份、输出和输入焦点连续；
-验证锁罩覆盖视觉/语义/输入，以及能实际点击背景的真非模态最小样例。
-本批只接入最小宿主，不批量迁移页面，不操作正式签名或用户手机。
-完成UIM02/UIM03关联检查、测试及隔离Android debug构建，记录GPL与NOTICE。
-按真实结果写evidence/R82.md、同步任务/用例/GU0证据，作粒度提交；
-运行sync_docs.py和validate_plan.py。报告完成ID、commit、未测及下一任务R83。
-任何锁罩、根导航、终端焦点或非模态契约失败，先修同一目标内的薄适配。
+Prism固定63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185，不重选库、不升级业务依赖。
+读取现有theme、uiThemeId、字体和自定义背景消费者，再建立同一语义主题、
+字阶、形状、间距与局部动效映射；实现prism_theme.dart并收敛material_compat。
+保留旧主题ID、light/dark/system和背景设置，不新增主题数据迁移或第二套主题目录。
+FormGap保持20dp；界面字体和终端等宽字体各守原用途，背景叠加后仍可读。
+使用公开Prism API，尊重减少动画；终端正文不加玻璃或全页截图过渡。
+保留R82单WidgetsApp/Navigator、原key、HomeShell和生命周期；
+Material Theme仍在GhosttyDetachedThemeSync外，锁罩覆盖全部提示和路由；
+HomeShell/live终端不用CardRouteMixin，RemoteFocusAdapter保持enabled:false。
+验证浅/深/系统主题、旧设置、已显示和未显示终端的OSC11同步；
+切主题不重建连接/终端、不丢草稿/焦点，不改原MediaQuery非线性字号。
+按同一fixture/视口采集并实际查看浅深对照图，记录主题映射和可读性结论。
+运行UIM04对应受影响测试、宿主/锁/本地化回归和静态检查；
+不靠删选项、放宽UI文字/字号限制或改断言换取通过。
+本批不迁移业务页面、不推进R84之后任务、不操作正式签名或用户手机。
+写evidence/R83.md并同步使用手册中实际变化、任务/用例及状态，作粒度提交；
+运行sync_docs.py和validate_plan.py。报告完成ID、commit、未测及下一任务R84。
+旧设置失效、终端配色不同步、文字不可辨或状态重建时先修当前主题映射。
 ```
 
-继续时只把任务ID替换为当前依赖满足的一项，重新读取它的scope/code_targets/acceptance/test_ids/stop_condition，不复用R82的实施内容。U3可按docs/24文件边界并行，终端R93–R95必须串行。每次交接说明改动、受保护行为、真实验证、缺口与下一项。
+继续时重新读取下一项的scope/code_targets/acceptance/test_ids/stop_condition，不只替换提示词任务ID。U3可按docs/24文件边界并行，终端R93–R95必须串行。每次交接说明改动、受保护行为、真实验证、缺口与下一项。
+
+R81的raster耗时及VT/总览后Native/PSS未完全回落仍交R95/R97定位；R82单元测试和debug构建不证明新UI更流畅。Prism Measure只接受线性比例，宿主保留原MediaQuery TextScaler，Android 14+真实非线性字号另归UIM22。
 
 R98先交代码/本地验证，R26再验新候选真机；R98不能反向等待R26。GU5不是FULL_READY。历史PASS保留原候选来源，UIM22和真实账号/硬件缺口不靠截图、mock或规划检查补齐。
 

@@ -1967,7 +1967,7 @@
 
 ## R82 锁定 Prism 依赖并验证单宿主兼容边界
 
-阶段：U0；状态：NOT_STARTED；依赖：R81；角色：UI 基础实施代理。
+阶段：U0；状态：DONE；依赖：R81；角色：UI 基础实施代理。
 
 **范围**：仅接入固定 prism_ui 提交和一个薄 ShunUiHost；用公开 Prism 组件组合单个 WidgetsApp/Navigator，保留现有 key、home、生命周期和安全边界。完成可构建的最小页面、输入、提示、模态与非模态样例，不做批量页面迁移。
 
