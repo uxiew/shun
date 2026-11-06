@@ -4,53 +4,52 @@
 
 读取AGENTS、STATUS、docs/00/01/03/04/05/06/07/15/19及tasks.json。旧Txx是退役计划，V2草稿不再作为门禁。目标repo未指定时不写入历史powell/xdo等仓库；此包可放入指定新fork，已有AGENTS/README先合并不覆盖。
 
-## 当前入口：UI迁移 R83（2026-11-06）
+## 当前入口：UI迁移 R84（2026-11-06）
 
-R81基线和R82固定依赖/薄宿主已完成，UIM01–UIM03及GU0 PASS；实际范围见[evidence/R81](../evidence/R81.md)与[evidence/R82](../evidence/R82.md)。R82完成93项本地回归和隔离Android debug构建，未安装用户手机。继续采用FlClash / prism_ui单一目标，读[docs/24](24-ui-migration.md)与[UI决策](../../../docs/decisions/ui-system-decision.md)。
+R81基线、R82固定依赖/薄宿主、R83语义主题已完成，UIM01–UIM04及GU0 PASS；实际范围见[evidence/R81](../evidence/R81.md)、[evidence/R82](../evidence/R82.md)与[evidence/R83](../evidence/R83.md)。R83完成247项受影响回归、全量单测和Android debug构建，未安装用户手机。继续采用FlClash / prism_ui单一目标，读[docs/24](24-ui-migration.md)与[UI决策](../../../docs/decisions/ui-system-decision.md)。
 
 ### Claude Code 首次接手
 
-本机代码仓库是 `/Users/bing/xdw/shun/shun`，上一层是工具链工作区；在代码仓库内开始。最近已核验分支为 `shun/v3`，R82实现提交 `531c403d54c20854c7eb0b287fbb8fa008380912`，验收交接提交 `9a7f8291638765637dd2fba9d102f6df3f853017`。这些是历史核验锚点，后续文档提交会使HEAD前进，不要求回退到该提交。
+本机代码仓库是 `/Users/bing/xdw/shun/shun`，上一层是工具链工作区；在代码仓库内开始。最近已核验分支为 `shun/v3`，R83实现提交 `cb433fae3f102ff6e6272c75999960981672f0bd`，验收与本交接在其后一个提交。这些是历史核验锚点，后续文档提交会使HEAD前进，不要求回退到该提交。
 
-先读取现场分支、HEAD、dirty以及适用的CLAUDE.md（若存在）；显式读取根AGENTS.md和plan/v3/AGENTS.md，不依赖宿主自动加载。保留他人改动，不为对齐交接执行reset、强制checkout或清理工作区。若R83已有进展，按tasks.json和实际diff续接，不重复实现。
+先读取现场分支、HEAD、dirty以及适用的CLAUDE.md（若存在）；显式读取根AGENTS.md和plan/v3/AGENTS.md，不依赖宿主自动加载。保留他人改动，不为对齐交接执行reset、强制checkout或清理工作区。若R84已有进展，按tasks.json和实际diff续接，不重复实现。
 
-环境按 `docs/dev/README.md`：当前已核验Flutter 3.47.7、Dart 3.13.5、Zig 0.16.0；重新核对实际版本并设置项目Zig、环境脚本及NO_PROXY。R81/R82归档在 `../.toolchain/artifacts/r81-baseline-20261105/`、`../.toolchain/artifacts/r82-host-20261106/`，详见各自evidence；不依赖上一模型的会话句柄或临时草稿。Flutter测试、截图与构建串行运行。
+环境按 `docs/dev/README.md`：当前已核验Flutter 3.47.7、Dart 3.13.5、Zig 0.16.0；重新核对实际版本并设置项目Zig、环境脚本及NO_PROXY。R81–R83归档在 `../.toolchain/artifacts/r81-baseline-20261105/`、`../.toolchain/artifacts/r82-host-20261106/`、`../.toolchain/artifacts/r83-theme-20261106/`，详见各自evidence；不依赖上一模型的会话句柄或临时草稿。Flutter测试、截图与构建串行运行。
 
 下面是本轮执行提示词；任务定义只维护在tasks.json，结果只按实际验证填写。
 
 ```text
-在 /Users/bing/xdw/shun/shun 接手shun，按V3计划直接完成R83的实现、验证、证据和本地提交。
+在 /Users/bing/xdw/shun/shun 接手shun，按V3计划直接完成R84的实现、验证、证据和本地提交。
 先读根AGENTS、plan/v3/AGENTS、STATUS及规定的契约文档，再读docs/24、
-docs/decisions/ui-system-decision.md、tasks.json的R83条目和evidence/R81、R82。
-记录实际分支/HEAD/dirty/SDK/lock，核对R82证据仍对应当前代码；保留他人改动。
-交接SHA是核验锚点，不为匹配旧SHA回退；若R83已开始，按现场状态续接。
+docs/decisions/ui-system-decision.md、tasks.json的R84条目和evidence/R81、R82、R83。
+记录实际分支/HEAD/dirty/SDK/lock，核对R83证据仍对应当前代码；保留他人改动。
+交接SHA是核验锚点，不为匹配旧SHA回退；若R84已开始，按现场状态续接。
 Prism固定63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185，不重选库、不升级业务依赖。
-读取现有theme、uiThemeId、字体和自定义背景消费者，再建立同一语义主题、
-字阶、形状、间距与局部动效映射；实现prism_theme.dart并收敛material_compat。
-保留旧主题ID、light/dark/system和背景设置，不新增主题数据迁移或第二套主题目录。
-FormGap保持20dp；界面字体和终端等宽字体各守原用途，背景叠加后仍可读。
-使用公开Prism API，尊重减少动画；终端正文不加玻璃或全页截图过渡。
-保留R82单WidgetsApp/Navigator、原key、HomeShell和生命周期；
-Material Theme仍在GhosttyDetachedThemeSync外，锁罩覆盖全部提示和路由；
-HomeShell/live终端不用CardRouteMixin，RemoteFocusAdapter保持enabled:false。
-保留R82的covered保护：遮挡时断开底层焦点和旧IME，返回后恢复原节点；不恢复旧的焦点常驻行为。
-验证浅/深/系统主题、旧设置、已显示和未显示终端的OSC11同步；
-切主题不重建连接/终端、不丢草稿/焦点，不改原MediaQuery非线性字号。
-按同一fixture/视口采集并实际查看浅深对照图，记录主题映射和可读性结论。
-运行UIM04对应受影响测试、宿主/锁/本地化回归和静态检查；
-不靠删选项、放宽UI文字/字号限制或改断言换取通过。
-本批仅做R83；R84公共控件/规则扫描和后续页面迁移留给下一批。
-不升级无关依赖、不改数据格式/RoutePlan/终端引擎，不操作正式签名、用户手机或push/发布。
-写evidence/R83.md并同步使用手册中实际变化、任务/用例及状态，作粒度提交；
+先清点表单、列表行、按钮、分段选择、空状态、帮助和面板表面的实际调用方，
+只封装真正复用的部分；新控件继续接受既有文案、间距、焦点和语义约束。
+颜色、字阶、形状只读R83的ShunUiTheme/material_compat，不另建主题或第二套token。
+扫描器要识别真实Prism和本地包装控件：helper/subtitle≤16汉字、单段≤30汉字、
+FormGap 20dp、ⓘ 48dp且与开关语义独立；加一个能抓住绕过的回归，不放宽上限或屏蔽目录。
+secret_content_test覆盖Prism/包装参数，继续检验禁学习/联想/自动更正和敏感屏，补运行时断言。
+普通确认可用模态；Tailscale等指定非模态面板不新增阻断背景的遮罩，背后可操作。
+加载、禁用、校验失败、键盘焦点和错误反馈都要有可操作状态；类型断言改稳定key/语义/行为。
+复核R83记下的分段按钮折行（Tailscale「MagicDNS 名称」），不靠缩字号或删选项。
+保留R82/R83边界：单WidgetsApp/Navigator、原key、锁罩覆盖、covered时断开焦点与旧IME，
+切主题当帧完成且不重建终端；不加ThemeCrossFade、整页截图或终端玻璃。
+运行UIM05及受影响的规则、提示、无障碍、秘密输入、宿主回归和静态检查；
+Flutter测试、截图和构建串行；不靠删选项、放宽规则或改断言换取通过。
+本批仅做R84；R85导航外壳和后续页面迁移留给下一批。
+不改数据格式/RoutePlan/终端引擎，不操作正式签名、用户手机或push/发布。
+写evidence/R84.md并同步使用手册中实际变化、任务/用例及状态，作粒度提交；
 使用plan/v3/scripts/set_status.py登记实际结果，再运行sync_docs.py和validate_plan.py。
-R83/UIM04满足验收后才完成；GU1还依赖R84/R85，不因本批通过而标PASS。
-完成本批后停止，报告完成ID、commit、验证数量/skip、截图位置、未测及下一任务R84。
-旧设置失效、终端配色不同步、文字不可辨或状态重建时先修当前主题映射。
+R84/UIM05满足验收后才完成；GU1还依赖R85，不因本批通过而标PASS。
+完成本批后停止，报告完成ID、commit、验证数量/skip、截图位置、未测及下一任务R85。
+规则漏检、读屏合并、背景点击被拦或输入法回退时暂停调用方迁移，不以截图好看代替公共契约。
 ```
 
 继续时重新读取下一项的scope/code_targets/acceptance/test_ids/stop_condition，不只替换提示词任务ID。U3可按docs/24文件边界并行，终端R93–R95必须串行。每次交接说明改动、受保护行为、真实验证、缺口与下一项。
 
-R81的raster耗时及VT/总览后Native/PSS未完全回落仍交R95/R97定位；R82单元测试和debug构建不证明新UI更流畅。Prism Measure只接受线性比例，宿主保留原MediaQuery TextScaler，Android 14+真实非线性字号另归UIM22。
+R81的raster耗时及VT/总览后Native/PSS未完全回落仍交R95/R97定位；R82/R83单元测试和debug构建不证明新UI更流畅。R83留下的按钮字黑白取舍归R96，见evidence/R83第2.5节。Prism Measure只接受线性比例，宿主保留原MediaQuery TextScaler，Android 14+真实非线性字号另归UIM22。
 
 R98先交代码/本地验证，R26再验新候选真机；R98不能反向等待R26。GU5不是FULL_READY。历史PASS保留原候选来源，UIM22和真实账号/硬件缺口不靠截图、mock或规划检查补齐。
 

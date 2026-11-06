@@ -2232,9 +2232,11 @@
       "action": "切换浅深/系统主题、旧主题 ID、自定义背景和字体，核对可见及未展示的 Ghostty 标签。",
       "expected": "Prism 与 Material 桥共享语义主题；旧设置有效，后台终端颜色同步，无连接/草稿重建；FormGap 20dp，终端无玻璃/整页截图动效，减少动画生效。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R83.md"
+      ]
     },
     {
       "id": "UIM05",

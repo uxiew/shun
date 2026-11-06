@@ -3962,7 +3962,7 @@
       "id": "R83",
       "phase": "U1",
       "title": "统一 Prism 主题、字阶、形状与动效",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R82"
       ],
@@ -3992,8 +3992,10 @@
       ],
       "stop_condition": "旧设置失效、终端背景回答不同步、文字不可辨或状态重建时先修主题映射，不靠删主题选项或新增数据库迁移绕过。",
       "owner_role": "UI 基础实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R83.md"
+      ],
+      "commit": "cb433fae3f102ff6e6272c75999960981672f0bd"
     },
     {
       "id": "R84",
