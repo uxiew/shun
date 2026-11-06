@@ -76,6 +76,24 @@ LIFE06（反复开关标签后原生内存涨不涨）：同样先起测试环�
 
 结果只看 `plan/v3/evidence/R22.md`「LIFE06 复查」。
 
+R81（UI 迁移前的截图/性能基线）：图库用 `SHUN_UI_GALLERY=<绝对目录> flutter test --no-pub -j 1 test/ui_gallery_test.dart`，需 macOS 的 Arial Unicode、Courier New 和 Flutter MaterialIcons 字体；未设目录或缺字体会跳过，不能算通过。当前生成浅/深 44 张图，没有自动 golden 比较，需实际看图；内存会话不证明 SSH，独立 SFTP 场景不证明远端传输。
+
+profile 测量先按第 1、3 节准备环境、拿锁、启动项目模拟器，再启动 `tool/fixture-environment`，整个候选期间不要重建 fixture。只使用专用模拟器上的 `top.xdwa.shun.profile`，不接用户手机：
+
+```bash
+# 用一个未存在的新目录；以下步骤必须串行，四段都复用同一 APK。
+SHUN_R39_AVD=shun-r39-a30 python3 tool/r81-ui-baseline.py build --output build/r81-profile-01
+SHUN_R39_AVD=shun-r39-a30 python3 tool/r81-ui-baseline.py run --build-dir build/r81-profile-01 --stage lists
+SHUN_R39_AVD=shun-r39-a30 python3 tool/r81-ui-baseline.py run --build-dir build/r81-profile-01 --stage panels
+SHUN_R39_AVD=shun-r39-a30 python3 tool/r81-ui-baseline.py run --build-dir build/r81-profile-01 --stage terminal
+SHUN_R39_AVD=shun-r39-a30 python3 tool/r81-ui-baseline.py run --build-dir build/r81-profile-01 --stage lifecycle
+python3 tool/r81-ui-baseline.py summarize --build-dir build/r81-profile-01
+```
+
+正式 7 场景各热身 5 秒、采样 30 秒、重复 3 轮，另做 100 次真实连接/64 KiB 输出/关闭。每段重启进程，固定 100 条主机、4 个常驻真实 SSH 和 5 MiB VT；保留 21 份原始 FrameTiming、Dart/RSS/Native/TOTAL PSS 及清理结果。脚本核对源码（含本地 flterm/libghostty）、APK、fixture、SDK、视口和主题，不允许中途换候选。短冒烟要另建目录，在 build 加 `--smoke`、run 用 `--stage all`；smoke 永远不是正式基线。截图、构建和测量时不要并行跑其他 Flutter/设备测试。
+
+产物先落在仓库内 `build/`；验收完成后把截图索引、原始帧、内存记录和摘要存档到本项目的 `../.toolchain/artifacts/`，再运行可能清空 build 的命令。不要把含临时测试凭据的 APK 或临时定义文件放进公开证据。未完成的阶段、失败日志和真实设备缺口保留；最终结论看 `plan/v3/evidence/R81.md`。R97 在相同环境/脚本口径下复验，API 30 模拟器读数不等于真机流畅度。
+
 R40 的 `lib/presentation/widgets/connection_route_editor.dart` 是共用链式编辑器，接收页面已有 `RoutePlan`，通过 `describeRoute` 显示已验证的节点；无有效计划时只显示草稿和错误。`connection_route_draft.dart` 管理选择及兼容字段，保留未修正的失效引用和旧内联配置；不读仓库、不执行网络请求。两页负责预览和提交，只有 `resolveRoutePlan` 决定路线规则。`domain/jump_route_choices.dart` 是 RoutePlan 库的一部分，集中做有界展开、首跳代理候选及确认复核；`jump_route_choice_dialog.dart` 只展示方案并返回明确选择。确认前、来源变化后和后续跳板自带代理时均拒绝执行。
 
 R40 确认信息保存在原 `hostChain` 的 `shunRouteConfirmation` 扩展中：只有版本、顺序、来源的非秘密路线信息和入口选择，没有密码或私钥。`hostIds`、`proxyProfileId` / `proxyConfig` 仍是完整平面路线，不迁移或修改其他主机；缺失/损坏/失效确认一律拒绝。旧客户端的确认语义未实测，不以 JSON 字段兼容冒充跨端执行兼容。

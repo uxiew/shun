@@ -3870,7 +3870,7 @@
       "id": "R81",
       "phase": "U0",
       "title": "冻结单一 UI 目标与 shun 迁移基线",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [
         "R25",
         "R70",
@@ -3881,7 +3881,12 @@
         "plan/v3/docs/24-ui-migration.md",
         "docs/decisions/ui-system-decision.md",
         "test/ui_gallery_test.dart",
+        "test/support/ui_gallery_fixtures.dart",
         "test/r25_large_text_test.dart",
+        "integration_test/r81_ui_baseline_test.dart",
+        "tool/r81-ui-baseline.py",
+        "docs/dev/README.md",
+        "plan/v3/evidence/R81-ui-coverage.md",
         "plan/v3/evidence/R81.md"
       ],
       "deliverables": [
@@ -3900,7 +3905,9 @@
       ],
       "stop_condition": "基线无法复现时先修最小测试/环境问题；未取得截图与可比较性能基线不得启动 R82，不把旧包 PASS 填入新用例。",
       "owner_role": "UI 基础实施代理",
-      "evidence": [],
+      "evidence": [
+        "evidence/R81.md"
+      ],
       "commit": null
     },
     {

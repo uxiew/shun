@@ -2,18 +2,19 @@
 
 只能将真执行结果写入 evidence。用户 LobiShell 成功属于参考应用事实，不转移为新 App 通过；模拟器结果都标明了是模拟器。
 
-## 现在（2026-11-05）
+## 现在（2026-11-06）
 
-**当前主线：按 FlClash 的视觉/交互方向、以 prism_ui 为唯一目标组件体系迁移 UI。选择与分阶段计划已落盘，下一项是 R81，不再逐库试用。本轮只改计划与文档，应用源码、依赖和安装包未改。**
+**当前主线：按 FlClash 的视觉/交互方向、以 prism_ui 为唯一目标组件体系迁移 UI。R81 正在建立迁移前截图、页面覆盖与 profile 性能基线；本批不接入 Prism、不修改生产 UI。R82 等待 R81 的实际验收结果。**
 
 - 方案：[docs/24](docs/24-ui-migration.md)；决策：[ui-system-decision](../../docs/decisions/ui-system-decision.md)；模型入口：[docs/10](docs/10-agent-handoff.md)。
-- 新增 U0–U5 六阶段、R81–R98 共18项，全部 NOT_STARTED；新增 UIM01–UIM22，全部 NOT_RUN。
-- 任务113条：DONE 61、IN_PROGRESS 10、NOT_STARTED 23、DEFERRED 19。分类为74项非P6、39项P6，分类不是完成状态。
+- U0–U5 六阶段、R81–R98 共18项；R81 IN_PROGRESS，其余17项 NOT_STARTED；UIM01–UIM22 仍全部 NOT_RUN。
+- 任务113条：DONE 61、IN_PROGRESS 11、NOT_STARTED 22、DEFERRED 19。分类为74项非P6、39项P6，分类不是完成状态。
 - 用例210条：PASS 157、FAIL 0、BLOCKED 6、NOT_RUN 47。原188项结果/证据和原95项状态/提交均保留，新UI没有借用旧PASS。
 - 原门禁仍只有G0、G3 PASS；新增GU0–GU5均NOT_RUN。GU5是UI代码/本地验证出口，不表示CORE_READY/FULL_READY。
 - 规划前基线：`shun/v3 @ 92fe59340515ac26db51cb3a18397d2f42e3c012`，工作区干净。固定参考和依赖SHA见决策。
-- 最近的仓库安装记录是11-03的33包（F42）；本轮未重新查询手机。那次记录单测1905过/226跳过/0失败及模拟器r73/r75/r79/r40通过，属于旧候选历史，本轮没有重跑App测试。
-- 本轮规划一致性检查见 [规划证据](evidence/ui-migration-plan-20261105.md)。规划检查不等于App构建、界面或真机通过。
+- 最近的仓库安装记录是11-03的33包（F42）；本轮未重新查询手机。那次单测1905过/226跳过/0失败及模拟器r73/r75/r79/r40通过属于旧候选历史。本轮图库26项、大字4项与定向静态检查通过，44张截图已逐张检查；未重跑旧全量回归。正式profile新候选执行中。
+- 首轮profile的lists完成、panels因SSH关闭而失败；GLD连接恢复后保留旧证据，11-06重建隔离fixture及相同源码候选，完整重采四阶段。新一轮lists已完成，panels执行中；最终结果统一写入R81，不混合不同候选。
+- 上批规划一致性检查见 [规划证据](evidence/ui-migration-plan-20261105.md)。R81 实际实施记录见 [R81](evidence/R81.md) 与 [页面覆盖](evidence/R81-ui-coverage.md)；未完成测量前不将 UIM01 改成 PASS。
 
 ### 当前推进与待测边界
 

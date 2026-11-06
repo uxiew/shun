@@ -1946,11 +1946,11 @@
 
 ## R81 冻结单一 UI 目标与 shun 迁移基线
 
-阶段：U0；状态：NOT_STARTED；依赖：R25, R70, R72；角色：UI 基础实施代理。
+阶段：U0；状态：IN_PROGRESS；依赖：R25, R70, R72；角色：UI 基础实施代理。
 
 **范围**：以 FlClash 固定快照和 prism_ui 固定提交为唯一迁移目标；建立当前页面、弹层、行为、截图与性能基线，不试装其他 UI 库。本任务才开始实际截图和应用基线验证，规划资料阅读不等于完成。
 
-**落点**：plan/v3/docs/24-ui-migration.md；docs/decisions/ui-system-decision.md；test/ui_gallery_test.dart；test/r25_large_text_test.dart；plan/v3/evidence/R81.md。
+**落点**：plan/v3/docs/24-ui-migration.md；docs/decisions/ui-system-decision.md；test/ui_gallery_test.dart；test/support/ui_gallery_fixtures.dart；test/r25_large_text_test.dart；integration_test/r81_ui_baseline_test.dart；tool/r81-ui-baseline.py；docs/dev/README.md；plan/v3/evidence/R81-ui-coverage.md；plan/v3/evidence/R81.md。
 
 **交付物**：evidence/R81.md（实际执行后填写）；当前源码 SHA、工作区状态、SDK/锁文件摘要；页面和弹层覆盖表、单一视觉对照表、迁移前截图索引与测量原始记录。
 
