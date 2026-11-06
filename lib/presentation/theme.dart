@@ -1,6 +1,7 @@
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 
-/// A Material representation of the desktop Netcatty theme catalogue.
+/// 桌面 Netcatty 主题目录里的一项：用户选的 uiThemeId 对应的六个原始颜色。
+/// 它怎么变成界面主题只在 ui/prism_theme.dart 一处定义（R83），这里只管目录和按 ID 查。
 class ShunThemePreset {
   const ShunThemePreset({
     required this.id,
@@ -47,80 +48,6 @@ class ShunTheme {
     );
   }
 
-  static ThemeData build(Brightness brightness, String id) {
-    final preset = resolve(brightness, id);
-    final dark = brightness == Brightness.dark;
-    final seed = ColorScheme.fromSeed(
-      seedColor: preset.primary,
-      brightness: brightness,
-    );
-    final scheme = seed.copyWith(
-      primary: preset.primary,
-      onPrimary: _contrast(preset.primary),
-      secondary: preset.primary,
-      onSecondary: _contrast(preset.primary),
-      surface: preset.card,
-      onSurface: preset.foreground,
-      outline: preset.border,
-      outlineVariant: preset.border.withValues(alpha: 0.7),
-      error: preset.error,
-      onError: _contrast(preset.error),
-    );
-    return ThemeData(
-      brightness: brightness,
-      useMaterial3: true,
-      scaffoldBackgroundColor: preset.background,
-      colorScheme: scheme,
-      navigationBarTheme: NavigationBarThemeData(
-        backgroundColor: preset.card,
-        indicatorColor: preset.primary.withValues(alpha: 0.2),
-        height: 68,
-      ),
-      appBarTheme: AppBarTheme(
-        backgroundColor: preset.background,
-        foregroundColor: preset.foreground,
-        surfaceTintColor: Colors.transparent,
-        elevation: 0,
-      ),
-      cardTheme: CardThemeData(
-        color: preset.card,
-        elevation: 0,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(12),
-          side: BorderSide(color: preset.border),
-        ),
-      ),
-      dividerColor: preset.border,
-      inputDecorationTheme: InputDecorationTheme(
-        filled: true,
-        fillColor: Color.alphaBlend(
-          preset.foreground.withValues(alpha: dark ? 0.025 : 0.018),
-          preset.card,
-        ),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: preset.border),
-        ),
-        enabledBorder: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(10),
-          borderSide: BorderSide(color: preset.border),
-        ),
-      ),
-      bottomSheetTheme: BottomSheetThemeData(
-        backgroundColor: preset.background,
-        surfaceTintColor: Colors.transparent,
-      ),
-      dialogTheme: DialogThemeData(
-        backgroundColor: preset.card,
-        surfaceTintColor: Colors.transparent,
-      ),
-      snackBarTheme: SnackBarThemeData(
-        backgroundColor: preset.foreground,
-        contentTextStyle: TextStyle(color: preset.background),
-      ),
-    );
-  }
-
   static ShunThemePreset _parsePreset(String line) {
     final values = line.split('|');
     final brightness = values[0] == 'd' ? Brightness.dark : Brightness.light;
@@ -146,9 +73,6 @@ class ShunTheme {
       double.parse(parts[2]) / 100,
     ).toColor();
   }
-
-  static Color _contrast(Color color) =>
-      color.computeLuminance() > 0.46 ? Colors.black : Colors.white;
 }
 
 // background, foreground, card, primary, border and destructive tokens are

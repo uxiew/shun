@@ -6,6 +6,8 @@ import 'package:shun/domain/models/settings.dart';
 import 'package:shun/infrastructure/ssh/server_monitor_service.dart';
 import 'package:shun/infrastructure/ssh/sftp_service.dart';
 import 'package:shun/presentation/theme.dart';
+import 'package:shun/presentation/ui/material_compat.dart';
+import 'package:shun/presentation/ui/prism_theme.dart';
 import 'package:shun/presentation/widgets/custom_background.dart';
 
 void main() {
@@ -17,7 +19,8 @@ void main() {
       'Tokyo Night',
     );
     expect(
-      ShunTheme.build(Brightness.light, 'rose-pine').brightness,
+      materialThemeFor(ShunUiTheme.resolve(Brightness.light, 'rose-pine'))
+          .brightness,
       Brightness.light,
     );
   });

@@ -14,9 +14,9 @@ import 'application/settings_controller.dart';
 import 'application/session_controller.dart';
 import 'infrastructure/ssh/connection_platform_service.dart';
 import 'presentation/home_shell.dart';
+import 'presentation/ui/prism_theme.dart';
 import 'presentation/ui/shun_ui_host.dart';
 import 'presentation/widgets/security_key_prompt.dart';
-import 'presentation/theme.dart';
 
 class ShunApp extends ConsumerStatefulWidget {
   const ShunApp({super.key});
@@ -116,8 +116,8 @@ class _ShunAppState extends ConsumerState<ShunApp> with WidgetsBindingObserver {
     };
     return ShunUiHost(
       navigatorKey: _navigatorKey,
-      theme: ShunTheme.build(Brightness.light, settings.uiThemeId),
-      darkTheme: ShunTheme.build(Brightness.dark, settings.uiThemeId),
+      theme: ShunUiTheme.resolve(Brightness.light, settings.uiThemeId),
+      darkTheme: ShunUiTheme.resolve(Brightness.dark, settings.uiThemeId),
       themeMode: mode,
       locale: settings.language == 'en'
           ? const Locale('en')

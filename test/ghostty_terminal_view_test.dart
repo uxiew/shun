@@ -7,7 +7,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:shun/presentation/terminal/ghostty_terminal_view.dart';
 import 'package:shun/presentation/terminal/terminal_view.dart';
-import 'package:shun/presentation/theme.dart';
+import 'package:shun/presentation/ui/material_compat.dart';
+import 'package:shun/presentation/ui/prism_theme.dart';
 
 // R17 / GST02：Ghostty 视图的交接。flterm 一个控制器同一时刻只能挂一个 flterm 视图，
 // 第二个来挂直接抛 StateError；R16 的显示权换手时旧视图又不会立刻重建。这里直接造出
@@ -85,7 +86,7 @@ void main() {
     addTearDown(terminal.dispose);
     Future<flterm.TerminalTheme> themeUnder(Brightness brightness) async {
       await tester.pumpWidget(MaterialApp(
-        theme: ShunTheme.build(brightness, ''),
+        theme: materialThemeFor(ShunUiTheme.resolve(brightness, '')),
         home: Scaffold(
           body: GhosttyTerminalView(adapter: terminal, options: _options),
         ),

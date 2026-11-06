@@ -6,19 +6,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:shun/application/app_lock.dart';
 import 'package:shun/application/home_navigation.dart';
 import 'package:shun/application/session_controller.dart';
+import 'package:shun/application/settings_controller.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/domain/models/settings.dart';
 import 'package:shun/domain/models/vault.dart';
+import 'package:shun/infrastructure/device_auth.dart';
 import 'package:shun/infrastructure/http_client_provider.dart';
 import 'package:shun/infrastructure/ssh/sftp_service.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
@@ -31,7 +33,9 @@ import 'package:shun/presentation/screens/sftp_screen.dart';
 import 'package:shun/presentation/screens/settings_screen.dart';
 import 'package:shun/presentation/screens/tailscale_settings_screen.dart';
 import 'package:shun/presentation/terminal/ghostty_terminal_view.dart';
-import 'package:shun/presentation/theme.dart';
+import 'package:shun/presentation/ui/prism_theme.dart';
+import 'package:shun/presentation/ui/shun_ui_host.dart';
+import 'package:shun/presentation/widgets/custom_background.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shun/presentation/widgets/proxy_profile_editor.dart';
 import 'package:shun/presentation/widgets/session_overview.dart';
@@ -41,6 +45,7 @@ import 'support/ui_gallery_fixtures.dart';
 /// 当前 UI 基线：真实首页/终端/总览/文件页及原有表单/设置。只出图，不自动比对。
 /// 主机/会话和独立 SFTP 列表使用内存 fixture；HomeShell 隐藏的本机服务使用隔离临时目录。
 /// 没有远端会话、传输或真机流畅度的验收含义。平时跳过。
+/// R83 起经生产 ShunUiHost 出图：Prism 与 Material 两种表示来自同一个语义主题。
 ///
 /// `SHUN_UI_GALLERY=<绝对路径目录> flutter test --no-pub test/ui_gallery_test.dart`
 ///
@@ -105,7 +110,9 @@ void main() {
   });
 
   Future<void> loadFonts(WidgetTester tester) => tester.runAsync(() async {
-        final text = FontLoader('Gallery')
+        // 测试里的平台是 Android：Material 和 Prism 的界面字体族都是 Roboto。
+        // 把同一份 Arial Unicode 注册成 Roboto，两种表示都得到真字形；字体文件与 R81 相同。
+        final text = FontLoader('Roboto')
           ..addFont(File(_fontPath)
               .readAsBytes()
               .then((bytes) => ByteData.sublistView(bytes)));
@@ -126,12 +133,38 @@ void main() {
         await icons.load();
       });
 
-  ThemeData theme(Brightness brightness, String id) {
-    final base = ShunTheme.build(brightness, id);
-    return base.copyWith(
-      textTheme: base.textTheme.apply(fontFamily: 'Gallery'),
-      primaryTextTheme: base.primaryTextTheme.apply(fontFamily: 'Gallery'),
+  // 背景图读文件、解码是真 IO。页面上的 Image 已经在假时钟里开始加载，它的回调排在假时钟的
+  // 微任务里：在 runAsync 里 await 同一个加载会互相等死。和下面等本机文件服务一样，
+  // 在原 zone 发起预缓存，轮流给真实时间和帧，直到图进了缓存。
+  Future<void> precacheBackground(WidgetTester tester) async {
+    final background = find.byType(CustomBackgroundImage);
+    if (background.evaluate().isEmpty) return;
+    final path = tester
+        .widget<CustomBackgroundImage>(background)
+        .settings
+        .customBackgroundPath;
+    var loaded = false;
+    Object? error;
+    unawaited(
+      precacheImage(
+        FileImage(File(path)),
+        tester.element(background),
+        onError: (exception, _) => error = exception,
+      ).then((_) => loaded = true),
     );
+    for (var attempt = 0; !loaded && attempt < 200; attempt++) {
+      await tester.runAsync(
+          () => Future<void>.delayed(const Duration(milliseconds: 20)));
+      await tester.pump();
+    }
+    expect(loaded, isTrue, reason: '背景图没在 200 轮 IO/pump 内加载完');
+    expect(error, isNull);
+    await tester.pump();
+    // 不只在树上，还要真画出来：没解码完时这里是 null，截图里就没有背景。
+    final painted = tester.renderObject<RenderImage>(
+      find.descendant(of: background, matching: find.byType(RawImage)),
+    );
+    expect(painted.image, isNotNull, reason: '背景图已解码但没画上');
   }
 
   // 保留旧的深色截图文件名，浅色对应文件加 -light；新场景名同时记录视口/语言/字号。
@@ -144,11 +177,18 @@ void main() {
         double height = 1100,
         List<HostProfile> hosts = const [],
         SessionState sessions = const SessionState(),
+        String? backgroundScope,
       }) async {
         await loadFonts(tester);
         final paths = (await tester.runAsync(UiGalleryPaths.create))!;
         paths.install();
         addTearDown(() => tester.runAsync(paths.dispose));
+        String? backgroundFile;
+        if (backgroundScope != null) {
+          backgroundFile = (await tester.runAsync(
+            () => _writeBackground(paths, width, height),
+          ))!;
+        }
         tester.view.physicalSize = Size(width * 2, height * 2);
         tester.view.devicePixelRatio = 2;
         tester.view.viewInsets = FakeViewPadding.zero;
@@ -169,6 +209,12 @@ void main() {
           uiThemeId: id,
           language: 'zh-CN',
           terminalFontSize: 14,
+          // 用户存下的背景是受管目录里的文件引用；不透明度取默认的 35%。
+          customBackgroundEnabled: backgroundFile != null,
+          customBackgroundPath: backgroundFile == null
+              ? ''
+              : 'shun-background:$_backgroundName',
+          customBackgroundScope: backgroundScope ?? 'global',
         ));
         await repository.saveVault(VaultData.empty().copyWith(
           hosts: hosts,
@@ -176,6 +222,11 @@ void main() {
         ));
         final container = ProviderContainer(overrides: [
           vaultRepositoryProvider.overrideWithValue(repository),
+          appLockControllerProvider.overrideWith((ref) => AppLockController(
+                auth: _NoDeviceAuth(),
+                settings: const AppSettings(),
+                hasConnectedTerminal: () => false,
+              )),
           catalogCacheRepositoryProvider.overrideWithValue(_NoCatalog()),
           httpClientProvider.overrideWithValue(MockClient(
               (_) async => http.Response('{"tag_name":"v1.4.7"}', 200))),
@@ -196,22 +247,35 @@ void main() {
           key: _shot,
           child: UncontrolledProviderScope(
             container: container,
-            child: MaterialApp(
-              debugShowCheckedModeBanner: false,
-              theme: theme(brightness, id),
+            child: ShunUiHost(
+              navigatorKey: GlobalKey<NavigatorState>(),
+              theme: ShunUiTheme.resolve(Brightness.light, id),
+              darkTheme: ShunUiTheme.resolve(Brightness.dark, id),
+              themeMode: brightness == Brightness.dark
+                  ? ThemeMode.dark
+                  : ThemeMode.light,
               locale: const Locale('zh', 'CN'),
-              supportedLocales: const [Locale('zh', 'CN'), Locale('en')],
-              localizationsDelegates: const [
-                GlobalMaterialLocalizations.delegate,
-                GlobalWidgetsLocalizations.delegate,
-                GlobalCupertinoLocalizations.delegate,
-              ],
-              builder: (context, child) =>
-                  GhosttyDetachedThemeSync(child: child!),
               home: home,
             ),
           ),
         ));
+        if (backgroundFile != null) {
+          // 设置读入要解析背景路径：轮流给真实时间和帧，直到读到的是这张图。
+          for (var attempt = 0;
+              container.read(settingsControllerProvider).customBackgroundPath !=
+                      backgroundFile &&
+                  attempt < 100;
+              attempt++) {
+            await tester.runAsync(
+                () => Future<void>.delayed(const Duration(milliseconds: 20)));
+            await tester.pump();
+          }
+          expect(container.read(settingsControllerProvider).customBackgroundPath,
+              backgroundFile);
+          // 读到设置后 HomeShell 要再建一帧，背景图才在树上。
+          await tester.pump();
+          await precacheBackground(tester);
+        }
         if (home is HomeShell) {
           // FutureBuilder 会吞掉插件/目录初始化错误；显式等其 Future，不能只看可见首页。
           final loader =
@@ -422,6 +486,56 @@ void main() {
         await save(tester, 'sftp-local-single-412x892-zh-s1');
       });
 
+      // R83：同一个语义主题下的外观设置、弹层和自定义背景。
+      testWidgets('设置页：外观与主题选择面板', skip: skip != null, (tester) async {
+        await pumpPage(tester, const SettingsScreen(), height: 892);
+        await save(tester, 'settings-appearance-412x892-zh-s1');
+        await tester.tap(find.text('界面主题'));
+        await save(tester, 'theme-picker-412x892-zh-s1');
+      });
+
+      testWidgets('连接首页：主机操作面板与详情弹窗', skip: skip != null,
+          (tester) async {
+        await pumpPage(tester, const HomeShell(),
+            height: 892, hosts: uiGalleryHosts);
+        await tester
+            .tap(find.byKey(const ValueKey('vault-host-menu-gallery-web')));
+        await save(tester, 'host-actions-412x892-zh-s1');
+        // 点遮罩收起面板（不点任何操作），再点卡片看详情弹窗；弹窗里不点连接。
+        await tester.tapAt(const Offset(206, 40));
+        await settle(tester);
+        await tester.tap(find.text('示例 Web'));
+        await save(tester, 'host-details-412x892-zh-s1');
+        expect(find.byType(AlertDialog), findsOneWidget);
+      });
+
+      testWidgets('自定义背景：全局的连接页、仅终端的终端页', skip: skip != null,
+          (tester) async {
+        await pumpPage(tester, const HomeShell(),
+            height: 892, hosts: uiGalleryHosts, backgroundScope: 'global');
+        expect(find.byType(CustomBackgroundImage), findsOneWidget);
+        await precacheBackground(tester);
+        await save(tester, 'connections-background-412x892-zh-s1');
+      });
+
+      testWidgets('自定义背景：仅终端', skip: skip != null, (tester) async {
+        final container = await pumpPage(
+          tester,
+          const HomeShell(),
+          height: 892,
+          hosts: uiGalleryHosts,
+          sessions: uiGallerySessions(),
+          backgroundScope: 'terminal',
+        );
+        expect(find.byType(CustomBackgroundImage), findsNothing,
+            reason: '仅终端的背景不铺到连接页');
+        container.read(homeTabProvider.notifier).state = 1;
+        await settle(tester);
+        expect(find.byType(CustomBackgroundImage), findsOneWidget);
+        await precacheBackground(tester);
+        await save(tester, 'terminal-background-412x892-zh-s1');
+      });
+
       testWidgets('SFTP：宽屏双栏、不同目录', skip: skip != null, (tester) async {
         await pumpPage(
           tester,
@@ -442,6 +556,72 @@ void main() {
       });
     });
   }
+}
+
+const _backgroundName = 'background-gallery.png';
+
+/// 自定义背景的可读性夹具：高对比的条纹和色块，故意比一般照片更花；放进受管目录。
+Future<String> _writeBackground(
+  UiGalleryPaths paths,
+  double width,
+  double height,
+) async {
+  final recorder = ui.PictureRecorder();
+  final canvas = Canvas(recorder);
+  final size = Size(width, height);
+  canvas.drawRect(
+    Offset.zero & size,
+    Paint()
+      ..shader = ui.Gradient.linear(
+        Offset.zero,
+        Offset(width, height),
+        const [Color(0xFFFFD54F), Color(0xFF26C6DA), Color(0xFF7E57C2)],
+        const [0, 0.5, 1],
+      ),
+  );
+  final stripe = Paint()..color = const Color(0xFF101010);
+  for (var x = -height; x < width; x += 48) {
+    canvas.drawPath(
+      Path()
+        ..moveTo(x, 0)
+        ..lineTo(x + 18, 0)
+        ..lineTo(x + 18 + height, height)
+        ..lineTo(x + height, height)
+        ..close(),
+      stripe,
+    );
+  }
+  final image = await recorder.endRecording().toImage(
+        width.round(),
+        height.round(),
+      );
+  final png = await image.toByteData(format: ui.ImageByteFormat.png);
+  image.dispose();
+  final directory = Directory('${paths.supportPath}/custom-backgrounds');
+  await directory.create(recursive: true);
+  final file = File('${directory.path}/$_backgroundName');
+  await file.writeAsBytes(png!.buffer.asUint8List());
+  return file.absolute.path;
+}
+
+class _NoDeviceAuth implements DeviceAuth {
+  @override
+  set onActivityPaused(void Function(bool ownActivity)? callback) {}
+
+  @override
+  Future<bool> isDeviceSecure() async => false;
+
+  @override
+  Future<DeviceAuthOutcome> authenticate({
+    required String title,
+    String? description,
+    required bool pinOnly,
+    required bool allowWeak,
+  }) async =>
+      const DeviceAuthOutcome(DeviceAuthResult.unavailable);
+
+  @override
+  Future<void> setProtectRecents(bool enabled) async {}
 }
 
 /// 真仓库要读写文件，而测试里的假时钟等不到真文件 IO，页面会停在加载中。

@@ -7,9 +7,15 @@ import '../terminal/ghostty_terminal_view.dart';
 import '../widgets/app_lock_gate.dart';
 import 'material_compat.dart';
 import 'prism_localizations.dart';
+import 'prism_theme.dart';
 
 /// One application and one root navigator, with every visual layer inside the
 /// existing app lock. A PrismApp/MaterialApp pair would create two route trees.
+///
+/// [theme]/[darkTheme] are the one semantic theme per brightness (R83); the
+/// Prism and the Material representation below both come from it. Switching
+/// swaps them in place in a single frame: no ThemeCrossFade/AnimatedTheme,
+/// which would screenshot or lerp the live terminals.
 class ShunUiHost extends StatefulWidget {
   const ShunUiHost({
     super.key,
@@ -22,8 +28,8 @@ class ShunUiHost extends StatefulWidget {
   });
 
   final GlobalKey<NavigatorState> navigatorKey;
-  final ThemeData theme;
-  final ThemeData darkTheme;
+  final ShunUiTheme theme;
+  final ShunUiTheme darkTheme;
   final ThemeMode themeMode;
   final Locale locale;
   final Widget home;
@@ -44,7 +50,7 @@ class _ShunUiHostState extends State<ShunUiHost> {
     super.dispose();
   }
 
-  ThemeData _themeOf(BuildContext context) {
+  ShunUiTheme _themeOf(BuildContext context) {
     final dark = switch (widget.themeMode) {
       ThemeMode.dark => true,
       ThemeMode.light => false,
@@ -55,13 +61,17 @@ class _ShunUiHostState extends State<ShunUiHost> {
   }
 
   Widget _buildLayers(BuildContext context, Widget? navigator) {
-    final theme = _themeOf(context);
+    final ui = _themeOf(context);
+    final theme = materialThemeFor(
+      ui,
+      reduceMotion: MediaQuery.disableAnimationsOf(context),
+    );
     return Theme(
       data: theme,
       child: DefaultTextStyle(
         style: theme.textTheme.bodyMedium!,
         child: prism.Theme(
-          data: prismThemeForMaterial(theme),
+          data: ui.prismTheme,
           child: Builder(
             builder: (context) {
               final scaler = MediaQuery.textScalerOf(context);
@@ -76,8 +86,8 @@ class _ShunUiHostState extends State<ShunUiHost> {
                 measure: measure,
                 child: prism.ViewScope(
                   size: MediaQuery.sizeOf(context),
-                  isMobile: theme.platform == TargetPlatform.android ||
-                      theme.platform == TargetPlatform.iOS,
+                  isMobile: ui.platform == TargetPlatform.android ||
+                      ui.platform == TargetPlatform.iOS,
                   child: GhosttyDetachedThemeSync(
                     child: AppLockGate(
                       child: ScaffoldMessenger(

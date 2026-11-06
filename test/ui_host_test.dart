@@ -39,7 +39,10 @@ import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:shun/presentation/screens/terminal_screen.dart';
 import 'package:shun/presentation/terminal/ghostty_terminal_view.dart';
 import 'package:shun/presentation/terminal/terminal_view.dart';
+import 'package:shun/presentation/ui/material_compat.dart';
+import 'package:shun/presentation/ui/prism_theme.dart';
 import 'package:shun/presentation/ui/shun_ui_host.dart';
+import 'package:shun/presentation/widgets/custom_background.dart';
 import 'package:shun/presentation/widgets/security_key_prompt.dart';
 
 import 'support/ui_gallery_fixtures.dart';
@@ -741,20 +744,287 @@ void main() {
     expect(active.isDisposed, isFalse);
     expect(tester.takeException(), isNull);
   });
+
+  // R83 / UIM04：旧版本存下的主题 ID、模式、自定义背景、终端字号和输入方式照样生效；
+  // 逐项改设置时主题当帧就换好，HomeShell、终端页、挂着的终端视图和大输入框都是原来那一个，
+  // 草稿和焦点还在，前台和后台终端回答的背景色都等于当前主题。
+  testWidgets('R83 旧设置生效；切模式、主题、背景、字号不重建页面和终端，草稿焦点保留、终端配色同步',
+      (tester) async {
+    _allowIdleTasks(tester);
+    tester.view.physicalSize = const Size(824, 1800);
+    tester.view.devicePixelRatio = 2;
+    addTearDown(tester.view.reset);
+    tester.platformDispatcher.platformBrightnessTestValue = Brightness.light;
+    addTearDown(tester.platformDispatcher.clearPlatformBrightnessTestValue);
+    late final String backgroundFile;
+    final app = await _openShunApp(tester, (paths) async {
+      // 旧版本存下的背景：受管目录里的文件，设置里是可移植引用（格式不变，不迁移）。
+      final directory = Directory('${paths.supportPath}/custom-backgrounds');
+      await directory.create(recursive: true);
+      final file = File('${directory.path}/background-r83.png');
+      await file.writeAsBytes(base64Decode(_onePixelPng));
+      backgroundFile = file.absolute.path;
+      return const AppSettings(
+        themeMode: 'light',
+        uiThemeId: 'catppuccin',
+        terminalFontSize: 18,
+        terminalInputMode: terminalInputCompose,
+        customBackgroundEnabled: true,
+        customBackgroundPath: 'shun-background:background-r83.png',
+        customBackgroundOpacity: 0.65,
+        customBackgroundAlignment: 'bottomRight',
+        customBackgroundScope: 'global',
+        language: 'zh-CN',
+        autoSyncEnabled: false,
+      );
+    });
+    final container = app.container;
+    expect(container.read(settingsControllerProvider).customBackgroundPath,
+        backgroundFile);
+
+    // 旧设置生效。
+    final catppuccin = ShunUiTheme.resolve(Brightness.light, 'catppuccin');
+    final shell = find.byType(HomeShell);
+    expect(Theme.of(tester.element(shell)).colorScheme,
+        materialThemeFor(catppuccin).colorScheme);
+    expect(p.Theme.of(tester.element(shell)), same(catppuccin.prismTheme));
+    final background = find.byType(CustomBackgroundImage);
+    expect(background, findsOneWidget);
+    final image = tester.widget<Image>(
+      find.descendant(of: background, matching: find.byType(Image)),
+    );
+    expect((image.image as FileImage).file.path, backgroundFile);
+    expect(image.alignment, Alignment.bottomRight);
+    expect(
+      tester
+          .widget<Opacity>(
+            find.descendant(of: background, matching: find.byType(Opacity)),
+          )
+          .opacity,
+      0.65,
+    );
+
+    final bar = find.byKey(const ValueKey('home-navigation-bar'));
+    await tester.tap(find.descendant(of: bar, matching: find.text('终端')).last);
+    await _frames(tester);
+    container.read(sessionControllerProvider.notifier).activate(1);
+    await _frames(tester);
+    final shown = app.sessions.sessions[1].terminal as GhosttyTerminalAdapter;
+    final hidden = app.sessions.sessions[0].terminal as GhosttyTerminalAdapter;
+    final view = find.byType(GhosttyTerminalView);
+    expect(tester.widget<GhosttyTerminalView>(view).adapter, same(shown));
+    expect(tester.widget<GhosttyTerminalView>(view).options.fontSize, 18);
+    expect(
+      tester.widget<GhosttyTerminalView>(view).options.transparentBackground,
+      isTrue,
+    );
+    expect(hidden.hasActiveView, isFalse);
+
+    // 上次用的是大输入框：面板开着，在里面写一段还没发的草稿。
+    final editor = find.byKey(const ValueKey('terminal-compose-editor'));
+    expect(editor, findsOneWidget);
+    await tester.enterText(editor, 'r83-draft');
+    await _frames(tester);
+    final focus = FocusManager.instance.primaryFocus!;
+    expect(focus.hasFocus, isTrue);
+    final editable = find.descendant(of: editor, matching: find.byType(EditableText));
+    final before = (
+      shell: tester.state(shell),
+      screen: tester.state(find.byType(TerminalScreen, skipOffstage: false)),
+      view: tester.state(view),
+      engine: tester.state(find.byType(flterm.TerminalView)),
+      editable: tester.state(editable),
+    );
+    final rootKey = tester.widget<ShunUiHost>(find.byType(ShunUiHost)).navigatorKey;
+    final navigator = rootKey.currentState;
+
+    final changes = <(String, AppSettings Function(AppSettings), Brightness?)>[
+      ('深色', (s) => s.copyWith(themeMode: 'dark'), null),
+      ('认不出的主题 ID', (s) => s.copyWith(uiThemeId: 'no-such-theme'), null),
+      ('跟随系统，系统浅色', (s) => s.copyWith(themeMode: 'system'), Brightness.light),
+      ('跟随系统，系统换深色', (s) => s, Brightness.dark),
+      ('换回 tokyo-night', (s) => s.copyWith(uiThemeId: 'tokyo-night'), null),
+      ('关掉自定义背景', (s) => s.copyWith(customBackgroundEnabled: false), null),
+      ('重新打开背景', (s) => s.copyWith(customBackgroundEnabled: true), null),
+      ('终端字号 12', (s) => s.copyWith(terminalFontSize: 12), null),
+      ('浅色', (s) => s.copyWith(themeMode: 'light'), null),
+    ];
+    for (final (label, change, system) in changes) {
+      if (system != null) {
+        tester.platformDispatcher.platformBrightnessTestValue = system;
+      }
+      final next = change(container.read(settingsControllerProvider));
+      // 存盘要把背景的绝对路径换回可移植引用，是真文件 IO：在真实时间里等它存完，
+      // 假时钟里 await 会一直等下去。内存里的设置在调用时就已经换好。
+      await tester.runAsync(
+        () => container.read(settingsControllerProvider.notifier).update(next),
+      );
+      final settings = container.read(settingsControllerProvider);
+      final dark = switch (settings.themeMode) {
+        'light' => false,
+        'system' => tester.platformDispatcher.platformBrightness ==
+            Brightness.dark,
+        _ => true,
+      };
+      final expected = ShunUiTheme.resolve(
+        dark ? Brightness.dark : Brightness.light,
+        settings.uiThemeId,
+      );
+      final colors = materialThemeFor(expected).colorScheme;
+      // 只过一帧就是新主题：没有插值，也没有旧主题截图。
+      await tester.pump();
+      final context = tester.element(view);
+      expect(Theme.of(context).colorScheme, colors, reason: label);
+      expect(p.Theme.of(context), same(expected.prismTheme), reason: label);
+      await _frames(tester);
+      expect(find.byType(p.ThemeCrossFade), findsNothing, reason: label);
+      // 按钮自己里面有 AnimatedTheme（Flutter 的 ButtonStyleButton），那是按钮局部的；
+      // 要防的是套在整页外面、让终端跟着插值的那种。
+      expect(
+        find.ancestor(of: shell, matching: find.byType(AnimatedTheme)),
+        findsNothing,
+        reason: label,
+      );
+      // 终端正文上不加玻璃、模糊。
+      expect(find.byType(p.LiquidGlass), findsNothing, reason: label);
+      expect(find.byType(BackdropFilter), findsNothing, reason: label);
+      expect(rootKey.currentState, same(navigator), reason: label);
+      expect(tester.state(shell), same(before.shell), reason: label);
+      expect(
+        tester.state(find.byType(TerminalScreen, skipOffstage: false)),
+        same(before.screen),
+        reason: label,
+      );
+      expect(tester.state(view), same(before.view), reason: label);
+      expect(tester.state(find.byType(flterm.TerminalView)), same(before.engine),
+          reason: label);
+      expect(tester.state(editable), same(before.editable), reason: label);
+      expect(tester.widget<TextField>(editor).controller!.text, 'r83-draft',
+          reason: label);
+      expect(FocusManager.instance.primaryFocus, same(focus), reason: label);
+      expect(focus.hasFocus, isTrue, reason: label);
+      expect(_askBackground(shown), _answer(colors.surface), reason: label);
+      expect(_askBackground(hidden), _answer(colors.surface), reason: label);
+      final options = tester.widget<GhosttyTerminalView>(view).options;
+      expect(options.fontSize, settings.terminalFontSize, reason: label);
+      expect(options.transparentBackground, settings.customBackgroundEnabled,
+          reason: label);
+      expect(background.evaluate().isNotEmpty, settings.customBackgroundEnabled,
+          reason: label);
+      // 自定义背景只把页面这一层让给图片，卡片仍是不透明的卡片色。
+      final page = Theme.of(context);
+      expect(
+        page.scaffoldBackgroundColor,
+        settings.customBackgroundEnabled
+            ? Colors.transparent
+            : expected.prismTheme.scaffoldBackgroundColor,
+        reason: label,
+      );
+      expect(page.cardTheme.color, expected.preset.card, reason: label);
+      expect(page.cardTheme.color!.a, 1, reason: label);
+    }
+    expect(container.read(sessionControllerProvider).sessions, hasLength(2));
+    expect(shown.isDisposed, isFalse);
+    expect(hidden.isDisposed, isFalse);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('R83 减少动画：Prism 与 Material 都看到，展开一帧到位，切主题一帧完成', (tester) async {
+    tester.platformDispatcher.accessibilityFeaturesTestValue =
+        const FakeAccessibilityFeatures(disableAnimations: true);
+    addTearDown(tester.platformDispatcher.clearAccessibilityFeaturesTestValue);
+    final homeKey = GlobalKey();
+    final fixture = await _HostFixture.open(
+      tester,
+      home: Scaffold(
+        key: homeKey,
+        body: ListView(
+          children: const [
+            ExpansionTile(
+              key: ValueKey('r83-expansion'),
+              title: Text('r83-expand'),
+              children: [Text('r83-inside')],
+            ),
+          ],
+        ),
+      ),
+    );
+    var context = homeKey.currentContext!;
+    expect(MediaQuery.disableAnimationsOf(context), isTrue);
+    expect(context.disableAnimations, isTrue, reason: 'Prism 的判断');
+    expect(context.motionDuration(p.commonDuration), Duration.zero);
+    expect(Theme.of(context).expansionTileTheme.expansionAnimationStyle,
+        AnimationStyle.noAnimation);
+    expect(Theme.of(context).colorScheme, _lightTheme.colorScheme);
+
+    await tester.tap(find.text('r83-expand'));
+    await tester.pump();
+    // 第一帧就是展开后的样子：再等到动画（含按压水波）全部结束，位置和大小都不再变。
+    final firstFrame = tester.getRect(find.text('r83-inside'));
+    expect(firstFrame.height, greaterThan(0));
+    await tester.pumpAndSettle();
+    expect(tester.getRect(find.text('r83-inside')), firstFrame,
+        reason: '展开直接到位');
+
+    fixture.mode.value = ThemeMode.dark;
+    await tester.pump();
+    context = homeKey.currentContext!;
+    expect(Theme.of(context).colorScheme, _darkTheme.colorScheme);
+    expect(p.Theme.of(context), same(_darkUi.prismTheme));
+    expect(
+      find.ancestor(of: find.byKey(homeKey), matching: find.byType(AnimatedTheme)),
+      findsNothing,
+    );
+    expect(find.byType(p.ThemeCrossFade), findsNothing);
+
+    // 系统里关掉「移除动画」：展开回到 Prism 的公开时长。
+    tester.platformDispatcher.clearAccessibilityFeaturesTestValue();
+    await tester.pump();
+    context = homeKey.currentContext!;
+    expect(context.motionDuration(p.commonDuration), p.commonDuration);
+    expect(
+      Theme.of(context).expansionTileTheme.expansionAnimationStyle?.duration,
+      p.UnfoldEntryTransition.duration,
+    );
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('R83 宿主和主题不替换系统的非线性字号', (tester) async {
+    const scaler = _NonlinearTextScaler();
+    final homeKey = GlobalKey();
+    final fixture = await _HostFixture.open(
+      tester,
+      textScaler: scaler,
+      home: Scaffold(
+        key: homeKey,
+        body: const Text('r83-body'),
+      ),
+    );
+    for (final mode in [ThemeMode.light, ThemeMode.dark]) {
+      fixture.mode.value = mode;
+      await tester.pump();
+      final context = homeKey.currentContext!;
+      expect(MediaQuery.textScalerOf(context), same(scaler));
+      final paragraph = tester.renderObject<RenderParagraph>(
+        find.descendant(
+          of: find.text('r83-body'),
+          matching: find.byType(RichText),
+        ),
+      );
+      expect(paragraph.textScaler, same(scaler));
+      // 正文是 Prism 的 15；非线性放大后不是线性倍数。
+      expect(paragraph.text.style?.fontSize, 15);
+      expect(scaler.scale(15), isNot(closeTo(15 * scaler.scale(30) / 30, 0.01)));
+    }
+    expect(tester.takeException(), isNull);
+  });
 }
 
-final _lightTheme = ThemeData(
-  colorScheme: ColorScheme.fromSeed(
-    seedColor: Colors.teal,
-    brightness: Brightness.light,
-  ),
-);
-final _darkTheme = ThemeData(
-  colorScheme: ColorScheme.fromSeed(
-    seedColor: Colors.teal,
-    brightness: Brightness.dark,
-  ),
-);
+// R83 起宿主只接受语义主题；用默认 uiThemeId 的真实浅/深预设，断言照旧比对 Material 表示。
+final _lightUi = ShunUiTheme.resolve(Brightness.light, 'tokyo-night');
+final _darkUi = ShunUiTheme.resolve(Brightness.dark, 'tokyo-night');
+final _lightTheme = materialThemeFor(_lightUi);
+final _darkTheme = materialThemeFor(_darkUi);
 
 class _HostFixture {
   _HostFixture();
@@ -770,6 +1040,7 @@ class _HostFixture {
   static Future<_HostFixture> open(
     WidgetTester tester, {
     required Widget home,
+    TextScaler? textScaler,
   }) async {
     final fixture = _HostFixture();
     fixture.lock = AppLockController(
@@ -796,13 +1067,22 @@ class _HostFixture {
             builder: (_, mode, __) => ValueListenableBuilder<Locale>(
               valueListenable: fixture.locale,
               builder: (_, locale, __) {
-                return ShunUiHost(
+                final host = ShunUiHost(
                   navigatorKey: fixture.navigatorKey,
-                  theme: _lightTheme,
-                  darkTheme: _darkTheme,
+                  theme: _lightUi,
+                  darkTheme: _darkUi,
                   themeMode: mode,
                   locale: locale,
                   home: home,
+                );
+                if (textScaler == null) return host;
+                // WidgetsApp 的 MediaQuery.fromView 从上层继承平台字号，和系统给的一样。
+                return Builder(
+                  builder: (context) => MediaQuery(
+                    data: MediaQueryData.fromView(View.of(context))
+                        .copyWith(textScaler: textScaler),
+                    child: host,
+                  ),
                 );
               },
             ),
@@ -839,6 +1119,143 @@ class _DeviceAuth implements DeviceAuth {
 
   @override
   Future<void> setProtectRecents(bool enabled) async {}
+}
+
+/// R83 的真实 ShunApp：和上面 R82 的五入口测试同一套隔离夹具（内存存储、临时目录、
+/// 两个真 Ghostty 标签），设置由调用方给：[settings] 在真实 IO 里跑，可以先写文件。
+Future<({ProviderContainer container, SessionState sessions})> _openShunApp(
+  WidgetTester tester,
+  Future<AppSettings> Function(UiGalleryPaths paths) settings,
+) async {
+  SharedPreferences.setMockInitialValues({});
+  PackageInfo.setMockInitialValues(
+    appName: 'shun',
+    packageName: 'top.xdwa.shun.debug',
+    version: '1.4.7',
+    buildNumber: '33',
+    buildSignature: '',
+  );
+  final paths = (await tester.runAsync(UiGalleryPaths.create))!;
+  paths.install();
+  addTearDown(() => tester.runAsync(paths.dispose));
+  const secureStorage =
+      MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+  const pip = MethodChannel('top.xdwa.shun/picture_in_picture');
+  final messenger = tester.binding.defaultBinaryMessenger;
+  final secrets = <String, String>{};
+  messenger.setMockMethodCallHandler(secureStorage, (call) async {
+    final args = Map<String, dynamic>.from(call.arguments as Map? ?? {});
+    final key = args['key'] as String?;
+    switch (call.method) {
+      case 'read':
+        return secrets[key];
+      case 'write':
+        secrets[key!] = args['value'] as String;
+        return null;
+      case 'delete':
+        secrets.remove(key);
+        return null;
+      case 'readAll':
+        return Map<String, String>.of(secrets);
+      case 'containsKey':
+        return secrets.containsKey(key);
+      default:
+        return null;
+    }
+  });
+  messenger.setMockMethodCallHandler(pip, (_) async => null);
+  addTearDown(() {
+    messenger.setMockMethodCallHandler(secureStorage, null);
+    messenger.setMockMethodCallHandler(pip, null);
+  });
+
+  final repository = await VaultRepository.open();
+  final initial = (await tester.runAsync(() => settings(paths)))!;
+  await repository.saveSettings(initial);
+  await repository.saveVault(
+    VaultData.empty().copyWith(hosts: uiGalleryHosts),
+  );
+  final seed = uiGallerySessions();
+  seed.sessions.last.terminal.dispose();
+  final sessions = SessionState(sessions: seed.sessions.take(2).toList());
+  final container = ProviderContainer(overrides: [
+    vaultRepositoryProvider.overrideWithValue(repository),
+    catalogCacheRepositoryProvider.overrideWithValue(_NoCatalog()),
+    deviceAuthProvider.overrideWithValue(_DeviceAuth()),
+    connectionPlatformProvider.overrideWithValue(NoConnectionPlatform()),
+    httpClientProvider.overrideWithValue(MockClient(
+      (_) async => http.Response('{"tag_name":"v1.4.7"}', 200),
+    )),
+    sessionControllerProvider.overrideWith(
+      (ref) => UiGallerySessionController(
+        ref.read(vaultControllerProvider.notifier),
+        ref,
+        sessions,
+      ),
+    ),
+  ]);
+  addTearDown(() async {
+    await tester.pumpWidget(const SizedBox.shrink());
+    container.dispose();
+  });
+  await container.read(vaultControllerProvider.notifier).ready();
+  await tester.pumpWidget(UncontrolledProviderScope(
+    container: container,
+    child: const ShunApp(),
+  ));
+  await _waitForLocalFiles(tester, paths);
+  // 设置异步读入（背景路径要解析），读完之前是默认值。
+  for (var attempt = 0;
+      container.read(settingsControllerProvider).uiThemeId !=
+              initial.uiThemeId &&
+          attempt < 100;
+      attempt++) {
+    await tester.runAsync(
+        () => Future<void>.delayed(const Duration(milliseconds: 10)));
+    await tester.pump();
+  }
+  expect(container.read(settingsControllerProvider).uiThemeId,
+      initial.uiThemeId);
+  await _frames(tester);
+  return (container: container, sessions: sessions);
+}
+
+/// 远端问背景色（OSC 11）时终端的回答。
+String _askBackground(GhosttyTerminalAdapter terminal) {
+  final sent = <String>[];
+  final binding = terminal.bind((bytes) => sent.add(latin1.decode(bytes)));
+  terminal.feed(utf8.encode('\x1b]11;?\x07'));
+  binding.release();
+  return sent.join();
+}
+
+String _answer(Color color) {
+  String channel(double value) {
+    final hex = (value * 255).round().toRadixString(16).padLeft(2, '0');
+    return '$hex$hex';
+  }
+
+  final rgb = [color.r, color.g, color.b].map(channel).join('/');
+  return '\x1b]11;rgb:$rgb\x07';
+}
+
+/// 1×1 PNG，只用来让背景路径指向一个真实文件。
+const _onePixelPng =
+    'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+
+/// 像 Android 14 起的系统字号：小字放大得多、大字放大得少。只用来确认宿主不把它换成线性倍数。
+class _NonlinearTextScaler extends TextScaler {
+  const _NonlinearTextScaler();
+
+  @override
+  double scale(double fontSize) => fontSize * (fontSize < 20 ? 2.0 : 1.5);
+
+  @override
+  double get textScaleFactor => 2.0;
+
+  @override
+  TextScaler clamp({double minScaleFactor = 0, double maxScaleFactor = double.infinity}) =>
+      this;
 }
 
 Future<void> _frames(WidgetTester tester) async {
