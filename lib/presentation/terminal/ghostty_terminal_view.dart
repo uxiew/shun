@@ -29,7 +29,7 @@ TerminalTheme terminalColorsFor(ColorScheme scheme) => TerminalTheme(
       minimumContrast: terminalMinimumContrast,
     );
 
-/// 把 App 当前主题交给还没显示过的终端（后台标签等），放在 `MaterialApp.builder` 里，主题一变就跟着推。
+/// 把 App 当前主题交给还没显示过的终端（后台标签等）；位于 ShunUiHost 的 Material Theme 下。
 /// 不放的话它们在挂视图之前一直按深色回答，浅色主题下远端的 vim 会选深色配色。
 class GhosttyDetachedThemeSync extends StatefulWidget {
   const GhosttyDetachedThemeSync({super.key, required this.child});

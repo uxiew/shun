@@ -1,4 +1,13 @@
 const englishTranslations = <String, String>{
+  '返回': 'Back',
+  '清除搜索': 'Clear search',
+  '对话框': 'Dialog',
+  '无搜索结果': 'No search results',
+  '重置': 'Reset',
+  '选择': 'Select',
+  '收起': 'Show less',
+  '展开': 'Show more',
+  '提交': 'Submit',
   '检查远控客户端失败，请稍后重试。': 'Could not check remote clients. Retry later.',
   '绑定确认已变化，请重新确认。': 'The binding offer has changed. Confirm it again.',
   '不支持多签名客户端': 'Clients signed by multiple certificates are not supported',

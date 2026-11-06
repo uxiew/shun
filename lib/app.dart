@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'application/app_lock.dart';
@@ -15,9 +14,7 @@ import 'application/settings_controller.dart';
 import 'application/session_controller.dart';
 import 'infrastructure/ssh/connection_platform_service.dart';
 import 'presentation/home_shell.dart';
-import 'presentation/localization/localized_widgets.dart';
-import 'presentation/terminal/ghostty_terminal_view.dart';
-import 'presentation/widgets/app_lock_gate.dart';
+import 'presentation/ui/shun_ui_host.dart';
 import 'presentation/widgets/security_key_prompt.dart';
 import 'presentation/theme.dart';
 
@@ -101,7 +98,7 @@ class _ShunAppState extends ConsumerState<ShunApp> with WidgetsBindingObserver {
   }
 
   /// 锁着时返回键退到桌面，不让它把盖子底下的页面弹掉。
-  /// 这里先于 MaterialApp 的导航器收到：观察者按注册顺序问，这个类比 MaterialApp 先建。
+  /// 这里先于 ShunUiHost 的导航器收到：观察者按注册顺序问，这个类比宿主先建。
   @override
   Future<bool> didPopRoute() async {
     if (!ref.read(appLockControllerProvider).obscured) return false;
@@ -112,33 +109,19 @@ class _ShunAppState extends ConsumerState<ShunApp> with WidgetsBindingObserver {
   @override
   Widget build(BuildContext context) {
     final settings = ref.watch(settingsControllerProvider);
-    ShunLocalizations.use(settings.language);
     final mode = switch (settings.themeMode) {
       'light' => ThemeMode.light,
       'system' => ThemeMode.system,
       _ => ThemeMode.dark,
     };
-    return MaterialApp(
+    return ShunUiHost(
       navigatorKey: _navigatorKey,
-      // Android 最近任务列表显示的名字；与原版 Netcatty 同机并存时靠它区分。所有者 2026-10-11 定为 shun。
-      title: 'shun',
-      debugShowCheckedModeBanner: false,
       theme: ShunTheme.build(Brightness.light, settings.uiThemeId),
       darkTheme: ShunTheme.build(Brightness.dark, settings.uiThemeId),
       themeMode: mode,
       locale: settings.language == 'en'
           ? const Locale('en')
           : const Locale('zh', 'CN'),
-      supportedLocales: const [Locale('zh', 'CN'), Locale('en')],
-      localizationsDelegates: const [
-        GlobalMaterialLocalizations.delegate,
-        GlobalWidgetsLocalizations.delegate,
-        GlobalCupertinoLocalizations.delegate,
-      ],
-      // 后台标签的终端还没显示过时，也按现在的主题回答远端「背景是什么颜色」。
-      builder: (context, child) => GhosttyDetachedThemeSync(
-        child: AppLockGate(child: child ?? const SizedBox.shrink()),
-      ),
       home: const HomeShell(),
     );
   }

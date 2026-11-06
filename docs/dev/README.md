@@ -353,7 +353,7 @@ tool/build-release.sh && adb install -r build/app/outputs/flutter-apk/app-releas
 - 发布用的包一律走 `tool/build-release.sh`，别直接 `flutter build apk --release`：直接打会沿用缓存里的终端原生库，
   缓存被改了也照样打进包（实测翻一个字节，构建照常成功）。脚本先丢掉缓存、从核对过 SHA256 的源码重编，
   再查每个 `.so` 都是 16 KiB 对齐。要联网，比平时慢一两分钟。
-- 包里只有 arm64-v8a：只有它在设备上测过，别的 ABI 在 `android/app/build.gradle.kts` 里排除了。
+- 发布包只保留 arm64-v8a：只有它在设备上测过，`android/app/build.gradle.kts` 的 JNI 排除规则仅应用于 release。R82 的普通 debug 包仍附带其他 ABI 的第三方小库，Flutter/Ghostty 运行时只有 arm64，不能把 aapt 列出的其他 ABI 当成可运行支持（见 [R82](../../plan/v3/evidence/R82.md)）。
 
 - 包名 `top.xdwa.shun`，和原版 Netcatty（`app.netcatty.mobile`）并存、数据互不影响。**别把 applicationId 改成上游的值**，会覆盖原版。
   这是正式包（`tool/build-release.sh`、CI 打的）。调试包（`flutter run`、`flutter test`、`flutter drive` 装的）是 `top.xdwa.shun.debug`，

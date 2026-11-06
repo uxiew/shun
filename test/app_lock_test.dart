@@ -447,7 +447,7 @@ void main() {
       expect(tapped, isTrue);
     });
 
-    testWidgets('离开时只盖一下：焦点留着；真锁过：解锁后焦点还回去', (tester) async {
+    testWidgets('离开时先收输入、回来恢复原焦点；真锁过也能恢复', (tester) async {
       final container = await pumpGate(tester, const AppSettings());
       final field = tester.widget<EditableText>(find.byType(EditableText));
       expect(field.focusNode.hasFocus, isTrue);
@@ -458,8 +458,9 @@ void main() {
       controller.activityPaused(false);
       await tester.pump();
       expect(find.byKey(const ValueKey('app-lock-cover')), findsOneWidget);
-      expect(field.focusNode.hasFocus, isTrue);
+      expect(field.focusNode.hasFocus, isFalse, reason: '遮挡期间不保留 IME 连接');
       controller.lifecycleChanged(AppLifecycleState.resumed);
+      await tester.pump();
       await tester.pump();
       expect(find.byKey(const ValueKey('app-lock-cover')), findsNothing);
       expect(field.focusNode.hasFocus, isTrue);

@@ -11,6 +11,11 @@ dependencies:
     sdk: flutter
   flutter_localizations:
     sdk: flutter
+  # UI migration target (R82): keep the reviewed source revision fixed.
+  prism_ui:
+    git:
+      url: https://github.com/chen08209/prism_ui.git
+      ref: 63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185
   cupertino_icons: ^1.0.8
   # 升级要跑 plan/v3/docs/12 的矩阵；加密算法顺序自己定，见 ssh_client_defaults.dart。
   dartssh2: ^4.1.0
@@ -65,6 +70,9 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  # Flutter does not collect Prism's singular NOTICE automatically.
+  licenses:
+    - licenses/prism_ui-third-party.txt
   assets:
     - assets/
     - assets/brand/
