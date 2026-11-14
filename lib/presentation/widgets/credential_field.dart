@@ -6,6 +6,7 @@ import '../../domain/credential_identity.dart';
 import '../../domain/models/host.dart';
 import '../../domain/security_key.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import 'identity_editor.dart';
 import 'keychain_sheet.dart';
 import 'security_key_actions.dart';
@@ -118,11 +119,12 @@ class CredentialField extends ConsumerWidget {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          OutlinedButton.icon(
+          ShunButton(
             key: const ValueKey('credential-new-direct'),
+            label: '新建凭据',
+            icon: Icons.add,
+            kind: ShunButtonKind.outlined,
             onPressed: () => _create(context, ref),
-            icon: const Icon(Icons.add),
-            label: const LText('新建凭据'),
           ),
           if (errorText case final error?)
             Padding(
@@ -219,46 +221,42 @@ class _CredentialSheet extends ConsumerWidget {
     final hosts = vault?.hosts ?? const <HostProfile>[];
     final items =
         vault == null ? const <IdentityProfile>[] : vaultIdentities(vault);
+    // R88：分组卡片，当前那项打勾、读屏报「已选中」。
     return SafeArea(
-      child: ListView(
-        shrinkWrap: true,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
-            child: LText(
-              '选择凭据',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
-          ),
-          for (final item in items)
-            if (!passwordOnly ||
-                (item.auth == IdentityAuth.password && item.password != null))
-              ListTile(
-                key: ValueKey('credential-option-${item.id}'),
-                leading: Icon(credentialIcon(item, keys)),
-                title: Text(item.label),
-                subtitle: Text(
-                  [
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: ShunSection(
+          title: '选择凭据',
+          children: [
+            for (final item in items)
+              if (!passwordOnly ||
+                  (item.auth == IdentityAuth.password && item.password != null))
+                ShunListRow(
+                  key: ValueKey('credential-option-${item.id}'),
+                  leading: Icon(credentialIcon(item, keys)),
+                  title: item.label,
+                  subtitle: [
                     credentialDetail(item, keys),
                     if (identityUsageText(hosts, item) case final usage?) usage,
                   ].join(' · '),
+                  selected: item.id == selected,
+                  onTap: () => Navigator.pop(context, item.id),
                 ),
-                trailing: item.id == selected ? const Icon(Icons.check) : null,
-                onTap: () => Navigator.pop(context, item.id),
-              ),
-          ListTile(
-            key: const ValueKey('credential-new'),
-            leading: const Icon(Icons.add),
-            title: const LText('新建凭据'),
-            onTap: () => Navigator.pop(context, _newCredential),
-          ),
-          ListTile(
-            key: const ValueKey('credential-manage'),
-            leading: const Icon(Icons.tune),
-            title: const LText('管理凭据'),
-            onTap: () => Navigator.pop(context, _manageCredentials),
-          ),
-        ],
+            ShunListRow(
+              key: const ValueKey('credential-new'),
+              leading: const Icon(Icons.add),
+              title: '新建凭据',
+              onTap: () => Navigator.pop(context, _newCredential),
+            ),
+            ShunListRow(
+              key: const ValueKey('credential-manage'),
+              leading: const Icon(Icons.tune),
+              title: '管理凭据',
+              chevron: true,
+              onTap: () => Navigator.pop(context, _manageCredentials),
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -360,36 +358,38 @@ class SshKeyField extends ConsumerWidget {
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      builder: (context) => ListView(
-        shrinkWrap: true,
-        padding: const EdgeInsets.only(bottom: 16),
-        children: [
-          for (final key in keys)
-            ListTile(
-              key: ValueKey('ssh-key-option-${key.id}'),
-              leading: Icon(
-                SecurityKeyStub.isStubPem(key.privateKey)
-                    ? Icons.usb
-                    : Icons.key,
+      // R88：分组卡片，当前那把打勾、读屏报「已选中」。
+      builder: (context) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: ShunSection(
+          children: [
+            for (final key in keys)
+              ShunListRow(
+                key: ValueKey('ssh-key-option-${key.id}'),
+                leading: Icon(
+                  SecurityKeyStub.isStubPem(key.privateKey)
+                      ? Icons.usb
+                      : Icons.key,
+                ),
+                title: key.label,
+                subtitle: _detail(key),
+                selected: key.id == value,
+                onTap: () => Navigator.pop(context, key.id),
               ),
-              title: Text(key.label),
-              subtitle: Text(_detail(key)),
-              trailing: key.id == value ? const Icon(Icons.check) : null,
-              onTap: () => Navigator.pop(context, key.id),
+            ShunListRow(
+              key: const ValueKey('ssh-key-import'),
+              leading: const Icon(Icons.file_open_outlined),
+              title: '导入 SSH 私钥',
+              onTap: () => Navigator.pop(context, _importKey),
             ),
-          ListTile(
-            key: const ValueKey('ssh-key-import'),
-            leading: const Icon(Icons.file_open_outlined),
-            title: const LText('导入 SSH 私钥'),
-            onTap: () => Navigator.pop(context, _importKey),
-          ),
-          ListTile(
-            key: const ValueKey('ssh-key-add-security'),
-            leading: const Icon(Icons.usb),
-            title: const LText('添加安全密钥'),
-            onTap: () => Navigator.pop(context, _addSecurityKey),
-          ),
-        ],
+            ShunListRow(
+              key: const ValueKey('ssh-key-add-security'),
+              leading: const Icon(Icons.usb),
+              title: '添加安全密钥',
+              onTap: () => Navigator.pop(context, _addSecurityKey),
+            ),
+          ],
+        ),
       ),
     );
     if (choice == null || !context.mounted) return;

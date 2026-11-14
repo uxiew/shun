@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show SemanticsNode;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -15,6 +18,7 @@ import 'package:shun/presentation/widgets/connection_route_editor.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'support/prism_test_host.dart';
 import 'support/route_editor_actions.dart';
 
 // R41 / UX07：底部操作栏在键盘上方点得到；没保存离开要确认；高级按组折叠、没填写「自动」；
@@ -67,6 +71,8 @@ void main() {
         sshServiceProvider.overrideWithValue(probe),
       ],
       child: MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Builder(
           builder: (context) => Scaffold(
             body: FilledButton(
@@ -523,6 +529,229 @@ void main() {
     expect(field('密码（可选）'), findsOneWidget);
     expect(key('host-key'), findsNothing, reason: '选了密码就不摆密钥');
   });
+
+  group('UIM09（R88 迁移主机表单）', () {
+    List<String> editorKeys(WidgetTester tester) => [
+          for (final element in find
+              .descendant(
+                  of: find.byType(HostEditor),
+                  matching:
+                      find.byWidgetPredicate((w) => w.key is ValueKey<String>))
+              .evaluate())
+            (element.widget.key! as ValueKey<String>).value,
+        ];
+
+    /// 视口拉高到整张表单都建出来：列表只建看得见的，滚出去的 key 会找不到。
+    Future<void> tall(WidgetTester tester) async {
+      tester.view.physicalSize = const Size(390, 4000);
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('迁移前表单的入口一项不少、顺序不变：新建（高级展开）', (tester) async {
+      await open(tester);
+      await tall(tester);
+      await reveal(tester, key('advanced-all'));
+      await tester.tap(key('advanced-all'));
+      await tester.pumpAndSettle();
+      final keys = editorKeys(tester);
+      expect(_inOrder(_uim09NewKeysBefore, keys), isTrue,
+          reason: '现在的 key：\n${keys.join('\n')}');
+      expect(probe.probes, 0, reason: '打开表单、展开高级都不测');
+    });
+
+    testWidgets('迁移前表单的入口一项不少、顺序不变：编辑带跳板、标签、置顶的主机', (tester) async {
+      final jump = ssh({'id': 'jump', 'label': 'jump'});
+      await open(tester,
+          host: ssh({
+            'tags': ['a'],
+            'pinned': true,
+            'startupCommand': 'uptime',
+            'hostChain': {
+              'hostIds': ['jump']
+            },
+          }),
+          vaultHosts: [jump]);
+      await tall(tester);
+      await reveal(tester, key('advanced-all'));
+      await tester.tap(key('advanced-all'));
+      await tester.pumpAndSettle();
+      final keys = editorKeys(tester);
+      expect(_inOrder(_uim09EditKeysBefore, keys), isTrue,
+          reason: '现在的 key：\n${keys.join('\n')}');
+    });
+
+    testWidgets('高级是一行按钮，报展开状态；各块小标题各是一个标题节点；置顶开关只有一个节点', (tester) async {
+      final handle = tester.ensureSemantics();
+      // 填了地址的主机：路线算得出来，「连接时会这样走」才出现，它最容易和下拉框并成一个节点。
+      await open(tester, host: ssh());
+      SemanticsNode node(Finder finder) => tester.getSemantics(finder);
+      final advanced = find.bySemanticsLabel(RegExp('^高级'));
+      expect(
+          node(advanced),
+          isSemantics(
+              isButton: true,
+              hasTapAction: true,
+              hasExpandedState: true,
+              isExpanded: false));
+      await reveal(tester, key('advanced-all'));
+      await tester.tap(key('advanced-all'));
+      await tester.pumpAndSettle();
+      expect(node(advanced),
+          isSemantics(hasExpandedState: true, isExpanded: true));
+      for (final title in ['启动命令', '超时与保活', '标签和置顶']) {
+        expect(node(find.bySemanticsLabel(title)), isSemantics(isHeader: true),
+            reason: '$title 自己一个标题节点，不并进旁边的下拉框或输入框');
+      }
+      expect(node(find.bySemanticsLabel(RegExp('^连接路径'))),
+          isSemantics(isHeader: true));
+      expect(node(find.bySemanticsLabel('添加跳板机')),
+          isSemantics(hasExpandedState: true),
+          reason: '下拉框自己一个节点，没吞进别的字');
+      expect(find.bySemanticsLabel('连接时会这样走'), findsOneWidget);
+      final pinned = find.bySemanticsLabel('置顶显示');
+      expect(pinned, findsOneWidget);
+      expect(node(pinned),
+          isSemantics(isButton: true, hasToggledState: true, isToggled: false));
+      await reveal(tester, key('host-pinned'));
+      await tester.tap(key('host-pinned'));
+      await tester.pumpAndSettle();
+      expect(node(pinned), isSemantics(isToggled: true));
+
+      // Telnet：说明、路线预览、标签输入框各自还在读屏里，没有并到一起或丢掉。
+      await tester.scrollUntilVisible(key('host-type-Telnet'), -200,
+          scrollable: find.byType(Scrollable).first);
+      await tester.tap(key('host-type-Telnet'));
+      await tester.pumpAndSettle();
+      expect(find.bySemanticsLabel('Telnet 只能直连；保存时会去掉这台主机的代理和跳板。'),
+          findsOneWidget);
+      expect(find.bySemanticsLabel(RegExp('^连接时会这样走')), findsOneWidget);
+      expect(node(find.bySemanticsLabel(RegExp('^标签（逗号分隔）'))),
+          isSemantics(isTextField: true));
+      handle.dispose();
+    });
+
+    testWidgets('分组面板：当前那项打勾、报已选中，别的报未选中', (tester) async {
+      final handle = tester.ensureSemantics();
+      final web = ssh({'group': 'prod'});
+      await open(tester, host: web, vaultHosts: [
+        web,
+        ssh({'id': 'other', 'label': 'other', 'group': 'dev'}),
+      ]);
+      await tester.tap(key('host-group'));
+      await tester.pumpAndSettle();
+      expect(tester.getSemantics(find.bySemanticsLabel(RegExp('^prod'))),
+          isSemantics(hasSelectedState: true, isSelected: true));
+      expect(tester.getSemantics(find.bySemanticsLabel(RegExp('^dev'))),
+          isSemantics(hasSelectedState: true, isSelected: false));
+      expect(tester.getSemantics(find.bySemanticsLabel('不分组')),
+          isSemantics(hasSelectedState: true, isSelected: false));
+      await tester.tap(key('host-group-option-dev'));
+      await tester.pumpAndSettle();
+      expect(find.descendant(of: key('host-group'), matching: find.text('dev')),
+          findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('测试连接：只有点了才测；进行中能停，停了写清楚、不保存、不算验证', (tester) async {
+      await open(tester, host: ssh());
+      expect(probe.probes, 0);
+      probe.gate = Completer<void>();
+      await tester.tap(key('test-connection'));
+      // 进行中有转圈，pumpAndSettle 等不完；推够面板滑上来的时间。
+      for (var i = 0; i < 6; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(probe.probes, 1);
+      expect(key('probe-cancel'), findsOneWidget);
+      expect(key('probe-done'), findsNothing, reason: '进行中只有「停止」');
+      await tester.tap(key('probe-cancel'));
+      await tester.pumpAndSettle();
+      expect(find.text('已停止，已建好的连接都已关掉。'), findsOneWidget);
+      expect(key('probe-succeeded'), findsNothing);
+      await tester.tap(key('probe-done'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ConnectionProbeSheet), findsNothing);
+      expect(closed, isFalse, reason: '测试连接不关表单、不保存');
+      expect(result, isNull);
+      expect(status(tester), '未验证');
+      expect(probe.probes, 1, reason: '停了不自己重试');
+    });
+  });
+}
+
+/// 迁移前（R87 验收后的 910f3bf，lib 未改）同一份数据下表单里的 key，按出现顺序。
+/// R88 换了控件，这些 key 都要还在、先后不变（可以多出新的）。
+const _uim09NewKeysBefore = <String>[
+  'host-protocol',
+  'host-type-SSH',
+  'host-type-Mosh',
+  'host-type-Telnet',
+  'protocol-advice',
+  'ssh-login-mode',
+  'login-kind-password',
+  'login-kind-key',
+  'login-kind-credential',
+  'login-kind-tailscale',
+  'host-save-as-credential',
+  'host-group',
+  'advanced-all',
+  'advanced-all-state',
+  'advanced-route',
+  'advanced-route-state',
+  'route-preview',
+  'route-legs',
+  'route-add-proxy',
+  'add-jump-',
+  'advanced-startup',
+  'advanced-timeouts',
+  'advanced-organize',
+  'host-editor-verification',
+  'test-connection',
+  'host-editor-cancel',
+  'host-editor-save',
+];
+const _uim09EditKeysBefore = <String>[
+  'host-protocol',
+  'host-type-SSH',
+  'host-type-Mosh',
+  'host-type-Telnet',
+  'protocol-advice',
+  'ssh-login-mode',
+  'login-kind-password',
+  'login-kind-key',
+  'login-kind-credential',
+  'login-kind-tailscale',
+  'host-save-as-credential',
+  'host-group',
+  'advanced-all',
+  'advanced-all-state',
+  'advanced-route',
+  'advanced-route-state',
+  'route-preview',
+  'route-clear',
+  'route-legs',
+  'route-add-proxy',
+  'jump-up-0',
+  'jump-down-0',
+  'jump-remove-0',
+  'add-jump-jump',
+  'route-preview-error',
+  'advanced-startup',
+  'advanced-timeouts',
+  'advanced-organize',
+  'host-editor-verification',
+  'test-connection',
+  'host-editor-cancel',
+  'host-editor-save',
+];
+
+/// [expected] 按顺序出现在 [actual] 里（中间可以夹别的）。
+bool _inOrder(List<String> expected, List<String> actual) {
+  var at = 0;
+  for (final key in actual) {
+    if (at < expected.length && expected[at] == key) at++;
+  }
+  return at == expected.length;
 }
 
 /// 只替换「测试连接」：按 [fail] 成功或失败，记次数。不碰网络。
@@ -530,6 +759,9 @@ class _ProbeSsh extends SshService {
   var fail = false;
   var probes = 0;
   TmuxProbe? tmux;
+
+  /// 不为 null 时卡在这里，直到完成或被「停止」取消（R88）。
+  Completer<void>? gate;
 
   @override
   Future<ProbeOutcome> probe({
@@ -545,6 +777,10 @@ class _ProbeSsh extends SshService {
   }) async {
     probes++;
     await Future<void>.delayed(Duration.zero);
+    if (gate case final gate?) {
+      attempt.report(ConnectionStage(ConnectionStep.dial, label: host.label));
+      await attempt.waitFor(gate.future);
+    }
     if (fail) throw StateError('登录被拒绝');
     return ProbeOutcome(tty: '/dev/pts/1', tmux: tmux);
   }

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/vault_controller.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 
 /// 选这台放哪个分组：列出已有的，没有合适的当场新建。
 ///
@@ -43,35 +44,36 @@ class HostGroupField extends ConsumerWidget {
       isScrollControlled: true,
       useSafeArea: true,
       showDragHandle: true,
-      builder: (context) => ListView(
-        shrinkWrap: true,
-        padding: const EdgeInsets.only(bottom: 16),
-        children: [
-          ListTile(
-            key: const ValueKey('host-group-none'),
-            leading: const Icon(Icons.folder_off_outlined),
-            title: const LText('不分组'),
-            trailing: value.isEmpty ? const Icon(Icons.check) : null,
-            onTap: () => Navigator.pop(context, const _GroupChoice('')),
-          ),
-          for (final name in names)
-            ListTile(
-              key: ValueKey('host-group-option-$name'),
-              leading: const Icon(Icons.folder_outlined),
-              title: Text(name),
-              subtitle: LText(
-                localized('{n} 台主机').replaceAll('{n}', '${counts[name]}'),
-              ),
-              trailing: name == value ? const Icon(Icons.check) : null,
-              onTap: () => Navigator.pop(context, _GroupChoice(name)),
+      // R88：分组卡片（和设置页同一套），当前那项打勾、读屏报「已选中」。
+      builder: (context) => SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+        child: ShunSection(
+          children: [
+            ShunListRow(
+              key: const ValueKey('host-group-none'),
+              leading: const Icon(Icons.folder_off_outlined),
+              title: '不分组',
+              selected: value.isEmpty,
+              onTap: () => Navigator.pop(context, const _GroupChoice('')),
             ),
-          ListTile(
-            key: const ValueKey('host-group-new'),
-            leading: const Icon(Icons.create_new_folder_outlined),
-            title: const LText('新建分组'),
-            onTap: () => Navigator.pop(context, const _GroupChoice.create()),
-          ),
-        ],
+            for (final name in names)
+              ShunListRow(
+                key: ValueKey('host-group-option-$name'),
+                leading: const Icon(Icons.folder_outlined),
+                title: name,
+                subtitle:
+                    localized('{n} 台主机').replaceAll('{n}', '${counts[name]}'),
+                selected: name == value,
+                onTap: () => Navigator.pop(context, _GroupChoice(name)),
+              ),
+            ShunListRow(
+              key: const ValueKey('host-group-new'),
+              leading: const Icon(Icons.create_new_folder_outlined),
+              title: '新建分组',
+              onTap: () => Navigator.pop(context, const _GroupChoice.create()),
+            ),
+          ],
+        ),
       ),
     );
     if (choice == null || !context.mounted) return;

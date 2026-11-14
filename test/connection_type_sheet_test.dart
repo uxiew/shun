@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show SemanticsNode;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -351,18 +352,23 @@ void main() {
         signingDigest: 'author-cert',
         capabilities: {Capability.terminalSession},
         permissions: {Permission.ownSessionInputOutput}));
+    final semantics = tester.ensureSemantics();
     final container = await open(tester, sheet());
     final tile = find.byKey(const ValueKey('connection-type-Terminal'));
     await tester.ensureVisible(tile);
-    expect(tester.widget<ListTile>(tile).enabled, isTrue);
+    // 按读屏看能不能点，不按控件类型（R88 从 ListTile 换成了 ShunListRow）。
+    SemanticsNode row() => tester.getSemantics(find.descendant(
+        of: tile, matching: find.text('Terminal'), matchRoot: true));
+    expect(row(), isSemantics(isEnabled: true, hasTapAction: true));
     container.read(pluginRegistryProvider.notifier).revoke('example.terminal');
     await tester.pumpAndSettle();
-    expect(tester.widget<ListTile>(tile).enabled, isFalse);
+    expect(row(), isSemantics(isEnabled: false, hasTapAction: false));
     expect(find.textContaining('还没批准'), findsOneWidget);
     bridge.installed = [];
     await (await container.read(pluginDiscoveryProvider.future)).refresh();
     await tester.pumpAndSettle();
     expect(bridge.opened, isEmpty);
+    semantics.dispose();
   }, variant: TargetPlatformVariant.only(TargetPlatform.android));
 
   testWidgets('approved plugin selection saves and reopens without SSH fields',

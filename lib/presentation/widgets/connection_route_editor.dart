@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
 import '../../domain/route_description.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import 'connection_route_draft.dart';
 import 'route_legs_view.dart';
 import 'jump_route_choice_dialog.dart';
@@ -92,9 +94,11 @@ class _ConnectionRouteEditorState extends State<ConnectionRouteEditor> {
     }
   }
 
+  /// 路线上的一站（R88）：Prism 卡片那一层的底色和圆角，读屏是一个分组，里面的按钮各自成节点。
   Widget _node(RouteLeg leg, int index, {List<Widget> actions = const []}) =>
-      Card(
-          child: Padding(
+      prism.ItemPositionProvider(
+          position: prism.ItemPosition.startAndEnd,
+          child: ShunSectionItem(
               padding: const EdgeInsets.all(10),
               child:
                   Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -159,15 +163,18 @@ class _ConnectionRouteEditorState extends State<ConnectionRouteEditor> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Wrap(spacing: 8, children: [
-            TextButton(
-                onPressed: widget.onManageProxies, child: const LText('代理管理')),
+            ShunButton(
+                label: '代理管理',
+                kind: ShunButtonKind.text,
+                onPressed: widget.onManageProxies),
             if (draft.usesProxy ||
                 draft.jumpHostIds.isNotEmpty ||
                 widget.error != null)
-              TextButton(
+              ShunButton(
                   key: const ValueKey('route-clear'),
-                  onPressed: () => _change(draft.clear),
-                  child: const LText('清空路线')),
+                  label: '清空路线',
+                  kind: ShunButtonKind.text,
+                  onPressed: () => _change(draft.clear)),
           ]),
           if (draft.jumpHostIds.any((id) {
             final host =
@@ -180,12 +187,13 @@ class _ConnectionRouteEditorState extends State<ConnectionRouteEditor> {
             const LText('跳板自带路线，先确认怎么展开（最多 3 跳）。'),
             if (!widget.canConfirmRoutes)
               const LText('代理凭据尚未就绪，请等待加载或修复无法读取的凭据。'),
-            TextButton(
+            ShunButton(
                 key: const ValueKey('route-confirm-jumps'),
+                label: '检查并展开跳板路线',
+                kind: ShunButtonKind.text,
                 onPressed: _selecting || !widget.canConfirmRoutes
                     ? null
-                    : _confirmRoutes,
-                child: const LText('检查并展开跳板路线')),
+                    : _confirmRoutes),
           ],
           if (_choiceError != null)
             LText(_choiceError!,
@@ -205,47 +213,55 @@ class _ConnectionRouteEditorState extends State<ConnectionRouteEditor> {
                 _node(legs[index], index, actions: [
                   if (legs[index].kind == RouteLegKind.phone &&
                       !draft.usesProxy)
-                    TextButton(
+                    ShunButton(
                         key: const ValueKey('route-add-proxy'),
-                        onPressed: _selecting ? null : () => _select(),
-                        child: const LText('添加代理')),
+                        label: '添加代理',
+                        kind: ShunButtonKind.text,
+                        onPressed: _selecting ? null : () => _select()),
                   if (legs[index].kind == RouteLegKind.proxy) ...[
-                    TextButton(
+                    ShunButton(
                         key: const ValueKey('route-change-proxy'),
-                        onPressed: _selecting ? null : () => _select(),
-                        child: const LText('更换代理')),
-                    TextButton(
+                        label: '更换代理',
+                        kind: ShunButtonKind.text,
+                        onPressed: _selecting ? null : () => _select()),
+                    ShunButton(
                         key: const ValueKey('route-remove-proxy'),
-                        onPressed: () => _change(draft.removeProxy),
-                        child: const LText('移除代理')),
+                        label: '移除代理',
+                        kind: ShunButtonKind.text,
+                        onPressed: () => _change(draft.removeProxy)),
                     if (draft.inlineProxy is Map)
-                      TextButton(
+                      ShunButton(
                           key: const ValueKey('route-save-inline'),
+                          label: '存为可复用代理',
+                          kind: ShunButtonKind.text,
                           onPressed:
-                              _selecting ? null : () => _select(convert: true),
-                          child: const LText('存为可复用代理')),
+                              _selecting ? null : () => _select(convert: true)),
                   ],
                 ]),
               // Insert a jump immediately before the target, regardless of entry.
               if (index == legs.length - 2 &&
                   draft.jumpHostIds.length < maxJumpHosts)
+                // 下拉框自己一个读屏节点：不隔开，上面「连接时会这样走」会和它并成一个（R88 清点实测）。
                 Padding(
                     padding: const EdgeInsets.symmetric(vertical: 8),
-                    child: DropdownButtonFormField<String>(
-                      key: ValueKey('add-jump-${draft.jumpHostIds.join(',')}'),
-                      isExpanded: true,
-                      decoration: LInputDecoration(labelText: '添加跳板机'),
-                      items: [
-                        for (final h in candidates)
-                          DropdownMenuItem(
-                              value: h.id,
-                              child: Text(h.label,
-                                  overflow: TextOverflow.ellipsis))
-                      ],
-                      onChanged: (id) {
-                        if (id != null) _change(() => draft.addJump(id));
-                      },
-                    )),
+                    child: Semantics(
+                        container: true,
+                        child: DropdownButtonFormField<String>(
+                          key: ValueKey(
+                              'add-jump-${draft.jumpHostIds.join(',')}'),
+                          isExpanded: true,
+                          decoration: LInputDecoration(labelText: '添加跳板机'),
+                          items: [
+                            for (final h in candidates)
+                              DropdownMenuItem(
+                                  value: h.id,
+                                  child: Text(h.label,
+                                      overflow: TextOverflow.ellipsis))
+                          ],
+                          onChanged: (id) {
+                            if (id != null) _change(() => draft.addJump(id));
+                          },
+                        ))),
             ],
           ]),
           // 「代理只用于第一跳」挪进了「连接路径」的 ⓘ；口令明文这句留在页面上：

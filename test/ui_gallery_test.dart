@@ -23,6 +23,7 @@ import 'package:shun/domain/models/vault.dart';
 import 'package:shun/infrastructure/device_auth.dart';
 import 'package:shun/infrastructure/http_client_provider.dart';
 import 'package:shun/infrastructure/ssh/sftp_service.dart';
+import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/tailscale/catalog_cache.dart';
 import 'package:shun/infrastructure/tailscale/catalog_cache_repository.dart';
@@ -41,6 +42,8 @@ import 'package:shun/presentation/screens/tailscale_settings_screen.dart';
 import 'package:shun/presentation/terminal/ghostty_terminal_view.dart';
 import 'package:shun/presentation/ui/prism_theme.dart';
 import 'package:shun/presentation/ui/shun_ui_host.dart';
+import 'package:shun/domain/connection_route.dart';
+import 'package:shun/presentation/widgets/connection_probe_sheet.dart';
 import 'package:shun/presentation/widgets/custom_background.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shun/presentation/widgets/proxy_profile_editor.dart';
@@ -187,6 +190,8 @@ void main() {
         String? backgroundScope,
         String viewMode = 'grid',
         List<CatalogCache> catalogs = const [],
+        double textScale = 1,
+        SshService? ssh,
       }) async {
         await loadFonts(tester);
         final paths = (await tester.runAsync(UiGalleryPaths.create))!;
@@ -201,7 +206,7 @@ void main() {
         tester.view.physicalSize = Size(width * 2, height * 2);
         tester.view.devicePixelRatio = 2;
         tester.view.viewInsets = FakeViewPadding.zero;
-        tester.platformDispatcher.textScaleFactorTestValue = 1;
+        tester.platformDispatcher.textScaleFactorTestValue = textScale;
         addTearDown(tester.view.reset);
         addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
         // flterm 的 idle 任务不等待不存在的真实帧时钟；与现有终端测试保持一致。
@@ -239,6 +244,7 @@ void main() {
               )),
           catalogCacheRepositoryProvider
               .overrideWithValue(_GalleryCatalog(catalogs)),
+          if (ssh != null) sshServiceProvider.overrideWithValue(ssh),
           httpClientProvider.overrideWithValue(MockClient(
               (_) async => http.Response('{"tag_name":"v1.4.7"}', 200))),
           sessionControllerProvider.overrideWith(
@@ -389,6 +395,78 @@ void main() {
             .tap(find.byKey(const ValueKey('connection-type-RustDesk')));
         await save(tester, 'host-new-rustdesk');
       });
+
+      // R88 主机表单：其余分支、编辑已有主机、键盘弹出、大字号、密钥面板、测试连接。
+      testWidgets('新建连接：Mosh、Telnet、Tailscale 登录', skip: skip != null,
+          (tester) async {
+        await pumpPage(tester, HostEditor(onOtherType: (_) {}), height: 844);
+        await tester.tap(find.byKey(const ValueKey('host-type-Mosh')));
+        await save(tester, 'host-new-mosh-412x844-zh-s1');
+        await tester.tap(find.byKey(const ValueKey('host-type-Telnet')));
+        await save(tester, 'host-new-telnet-412x844-zh-s1');
+        await tester.tap(find.byKey(const ValueKey('host-type-SSH')));
+        await settle(tester);
+        await tester.tap(find.byKey(const ValueKey('login-kind-tailscale')));
+        await save(tester, 'host-new-tailscale-412x844-zh-s1');
+        await tester.tap(find.byKey(const ValueKey('login-kind-key')));
+        await settle(tester);
+        await tester.tap(find.byKey(const ValueKey('host-key')));
+        await save(tester, 'host-new-key-sheet-412x844-zh-s1');
+      });
+
+      testWidgets('编辑连接：带跳板、标签、置顶，高级展开', skip: skip != null, (tester) async {
+        await pumpPage(
+          tester,
+          HostEditor(host: uiGalleryEditedHost, onDelete: () async => false),
+          height: 2300,
+          hosts: [uiGalleryJumpHost, uiGalleryEditedHost],
+        );
+        await save(tester, 'host-edit-412x2300-zh-s1');
+        await tester.tap(find.byKey(const ValueKey('advanced-all')));
+        await save(tester, 'host-edit-advanced-412x2300-zh-s1');
+      });
+
+      testWidgets('新建连接：键盘弹出时底栏在键盘上方', skip: skip != null, (tester) async {
+        await pumpPage(tester, HostEditor(onOtherType: (_) {}), height: 844);
+        await tester
+            .showKeyboard(find.widgetWithText(TextFormField, '主机名 / IP'));
+        tester.view.viewInsets = const FakeViewPadding(bottom: 600);
+        await save(tester, 'host-new-keyboard-412x844-zh-s1');
+      });
+
+      for (final scale in const [1.3, 2.0]) {
+        testWidgets('新建连接：字号 $scale 倍', skip: skip != null, (tester) async {
+          await pumpPage(tester, HostEditor(onOtherType: (_) {}),
+              height: 844, textScale: scale);
+          final name = scale == 2.0 ? 's20' : 's13';
+          await save(tester, 'host-new-412x844-zh-$name');
+        });
+      }
+
+      for (final fail in const [false, true]) {
+        testWidgets('测试连接：${fail ? '失败' : '成功'}', skip: skip != null,
+            (tester) async {
+          final host = uiGalleryHosts.first;
+          await pumpPage(
+            tester,
+            Scaffold(
+              body: ConnectionProbeSheet(
+                host: host,
+                plan: resolveRoutePlan(host,
+                    hosts: const [], proxyProfiles: const []),
+                verifyHostKey: (_, __, ___) async => true,
+              ),
+            ),
+            height: 844,
+            ssh: UiGalleryProbe(fail: fail),
+          );
+          expect(
+              find.byKey(ValueKey(fail ? 'probe-failed' : 'probe-succeeded')),
+              findsOneWidget);
+          await save(
+              tester, 'probe-${fail ? 'failed' : 'succeeded'}-412x844-zh-s1');
+        });
+      }
 
       testWidgets('新建连接：高级展开', skip: skip != null, (tester) async {
         await pumpPage(tester, const HostEditor(), height: 1900);

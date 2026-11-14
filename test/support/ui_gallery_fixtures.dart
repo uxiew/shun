@@ -1,12 +1,14 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/tailscale_catalog_refresh.dart';
 import 'package:shun/application/vault_controller.dart';
+import 'package:shun/domain/connection_route.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/infrastructure/ssh/sftp_service.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
@@ -347,3 +349,56 @@ class UiGalleryFiles extends MountableFileTransferService {
   @override
   Future<void> delete(RemoteEntry entry) async => _readOnly();
 }
+
+/// R88 测试连接页：走完拨号、握手两步，按 [fail] 报成功或服务器拒绝登录（和真的一样带提示）。不碰网络。
+class UiGalleryProbe extends SshService {
+  UiGalleryProbe({this.fail = false});
+
+  final bool fail;
+
+  @override
+  Future<ProbeOutcome> probe({
+    required HostProfile host,
+    List<HostProfile> hosts = const [],
+    List<SshKeyProfile> keys = const [],
+    List<Map<String, dynamic>> identities = const [],
+    List<ProxyProfile> proxyProfiles = const [],
+    RoutePlan? routePlan,
+    required HostKeyVerifier verifyHostKey,
+    KeyboardInteractiveHandler? keyboardInteractive,
+    required ConnectionAttempt attempt,
+  }) async {
+    attempt.report(ConnectionStage(ConnectionStep.dial, label: host.label));
+    attempt
+        .report(ConnectionStage(ConnectionStep.handshake, label: host.label));
+    if (fail) {
+      throw RouteHopException(0, host.label, SSHAuthFailError('denied'));
+    }
+    return const ProbeOutcome(tty: '/dev/pts/3');
+  }
+}
+
+/// R88 编辑已有主机：一台跳板，一台经它连、带标签、置顶、启动命令的主机。
+final uiGalleryJumpHost = HostProfile({
+  'id': 'gallery-jump',
+  'label': '跳板',
+  'hostname': 'jump.example.test',
+  'username': 'demo',
+  'protocol': 'ssh',
+});
+
+final uiGalleryEditedHost = HostProfile({
+  'id': 'gallery-edit',
+  'label': '示例 API',
+  'hostname': 'api.example.test',
+  'port': 2222,
+  'username': 'demo',
+  'protocol': 'ssh',
+  'group': '开发',
+  'tags': ['api', 'prod'],
+  'pinned': true,
+  'startupCommand': 'tmux ls',
+  'hostChain': {
+    'hostIds': ['gallery-jump'],
+  },
+});

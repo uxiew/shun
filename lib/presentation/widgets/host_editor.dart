@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -37,6 +38,7 @@ import 'connection_endpoint_fields.dart';
 import 'hint.dart';
 import '../../domain/vault_secrets.dart';
 import '../../domain/credential_identity.dart';
+import '../ui/components.dart';
 
 /// 这台怎么登录。密码、密钥是这一台自己的；凭据是多台共用的一份。
 enum _LoginKind { password, key, credential, tailscale }
@@ -507,11 +509,12 @@ class _HostEditorState extends ConsumerState<HostEditor> {
 
   Widget _saveAsCredentialButton() => Align(
         alignment: Alignment.centerLeft,
-        child: TextButton.icon(
+        child: ShunButton(
           key: const ValueKey('host-save-as-credential'),
+          label: '存为凭据',
+          icon: Icons.bookmark_add_outlined,
+          kind: ShunButtonKind.text,
           onPressed: username.text.trim().isEmpty ? null : _saveAsCredential,
-          icon: const Icon(Icons.bookmark_add_outlined),
-          label: const LText('存为凭据'),
         ),
       );
 
@@ -825,12 +828,16 @@ class _HostEditorState extends ConsumerState<HostEditor> {
             id: 'route',
             title: '连接路径',
             state: _routeState,
+            // 说明和预览各自成读屏节点：不隔开会并进下面的「标签」输入框（R88 清点实测）。
             children: [
-              const LText(
-                'Telnet 只能直连；保存时会去掉这台主机的代理和跳板。',
-                key: ValueKey('telnet-direct-only'),
+              Semantics(
+                container: true,
+                child: const LText(
+                  'Telnet 只能直连；保存时会去掉这台主机的代理和跳板。',
+                  key: ValueKey('telnet-direct-only'),
+                ),
               ),
-              _routePreview(preview),
+              Semantics(container: true, child: _routePreview(preview)),
             ],
           ),
         if (_sshLike)
@@ -995,11 +1002,15 @@ class _HostEditorState extends ConsumerState<HostEditor> {
               controller: tags,
               decoration: LInputDecoration(labelText: '标签（逗号分隔）'),
             ),
-            SwitchListTile(
-              contentPadding: EdgeInsets.zero,
-              title: const LText('置顶显示'),
-              value: pinned,
-              onChanged: (value) => setState(() => pinned = value),
+            const SizedBox(height: 12),
+            prism.ItemPositionProvider(
+              position: prism.ItemPosition.startAndEnd,
+              child: ShunSwitchRow(
+                key: const ValueKey('host-pinned'),
+                title: '置顶显示',
+                value: pinned,
+                onChanged: (value) => setState(() => pinned = value),
+              ),
             ),
           ],
         ),
@@ -1049,9 +1060,15 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         protocol == HostProtocol.ssh;
     // 放在 bottomNavigationBar：SnackBar 会浮在它上面，不挡保存按钮。但 Scaffold 不会把这一栏抬到键盘上方，
     // 所以自己补上键盘高度的内边距，键盘弹出时仍点得到（UX07）。
-    return Material(
-      elevation: 3,
-      color: theme.colorScheme.surfaceContainer,
+    // R88：Prism 卡片那一层底色加顶上一条细线（FlClash 底栏同款），不再用 Material 的阴影。
+    final colors = prism.Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: prism.SurfaceContext(context).raisedSurfaceLevel.colorOf(colors),
+        border: Border(
+          top: BorderSide(color: prism.Divider.colorOf(context), width: 0.5),
+        ),
+      ),
       child: Padding(
         padding:
             EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
@@ -1083,23 +1100,25 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                 Row(
                   children: [
                     if (canTest)
-                      OutlinedButton.icon(
+                      ShunButton(
                         key: const ValueKey('test-connection'),
+                        label: '测试连接',
+                        icon: Icons.network_check,
+                        kind: ShunButtonKind.outlined,
                         onPressed: _testConnection,
-                        icon: const Icon(Icons.network_check, size: 18),
-                        label: const LText('测试连接'),
                       ),
                     const Spacer(),
-                    TextButton(
+                    ShunButton(
                       key: const ValueKey('host-editor-cancel'),
+                      label: '取消',
+                      kind: ShunButtonKind.text,
                       onPressed: _leave,
-                      child: const LText('取消'),
                     ),
                     const SizedBox(width: 8),
-                    FilledButton(
+                    ShunButton(
                       key: const ValueKey('host-editor-save'),
+                      label: '保存',
                       onPressed: _save,
-                      child: const LText('保存'),
                     ),
                   ],
                 ),
@@ -1228,37 +1247,36 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   Widget _tailscaleLoginNote(RoutePlan? plan) {
     final theme = Theme.of(context);
     final style = theme.textTheme.bodySmall;
-    return Container(
-      key: const ValueKey('tailscale-login-note'),
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(10),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          LText(
-            '不发密码和私钥，由 Tailscale 按策略放行。要 check 时在浏览器里确认。',
-            style: style,
-          ),
-          const SizedBox(height: 6),
-          LText('Tailscale 会把这次登录算成：', style: theme.textTheme.labelMedium),
-          LText(
-            plan == null
-                ? '填好地址和路线后显示。'
-                : tailscaleSourceNode(plan, plan.hops.length - 1),
-            key: const ValueKey('tailscale-source-node'),
-            style: style,
-          ),
-          const SizedBox(height: 6),
-          LText(tailscaleCatalogIsNotIdentity, style: style),
-          LText(
-            '已存的密码、私钥留着不用，改回普通 SSH 还能用。',
-            style: style,
-          ),
-        ],
+    // R88：Prism 卡片那一层的底色和圆角（ShunSectionItem 单独用要自己给位置，不然是方角）。
+    return prism.ItemPositionProvider(
+      position: prism.ItemPosition.startAndEnd,
+      child: ShunSectionItem(
+        key: const ValueKey('tailscale-login-note'),
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            LText(
+              '不发密码和私钥，由 Tailscale 按策略放行。要 check 时在浏览器里确认。',
+              style: style,
+            ),
+            const SizedBox(height: 6),
+            LText('Tailscale 会把这次登录算成：', style: theme.textTheme.labelMedium),
+            LText(
+              plan == null
+                  ? '填好地址和路线后显示。'
+                  : tailscaleSourceNode(plan, plan.hops.length - 1),
+              key: const ValueKey('tailscale-source-node'),
+              style: style,
+            ),
+            const SizedBox(height: 6),
+            LText(tailscaleCatalogIsNotIdentity, style: style),
+            LText(
+              '已存的密码、私钥留着不用，改回普通 SSH 还能用。',
+              style: style,
+            ),
+          ],
+        ),
       ),
     );
   }
@@ -1330,8 +1348,11 @@ class _HostEditorState extends ConsumerState<HostEditor> {
       if (current.entry case final entry? when entry.settingsActivity != null)
         Align(
           alignment: Alignment.centerLeft,
-          child: TextButton.icon(
+          child: ShunButton(
             key: const ValueKey('plugin-open-settings-from-editor'),
+            label: '打开插件的设置页',
+            icon: Icons.open_in_new,
+            kind: ShunButtonKind.text,
             onPressed: () async {
               final discovery = await ref.read(pluginDiscoveryProvider.future);
               try {
@@ -1340,8 +1361,6 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                 _message('$error');
               }
             },
-            icon: const Icon(Icons.open_in_new),
-            label: const LText('打开插件的设置页'),
           ),
         ),
       if (routeProblem != null) ...[
@@ -1361,12 +1380,13 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                   style: small?.copyWith(
                       color: theme.colorScheme.onErrorContainer)),
               const SizedBox(height: 6),
-              OutlinedButton(
+              ShunButton(
                 key: const ValueKey('plugin-route-clear'),
+                label: '改成直连（去掉这台主机上的代理和跳板设置）',
+                kind: ShunButtonKind.outlined,
                 onPressed: () => setState(() {
                   route.clear();
                 }),
-                child: const LText('改成直连（去掉这台主机上的代理和跳板设置）'),
               ),
             ],
           ),
@@ -1375,26 +1395,11 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     ];
   }
 
-  Widget _section(String title, {String? hint, Key? hintKey}) {
-    const style = TextStyle(fontWeight: FontWeight.w700, fontSize: 15);
-    if (hint == null) {
-      return Padding(
-        // 下边留 16：紧跟的输入框浮动标签会往上占 8dp，留少了就压到分组标题。
-        padding: const EdgeInsets.fromLTRB(2, 22, 2, 16),
-        child: LText(title, style: style),
+  /// 插件那一段的小标题。下边留 8：小标题本身 48dp 高，紧跟的输入框浮动标签会往上占 8dp。
+  Widget _section(String title) => Padding(
+        padding: const EdgeInsets.only(top: 6, bottom: 8),
+        child: _FormHeader(title: title),
       );
-    }
-    // ⓘ 自带 48dp 高，上下边距收掉一些，和没有 ⓘ 的分组标题对齐。
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(2, 8, 2, 0),
-      child: Row(
-        children: [
-          Flexible(child: LText(title, style: style)),
-          HintButton(key: hintKey, title: title, message: hint),
-        ],
-      ),
-    );
-  }
 
   String? _required(String? value) =>
       value == null || value.trim().isEmpty ? '必填' : null;
@@ -1558,17 +1563,20 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     ({RoutePlan? plan, String? error, List<String> warnings}) preview,
   ) {
     final theme = Theme.of(context);
+    final colors = prism.Theme.of(context).colorScheme;
     return Padding(
       padding: const EdgeInsets.only(top: 12, bottom: 4),
       child: Container(
         key: const ValueKey('route-preview'),
         width: double.infinity,
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
+        // R88：底色和圆角取 Prism 卡片那一层；算不出来时仍用错误色，一眼看出不对。
+        decoration: ShapeDecoration(
           color: preview.error == null
-              ? theme.colorScheme.surfaceContainerHighest
+              ? prism.SurfaceContext(context).raisedSurfaceLevel.colorOf(colors)
               : theme.colorScheme.errorContainer,
-          borderRadius: BorderRadius.circular(10),
+          shape: prism.AppShape.of(
+              prism.listItemRadiusOf(prism.ItemPosition.startAndEnd)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1741,51 +1749,36 @@ class _AdvancedGroup extends StatelessWidget {
   final VoidCallback onToggle;
   final List<Widget> children;
 
+  /// R88：开关那一行是一张 Prism 分组卡片（和设置页的行同一套），读屏是一个带「已展开/已收起」的按钮。
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        InkWell(
-          key: ValueKey('advanced-$id'),
-          onTap: onToggle,
-          child: ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      LText(title, style: theme.textTheme.titleSmall),
-                      LText(
-                        state,
-                        key: ValueKey('advanced-$id-state'),
-                        style: theme.textTheme.bodySmall,
-                      ),
-                    ],
-                  ),
-                ),
-                Icon(expanded ? Icons.expand_less : Icons.expand_more),
-              ],
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          prism.ItemPositionProvider(
+            position: prism.ItemPosition.startAndEnd,
+            child: ShunListRow(
+              key: ValueKey('advanced-$id'),
+              title: title,
+              details: LText(state, key: ValueKey('advanced-$id-state')),
+              trailing: ExcludeSemantics(
+                child: Icon(expanded ? Icons.expand_less : Icons.expand_more),
+              ),
+              expanded: expanded,
+              onTap: onToggle,
             ),
           ),
-        ),
-        Offstage(
-          offstage: !expanded,
-          child: Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 12),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: children,
+          Offstage(
+            offstage: !expanded,
+            child: Padding(
+              padding: const EdgeInsets.only(top: 4, bottom: 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: children,
+              ),
             ),
           ),
-        ),
-        const Divider(height: 1),
-      ],
-    );
-  }
+        ],
+      );
 }
 
 /// 高级里的一块：小标题加字段，不折叠。说明在标题旁的 ⓘ 里（docs/dev/ui-text.md）。
@@ -1807,36 +1800,79 @@ class _AdvancedBlock extends StatelessWidget {
   final List<Widget> children;
 
   @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Padding(
-      key: ValueKey('advanced-$id'),
-      padding: const EdgeInsets.only(top: 8, bottom: 12),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(minHeight: 48),
-            child: Row(
-              children: [
-                Expanded(
-                  child: HintTitle(
-                    title,
-                    hint: hint,
-                    style: theme.textTheme.labelLarge,
-                  ),
-                ),
-                if (state != null)
-                  LText(
-                    state!,
-                    key: ValueKey('advanced-$id-state'),
-                    style: theme.textTheme.bodySmall,
-                  ),
-              ],
+  Widget build(BuildContext context) => Padding(
+        key: ValueKey('advanced-$id'),
+        padding: const EdgeInsets.only(top: 8, bottom: 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _FormHeader(
+              title: title,
+              hint: hint,
+              state: state,
+              stateKey: ValueKey('advanced-$id-state'),
             ),
-          ),
-          ...children,
-        ],
+            ...children,
+          ],
+        ),
+      );
+}
+
+/// 表单里一块的小标题（R88）：Prism 的 headline 字阶、次要文字色，和设置页分组小标题同一档；
+/// 不用 Prism 的 ListHeader，是因为它按卡片内容左缩 16dp，表单里输入框贴着页边，会错开。
+///
+/// 读屏：标题是标题节点（以前不是，还和下面「添加跳板机」下拉框并成了一个节点，那一处由
+/// 路线编辑器让下拉框自成节点解决），ⓘ 独立，[state] 并进标题。
+class _FormHeader extends StatelessWidget {
+  const _FormHeader({
+    required this.title,
+    this.hint,
+    this.state,
+    this.stateKey,
+  });
+
+  final String title;
+  final String? hint;
+
+  /// 写在最右边的现在的状态（只有连接路径有）。
+  final String? state;
+  final Key? stateKey;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    // 标题和状态标成标题；ⓘ 是按钮，自成节点（和 ShunSection 的小标题一样）。
+    return Semantics(
+      header: true,
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Row(
+          children: [
+            Expanded(
+              child: Row(
+                children: [
+                  Flexible(
+                    child: LText(
+                      title,
+                      style: prism.AppTextStyle.headline
+                          .of(context)
+                          .copyWith(color: colors.onSurfaceVariant),
+                    ),
+                  ),
+                  if (hint != null) HintButton(title: title, message: hint!),
+                ],
+              ),
+            ),
+            if (state != null)
+              LText(
+                state!,
+                key: stateKey,
+                style: prism.AppTextStyle.subheadline
+                    .of(context)
+                    .copyWith(color: colors.onSurfaceVariant),
+              ),
+          ],
+        ),
       ),
     );
   }

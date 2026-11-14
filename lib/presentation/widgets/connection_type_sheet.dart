@@ -10,8 +10,7 @@ import '../../application/uuremote.dart';
 import '../../domain/models/host.dart';
 import '../../infrastructure/plugins/rustdesk_external.dart';
 import '../../infrastructure/plugins/uuremote_adapter.dart';
-import '../localization/localized_widgets.dart';
-import 'hint.dart';
+import '../ui/components.dart';
 import 'host_type_icon.dart';
 
 enum RemoteConnectionType { rustdesk, uu }
@@ -202,6 +201,7 @@ class _ConnectionTypeSheetState extends ConsumerState<ConnectionTypeSheet> {
             value.protocol == widget.current &&
             value.pluginId == widget.currentPluginId;
     // 状态只写限制和问题；能用就不写「可用」（docs/dev/ui-text.md）。
+    // R88：一类一组分组卡片（和设置页同一套），当前那项打勾、读屏报「已选中」。
     Widget choice(
       String title,
       IconData icon,
@@ -209,83 +209,82 @@ class _ConnectionTypeSheetState extends ConsumerState<ConnectionTypeSheet> {
       ConnectionTypeChoice value, {
       bool enabled = true,
     }) =>
-        ListTile(
+        ShunListRow(
           key: ValueKey('connection-type-$title'),
           leading: Icon(icon),
-          title: LText(title),
-          subtitle: status == null ? null : LText(status),
-          trailing: selected(value) ? const Icon(Icons.check) : null,
+          title: title,
+          subtitle: status,
+          selected: selected(value),
           enabled: enabled,
           onTap: enabled ? () => Navigator.pop(context, value) : null,
         );
-    Widget section(String title, {String? hint}) => Padding(
-          padding: EdgeInsets.fromLTRB(
-            16,
-            8,
-            16,
-            hint == null ? 8 : 0,
-          ),
-          child: HintTitle(
-            title,
-            hint: hint,
-            style: Theme.of(context).textTheme.titleSmall,
-          ),
-        );
-    return ListView(
-      shrinkWrap: true,
-      padding: const EdgeInsets.only(bottom: 16),
-      children: [
-        if (terminalPlugins.isNotEmpty) section('终端插件'),
-        for (final entry in terminalPlugins)
-          choice(
-            entry.descriptor!.displayName,
-            hostProtocolIcon(HostProtocol.plugin)!,
-            discovery.isLoading
-                ? '正在检查插件'
-                : discovery.hasError
-                    ? '插件检查失败，请重试'
-                    : pluginHostAvailability(entries, entry.pluginId).problem,
-            ConnectionTypeChoice.terminal(
-              HostProtocol.plugin,
-              pluginId: entry.pluginId,
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (terminalPlugins.isNotEmpty)
+            ShunSection(
+              title: '终端插件',
+              children: [
+                for (final entry in terminalPlugins)
+                  choice(
+                    entry.descriptor!.displayName,
+                    hostProtocolIcon(HostProtocol.plugin)!,
+                    discovery.isLoading
+                        ? '正在检查插件'
+                        : discovery.hasError
+                            ? '插件检查失败，请重试'
+                            : pluginHostAvailability(entries, entry.pluginId)
+                                .problem,
+                    ConnectionTypeChoice.terminal(
+                      HostProtocol.plugin,
+                      pluginId: entry.pluginId,
+                    ),
+                    enabled: android &&
+                        !discovery.isLoading &&
+                        !discovery.hasError &&
+                        pluginHostAvailability(entries, entry.pluginId).entry !=
+                            null,
+                  ),
+              ],
             ),
-            enabled: android &&
-                !discovery.isLoading &&
-                !discovery.hasError &&
-                pluginHostAvailability(entries, entry.pluginId).entry != null,
-          ),
-        if (!widget.terminalsOnly) ...[
-          const SizedBox(height: 8),
-          section(
-            '从 Tailscale 添加',
-            hint:
-                '填一个 Tailscale 的 key，自动列出 tailnet 里的设备，点一下就导入并连接。只读设备列表，不开 VPN。',
-          ),
-          choice(
-            'Tailscale',
-            Icons.hub_outlined,
-            null,
-            const ConnectionTypeChoice.tailscale(),
-          ),
-          const SizedBox(height: 8),
-          section(
-            '远程桌面',
-            hint: '交给手机上的外部 App 去连，用它自己的网络，不走 SSH 的代理或跳板。没装也能先保存条目。',
-          ),
-          choice(
-            'RustDesk',
-            Icons.connected_tv_outlined,
-            remoteTypeStatus(ref, RemoteConnectionType.rustdesk),
-            const ConnectionTypeChoice.remote(RemoteConnectionType.rustdesk),
-          ),
-          choice(
-            'UU 远程',
-            Icons.desktop_windows_outlined,
-            remoteTypeStatus(ref, RemoteConnectionType.uu),
-            const ConnectionTypeChoice.remote(RemoteConnectionType.uu),
-          ),
+          if (!widget.terminalsOnly) ...[
+            ShunSection(
+              title: '从 Tailscale 添加',
+              hint:
+                  '填一个 Tailscale 的 key，自动列出 tailnet 里的设备，点一下就导入并连接。只读设备列表，不开 VPN。',
+              children: [
+                choice(
+                  'Tailscale',
+                  Icons.hub_outlined,
+                  null,
+                  const ConnectionTypeChoice.tailscale(),
+                ),
+              ],
+            ),
+            ShunSection(
+              title: '远程桌面',
+              hint: '交给手机上的外部 App 去连，用它自己的网络，不走 SSH 的代理或跳板。没装也能先保存条目。',
+              children: [
+                choice(
+                  'RustDesk',
+                  Icons.connected_tv_outlined,
+                  remoteTypeStatus(ref, RemoteConnectionType.rustdesk),
+                  const ConnectionTypeChoice.remote(
+                      RemoteConnectionType.rustdesk),
+                ),
+                choice(
+                  'UU 远程',
+                  Icons.desktop_windows_outlined,
+                  remoteTypeStatus(ref, RemoteConnectionType.uu),
+                  const ConnectionTypeChoice.remote(RemoteConnectionType.uu),
+                ),
+              ],
+            ),
+          ],
         ],
-      ],
+      ),
     );
   }
 }

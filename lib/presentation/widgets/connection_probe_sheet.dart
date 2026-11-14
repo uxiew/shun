@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../application/connection_diagnosis.dart';
 import '../../application/connection_events.dart';
@@ -13,6 +14,7 @@ import '../../infrastructure/ssh/ssh_login_watch.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import '../../infrastructure/tmux/tmux_protocol.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import 'route_legs_view.dart';
 import 'tailscale_check_card.dart';
 
@@ -212,15 +214,17 @@ class _ConnectionProbeSheetState extends ConsumerState<ConnectionProbeSheet> {
             Align(
               alignment: Alignment.centerRight,
               child: running
-                  ? OutlinedButton.icon(
+                  ? ShunButton(
                       key: const ValueKey('probe-cancel'),
+                      label: '停止',
+                      icon: Icons.stop_circle_outlined,
+                      kind: ShunButtonKind.outlined,
                       onPressed: _attempt.cancel,
-                      icon: const Icon(Icons.stop_circle_outlined),
-                      label: const LText('停止'),
                     )
-                  : FilledButton(
+                  : ShunButton(
+                      key: const ValueKey('probe-done'),
+                      label: '完成',
                       onPressed: () => Navigator.pop(context),
-                      child: const LText('完成'),
                     ),
             ),
           ],
@@ -301,13 +305,15 @@ class _ResultBox extends StatelessWidget {
   final Color onColor;
   final String text;
 
+  /// 底色按结果分（成功、失败、提示），圆角取 Prism 卡片的（R88）。
   @override
   Widget build(BuildContext context) => Container(
         width: double.infinity,
         padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
+        decoration: ShapeDecoration(
           color: color,
-          borderRadius: BorderRadius.circular(10),
+          shape: prism.AppShape.of(
+              prism.listItemRadiusOf(prism.ItemPosition.startAndEnd)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,

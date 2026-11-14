@@ -28,6 +28,7 @@ import 'package:shun/presentation/widgets/proxy_profile_editor.dart';
 
 import 'support/soft_authenticator.dart';
 import 'support/route_editor_actions.dart';
+import 'support/prism_test_host.dart';
 
 // F31 / R69：连接上可以直接填用户名密码，也可以选「凭据」，选完回显。不迁移：手机上已有主机不改也能连。
 void main() {
@@ -138,7 +139,11 @@ void main() {
     await container.read(vaultControllerProvider.notifier).ready();
     await tester.pumpWidget(UncontrolledProviderScope(
       container: container,
-      child: MaterialApp(home: home),
+      child: MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
+        home: home,
+      ),
     ));
     await tester.pumpAndSettle();
   }
