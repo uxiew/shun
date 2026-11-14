@@ -4180,7 +4180,7 @@
       "id": "R88",
       "phase": "U2",
       "title": "迁移主机表单并固化 F42 原地选择",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R87"
       ],
@@ -4219,8 +4219,10 @@
       ],
       "stop_condition": "为适配组件而改认证语义、丢字段、删类型或降低原首屏/可访问性测试要求时阻断。",
       "owner_role": "表单实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R88.md"
+      ],
+      "commit": "af763fd9c16cf54553957341d40af79f118c0427"
     },
     {
       "id": "R89",
