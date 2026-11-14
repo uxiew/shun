@@ -33,9 +33,11 @@
 | 列表行的副标题（`subtitle`） | 16 个汉字 | 「到编辑器里重填密码或私钥」 |
 | 页面上一段字（`LText`、`Text`、`catalogLine`） | 30 个汉字 | 「代理口令是明文发给代理的，SSH 保护不了。」 |
 
+不只认上表这几个名字（R84）：Prism 控件（`prism.NullStatus(description: …)`、`prism.ListRow(subtitle: …)`），和本地包了几层的控件（`EmptyState(title: …)`、你自己写的 `Note('…')`），测试从源码里追出它把参数画成正文、副标题还是提示，按同样的上限查。经 `localized(…)` 再交给 `Text` 的也查。
+
 - 只数汉字，英文、数字、变量不算。
 - 不算的地方：确认框（`AlertDialog`）、`SnackBar`、`Tooltip`、ⓘ 里的字，都是点了才看到或者只闪一下。
-- 测试看不到的：先放进变量、经 `localized()` 拼出来的句子。这些靠自觉，按同样的上限写。
+- 测试看不到的：先放进局部变量再显示的、用 `+` 或 `${…}` 拼出来的句子。这些靠自觉，按同样的上限写；写公共控件时把参数直接交给 `LText`，别先存进变量，不然调用处的长字就查不到了。
 
 超了别改上限，按顺序问：
 
@@ -46,7 +48,9 @@
 
 ## 表单间隔
 
-上下相邻的输入框之间写 `const FormGap()`（`widgets/form_gap.dart`，20dp），别自己写 `SizedBox`。浮动标签往上占约 8dp，所以 12dp 看着还是挤；以前各页从 0 到 24 都有，所有者说的「不好看」就是这个。写错了 `test/ui_rules_test.dart` 会报出来。
+上下相邻的输入框之间写 `const FormGap()`（`widgets/form_gap.dart`，20dp），别自己写 `SizedBox`。浮动标签往上占约 8dp，所以 12dp 看着还是挤；以前各页从 0 到 24 都有，所有者说的「不好看」就是这个。写错了 `test/ui_rules_test.dart` 会报出来。Prism 的输入框、里面只包着一个输入框的本地控件（比如 `_AdvancedNumberField`）都算输入框；横排（`Row`、`Wrap`）里左右并排的不归 FormGap 管。
+
+规则自己有没有漏洞看 `test/ui_rules_bypass_test.dart`：一页故意写超的样例，换 Prism 别名、包两层改参数名、经 `localized()`，每种都要被抓到。改扫描器（`test/support/ui_rules.dart`）后先跑它。
 
 ## 改完看一眼
 

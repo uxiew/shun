@@ -193,7 +193,7 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
               decoration: InputDecoration(
                 labelText: localized('登录用户名'),
                 helperText:
-                    localized('服务器上的 Unix 用户，比如 ubuntu。必须填，不会默认用 root。'),
+                    localized('必填，不会默认用 root'),
                 helperMaxLines: 2,
               ),
             ),

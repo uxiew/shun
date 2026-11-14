@@ -1256,8 +1256,7 @@ const englishTranslations = <String, String>{
   '导入为主机': 'Import as hosts',
   '导入': 'Import',
   '登录用户名': 'Login username',
-  '服务器上的 Unix 用户，比如 ubuntu。必须填，不会默认用 root。':
-      'The Unix user on the server, such as ubuntu. Required; root is never assumed.',
+  '必填，不会默认用 root': 'Required; root is never assumed',
   '用设备的哪个地址': 'Which device address to use',
   'MagicDNS 名称': 'MagicDNS name',
   '手机直接连设备地址。连 100.x 这类 Tailscale 地址，手机上要开着官方 Tailscale App——本 App 不会替你开。':
@@ -1726,8 +1725,8 @@ const englishTranslations = <String, String>{
       'Not sent: the connection was restored as a new shell; the original one can no longer receive',
   '连接已断开：不会发送，恢复后也不会自动补发。内容留在这里，可以复制。':
       'The connection is down: nothing will be sent, and nothing is resent after it comes back. The text stays here and can be copied.',
-  '连接已经恢复成新的 shell：原来那条收不到了，不会自动改发。要发到新连接请点「改发到新连接」。':
-      'The connection was restored as a new shell: the original one can no longer receive, and nothing is redirected automatically. Tap "Send to new connection" to send there.',
+  '连接已经恢复成新的 shell：不会自动改发，内容留在这里。':
+      'Restored as a new shell. Nothing is resent automatically; the text stays here.',
   '标签已经关了：不会发送。内容留在这里，可以复制。':
       'The tab was closed: nothing will be sent. The text stays here and can be copied.',
   '改发到新连接': 'Send to new connection',
@@ -1735,12 +1734,12 @@ const englishTranslations = <String, String>{
       'Multiple lines. The remote program has bracketed paste on: most recent shells put the whole block on the input line and wait for Enter. That is only a convention of the remote program; the app cannot guarantee it, and some programs still run it line by line.',
   '多行。远端程序现在没开 bracketed paste：每个换行都等于按一次回车，除了最后一行，前面各行会在粘贴的同时执行。':
       'Multiple lines. The remote program has bracketed paste off: every line break is an Enter, so every line except the last runs as it is pasted.',
-  '末尾的换行不会发出去：粘贴完不会自动执行最后一行。要执行就点「粘贴并回车」，或者回到终端自己按回车。':
-      'Trailing line breaks are not sent, so the last line does not run by itself. To run it, tap "Paste and Enter" or press Enter in the terminal.',
+  '末尾的换行不会发出去。要执行就点「粘贴并回车」。':
+      'Trailing line breaks are not sent. To run it, tap "Paste and Enter".',
   '去掉了控制字符（在终端里它们是按键，不是文字）：':
       'Removed control characters (in a terminal they are keystrokes, not text):',
-  '有看不见的排版字符（零宽字符、改变文字方向的字符）：屏幕上看到的顺序可能和实际发出去的不一样。':
-      'Contains invisible formatting characters (zero-width or direction-changing): what you see may be in a different order from what is sent.',
+  '有看不见的排版字符：看到的顺序可能和发出去的不同。':
+      'Invisible formatting characters: the order you see may differ from what is sent.',
   '含 Tab：远端没开 bracketed paste 时，shell 会把它当补全键。':
       'Contains Tab: with bracketed paste off, the shell treats it as the completion key.',
   '内容很长，请确认整段都是你要发的。':
@@ -1831,8 +1830,8 @@ const englishTranslations = <String, String>{
       'A closed tab left some unsent text (it was not sent):',
   '连接已断开：不会发送，恢复后也不会自动补发。框里的字留着。':
       'The connection is closed: nothing is sent, and nothing is resent after it reconnects. The text stays in the box.',
-  '连接已经恢复成新的 shell：这段字是对着原来那条写的，不会自动改发。要发到新连接请点「改发到新连接」。':
-      'The connection was restored as a new shell. This text was written for the old one and will not be resent automatically. To send it to the new connection, tap "Send to new connection".',
+  '连接已经恢复成新的 shell：不会自动改发，框里的字留着。':
+      'Restored as a new shell. Nothing is resent automatically; your text stays in the box.',
   '标签已经关了：不会发送。框里的字留着，可以复制。':
       'The tab is closed: nothing is sent. The text stays in the box and can be copied.',
   '连接已断开：不会发送，字留着': 'Disconnected: not sent, text kept',

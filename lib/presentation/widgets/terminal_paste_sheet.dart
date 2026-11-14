@@ -143,7 +143,7 @@ class _TerminalPasteSheetState extends ConsumerState<TerminalPasteSheet> {
                   TerminalTargetProblem.disconnected =>
                     '连接已断开：不会发送，恢复后也不会自动补发。内容留在这里，可以复制。',
                   TerminalTargetProblem.replaced =>
-                    '连接已经恢复成新的 shell：原来那条收不到了，不会自动改发。要发到新连接请点「改发到新连接」。',
+                    '连接已经恢复成新的 shell：不会自动改发，内容留在这里。',
                   TerminalTargetProblem.closed => '标签已经关了：不会发送。内容留在这里，可以复制。',
                 },
                 action: live == null
@@ -172,7 +172,7 @@ class _TerminalPasteSheetState extends ConsumerState<TerminalPasteSheet> {
               const TerminalPasteNotice(
                 key: ValueKey('terminal-paste-trailing-newline'),
                 icon: Icons.keyboard_return,
-                text: '末尾的换行不会发出去：粘贴完不会自动执行最后一行。要执行就点「粘贴并回车」，或者回到终端自己按回车。',
+                text: '末尾的换行不会发出去。要执行就点「粘贴并回车」。',
               ),
             if (removed.isNotEmpty)
               TerminalPasteNotice(
@@ -189,7 +189,7 @@ class _TerminalPasteSheetState extends ConsumerState<TerminalPasteSheet> {
               const TerminalPasteNotice(
                 key: ValueKey('terminal-paste-invisible'),
                 icon: Icons.visibility_off_outlined,
-                text: '有看不见的排版字符（零宽字符、改变文字方向的字符）：屏幕上看到的顺序可能和实际发出去的不一样。',
+                text: '有看不见的排版字符：看到的顺序可能和发出去的不同。',
               ),
             if (review.tabs > 0 && !bracketed)
               const TerminalPasteNotice(

@@ -164,7 +164,7 @@ class _TerminalComposeBoxState extends ConsumerState<TerminalComposeBox> {
             TerminalTargetProblem.disconnected =>
               '连接已断开：不会发送，恢复后也不会自动补发。框里的字留着。',
             TerminalTargetProblem.replaced =>
-              '连接已经恢复成新的 shell：这段字是对着原来那条写的，不会自动改发。要发到新连接请点「改发到新连接」。',
+              '连接已经恢复成新的 shell：不会自动改发，框里的字留着。',
             TerminalTargetProblem.closed => '标签已经关了：不会发送。框里的字留着，可以复制。',
           },
           action: live == null
