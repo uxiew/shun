@@ -4087,7 +4087,7 @@
       "id": "R86",
       "phase": "U2",
       "title": "迁移设置、片段与安全数据页面",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R85"
       ],
@@ -4128,8 +4128,10 @@
       ],
       "stop_condition": "保存时机、恢复覆盖确认、隐藏主机入口或敏感保护变化先修；不顺便接 Drive/OneDrive 等 DEFERRED 功能。",
       "owner_role": "页面实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R86.md"
+      ],
+      "commit": "bf589ef871cb907dac4b837282ab4c763677d452"
     },
     {
       "id": "R87",
