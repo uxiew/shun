@@ -16,6 +16,7 @@ import 'package:shun/presentation/screens/terminal_screen.dart';
 import 'package:shun/presentation/screens/vault_screen.dart';
 
 import 'support/test_terminal.dart';
+import 'support/prism_test_host.dart';
 
 /// UX02 在真机（Pixel 9 Pro、TalkBack）上查出来的几处：断线、重连不播报；标签的 × 读成「删除」、
 /// 只有 43dp；主机卡片的「更多操作」40dp；断线横幅半透明，和下面终端里的字叠在一起。
@@ -224,7 +225,10 @@ void main() {
     final repository = await VaultRepository.open();
     await tester.pumpWidget(ProviderScope(
       overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
-      child: const MaterialApp(home: Scaffold(body: VaultScreen())),
+      child: const MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
+          home: Scaffold(body: VaultScreen())),
     ));
     await tester.pumpAndSettle();
     final menu = find.byKey(const ValueKey('vault-host-menu-web'));

@@ -16,6 +16,7 @@ import 'package:shun/presentation/screens/vault_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'uuremote_fakes.dart';
+import 'support/prism_test_host.dart';
 
 // X06 界面：UU 远程页只说 UU 报告了什么，不说「已连接」；绑定回来要用户确认；SSH 经代理时先问；英文界面无汉字。
 // 平台层是假的，没有真实 UU 远程。
@@ -93,7 +94,10 @@ void main() {
         uuRemotePlatformProvider.overrideWithValue(platform),
         uuRemoteStoreProvider.overrideWithValue(UuRemoteStore(backend)),
       ],
-      child: MaterialApp(home: UuRemoteListener(child: home)),
+      child: MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
+          home: UuRemoteListener(child: home)),
     ));
     await tester.pumpAndSettle();
   }

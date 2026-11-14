@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../application/catalog_overview.dart';
 import '../../application/tailscale_catalog_import.dart';
@@ -7,6 +8,7 @@ import '../../domain/models/host.dart';
 import '../../domain/models/server_stats.dart';
 import '../../infrastructure/tailscale/catalog_cache.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import 'catalog_text.dart';
 import 'host_address_line.dart';
 import 'host_system_icon.dart';
@@ -67,52 +69,40 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final small = theme.textTheme.bodySmall;
-    final imported = _boundDevices(widget.allHosts);
-    final query = widget.query.trim().toLowerCase();
-    final groups = <Widget>[];
-    for (final source in widget.sources) {
-      final cache = source.cache;
-      final hosts = [
-        for (final host in widget.hosts)
-          if (CatalogBinding.of(host)?.catalogId == cache.catalogId) host,
-      ];
-      final devices = [
-        for (final record in cache.devices.values)
-          if (!imported.contains('${cache.catalogId}\n${record.id}') &&
-              !cache.hiddenDevices.contains(record.id) &&
-              _matches(record, query))
-            record,
-      ]..sort((a, b) => catalogDeviceName(a)
-          .toLowerCase()
-          .compareTo(catalogDeviceName(b).toLowerCase()));
-      if (query.isNotEmpty && hosts.isEmpty && devices.isEmpty) continue;
-      groups.add(_group(source, hosts, devices, small));
-    }
+    final colors = prism.Theme.of(context).colorScheme;
+    final small = prism.AppTextStyle.subheadline
+        .of(context)
+        .copyWith(color: colors.onSurfaceVariant);
+    final groups = <Widget>[
+      for (final (index, group) in catalogSectionGroups(
+        sources: widget.sources,
+        allHosts: widget.allHosts,
+        hosts: widget.hosts,
+        query: widget.query,
+      ).indexed)
+        _group(group.source, group.hosts, group.devices, small,
+            first: index == 0),
+    ];
     if (groups.isEmpty) return const SizedBox.shrink();
     return Padding(
       key: const ValueKey('vault-catalog-sections'),
-      padding: const EdgeInsets.fromLTRB(12, 4, 12, 12),
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(4, 0, 4, 6),
-            child: LText('Tailscale 设备', style: theme.textTheme.titleSmall),
-          ),
-          ...groups,
-        ],
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: groups,
       ),
     );
   }
 
+  /// 一个来源一组卡片：组头（来源名、状态时间、刷新、设置）和它下面的主机、设备。
+  /// 第一组带「Tailscale 设备」小标题，后面的组只留组间距。
   Widget _group(
     CatalogSourceView source,
     List<HostProfile> hosts,
     List<CatalogDeviceRecord> devices,
-    TextStyle? small,
-  ) {
+    TextStyle small, {
+    required bool first,
+  }) {
     final cache = source.cache;
     final id = cache.catalogId;
     final collapsed = _collapsed.contains(id);
@@ -121,35 +111,33 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
     // lastAttempt 每次读取都会覆盖：它失败就是最近一次失败（和来源页同一个读法）。
     final failedLast = attempt != null && !attempt.ok;
     final age = success == null ? null : catalogAge(success.at, widget.now());
-    return Card(
+    return KeyedSubtree(
       key: ValueKey('vault-catalog-$id'),
-      margin: const EdgeInsets.only(bottom: 10),
-      clipBehavior: Clip.antiAlias,
-      child: Column(
+      child: ShunSection(
+        title: first ? 'Tailscale 设备' : null,
         children: [
-          ListTile(
+          ShunListRow(
             key: ValueKey('vault-catalog-toggle-$id'),
+            // 来源名是用户起的（或已经本地化的「未命名来源」）。
+            title: catalogSourceName(cache),
+            leading: Icon(collapsed ? Icons.chevron_right : Icons.expand_more),
+            expanded: !collapsed,
             onTap: () => setState(
                 () => collapsed ? _collapsed.remove(id) : _collapsed.add(id)),
-            contentPadding: const EdgeInsets.only(left: 12, right: 4),
-            leading: Icon(collapsed ? Icons.chevron_right : Icons.expand_more),
-            title: Text(catalogSourceName(cache)),
-            subtitle: Column(
+            details: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 if (success == null)
-                  LText('还没成功读过设备列表', style: small)
+                  const LText('还没成功读过设备列表')
                 else
                   catalogLine(
                     '状态截至：',
                     [catalogTime(success.at), if (age != null) age].join(' · '),
-                    style: small,
                     key: ValueKey('vault-catalog-age-$id'),
                   ),
                 if (failedLast)
-                  catalogLine('最近一次读取失败：', catalogTime(attempt.at),
-                      style: small),
-                if (!source.hasSavedCredentials) LText('未保存 key', style: small),
+                  catalogLine('最近一次读取失败：', catalogTime(attempt.at)),
+                if (!source.hasSavedCredentials) const LText('未保存 key'),
               ],
             ),
             trailing: Row(
@@ -185,11 +173,10 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
           ),
           if (!collapsed) ...[
             for (final host in hosts) _hostRow(host, cache, small),
-            for (final record in devices) _deviceRow(cache, record, small),
+            for (final record in devices) _deviceRow(cache, record),
             if (hosts.isEmpty && devices.isEmpty)
-              Padding(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                child: LText('缓存里还没有设备。读一次设备列表后会出现在这里。', style: small),
+              const ShunSectionItem(
+                child: LText('缓存里还没有设备。读一次设备列表后会出现在这里。'),
               ),
           ],
         ],
@@ -197,17 +184,18 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
     );
   }
 
-  Widget _hostRow(HostProfile host, CatalogCache cache, TextStyle? small) {
+  Widget _hostRow(HostProfile host, CatalogCache cache, TextStyle small) {
     final record = cache.devices[CatalogBinding.of(host)!.deviceId];
     final now = widget.now();
-    return ListTile(
+    return ShunListRow(
       key: ValueKey('vault-catalog-host-${host.id}'),
-      onTap: () => widget.onConnect(host),
-      onLongPress: () => widget.onMenu(host),
+      title: host.label,
       leading:
           HostLeadingIcon(host: host, size: 40, catalogOs: record?.device.os),
-      title: LText(host.label),
-      subtitle: Column(
+      describeLeading: true,
+      onTap: () => widget.onConnect(host),
+      onLongPress: () => widget.onMenu(host),
+      details: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PresenceLine(
@@ -221,8 +209,7 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
               Text(
                   deviceOnlineText(record, now,
                       statusAt: cache.lastSuccess?.at),
-                  key: ValueKey('vault-catalog-status-${host.id}'),
-                  style: small),
+                  key: ValueKey('vault-catalog-status-${host.id}')),
               if (host.lastConnectedAt > 0) LoggedInMark(style: small),
             ],
           ),
@@ -233,21 +220,21 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
     );
   }
 
-  Widget _deviceRow(
-      CatalogCache cache, CatalogDeviceRecord record, TextStyle? small) {
+  Widget _deviceRow(CatalogCache cache, CatalogDeviceRecord record) {
     final device = record.device;
     final key = '${cache.catalogId}-${record.id}';
     final now = widget.now();
-    return ListTile(
+    return ShunListRow(
       key: ValueKey('vault-catalog-device-$key'),
-      onTap: () => widget.onImport(cache, record.id),
+      title: catalogDeviceName(record),
       leading: SystemIcon(
         distro: normalizeDistroId(device.os ?? ''),
         size: 40,
         label: device.os,
       ),
-      title: Text(catalogDeviceName(record)),
-      subtitle: Column(
+      describeLeading: true,
+      onTap: () => widget.onImport(cache, record.id),
+      details: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           PresenceLine(
@@ -256,9 +243,11 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
                 Text(device.addresses.isEmpty ? '—' : device.addresses.first),
           ),
           Text(deviceOnlineText(record, now, statusAt: cache.lastSuccess?.at),
-              key: ValueKey('vault-catalog-device-status-$key'), style: small),
+              key: ValueKey('vault-catalog-device-status-$key')),
         ],
       ),
+      // 只有一项的菜单仍用 Material 的：菜单项要带 key（测试和设备脚本按它点），
+      // Prism 的菜单项是数据类、挂不上 key。归 R96 收口。
       trailing: PopupMenuButton<bool>(
         key: ValueKey('vault-catalog-device-menu-$key'),
         onSelected: (_) => widget.onDeviceHide(cache, record),
@@ -272,6 +261,57 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
       ),
     );
   }
+}
+
+/// 每个来源这一节要列的主机和没导入的设备，按 [CatalogHostSections] 的规矩：
+/// [hosts] 是已经按搜索、隐藏过滤好的；设备按名字、地址、标签搜，没导入、没隐藏的才列。
+/// 搜索时一行都没有的来源不在结果里；没在搜时每个来源都在（空的显示「缓存里还没有设备」）。
+/// 首页拿它判断「搜不到」：有来源、但这次一行都没有，就该说「没有匹配的主机」，不是一片空白。
+List<
+    ({
+      CatalogSourceView source,
+      List<HostProfile> hosts,
+      List<CatalogDeviceRecord> devices,
+    })> catalogSectionGroups({
+  required List<CatalogSourceView> sources,
+  required List<HostProfile> allHosts,
+  required List<HostProfile> hosts,
+  required String query,
+}) {
+  final imported = _boundDevices(allHosts);
+  final needle = query.trim().toLowerCase();
+  return [
+    for (final source in sources)
+      if (_groupOf(source, imported, hosts, needle) case final group?) group,
+  ];
+}
+
+({
+  CatalogSourceView source,
+  List<HostProfile> hosts,
+  List<CatalogDeviceRecord> devices,
+})? _groupOf(
+  CatalogSourceView source,
+  Set<String> imported,
+  List<HostProfile> allVisible,
+  String query,
+) {
+  final cache = source.cache;
+  final hosts = [
+    for (final host in allVisible)
+      if (CatalogBinding.of(host)?.catalogId == cache.catalogId) host,
+  ];
+  final devices = [
+    for (final record in cache.devices.values)
+      if (!imported.contains('${cache.catalogId}\n${record.id}') &&
+          !cache.hiddenDevices.contains(record.id) &&
+          _matches(record, query))
+        record,
+  ]..sort((a, b) => catalogDeviceName(a)
+      .toLowerCase()
+      .compareTo(catalogDeviceName(b).toLowerCase()));
+  if (query.isNotEmpty && hosts.isEmpty && devices.isEmpty) return null;
+  return (source: source, hosts: hosts, devices: devices);
 }
 
 Set<String> _boundDevices(List<HostProfile> hosts) => {

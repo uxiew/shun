@@ -20,6 +20,7 @@ import 'package:shun/presentation/screens/vault_screen.dart';
 import 'package:shun/presentation/widgets/ai_cli_tools_sheet.dart';
 
 import 'support/test_terminal.dart';
+import 'support/prism_test_host.dart';
 
 /// R25 接 R57：首页「最近 AI 工作」卡片要如实说原终端还在不在，还在就直接回去。
 /// 判断只看本机标签（和工具列表里「返回原终端」同一个条件），不拨号。
@@ -74,6 +75,8 @@ void main() {
     await tester.pumpWidget(UncontrolledProviderScope(
       container: container,
       child: MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
           home: Scaffold(
               body: page?.call(recent) ?? VaultScreen(recentWork: recent))),
     ));

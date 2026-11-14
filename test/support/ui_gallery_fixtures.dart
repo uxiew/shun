@@ -5,10 +5,13 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/application/session_controller.dart';
+import 'package:shun/application/tailscale_catalog_refresh.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/infrastructure/ssh/sftp_service.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
+import 'package:shun/infrastructure/tailscale/catalog_cache.dart';
+import 'package:shun/infrastructure/tailscale/tailscale_device.dart';
 
 import 'test_terminal.dart';
 
@@ -99,6 +102,59 @@ final uiGalleryHosts = <HostProfile>[
     'protocol': 'ssh',
     'group': '实验',
   }),
+];
+
+/// R87 首页的 Tailscale 分节：两个来源里各有一台同名、同 IP、同设备 ID 的 nas（不能合并），
+/// 「公司」是很久以前读的、最近一次读取失败，build 已经不在最新列表里。
+/// 时间写死在 2026-11-01，图上的「几天前」只随日期变；地址用 100.64 保留段，不连。
+List<CatalogCache> uiGalleryCatalogs() {
+  final at = DateTime(2026, 11, 1, 8);
+  Map<String, Object?> device(String id, String host, String ip, bool? on) => {
+        'id': id,
+        'name': '$host.tail0000.ts.net',
+        'hostname': host,
+        'addresses': [ip],
+        'os': 'linux',
+        if (on != null) 'connectedToControl': on,
+      };
+  CatalogCache source(String id, String label, List<Map<String, Object?>> d) =>
+      CatalogCache(catalogId: id, tailnet: '-', label: label)
+          .merge(TailscaleDeviceSnapshot.parse(jsonEncode({'devices': d})), at);
+  final home = source('gallery-home', '家里', [
+    device('1', 'nas', '100.64.0.1', true),
+    device('2', 'laptop', '100.64.0.2', false),
+  ]);
+  final work = source('gallery-work', '公司', [
+    device('1', 'nas', '100.64.0.1', false),
+    device('4', 'build', '100.64.0.9', true),
+  ]);
+  return [
+    home,
+    work.copyWith(devices: {
+      ...work.devices,
+      '4': work.devices['4']!.markMissing(at),
+    }).recordFailure('HTTP 500', at.add(const Duration(hours: 1))),
+  ];
+}
+
+/// 绑定到 [uiGalleryCatalogs] 两个来源设备 1 的主机：别名、账号各不相同。
+final uiGalleryCatalogHosts = <HostProfile>[
+  for (final (id, label, catalog, user) in const [
+    ('gallery-home-nas', '家里 NAS', 'gallery-home', 'admin'),
+    ('gallery-work-nas', '公司 NAS', 'gallery-work', 'ops'),
+  ])
+    HostProfile({
+      'id': id,
+      'label': label,
+      'hostname': '100.64.0.1',
+      'username': user,
+      'protocol': 'ssh',
+      CatalogBinding.key: CatalogBinding(
+        catalogId: catalog,
+        deviceId: '1',
+        appliedAddress: '100.64.0.1',
+      ).toJson(),
+    }),
 ];
 
 /// 真 Ghostty 引擎接收固定 VT 字节；connected 仅是展示状态，没有 SSH/socket。

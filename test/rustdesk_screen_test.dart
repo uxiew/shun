@@ -16,6 +16,7 @@ import 'package:shun/presentation/screens/vault_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'rustdesk_fakes.dart';
+import 'support/prism_test_host.dart';
 
 // X07 界面：RustDesk 页只说「已交给 RustDesk」，不说已连接；填 ID 不发请求；SSH 经代理时先问；
 // 别的包声明 rustdesk:// 要用户明确信任；英文界面无汉字。平台层是假的，没有真实 RustDesk。
@@ -69,7 +70,10 @@ void main() {
         rustDeskPlatformProvider.overrideWithValue(platform),
         rustDeskStoreProvider.overrideWithValue(RustDeskStore(backend)),
       ],
-      child: MaterialApp(home: home),
+      child: MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
+          home: home),
     ));
     await tester.pumpAndSettle();
   }

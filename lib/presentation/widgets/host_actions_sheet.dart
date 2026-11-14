@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../application/connection_switch.dart';
 import '../../application/host_actions.dart';
-import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import 'host_address_line.dart';
 import 'host_type_icon.dart';
 
@@ -16,35 +16,38 @@ class HostActionsSheet extends StatelessWidget {
   /// 见 [HostSystemIcon.catalogOs]。
   final String? catalogOs;
 
+  /// R87：菜单项换成 Prism 分组卡片（和设置页一样），每项一个按钮节点；
+  /// 顶上是这台主机（不能点），系统和协议角标照样念出来。
   @override
   Widget build(BuildContext context) {
     final host = menu.host;
-    final small = Theme.of(context).textTheme.bodySmall;
     return SafeArea(
       child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 16),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ListTile(
+            ShunListRow(
+              title: host.label,
               leading:
                   HostLeadingIcon(host: host, size: 40, catalogOs: catalogOs),
-              title: LText(host.label,
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-              subtitle: HostAddressLine(host,
+              describeLeading: true,
+              details: HostAddressLine(host,
                   maxLines: 1, overflow: TextOverflow.ellipsis),
             ),
-            const Divider(height: 1),
-            for (final action in menu.actions)
-              ListTile(
-                key: ValueKey('host-menu-${action.name}'),
-                leading: Icon(_icon(action)),
-                title: LText(_title(action)),
-                subtitle: switch (_subtitle(action)) {
-                  final text? => LText(text, style: small),
-                  null => null,
-                },
-                onTap: () => Navigator.pop(context, action),
-              ),
+            ShunSection(
+              children: [
+                for (final action in menu.actions)
+                  ShunListRow(
+                    key: ValueKey('host-menu-${action.name}'),
+                    leading: Icon(_icon(action)),
+                    title: _title(action),
+                    subtitle: _subtitle(action),
+                    onTap: () => Navigator.pop(context, action),
+                  ),
+              ],
+            ),
           ],
         ),
       ),

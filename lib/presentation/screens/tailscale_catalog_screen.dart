@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../application/catalog_overview.dart';
 import '../../application/tailscale_catalog_import.dart';
@@ -13,6 +14,7 @@ import '../../domain/models/server_stats.dart';
 import '../../infrastructure/tailscale/catalog_cache.dart';
 import '../../infrastructure/tailscale/catalog_cache_repository.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import '../widgets/catalog_text.dart';
 import '../widgets/connect_host.dart';
 import '../widgets/hint.dart';
@@ -189,7 +191,6 @@ class _TailscaleCatalogScreenState
   @override
   Widget build(BuildContext context) {
     final sources = _sources;
-    final small = Theme.of(context).textTheme.bodySmall;
     return Scaffold(
       key: _scaffold,
       appBar: AppBar(
@@ -205,62 +206,71 @@ class _TailscaleCatalogScreenState
         label: const LText('添加来源'),
       ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 16, 16, 96),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
         children: [
-          if (_error != null) LText('读取来源失败：$_error'),
+          if (_error != null)
+            Padding(
+              padding: const EdgeInsets.only(top: 16),
+              child: LText('读取来源失败：$_error'),
+            ),
           if (sources == null && _error == null)
             const LinearProgressIndicator()
           else if (sources != null && sources.isEmpty)
-            const LText('还没有目录来源'),
-          for (final source in sources ?? const <CatalogCache>[])
-            Card(
-              child: ListTile(
-                leading: const Icon(Icons.lan_outlined),
-                title: Text(catalogSourceName(source)),
-                subtitle: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    if (catalogSourceUnnamed(source))
-                      catalogLine('ID：', source.catalogId),
-                    catalogLine('tailnet：', source.tailnet),
-                    catalogLine('设备数：', '${source.devices.length}'),
-                    catalogLine(
-                      '缓存时间：',
-                      source.lastSuccess == null
-                          ? '—'
-                          : catalogTime(source.lastSuccess!.at),
+            const Padding(
+              padding: EdgeInsets.only(top: 16),
+              child: LText('还没有目录来源'),
+            ),
+          if (sources != null && sources.isNotEmpty)
+            ShunSection(
+              children: [
+                for (final source in sources)
+                  ShunListRow(
+                    key: ValueKey('catalog-source-${source.catalogId}'),
+                    leading: const Icon(Icons.lan_outlined),
+                    title: catalogSourceName(source),
+                    details: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (catalogSourceUnnamed(source))
+                          catalogLine('ID：', source.catalogId),
+                        catalogLine('tailnet：', source.tailnet),
+                        catalogLine('设备数：', '${source.devices.length}'),
+                        catalogLine(
+                          '缓存时间：',
+                          source.lastSuccess == null
+                              ? '—'
+                              : catalogTime(source.lastSuccess!.at),
+                        ),
+                      ],
                     ),
-                  ],
-                ),
-                trailing: const Icon(Icons.chevron_right),
-                onTap: () => _open(source.catalogId),
-              ),
+                    chevron: true,
+                    onTap: () => _open(source.catalogId),
+                  ),
+              ],
             ),
-          if (_missing.isNotEmpty) ...[
-            const SizedBox(height: 16),
-            const HintTitle(
-              '主机里引用了、本机没有的来源',
+          if (_missing.isNotEmpty)
+            ShunSection(
+              title: '主机里引用了、本机没有的来源',
               hint: '来源被移除过，或主机是从别的手机同步、导入来的。这些主机照常能连，只是看不到目录状态、地址也不跟随目录。',
+              children: [
+                for (final missing in _missing)
+                  ShunListRow(
+                    key: ValueKey('catalog-missing-${missing.catalogId}'),
+                    leading: const Icon(Icons.link_off),
+                    title: missing.catalogId,
+                    details: catalogLine(
+                      '引用它的主机：',
+                      missing.hosts.map((h) => h.label).join(', '),
+                    ),
+                    trailing: ShunButton(
+                      key: ValueKey('catalog-restore-${missing.catalogId}'),
+                      label: '在本机恢复',
+                      kind: ShunButtonKind.text,
+                      onPressed: () => _restore(missing.catalogId),
+                    ),
+                  ),
+              ],
             ),
-            for (final missing in _missing)
-              Card(
-                key: ValueKey('catalog-missing-${missing.catalogId}'),
-                child: ListTile(
-                  leading: const Icon(Icons.link_off),
-                  title: Text(missing.catalogId),
-                  subtitle: catalogLine(
-                    '引用它的主机：',
-                    missing.hosts.map((h) => h.label).join(', '),
-                    style: small,
-                  ),
-                  trailing: TextButton(
-                    key: ValueKey('catalog-restore-${missing.catalogId}'),
-                    onPressed: () => _restore(missing.catalogId),
-                    child: const LText('在本机恢复'),
-                  ),
-                ),
-              ),
-          ],
         ],
       ),
     );
@@ -382,8 +392,6 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
   @override
   Widget build(BuildContext context) {
     final cache = _cache;
-    final theme = Theme.of(context);
-    final small = theme.textTheme.bodySmall;
     final hosts = ref.watch(vaultControllerProvider).data?.hosts ?? const [];
     // 一台设备应该只关联一台主机；从别的手机同步来的旧数据可能有两台，都列出来，不替用户挑。
     final linked = <String, List<HostProfile>>{};
@@ -426,74 +434,80 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
           : cache == null
               ? const LinearProgressIndicator()
               : ListView(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                   children: [
-                    _statusCard(cache, small),
-                    if (!_hasSaved) ...[
-                      const SizedBox(height: 8),
-                      OutlinedButton.icon(
-                        key: const ValueKey('catalog-open-settings'),
-                        onPressed: _busy ? null : _settings,
-                        icon: const Icon(Icons.key_outlined),
-                        label: const LText('填 API key 读设备列表'),
+                    ShunSection(children: [_statusItem(cache)]),
+                    if (!_hasSaved)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 8),
+                        child: ShunButton(
+                          key: const ValueKey('catalog-open-settings'),
+                          label: '填 API key 读设备列表',
+                          icon: Icons.key_outlined,
+                          kind: ShunButtonKind.outlined,
+                          onPressed: _busy ? null : _settings,
+                        ),
                       ),
-                    ],
                     if (_busy) ...[
                       const SizedBox(height: 8),
                       const LinearProgressIndicator(),
                     ],
-                    const SizedBox(height: 16),
                     // 还没读过时上面的状态卡已经写了，这里不再说一遍。
                     if (devices.isEmpty && cache.lastSuccess != null)
-                      const LText('列表里没有设备')
-                    else if (devices.isNotEmpty) ...[
-                      HintTitle(
-                        '设备',
+                      const Padding(
+                        padding: EdgeInsets.only(top: 16),
+                        child: LText('列表里没有设备'),
+                      )
+                    else if (devices.isNotEmpty)
+                      ShunSection(
+                        title: '设备',
                         hint: _paragraphs([_importHint, _sharedDevicesNote]),
+                        children: [
+                          for (final record in devices)
+                            _deviceTile(record, linked[record.id], now),
+                        ],
                       ),
-                      for (final record in devices)
-                        _deviceTile(record, linked[record.id], small, now),
-                    ],
                   ],
                 ),
     );
   }
 
-  Widget _statusCard(CatalogCache cache, TextStyle? small) {
+  Widget _statusItem(CatalogCache cache) {
     final success = cache.lastSuccess;
     final attempt = cache.lastAttempt;
     // lastAttempt 每次读取都会覆盖（成功时和 lastSuccess 是同一条），所以它失败就是最近一次失败。
     // 不比时间先后：手机时钟被往回调过时，比较会把刚发生的失败藏起来。
     final failedLast = attempt != null && !attempt.ok;
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            catalogLine('tailnet：', cache.tailnet),
-            if (success == null)
-              const LText('还没读过设备列表')
-            else
-              catalogLine('缓存时间：', catalogTime(success.at)),
-            // 列表不完整时只写一句：优先用缓存里记下的具体原因（几条无法识别、几个重复 ID），
-            // 没有才用通用说法。两句一起显示是同一件事说两遍。
-            if (success != null && (!success.complete || success.note != null))
-              LText(
-                success.note ?? '上次读到的列表不完整：没有据此把任何设备标成不见了。',
-                key: success.complete
-                    ? null
-                    : const ValueKey('catalog-incomplete'),
-                style: small,
-              ),
-            if (failedLast) ...[
-              const SizedBox(height: 4),
-              catalogLine('最近一次读取失败：', catalogTime(attempt.at)),
-              if (attempt.note case final note?) LText(note, style: small),
-            ],
-            if (_hasSaved) const LText('已保存 key'),
+    final colors = prism.Theme.of(context).colorScheme;
+    final small = prism.AppTextStyle.subheadline
+        .of(context)
+        .copyWith(color: colors.onSurfaceVariant);
+    return ShunSectionItem(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          catalogLine('tailnet：', cache.tailnet),
+          if (success == null)
+            const LText('还没读过设备列表')
+          else
+            catalogLine('缓存时间：', catalogTime(success.at)),
+          // 列表不完整时只写一句：优先用缓存里记下的具体原因（几条无法识别、几个重复 ID），
+          // 没有才用通用说法。两句一起显示是同一件事说两遍。
+          if (success != null && (!success.complete || success.note != null))
+            LText(
+              success.note ?? '上次读到的列表不完整：没有据此把任何设备标成不见了。',
+              key: success.complete
+                  ? null
+                  : const ValueKey('catalog-incomplete'),
+              style: small,
+            ),
+          if (failedLast) ...[
+            const SizedBox(height: 4),
+            catalogLine('最近一次读取失败：', catalogTime(attempt.at)),
+            if (attempt.note case final note?) LText(note, style: small),
           ],
-        ),
+          if (_hasSaved) const LText('已保存 key'),
+        ],
       ),
     );
   }
@@ -501,16 +515,18 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
   Widget _deviceTile(
     CatalogDeviceRecord record,
     List<HostProfile>? linkedHosts,
-    TextStyle? small,
     DateTime now,
   ) {
     final device = record.device;
     final linked = linkedHosts ?? const <HostProfile>[];
     final canImport = linked.isEmpty && !record.missing;
     final hidden = _cache?.hiddenDevices.contains(record.id) ?? false;
-    return ListTile(
+    final colors = prism.Theme.of(context).colorScheme;
+    final small = prism.AppTextStyle.subheadline
+        .of(context)
+        .copyWith(color: colors.onSurfaceVariant);
+    return ShunListRow(
       key: ValueKey('catalog-device-${record.id}'),
-      contentPadding: EdgeInsets.zero,
       enabled: !_busy && (linked.isNotEmpty || canImport),
       onTap: () => _open(record, linked),
       leading: SystemIcon(
@@ -518,23 +534,22 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
         size: 40,
         label: device.os,
       ),
-      title: Text(catalogDeviceName(record)),
-      subtitle: Column(
+      describeLeading: true,
+      title: catalogDeviceName(record),
+      details: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (hidden) LText('已隐藏', style: small),
+          if (hidden) const LText('已隐藏'),
           PresenceLine(
             presence: deviceOnline(record),
             child: Text(
               device.addresses.isEmpty ? '—' : device.addresses.join('  '),
-              style: small,
             ),
           ),
-          Text(deviceOnlineText(record, now, statusAt: _cache?.lastSuccess?.at),
-              style: small),
+          Text(
+              deviceOnlineText(record, now, statusAt: _cache?.lastSuccess?.at)),
           if (record.missingSince != null)
-            catalogLine('最近完整列表里没有它，标记于：', catalogTime(record.missingSince!),
-                style: small),
+            catalogLine('最近完整列表里没有它，标记于：', catalogTime(record.missingSince!)),
           // 导入的主机地址由目录写入（appliedAddress 有值）；手动关联的从没由目录写过。
           for (final host in linked)
             Wrap(
@@ -546,13 +561,13 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
                       ? '已关联主机：'
                       : '已导入为主机：',
                   host.label,
-                  style: small,
                 ),
                 if (host.lastConnectedAt > 0) LoggedInMark(style: small),
               ],
             ),
         ],
       ),
+      // 菜单项要带 key（测试按它点），Prism 的菜单项挂不上 key，仍用 Material 的；归 R96。
       trailing: linked.isEmpty
           ? PopupMenuButton<bool>(
               key: ValueKey('catalog-device-menu-${record.id}'),

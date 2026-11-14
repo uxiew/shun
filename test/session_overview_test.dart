@@ -6,7 +6,6 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:prism_ui/prism_ui.dart' as prism;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shun/application/home_navigation.dart';
 import 'package:shun/application/session_controller.dart';
@@ -26,6 +25,7 @@ import 'package:shun/presentation/widgets/terminal_special_keys.dart';
 import 'package:shun/presentation/widgets/two_finger_swipe.dart';
 
 import 'support/test_terminal.dart';
+import 'support/prism_test_host.dart';
 
 // F35 / R70：在终端页两指上滑出会话总览。手势手感要真机，这里管逻辑：分组、切换、关闭、重连。
 void main() {
@@ -103,13 +103,11 @@ void main() {
     }
     await tester.pumpWidget(UncontrolledProviderScope(
       container: container,
-      // HomeShell 的设置页用 Prism 的分组标题，要 MeasureScope；App 里由 ShunUiHost 提供（R86）。
-      child: MaterialApp(
-        builder: (context, child) => prism.MeasureScope(
-          measure: prism.Measure.of(context, 1),
-          child: child!,
-        ),
-        home: const HomeShell(),
+      // HomeShell 里的连接页、设置页用 Prism 控件；App 里由 ShunUiHost 提供（R86、R87）。
+      child: const MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
+        home: HomeShell(),
       ),
     ));
     await tester.pump(const Duration(milliseconds: 500));

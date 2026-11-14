@@ -36,6 +36,7 @@ import 'package:shun/presentation/screens/known_hosts_screen.dart';
 import 'package:shun/presentation/screens/sftp_screen.dart';
 import 'package:shun/presentation/screens/settings_screen.dart';
 import 'package:shun/presentation/screens/snippets_screen.dart';
+import 'package:shun/presentation/screens/tailscale_catalog_screen.dart';
 import 'package:shun/presentation/screens/tailscale_settings_screen.dart';
 import 'package:shun/presentation/terminal/ghostty_terminal_view.dart';
 import 'package:shun/presentation/ui/prism_theme.dart';
@@ -184,6 +185,8 @@ void main() {
         List<HostProfile> hosts = const [],
         SessionState sessions = const SessionState(),
         String? backgroundScope,
+        String viewMode = 'grid',
+        List<CatalogCache> catalogs = const [],
       }) async {
         await loadFonts(tester);
         final paths = (await tester.runAsync(UiGalleryPaths.create))!;
@@ -221,6 +224,7 @@ void main() {
               ? ''
               : 'shun-background:$_backgroundName',
           customBackgroundScope: backgroundScope ?? 'global',
+          serverViewMode: viewMode,
         ));
         await repository.saveVault(VaultData.empty().copyWith(
           hosts: hosts,
@@ -233,7 +237,8 @@ void main() {
                 settings: const AppSettings(),
                 hasConnectedTerminal: () => false,
               )),
-          catalogCacheRepositoryProvider.overrideWithValue(_NoCatalog()),
+          catalogCacheRepositoryProvider
+              .overrideWithValue(_GalleryCatalog(catalogs)),
           httpClientProvider.overrideWithValue(MockClient(
               (_) async => http.Response('{"tag_name":"v1.4.7"}', 200))),
           sessionControllerProvider.overrideWith(
@@ -461,6 +466,72 @@ void main() {
         await save(tester, 'connections-populated-412x892-zh-s1');
       });
 
+      // R87 连接首页：列表、树形两种视图，带两个 Tailscale 来源（见 uiGalleryCatalogs）。
+      // 网格视图就是上面的 connections-populated。
+      for (final view in const ['list', 'tree']) {
+        testWidgets('连接首页：$view 视图和 Tailscale 分节', skip: skip != null,
+            (tester) async {
+          await pumpPage(tester, const HomeShell(),
+              height: 1500,
+              hosts: [...uiGalleryHosts, ...uiGalleryCatalogHosts],
+              viewMode: view,
+              catalogs: uiGalleryCatalogs());
+          expect(find.byKey(const ValueKey('vault-catalog-gallery-work')),
+              findsOneWidget);
+          await save(tester, 'connections-$view-412x1500-zh-s1');
+        });
+      }
+
+      testWidgets('连接首页：搜到目录设备、搜不到、分组', skip: skip != null,
+          (tester) async {
+        await pumpPage(tester, const HomeShell(),
+            height: 892,
+            hosts: [...uiGalleryHosts, ...uiGalleryCatalogHosts],
+            viewMode: 'list',
+            catalogs: uiGalleryCatalogs());
+        final search = find.byKey(const ValueKey('vault-search'));
+        await tester.enterText(search, '100.64.0.2');
+        await settle(tester);
+        expect(find.byKey(const ValueKey('vault-catalog-device-gallery-home-2')),
+            findsOneWidget);
+        await save(tester, 'connections-search-device-412x892-zh-s1');
+        await tester.enterText(search, 'nothing-like-this');
+        await settle(tester);
+        expect(find.text('没有匹配的主机'), findsOneWidget);
+        await save(tester, 'connections-search-none-412x892-zh-s1');
+        await tester.enterText(search, '');
+        await settle(tester);
+        await tester.tap(find.byKey(const ValueKey('vault-group-chip-开发')));
+        await save(tester, 'connections-group-412x892-zh-s1');
+      });
+
+      testWidgets('连接首页：主机都隐藏了', skip: skip != null, (tester) async {
+        await pumpPage(tester, const HomeShell(), height: 892, hosts: [
+          for (final host in uiGalleryHosts)
+            HostProfile({...host.data, hiddenHostKey: true}),
+        ]);
+        expect(find.byKey(const ValueKey('vault-open-hidden')), findsOneWidget);
+        await save(tester, 'connections-all-hidden-412x892-zh-s1');
+      });
+
+      testWidgets('Tailscale 目录：来源列表', skip: skip != null, (tester) async {
+        await pumpPage(tester, const TailscaleCatalogScreen(),
+            height: 892,
+            hosts: uiGalleryCatalogHosts,
+            catalogs: uiGalleryCatalogs());
+        await save(tester, 'tailscale-catalog-412x892-zh-s1');
+      });
+
+      testWidgets('Tailscale 目录：旧且读取失败的来源', skip: skip != null,
+          (tester) async {
+        await pumpPage(
+            tester, const CatalogSourceScreen(catalogId: 'gallery-work'),
+            height: 892,
+            hosts: uiGalleryCatalogHosts,
+            catalogs: uiGalleryCatalogs());
+        await save(tester, 'tailscale-catalog-work-412x892-zh-s1');
+      });
+
       // R85 主导航外壳：横屏和平板。底栏是 Prism 的 NavigationBar，五个入口都在。
       for (final (name, width, height) in const [
         ('landscape-892x412', 892.0, 412.0),
@@ -676,14 +747,17 @@ class _NoDeviceAuth implements DeviceAuth {
   Future<void> setProtectRecents(bool enabled) async {}
 }
 
-/// 真仓库要读写文件，而测试里的假时钟等不到真文件 IO，页面会停在加载中。
-class _NoCatalog extends CatalogCacheRepository {
-  _NoCatalog() : super(() async => Directory.systemTemp);
+/// 真仓库要读写文件，而测试里的假时钟等不到真文件 IO，页面会停在加载中。只读。
+class _GalleryCatalog extends CatalogCacheRepository {
+  _GalleryCatalog(this.caches) : super(() async => Directory.systemTemp);
+
+  final List<CatalogCache> caches;
 
   @override
-  Future<CatalogCache?> load(String catalogId) async => null;
+  Future<CatalogCache?> load(String catalogId) async =>
+      caches.where((cache) => cache.catalogId == catalogId).firstOrNull;
   @override
-  Future<List<CatalogCache>> loadAll() async => const [];
+  Future<List<CatalogCache>> loadAll() async => caches;
 }
 
 Future<void> settle(WidgetTester tester) async {

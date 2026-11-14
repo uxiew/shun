@@ -11,6 +11,7 @@ import 'package:shun/domain/models/host.dart';
 import 'package:shun/domain/tailscale_ssh.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/screens/vault_screen.dart';
+import 'support/prism_test_host.dart';
 
 // R25 第四部分：主机详情里的认证和路线按连接时的真实规则写，不另拼一套。
 void main() {
@@ -146,7 +147,10 @@ void main() {
       addTearDown(container.dispose);
       await tester.pumpWidget(UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(home: Scaffold(body: VaultScreen())),
+        child: const MaterialApp(
+            localizationsDelegates: prismTestDelegates,
+            builder: prismTestBuilder,
+            home: Scaffold(body: VaultScreen())),
       ));
       await tester.pumpAndSettle();
     }

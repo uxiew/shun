@@ -1,6 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/icons/icons.dart' as glyphs;
+import 'package:prism_ui/prism_ui.dart' as prism;
+
 import '../../domain/models/host.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import 'host_address_line.dart';
 import 'host_type_icon.dart';
 
@@ -15,7 +19,9 @@ Widget vaultHostMenuButton(
       icon: Icon(icon),
     );
 
-class VaultHostTree extends StatelessWidget {
+/// 树形视图（R87 换成 Prism 分组）：每个分组一组卡片，组头点了收起 / 展开，默认展开。
+/// 收起只在这一页记着，切走再回来、重开 App 都是展开的（和以前的 ExpansionTile 一样）。
+class VaultHostTree extends StatefulWidget {
   const VaultHostTree({
     super.key,
     required this.hosts,
@@ -32,9 +38,16 @@ class VaultHostTree extends StatelessWidget {
   final String? Function(HostProfile host)? catalogOsOf;
 
   @override
+  State<VaultHostTree> createState() => _VaultHostTreeState();
+}
+
+class _VaultHostTreeState extends State<VaultHostTree> {
+  final _collapsed = <String>{};
+
+  @override
   Widget build(BuildContext context) {
     final grouped = <String, List<HostProfile>>{};
-    for (final host in hosts) {
+    for (final host in widget.hosts) {
       grouped
           .putIfAbsent(
             host.group?.trim().isNotEmpty == true ? host.group!.trim() : '未分组',
@@ -48,48 +61,54 @@ class VaultHostTree extends StatelessWidget {
         if (b == '未分组') return -1;
         return a.toLowerCase().compareTo(b.toLowerCase());
       });
-    return ListView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      padding: const EdgeInsets.all(12),
-      itemCount: groups.length,
-      itemBuilder: (context, index) {
-        final group = groups[index];
-        final children = grouped[group]!;
-        return Card(
-          margin: const EdgeInsets.only(bottom: 10),
-          clipBehavior: Clip.antiAlias,
-          child: ExpansionTile(
-            initiallyExpanded: true,
-            leading: Icon(
-              group == '未分组'
-                  ? Icons.folder_off_outlined
-                  : Icons.folder_outlined,
-              color: Theme.of(context).colorScheme.primary,
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (final group in groups)
+            ShunSection(
+              children: [
+                _groupHeader(group, grouped[group]!.length),
+                if (!_collapsed.contains(group))
+                  for (final host in grouped[group]!)
+                    VaultHostTile(
+                      host: host,
+                      onConnect: () => widget.onConnect(host),
+                      onMenu: () => widget.onMenu(host),
+                      catalogOs: widget.catalogOsOf?.call(host),
+                    ),
+              ],
             ),
-            title: LText(group),
-            subtitle: LText('${children.length} 台服务器'),
-            children: [
-              for (final host in children)
-                ListTile(
-                  contentPadding: const EdgeInsets.only(left: 28, right: 8),
-                  onTap: () => onConnect(host),
-                  onLongPress: () => onMenu(host),
-                  leading: HostLeadingIcon(
-                      host: host, size: 38, catalogOs: catalogOsOf?.call(host)),
-                  title: LText(host.label),
-                  subtitle: HostAddressLine(host),
-                  trailing: vaultHostMenuButton(
-                      host, () => onMenu(host), Icons.more_vert),
-                ),
-            ],
-          ),
-        );
-      },
+        ],
+      ),
+    );
+  }
+
+  Widget _groupHeader(String group, int count) {
+    final open = !_collapsed.contains(group);
+    return ShunListRow(
+      key: ValueKey('vault-tree-group-$group'),
+      title: group,
+      subtitle: '$count 台服务器',
+      leading: Icon(
+        group == '未分组' ? Icons.folder_off_outlined : Icons.folder_outlined,
+      ),
+      trailing: ExcludeSemantics(
+        child: Icon(open ? Icons.expand_less : Icons.expand_more),
+      ),
+      expanded: open,
+      onTap: () => setState(
+        () => open ? _collapsed.add(group) : _collapsed.remove(group),
+      ),
     );
   }
 }
 
+/// 网格视图的一张卡片（R87 换成 Prism 卡片，FlClash 代理页的卡片同款）。
+///
+/// 读屏：整张卡片是一个按钮节点（Prism 卡片自带），系统、协议角标、名字、地址、分组都念在里面，
+/// 带「长按」动作；⋮ 是里面独立的按钮节点。
 class VaultHostCard extends StatelessWidget {
   const VaultHostCard({
     super.key,
@@ -104,54 +123,72 @@ class VaultHostCard extends StatelessWidget {
   final String? catalogOs;
 
   @override
-  Widget build(BuildContext context) => Card(
-        clipBehavior: Clip.antiAlias,
-        child: InkWell(
-          onTap: onConnect,
-          onLongPress: onMenu,
-          child: Padding(
-            padding: const EdgeInsets.all(14),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    HostLeadingIcon(host: host, size: 40, catalogOs: catalogOs),
-                    const Spacer(),
-                    if (host.pinned) const Icon(Icons.push_pin, size: 16),
-                    vaultHostMenuButton(host, onMenu, Icons.more_horiz),
-                  ],
-                ),
-                const Spacer(),
-                LText(
-                  host.label,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: const TextStyle(
-                      fontWeight: FontWeight.w600, fontSize: 16),
-                ),
-                const SizedBox(height: 4),
-                HostAddressLine(
-                  host,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.bodySmall,
-                ),
-                if (host.group?.isNotEmpty == true)
-                  LText(
-                    host.group!,
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.primary,
-                      fontSize: 11,
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    return prism.Card(
+      radius: prism.AppCorner.lg,
+      onPressed: onConnect,
+      // 长按手势放在卡片里面：它的「长按」动作才会并进卡片那个节点。只挂长按，Prism 卡片
+      // 照样自己收点按（它只在里面有带 onTap 的部件时才让出去）。
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onLongPress: onMenu,
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(14, 6, 4, 14),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  HostLeadingIcon(host: host, size: 40, catalogOs: catalogOs),
+                  const Spacer(),
+                  if (host.pinned)
+                    glyphs.GlyphIcon(
+                      glyphs.Glyphs.pin,
+                      size: 16,
+                      color: colors.onSurfaceVariant,
                     ),
-                  ),
-              ],
-            ),
+                  vaultHostMenuButton(host, onMenu, Icons.more_horiz),
+                ],
+              ),
+              const Spacer(),
+              LText(
+                host.label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: prism.AppTextStyle.headline
+                    .of(context)
+                    .copyWith(color: colors.onSurface),
+              ),
+              const SizedBox(height: 4),
+              HostAddressLine(
+                host,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                // 细节行用 footnote（FlClash 代理卡片同款）：地址长，大一号就被截掉一截。
+                style: prism.AppTextStyle.footnote
+                    .of(context)
+                    .copyWith(color: colors.onSurfaceVariant),
+              ),
+              if (host.group?.isNotEmpty == true)
+                LText(
+                  host.group!,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: prism.AppTextStyle.caption1
+                      .of(context)
+                      .copyWith(color: colors.primary),
+                ),
+            ],
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
+/// 列表视图（和树形视图、Tailscale 分节）里的一行。要放在 Prism 分组里（外面有
+/// ItemPositionProvider），画成 FlClash 设置页那种连在一起的分组卡片。
 class VaultHostTile extends StatelessWidget {
   const VaultHostTile({
     super.key,
@@ -165,14 +202,13 @@ class VaultHostTile extends StatelessWidget {
   final VoidCallback onMenu;
   final String? catalogOs;
   @override
-  Widget build(BuildContext context) => Card(
-        child: ListTile(
-          onTap: onConnect,
-          onLongPress: onMenu,
-          leading: HostLeadingIcon(host: host, size: 42, catalogOs: catalogOs),
-          title: LText(host.label),
-          subtitle: HostAddressLine(host),
-          trailing: vaultHostMenuButton(host, onMenu, Icons.more_vert),
-        ),
+  Widget build(BuildContext context) => ShunListRow(
+        title: host.label,
+        leading: HostLeadingIcon(host: host, size: 40, catalogOs: catalogOs),
+        describeLeading: true,
+        details: HostAddressLine(host),
+        trailing: vaultHostMenuButton(host, onMenu, Icons.more_vert),
+        onTap: onConnect,
+        onLongPress: onMenu,
       );
 }

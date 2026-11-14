@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart' show SemanticsNode;
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -12,6 +13,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shun/presentation/screens/hidden_hosts_screen.dart';
 import 'package:shun/application/home_navigation.dart';
 import 'package:shun/application/session_controller.dart';
+import 'package:shun/application/settings_controller.dart';
 import 'package:shun/application/tailscale_catalog_access.dart';
 import 'package:shun/application/tailscale_catalog_refresh.dart';
 import 'package:shun/application/vault_controller.dart';
@@ -25,6 +27,9 @@ import 'package:shun/infrastructure/tailscale/tailscale_device.dart';
 import 'package:shun/presentation/screens/vault_screen.dart';
 import 'package:shun/presentation/screens/tailscale_settings_screen.dart';
 import 'package:shun/presentation/widgets/catalog_import_sheet.dart';
+import 'package:shun/presentation/widgets/host_actions_sheet.dart';
+import 'package:shun/presentation/widgets/vault_host_items.dart';
+import 'support/prism_test_host.dart';
 
 // R43 / UX09：主机列表里的 Tailscale 分节。
 // 两个来源里放同名、同 IP、同设备 ID 的设备；控制面已连接 / 未连接 / 不知道 / 列表里不见了；
@@ -124,6 +129,7 @@ void main() {
   late List<http.Request> requests;
   late List<Map<String, Object?>> listed;
   late Completer<void>? gate;
+  late bool failDevices;
   late ProviderContainer container;
 
   final now = DateTime.now();
@@ -132,6 +138,7 @@ void main() {
     WidgetTester tester, {
     List<Map<String, Object?>> extraHosts = const [],
     List<String> groups = const [],
+    String view = 'list',
   }) async {
     tester.view.physicalSize = const Size(900, 3200);
     tester.view.devicePixelRatio = 1;
@@ -159,7 +166,7 @@ void main() {
         'snippets': const [],
         'customGroups': groups,
       }),
-      'shun_settings_v1': jsonEncode({'serverViewMode': 'list'}),
+      'shun_settings_v1': jsonEncode({'serverViewMode': view}),
     });
     final vault = await VaultRepository.open();
     final client = MockClient((request) async {
@@ -176,6 +183,7 @@ void main() {
         );
       }
       await gate?.future;
+      if (failDevices) return http.Response('{"message":"boom"}', 500);
       return http.Response(jsonEncode({'devices': listed}), 200);
     });
     container = ProviderContainer(overrides: [
@@ -194,7 +202,10 @@ void main() {
     addTearDown(container.dispose);
     await tester.pumpWidget(UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(home: Scaffold(body: VaultScreen())),
+      child: const MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
+          home: Scaffold(body: VaultScreen())),
     ));
     await tester.pumpAndSettle();
   }
@@ -218,6 +229,7 @@ void main() {
     secrets = _MemoryBackend();
     requests = [];
     gate = null;
+    failDevices = false;
     repo.caches['ts-home'] = source(
       'ts-home',
       'Home',
@@ -508,13 +520,13 @@ void main() {
     ], groups: [
       'NAS'
     ]);
-    await tester.enterText(find.byType(TextField).first, '100.64.0.2');
+    await tester.enterText(key('vault-search'), '100.64.0.2');
     await tester.pumpAndSettle();
     expect(key('vault-catalog-device-ts-home-2'), findsOneWidget);
     expect(key('vault-catalog-ts-work'), findsNothing);
     expect(key('vault-catalog-host-a-nas'), findsNothing);
 
-    await tester.enterText(find.byType(TextField).first, '');
+    await tester.enterText(key('vault-search'), '');
     await tester.tap(key('vault-group-chip-NAS'));
     await tester.pumpAndSettle();
     expect(sections, findsNothing);
@@ -523,4 +535,255 @@ void main() {
     expect(key('vault-host-menu-grouped'), findsOneWidget);
     expect(key('vault-host-menu-a-nas'), findsNothing);
   });
+
+  group('UIM08（R87 迁移连接首页）', () {
+    for (final view in const ['list', 'grid', 'tree']) {
+      testWidgets('迁移前首页的入口一项不少、顺序不变；装页面不发请求、不连接（$view）', (tester) async {
+        await open(tester,
+            extraHosts: _uim08Hosts, groups: ['prod'], view: view);
+        final keys = [
+          for (final element in find
+              .descendant(
+                  of: find.byType(VaultScreen),
+                  matching:
+                      find.byWidgetPredicate((w) => w.key is ValueKey<String>))
+              .evaluate())
+            (element.widget.key! as ValueKey<String>).value,
+        ];
+        expect(_inOrder(_uim08KeysBefore, keys), isTrue,
+            reason: '现在的 key：\n${keys.join('\n')}');
+        expect(requests, isEmpty);
+        expect(container.read(sessionControllerProvider).sessions, isEmpty);
+        expect(container.read(sessionControllerProvider).pendingConnections,
+            isEmpty);
+      });
+    }
+
+    testWidgets('视图菜单是 Prism 弹出菜单，当前视图打勾；选了就存、换布局', (tester) async {
+      final handle = tester.ensureSemantics();
+      await open(tester, extraHosts: _uim08Hosts, groups: ['prod']);
+      expect(find.byType(VaultHostTile), findsWidgets);
+      await tester.tap(key('vault-view-mode'));
+      await tester.pumpAndSettle();
+      expect(tester.getSemantics(find.text('列表视图')),
+          isSemantics(isChecked: true, hasCheckedState: true));
+      expect(tester.getSemantics(find.text('树形视图')),
+          isSemantics(isChecked: false, hasCheckedState: true));
+      await tester.tap(find.text('树形视图'));
+      await tester.pumpAndSettle();
+      expect(container.read(settingsControllerProvider).serverViewMode, 'tree');
+      expect(key('vault-tree-group-prod'), findsOneWidget);
+
+      await tester.tap(key('vault-view-mode'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('网格视图'));
+      await tester.pumpAndSettle();
+      expect(container.read(settingsControllerProvider).serverViewMode, 'grid');
+      // 绑定到本机来源的三台在 Tailscale 分节里，不在网格里重复。
+      expect(find.byType(VaultHostCard), findsNWidgets(5));
+      handle.dispose();
+    });
+
+    for (final view in const ['list', 'grid', 'tree']) {
+      testWidgets('长按出和 ⋮ 一样的菜单；一台一个按钮节点，念出协议角标、名字、地址（$view）', (tester) async {
+        final handle = tester.ensureSemantics();
+        await open(tester,
+            extraHosts: _uim08Hosts, groups: ['prod'], view: view);
+        final row = find.bySemanticsLabel(RegExp(r'Mosh 连接\s+roam\s+ops@'));
+        expect(row, findsOneWidget);
+        expect(
+            tester.getSemantics(row),
+            isSemantics(
+                isButton: true, hasTapAction: true, hasLongPressAction: true));
+        await tester.longPress(row);
+        await tester.pumpAndSettle();
+        expect(find.byType(HostActionsSheet), findsOneWidget);
+        expect(key('host-menu-edit'), findsOneWidget);
+        expect(container.read(sessionControllerProvider).pendingConnections,
+            isEmpty);
+        handle.dispose();
+      });
+    }
+
+    testWidgets('Tailscale 分节里的主机也能长按出菜单', (tester) async {
+      final handle = tester.ensureSemantics();
+      await open(tester);
+      expect(
+          tester.getSemantics(
+              find.bySemanticsLabel(RegExp(r'家里 NAS\s+admin@100\.64\.0\.1'))),
+          isSemantics(hasLongPressAction: true, hasTapAction: true));
+      await tester.longPress(key('vault-catalog-host-a-nas'));
+      await tester.pumpAndSettle();
+      expect(find.byType(HostActionsSheet), findsOneWidget);
+      expect(requests, isEmpty);
+      handle.dispose();
+    });
+
+    testWidgets('树形视图的分组和 Tailscale 来源能收起，读屏报展开状态', (tester) async {
+      final handle = tester.ensureSemantics();
+      await open(tester,
+          extraHosts: _uim08Hosts, groups: ['prod'], view: 'tree');
+      SemanticsNode node(String label) =>
+          tester.getSemantics(find.bySemanticsLabel(RegExp(label)));
+      expect(node(r'^prod\s+2 台服务器'),
+          isSemantics(hasExpandedState: true, isExpanded: true));
+      expect(node(r'^Home\s+状态截至'),
+          isSemantics(hasExpandedState: true, isExpanded: true));
+      await tester.tap(key('vault-tree-group-prod'));
+      await tester.pumpAndSettle();
+      expect(key('vault-host-menu-web'), findsNothing);
+      expect(key('vault-host-menu-old'), findsOneWidget, reason: '只收起这一组');
+      expect(node(r'^prod\s+2 台服务器'),
+          isSemantics(hasExpandedState: true, isExpanded: false));
+      await tester.tap(key('vault-tree-group-prod'));
+      await tester.pumpAndSettle();
+      expect(key('vault-host-menu-web'), findsOneWidget);
+      handle.dispose();
+    });
+
+    testWidgets('分组 chip：选中、没选中都报选中状态，一个 chip 一个节点', (tester) async {
+      final handle = tester.ensureSemantics();
+      await open(tester, extraHosts: _uim08Hosts, groups: ['prod']);
+      expect(
+          tester.getSemantics(find.bySemanticsLabel('全部')),
+          isSemantics(
+              isButton: true, hasSelectedState: true, isSelected: true));
+      expect(
+          tester.getSemantics(find.bySemanticsLabel('prod')),
+          isSemantics(
+              isButton: true, hasSelectedState: true, isSelected: false));
+      await tester.tap(key('vault-group-chip-prod'));
+      await tester.pumpAndSettle();
+      expect(tester.getSemantics(find.bySemanticsLabel('全部')),
+          isSemantics(hasSelectedState: true, isSelected: false));
+      expect(tester.getSemantics(find.bySemanticsLabel('prod')),
+          isSemantics(hasSelectedState: true, isSelected: true));
+      handle.dispose();
+    });
+
+    testWidgets('有 Tailscale 来源时搜不到：说「没有匹配的主机」，不是一片空白', (tester) async {
+      await open(tester);
+      await tester.enterText(key('vault-search'), 'nothing-like-this');
+      await tester.pumpAndSettle();
+      expect(find.text('没有匹配的主机'), findsOneWidget);
+      expect(sections, findsNothing);
+      expect(key('vault-empty-add-host'), findsNothing,
+          reason: '搜不到不是没有，不摆新建按钮');
+      await tester.enterText(key('vault-search'), '');
+      await tester.pumpAndSettle();
+      expect(find.text('没有匹配的主机'), findsNothing);
+      expect(sections, findsOneWidget);
+    });
+
+    testWidgets('手动刷新失败：提示一次，组头写最近一次读取失败；不弹框、不连接、不自己重试', (tester) async {
+      await open(tester);
+      failDevices = true;
+      await tester.tap(key('vault-catalog-refresh-ts-home'));
+      await tester.pumpAndSettle();
+      Iterable<http.Request> reads() =>
+          requests.where((r) => r.url.path.contains('/devices'));
+      expect(reads(), hasLength(1));
+      expect(find.byType(SnackBar), findsOneWidget);
+      expect(find.byType(AlertDialog), findsNothing);
+      expect(
+          inGroup('ts-home', find.textContaining('最近一次读取失败：')), findsOneWidget);
+      expect(container.read(sessionControllerProvider).sessions, isEmpty);
+      expect(container.read(sessionControllerProvider).pendingConnections,
+          isEmpty);
+      // 底栏停在设置页（连接页不在前台）：过 15 分钟也不自己再读、不再提示。
+      await tester.pump(const Duration(minutes: 15));
+      await tester.pumpAndSettle();
+      expect(reads(), hasLength(1));
+      expect(find.byType(SnackBar), findsNothing);
+      expect(find.byType(AlertDialog), findsNothing);
+    });
+  });
+}
+
+/// UIM08 用的普通主机：置顶、分组、Telnet、Mosh 各一台。
+const _uim08Hosts = <Map<String, Object?>>[
+  {
+    'id': 'web',
+    'label': 'web',
+    'hostname': '192.0.2.10',
+    'username': 'ops',
+    'protocol': 'ssh',
+    'group': 'prod',
+    'pinned': true,
+  },
+  {
+    'id': 'db',
+    'label': 'db',
+    'hostname': '192.0.2.10',
+    'username': 'ops',
+    'protocol': 'ssh',
+    'group': 'prod',
+  },
+  {
+    'id': 'old',
+    'label': 'old',
+    'hostname': '192.0.2.10',
+    'username': 'ops',
+    'port': 23,
+    'protocol': 'telnet',
+  },
+  {
+    'id': 'roam',
+    'label': 'roam',
+    'hostname': '192.0.2.10',
+    'username': 'ops',
+    'protocol': 'mosh',
+  },
+];
+
+/// 迁移前（R86 验收后的 8406c8d，lib 未改）同一份数据、列表视图下首页的 key，按出现顺序。
+/// 网格、树形视图在迁移前也是这一串。R87 换了控件，这些 key 都要还在、先后不变（可以多出新的）。
+const _uim08KeysBefore = <String>[
+  'vault-group-chip-all',
+  'vault-group-chip-prod',
+  'vault-host-menu-web',
+  'vault-host-menu-db',
+  'host-type-telnet',
+  'vault-host-menu-old',
+  'vault-host-menu-plain',
+  'host-type-mosh',
+  'vault-host-menu-roam',
+  'vault-catalog-sections',
+  'vault-catalog-ts-home',
+  'vault-catalog-toggle-ts-home',
+  'vault-catalog-age-ts-home',
+  'vault-catalog-refresh-ts-home',
+  'vault-catalog-settings-ts-home',
+  'vault-catalog-host-a-pc',
+  'vault-catalog-status-a-pc',
+  'vault-host-menu-a-pc',
+  'vault-catalog-host-a-nas',
+  'presence-online',
+  'vault-catalog-status-a-nas',
+  'vault-host-menu-a-nas',
+  'vault-catalog-device-ts-home-2',
+  'presence-offline',
+  'vault-catalog-device-status-ts-home-2',
+  'vault-catalog-device-menu-ts-home-2',
+  'vault-catalog-ts-work',
+  'vault-catalog-toggle-ts-work',
+  'vault-catalog-age-ts-work',
+  'vault-catalog-refresh-ts-work',
+  'vault-catalog-settings-ts-work',
+  'vault-catalog-host-b-nas',
+  'presence-offline',
+  'vault-catalog-status-b-nas',
+  'vault-host-menu-b-nas',
+  'vault-catalog-device-ts-work-4',
+  'vault-catalog-device-status-ts-work-4',
+  'vault-catalog-device-menu-ts-work-4',
+];
+
+/// [expected] 按顺序出现在 [actual] 里（中间可以夹别的）。
+bool _inOrder(List<String> expected, List<String> actual) {
+  var at = 0;
+  for (final key in actual) {
+    if (at < expected.length && expected[at] == key) at++;
+  }
+  return at == expected.length;
 }

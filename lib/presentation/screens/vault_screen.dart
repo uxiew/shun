@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -24,6 +25,7 @@ import '../../domain/models/host.dart';
 import '../../domain/ai_cli_work.dart';
 import '../../domain/plugins/plugin_host.dart';
 import '../../application/home_navigation.dart';
+import '../ui/components.dart';
 import '../widgets/connection_type_sheet.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/hint.dart';
@@ -153,6 +155,15 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
         sectionIds.contains(CatalogBinding.of(host)?.catalogId);
     final hosts = visible.where((host) => !inSection(host)).toList();
     final sectionHosts = visible.where(inSection).toList();
+    // Tailscale 分节这次有没有行：搜索时一个来源都没命中，分节整个不画，下面要说「没有匹配的主机」，
+    // 不能因为「有来源」就什么都不显示（R87 出图时发现：以前搜不到是一片空白）。
+    final catalogShown = sectionIds.isNotEmpty &&
+        catalogSectionGroups(
+          sources: catalogSources,
+          allHosts: vault?.hosts ?? const [],
+          hosts: sectionHosts,
+          query: _search.text,
+        ).isNotEmpty;
 
     return SafeArea(
       child: Column(
@@ -170,40 +181,34 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                     height: 28),
                 // 只留图标，不写 App 名（R26 所有者）。
                 const Spacer(),
-                PopupMenuButton<String>(
-                  tooltip: localized('服务器视图'),
-                  initialValue: viewMode,
-                  onSelected: (value) => ref
-                      .read(settingsControllerProvider.notifier)
-                      .update(settings.copyWith(serverViewMode: value)),
-                  itemBuilder: (_) => const [
-                    PopupMenuItem(
-                      value: 'grid',
-                      child: ListTile(
-                        leading: Icon(Icons.grid_view_outlined),
-                        title: LText('网格视图'),
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'list',
-                      child: ListTile(
-                        leading: Icon(Icons.view_list_outlined),
-                        title: LText('列表视图'),
-                      ),
-                    ),
-                    PopupMenuItem(
-                      value: 'tree',
-                      child: ListTile(
-                        leading: Icon(Icons.account_tree_outlined),
-                        title: LText('树形视图'),
-                      ),
-                    ),
-                  ],
-                  icon: Icon(switch (viewMode) {
-                    'list' => Icons.view_list_outlined,
-                    'tree' => Icons.account_tree_outlined,
-                    _ => Icons.grid_view_outlined,
-                  }),
+                // Prism 的弹出菜单（FlClash 同款），当前视图打勾；按钮图标跟着当前视图换。
+                prism.PopupAnchor(
+                  targetBuilder: (open) => IconButton(
+                    key: const ValueKey('vault-view-mode'),
+                    tooltip: localizedOf(context, '服务器视图'),
+                    onPressed: open,
+                    icon: Icon(switch (viewMode) {
+                      'list' => Icons.view_list_outlined,
+                      'tree' => Icons.account_tree_outlined,
+                      _ => Icons.grid_view_outlined,
+                    }),
+                  ),
+                  popupBuilder: (_) => prism.PopupMenu(
+                    items: [
+                      for (final (value, label) in const [
+                        ('grid', '网格视图'),
+                        ('list', '列表视图'),
+                        ('tree', '树形视图'),
+                      ])
+                        prism.PopupMenuItem(
+                          label: localizedOf(context, label),
+                          checked: viewMode == value,
+                          onPressed: () => ref
+                              .read(settingsControllerProvider.notifier)
+                              .update(settings.copyWith(serverViewMode: value)),
+                        ),
+                    ],
+                  ),
                 ),
                 IconButton(
                   tooltip: localized('添加连接'),
@@ -215,13 +220,14 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
           ),
           if (recent != null && recentHost != null)
             Padding(
-              padding: const EdgeInsets.fromLTRB(12, 0, 12, 8),
-              child: Card(
-                child: ListTile(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+              child: prism.ItemPositionProvider(
+                position: prism.ItemPosition.startAndEnd,
+                child: ShunListRow(
                   key: const ValueKey('vault-recent-ai-work'),
                   leading: const Icon(Icons.terminal),
-                  title: const LText('最近 AI 工作'),
-                  subtitle: Column(
+                  title: '最近 AI 工作',
+                  details: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       LText(
@@ -232,21 +238,22 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                       ),
                     ],
                   ),
-                  trailing: const Icon(Icons.chevron_right),
+                  chevron: true,
                   onTap: () => _openRecentAi(recent, recentHost),
                 ),
               ),
             ),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: 16),
-            child: TextField(
+            // Prism 的搜索框（FlClash 同款胶囊），底色用卡片那一层，和下面的分组卡片一样。
+            child: prism.SearchField(
+              key: const ValueKey('vault-search'),
               controller: _search,
               onChanged: (_) => setState(() {}),
-              decoration: LInputDecoration(
-                prefixIcon: Icon(Icons.search),
-                hintText: '搜索主机、地址、分组或标签',
-                isDense: true,
-              ),
+              hintText: localizedOf(context, '搜索主机、地址、分组或标签'),
+              fill: prism.SurfaceContext(context)
+                  .raisedSurfaceLevel
+                  .colorOf(prism.Theme.of(context).colorScheme),
             ),
           ),
           if (state.unreadableSecrets.isNotEmpty)
@@ -274,7 +281,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
               height: 48,
               child: ListView(
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
+                  horizontal: 16,
                   vertical: 6,
                 ),
                 scrollDirection: Axis.horizontal,
@@ -317,10 +324,11 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                   ),
                   if (state.loading && vault == null)
                     const SliverToBoxAdapter(
+                      key: ValueKey('vault-loading'),
                       child: Center(child: CircularProgressIndicator()),
                     )
                   else if (hosts.isEmpty &&
-                      sectionIds.isEmpty &&
+                      !catalogShown &&
                       hiddenCount > 0 &&
                       _search.text.trim().isEmpty)
                     // 全藏了别说「还没有」：看着像主机全丢了。
@@ -328,18 +336,19 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                       child: EmptyState(
                         icon: Icons.visibility_off_outlined,
                         title: '主机都隐藏了',
-                        action: TextButton(
+                        action: ShunButton(
                           key: const ValueKey('vault-open-hidden'),
+                          label: '查看隐藏的主机',
+                          kind: ShunButtonKind.text,
                           onPressed: () => Navigator.of(context).push(
                             MaterialPageRoute<void>(
                               builder: (_) => const HiddenHostsScreen(),
                             ),
                           ),
-                          child: const LText('查看隐藏的主机'),
                         ),
                       ),
                     )
-                  else if (hosts.isEmpty && sectionIds.isEmpty)
+                  else if (hosts.isEmpty && !catalogShown)
                     SliverToBoxAdapter(
                       // 搜不到不是没有：这时说「还没有」、摆新建按钮，看着像主机全丢了。
                       child: _search.text.trim().isNotEmpty
@@ -356,18 +365,19 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                                 runSpacing: 8,
                                 alignment: WrapAlignment.center,
                                 children: [
-                                  FilledButton.icon(
+                                  ShunButton(
                                     key: const ValueKey('vault-empty-add-host'),
+                                    label: '添加主机',
+                                    icon: Icons.add,
                                     onPressed: () => _editHost(),
-                                    icon: const Icon(Icons.add),
-                                    label: const LText('添加主机'),
                                   ),
-                                  OutlinedButton.icon(
+                                  ShunButton(
                                     key:
                                         const ValueKey('vault-empty-tailscale'),
+                                    label: '连接 Tailscale',
+                                    icon: Icons.hub_outlined,
+                                    kind: ShunButtonKind.outlined,
                                     onPressed: () => _openTailscaleSettings(),
-                                    icon: const Icon(Icons.hub_outlined),
-                                    label: const LText('连接 Tailscale'),
                                   ),
                                 ],
                               ),
@@ -375,7 +385,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                     )
                   else if (viewMode == 'grid')
                     SliverPadding(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
                       sliver: _hostCardRows(hosts),
                     )
                   else if (viewMode == 'tree')
@@ -388,21 +398,20 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                       ),
                     )
                   else
+                    // 一组连在一起的分组卡片（FlClash 设置页同款），只建看得见的行：主机可能有几百台。
                     SliverPadding(
-                      padding: const EdgeInsets.all(12),
-                      sliver: SliverList(
-                        delegate: SliverChildBuilderDelegate(
-                          (_, index) => VaultHostTile(
-                            host: hosts[index],
-                            onConnect: () => _showHostDetails(hosts[index]),
-                            onMenu: () => _showHostMenu(hosts[index]),
-                            catalogOs: _catalogOs(hosts[index]),
-                          ),
-                          childCount: hosts.length,
+                      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+                      sliver: prism.generateSliverSection<HostProfile>(
+                        items: hosts,
+                        itemBuilder: (host) => VaultHostTile(
+                          host: host,
+                          onConnect: () => _showHostDetails(host),
+                          onMenu: () => _showHostMenu(host),
+                          catalogOs: _catalogOs(host),
                         ),
                       ),
                     ),
-                  if (sectionIds.isNotEmpty)
+                  if (catalogShown)
                     SliverToBoxAdapter(
                       child: CatalogHostSections(
                         sources: catalogSources,
@@ -940,30 +949,39 @@ class _VaultGroupChip extends StatelessWidget {
   final bool selected;
   final VoidCallback onSelected;
 
+  /// 照 Prism 的 Chip 画（胶囊、选中填主色、36 高），没直接用它：Prism 的 Chip 只在选中时报
+  /// 「已选中」，没选中的不报选中状态，读屏听不出这是一组单选。这里给没选中的补上「未选中」，
+  /// 并进 Prism 卡片那个按钮节点；选中时卡片自己会报，再标一次两边冲突，读屏会拆成两个节点。
   @override
-  Widget build(BuildContext context) => SizedBox(
-        height: 36,
-        child: ChoiceChip(
-          selected: selected,
-          showCheckmark: false,
-          onSelected: (_) => onSelected(),
-          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          visualDensity: const VisualDensity(horizontal: -1, vertical: -1),
-          padding: EdgeInsets.zero,
-          labelPadding: const EdgeInsets.symmetric(horizontal: 8),
-          label: ConstrainedBox(
-            constraints: const BoxConstraints(minWidth: 52, minHeight: 28),
-            child: Center(
-              child: LText(
-                label,
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    return SizedBox(
+      height: prism.TonalButtonSize.section.button,
+      child: prism.Card(
+        shape: prism.AppShape.full,
+        isSelected: selected,
+        fillsSelection: true,
+        padding: const EdgeInsets.symmetric(horizontal: 16),
+        onPressed: onSelected,
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(minWidth: 28),
+          child: Semantics(
+            selected: selected ? null : false,
+            child: LText(
+              label,
+              textAlign: TextAlign.center,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: prism.AppTextStyle.subheadline
+                  .of(context, emphasized: true)
+                  .copyWith(
+                      color: selected ? colors.onPrimary : colors.onSurface),
             ),
           ),
         ),
-      );
+      ),
+    );
+  }
 }
 
 enum _HostAction { connect, edit, aiCli }

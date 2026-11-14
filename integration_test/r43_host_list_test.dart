@@ -120,8 +120,8 @@ void main() {
     Future<List<String>> openMenu(String hostId) async {
       await reveal(key('vault-host-menu-$hostId'));
       await tester.tap(key('vault-host-menu-$hostId'));
+      // 只认 key：菜单项是什么控件不重要（R87 从 ListTile 换成了 ShunListRow）。
       final items = find.byWidgetPredicate((w) =>
-          w is ListTile &&
           w.key is ValueKey<String> &&
           (w.key! as ValueKey<String>).value.startsWith('host-menu-'));
       await waitFor(tester, () => items.evaluate().isNotEmpty, what: '⋮ 菜单');

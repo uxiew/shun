@@ -30,6 +30,7 @@ import 'package:shun/presentation/widgets/host_editor.dart';
 import 'fixtures/fake_plugin_bridge.dart';
 import 'rustdesk_fakes.dart';
 import 'uuremote_fakes.dart';
+import 'support/prism_test_host.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -72,8 +73,10 @@ void main() {
           uuRemoteStoreProvider.overrideWithValue(UuRemoteStore(uuBackend)),
           catalogCacheRepositoryProvider.overrideWithValue(_NoCatalogs()),
         ],
-        child:
-            MaterialApp(home: UuRemoteListener(child: Scaffold(body: home)))));
+        child: MaterialApp(
+            localizationsDelegates: prismTestDelegates,
+            builder: prismTestBuilder,
+            home: UuRemoteListener(child: Scaffold(body: home)))));
     await tester.pumpAndSettle();
     return ProviderScope.containerOf(
         tester.element(find.byType(home.runtimeType).first));

@@ -10,6 +10,7 @@ import 'package:shun/domain/ai_cli.dart';
 import 'package:shun/domain/ai_cli_work.dart';
 import 'package:shun/presentation/screens/vault_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'support/prism_test_host.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -46,6 +47,8 @@ void main() {
       ProviderScope(
         overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
         child: const MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
           home: Scaffold(body: VaultScreen()),
         ),
       ),
@@ -92,6 +95,8 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
       child: MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Scaffold(
           body: VaultScreen(
             recentWork: _Recent([

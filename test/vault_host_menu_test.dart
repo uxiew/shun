@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -6,11 +7,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shun/application/connection_events.dart';
+import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/screens/app_log_screen.dart';
 import 'package:shun/presentation/screens/vault_screen.dart';
+import 'support/prism_test_host.dart';
 
 // R43：主机列表的 ⋮ 菜单只列这台能用的动作；隐藏只管列表显示、找得回来。
 // 换方式连、挂在连着的 SSH 上的几项在 connection_switch_test.dart 的「主机菜单（R43）」组。
@@ -47,7 +50,10 @@ void main() {
     await container.read(connectionEventLogProvider.notifier).ready;
     await tester.pumpWidget(UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(home: Scaffold(body: VaultScreen())),
+      child: const MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
+          home: Scaffold(body: VaultScreen())),
     ));
     await tester.pumpAndSettle();
   }
@@ -70,7 +76,6 @@ void main() {
     final items = [
       for (final element in find
           .byWidgetPredicate((w) =>
-              w is ListTile &&
               w.key is ValueKey<String> &&
               (w.key! as ValueKey<String>).value.startsWith('host-menu-'))
           .evaluate())
@@ -206,7 +211,7 @@ void main() {
       host('web', 'ssh', {'group': 'prod'}),
       host('db', 'ssh'),
     ]);
-    final search = find.byType(TextField).first;
+    final search = find.byKey(const ValueKey('vault-search'));
     await tester.enterText(search, 'PROD');
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('vault-host-menu-web')), findsOneWidget);
@@ -217,5 +222,56 @@ void main() {
     expect(find.text('没有匹配的主机'), findsOneWidget);
     expect(find.text('还没有终端连接'), findsNothing);
     expect(find.byKey(const ValueKey('vault-empty-add-host')), findsNothing);
+  });
+
+  // 首页的「加载中」：安全存储（密码、私钥）还在读时，主机列表先按本机缓存显示，不等它、
+  // 也不说「还没有」。缓存本身读不出来时才只转圈（vault-loading），那条路这里不造。
+  testWidgets('UIM08：安全存储还在读：先按缓存列出主机，不说「还没有」，不连接', (tester) async {
+    const channel =
+        MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
+    final unblock = Completer<void>();
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (call) async {
+      await unblock.future;
+      return null;
+    });
+    addTearDown(() => TestDefaultBinaryMessengerBinding
+        .instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null));
+    SharedPreferences.setMockInitialValues({
+      'shun_vault_v1': jsonEncode({
+        'hosts': [host('web', 'ssh'), host('db', 'ssh')],
+        'keys': const [],
+        'snippets': const [],
+        'customGroups': const [],
+      }),
+      'shun_settings_v1': jsonEncode({'serverViewMode': 'list'}),
+    });
+    final repository = await VaultRepository.open();
+    container = ProviderContainer(overrides: [
+      vaultRepositoryProvider.overrideWithValue(repository),
+    ]);
+    addTearDown(container.dispose);
+    await tester.pumpWidget(UncontrolledProviderScope(
+      container: container,
+      child: const MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
+          home: Scaffold(body: VaultScreen())),
+    ));
+    await tester.pump();
+    expect(container.read(vaultControllerProvider).loading, isTrue);
+    expect(find.byKey(const ValueKey('vault-host-menu-web')), findsOneWidget);
+    expect(find.byKey(const ValueKey('vault-host-menu-db')), findsOneWidget);
+    expect(find.byKey(const ValueKey('vault-loading')), findsNothing);
+    expect(find.text('还没有终端连接'), findsNothing);
+    expect(
+        container.read(sessionControllerProvider).pendingConnections, isEmpty);
+
+    unblock.complete();
+    await tester.pumpAndSettle();
+    expect(container.read(vaultControllerProvider).loading, isFalse);
+    expect(find.byKey(const ValueKey('vault-host-menu-web')), findsOneWidget);
+    expect(container.read(sessionControllerProvider).sessions, isEmpty);
   });
 }

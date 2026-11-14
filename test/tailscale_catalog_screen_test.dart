@@ -27,6 +27,7 @@ import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shun/presentation/widgets/secret_content.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'support/route_editor_actions.dart';
+import 'support/prism_test_host.dart';
 
 // R13 界面，R26 按所有者反馈改过：目录页显示缓存时间和「不完整」（TSC05），在线状态照 Tailscale 写、
 // 不说能连上（TSC03 的底线），key 框遮挡、tskey-api 不保存（TSC09），点设备按来源默认值导入、连接前问登录，
@@ -122,7 +123,10 @@ void main() {
           ),
         )),
       ],
-      child: MaterialApp(home: home),
+      child: MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
+          home: home),
     ));
     await tester.pumpAndSettle();
   }
