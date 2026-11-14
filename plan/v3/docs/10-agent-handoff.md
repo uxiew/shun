@@ -4,47 +4,49 @@
 
 读取AGENTS、STATUS、docs/00/01/03/04/05/06/07/15/19及tasks.json。旧Txx是退役计划，V2草稿不再作为门禁。目标repo未指定时不写入历史powell/xdo等仓库；此包可放入指定新fork，已有AGENTS/README先合并不覆盖。
 
-## 当前入口：UI迁移 R87（2026-11-14）
+## 当前入口：UI迁移 R88（2026-11-14）
 
-R81–R86已完成，UIM01–UIM07及GU0、GU1 PASS；实际范围见[evidence/R81](../evidence/R81.md)–[evidence/R86](../evidence/R86.md)。R86把设置页做成第一张完整校准页，并补齐分组类公共控件（ShunSection/ShunSwitchRow/ShunOptionsRow/ShunSectionItem）。继续采用FlClash / prism_ui单一目标，读[docs/24](24-ui-migration.md)与[UI决策](../../../docs/decisions/ui-system-decision.md)。
+R81–R87已完成，UIM01–UIM08及GU0、GU1 PASS；实际范围见[evidence/R81](../evidence/R81.md)–[evidence/R87](../evidence/R87.md)。R87把连接首页、Tailscale分节和目录两页换成Prism分组卡片，`ShunListRow` 加了长按、念左侧图标、展开状态三个可选项；单独装页面的测试统一用 `test/support/prism_test_host.dart` 补Prism宿主。继续采用FlClash / prism_ui单一目标，读[docs/24](24-ui-migration.md)与[UI决策](../../../docs/decisions/ui-system-decision.md)。
 
 ### Claude Code 首次接手
 
-本机代码仓库是 `/Users/bing/xdw/shun/shun`，上一层是工具链工作区；在代码仓库内开始。最近已核验分支为 `shun/v3`，R86实现提交见tasks.json的R86.commit，验收与本交接在其后提交。这些是历史核验锚点，后续文档提交会使HEAD前进，不要求回退。
+本机代码仓库是 `/Users/bing/xdw/shun/shun`，上一层是工具链工作区；在代码仓库内开始。最近已核验分支为 `shun/v3`，R87实现提交见tasks.json的R87.commit，验收与本交接在其后提交。这些是历史核验锚点，后续文档提交会使HEAD前进，不要求回退。
 
-先读取现场分支、HEAD、dirty以及适用的CLAUDE.md（若存在）；显式读取根AGENTS.md和plan/v3/AGENTS.md，不依赖宿主自动加载。保留他人改动，不为对齐交接执行reset、强制checkout或清理工作区。若R87已有进展，按tasks.json和实际diff续接，不重复实现。
+先读取现场分支、HEAD、dirty以及适用的CLAUDE.md（若存在）；显式读取根AGENTS.md和plan/v3/AGENTS.md，不依赖宿主自动加载。保留他人改动，不为对齐交接执行reset、强制checkout或清理工作区。若R88已有进展，按tasks.json和实际diff续接，不重复实现。
 
-环境按 `docs/dev/README.md`：当前已核验Flutter 3.47.7、Dart 3.13.5、Zig 0.16.0；重新核对实际版本并设置项目Zig、环境脚本及NO_PROXY。**静态检查用 `flutter analyze --no-pub`**（不加时会按全局镜像改写pubspec.lock，见R84第7节）。整文件 `dart format` 前，先在项目目录里对HEAD版本跑 `dart format --output=none --set-exit-if-changed`，没有变化才整文件格式化；放到项目外检查会换语言版本、误判（R86第7节）。R81–R86归档在 `../.toolchain/artifacts/` 下各自目录。Flutter测试、截图与构建串行运行。
+环境按 `docs/dev/README.md`：当前已核验Flutter 3.47.7、Dart 3.13.5、Zig 0.16.0；重新核对实际版本并设置项目Zig、环境脚本及NO_PROXY。**静态检查用 `flutter analyze --no-pub`**（不加时会按全局镜像改写pubspec.lock，见R84第7节）。整文件 `dart format` 前，先在项目目录里对HEAD版本跑 `dart format --output=none --set-exit-if-changed`，没有变化才整文件格式化；放到项目外检查会换语言版本、误判（R86第7节；`ui_gallery_test.dart` 等在HEAD上就不合格式，见R87第6节）。**全量单测用手册命令 `flutter test -j 4 --exclude-tags ai-cli-ssh-fixture`**，不排除会多出64个AI夹具跳过，数字和前几批对不上（R87第5节）。debug构建加 `--target-platform android-arm64` 才能和R82归档条目对照。R81–R87归档在 `../.toolchain/artifacts/` 下各自目录。Flutter测试、截图与构建串行运行。
 
 下面是本轮执行提示词；任务定义只维护在tasks.json，结果只按实际验证填写。
 
 ```text
-在 /Users/bing/xdw/shun/shun 接手shun，按V3计划直接完成R87的实现、验证、证据和本地提交。
+在 /Users/bing/xdw/shun/shun 接手shun，按V3计划直接完成R88的实现、验证、证据和本地提交。
 先读根AGENTS、plan/v3/AGENTS、STATUS及规定的契约文档，再读docs/24、
-docs/decisions/ui-system-decision.md、tasks.json的R87条目和evidence/R84、R85、R86。
-记录实际分支/HEAD/dirty/SDK/lock，核对R86证据仍对应当前代码；保留他人改动。
+docs/decisions/ui-system-decision.md、tasks.json的R88条目、evidence/R86、R87和docs/23「新建主机学了什么（F42）」。
+记录实际分支/HEAD/dirty/SDK/lock，核对R87证据仍对应当前代码；保留他人改动。
 Prism固定63450c0ac0e8e1b2c0f3ed4ad7926dc94e083185，不重选库、不升级业务依赖；
 静态检查用flutter analyze --no-pub，pubspec.lock有任何变动先还原再继续。
-先清点连接首页：空状态、加载、失败、搜索、分组、置顶、列表/网格/树、主机菜单、
-Tailscale多来源与过期状态，迁移前后各导出一次读屏节点和key逐项对照（做法见R86第2.1节）。
-迁移主机列表/网格/树、分组、搜索、菜单与Tailscale目录展示；保留F41的刷新、隐藏恢复和来源隔离。
-控件用R86已有的ui/components.dart（ShunSection、ShunListRow、ShunSwitchRow、ShunOptionsRow、
-ShunSectionItem、ShunButton）和ChoiceSegments；Prism卡片本身是按钮语义节点，名字要并进它，
-别再套自己的语义节点（R86第2节）。共享控件缺陷回到基础层修，不在页面里另做一套。
-空状态保留添加主机、连接Tailscale两条路径；搜索覆盖普通主机与目录设备；
-来源身份不因同名/同IP合并；在线点是目录状态、旧状态显示时间，不伪装SSH已连接；
-进入连接页/回前台刷新与配置间隔仍由原控制器驱动，刷新失败不自动连接、不反复弹窗；
-编辑器打开/保存回调接口不变，不改RoutePlan与存储；不恢复已删除的导入中转流程。
-新文字和输入框受R84扫描器约束，不放宽上限、不加白名单；类型断言改稳定key/语义/行为。
-单独装页面的测试缺Prism文案代理或MeasureScope时补上（App里由ShunUiHost提供）。
-运行UIM08及受影响的首页、目录、菜单、加载、规则与秘密输入回归和静态检查；
-图库补连接首页各状态浅深截图并逐张看；R43设备测试若定位方式受影响只改稳定key。
-本批仅做R87；R88主机表单留给下一批。不操作正式签名、用户手机或push/发布。
-写evidence/R87.md并同步使用手册中实际变化、任务/用例及状态，作粒度提交；
+先清点主机表单：新建/编辑、SSH/Mosh/Telnet/插件/RustDesk/UU类型、密码/密钥/凭据/Tailscale认证、
+分组选择与新建、高级（路线/Mosh参数/启动命令/超时/标签置顶/目录来源）、底部栏验证状态、测试连接页，
+迁移前后各导出一次读屏节点和key逐项对照（做法见R86第2.1节、R87第2.1节）。
+按F42流程迁移主机编辑器、类型行、分组字段、路线编辑、凭据字段和测试连接页；业务仍调原控制器。
+控件用ui/components.dart（ShunSection、ShunListRow、ShunSwitchRow、ShunOptionsRow、ShunSectionItem、
+ShunButton、ShunSecretField）和ChoiceSegments；普通输入框保持Material浮动标签与FormGap 20dp（R84第2节）。
+Prism卡片本身是按钮语义节点，名字要并进它，别再套自己的语义节点；共享控件缺陷回到基础层修。
+⊕直接进表单；类型、认证原地换且已填内容保留；名称下方选择或新建分组；高级只有一层；
+旧主机字段和自定义端口不丢；Mosh带代理/跳板仍拒绝保存；未保存退出确认、下滑不关保持；
+测试连接只由用户点、可停止、不自动保存、不连生产主机、记录脱敏；不改RoutePlan与存储。
+编辑器的打开/保存/删除回调接口不变（R87没动vault_screen里的这些）；「目录来源」小节R87已换成ShunSection，
+迁表单时核对它在表单里的间距。不恢复管理页，不强迫先建凭据。
+新文字和输入框受R84扫描器约束（R87起 details 也按副标题16字查），不放宽上限、不加白名单；
+类型断言改稳定key/语义/行为。单独装页面的测试用test/support/prism_test_host.dart补Prism宿主。
+运行UIM09及受影响的编辑器、类型、路线、凭据、测试连接、规则与秘密输入回归和静态检查；
+图库补表单各分支、键盘弹出、大字号浅深截图并逐张看；r73/r41设备测试若定位方式受影响只改稳定key。
+本批仅做R88；R89凭据/代理/Tailscale留给下一批。不操作正式签名、用户手机或push/发布。
+写evidence/R88.md并同步使用手册中实际变化、任务/用例及状态，作粒度提交；
 使用plan/v3/scripts/set_status.py登记实际结果，再运行sync_docs.py和validate_plan.py。
-R87/UIM08满足验收后才完成；GU2还依赖R88/R89，不因本批通过而标PASS。
-完成本批后停止，报告完成ID、commit、验证数量/skip、截图位置、未测及下一任务R88。
-设备重复/丢失、入口失踪、状态含义误导或列表渲染触发连接即停，不以截图好看代替契约。
+R88/UIM09满足验收后才完成；GU2还依赖R89，不因本批通过而标PASS。
+完成本批后停止，报告完成ID、commit、验证数量/skip、截图位置、未测及下一任务R89。
+认证语义改变、字段丢失、类型被删或首屏/可访问性要求降低即停，不以截图好看代替契约。
 ```
 
 继续时重新读取下一项的scope/code_targets/acceptance/test_ids/stop_condition，不只替换提示词任务ID。U3可按docs/24文件边界并行，终端R93–R95必须串行。每次交接说明改动、受保护行为、真实验证、缺口与下一项。

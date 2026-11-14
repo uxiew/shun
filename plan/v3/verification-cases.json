@@ -2276,9 +2276,11 @@
       "action": "检查无数据、加载、失败、搜索、分组/网格/列表/树、菜单及多 Tailscale 来源和过期状态。",
       "expected": "空状态两条路径可用；来源不串、同名同 IP 不误合并、隐藏可在安全页恢复；目录状态与 SSH 连接区分；刷新间隔与进入/回前台行为不变。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R87.md"
+      ]
     },
     {
       "id": "UIM09",

@@ -4137,7 +4137,7 @@
       "id": "R87",
       "phase": "U2",
       "title": "迁移连接首页、目录列表与空状态",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R86"
       ],
@@ -4171,8 +4171,10 @@
       ],
       "stop_condition": "设备重复/丢失、入口失踪、状态含义误导或列表渲染触发连接即停；不恢复已删除的导入中转流程。",
       "owner_role": "页面实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R87.md"
+      ],
+      "commit": "72039485c1ee943a7dea85e8831e594aee0f5a19"
     },
     {
       "id": "R88",
