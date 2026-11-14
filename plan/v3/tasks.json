@@ -133,7 +133,7 @@
         "R85"
       ],
       "exit": "主题/公共控件/UI 规则和五入口外壳通过；旧设置、状态连续及焦点保留",
-      "status": "NOT_RUN"
+      "status": "PASS"
     },
     "U2": {
       "title": "设置与连接主流程",
@@ -4047,7 +4047,7 @@
       "id": "R85",
       "phase": "U1",
       "title": "迁移主导航外壳并保留页面状态",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R84"
       ],
@@ -4078,8 +4078,10 @@
       ],
       "stop_condition": "切页新增连接、焦点丢失、空白终端、返回顺序改变或管理页复活即不通过 GU1。",
       "owner_role": "UI 基础实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R85.md"
+      ],
+      "commit": "c97a6aa68a1e2b6bf5f3346accfc1b73634fc03c"
     },
     {
       "id": "R86",

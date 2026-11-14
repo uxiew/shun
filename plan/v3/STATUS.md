@@ -4,13 +4,13 @@
 
 ## 现在（2026-11-14）
 
-**当前主线：按 FlClash 的视觉/交互方向、以 prism_ui 为唯一目标组件体系迁移 UI。R81–R84 已完成，UIM01–UIM05 及 GU0 PASS；下一批只做 R85 主导航外壳。**
+**当前主线：按 FlClash 的视觉/交互方向、以 prism_ui 为唯一目标组件体系迁移 UI。R81–R85 已完成，UIM01–UIM06 及 GU0、GU1 PASS；下一批只做 R86 设置与安全数据页。**
 
 - 方案：[docs/24](docs/24-ui-migration.md)；决策：[ui-system-decision](../../docs/decisions/ui-system-decision.md)；模型入口：[docs/10](docs/10-agent-handoff.md)。
-- U0–U5 六阶段、R81–R98 共18项；R81–R84 DONE，其余14项 NOT_STARTED；UIM01–UIM05 PASS，UIM06–UIM22 NOT_RUN。
-- 任务113条：DONE 65、IN_PROGRESS 10、NOT_STARTED 19、DEFERRED 19。分类为74项非P6、39项P6，分类不是完成状态。
-- 用例210条：PASS 162、FAIL 0、BLOCKED 6、NOT_RUN 42。原188项结果/证据和原95项状态/提交均保留，新UI没有借用旧PASS。
-- 原门禁仍只有G0、G3 PASS；新增GU0 PASS，GU1–GU5 NOT_RUN。GU5是UI代码/本地验证出口，不表示CORE_READY/FULL_READY。
+- U0–U5 六阶段、R81–R98 共18项；R81–R85 DONE，其余13项 NOT_STARTED；UIM01–UIM06 PASS，UIM07–UIM22 NOT_RUN。
+- 任务113条：DONE 66、IN_PROGRESS 10、NOT_STARTED 18、DEFERRED 19。分类为74项非P6、39项P6，分类不是完成状态。
+- 用例210条：PASS 163、FAIL 0、BLOCKED 6、NOT_RUN 41。原188项结果/证据和原95项状态/提交均保留，新UI没有借用旧PASS。
+- 原门禁仍只有G0、G3 PASS；新增GU0、GU1 PASS，GU2–GU5 NOT_RUN。GU5是UI代码/本地验证出口，不表示CORE_READY/FULL_READY。
 - 规划前基线：`shun/v3 @ 92fe59340515ac26db51cb3a18397d2f42e3c012`，工作区干净。固定参考和依赖SHA见决策。
 - 最近的仓库安装记录是11-03的33包（F42）；本轮未重新查询手机。旧单测1905过/226跳过/0失败及模拟器r73/r75/r79/r40通过保留原候选归属。R81图库26项、大字4项、定向静态检查通过，44张截图已逐张检查。R83在自己的候选上重跑全量单测：1923过/252跳过/0失败，跳过的是未启动的fixture，按NOT_RUN计。
 - R81的11-06候选完成profile四阶段：21轮、27,859帧、100次真实会话循环，全部exit 0并完成归档/清理。旧冒烟及旧panels失败记录保留，旧SSH错误根因未确定；最终基线没有混用旧候选。
@@ -19,12 +19,13 @@
 - R82实现提交：`531c403d54c20854c7eb0b287fbb8fa008380912`。单宿主与遮挡输入修复完成，93项回归PASS、静态检查0 issue、隔离debug构建及实际APK许可核验通过；归档和明确未测见 [R82](evidence/R82.md)。普通debug包未安装，真实IME/设备预测返回和性能复测未据此通过。
 - R83实现提交：`cb433fae3f102ff6e6272c75999960981672f0bd`。同一设置只解析一个语义主题，Prism与Material共用；247项回归、全量单测、静态检查0 issue、三项变异校准和debug构建通过，28组浅深对照图逐张查看。按钮字36套不到4.5:1（R81时即如此）留R96取舍，两处折行交R84/R87；真机和性能未测，见 [R83](evidence/R83.md)。
 - R84实现提交：`3233c1f`（扫描器）、`fd2c54eea78e0d015fa8a56017939271f4ccca4e`（公共控件）。UI规则改为从源码发现Prism与本地包装控件的文字参数和输入框，旧扫描器漏掉的5句超限文字已改短（上限不变）；Prism的SecretTextFormField不关输入法学习，扫描与运行时都禁用。新增ShunButton/ShunSecretField/ShunListRow、公共非模态面板，分段按字宽分后「MagicDNS 名称」原字号一行（Tailscale页的替换归R89）。受影响回归364过/48跳过、全量1941过/254跳过/0失败、静态检查0 issue、5项变异校准、debug构建通过，60张图库与R83逐像素比对；中途一次`flutter analyze`改写了pubspec.lock，已还原并重跑全部测试。真机未测，见 [R84](evidence/R84.md)。
+- R85实现提交：`c97a6aa`。底栏换成Prism的NavigationBar（FlClash手机模式同款），五入口/顺序/IndexedStack/返回顺序/全屏与画中画/锁定返回不变，入口挂稳定key；全局背景下底栏改为不透明（R83遗留的字偏淡消失）。新增10项外壳契约测试与5项变异校准，受影响回归245过、全量1951过/258跳过/0失败、静态检查、debug构建通过，68张图库与R84逐像素比对。底栏高80dp（旧68），测试里横屏892×412终端少一行（15→14），待所有者定是否接受；真机未测，见 [R85](evidence/R85.md)。
 
 ### 当前推进与待测边界
 
 | 项 | 当前动作 | 完成出口 |
 |---|---|---|
-| R81–R98 UI迁移 | R81–R84已完成、GU0 PASS；接下来R85迁移主导航外壳 | 依赖顺序推进；UIM01–UIM21本地范围通过后交R98 |
+| R81–R98 UI迁移 | R81–R85已完成、GU0/GU1 PASS；接下来R86设置与安全数据页 | 依赖顺序推进；UIM01–UIM21本地范围通过后交R98 |
 | R26 新候选日用 | 保持IN_PROGRESS；旧包反馈可收集，新UI正式完成先等R98 | UIM22及受影响原清单，同候选/手机证据 |
 | R27/R29/X13/R30/R31 | 原发布依赖保留；R30补齐全部210项，仍直接依赖X13 | 原V3完整门禁 |
 | R59/R62及真实账号/对端缺口 | 保留实际IN_PROGRESS/BLOCKED/NOT_RUN | 有硬件/账号和适用授权时验，不伪造 |
@@ -80,7 +81,7 @@
 
 ## 下一批
 
-**只领R85：迁移主导航外壳并保留页面状态。** 先读R84证据（公共控件、扫描器覆盖面与盲区、锁文件事故）、docs/24与决策；只迁移HomeShell外壳（导航、标题、页面表面），保留五入口、IndexedStack、Navigator与原key，处理R83记下的全局背景下底栏偏淡；新界面优先用 `ui/components.dart`，文字与输入框受R84扫描器约束；按UIM06验证；本批不迁移业务页面。静态检查用 `flutter analyze --no-pub`。
+**只领R86：迁移设置、片段与安全数据页面。** 先读R85证据（冻结接口、尚存Material兼容点、底栏高度取舍）、docs/24与决策；先用设置页校准唯一视觉规则，再迁同组二级页，业务仍调用原控制器；控件用 `ui/components.dart`，文字与输入框受R84扫描器约束；按UIM07验证。静态检查用 `flutter analyze --no-pub`。
 
 R90/R91/R92是基础完成后唯一可并行的模块批次；终端R93–R95同一负责人串行。模型逐项提示词在docs/10，所有任务和停止条件在tasks.json。R71/R80不随UI计划启动。
 
@@ -110,6 +111,8 @@ R90/R91/R92是基础完成后唯一可并行的模块批次；终端R93–R95同
   同一目录先用过 Claude 2.1.314 再用 1.0.0，1.0.0 会崩（工具自己的问题，App 不降级）。详见 `evidence/R56-R57-real-cli.md`「没测的」。
 
 ## 进展记录（新的在上）
+
+11-14 **R85主导航外壳完成，GU1 PASS，下一项R86。** 实现提交 `c97a6aa`；UIM06 PASS。底栏换成Prism NavigationBar，入口挂 `home-nav-<id>` key；全局背景下底栏不再透明。新测试在真实ShunApp上验五入口读屏、切页保留滚动/草稿/会话、持续输出中切tab与push/pop、返回顺序（总览>全屏>根、画中画、锁定退桌面）、五种尺寸布局和全局背景；5项变异全被抓到。切页时终端焦点离开、切回不自动回到终端是原有行为（换回旧底栏跑同一段结果相同）。受影响回归245过、全量1951过/258跳过/0失败、静态检查、debug构建通过；图库68张，变化只在带底栏的18张。底栏高80dp让测试里横屏终端少一行，待所有者定；R81设备基线测试只改了入口定位、未在设备上跑；见[R85](evidence/R85.md)。
 
 11-14 **R84公共控件与规则识别完成，下一项R85。** 实现提交 `3233c1f`、`fd2c54eea78e0d015fa8a56017939271f4ccca4e`；UIM05 PASS。UI规则从源码发现Prism和本地包装控件把参数画成正文/副标题/提示、哪些类是输入框、哪些类有不关学习的打码框；上线即抓出旧扫描器经 `localized()` 或包装控件漏掉的5句超限文字（Tailscale导入用户名提示、粘贴/大输入框4条提示），已改短。故意超限样例：HEAD旧扫描器18项全过（全漏），新扫描器全报。新增ShunButton（处理中防连点）、ShunSecretField（开关写死、自带防截屏）、ShunListRow（ⓘ/开关独立读屏节点）、showNonModalPanel（Tailscale已改用）；ChoiceSegments按字宽分。受影响回归364过、全量1941过/254跳过/0失败、静态检查、5项变异校准、debug构建通过；图库60张，与R83比只有主机表单的分段变化。中途 `flutter analyze` 自动pub get按镜像改写了pubspec.lock，已还原、按锁文件装回并重跑。调用方页面未迁、真机未测；见[R84](evidence/R84.md)。
 

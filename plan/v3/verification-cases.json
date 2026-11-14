@@ -2254,9 +2254,11 @@
       "action": "在五入口间往返，打开二级页/菜单，操作返回、锁定、全屏/PiP、横竖屏和宽屏。",
       "expected": "五入口完整、IndexedStack 状态连续；返回优先级不变，锁定不 pop 底层；全屏/PiP 正确隐藏恢复导航；无管理页，无额外连接或终端视图。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R85.md"
+      ]
     },
     {
       "id": "UIM07",

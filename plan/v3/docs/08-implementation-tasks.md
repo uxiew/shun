@@ -2036,7 +2036,7 @@
 
 ## R85 迁移主导航外壳并保留页面状态
 
-阶段：U1；状态：NOT_STARTED；依赖：R84；角色：UI 基础实施代理。
+阶段：U1；状态：DONE；依赖：R84；角色：UI 基础实施代理。
 
 **范围**：按 FlClash 方向实现一致的导航、标题与页面表面；保留 HomeShell 五入口、IndexedStack 和现有 Navigator。只迁移外壳，终端内部留到 U4。
 
