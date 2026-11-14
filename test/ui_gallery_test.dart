@@ -40,6 +40,7 @@ import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shun/presentation/widgets/proxy_profile_editor.dart';
 import 'package:shun/presentation/widgets/session_overview.dart';
 
+import 'support/component_gallery.dart';
 import 'support/ui_gallery_fixtures.dart';
 
 /// 当前 UI 基线：真实首页/终端/总览/文件页及原有表单/设置。只出图，不自动比对。
@@ -337,6 +338,16 @@ void main() {
               .writeAsBytes(data!.buffer.asUint8List());
         });
       }
+
+      // R84 公共控件：正常、禁用、处理中、校验失败、帮助，外加非模态面板开着时背后的页面。
+      // 宽 390：分段那一行和 Tailscale 面板内容区一样宽，「MagicDNS 名称」应是一行原字号。
+      testWidgets('公共控件', skip: skip != null, (tester) async {
+        await pumpPage(tester, const ComponentGallery(),
+            width: 390, height: 1300);
+        await save(tester, 'components-390x1300-zh-s1');
+        await tester.tap(find.byKey(const ValueKey('gallery-open-panel')));
+        await save(tester, 'components-panel-390x1300-zh-s1');
+      });
 
       testWidgets('代理编辑页', skip: skip != null, (tester) async {
         await pumpPage(tester, const ProxyProfileEditor());

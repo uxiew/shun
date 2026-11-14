@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shun/app.dart';
 import 'package:shun/application/fork_features.dart';
@@ -18,12 +19,16 @@ import 'package:shun/infrastructure/http_client_provider.dart';
 import 'package:shun/infrastructure/ssh/system_management_service.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/window_security.dart';
+import 'package:shun/presentation/ui/components.dart';
+import 'package:shun/presentation/ui/prism_localizations.dart';
 import 'package:shun/presentation/widgets/connection_prompts.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shun/presentation/widgets/keychain_sheet.dart';
 import 'package:shun/presentation/widgets/proxy_profile_editor.dart';
 import 'package:shun/presentation/widgets/secret_content.dart';
 import 'package:shun/presentation/widgets/system_management/sudo_prompt.dart';
+
+import 'support/ui_rules.dart';
 
 // R44 / SEC13 的本机部分：什么时候让窗口防截屏、哪些页面接上了、密码框关没关输入法学习。
 // 截屏真的变黑、输入法真的不学，只有设备上看得到（evidence/R44.md）。
@@ -251,18 +256,14 @@ void main() {
 
   group('接上了的页面', () {
     EditableText field(WidgetTester tester, String label) =>
-        tester.widget<EditableText>(find.descendant(
-          of: find.ancestor(
-            of: find.text(label),
-            matching: find.byType(TextField),
-          ),
-          matching: find.byType(EditableText),
-        ));
+        editableNear(tester, find.text(label));
 
     void expectNoLearning(EditableText text) {
       expect(text.enableIMEPersonalizedLearning, isFalse);
       expect(text.enableSuggestions, isFalse);
       expect(text.autocorrect, isFalse);
+      // 页面上别的打码框（不管是 Material、Prism 还是包装控件画的）也一起查。
+      expect(leakingObscuredFields(), isEmpty);
     }
 
     testWidgets('编辑连接页；密码框切成明文也不让输入法学', (tester) async {
@@ -375,33 +376,28 @@ void main() {
     final sources = [
       for (final file in Directory('lib').listSync(recursive: true))
         if (file is File && file.path.endsWith('.dart'))
-          (file.path.replaceAll(r'\', '/'), file.readAsStringSync()),
+          UiSource(file.path.replaceAll(r'\', '/'), file.readAsStringSync()),
     ];
+    // 连同固定版本的 Prism 源码一起发现：哪些类里有打码框、开关关没关、自己包没包 SecretContent。
+    final catalog = UiCatalog([...sources, ...prismSources()]);
 
     test('每个打码输入框都关了输入法学习、联想和自动更正', () {
-      final problems = <String>[];
-      for (final (path, source) in sources) {
-        for (final match in _arg('obscureText').allMatches(source)) {
-          final call = _fieldCall(source, match.start);
-          if (call == null) {
-            problems.add('$path: obscureText 不在 TextField/TextFormField 里');
-            continue;
-          }
-          // 只有「打码时才是秘密」的框（Tailscale 目录的通用对话框）可以写成取反。
-          final obscured = match.group(1)!.trim();
-          for (final name in const [
-            'enableIMEPersonalizedLearning',
-            'enableSuggestions',
-            'autocorrect',
-          ]) {
-            final value = _arg(name).firstMatch(call)?.group(1)?.trim();
-            if (value != 'false' && value != '!$obscured') {
-              problems.add('$path: obscureText: $obscured 的框 $name 是 $value');
-            }
-          }
-        }
-      }
+      final problems = [
+        for (final source in sources)
+          for (final problem in secretFieldProblems(source.source))
+            '${source.path}: $problem',
+      ];
       expect(problems, isEmpty, reason: problems.join('\n'));
+    });
+
+    test('不用里面有不关学习的打码框的控件（Prism 的 SecretTextFormField 就是）', () {
+      final leaky = catalog.leakySecretClasses();
+      // 校准：固定版本的 Prism 这个控件确实不关学习。哪天 Prism 改了，这条先失败，再决定能不能用。
+      expect(leaky, contains('prism.SecretTextFormField'));
+      final calls = catalog.callsTo(leaky);
+      expect(calls, isEmpty,
+          reason:
+              '改用 ShunSecretField（ui/components.dart）：\n${calls.join('\n')}');
     });
 
     test('有打码输入框的文件都用了 SecretContent', () {
@@ -409,17 +405,111 @@ void main() {
       const coveredElsewhere = {
         'lib/presentation/widgets/github_manual_config.dart': '只用在云端备份页，那页整个包着',
       };
+      final (:secret, :covered) = catalog.secretClasses();
+      // 用了自己不包 SecretContent 的秘密控件（含 Prism 的），等于自己写了打码框。
+      final bare = secret.difference(covered);
       final missing = [
-        for (final (path, source) in sources)
-          if (source.contains('obscureText:') &&
-              !source.contains('SecretContent(') &&
-              !coveredElsewhere.containsKey(path))
-            path,
+        for (final source in sources)
+          if ((source.source.contains('obscureText:') ||
+                  catalog.calls(source, bare)) &&
+              !source.source.contains('SecretContent(') &&
+              !coveredElsewhere.containsKey(source.path))
+            source.path,
       ];
       expect(missing, isEmpty);
     });
   });
+
+  group('运行时：打码框真的不让输入法学（R84）', () {
+    Future<void> pumpField(WidgetTester tester, Widget field) => pump(
+          tester,
+          Scaffold(
+              body: Padding(padding: const EdgeInsets.all(16), child: field)),
+        );
+
+    testWidgets('ShunSecretField：打码、切明文都关着三个开关，显示时防截屏', (tester) async {
+      final controller = TextEditingController(text: 'hunter2');
+      addTearDown(controller.dispose);
+      await pumpField(
+        tester,
+        ShunSecretField(
+          key: const ValueKey('secret'),
+          controller: controller,
+          label: '代理密码（可选）',
+        ),
+      );
+      expect(window.calls, [true]);
+      var text = editableNear(tester, find.byKey(const ValueKey('secret')));
+      expect(text.obscureText, isTrue);
+      expectQuiet(text);
+
+      await tester.tap(find.byTooltip('显示密码'));
+      await tester.pump();
+      text = editableNear(tester, find.byKey(const ValueKey('secret')));
+      expect(text.obscureText, isFalse);
+      expectQuiet(text);
+      expect(find.byTooltip('隐藏密码'), findsOneWidget);
+    });
+
+    testWidgets('校准：Prism 的 SecretTextFormField 打码时就让输入法学，查得出来',
+        (tester) async {
+      final controller = TextEditingController();
+      addTearDown(controller.dispose);
+      await pumpField(
+        tester,
+        // 它要 Prism 的文案（眼睛按钮的提示）；App 里由 ShunUiHost 提供。
+        Builder(
+          builder: (context) => Localizations.override(
+            context: context,
+            delegates: const [ShunPrismLocalizationsDelegate()],
+            child:
+                Form(child: prism.SecretTextFormField(controller: controller)),
+          ),
+        ),
+      );
+      final text = tester.widget<EditableText>(find.byType(EditableText));
+      expect(text.obscureText, isTrue);
+      expect(leakingObscuredFields(), isNotEmpty);
+      expect(window.calls, isEmpty, reason: '它也不会让窗口防截屏');
+    });
+  });
 }
+
+/// [near] 所在那个输入框里的 EditableText：往上找到第一个只含一个 EditableText 的祖先。
+/// 不按 TextField 类型找：换成 Prism 或包装控件，也是同一个输入框。
+EditableText editableNear(WidgetTester tester, Finder near) {
+  for (final ancestor in find
+      .ancestor(of: near, matching: find.byWidgetPredicate((_) => true))
+      .evaluate()) {
+    // 由近到远：第一个只含一个输入框的祖先就是这个框自己。
+    final inside = find.descendant(
+      of: find.byElementPredicate((element) => identical(element, ancestor)),
+      matching: find.byType(EditableText),
+    );
+    final count = inside.evaluate().length;
+    if (count == 1) return tester.widget<EditableText>(inside);
+    if (count > 1) break;
+  }
+  throw StateError('$near 附近没有唯一的输入框');
+}
+
+void expectQuiet(EditableText text) {
+  expect(text.enableIMEPersonalizedLearning, isFalse);
+  expect(text.enableSuggestions, isFalse);
+  expect(text.autocorrect, isFalse);
+}
+
+/// 当前树上正在打码、却没关输入法学习、联想或自动更正的框。
+/// 按 EditableText 查：Material、Prism、包装控件最后都落到它。
+List<String> leakingObscuredFields() => [
+      for (final element in find.byType(EditableText).evaluate())
+        if (element.widget case final EditableText text
+            when text.obscureText &&
+                (text.enableIMEPersonalizedLearning ||
+                    text.enableSuggestions ||
+                    text.autocorrect))
+          '${text.key ?? element}',
+    ];
 
 class _RecordingWindow implements WindowSecurity {
   final calls = <bool>[];
@@ -460,38 +550,4 @@ class _FakePicker extends FilePicker {
     bool readSequential = false,
   }) async =>
       result;
-}
-
-/// 命名参数的值：到逗号、换行或右括号为止。
-RegExp _arg(String name) => RegExp('\\b$name:\\s*([^,\\n)]+)');
-
-/// [at] 所在的那个 TextField(...) / TextFormField(...) 调用的整段源码；不在里面时为 null。
-/// 往前找最近的构造调用，再往后配括号，跳过字符串里的括号。
-String? _fieldCall(String source, int at) {
-  final starts = RegExp(r'\b(?:TextField|TextFormField)\(')
-      .allMatches(source.substring(0, at))
-      .toList();
-  if (starts.isEmpty) return null;
-  final open = starts.last.end - 1;
-  var depth = 0;
-  String? quote;
-  for (var i = open; i < source.length; i++) {
-    final c = source[i];
-    if (quote != null) {
-      if (c == r'\') {
-        i++;
-      } else if (c == quote) {
-        quote = null;
-      }
-      continue;
-    }
-    if (c == "'" || c == '"') {
-      quote = c;
-    } else if (c == '(') {
-      depth++;
-    } else if (c == ')' && --depth == 0) {
-      return i > at ? source.substring(open, i + 1) : null;
-    }
-  }
-  return null;
 }

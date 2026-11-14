@@ -271,6 +271,7 @@ const englishTranslations = <String, String>{
       'If filled in, it is stored encrypted on this phone and not asked again; otherwise a private key is used, or you are asked when connecting',
   '显示密码': 'Show password',
   '隐藏密码': 'Hide password',
+  '处理中': 'Working',
   '只给这一台。以后在主机的「编辑」里改。':
       'For this host only. Change it later in the host’s “Edit”.',
   // R26：Tailscale 设置页、设备在线状态、点设备导入并连接。

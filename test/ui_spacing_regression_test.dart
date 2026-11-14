@@ -63,15 +63,20 @@ void main() {
                         onSecretChanged: (_) {}))))));
     await tester.tap(find.text('高级 / 手动配置'));
     await tester.pumpAndSettle();
-    final fields = find.byType(TextField);
+    // 按 key 找框、按 EditableText 看打码：换成 Prism 或包装控件也照样量（R84）。
+    final first = find.byKey(const ValueKey('github-manual-resource-id'));
+    final last = find.byKey(const ValueKey('github-manual-secret'));
     final header = find.text('仅用于迁移或登录故障排查');
-    expect(tester.getTopLeft(fields.first).dy - tester.getBottomLeft(header).dy,
+    expect(tester.getTopLeft(first).dy - tester.getBottomLeft(header).dy,
         greaterThanOrEqualTo(18));
-    expect(
-        tester.getTopLeft(fields.last).dy -
-            tester.getBottomLeft(fields.first).dy,
+    expect(tester.getTopLeft(last).dy - tester.getBottomLeft(first).dy,
         greaterThanOrEqualTo(20));
-    expect(tester.widget<TextField>(fields.last).obscureText, true);
+    expect(
+        tester
+            .widget<EditableText>(
+                find.descendant(of: last, matching: find.byType(EditableText)))
+            .obscureText,
+        true);
     expect(tester.takeException(), isNull);
   });
 }

@@ -22,6 +22,7 @@ import 'package:shun/infrastructure/tailscale/tailscale_device.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:shun/presentation/screens/tailscale_catalog_screen.dart';
 import 'package:shun/presentation/screens/tailscale_settings_screen.dart';
+import 'package:shun/presentation/ui/non_modal_panel.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shun/presentation/widgets/secret_content.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -514,6 +515,9 @@ void main() {
     repo.caches['ts-home'] =
         const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
     final results = await openSettings(tester, 'ts-home');
+    // 判据（docs/24 3.4）：面板没新增遮罩、背后真点得到。页面路由自己那层不可见、不拦点击的
+    // barrier 本来就在，不要求整棵树为零。
+    expect(find.byKey(nonModalPanelKey), findsOneWidget);
     expect(find.byType(ModalBarrier), findsOneWidget,
         reason: '只有页面路由自己那一层（不可见、不拦点击）');
     await tester.tap(find.text('open'));
@@ -618,8 +622,10 @@ void main() {
 
   testWidgets('UXR04：底部面板，默认只有两项输入；key 框防截屏；第一个来源不问名称', (tester) async {
     await openSettings(tester, null);
-    expect(find.byType(BottomSheet), findsOneWidget);
-    expect(find.byType(TextField), findsNWidgets(2));
+    final panel = find.byKey(nonModalPanelKey);
+    expect(panel, findsOneWidget);
+    expect(find.descendant(of: panel, matching: find.byType(EditableText)),
+        findsNWidgets(2));
     final field = find.byKey(const ValueKey('ts-settings-key'));
     expect(field, findsOneWidget);
     expect(find.ancestor(of: field, matching: find.byType(SecretContent)),

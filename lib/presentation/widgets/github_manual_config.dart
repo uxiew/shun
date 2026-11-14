@@ -20,10 +20,12 @@ class GitHubManualConfig extends StatelessWidget {
         subtitle: const LText('仅用于迁移或登录故障排查'),
         children: [
           TextField(
+              key: const ValueKey('github-manual-resource-id'),
               controller: resourceId,
               decoration: LInputDecoration(labelText: 'Gist ID（通常自动识别）')),
           const FormGap(),
           TextField(
+              key: const ValueKey('github-manual-secret'),
               controller: secret,
               obscureText: true,
               // 防截屏由外面的云端备份页管（R44），这里只关输入法学习。

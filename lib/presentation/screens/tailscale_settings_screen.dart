@@ -20,6 +20,7 @@ import '../../domain/models/vault.dart';
 import '../../infrastructure/tailscale/catalog_cache.dart';
 import '../../infrastructure/tailscale/catalog_cache_repository.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/non_modal_panel.dart';
 import '../widgets/catalog_text.dart';
 import '../widgets/connection_route_draft.dart';
 import '../widgets/connection_route_editor.dart';
@@ -41,42 +42,18 @@ Future<TailscaleSettingsResult?> openTailscaleSettings(
     showTailscaleSettingsOn(Scaffold.of(context), catalogId: catalogId);
 
 /// 非模态（所有者 11-02）：不盖遮罩，背后的列表照常能看能点；下滑、返回键、切底栏都关。
-/// 代价是没保存的 key 跟着没了，剪贴板里一般还有，重新粘就行。
+/// 代价是没保存的 key 跟着没了，剪贴板里一般还有，重新粘就行。面板本身见 ui/non_modal_panel.dart。
 Future<TailscaleSettingsResult?> showTailscaleSettingsOn(
   ScaffoldState scaffold, {
   String? catalogId,
-}) async {
-  // 背后点得到，所以可能再开一个。Scaffold 直接顶掉旧面板的话，旧面板的 closed 永远等不到。
-  // 页面退掉后 Scaffold 没了，那个面板也等不到 closed：只等还在同一个 Scaffold 上的。
-  final previous = _openPanel;
-  if (previous != null && identical(previous.on, scaffold)) {
-    previous.sheet.close();
-    await previous.sheet.closed;
-    if (!scaffold.mounted) return null;
-  }
-  TailscaleSettingsResult? result;
-  late final PersistentBottomSheetController sheet;
-  sheet = scaffold.showBottomSheet(
-    (_) => TailscaleSettingsScreen(
-      catalogId: catalogId,
-      onDone: (value) {
-        result = value;
-        sheet.close();
-      },
-    ),
-    elevation: 12,
-    shape: const RoundedRectangleBorder(
-      borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-    ),
-  );
-  final panel = (on: scaffold, sheet: sheet);
-  _openPanel = panel;
-  await sheet.closed;
-  if (identical(_openPanel, panel)) _openPanel = null;
-  return result;
-}
-
-({ScaffoldState on, PersistentBottomSheetController sheet})? _openPanel;
+}) =>
+    showNonModalPanel<TailscaleSettingsResult>(
+      scaffold,
+      builder: (_, close) => TailscaleSettingsScreen(
+        catalogId: catalogId,
+        onDone: close,
+      ),
+    );
 
 /// Tailscale 设置（R26、R75，学 TermRover：浮在列表上的面板，常用的就两项；多了路线、地址类型和分组，都收进高级）。
 ///

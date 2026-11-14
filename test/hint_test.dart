@@ -34,7 +34,7 @@ void main() {
     await tester.pump();
     expect(changes, [true]);
 
-    await tester.tap(find.byIcon(Icons.info_outline));
+    await tester.tap(find.byTooltip(hintLabel('敏感页面允许截屏')));
     await tester.pumpAndSettle();
     expect(changes, [true]);
     expect(find.text('关着时截屏是黑的。'), findsOneWidget);
@@ -44,12 +44,13 @@ void main() {
     expect(find.text('关着时截屏是黑的。'), findsNothing);
   });
 
+  // 按读屏看到的名字找节点，不按 Switch / IconButton 类型找：换成 Prism 控件也是同一个约束（R84）。
   testWidgets('开关行在读屏上是两个节点：带标题的开关、能单独点的 ⓘ', (tester) async {
     final handle = tester.ensureSemantics();
     await pumpSwitch(tester);
 
     expect(
-      tester.getSemantics(find.byType(Switch)),
+      tester.getSemantics(find.bySemanticsLabel('敏感页面允许截屏')),
       matchesSemantics(
         label: '敏感页面允许截屏',
         hasToggledState: true,
@@ -60,8 +61,9 @@ void main() {
         hasFocusAction: true,
       ),
     );
+    final hint = find.byTooltip(hintLabel('敏感页面允许截屏'));
     expect(
-      tester.getSemantics(find.byType(IconButton)),
+      tester.getSemantics(hint),
       matchesSemantics(
         tooltip: '「敏感页面允许截屏」说明',
         isButton: true,
@@ -74,6 +76,13 @@ void main() {
     );
     // 标题文字不单独成节点：已经念在开关上了。
     expect(find.bySemanticsLabel('敏感页面允许截屏'), findsOneWidget);
+    // 两个节点不是同一个，也不互相包含（被 MergeSemantics 吞掉时会变成同一个）。
+    final toggle = tester.getSemantics(find.bySemanticsLabel('敏感页面允许截屏'));
+    expect(tester.getSemantics(hint).id, isNot(toggle.id));
+    // ⓘ 的点按区 48dp（UX02 真机量过的下限）。
+    final size = tester.getSize(hint);
+    expect(size.width, greaterThanOrEqualTo(48), reason: '$size');
+    expect(size.height, greaterThanOrEqualTo(48), reason: '$size');
     handle.dispose();
   });
 
@@ -82,7 +91,7 @@ void main() {
     await tester.tap(find.text('敏感页面允许截屏'));
     await tester.pump();
     expect(changes, isEmpty);
-    await tester.tap(find.byIcon(Icons.info_outline));
+    await tester.tap(find.byTooltip(hintLabel('敏感页面允许截屏')));
     await tester.pumpAndSettle();
     expect(find.text('关着时截屏是黑的。'), findsOneWidget);
   });
@@ -100,7 +109,7 @@ void main() {
         ),
       ),
     ));
-    await tester.tap(find.byIcon(Icons.info_outline));
+    await tester.tap(find.byTooltip(hintLabel('AI 命令行工具')));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     await tester.scrollUntilVisible(find.text('知道了'), 100,

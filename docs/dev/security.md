@@ -102,7 +102,9 @@ Keystore 主密钥失效（系统恢复、锁屏被重置）时，flutter_secure
 
 **输入法学习**。带 `obscureText:` 的框都写 `enableIMEPersonalizedLearning: false`、`enableSuggestions: false`、`autocorrect: false`（Tailscale 目录的通用对话框按字段的 `secret` 取反）。第一项在 Android 上变成 `IME_FLAG_NO_PERSONALIZED_LEARNING`（Android 8.0 起才有），输入法自己决定守不守。模拟器和真机上都核对了标志确实发出去了（`adb shell dumpsys input_method` 的 `mInputEditorInfo`，Android 17 上叫 `curEditorInfo`：密码框 `imeOptions=0x3000006`，带 0x1000000；点小眼睛后 `inputType=0x80091` 仍带；同页的名称框是 `0x2000006`，不带）。输入法到底记没记验不出来：Gboard 对密码类型的框本来就不学；微信输入法在 Pixel 上连普通框里的新词（英文连打三遍、中文逐字选的自造词）也不联想，对照组是阴性，密码框里的词没被联想出来也就说明不了标志有用（evidence/R44.md）。打码的框 Android 本来就按密码类型交给输入法，点小眼睛切成明文就不是了，所以这三项要写死，不跟着 `obscureText` 变。
 
-新加的密码框漏写这三项，或者有密码框的文件没用 `SecretContent`：`test/secret_content_test.dart` 的「源码里的约定」两条会红。只在别处被包着的组件（现在只有 `github_manual_config.dart`）写进那里的 `coveredElsewhere`，写清楚是谁包的。
+新加的密码框漏写这三项，或者有密码框的文件没用 `SecretContent`：`test/secret_content_test.dart` 的「源码里的约定」会红。只在别处被包着的组件（现在只有 `github_manual_config.dart`）写进那里的 `coveredElsewhere`，写清楚是谁包的。
+
+新写的密码框直接用 `ShunSecretField`（`lib/presentation/ui/components.dart`，R84）：三个开关写死、切明文也关着，自带 `SecretContent`。**别用 Prism 的 `SecretTextFormField`**：固定版本 `63450c0` 里它三个开关都是默认开，也不防截屏；调用处看不到 `obscureText:`，以前的正则扫不到它。现在扫描器连 Prism 源码一起看，哪个类里有没关学习的打码框，lib 里调用它就报（包括换了导入别名、再包一层的）；同文件的运行时测试也直接装上它，确认它确实让输入法学，Prism 哪天改了这条会先红。
 
 ### 1.6 应用锁（R46）
 
