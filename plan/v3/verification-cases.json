@@ -2243,9 +2243,11 @@
       "action": "走新公共控件的正常、禁用、加载、错误、焦点和帮助状态；用故意超限样例检验 UI 扫描器。",
       "expected": "Prism/包装控件不能绕过 ≤16/≤30 汉字和 FormGap 20dp 规则；ⓘ 48dp 且语义独立；秘密输入仍受禁学习/联想/更正与敏感屏检查；稳定 key/行为断言抓原缺陷。非模态面板不新增阻断背景的遮罩，不要求全树 ModalBarrier 为零。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R84.md"
+      ]
     },
     {
       "id": "UIM06",

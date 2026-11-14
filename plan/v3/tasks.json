@@ -4001,7 +4001,7 @@
       "id": "R84",
       "phase": "U1",
       "title": "迁移公共控件并加固 UI 规则识别",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R83"
       ],
@@ -4038,8 +4038,10 @@
       ],
       "stop_condition": "规则漏检、读屏合并、背景点击被拦或输入法回退时暂停调用方迁移，不能以截图好看代替公共契约。",
       "owner_role": "UI 基础实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R84.md"
+      ],
+      "commit": "fd2c54eea78e0d015fa8a56017939271f4ccca4e"
     },
     {
       "id": "R85",

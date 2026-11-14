@@ -1,6 +1,6 @@
 # 24 FlClash / Prism UI 迁移实施方案
 
-决策日期：2026-11-05，实施更新：2026-11-06。所有者决定：只选一个主要目标，不逐库试用；把移植落实为大模型按阶段可执行的任务。**R81–R83已完成、UIM01–UIM04及GU0 PASS；当前入口R84。R84–R98尚未开始，UIM05–UIM22保持NOT_RUN。** 实际进度以[STATUS](../STATUS.md)和对应证据为准。
+决策日期：2026-11-05，实施更新：2026-11-14。所有者决定：只选一个主要目标，不逐库试用；把移植落实为大模型按阶段可执行的任务。**R81–R84已完成、UIM01–UIM05及GU0 PASS；当前入口R85。R85–R98尚未开始，UIM06–UIM22保持NOT_RUN。** 实际进度以[STATUS](../STATUS.md)和对应证据为准。
 
 ## 1. 唯一目标与文档权威
 
@@ -63,7 +63,7 @@ R82 只增加固定 Git ref 的 prism_ui 和解析所需最小变更，提交 pu
 
 ### 3.4 非模态面板
 
-Prism 的 showSheet/showSnapSheet/showFormSheet 走模态路由，透明遮罩仍会挡背景。R84 的本地 non_modal_panel 采用 Prism 表面/圆角/局部动效，复用已有非模态布局；R89 验证实际 Tailscale 流程。不要复制私有 SnapSheet 实现或另造全局导航器。
+Prism 的 showSheet/showSnapSheet/showFormSheet 走模态路由，透明遮罩仍会挡背景。R84 已把 Tailscale 现有非模态布局抽成 `ui/non_modal_panel.dart`（`showNonModalPanel`，表面/圆角取 Prism 页面层与 xxl），Tailscale 已改调它；R89 验证实际 Tailscale 流程。不要复制私有 SnapSheet 实现或另造全局导航器。
 
 背景列表可点击、下滑/返回/切底栏关闭、未存草稿丢弃、已存 key 固定掩码且只能改/删，都是出口条件。判据是面板不新增阻断背景的遮罩和真实点击可达，不要求整棵树 ModalBarrier 数量为零；现有路由可能保留不拦点击的不可见 barrier。普通破坏性确认继续使用模态，不能为视觉一致让确认期间背景可操作。
 
@@ -185,4 +185,4 @@ R98 生成 `evidence/R98-candidate.json`（实施时新增），字段至少含�
 
 ## 11. 后续模型的唯一启动任务
 
-现在只执行 **R84**：迁移实际复用的公共控件，并把UI规则扫描扩到Prism和本地包装控件。R81基线、R82单宿主、R83语义主题已完成，UIM01–UIM04及GU0 PASS；先读对应证据。执行提示词见[模型交接](10-agent-handoff.md)。按UIM05完成控件状态、规则扫描和秘密输入回归后交R85；没有第二套候选UI，也不自动执行DEFERRED功能。
+现在只执行 **R85**：迁移主导航外壳并保留页面状态。R81基线、R82单宿主、R83语义主题、R84公共控件与规则识别已完成，UIM01–UIM05及GU0 PASS；先读对应证据。执行提示词见[模型交接](10-agent-handoff.md)。新页面控件优先用R84的 `ui/components.dart`，文字与输入框受R84扫描器约束；按UIM06完成五入口、返回、锁定、全屏/PiP与布局回归后交R86；没有第二套候选UI，也不自动执行DEFERRED功能。

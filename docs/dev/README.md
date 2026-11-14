@@ -108,8 +108,10 @@ flutter test --no-pub test/connection_route_editor_test.dart test/host_route_edi
 
 ```bash
 flutter test -j 4     # 测试环境开着时不要跑全量：几组真实 SSH 用例会抢同一台 sshd，报「收到了登录数据（Accepted）」这类假失败（10-31 R58 实测 11 条，单跑全过）。真实 SSH 的文件一个一个跑。全量约 1510 条，几分钟；10-21 没起测试环境时 1311 过、199 跳过、0 失败。没起环境时真实 SSH/tmux/Mosh 的用例自动跳过，不算通过。刚关模拟器、内存紧时不加 -j 4 可能被系统杀掉
-flutter analyze       # 应为 No issues found（连 spikes/、packages/ 一起查）
+flutter analyze --no-pub  # 应为 No issues found（连 spikes/、packages/ 一起查）
 ```
+
+`flutter analyze` 不加 `--no-pub` 会先 `pub get`：本机全局设了 `PUB_HOSTED_URL` 镜像，它会按镜像重新解析，把 `pubspec.lock` 里几十个传递依赖升级、url 改成镜像（11-14 R84 实际发生，改了 438 行）。改了就 `git checkout -- pubspec.lock`，再 `env -u PUB_HOSTED_URL flutter pub get --enforce-lockfile --offline` 按锁文件装回，之后跑过的测试作废重跑。
 
 R55 的 AI CLI 检测有两组本机测试。普通单元/widget 测试随全量执行；真实 SSH 路由测试连接同一套 Docker 主环境，须与会重启 sshd、统计连接数的 `integration_ssh_fixture_test.dart` 分开跑。全量命令用 `flutter test -j 4 --exclude-tags ai-cli-ssh-fixture`；主环境启动后单独执行 `flutter test test/ai_cli_ssh_fixture_test.dart`。这组验证 Direct、SOCKS、Jump、组合路线、拒绝未知指纹与错误代理口令、活动终端零探测输入；若同时启动 `tool/ai-cli-fixture`，还会只读检查本机隔离容器中真实安装的 Claude Code/Codex 文件和相邻 package.json，不登录或运行工具。检测范围、操作入口和版本含义见[使用手册](../user/README.md#19-发现启动与继续-ai-命令行工具)。
 
