@@ -15,6 +15,7 @@ import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/widgets/keychain_sheet.dart';
 import 'package:shun/presentation/widgets/security_key_prompt.dart';
 
+import 'support/prism_test_host.dart';
 import 'support/soft_authenticator.dart';
 
 /// 不连平台：生成、读取直接回测试准备的结果，并记下收到的参数。
@@ -138,7 +139,11 @@ void main() {
     await tester.pumpWidget(
       UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(home: KeychainSheet()),
+        child: MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
+          home: const KeychainSheet(),
+        ),
       ),
     );
     await tester.pumpAndSettle();
@@ -339,4 +344,88 @@ void main() {
     });
     expect(describeLogin(host, sk), '安全密钥“yk”');
   }, skip: skip);
+
+  group('UIM10（R89）添加安全密钥', () {
+    testWidgets('两个选项是按钮；生成选项里两个开关各一个节点，点了状态跟着变', (tester) async {
+      final handle = tester.ensureSemantics();
+      await open(tester, _FakeChannel());
+      await tester.tap(find.byKey(const ValueKey('keychain-add')));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('添加安全密钥'));
+      await tester.pumpAndSettle();
+      for (final (key, label) in [
+        ('security-key-create', '在钥匙上生成新密钥'),
+        ('security-key-read', '读取钥匙里已有的密钥'),
+      ]) {
+        expect(
+          tester.getSemantics(find.descendant(
+            of: find.byKey(ValueKey(key)),
+            matching: find.bySemanticsLabel(label),
+          )),
+          isSemantics(
+            label: label,
+            isButton: true,
+            hasEnabledState: true,
+            isEnabled: true,
+            hasTapAction: true,
+          ),
+          reason: key,
+        );
+      }
+
+      await tester.tap(find.byKey(const ValueKey('security-key-create')));
+      await tester.pumpAndSettle();
+      Finder row(String key, String label) => find.descendant(
+            of: find.byKey(ValueKey(key)),
+            matching: find.bySemanticsLabel(RegExp(label)),
+          );
+      // 每个开关只有一个读屏节点（原来的 SwitchListTile 是标题一个、开关一个，共两个）。
+      expect(row('security-key-resident', '存进钥匙里'), findsOneWidget);
+      expect(row('security-key-require-pin', '每次登录都要 PIN'), findsOneWidget);
+      expect(
+        tester.getSemantics(row('security-key-resident', '存进钥匙里')),
+        isSemantics(
+          label: '存进钥匙里\n换手机后能从钥匙读回来',
+          isButton: true,
+          hasToggledState: true,
+          isToggled: false,
+          hasEnabledState: true,
+          isEnabled: true,
+          hasTapAction: true,
+        ),
+      );
+      await tester.tap(find.byKey(const ValueKey('security-key-resident')));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSemantics(row('security-key-resident', '存进钥匙里')),
+        isSemantics(
+          label: '存进钥匙里\n换手机后能从钥匙读回来',
+          isButton: true,
+          hasToggledState: true,
+          isToggled: true,
+          hasEnabledState: true,
+          isEnabled: true,
+          hasTapAction: true,
+        ),
+      );
+      expect(
+        tester.getSemantics(row('security-key-require-pin', '每次登录都要 PIN')),
+        isSemantics(
+          label: '每次登录都要 PIN',
+          isButton: true,
+          hasToggledState: true,
+          isToggled: false,
+          hasEnabledState: true,
+          isEnabled: true,
+          hasTapAction: true,
+        ),
+        reason: '点一个开关不动另一个',
+      );
+      expect(find.byKey(const ValueKey('security-key-create-cancel')),
+          findsOneWidget);
+      expect(find.byKey(const ValueKey('security-key-create-confirm')),
+          findsOneWidget);
+      handle.dispose();
+    });
+  });
 }

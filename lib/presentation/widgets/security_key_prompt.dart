@@ -8,6 +8,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../domain/security_key.dart';
 import '../../infrastructure/ssh/security_key_channel.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import 'secret_content.dart';
 
 final securityKeyChannelProvider = Provider((ref) => SecurityKeyChannel());
@@ -295,16 +296,17 @@ class _SecurityKeyPromptState<T extends Object>
             ],
           ),
           actions: [
-            TextButton(
+            ShunButton(
               key: const ValueKey('security-key-cancel'),
+              kind: ShunButtonKind.text,
               onPressed: _cancel,
-              child: const LText('取消'),
+              label: '取消',
             ),
             if (_askingPin)
-              FilledButton(
+              ShunButton(
                 key: const ValueKey('security-key-pin-submit'),
                 onPressed: _submitPin,
-                child: const LText('继续'),
+                label: '继续',
               ),
           ],
         ),

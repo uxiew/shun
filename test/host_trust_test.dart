@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:shun/application/host_trust.dart';
+import 'package:shun/presentation/ui/components.dart';
 import 'package:shun/presentation/widgets/host_key_dialogs.dart';
+
+import 'support/prism_test_host.dart';
 
 // SEC02 / SEC03 的界面与规则部分：指纹变了一律拒绝（没有一点就过的"确认更新"），
 // 只能删除旧指纹后重连、按首次重新核对；第一次见必须用户核对，不自动信任。
@@ -170,6 +173,8 @@ void main() {
     ) async {
       bool? result;
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Builder(
           builder: (context) => TextButton(
             onPressed: () async => result = await show(context),
@@ -206,6 +211,8 @@ void main() {
     testWidgets('指纹变了：点删除旧指纹返回 true，点关闭返回 false', (tester) async {
       bool? result;
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Builder(
           builder: (context) => TextButton(
             onPressed: () async => result = await changed(context),
@@ -229,6 +236,8 @@ void main() {
     testWidgets('第一次见：接受返回 true', (tester) async {
       bool? result;
       await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Builder(
           builder: (context) => TextButton(
             onPressed: () async => result = await confirmNewHostKey(
@@ -248,6 +257,79 @@ void main() {
       await tester.tap(find.text('接受并记住'));
       await tester.pumpAndSettle();
       expect(result, isTrue);
+    });
+
+    group('UIM10（R89）指纹弹层', () {
+      testWidgets('第一次见：拒绝、接受按新 key 点，各返回 false、true；都是按钮', (tester) async {
+        final handle = tester.ensureSemantics();
+        bool? result;
+        await tester.pumpWidget(MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () async => result = await confirmNewHostKey(
+                context,
+                hostname: host,
+                port: 22,
+                algorithm: 'ssh-ed25519',
+                fingerprint: fp,
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ));
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+        for (final (key, label) in [
+          ('host-key-reject', '拒绝'),
+          ('host-key-accept', '接受并记住'),
+        ]) {
+          expect(
+            tester.getSemantics(find.descendant(
+              of: find.byKey(ValueKey(key)),
+              matching: find.bySemanticsLabel(label),
+            )),
+            isSemantics(
+              label: label,
+              isButton: true,
+              hasEnabledState: true,
+              isEnabled: true,
+              hasTapAction: true,
+            ),
+            reason: key,
+          );
+        }
+        await tester.tap(find.byKey(const ValueKey('host-key-reject')));
+        await tester.pumpAndSettle();
+        expect(result, isFalse);
+
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const ValueKey('host-key-accept')));
+        await tester.pumpAndSettle();
+        expect(result, isTrue);
+        handle.dispose();
+      });
+
+      testWidgets('指纹变了：只有「删除旧指纹」「关闭」两个按钮，没有别的出路', (tester) async {
+        await open(tester, changed);
+        expect(
+          find.descendant(
+            of: find.byType(AlertDialog),
+            matching: find.byType(ShunButton),
+          ),
+          findsNWidgets(2),
+        );
+        expect(
+            find.byKey(const ValueKey('delete-old-host-key')), findsOneWidget);
+        expect(find.byKey(const ValueKey('host-key-close')), findsOneWidget);
+        expect(find.byKey(const ValueKey('host-key-accept')), findsNothing);
+        // 不能靠点遮罩或返回键绕过去。
+        await tester.tapAt(const Offset(4, 4));
+        await tester.pumpAndSettle();
+        expect(find.text('服务器指纹已变化，已阻止连接'), findsOneWidget);
+      });
     });
   });
 }

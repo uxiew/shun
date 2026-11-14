@@ -13,6 +13,8 @@ import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/widgets/connection_prompts.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'support/prism_test_host.dart';
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
   const secureStorage =
@@ -86,5 +88,69 @@ void main() {
     expect(await verify!(host, 'ssh-ed25519', 'SHA256:known'), isTrue);
     // 没记住过的：弹窗的页面已经没了，按拒绝处理，也不抛异常。
     expect(await verify!(host, 'ssh-ed25519', 'SHA256:other'), isFalse);
+  });
+
+  group('UIM10（R89）交互式认证', () {
+    Future<void> launch(
+      WidgetTester tester,
+      Future<void> Function(BuildContext context) open,
+    ) async {
+      await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
+        home: Builder(
+          builder: (context) => TextButton(
+            onPressed: () => open(context),
+            child: const Text('open'),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+    }
+
+    const prompts = [
+      (echo: false, text: 'Password:'),
+      (echo: true, text: 'Verification code:'),
+    ];
+
+    testWidgets('一问打码一问回显；两个输入法开关都关；点继续按顺序返回答案', (tester) async {
+      List<String>? answers;
+      await launch(tester, (context) async {
+        answers = await keyboardInteractivePrompt(context)('', '', prompts);
+      });
+      final first = tester.widget<TextField>(
+          find.byKey(const ValueKey('kbd-interactive-answer-0')));
+      final second = tester.widget<TextField>(
+          find.byKey(const ValueKey('kbd-interactive-answer-1')));
+      expect(first.obscureText, isTrue);
+      expect(second.obscureText, isFalse);
+      for (final field in [first, second]) {
+        expect(field.enableSuggestions, isFalse);
+        expect(field.autocorrect, isFalse);
+        expect(field.enableIMEPersonalizedLearning, isFalse);
+      }
+      await tester.enterText(
+          find.byKey(const ValueKey('kbd-interactive-answer-0')), 'pw');
+      await tester.enterText(
+          find.byKey(const ValueKey('kbd-interactive-answer-1')), '123456');
+      await tester.tap(find.byKey(const ValueKey('kbd-interactive-continue')));
+      await tester.pumpAndSettle();
+      expect(answers, ['pw', '123456']);
+    });
+
+    testWidgets('取消返回 null；点遮罩关不掉', (tester) async {
+      List<String>? answers = const ['unset'];
+      await launch(tester, (context) async {
+        answers = await keyboardInteractivePrompt(context)('', '', prompts);
+      });
+      await tester.tapAt(const Offset(4, 4));
+      await tester.pumpAndSettle();
+      expect(
+          find.byKey(const ValueKey('kbd-interactive-cancel')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('kbd-interactive-cancel')));
+      await tester.pumpAndSettle();
+      expect(answers, isNull);
+    });
   });
 }

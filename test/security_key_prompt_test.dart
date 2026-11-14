@@ -7,6 +7,8 @@ import 'package:shun/domain/security_key.dart';
 import 'package:shun/infrastructure/ssh/security_key_channel.dart';
 import 'package:shun/presentation/widgets/security_key_prompt.dart';
 
+import 'support/prism_test_host.dart';
+
 /// 不连平台的通道：阶段由测试自己发，记下有没有调 cancel。
 class _FakeChannel extends SecurityKeyChannel {
   _FakeChannel({this.nfcEnabled = true})
@@ -56,6 +58,8 @@ void main() {
     final outcome = <Object?>[];
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Builder(
           builder: (context) => TextButton(
             onPressed: () async {
@@ -345,5 +349,81 @@ void main() {
       securityKeyExceptionOf('whatever', null).failure,
       SecurityKeyFailure.transport,
     );
+  });
+
+  group('UIM10（R89）钥匙询问框', () {
+    /// 按钮读屏上是带名字、可点、可用的按钮（换成别的实现也一样）。
+    Future<void> expectButton(
+        WidgetTester tester, String key, String label) async {
+      // 对话框淡入走完，读屏节点才排除掉底下的页面。
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(
+        tester.getSemantics(find.descendant(
+          of: find.byKey(ValueKey(key)),
+          matching: find.bySemanticsLabel(label),
+        )),
+        isSemantics(
+          label: label,
+          isButton: true,
+          hasEnabledState: true,
+          isEnabled: true,
+          hasTapAction: true,
+        ),
+      );
+    }
+
+    testWidgets('等钥匙：状态句和取消 key 在，取消是按钮，没有 PIN 框', (tester) async {
+      final handle = tester.ensureSemantics();
+      final channel = _FakeChannel();
+      final result = Completer<Object>();
+      final outcome = await open(tester, channel, run: (_) => result.future);
+      expect(find.byKey(const ValueKey('security-key-status')), findsOneWidget);
+      expect(find.byKey(const ValueKey('security-key-pin')), findsNothing);
+      expect(
+          find.byKey(const ValueKey('security-key-pin-submit')), findsNothing);
+      await expectButton(tester, 'security-key-cancel', '取消');
+      await tester.tap(find.byKey(const ValueKey('security-key-cancel')));
+      await tester.pumpAndSettle();
+      expect((outcome.single as SecurityKeyException).failure,
+          SecurityKeyFailure.cancelled);
+      expect(channel.cancelCalls, 1);
+      handle.dispose();
+    });
+
+    testWidgets('PIN 框：打码、三个输入法开关全关、没有「显示」眼睛，继续是按钮', (tester) async {
+      final handle = tester.ensureSemantics();
+      final channel = _FakeChannel();
+      await open(tester, channel,
+          run: (_) => Completer<Object>().future, pinFirst: true);
+      final field = tester
+          .widget<TextField>(find.byKey(const ValueKey('security-key-pin')));
+      expect(field.obscureText, isTrue);
+      expect(field.enableSuggestions, isFalse);
+      expect(field.autocorrect, isFalse);
+      expect(field.enableIMEPersonalizedLearning, isFalse);
+      // 换成 ShunSecretField 会多一个眼睛：PIN 不给切明文。
+      expect(find.byTooltip('显示密码'), findsNothing);
+      expect(find.byType(IconButton), findsNothing);
+      await expectButton(tester, 'security-key-pin-submit', '继续');
+      await tester.tap(find.byKey(const ValueKey('security-key-cancel')));
+      await tester.pumpAndSettle();
+      handle.dispose();
+    });
+
+    testWidgets('PIN 错：提示 key 在，框留着让用户决定再不再试', (tester) async {
+      final channel = _FakeChannel();
+      await open(tester, channel,
+          run: (_) async => throw const SecurityKeyException(
+              SecurityKeyFailure.pinInvalid,
+              pinRetries: 5),
+          pinFirst: true);
+      await enterPin(tester, '1234');
+      await tester.pump();
+      expect(
+          find.byKey(const ValueKey('security-key-pin-note')), findsOneWidget);
+      expect(find.byKey(const ValueKey('security-key-pin')), findsOneWidget);
+      await tester.tap(find.byKey(const ValueKey('security-key-cancel')));
+      await tester.pumpAndSettle();
+    });
   });
 }

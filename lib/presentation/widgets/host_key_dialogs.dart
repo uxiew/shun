@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 
 /// 第一次连这台主机：展示指纹让用户核对。返回 true 表示接受并记住。
 Future<bool> confirmNewHostKey(
@@ -20,13 +21,16 @@ Future<bool> confirmNewHostKey(
           '$hostname:$port\n$algorithm\n$fingerprint\n\n首次连接前请与管理员核对。',
         ),
         actions: [
-          TextButton(
+          ShunButton(
+            key: const ValueKey('host-key-reject'),
+            kind: ShunButtonKind.text,
             onPressed: () => Navigator.pop(context, false),
-            child: const LText('拒绝'),
+            label: '拒绝',
           ),
-          FilledButton(
+          ShunButton(
+            key: const ValueKey('host-key-accept'),
             onPressed: () => Navigator.pop(context, true),
-            child: const LText('接受并记住'),
+            label: '接受并记住',
           ),
         ],
       ),
@@ -49,7 +53,10 @@ Future<bool> showChangedHostKey(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        icon: const Icon(Icons.gpp_bad_outlined, color: Colors.redAccent),
+        icon: Icon(
+          Icons.gpp_bad_outlined,
+          color: Theme.of(context).colorScheme.error,
+        ),
         title: const LText('服务器指纹已变化，已阻止连接'),
         content: LSelectableText(
           '$hostname:$port\n$algorithm\n'
@@ -58,14 +65,16 @@ Future<bool> showChangedHostKey(
           '确认是正常更换后，删除旧指纹再重新连接，届时会按首次连接让你重新核对。',
         ),
         actions: [
-          TextButton(
+          ShunButton(
             key: const ValueKey('delete-old-host-key'),
+            kind: ShunButtonKind.text,
             onPressed: () => Navigator.pop(context, true),
-            child: const LText('删除旧指纹'),
+            label: '删除旧指纹',
           ),
-          FilledButton(
+          ShunButton(
+            key: const ValueKey('host-key-close'),
             onPressed: () => Navigator.pop(context, false),
-            child: const LText('关闭'),
+            label: '关闭',
           ),
         ],
       ),

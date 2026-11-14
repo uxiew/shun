@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -8,6 +9,7 @@ import '../../domain/models/host.dart';
 import '../../domain/security_key.dart';
 import '../../infrastructure/ssh/security_key_channel.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import 'security_key_prompt.dart';
 
 /// ssh-keygen 默认的 rpId。按它生成，密钥和电脑上 `ssh-keygen -K` 读到的是同一类。
@@ -23,16 +25,24 @@ Future<List<SshKeyProfile>> addSecurityKey(
     context: context,
     builder: (context) => SimpleDialog(
       title: const LText('添加安全密钥'),
+      // 两个选项是 Prism 分组里的按钮行：读屏念「按钮」，不再是只有「可点」的裸文字。
+      // 无标题的分组只画间距，不需要测量宿主。
       children: [
-        SimpleDialogOption(
-          key: const ValueKey('security-key-create'),
-          onPressed: () => Navigator.pop(context, 'create'),
-          child: const LText('在钥匙上生成新密钥'),
-        ),
-        SimpleDialogOption(
-          key: const ValueKey('security-key-read'),
-          onPressed: () => Navigator.pop(context, 'read'),
-          child: const LText('读取钥匙里已有的密钥'),
+        _NoIntrinsics(
+          child: ShunSection(
+            children: [
+              ShunListRow(
+                key: const ValueKey('security-key-create'),
+                title: '在钥匙上生成新密钥',
+                onTap: () => Navigator.pop(context, 'create'),
+              ),
+              ShunListRow(
+                key: const ValueKey('security-key-read'),
+                title: '读取钥匙里已有的密钥',
+                onTap: () => Navigator.pop(context, 'read'),
+              ),
+            ],
+          ),
         ),
       ],
     ),
@@ -52,6 +62,35 @@ Future<List<SshKeyProfile>> addSecurityKey(
     );
     return const [];
   }
+}
+
+/// 让 Prism 分组躲开 AlertDialog / SimpleDialog 的固有尺寸测量。
+///
+/// 这两种对话框外面套了 IntrinsicWidth，会向里面每个部件问「最宽、最高要多少」；
+/// Prism 分组里有 LayoutBuilder，答不了，直接抛
+/// 「LayoutBuilder does not support returning intrinsic dimensions」。
+/// 这里对测量一律答 0：对话框宽度由别的部件和最小宽 280 决定，真正排版时仍按实际约束铺满。
+/// （SizedBox(width: double.maxFinite) 只在 SimpleDialog 里管用，AlertDialog 的 Column 还会问高度，所以不用它。）
+class _NoIntrinsics extends SingleChildRenderObjectWidget {
+  const _NoIntrinsics({required Widget child}) : super(child: child);
+
+  @override
+  RenderObject createRenderObject(BuildContext context) =>
+      _RenderNoIntrinsics();
+}
+
+class _RenderNoIntrinsics extends RenderProxyBox {
+  @override
+  double computeMinIntrinsicWidth(double height) => 0;
+
+  @override
+  double computeMaxIntrinsicWidth(double height) => 0;
+
+  @override
+  double computeMinIntrinsicHeight(double width) => 0;
+
+  @override
+  double computeMaxIntrinsicHeight(double width) => 0;
 }
 
 class _CreateOptions {
@@ -185,17 +224,19 @@ Future<void> showSecurityKeyPublicKey(BuildContext context, String line) =>
           ],
         ),
         actions: [
-          TextButton(
+          ShunButton(
+            key: const ValueKey('security-key-close-public-key'),
+            kind: ShunButtonKind.text,
             onPressed: () => Navigator.pop(context),
-            child: const LText('关闭'),
+            label: '关闭',
           ),
-          FilledButton(
+          ShunButton(
             key: const ValueKey('security-key-copy-public-key'),
             onPressed: () async {
               await Clipboard.setData(ClipboardData(text: line));
               if (context.mounted) Navigator.pop(context);
             },
-            child: const LText('复制'),
+            label: '复制',
           ),
         ],
       ),
@@ -230,29 +271,35 @@ class _CreateDialogState extends State<_CreateDialog> {
               controller: _label,
               decoration: LInputDecoration(labelText: '名称'),
             ),
-            SwitchListTile(
-              key: const ValueKey('security-key-resident'),
-              contentPadding: EdgeInsets.zero,
-              title: const LText('存进钥匙里'),
-              subtitle: const LText('换手机后能从钥匙读回来'),
-              value: _resident,
-              onChanged: (value) => setState(() => _resident = value),
-            ),
-            SwitchListTile(
-              key: const ValueKey('security-key-require-pin'),
-              contentPadding: EdgeInsets.zero,
-              title: const LText('每次登录都要 PIN'),
-              value: _requirePin,
-              onChanged: (value) => setState(() => _requirePin = value),
+            _NoIntrinsics(
+              child: ShunSection(
+                children: [
+                  ShunSwitchRow(
+                    key: const ValueKey('security-key-resident'),
+                    title: '存进钥匙里',
+                    subtitle: '换手机后能从钥匙读回来',
+                    value: _resident,
+                    onChanged: (value) => setState(() => _resident = value),
+                  ),
+                  ShunSwitchRow(
+                    key: const ValueKey('security-key-require-pin'),
+                    title: '每次登录都要 PIN',
+                    value: _requirePin,
+                    onChanged: (value) => setState(() => _requirePin = value),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
         actions: [
-          TextButton(
+          ShunButton(
+            key: const ValueKey('security-key-create-cancel'),
+            kind: ShunButtonKind.text,
             onPressed: () => Navigator.pop(context),
-            child: const LText('取消'),
+            label: '取消',
           ),
-          FilledButton(
+          ShunButton(
             key: const ValueKey('security-key-create-confirm'),
             onPressed: () {
               final label = _label.text.trim();
@@ -265,7 +312,7 @@ class _CreateDialogState extends State<_CreateDialog> {
                 ),
               );
             },
-            child: const LText('生成'),
+            label: '生成',
           ),
         ],
       );

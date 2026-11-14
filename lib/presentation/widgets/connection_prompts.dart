@@ -6,6 +6,8 @@ import '../../application/vault_controller.dart';
 import '../../domain/models/host.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
+import 'form_gap.dart';
 import 'host_key_dialogs.dart';
 import 'secret_content.dart';
 
@@ -83,6 +85,7 @@ KeyboardInteractiveHandler keyboardInteractivePrompt(BuildContext context) =>
                 ],
                 for (var index = 0; index < prompts.length; index++) ...[
                   TextField(
+                    key: ValueKey('kbd-interactive-answer-$index'),
                     controller: controllers[index],
                     obscureText: !prompts[index].echo,
                     // 服务器说可以回显的（验证码之类）也是登录答案，一样不让输入法学。
@@ -93,22 +96,25 @@ KeyboardInteractiveHandler keyboardInteractivePrompt(BuildContext context) =>
                     decoration:
                         LInputDecoration(labelText: prompts[index].text),
                   ),
-                  const SizedBox(height: 10),
+                  const FormGap(),
                 ],
               ],
             ),
           ),
           actions: [
-            TextButton(
+            ShunButton(
+              key: const ValueKey('kbd-interactive-cancel'),
+              kind: ShunButtonKind.text,
               onPressed: () => Navigator.pop(context),
-              child: const LText('取消'),
+              label: '取消',
             ),
-            FilledButton(
+            ShunButton(
+              key: const ValueKey('kbd-interactive-continue'),
               onPressed: () => Navigator.pop(
                 context,
                 controllers.map((value) => value.text).toList(),
               ),
-              child: const LText('继续'),
+              label: '继续',
             ),
           ],
         )),

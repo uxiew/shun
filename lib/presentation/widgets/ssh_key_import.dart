@@ -12,6 +12,7 @@ import '../../domain/security_key.dart';
 import '../../domain/ssh_key_type.dart';
 import '../../infrastructure/storage/picked_files.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import 'form_gap.dart';
 import 'secret_content.dart';
 
@@ -55,11 +56,13 @@ Future<SshKeyProfile?> importSshKey(BuildContext context, WidgetRef ref) async {
         mainAxisSize: MainAxisSize.min,
         children: [
           TextField(
+            key: const ValueKey('ssh-key-import-label'),
             controller: label,
             decoration: LInputDecoration(labelText: '名称'),
           ),
           const FormGap(),
           TextField(
+            key: const ValueKey('ssh-key-import-passphrase'),
             controller: passphrase,
             obscureText: true,
             enableIMEPersonalizedLearning: false,
@@ -70,7 +73,14 @@ Future<SshKeyProfile?> importSshKey(BuildContext context, WidgetRef ref) async {
         ],
       ),
       actions: [
-        FilledButton(
+        ShunButton(
+          key: const ValueKey('ssh-key-import-cancel'),
+          kind: ShunButtonKind.text,
+          onPressed: () => Navigator.pop(context),
+          label: '取消',
+        ),
+        ShunButton(
+          key: const ValueKey('ssh-key-import-confirm'),
           onPressed: () => Navigator.pop(
             context,
             SshKeyProfile({
@@ -87,7 +97,7 @@ Future<SshKeyProfile?> importSshKey(BuildContext context, WidgetRef ref) async {
               'created': DateTime.now().millisecondsSinceEpoch,
             }),
           ),
-          child: const LText('导入'),
+          label: '导入',
         ),
       ],
     )),

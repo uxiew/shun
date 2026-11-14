@@ -15,6 +15,8 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shun/app.dart';
 import 'package:shun/application/fork_features.dart';
 import 'package:shun/application/sensitive_screen.dart';
+import 'package:shun/application/vault_controller.dart';
+import 'package:shun/domain/models/host.dart';
 import 'package:shun/infrastructure/http_client_provider.dart';
 import 'package:shun/infrastructure/ssh/system_management_service.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
@@ -26,6 +28,7 @@ import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shun/presentation/widgets/keychain_sheet.dart';
 import 'package:shun/presentation/widgets/proxy_profile_editor.dart';
 import 'package:shun/presentation/widgets/secret_content.dart';
+import 'package:shun/presentation/widgets/ssh_key_import.dart';
 import 'package:shun/presentation/widgets/system_management/sudo_prompt.dart';
 
 import 'support/ui_rules.dart';
@@ -369,6 +372,56 @@ void main() {
       await tester.tapAt(const Offset(4, 4)); // 点遮罩关掉，不导入
       await tester.pumpAndSettle();
       expect(window.calls, [true, false]);
+    });
+  });
+
+  group('UIM10（R89）弹层', () {
+    testWidgets('导入私钥口令框：key 在、打码且三个输入法开关全关、取消不写保险库', (tester) async {
+      final previous = _swapPicker(_FakePicker(FilePickerResult([
+        PlatformFile(
+          name: 'id_ed25519',
+          size: 64,
+          bytes: utf8.encode(
+              '-----BEGIN OPENSSH PRIVATE KEY-----\nAAAA\n-----END OPENSSH PRIVATE KEY-----\n'),
+        ),
+      ])));
+      addTearDown(() => _swapPicker(previous));
+      SshKeyProfile? imported = SshKeyProfile(const {});
+      late WidgetRef ref;
+      await pump(
+        tester,
+        Consumer(builder: (context, r, _) {
+          ref = r;
+          return Scaffold(
+            body: FilledButton(
+              onPressed: () async => imported = await importSshKey(context, r),
+              child: const Text('open'),
+            ),
+          );
+        }),
+      );
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(window.calls, [true]);
+      expect(
+          find.byKey(const ValueKey('ssh-key-import-label')), findsOneWidget);
+      final passphrase = tester.widget<TextField>(
+          find.byKey(const ValueKey('ssh-key-import-passphrase')));
+      expect(passphrase.obscureText, isTrue);
+      expect(passphrase.enableSuggestions, isFalse);
+      expect(passphrase.autocorrect, isFalse);
+      expect(passphrase.enableIMEPersonalizedLearning, isFalse);
+      // 口令框没有「显示」眼睛：口令不给切明文（要换 ShunSecretField 得先过这条）。
+      expect(find.byTooltip('显示密码'), findsNothing);
+      expect(
+          find.byKey(const ValueKey('ssh-key-import-confirm')), findsOneWidget);
+
+      await tester.tap(find.byKey(const ValueKey('ssh-key-import-cancel')));
+      await tester.pumpAndSettle();
+      expect(imported, isNull);
+      expect(window.calls, [true, false]);
+      final vault = await ref.read(vaultControllerProvider.notifier).ready();
+      expect(vault.keys, isEmpty);
     });
   });
 
