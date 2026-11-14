@@ -3,6 +3,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../application/home_navigation.dart';
 import '../../application/settings_controller.dart';
@@ -20,8 +21,10 @@ import '../../domain/models/vault.dart';
 import '../../infrastructure/tailscale/catalog_cache.dart';
 import '../../infrastructure/tailscale/catalog_cache_repository.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import '../ui/non_modal_panel.dart';
 import '../widgets/catalog_text.dart';
+import '../widgets/choice_segments.dart';
 import '../widgets/connection_route_draft.dart';
 import '../widgets/connection_route_editor.dart';
 import '../widgets/credential_field.dart';
@@ -110,7 +113,9 @@ class _TailscaleSettingsScreenState
 
   /// 面板底下那句话。不用 SnackBar：它弹在面板下面的页上，正好被面板挡住，保存失败了看着像没反应。
   ({String text, bool error})? _notice;
-  final _advanced = ExpansibleController();
+
+  /// 「高级」开没开。null：表单还没画出来过，第一次画时按路线坏没坏定（见 build）。
+  bool? _advancedOpen;
 
   late var _sync = ref.read(settingsControllerProvider).tailscaleSyncSeconds;
 
@@ -285,7 +290,7 @@ class _TailscaleSettingsScreenState
     final invalid = _invalidBasics(vault) ?? advanced;
     if (invalid != null) {
       // 错在收着的高级里就打开：不然底下说端口不对，面板上却找不到端口。
-      if (advanced != null) _advanced.expand();
+      if (advanced != null) _advancedOpen = true;
       _message(invalid);
       return;
     }
@@ -360,14 +365,16 @@ class _TailscaleSettingsScreenState
         title: const LText('删除保存的 key？'),
         content: const LText('删了找不回来，要用得重新填。'),
         actions: [
-          TextButton(
+          ShunButton(
+            key: const ValueKey('ts-settings-forget-key-cancel'),
+            kind: ShunButtonKind.text,
             onPressed: () => Navigator.pop(context, false),
-            child: const LText('取消'),
+            label: '取消',
           ),
-          FilledButton(
+          ShunButton(
             key: const ValueKey('ts-settings-forget-key-confirm'),
             onPressed: () => Navigator.pop(context, true),
-            child: const LText('删除'),
+            label: '删除',
           ),
         ],
       ),
@@ -408,14 +415,16 @@ class _TailscaleSettingsScreenState
           ],
         ),
         actions: [
-          TextButton(
+          ShunButton(
+            key: const ValueKey('ts-settings-remove-cancel'),
+            kind: ShunButtonKind.text,
             onPressed: () => Navigator.pop(context, false),
-            child: const LText('取消'),
+            label: '取消',
           ),
-          FilledButton(
+          ShunButton(
             key: const ValueKey('ts-settings-remove-confirm'),
             onPressed: () => Navigator.pop(context, true),
-            child: LText(_onlySource ? '移除 Tailscale' : '移除来源'),
+            label: _onlySource ? '移除 Tailscale' : '移除来源',
           ),
         ],
       ),
@@ -432,6 +441,7 @@ class _TailscaleSettingsScreenState
       });
 
   /// 存着的 key 看不了，只能换或删（所有者 11-02）。这里根本没解密：圆点是写死的，长度也不漏。
+  /// 留着 Material 的框（R89）：和下面的用户名框一个样子；也不能换成带 controller 的输入框，那就得有东西可填。
   Widget _savedKey(ThemeData theme) => InputDecorator(
         key: const ValueKey('ts-settings-saved-key'),
         decoration: LInputDecoration(
@@ -486,11 +496,21 @@ class _TailscaleSettingsScreenState
     final vaultState = ref.watch(vaultControllerProvider);
     final vault = vaultState.data;
     final theme = Theme.of(context);
-    final small = theme.textTheme.bodySmall;
+    final colors = prism.Theme.of(context).colorScheme;
+    final small = prism.AppTextStyle.subheadline
+        .of(context)
+        .copyWith(color: colors.onSurfaceVariant);
+    final blockTitle = prism.AppTextStyle.headline
+        .of(context)
+        .copyWith(color: colors.onSurfaceVariant);
     final existing = _catalogId != null && _cache != null;
     final keys = vault?.keys ?? const <SshKeyProfile>[];
     final route = _routePreview(vault);
     final notice = _notice;
+    // 表单第一次画出来时定一次：打开就是坏的（跳板删了、代理没了）就摆出来，别等点保存才知道。
+    // 之后只跟用户的点按和保存时的报错走；没加载完不定，那时路线还是空的。
+    final advancedOpen =
+        _loaded ? (_advancedOpen ??= route.error != null) : false;
     ref.listen(homeTabProvider, (_, __) => widget.onDone(null));
     // API key 框在面板上：防截屏（R44）。面板按内容的高度来，展开高级放不下时中间滚，底下的按钮一直在。
     // 不用自己让键盘：面板是 Scaffold 的一格，Scaffold 已经把它顶到键盘上面了。
@@ -508,7 +528,9 @@ class _TailscaleSettingsScreenState
                   Expanded(
                     child: LText(
                       'Tailscale 设置',
-                      style: theme.textTheme.titleMedium,
+                      style: prism.AppTextStyle.headline
+                          .of(context)
+                          .copyWith(color: colors.onSurface),
                     ),
                   ),
                   const HintButton(
@@ -539,6 +561,7 @@ class _TailscaleSettingsScreenState
                     if (_hasSaved && !_replacingKey)
                       _savedKey(theme)
                     else
+                      // 留着 Material 的框，不用 ShunSecretField（R89）：那个带「显示」眼睛，这里不许回显。
                       TextField(
                         key: const ValueKey('ts-settings-key'),
                         controller: _key,
@@ -564,10 +587,11 @@ class _TailscaleSettingsScreenState
                     if (_replacingKey)
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: TextButton(
+                        child: ShunButton(
                           key: const ValueKey('ts-settings-cancel-change-key'),
+                          kind: ShunButtonKind.text,
                           onPressed: _busy ? null : _cancelReplacingKey,
-                          child: const LText('取消修改'),
+                          label: '取消修改',
                         ),
                       ),
                     const FormGap(),
@@ -597,14 +621,15 @@ class _TailscaleSettingsScreenState
                     // 不摆下拉框：多数人填用户名，多一个选择就是多一项要看的东西。凭据一点就换。
                     Align(
                       alignment: Alignment.centerLeft,
-                      child: TextButton(
+                      child: ShunButton(
                         key: const ValueKey('ts-settings-login'),
+                        kind: ShunButtonKind.text,
                         onPressed: () => setState(() {
                           _login = _usesCredential
                               ? LoginChoice.simple
                               : LoginChoice.credential;
                         }),
-                        child: LText(_usesCredential ? '改用用户名' : '改用凭据'),
+                        label: _usesCredential ? '改用用户名' : '改用凭据',
                       ),
                     ),
                     const FormGap(),
@@ -622,61 +647,88 @@ class _TailscaleSettingsScreenState
                       onChanged: (value) =>
                           setState(() => _sync = value ?? _sync),
                     ),
-                    ExpansionTile(
-                      key: const ValueKey('ts-settings-advanced'),
-                      controller: _advanced,
-                      // 打开就是坏的（跳板删了、代理没了）：摆出来，别等点保存才知道。
-                      initiallyExpanded: route.error != null,
-                      tilePadding: EdgeInsets.zero,
-                      childrenPadding: const EdgeInsets.only(top: 8, bottom: 8),
-                      expandedCrossAxisAlignment: CrossAxisAlignment.start,
-                      title: const HintTitle(
-                        '高级',
-                        hint: '这些只用于以后导入的主机，已经导入的不动。密码不在这里填：每台第一次连接时问。',
-                      ),
-                      subtitle: Text(
-                        _advancedSummary,
-                        key: const ValueKey('ts-settings-advanced-summary'),
-                        style: small,
-                      ),
-                      children: [
-                        TextField(
-                          key: const ValueKey('ts-settings-port'),
-                          controller: _port,
-                          keyboardType: TextInputType.number,
-                          onChanged: (_) => setState(() {}),
-                          decoration: LInputDecoration(labelText: 'SSH 端口'),
+                    const SizedBox(height: 12),
+                    // 一行 Prism 分组卡片（R89，写法同主机表单的「高级」）：读屏是带「已展开 / 已收起」的按钮，
+                    // ⓘ 自成节点。收着时下面的字段不建出来，默认就只有两个输入框。
+                    prism.ItemPositionProvider(
+                      position: prism.ItemPosition.startAndEnd,
+                      child: ShunListRow(
+                        key: const ValueKey('ts-settings-advanced'),
+                        title: '高级',
+                        details: Text(
+                          _advancedSummary,
+                          key: const ValueKey('ts-settings-advanced-summary'),
                         ),
-                        const SizedBox(height: 16),
-                        const LText('用设备的哪个地址'),
-                        const SizedBox(height: 4),
-                        SegmentedButton<CatalogAddressKind>(
-                          segments: [
-                            const ButtonSegment(
-                              value: CatalogAddressKind.ipv4,
-                              label: Text('IPv4'),
+                        trailing: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const HintButton(
+                              title: '高级',
+                              message:
+                                  '这些只用于以后导入的主机，已经导入的不动。密码不在这里填：每台第一次连接时问。',
                             ),
-                            const ButtonSegment(
-                              value: CatalogAddressKind.ipv6,
-                              label: Text('IPv6'),
-                            ),
-                            ButtonSegment(
-                              value: CatalogAddressKind.fqdn,
-                              label: LText('MagicDNS 名称'),
+                            ExcludeSemantics(
+                              child: Icon(
+                                advancedOpen
+                                    ? Icons.expand_less
+                                    : Icons.expand_more,
+                              ),
                             ),
                           ],
-                          selected: {_address},
-                          onSelectionChanged: (value) =>
-                              setState(() => _address = value.first),
                         ),
-                        const SizedBox(height: 16),
-                        // 和主机编辑页同一句 ⓘ：两页共用路线编辑器，说明也只写一份译文。
-                        const HintTitle(
-                          '连接路径',
-                          hint:
-                              '手机 →（代理）→（跳板机）→ 目标。代理只用于手机连第一跳，之后由上一台跳板转发。跳板机要先存成普通 SSH 主机。',
-                        ),
-                        ConnectionRouteEditor(
+                        expanded: advancedOpen,
+                        onTap: () =>
+                            setState(() => _advancedOpen = !advancedOpen),
+                      ),
+                    ),
+                    if (advancedOpen) ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        key: const ValueKey('ts-settings-port'),
+                        controller: _port,
+                        keyboardType: TextInputType.number,
+                        onChanged: (_) => setState(() {}),
+                        decoration: LInputDecoration(labelText: 'SSH 端口'),
+                      ),
+                      const SizedBox(height: 16),
+                      LText('用设备的哪个地址', style: blockTitle),
+                      const SizedBox(height: 6),
+                      // 不用 SegmentedButton（R89）：它每段在读屏里是两个节点，长的那段还会折行。
+                      ChoiceSegments<CatalogAddressKind>(
+                        key: const ValueKey('ts-settings-address'),
+                        selected: _address,
+                        onTap: (value) => setState(() => _address = value),
+                        segments: const [
+                          ChoiceSegment(
+                            CatalogAddressKind.ipv4,
+                            'IPv4',
+                            key: ValueKey('ts-settings-address-ipv4'),
+                          ),
+                          ChoiceSegment(
+                            CatalogAddressKind.ipv6,
+                            'IPv6',
+                            key: ValueKey('ts-settings-address-ipv6'),
+                          ),
+                          ChoiceSegment(
+                            CatalogAddressKind.fqdn,
+                            'MagicDNS 名称',
+                            key: ValueKey('ts-settings-address-fqdn'),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
+                      // 和主机编辑页同一句 ⓘ：两页共用路线编辑器，说明也只写一份译文。
+                      HintTitle(
+                        '连接路径',
+                        style: blockTitle,
+                        hint:
+                            '手机 →（代理）→（跳板机）→ 目标。代理只用于手机连第一跳，之后由上一台跳板转发。跳板机要先存成普通 SSH 主机。',
+                      ),
+                      // 路线编辑器里几句散着的字（路线草稿、明文口令提醒、报错）各自成节点。
+                      // 去掉这层：路线坏了时这三句并成一个节点，还排到「代理管理」前面去念（R89 清点实测）。
+                      Semantics(
+                        explicitChildNodes: true,
+                        child: ConnectionRouteEditor(
                           canConfirmRoutes: !vaultState.loading &&
                               vaultState.error == null &&
                               !vaultState.unreadableSecrets.any((key) =>
@@ -698,55 +750,66 @@ class _TailscaleSettingsScreenState
                                   builder: (_) => const ProxyProfilesPage())),
                           onChanged: () => setState(() {}),
                         ),
-                        const FormGap(),
+                      ),
+                      const FormGap(),
+                      TextField(
+                        key: const ValueKey('ts-settings-group'),
+                        controller: _group,
+                        onChanged: (_) => setState(() {}),
+                        decoration: LInputDecoration(labelText: '分组（可选）'),
+                      ),
+                      const FormGap(),
+                      if (existing)
+                        catalogLine('tailnet：', _tailnet.text, style: small)
+                      else ...[
                         TextField(
-                          key: const ValueKey('ts-settings-group'),
-                          controller: _group,
-                          onChanged: (_) => setState(() {}),
-                          decoration: LInputDecoration(labelText: '分组（可选）'),
+                          key: const ValueKey('ts-settings-tailnet'),
+                          controller: _tailnet,
+                          autocorrect: false,
+                          enableSuggestions: false,
+                          decoration: LInputDecoration(
+                            labelText: 'tailnet',
+                            helperText: '- 表示凭据所属的 tailnet',
+                          ),
                         ),
-                        const FormGap(),
-                        if (existing)
-                          catalogLine('tailnet：', _tailnet.text, style: small)
-                        else ...[
+                        if (!_onlySource) ...[
+                          const FormGap(),
                           TextField(
-                            key: const ValueKey('ts-settings-tailnet'),
-                            controller: _tailnet,
-                            autocorrect: false,
-                            enableSuggestions: false,
-                            decoration: LInputDecoration(
-                              labelText: 'tailnet',
-                              helperText: '- 表示凭据所属的 tailnet',
-                            ),
+                            key: const ValueKey('ts-settings-name'),
+                            controller: _name,
+                            decoration: LInputDecoration(labelText: '名称（可选）'),
                           ),
-                          if (!_onlySource) ...[
-                            const FormGap(),
-                            TextField(
-                              key: const ValueKey('ts-settings-name'),
-                              controller: _name,
-                              decoration: LInputDecoration(labelText: '名称（可选）'),
-                            ),
-                          ],
                         ],
-                        if (existing)
-                          TextButton(
-                            key: const ValueKey('ts-settings-sources'),
-                            onPressed: _busy ? null : _openSources,
-                            child: const LText('管理 tailnet'),
-                          ),
                       ],
-                    ),
+                      if (existing)
+                        Align(
+                          alignment: Alignment.centerLeft,
+                          child: ShunButton(
+                            key: const ValueKey('ts-settings-sources'),
+                            kind: ShunButtonKind.text,
+                            onPressed: _busy ? null : _openSources,
+                            label: '管理 tailnet',
+                          ),
+                        ),
+                      const SizedBox(height: 8),
+                    ],
                   ],
                 ),
               ),
             if (notice != null)
               Padding(
                 padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
-                child: Text(
-                  notice.text,
-                  key: const ValueKey('ts-settings-notice'),
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: notice.error ? theme.colorScheme.error : null,
+                // 自成节点：不然这句并进最上面的标题，读成「Tailscale 设置 端口要在…」（迁移前就这样）。
+                // liveRegion：话一出来读屏就念，不然点了保存像没反应。
+                child: Semantics(
+                  container: true,
+                  liveRegion: true,
+                  child: Text(
+                    notice.text,
+                    key: const ValueKey('ts-settings-notice'),
+                    style: prism.AppTextStyle.subheadline.of(context).copyWith(
+                          color: notice.error ? colors.error : colors.onSurface,
+                        ),
                   ),
                 ),
               ),
@@ -755,6 +818,7 @@ class _TailscaleSettingsScreenState
               child: Row(
                 children: [
                   if (existing)
+                    // 留着 Material 的红字按钮：ShunButton 没有危险样式（R96 统一看）。
                     TextButton(
                       key: const ValueKey('ts-settings-remove'),
                       onPressed: _busy ? null : _remove,
@@ -764,16 +828,19 @@ class _TailscaleSettingsScreenState
                       child: LText(_onlySource ? '移除 Tailscale' : '移除来源'),
                     ),
                   const Spacer(),
-                  TextButton(
+                  ShunButton(
                     key: const ValueKey('ts-settings-cancel'),
+                    kind: ShunButtonKind.text,
                     onPressed: _busy ? null : () => widget.onDone(null),
-                    child: const LText('取消'),
+                    label: '取消',
                   ),
                   const SizedBox(width: 8),
-                  FilledButton(
+                  // 忙的时候按钮自己转圈、不响应，读屏念「处理中」。
+                  ShunButton(
                     key: const ValueKey('ts-settings-save'),
-                    onPressed: _busy || !_loaded ? null : _save,
-                    child: const LText('保存'),
+                    busy: _busy,
+                    onPressed: !_loaded ? null : _save,
+                    label: '保存',
                   ),
                 ],
               ),

@@ -18,7 +18,7 @@ import 'package:shun/infrastructure/tailscale/catalog_cache_repository.dart';
 import 'package:shun/infrastructure/tailscale/catalog_secret_store.dart';
 import 'package:shun/infrastructure/tailscale/tailscale_device.dart';
 import 'package:shun/presentation/home_shell.dart';
-import 'package:shun/presentation/widgets/connection_route_editor.dart';
+import 'package:shun/presentation/ui/non_modal_panel.dart';
 
 void mark(String line) => debugPrint('R70 $line');
 
@@ -40,6 +40,11 @@ void main() {
     await binding.delayed(const Duration(milliseconds: 1200));
     await tester.pump();
   }
+
+  /// 收着的「高级」那一行下面写的摘要。
+  String advancedSummary(WidgetTester tester) => tester
+      .widget<Text>(find.byKey(const ValueKey('ts-settings-advanced-summary')))
+      .data!;
 
   Future<void> tapKey(WidgetTester tester, String key) async {
     final finder = find.byKey(ValueKey(key));
@@ -108,12 +113,12 @@ void main() {
 
     await openFromNew(tester);
     await shot(tester, '01-new');
-    expect(find.byType(BottomSheet), findsOneWidget);
-    // 只数面板里的：后面连接页的搜索框也是 TextField。
+    expect(find.byKey(nonModalPanelKey), findsOneWidget);
+    // 只数面板里的输入框：后面连接页还有搜索框。
     expect(
       find.descendant(
-        of: find.byType(BottomSheet),
-        matching: find.byType(TextField),
+        of: find.byKey(nonModalPanelKey),
+        matching: find.byType(EditableText),
       ),
       findsNWidgets(2),
     );
@@ -138,8 +143,7 @@ void main() {
     await binding.delayed(const Duration(milliseconds: 1000));
     await settle(tester);
 
-    await tester.tap(find.text('高级'));
-    await settle(tester);
+    await tapKey(tester, 'ts-settings-advanced');
     await shot(tester, '04-advanced');
     await tapKey(tester, 'ts-settings-cancel');
 
@@ -154,18 +158,15 @@ void main() {
     });
     await openFromNew(tester);
     await shot(tester, '05-existing');
-    expect(find.text('端口 2222 · 代理 · 分组'), findsOneWidget);
+    expect(advancedSummary(tester), '端口 2222 · 代理 · 分组');
     expect(find.text('移除 Tailscale'), findsOneWidget);
-    await tester.tap(find.text('高级'));
-    await settle(tester);
+    await tapKey(tester, 'ts-settings-advanced');
     await shot(tester, '06-existing-advanced');
     expect(find.text('连接路径'), findsOneWidget);
 
     // 真配一次跳板：下拉、选项都是真页面上点的，存完再打开还在。
-    final addJump = find.descendant(
-      of: find.byType(ConnectionRouteEditor),
-      matching: find.byType(DropdownButtonFormField<String>),
-    );
+    // 还没加跳板时下拉框的 key 就是这个（后面跟已选跳板的 ID，现在是空的）。
+    final addJump = find.byKey(const ValueKey('add-jump-'));
     await tester.ensureVisible(addJump);
     await settle(tester);
     await tester.tap(addJump);
@@ -184,7 +185,7 @@ void main() {
     expect(saved['jumpHostIds'], ['edge']);
     await openFromNew(tester);
     await shot(tester, '08-reopened');
-    expect(find.text('端口 2222 · 代理 · 跳板机 · 分组'), findsOneWidget);
+    expect(advancedSummary(tester), '端口 2222 · 代理 · 跳板机 · 分组');
     await tapKey(tester, 'ts-settings-cancel');
 
     // 所有者 11-02：存过 key 只有掩码和改、删。key 是假的，直接写进安全存储，走完就删，后面的步骤不会拿它去请求。

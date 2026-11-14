@@ -1,7 +1,9 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -90,6 +92,9 @@ void main() {
   late List<http.Request> requests;
   late VaultRepository vault;
 
+  /// 不为 null 时读设备列表的请求卡在这里，直到它完成：用来看「保存中」那一刻的界面。
+  Completer<void>? hold;
+
   Future<void> open(WidgetTester tester, Widget home) async {
     tester.view.physicalSize = const Size(900, 3000);
     tester.view.devicePixelRatio = 1;
@@ -97,6 +102,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     final client = MockClient((request) async {
       requests.add(request);
+      await hold?.future;
       if (request.url.path == '/api/v2/oauth/token') {
         return http.Response(
           jsonEncode({
@@ -139,6 +145,7 @@ void main() {
     repo = MemoryCatalogRepository();
     secrets = MemoryBackend();
     requests = [];
+    hold = null;
     replies = [
       http.Response(
         jsonEncode({
@@ -547,6 +554,308 @@ void main() {
     expect(results, [null]);
   });
 
+  group('UIM11（R89）', () {
+    List<String> panelKeys(WidgetTester tester) => [
+          for (final element in find
+              .descendant(
+                of: find.byKey(nonModalPanelKey),
+                matching:
+                    find.byWidgetPredicate((w) => w.key is ValueKey<String>),
+              )
+              .evaluate())
+            (element.widget.key! as ValueKey<String>).value,
+        ];
+
+    Future<void> tapKey(WidgetTester tester, String key) async {
+      await tester.tap(find.byKey(ValueKey(key)));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('迁移前 Tailscale 设置的入口一项不少、顺序不变：新建并展开高级', (tester) async {
+      await openSettings(tester, null);
+      await tapKey(tester, 'ts-settings-advanced');
+      final keys = panelKeys(tester);
+      expect(_inOrder(_uim11NewKeysBefore, keys), isTrue,
+          reason: '现在的 key：\n${keys.join('\n')}');
+    });
+
+    testWidgets('迁移前 Tailscale 设置的入口一项不少、顺序不变：已有来源带已存 key', (tester) async {
+      seedSavedToken();
+      await openSettings(tester, 'ts-home');
+      await tapKey(tester, 'ts-settings-advanced');
+      final keys = panelKeys(tester);
+      expect(_inOrder(_uim11SavedKeysBefore, keys), isTrue,
+          reason: '现在的 key：\n${keys.join('\n')}');
+      expect(requests, isEmpty, reason: '打开面板、展开高级都不读设备列表');
+    });
+
+    /// 面板背后有一行能点的东西，点了记数。返回（面板的结果，背后被点的次数）。
+    Future<(List<TailscaleSettingsResult?>, List<int>)> openOverList(
+        WidgetTester tester, String? catalogId) async {
+      final results = <TailscaleSettingsResult?>[];
+      final taps = <int>[];
+      await open(
+        tester,
+        Scaffold(
+          body: Builder(
+            builder: (context) => Column(
+              children: [
+                TextButton(
+                  onPressed: () async => results.add(
+                      await openTailscaleSettings(context,
+                          catalogId: catalogId)),
+                  child: const Text('open'),
+                ),
+                ListTile(
+                  key: const ValueKey('behind-item'),
+                  title: const Text('背后的一行'),
+                  onTap: () => taps.add(1),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+      return (results, taps);
+    }
+
+    String fieldText(WidgetTester tester, String key) =>
+        tester.widget<TextField>(find.byKey(ValueKey(key))).controller!.text;
+
+    /// 在没存 key 的来源上填一半：key 和用户名都只在框里。
+    Future<List<TailscaleSettingsResult?>> openWithDraft(
+        WidgetTester tester) async {
+      repo.caches['ts-home'] =
+          const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
+      final results = await openSettings(tester, 'ts-home');
+      await tester.enterText(
+          find.byKey(const ValueKey('ts-settings-key')), 'tskey-api-DRAFT');
+      await tester.enterText(
+          find.byKey(const ValueKey('ts-settings-username')), 'draft');
+      await tester.pump();
+      return results;
+    }
+
+    /// 面板关了、什么都没存、没发请求；再打开两个框都是空的。
+    Future<void> expectDraftGone(
+        WidgetTester tester, List<TailscaleSettingsResult?> results) async {
+      expect(find.byKey(nonModalPanelKey), findsNothing);
+      expect(results, [null]);
+      expect(secrets.values, isEmpty);
+      expect(repo.caches['ts-home']!.importDefaults, isEmpty);
+      expect(requests, isEmpty);
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(fieldText(tester, 'ts-settings-key'), isEmpty);
+      expect(fieldText(tester, 'ts-settings-username'), isEmpty);
+      expect(find.textContaining('DRAFT'), findsNothing);
+    }
+
+    testWidgets('返回键关面板：填了没存的 key 和用户名不留', (tester) async {
+      final results = await openWithDraft(tester);
+      expect(await tester.binding.handlePopRoute(), isTrue);
+      await tester.pumpAndSettle();
+      await expectDraftGone(tester, results);
+    });
+
+    testWidgets('下滑关面板：填了没存的 key 和用户名不留', (tester) async {
+      final results = await openWithDraft(tester);
+      await tester.fling(
+          find.text('Tailscale 设置').first, const Offset(0, 800), 2000);
+      await tester.pumpAndSettle();
+      await expectDraftGone(tester, results);
+    });
+
+    testWidgets('切底栏关面板：填了没存的 key 和用户名不留', (tester) async {
+      final results = await openWithDraft(tester);
+      ProviderScope.containerOf(tester.element(find.text('open')))
+          .read(homeTabProvider.notifier)
+          .state = 2;
+      await tester.pumpAndSettle();
+      await expectDraftGone(tester, results);
+    });
+
+    testWidgets('改 key 填到一半按返回键：旧 key 还在，再打开仍是掩码', (tester) async {
+      seedSavedToken();
+      final results = await openSettings(tester, 'ts-home');
+      await tapKey(tester, 'ts-settings-change-key');
+      await tester.enterText(
+          find.byKey(const ValueKey('ts-settings-key')), 'tskey-api-HALF');
+      await tester.pump();
+      expect(await tester.binding.handlePopRoute(), isTrue);
+      await tester.pumpAndSettle();
+      expect(find.byKey(nonModalPanelKey), findsNothing);
+      expect(results, [null]);
+      expect(secrets.values,
+          {'tailscale.catalog.ts-home.accessToken': 'tskey-api-OLD'});
+      expect(requests, isEmpty);
+
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expectMaskedKey(tester);
+      await tapKey(tester, 'ts-settings-change-key');
+      expect(fieldText(tester, 'ts-settings-key'), isEmpty, reason: '填了一半的不留');
+    });
+
+    testWidgets('高级是带展开状态的按钮；地址三段各一个节点、报选中', (tester) async {
+      final handle = tester.ensureSemantics();
+      await openSettings(tester, null);
+      final advanced = find.bySemanticsLabel(RegExp('^高级'));
+      expect(
+          tester.getSemantics(advanced),
+          isSemantics(
+              isButton: true,
+              hasTapAction: true,
+              hasExpandedState: true,
+              isExpanded: false));
+      final hint = tester.getSemantics(find.byTooltip('「高级」说明'));
+      expect(hint, isSemantics(isButton: true, hasTapAction: true));
+      expect(hint.id, isNot(tester.getSemantics(advanced).id),
+          reason: 'ⓘ 是独立节点，没并进这一行');
+      await tapKey(tester, 'ts-settings-advanced');
+      expect(tester.getSemantics(advanced),
+          isSemantics(hasExpandedState: true, isExpanded: true));
+
+      SemanticsNode segment(String kind) => tester
+          .getSemantics(find.byKey(ValueKey('ts-settings-address-$kind')));
+      for (final label in ['IPv4', 'IPv6', 'MagicDNS 名称']) {
+        expect(find.bySemanticsLabel(label), findsOneWidget,
+            reason: '$label 只念一遍（原来的分段按钮每段两个节点）');
+      }
+      expect(
+          segment('ipv4'),
+          isSemantics(
+              isButton: true,
+              hasTapAction: true,
+              hasSelectedState: true,
+              isSelected: true));
+      expect(segment('fqdn'),
+          isSemantics(hasSelectedState: true, isSelected: false));
+      await tapKey(tester, 'ts-settings-address-fqdn');
+      expect(segment('fqdn'),
+          isSemantics(hasSelectedState: true, isSelected: true));
+      expect(segment('ipv4'),
+          isSemantics(hasSelectedState: true, isSelected: false));
+      // 选的那段真存下去了。
+      await tapKey(tester, 'ts-settings-save');
+      expect(repo.caches.values.single.importDefaults['address'], 'fqdn');
+      handle.dispose();
+    });
+
+    testWidgets('高级里散着的字各念各的：小标题、tailnet、路线坏了的三句都不并', (tester) async {
+      final handle = tester.ensureSemantics();
+      seedSavedToken();
+      repo.caches['ts-home'] = repo.caches['ts-home']!
+          .copyWith(importDefaults: {'proxyProfileId': 'gone'});
+      await openSettings(tester, 'ts-home');
+      // 精确匹配整个节点的名字：并了节点名字就变成几句连在一起，找不到。
+      for (final label in [
+        'Tailscale 设置',
+        '用设备的哪个地址',
+        '连接路径',
+        '路线草稿（尚未通过校验）',
+        '代理口令是明文发给代理的，SSH 保护不了。',
+        '找不到代理配置：gone',
+        'tailnet：-',
+      ]) {
+        expect(find.bySemanticsLabel(label), findsOneWidget, reason: label);
+      }
+      handle.dispose();
+    });
+
+    testWidgets('保存忙时：按钮念「处理中」、不可用、再点不重复提交；提示自成节点并播报', (tester) async {
+      final handle = tester.ensureSemantics();
+      repo.caches['ts-home'] =
+          const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
+      replies = [http.Response('{}', 401)];
+      hold = Completer<void>();
+      final results = await openSettings(tester, 'ts-home');
+      await tester.enterText(
+          find.byKey(const ValueKey('ts-settings-key')), 'tskey-api-BAD');
+      final save = find.byKey(const ValueKey('ts-settings-save'));
+      expect(tester.getSemantics(save),
+          isSemantics(isButton: true, hasEnabledState: true, isEnabled: true));
+      await tester.tap(save);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(requests, hasLength(1));
+      final busy = tester.getSemantics(save);
+      expect(busy,
+          isSemantics(isButton: true, hasEnabledState: true, isEnabled: false));
+      expect(busy.label, contains('处理中'));
+      expect(busy.label, contains('保存'));
+      await tester.tap(save, warnIfMissed: false);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(requests, hasLength(1), reason: '忙的时候再点不发第二次');
+
+      hold!.complete();
+      await tester.pumpAndSettle();
+      expect(results, isEmpty, reason: 'key 被拒，留在面板上');
+      expect(tester.getSemantics(save),
+          isSemantics(isButton: true, hasEnabledState: true, isEnabled: true));
+      final notice = find.byKey(const ValueKey('ts-settings-notice'));
+      expect(
+          tester.getSemantics(notice),
+          isSemantics(
+              label: tester.widget<Text>(notice).data!, isLiveRegion: true));
+      expect(find.bySemanticsLabel('Tailscale 设置'), findsOneWidget,
+          reason: '提示没并进标题');
+      expect(secrets.values, isEmpty);
+      handle.dispose();
+    });
+
+    testWidgets('面板开着：背后的列表项点得到、面板不关，没有多出遮罩', (tester) async {
+      repo.caches['ts-home'] =
+          const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
+      final (results, taps) = await openOverList(tester, 'ts-home');
+      final barriers = find.byType(ModalBarrier).evaluate().length;
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      expect(find.byKey(nonModalPanelKey), findsOneWidget);
+      expect(find.byType(ModalBarrier).evaluate().length, barriers,
+          reason: '开面板不加遮罩');
+
+      await tester.tap(find.byKey(const ValueKey('behind-item')));
+      await tester.pumpAndSettle();
+      expect(taps, hasLength(1), reason: '背后那一行真点到了');
+      expect(find.byKey(nonModalPanelKey), findsOneWidget);
+      expect(results, isEmpty, reason: '面板没关');
+    });
+
+    testWidgets('删除 key 的确认框是模态的：开着时背后点不到，点外面只是关确认框、什么都不删', (tester) async {
+      seedSavedToken();
+      final (results, taps) = await openOverList(tester, 'ts-home');
+      await tester.tap(find.text('open'));
+      await tester.pumpAndSettle();
+      final barriers = find.byType(ModalBarrier).evaluate().length;
+      await tapKey(tester, 'ts-settings-forget-key');
+      final confirm =
+          find.byKey(const ValueKey('ts-settings-forget-key-confirm'));
+      expect(confirm, findsOneWidget);
+      expect(find.byType(ModalBarrier).evaluate().length, barriers + 1);
+      expect(find.ancestor(of: confirm, matching: find.byKey(nonModalPanelKey)),
+          findsNothing,
+          reason: '确认框不在面板里');
+
+      await tester.tap(find.byKey(const ValueKey('behind-item')),
+          warnIfMissed: false);
+      await tester.pumpAndSettle();
+      expect(taps, isEmpty, reason: '背后那一行没点到');
+      expect(confirm, findsNothing);
+      expect(secrets.values,
+          {'tailscale.catalog.ts-home.accessToken': 'tskey-api-OLD'});
+      expect(find.byKey(nonModalPanelKey), findsOneWidget);
+      expect(results, isEmpty);
+      expectMaskedKey(tester);
+
+      // 确认框的「取消」也一样不删。
+      await tapKey(tester, 'ts-settings-forget-key');
+      await tapKey(tester, 'ts-settings-forget-key-cancel');
+      expect(secrets.values, hasLength(1));
+      expect(requests, isEmpty);
+    });
+  });
+
   testWidgets('状态同步间隔：存进设置，再打开还是它', (tester) async {
     repo.caches['ts-home'] =
         const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
@@ -747,8 +1056,7 @@ void main() {
     repo.caches['ts-home'] =
         const CatalogCache(catalogId: 'ts-home', tailnet: '-', label: 'home');
     await openSettings(tester, 'ts-home');
-    // 点标题：展开后整块的中心落在里面的输入框上，点不到收起。
-    final advanced = find.text('高级');
+    final advanced = find.byKey(const ValueKey('ts-settings-advanced'));
     await tester.tap(advanced);
     await tester.pumpAndSettle();
     await tester.enterText(find.byKey(const ValueKey('ts-settings-port')), '0');
@@ -1112,6 +1420,56 @@ void main() {
     await openAdvanced(tester);
     expect(find.byKey(const ValueKey('catalog-source-section')), findsNothing);
   });
+}
+
+// R89 迁移前（HEAD 67db1fc）在同样的测试数据上录下的 key 序列，按出现顺序。
+// 迁移后可以多出新 key，但这些一个不能少、先后不能变（少了就是入口丢了）。
+const _uim11NewKeysBefore = [
+  'ts-settings-key',
+  'ts-settings-username',
+  'ts-settings-login',
+  'ts-settings-sync',
+  'ts-settings-advanced',
+  'ts-settings-advanced-summary',
+  'ts-settings-port',
+  'route-preview',
+  'route-legs',
+  'route-add-proxy',
+  'add-jump-',
+  'ts-settings-group',
+  'ts-settings-tailnet',
+  'ts-settings-cancel',
+  'ts-settings-save',
+];
+
+const _uim11SavedKeysBefore = [
+  'ts-settings-saved-key',
+  'ts-settings-change-key',
+  'ts-settings-forget-key',
+  'ts-settings-username',
+  'ts-settings-login',
+  'ts-settings-sync',
+  'ts-settings-advanced',
+  'ts-settings-advanced-summary',
+  'ts-settings-port',
+  'route-preview',
+  'route-legs',
+  'route-add-proxy',
+  'add-jump-',
+  'ts-settings-group',
+  'ts-settings-sources',
+  'ts-settings-remove',
+  'ts-settings-cancel',
+  'ts-settings-save',
+];
+
+/// [expected] 是不是 [actual] 的子序列（顺序一致，中间可以夹别的）。
+bool _inOrder(List<String> expected, List<String> actual) {
+  var at = 0;
+  for (final key in actual) {
+    if (at < expected.length && expected[at] == key) at++;
+  }
+  return at == expected.length;
 }
 
 String catalogTimeForTest(DateTime at) {
