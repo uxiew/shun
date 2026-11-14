@@ -51,6 +51,8 @@ class ChoiceSegments<T> extends StatelessWidget {
     final background = prism.SurfaceContext(context)
         .raisedSurfaceLevel
         .colorOf(prismTheme.colorScheme);
+    // 段宽按本地化后的字量：切语言时要重新量（const 的分段不会因父级重建而重建）。
+    Localizations.maybeLocaleOf(context);
     final style = _style(Theme.of(context), selected: true);
     final scaler = MediaQuery.textScalerOf(context);
     final direction = Directionality.of(context);

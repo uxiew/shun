@@ -200,6 +200,15 @@ int _closingBrace(String text, int from) {
 
 String localized(String source) => ShunLocalizations.text(source);
 
+/// 和 [localized] 一样，另外让 [context] 所在的部件在切语言时重建。
+///
+/// 写成 const 的部件不会因为父级重建而重建：直接调 [localized] 的话，切成英文后它还是中文，
+/// 要等别的原因重建才变（R86 设置页「界面语言」实测）。部件 build 里取文字用这个。
+String localizedOf(BuildContext context, String source) {
+  Localizations.maybeLocaleOf(context);
+  return localized(source);
+}
+
 class LText extends StatelessWidget {
   const LText(
     this.data, {
@@ -236,7 +245,7 @@ class LText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        localized(data),
+        localizedOf(context, data),
         style: style,
         strutStyle: strutStyle,
         textAlign: textAlign,

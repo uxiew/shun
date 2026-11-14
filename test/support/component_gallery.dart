@@ -26,6 +26,7 @@ class ComponentGalleryState extends State<ComponentGallery> {
   var busy = false;
   var address = 'ipv4';
   var notify = true;
+  var highlight = false;
   Object? panelResult = 'unset';
   bool? confirmed;
 
@@ -159,6 +160,38 @@ class ComponentGalleryState extends State<ComponentGallery> {
                   ),
                 ],
               ),
+            ),
+            ShunSection(
+              key: const ValueKey('gallery-section'),
+              title: '分组',
+              hint: '设置页那种分组：首尾圆角，行间细线。',
+              children: [
+                ShunListRow(
+                  key: const ValueKey('gallery-section-open'),
+                  title: '代理管理',
+                  leading: const Icon(Icons.public),
+                  chevron: true,
+                  onTap: () => count('section-open'),
+                ),
+                ShunSwitchRow(
+                  key: const ValueKey('gallery-section-switch'),
+                  title: '代码高亮',
+                  hint: '打开文件时按语法上色。',
+                  value: highlight,
+                  onChanged: (value) => setState(() => highlight = value),
+                ),
+                ShunSwitchRow(
+                  key: const ValueKey('gallery-section-switch-off'),
+                  title: '系统安全键盘',
+                  subtitle: '保存中',
+                  value: false,
+                  onChanged: null,
+                ),
+                const ShunSectionItem(
+                  key: ValueKey('gallery-section-item'),
+                  child: Text('自由内容'),
+                ),
+              ],
             ),
             // 列表里高度不受限：EmptyState 的 Center 按内容收缩，大字号也不溢出。
             const EmptyState(

@@ -47,7 +47,7 @@ void main() {
     double width = 390,
     double textScale = 1,
   }) async {
-    tester.view.physicalSize = Size(width * 2, 1800 * 2);
+    tester.view.physicalSize = Size(width * 2, 2400 * 2);
     tester.view.devicePixelRatio = 2;
     tester.platformDispatcher.textScaleFactorTestValue = textScale;
     addTearDown(tester.view.reset);
@@ -236,6 +236,74 @@ void main() {
       expect(gallery.taps['row-disabled'], isNull);
       final disabled = tester.getSemantics(key('gallery-row-disabled'));
       expect(disabled.flagsCollection.isEnabled, Tristate.isFalse);
+      handle.dispose();
+    });
+  });
+
+  group('分组（设置页）', () {
+    testWidgets('跳转行：一个按钮节点，点了进；开关行：开关和 ⓘ 两个节点，点整行切换', (tester) async {
+      final handle = tester.ensureSemantics();
+      final gallery = await pump(tester);
+      await tester.scrollUntilVisible(key('gallery-section-item'), 200,
+          scrollable: find.byType(Scrollable).first);
+      await settle(tester);
+
+      // 分组行的读屏节点是 Prism 卡片那一层（名字并在它上面）：从标题文字往上找。
+      SemanticsNode nodeOf(String id, String title) => tester.getSemantics(
+          find.descendant(of: key(id), matching: find.text(title)));
+      final open = nodeOf('gallery-section-open', '代理管理');
+      expect(open.label, '代理管理');
+      expect(open.getSemanticsData().hasAction(SemanticsAction.tap), isTrue);
+      expect(open.flagsCollection.isButton, isTrue);
+      await tester.tap(key('gallery-section-open'));
+      await tester.pump();
+      expect(gallery.taps['section-open'], 1);
+
+      final row = key('gallery-section-switch');
+      final toggle = nodeOf('gallery-section-switch', '代码高亮');
+      expect(toggle.label, '代码高亮');
+      expect(toggle.flagsCollection.isToggled, Tristate.isFalse);
+      final hint = find.byTooltip(hintLabel('代码高亮'));
+      expect(tester.getSemantics(hint).id, isNot(toggle.id));
+      final size = tester.getSize(hint);
+      expect(size.width, greaterThanOrEqualTo(48));
+      expect(size.height, greaterThanOrEqualTo(48));
+
+      await tester.tap(find.descendant(of: row, matching: find.text('代码高亮')));
+      await tester.pump();
+      expect(gallery.highlight, isTrue, reason: '点整行切换');
+      expect(nodeOf('gallery-section-switch', '代码高亮').flagsCollection.isToggled,
+          Tristate.isTrue);
+
+      await tester.tap(hint);
+      await settle(tester);
+      expect(find.text('打开文件时按语法上色。'), findsOneWidget);
+      expect(gallery.highlight, isTrue, reason: '点 ⓘ 不切换');
+      await tester.tap(find.text('知道了'));
+      await settle(tester);
+
+      final off = key('gallery-section-switch-off');
+      expect(
+          nodeOf('gallery-section-switch-off', '系统安全键盘').label, '系统安全键盘\n保存中');
+      expect(
+          nodeOf('gallery-section-switch-off', '系统安全键盘')
+              .flagsCollection
+              .isEnabled,
+          Tristate.isFalse);
+      await tester.tap(off);
+      await tester.pump();
+      expect(tester.takeException(), isNull);
+
+      // 自由内容块不是按钮：R86 清点时 Prism 卡片在这里多出过一个「不可用的按钮」节点。
+      final item = nodeOf('gallery-section-item', '自由内容');
+      expect(item.label, '自由内容');
+      expect(item.flagsCollection.isButton, isFalse);
+
+      final header = find.byTooltip(hintLabel('分组'));
+      expect(header, findsOneWidget);
+      await tester.tap(header);
+      await settle(tester);
+      expect(find.text('设置页那种分组：首尾圆角，行间细线。'), findsOneWidget);
       handle.dispose();
     });
   });
