@@ -7,6 +7,7 @@ import '../../domain/credential_identity.dart';
 import '../../domain/models/host.dart';
 import '../../domain/proxy_profiles.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import 'proxy_profile_editor.dart';
 
 Future<String?> selectRouteProxy(
@@ -97,13 +98,15 @@ class _ProxyProfilesPageState extends ConsumerState<ProxyProfilesPage> {
                                 '${h.label} · ${h.username}@${h.hostname}:${h.port}'),
                         ]))),
                 actions: [
-                  TextButton(
+                  ShunButton(
+                      key: const ValueKey('proxy-delete-cancel'),
+                      kind: ShunButtonKind.text,
                       onPressed: () => Navigator.pop(context, false),
-                      child: const LText('取消')),
-                  TextButton(
+                      label: '取消'),
+                  ShunButton(
                       key: const ValueKey('proxy-delete-confirm'),
                       onPressed: () => Navigator.pop(context, true),
-                      child: const LText('删除'))
+                      label: '删除')
                 ],
               ));
       if (confirmed == true) await controller.deleteProxyProfile(shown);
@@ -140,33 +143,39 @@ class _ProxyProfilesPageState extends ConsumerState<ProxyProfilesPage> {
           if (_error != null)
             LText(_error!, key: const ValueKey('proxy-manager-error')),
           if (profiles.isEmpty && !state.loading) const LText('还没有代理'),
-          for (final profile in profiles)
-            Card(
-                child: Column(children: [
-              ListTile(
-                  key: ValueKey('proxy-profile-${profile.id}'),
-                  leading: const Icon(Icons.public),
-                  title: Text(profile.label),
-                  subtitle: Text([
-                    '${profile.config?.host ?? ''}:${profile.config?.port ?? ''}',
-                    if (credentials[profile.data[proxyIdentityKey]]
-                        case final credential?)
-                      credential,
-                  ].join(' · ')),
-                  onTap: widget.selecting && enabled
-                      ? () => Navigator.pop(context, profile.id)
-                      : null),
-              Wrap(spacing: 8, children: [
-                TextButton(
-                    key: ValueKey('proxy-edit-${profile.id}'),
-                    onPressed: enabled ? () => _edit(profile.id) : null,
-                    child: const LText('编辑')),
-                TextButton(
-                    key: ValueKey('proxy-delete-${profile.id}'),
-                    onPressed: enabled ? () => _delete(profile.id) : null,
-                    child: const LText('删除')),
-              ]),
-            ])),
+          if (profiles.isNotEmpty)
+            // 每个代理一行 Prism 卡片（R89）。选择模式点行返回 id；管理模式点行等于点「编辑」
+            // （以前点行没反应；Prism 卡片行没有点按会被读屏报成「不可用的按钮」）。
+            // 编辑、删除是行尾独立的图标按钮，key 沿用原来的。
+            ShunSection(children: [
+              for (final profile in profiles)
+                ShunListRow(
+                    key: ValueKey('proxy-profile-${profile.id}'),
+                    leading: const Icon(Icons.public),
+                    title: profile.label,
+                    subtitle: [
+                      '${profile.config?.host ?? ''}:${profile.config?.port ?? ''}',
+                      if (credentials[profile.data[proxyIdentityKey]]
+                          case final credential?)
+                        credential,
+                    ].join(' · '),
+                    enabled: enabled,
+                    onTap: widget.selecting
+                        ? () => Navigator.pop(context, profile.id)
+                        : () => _edit(profile.id),
+                    trailing: Row(mainAxisSize: MainAxisSize.min, children: [
+                      IconButton(
+                          key: ValueKey('proxy-edit-${profile.id}'),
+                          tooltip: localized('编辑'),
+                          onPressed: enabled ? () => _edit(profile.id) : null,
+                          icon: const Icon(Icons.edit_outlined)),
+                      IconButton(
+                          key: ValueKey('proxy-delete-${profile.id}'),
+                          tooltip: localized('删除'),
+                          onPressed: enabled ? () => _delete(profile.id) : null,
+                          icon: const Icon(Icons.delete_outline)),
+                    ])),
+            ]),
         ]));
   }
 }

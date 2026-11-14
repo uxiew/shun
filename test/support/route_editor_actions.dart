@@ -56,7 +56,10 @@ Future<void> createRouteProxy(WidgetTester tester,
   await tester.enterText(find.byKey(const ValueKey('proxy-port')), port);
   if (password != null) {
     await tester.enterText(
-        find.widgetWithText(TextFormField, '代理密码（可选）'), password);
+        find.descendant(
+            of: find.byKey(const ValueKey('proxy-password')),
+            matching: find.byType(EditableText)),
+        password);
   }
   await tapRoute(tester, find.byKey(const ValueKey('proxy-save')));
   expect(find.byType(ConnectionRouteEditor), findsOneWidget);

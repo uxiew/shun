@@ -11,6 +11,7 @@ import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shun/presentation/widgets/proxy_profiles_page.dart';
 import 'package:shun/presentation/widgets/connection_route_editor.dart';
+import 'support/prism_test_host.dart';
 import 'support/route_editor_actions.dart';
 
 void main() {
@@ -85,7 +86,11 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(UncontrolledProviderScope(
-        container: container, child: MaterialApp(home: page)));
+        container: container,
+        child: MaterialApp(
+            localizationsDelegates: prismTestDelegates,
+            builder: prismTestBuilder,
+            home: page)));
     await tester.pumpAndSettle();
   }
 
@@ -291,5 +296,100 @@ void main() {
         .map((t) => t.data ?? '')
         .join();
     expect(RegExp(r'[\u4e00-\u9fff]').hasMatch(text), isFalse);
+  });
+
+  group('UIM10（R89）代理页', () {
+    List<String> keysIn(WidgetTester tester) => [
+          for (final element in find
+              .descendant(
+                  of: find.byType(ProxyProfilesPage),
+                  matching:
+                      find.byWidgetPredicate((w) => w.key is ValueKey<String>))
+              .evaluate())
+            (element.widget.key! as ValueKey<String>).value,
+        ];
+
+    testWidgets('迁移前代理页的入口一项不少、顺序不变', (tester) async {
+      await open(tester, const ProxyProfilesPage());
+      final keys = keysIn(tester);
+      // HEAD 上同一份数据录到的顺序。
+      const before = [
+        'proxy-profile-p',
+        'proxy-edit-p',
+        'proxy-delete-p',
+        'proxy-create',
+      ];
+      var at = 0;
+      for (final key in keys) {
+        if (at < before.length && before[at] == key) at++;
+      }
+      expect(at, before.length, reason: keys.join('\n'));
+    });
+
+    testWidgets('选择模式点行返回 id，不进编辑页', (tester) async {
+      String? picked;
+      await open(
+          tester,
+          Builder(
+              builder: (context) => TextButton(
+                  onPressed: () async =>
+                      picked = await selectRouteProxy(context, null),
+                  child: const Text('go'))));
+      await tester.tap(find.text('go'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.byKey(const ValueKey('proxy-profile-p')));
+      await tester.pumpAndSettle();
+      expect(picked, 'p');
+      expect(find.byKey(const ValueKey('proxy-label')), findsNothing);
+    });
+
+    testWidgets('管理模式点行 = 点「编辑」（行为变化）；不改动已存的代理', (tester) async {
+      final handle = tester.ensureSemantics();
+      await open(tester, const ProxyProfilesPage());
+      expect(
+          tester.getSemantics(find.bySemanticsLabel(RegExp('^Office proxy'))),
+          isSemantics(
+              isButton: true,
+              hasEnabledState: true,
+              isEnabled: true,
+              hasTapAction: true));
+      final before =
+          (await repository.loadVault()).proxyProfiles.single.toJson();
+      await tester.tap(find.byKey(const ValueKey('proxy-profile-p')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const ValueKey('proxy-label')), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+      expect(
+          (await repository.loadVault()).proxyProfiles.single.toJson(), before);
+      handle.dispose();
+    });
+
+    testWidgets('代理密码：key 在，切明文三个输入法开关仍全关', (tester) async {
+      await open(tester, const ProxyProfilesPage());
+      await tapRoute(tester, find.byKey(const ValueKey('proxy-edit-p')));
+      expect(find.byKey(const ValueKey('proxy-username')), findsOneWidget);
+      EditableText field() => tester.widget<EditableText>(find.descendant(
+          of: find.byKey(const ValueKey('proxy-password')),
+          matching: find.byType(EditableText)));
+      for (final obscured in [true, false]) {
+        expect(field().obscureText, obscured);
+        expect(field().enableIMEPersonalizedLearning, isFalse);
+        expect(field().enableSuggestions, isFalse);
+        expect(field().autocorrect, isFalse);
+        await tester.tap(find.descendant(
+            of: find.byKey(const ValueKey('proxy-password')),
+            matching: find.byType(IconButton)));
+        await tester.pump();
+      }
+    });
+
+    testWidgets('删除确认保留「不会自动改成直连」，取消不删', (tester) async {
+      await open(tester, const ProxyProfilesPage());
+      await tapRoute(tester, find.byKey(const ValueKey('proxy-delete-p')));
+      expect(find.textContaining('不会自动改成直连'), findsOneWidget);
+      await tapRoute(tester, find.byKey(const ValueKey('proxy-delete-cancel')));
+      expect((await repository.loadVault()).proxyProfiles.length, 1);
+    });
   });
 }

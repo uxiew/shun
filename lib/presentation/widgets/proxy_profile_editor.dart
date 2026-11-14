@@ -7,6 +7,7 @@ import '../../domain/connection_route.dart';
 import '../../domain/models/host.dart';
 import '../../domain/proxy_profiles.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import 'credential_field.dart';
 import 'form_gap.dart';
 import 'secret_content.dart';
@@ -27,7 +28,7 @@ class _ProxyProfileEditorState extends ConsumerState<ProxyProfileEditor> {
   late final String _id;
   late final TextEditingController _label, _host, _port, _user, _password;
   late ProxyType? _type;
-  bool _saving = false, _obscure = true;
+  bool _saving = false;
   String? _error;
 
   /// 代理的账号密码：直接填，或者用「凭据」里的一个（F31）。选凭据时只记它的 ID，连接时展开。
@@ -131,10 +132,12 @@ class _ProxyProfileEditorState extends ConsumerState<ProxyProfileEditor> {
         appBar: AppBar(
             title: LText(widget.profile == null ? '新建代理' : '编辑代理'),
             actions: [
-              TextButton(
+              ShunButton(
                   key: const ValueKey('proxy-save'),
-                  onPressed: _saving ? null : _save,
-                  child: const LText('保存'))
+                  kind: ShunButtonKind.text,
+                  busy: _saving,
+                  onPressed: _save,
+                  label: '保存')
             ]),
         body: Form(
             key: _form,
@@ -190,29 +193,20 @@ class _ProxyProfileEditorState extends ConsumerState<ProxyProfileEditor> {
                 LText('明文发给代理', style: Theme.of(context).textTheme.bodySmall),
               ] else ...[
                 TextFormField(
+                    key: const ValueKey('proxy-username'),
                     controller: _user,
                     enabled: !_saving,
                     autocorrect: false,
                     enableSuggestions: false,
                     decoration: LInputDecoration(labelText: '代理用户名（可选）')),
                 const FormGap(),
-                TextFormField(
+                // 切成明文时三个输入法开关也一直关着（ShunSecretField 保证，R44）。
+                ShunSecretField(
+                    key: const ValueKey('proxy-password'),
                     controller: _password,
                     enabled: !_saving,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    enableIMEPersonalizedLearning: false,
-                    obscureText: _obscure,
-                    decoration: LInputDecoration(
-                        labelText: '代理密码（可选）',
-                        helperText: '明文发给代理',
-                        suffixIcon: IconButton(
-                            onPressed: () =>
-                                setState(() => _obscure = !_obscure),
-                            tooltip: localized('显示或隐藏密码'),
-                            icon: Icon(_obscure
-                                ? Icons.visibility
-                                : Icons.visibility_off)))),
+                    label: '代理密码（可选）',
+                    helperText: '明文发给代理'),
               ],
               if (_error != null)
                 LText(_error!,

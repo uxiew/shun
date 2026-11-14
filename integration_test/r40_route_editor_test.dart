@@ -24,6 +24,8 @@ import 'package:shun/presentation/widgets/connection_route_editor.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shun/presentation/widgets/proxy_profiles_page.dart';
 
+import '../test/support/prism_test_host.dart';
+
 const config = String.fromEnvironment('R40_CONFIG');
 Finder key(String value) => find.byKey(ValueKey(value));
 
@@ -105,6 +107,8 @@ void main() {
     await tester.pumpWidget(UncontrolledProviderScope(
         container: container,
         child: MaterialApp(
+            localizationsDelegates: prismTestDelegates,
+            builder: prismTestBuilder,
             navigatorKey: navigator,
             home: const Scaffold(
                 body: Center(child: Text('R40 local fixture'))))));
