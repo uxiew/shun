@@ -4,7 +4,7 @@ import 'support/ui_rules.dart';
 
 /// UIM05：故意写一页超限的样例，看 UI 规则能不能被绕过（R84）。
 ///
-/// 每条都是 R84 以前的扫描器查不到的写法：Prism 控件换个导入别名、本地包一层（再包一层）改个参数名、
+/// 每条都是 R84 以前的扫描器查不到的写法（ShunListRow 的 details 是 R87 补的）：Prism 控件换个导入别名、本地包一层（再包一层）改个参数名、
 /// 句子经 `localized(…)` 再交给 Text、输入框藏进包装类、用 Prism 自带却不关输入法学习的密码框。
 /// 样例和真源码一起交给同一个扫描器，所以 HintTitle、Prism 这些真实的类也参与发现。
 void main() {
@@ -53,6 +53,7 @@ class Bypass extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Column(children: [
         ui.ListRow(title: Text('a'), subtitle: Text('$over16')),
+        ShunListRow(title: 'a', details: Text('$over16')),
         ui.NullStatus(illustration: x, description: '$long'),
         Note('$long'),
         Remark(body: '$long'),
@@ -120,6 +121,8 @@ class Fine extends StatelessWidget {
     };
     expect(found, {
       '${lineOf('ui.ListRow')} subtitle',
+      // details 画在副标题那一格（R87）。
+      '${lineOf('ShunListRow(title')} subtitle',
       '${lineOf('ui.NullStatus')} paragraph',
       "${lineOf("Note('")} paragraph",
       '${lineOf('Remark(body')} paragraph',

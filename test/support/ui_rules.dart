@@ -118,6 +118,9 @@ const _transientCalls = {
 /// 读屏和悬停提示用的参数：不画在页面上。
 const _transientArguments = {'tooltip', 'semanticsLabel'};
 
+/// 画在列表行副标题那一格的参数。
+const _subtitleArguments = {'subtitle', 'details'};
+
 /// 只包一层、不改变「这是个输入框」的部件：`Padding(child: TextField(…))` 还是输入框。
 const _passThrough = {
   'Row',
@@ -256,7 +259,9 @@ class UiCatalog {
     final name = canonical(inner.call, source);
     TextKind? kind;
     if (inner.argument == 'helperText') kind = TextKind.helper.stricter(kind);
-    if (chain.any((frame) => frame.argument == 'subtitle')) {
+    // ShunListRow 的 details 画在副标题那一格（R87 把首页、目录的状态行从 subtitle 挪进了 details）：
+    // 不算进来，挪一下位置上限就从 16 变成 30。
+    if (chain.any((frame) => _subtitleArguments.contains(frame.argument))) {
       kind = TextKind.subtitle.stricter(kind);
     }
     if (inner.argument == null && _textCalls.contains(_bare(name))) {

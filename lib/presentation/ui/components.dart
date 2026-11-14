@@ -212,9 +212,12 @@ class ShunListRow extends StatelessWidget {
     this.leading,
     this.trailing,
     this.onTap,
+    this.onLongPress,
     this.enabled = true,
     this.chevron = false,
     this.details,
+    this.describeLeading = false,
+    this.expanded,
   });
 
   /// 中文原文，显示时再本地化。
@@ -229,10 +232,21 @@ class ShunListRow extends StatelessWidget {
   final Widget? leading;
   final Widget? trailing;
   final VoidCallback? onTap;
+
+  /// 长按（主机行长按出和 ⋮ 一样的菜单）。读屏上是这一行同一个节点的「长按」动作，不另起节点。
+  final VoidCallback? onLongPress;
   final bool enabled;
 
   /// 点了进下一页：右边画 Prism 的「›」（[trailing] 为空时）。
   final bool chevron;
+
+  /// [leading] 带信息时为 true（主机的系统、Telnet/Mosh 角标）：读屏把它的说明念进这一行。
+  /// 默认 false，左边图标当装饰不念。
+  final bool describeLeading;
+
+  /// 点了展开/收起下面内容的行（树形视图的分组、Tailscale 来源）：读屏报「已展开」「已收起」。
+  /// null 表示不是这种行。
+  final bool? expanded;
 
   @override
   Widget build(BuildContext context) {
@@ -240,17 +254,19 @@ class ShunListRow extends StatelessWidget {
     final grouped = prism.ItemPositionProvider.of(context) != null;
     final tappable = onTap != null;
     final active = enabled && tappable;
+    final longPress = enabled ? onLongPress : null;
     final dim = enabled ? 1.0 : 0.38;
-    final leading = this.leading == null
+    final tinted = this.leading == null
         ? null
-        : ExcludeSemantics(
-            child: IconTheme.merge(
-              data: IconThemeData(
-                color: colors.onSurfaceVariant.withValues(alpha: dim),
-              ),
-              child: this.leading!,
+        : IconTheme.merge(
+            data: IconThemeData(
+              color: colors.onSurfaceVariant.withValues(alpha: dim),
             ),
+            child: this.leading!,
           );
+    final leading = tinted == null || describeLeading
+        ? tinted
+        : ExcludeSemantics(child: tinted);
     // 文字直接交给 LText，不先存进局部变量：UI 规则按参数流向发现副标题的上限，
     // 经过变量就追不到了。
     final titleText = ExcludeSemantics(
@@ -284,13 +300,19 @@ class ShunListRow extends StatelessWidget {
       // Prism 的分组卡片自己就是一个按钮节点（CardSurface 是语义边界，带点按）。名字要落在
       // 同一个节点上：标题、副标题不排除，直接并进卡片节点；外面不再套自己的节点，
       // 否则读屏听到的是「有名字不能点」和「能点没名字」两个节点（R86 清点时实测）。
-      return prism.DecorationListItem(
+      // 长按和展开状态同理：标在卡片里面（并进卡片节点）；长按的手势另由外层收，整行都能按。
+      // Prism 卡片只在里面有带 onTap 的部件时才让出点按，只挂长按不影响点一下。
+      final item = prism.DecorationListItem(
         leading: leading,
-        title: LText(
-          title,
-          style: prism.AppTextStyle.body.of(context).copyWith(
-                color: colors.onSurface.withValues(alpha: dim),
-              ),
+        title: Semantics(
+          onLongPress: longPress,
+          expanded: expanded,
+          child: LText(
+            title,
+            style: prism.AppTextStyle.body.of(context).copyWith(
+                  color: colors.onSurface.withValues(alpha: dim),
+                ),
+          ),
         ),
         subtitle: subtitle == null && details == null
             ? null
@@ -323,17 +345,26 @@ class ShunListRow extends StatelessWidget {
         trailing: trailing,
         onPressed: active ? onTap : null,
       );
+      if (longPress == null) return item;
+      return GestureDetector(
+        onLongPress: longPress,
+        excludeFromSemantics: true,
+        child: item,
+      );
     }
     return Semantics(
       container: true,
       button: tappable,
       enabled: tappable ? enabled : null,
+      expanded: expanded,
       label: subtitle == null
           ? localizedOf(context, title)
           : '${localizedOf(context, title)}, ${localizedOf(context, subtitle!)}',
       onTap: active ? onTap : null,
+      onLongPress: longPress,
       child: InkWell(
         onTap: active ? onTap : null,
+        onLongPress: longPress,
         excludeFromSemantics: true,
         child: prism.ListRow(
           leading: leading,
