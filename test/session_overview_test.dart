@@ -6,6 +6,7 @@ import 'package:flutter/scheduler.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shun/application/home_navigation.dart';
 import 'package:shun/application/session_controller.dart';
@@ -102,7 +103,14 @@ void main() {
     }
     await tester.pumpWidget(UncontrolledProviderScope(
       container: container,
-      child: const MaterialApp(home: HomeShell()),
+      // HomeShell 的设置页用 Prism 的分组标题，要 MeasureScope；App 里由 ShunUiHost 提供（R86）。
+      child: MaterialApp(
+        builder: (context, child) => prism.MeasureScope(
+          measure: prism.Measure.of(context, 1),
+          child: child!,
+        ),
+        home: const HomeShell(),
+      ),
     ));
     await tester.pump(const Duration(milliseconds: 500));
     // 假的安全存储让「远控」页报一条读不到的提示，它会挡住底部的按钮。和这里测的东西无关。

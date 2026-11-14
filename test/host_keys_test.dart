@@ -12,6 +12,7 @@ import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/terminal/terminal_input_controller.dart';
 import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
 import 'package:shun/presentation/widgets/terminal_key_button.dart';
+import 'package:shun/presentation/ui/prism_localizations.dart';
 import 'package:shun/presentation/widgets/terminal_key_feel_tiles.dart';
 import 'package:shun/presentation/widgets/terminal_keys.dart';
 import 'package:shun/presentation/widgets/terminal_special_keys.dart';
@@ -497,7 +498,9 @@ void main() {
     testWidgets('设置页三项改了就存', (tester) async {
       await tester.pumpWidget(ProviderScope(
         overrides: [vaultRepositoryProvider.overrideWithValue(h.repository)],
+        // 选项行弹的是 Prism 菜单，要 Prism 的文案；App 里由 ShunUiHost 提供。
         child: const MaterialApp(
+          localizationsDelegates: [ShunPrismLocalizationsDelegate()],
           home: Scaffold(body: TerminalKeyFeelTiles()),
         ),
       ));

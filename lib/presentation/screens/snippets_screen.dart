@@ -8,8 +8,10 @@ import '../../application/settings_controller.dart';
 import '../../application/session_controller.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/models/host.dart';
+import '../ui/components.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/form_gap.dart';
+import '../widgets/hint.dart';
 
 class SnippetsScreen extends ConsumerWidget {
   const SnippetsScreen({super.key});
@@ -24,6 +26,8 @@ class SnippetsScreen extends ConsumerWidget {
           title: const LText('命令片段'),
           actions: [
             IconButton(
+              key: const ValueKey('snippet-add'),
+              tooltip: localized('新建片段'),
               onPressed: () => _edit(context, ref),
               icon: const Icon(Icons.add),
             ),
@@ -33,101 +37,107 @@ class SnippetsScreen extends ConsumerWidget {
             ? EmptyState(
                 icon: Icons.code,
                 title: '还没有命令片段',
-                action: FilledButton.icon(
+                action: ShunButton(
+                  key: const ValueKey('snippet-empty-add'),
+                  icon: Icons.add,
+                  label: '新建片段',
                   onPressed: () => _edit(context, ref),
-                  icon: const Icon(Icons.add),
-                  label: const LText('新建片段'),
                 ),
               )
-            : ListView.separated(
-                padding: const EdgeInsets.all(12),
-                itemCount: snippets.length,
-                separatorBuilder: (_, __) => const SizedBox(height: 8),
-                itemBuilder: (_, index) {
-                  final snippet = snippets[index];
-                  return Card(
-                    child: ListTile(
-                      leading: const Icon(Icons.code),
-                      title: LText(snippet.label),
-                      subtitle: LText(
-                        snippet.command,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontFamily: 'monospace'),
-                      ),
-                      onTap: () {
-                        final active =
-                            ref.read(sessionControllerProvider).active;
-                        if (active == null) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: LText('请先建立终端会话')),
-                          );
-                        } else {
-                          try {
-                            ref
-                                .read(sessionControllerProvider.notifier)
-                                .send(snippet.command, enter: snippet.autoRun);
-                          } on TerminalTargetChangedException catch (error) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(content: LText(error.toString())),
-                            );
-                            return;
-                          }
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: LText('已发送到 ${active.host.label}'),
-                            ),
-                          );
-                        }
-                      },
-                      trailing: PopupMenuButton<_SnippetAction>(
-                        key: ValueKey('snippet-actions-${snippet.id}'),
-                        tooltip: localized('片段操作'),
-                        onSelected: (action) async {
-                          switch (action) {
-                            case _SnippetAction.edit:
-                              await _edit(context, ref, snippet);
-                              break;
-                            case _SnippetAction.delete:
-                              await _delete(context, ref, snippet);
-                              break;
-                          }
-                        },
-                        itemBuilder: (context) => [
-                          const PopupMenuItem(
-                            value: _SnippetAction.edit,
-                            child: Row(
-                              children: [
-                                Icon(Icons.edit_outlined),
-                                SizedBox(width: 12),
-                                LText('编辑'),
-                              ],
-                            ),
+            : ListView(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                children: [
+                  ShunSection(
+                    children: [
+                      for (final snippet in snippets)
+                        ShunListRow(
+                          key: ValueKey('snippet-${snippet.id}'),
+                          leading: const Icon(Icons.code),
+                          title: snippet.label,
+                          // 命令原样显示，不翻译；最多两行。
+                          details: Text(
+                            snippet.command,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(fontFamily: 'monospace'),
                           ),
-                          PopupMenuItem(
-                            key: ValueKey('delete-snippet-${snippet.id}'),
-                            value: _SnippetAction.delete,
-                            child: Row(
-                              children: [
-                                Icon(
-                                  Icons.delete_outline,
-                                  color: Theme.of(context).colorScheme.error,
+                          onTap: () {
+                            final active =
+                                ref.read(sessionControllerProvider).active;
+                            if (active == null) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: LText('请先建立终端会话')),
+                              );
+                            } else {
+                              try {
+                                ref
+                                    .read(sessionControllerProvider.notifier)
+                                    .send(snippet.command,
+                                        enter: snippet.autoRun);
+                              } on TerminalTargetChangedException catch (error) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(content: LText(error.toString())),
+                                );
+                                return;
+                              }
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: LText('已发送到 ${active.host.label}'),
                                 ),
-                                const SizedBox(width: 12),
-                                LText(
-                                  '删除',
-                                  style: TextStyle(
-                                    color: Theme.of(context).colorScheme.error,
-                                  ),
+                              );
+                            }
+                          },
+                          trailing: PopupMenuButton<_SnippetAction>(
+                            key: ValueKey('snippet-actions-${snippet.id}'),
+                            tooltip: localized('片段操作'),
+                            onSelected: (action) async {
+                              switch (action) {
+                                case _SnippetAction.edit:
+                                  await _edit(context, ref, snippet);
+                                  break;
+                                case _SnippetAction.delete:
+                                  await _delete(context, ref, snippet);
+                                  break;
+                              }
+                            },
+                            itemBuilder: (context) => [
+                              const PopupMenuItem(
+                                value: _SnippetAction.edit,
+                                child: Row(
+                                  children: [
+                                    Icon(Icons.edit_outlined),
+                                    SizedBox(width: 12),
+                                    LText('编辑'),
+                                  ],
                                 ),
-                              ],
-                            ),
+                              ),
+                              PopupMenuItem(
+                                key: ValueKey('delete-snippet-${snippet.id}'),
+                                value: _SnippetAction.delete,
+                                child: Row(
+                                  children: [
+                                    Icon(
+                                      Icons.delete_outline,
+                                      color:
+                                          Theme.of(context).colorScheme.error,
+                                    ),
+                                    const SizedBox(width: 12),
+                                    LText(
+                                      '删除',
+                                      style: TextStyle(
+                                        color:
+                                            Theme.of(context).colorScheme.error,
+                                      ),
+                                    ),
+                                  ],
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
+                        ),
+                    ],
+                  ),
+                ],
               ),
       ),
     );
@@ -172,15 +182,18 @@ class SnippetsScreen extends ConsumerWidget {
                 style: const TextStyle(fontFamily: 'monospace'),
                 decoration: LInputDecoration(labelText: '命令'),
               ),
-              SwitchListTile(
+              HintSwitchTile(
+                key: const ValueKey('snippet-auto-run'),
                 contentPadding: EdgeInsets.zero,
-                title: const LText('发送后立即执行'),
+                title: '发送后立即执行',
                 value: autoRun,
                 onChanged: (value) => setState(() => autoRun = value),
               ),
               SizedBox(
                 width: double.infinity,
-                child: FilledButton(
+                child: ShunButton(
+                  key: const ValueKey('snippet-save'),
+                  label: '保存',
                   onPressed: () {
                     if (label.text.trim().isEmpty ||
                         command.text.trim().isEmpty) {
@@ -198,7 +211,6 @@ class SnippetsScreen extends ConsumerWidget {
                       }),
                     );
                   },
-                  child: const LText('保存'),
                 ),
               ),
             ],

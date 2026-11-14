@@ -28,9 +28,14 @@ import 'package:shun/infrastructure/tailscale/catalog_cache.dart';
 import 'package:shun/infrastructure/tailscale/catalog_cache_repository.dart';
 import 'package:shun/presentation/home_shell.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
+import 'package:shun/presentation/screens/app_lock_settings_screen.dart';
+import 'package:shun/presentation/screens/app_log_screen.dart';
 import 'package:shun/presentation/screens/cloud_backup_screen.dart';
+import 'package:shun/presentation/screens/hidden_hosts_screen.dart';
+import 'package:shun/presentation/screens/known_hosts_screen.dart';
 import 'package:shun/presentation/screens/sftp_screen.dart';
 import 'package:shun/presentation/screens/settings_screen.dart';
+import 'package:shun/presentation/screens/snippets_screen.dart';
 import 'package:shun/presentation/screens/tailscale_settings_screen.dart';
 import 'package:shun/presentation/terminal/ghostty_terminal_view.dart';
 import 'package:shun/presentation/ui/prism_theme.dart';
@@ -343,10 +348,10 @@ void main() {
       // 宽 390：分段那一行和 Tailscale 面板内容区一样宽，「MagicDNS 名称」应是一行原字号。
       testWidgets('公共控件', skip: skip != null, (tester) async {
         await pumpPage(tester, const ComponentGallery(),
-            width: 390, height: 1300);
-        await save(tester, 'components-390x1300-zh-s1');
+            width: 390, height: 1800);
+        await save(tester, 'components-390x1800-zh-s1');
         await tester.tap(find.byKey(const ValueKey('gallery-open-panel')));
-        await save(tester, 'components-panel-390x1300-zh-s1');
+        await save(tester, 'components-panel-390x1800-zh-s1');
       });
 
       testWidgets('代理编辑页', skip: skip != null, (tester) async {
@@ -411,6 +416,20 @@ void main() {
       });
 
       // 设置页很长，整页出图缩小后看不清，所以只出要看的这一段。
+      // R86 设置组的二级页：和设置页同一套分组卡片。都是空数据下的样子。
+      for (final (name, page) in const [
+        ('app-lock', AppLockSettingsScreen()),
+        ('known-hosts', KnownHostsScreen()),
+        ('hidden-hosts', HiddenHostsScreen()),
+        ('app-log', AppLogScreen()),
+        ('snippets', SnippetsScreen()),
+      ]) {
+        testWidgets('设置二级页：$name', skip: skip != null, (tester) async {
+          await pumpPage(tester, page, height: 892);
+          await save(tester, 'settings-$name-412x892-zh-s1');
+        });
+      }
+
       testWidgets('设置页：数据', skip: skip != null, (tester) async {
         await pumpPage(tester, const SettingsScreen(), height: 900);
         final row = find.byKey(const ValueKey('settings-cloud-backup'));

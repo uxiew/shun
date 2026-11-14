@@ -89,12 +89,36 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  List<String> titles(WidgetTester tester) => tester
-      .widgetList<ListTile>(find.descendant(
+  // 按每一行的稳定 key 找（app-log-entry-* 普通记录、app-log-event-* 连接记录），
+  // 取行里第一段字当标题，按屏幕上从上到下排。不按 ListTile 类型找：R86 起普通记录是公共行。
+  List<String> titles(WidgetTester tester) {
+    final rows = find
+        .descendant(
           of: find.byKey(const ValueKey('app-log-list')),
-          matching: find.byType(ListTile)))
-      .map((tile) => (tile.title! as Text).data!)
-      .toList();
+          matching: find.byWidgetPredicate((widget) =>
+              widget.key is ValueKey<String> &&
+              RegExp(r'^app-log-(entry|event)-')
+                  .hasMatch((widget.key! as ValueKey<String>).value)),
+        )
+        .evaluate()
+        .toList()
+      ..sort((a, b) => tester
+          .getTopLeft(find.byElementPredicate((e) => identical(e, a)))
+          .dy
+          .compareTo(tester
+              .getTopLeft(find.byElementPredicate((e) => identical(e, b)))
+              .dy));
+    return [
+      for (final row in rows)
+        tester
+            .widget<Text>(find
+                .descendant(
+                    of: find.byElementPredicate((e) => identical(e, row)),
+                    matching: find.byType(Text))
+                .first)
+            .data!,
+    ];
+  }
 
   testWidgets('崩溃、同步、连接合在一起，新的在上；按类筛；重复的写次数', (tester) async {
     await open(tester);

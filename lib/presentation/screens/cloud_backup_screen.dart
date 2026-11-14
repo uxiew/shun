@@ -19,6 +19,8 @@ import '../../infrastructure/sync/cloud_sync_service.dart';
 import '../../infrastructure/sync/github_auth_service.dart';
 import '../../infrastructure/sync/sync_safety.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
+import '../widgets/choice_segments.dart';
 import '../widgets/form_gap.dart';
 import '../widgets/github_manual_config.dart';
 import '../widgets/hint.dart';
@@ -144,36 +146,27 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
             ],
           ),
           body: ListView(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
             children: [
-              SegmentedButton<SyncProviderType>(
-                expandedInsets: EdgeInsets.zero,
+              ChoiceSegments<SyncProviderType>(
+                key: const ValueKey('cloud-provider'),
                 segments: [
-                  const ButtonSegment(
-                    value: SyncProviderType.webdav,
-                    label: _AdaptiveSyncProviderLabel('WebDAV'),
-                    icon: Icon(Icons.cloud_outlined),
-                  ),
+                  const ChoiceSegment(SyncProviderType.webdav, 'WebDAV'),
                   if (features.githubSync)
-                    const ButtonSegment(
-                      value: SyncProviderType.githubGist,
-                      label: _AdaptiveSyncProviderLabel('GitHub'),
-                      icon: Icon(Icons.code),
-                    ),
-                  const ButtonSegment(
-                    value: SyncProviderType.s3,
-                    label: _AdaptiveSyncProviderLabel('S3'),
-                    icon: Icon(Icons.storage_outlined),
-                  ),
+                    const ChoiceSegment(SyncProviderType.githubGist, 'GitHub'),
+                  const ChoiceSegment(SyncProviderType.s3, 'S3'),
                 ],
-                selected: {provider},
-                onSelectionChanged: (value) => setState(() {
-                  provider = value.first;
-                  _syncVersions = null;
-                  _syncVersionsError = null;
-                }),
+                selected: provider,
+                onTap: (value) {
+                  if (value == provider) return;
+                  setState(() {
+                    provider = value;
+                    _syncVersions = null;
+                    _syncVersionsError = null;
+                  });
+                },
               ),
-              const SizedBox(height: 14),
+              const FormGap(),
               if (provider == SyncProviderType.webdav) ...[
                 TextField(
                   controller: endpoint,
@@ -189,13 +182,10 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
                   decoration: LInputDecoration(labelText: '用户名'),
                 ),
                 const FormGap(),
-                TextField(
+                ShunSecretField(
+                  key: const ValueKey('cloud-webdav-password'),
                   controller: providerSecret,
-                  obscureText: true,
-                  enableIMEPersonalizedLearning: false,
-                  enableSuggestions: false,
-                  autocorrect: false,
-                  decoration: LInputDecoration(labelText: '密码 / 应用密码'),
+                  label: '密码 / 应用密码',
                 ),
               ] else if (provider == SyncProviderType.s3) ...[
                 TextField(
@@ -237,27 +227,17 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
                   ),
                 ),
                 const FormGap(),
-                TextField(
+                ShunSecretField(
+                  key: const ValueKey('cloud-s3-secret'),
                   controller: providerSecret,
-                  obscureText: true,
-                  enableIMEPersonalizedLearning: false,
-                  enableSuggestions: false,
-                  autocorrect: false,
+                  label: 'Secret Access Key',
                   onChanged: (_) => setState(() {}),
-                  decoration: LInputDecoration(
-                    labelText: 'Secret Access Key',
-                  ),
                 ),
                 const FormGap(),
-                TextField(
+                ShunSecretField(
+                  key: const ValueKey('cloud-s3-session-token'),
                   controller: s3SessionToken,
-                  obscureText: true,
-                  enableIMEPersonalizedLearning: false,
-                  enableSuggestions: false,
-                  autocorrect: false,
-                  decoration: LInputDecoration(
-                    labelText: 'Session Token（可选）',
-                  ),
+                  label: 'Session Token（可选）',
                 ),
                 const FormGap(),
                 TextField(
@@ -267,63 +247,79 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
                     hintText: 'shun',
                   ),
                 ),
-                HintSwitchTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: '使用路径式访问',
-                  hint: 'MinIO 这类自建 S3 要开着。默认开。',
-                  value: s3ForcePathStyle,
-                  onChanged: (value) =>
-                      setState(() => s3ForcePathStyle = value),
+                ShunSection(
+                  children: [
+                    ShunSwitchRow(
+                      key: const ValueKey('cloud-s3-path-style'),
+                      title: '使用路径式访问',
+                      hint: 'MinIO 这类自建 S3 要开着。默认开。',
+                      value: s3ForcePathStyle,
+                      onChanged: (value) =>
+                          setState(() => s3ForcePathStyle = value),
+                    ),
+                    ShunSwitchRow(
+                      key: const ValueKey('cloud-s3-insecure'),
+                      title: '允许不安全连接',
+                      hint: '只给 HTTP 或自签名 HTTPS 的服务用。开着时任何证书都接受，被中间人截走也发现不了。',
+                      value: s3AllowInsecure,
+                      onChanged: (value) =>
+                          setState(() => s3AllowInsecure = value),
+                    ),
+                  ],
                 ),
-                HintSwitchTile(
-                  contentPadding: EdgeInsets.zero,
-                  title: '允许不安全连接',
-                  hint: '只给 HTTP 或自签名 HTTPS 的服务用。开着时任何证书都接受，被中间人截走也发现不了。',
-                  value: s3AllowInsecure,
-                  onChanged: (value) => setState(() => s3AllowInsecure = value),
-                ),
+                const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
-                  child: OutlinedButton.icon(
+                  child: ShunButton(
+                    key: const ValueKey('cloud-s3-test'),
+                    kind: ShunButtonKind.outlined,
+                    icon: Icons.wifi_tethering_outlined,
+                    label: '测试 S3 连接',
                     onPressed: _busy ? null : _testS3Connection,
-                    icon: const Icon(Icons.wifi_tethering_outlined),
-                    label: const LText('测试 S3 连接'),
                   ),
                 ),
-                const SizedBox(height: 10),
                 _syncVersionsCard(),
               ] else ...[
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: CircleAvatar(
-                    child: Icon(
-                      providerSecret.text.isEmpty ? Icons.login : Icons.check,
+                ShunSection(
+                  children: [
+                    ShunListRow(
+                      key: const ValueKey('cloud-github-status'),
+                      leading: CircleAvatar(
+                        radius: 16,
+                        child: Icon(
+                          providerSecret.text.isEmpty
+                              ? Icons.login
+                              : Icons.check,
+                          size: 18,
+                        ),
+                      ),
+                      title: providerSecret.text.isEmpty
+                          ? '尚未登录 GitHub'
+                          : '已连接 GitHub',
+                      subtitle: _githubUser == null
+                          ? '登录后自动查找或创建 Gist'
+                          : '@$_githubUser · 自动同步私有 Gist',
                     ),
-                  ),
-                  title: LText(
-                    providerSecret.text.isEmpty ? '尚未登录 GitHub' : '已连接 GitHub',
-                  ),
-                  subtitle: LText(
-                    _githubUser == null
-                        ? '登录后自动查找或创建 Gist'
-                        : '@$_githubUser · 自动同步私有 Gist',
-                  ),
+                  ],
                 ),
+                const SizedBox(height: 16),
                 SizedBox(
                   width: double.infinity,
                   child: providerSecret.text.isEmpty
-                      ? FilledButton.icon(
+                      ? ShunButton(
+                          key: const ValueKey('cloud-github-login'),
+                          icon: Icons.login,
+                          label: '登录 GitHub',
                           onPressed: _busy ? null : _connectGitHub,
-                          icon: const Icon(Icons.login),
-                          label: const LText('登录 GitHub'),
                         )
-                      : OutlinedButton.icon(
+                      : ShunButton(
+                          key: const ValueKey('cloud-github-logout'),
+                          kind: ShunButtonKind.outlined,
+                          icon: Icons.logout,
+                          label: '退出 GitHub',
                           onPressed: _busy ? null : _logoutGitHub,
-                          icon: const Icon(Icons.logout),
-                          label: const LText('退出 GitHub'),
                         ),
                 ),
-                const SizedBox(height: 10),
                 _syncVersionsCard(),
                 GitHubManualConfig(
                     resourceId: resourceId,
@@ -331,45 +327,43 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
                     onSecretChanged: (_) => setState(() {})),
               ],
               const FormGap(),
-              TextField(
+              ShunSecretField(
+                key: const ValueKey('cloud-master-password'),
                 controller: masterPassword,
-                obscureText: true,
-                enableIMEPersonalizedLearning: false,
-                enableSuggestions: false,
-                autocorrect: false,
-                decoration: LInputDecoration(
-                  labelText: '主密码',
-                ),
+                label: '主密码',
               ),
-              const SizedBox(height: 6),
-              HintSwitchTile(
-                key: const ValueKey('cloud-auto-sync'),
-                contentPadding: EdgeInsets.zero,
-                secondary: autoSyncState.syncing
-                    ? const SizedBox.square(
-                        dimension: 24,
-                        child: CircularProgressIndicator(strokeWidth: 2.5),
-                      )
-                    : const Icon(Icons.sync_outlined),
-                title: '自动备份',
-                hint: '数据变了约 10 秒后备份，启动、回到前台和每 5 分钟也查一次云端。',
-                subtitle: status,
-                value: autoSyncEnabled,
-                onChanged: _busy || _savingAutoSync ? null : _setAutoSync,
+              ShunSection(
+                children: [
+                  ShunSwitchRow(
+                    key: const ValueKey('cloud-auto-sync'),
+                    leading: autoSyncState.syncing
+                        ? const SizedBox.square(
+                            dimension: 22,
+                            child: CircularProgressIndicator(strokeWidth: 2.5),
+                          )
+                        : const Icon(Icons.sync_outlined),
+                    title: '自动备份',
+                    hint: '数据变了约 10 秒后备份，启动、回到前台和每 5 分钟也查一次云端。',
+                    subtitle: status,
+                    value: autoSyncEnabled,
+                    onChanged: _busy || _savingAutoSync ? null : _setAutoSync,
+                  ),
+                ],
               ),
-              const SizedBox(height: 14),
-              FilledButton.icon(
+              const SizedBox(height: 20),
+              ShunButton(
                 key: const ValueKey('cloud-sync-now'),
+                icon: Icons.cloud_upload_outlined,
+                label: '立即备份',
                 onPressed: _busy ? null : _sync,
-                icon: const Icon(Icons.cloud_upload_outlined),
-                label: const LText('立即备份'),
               ),
               const SizedBox(height: 10),
-              OutlinedButton.icon(
+              ShunButton(
                 key: const ValueKey('cloud-restore'),
+                kind: ShunButtonKind.outlined,
+                icon: Icons.cloud_download_outlined,
+                label: '从云端恢复',
                 onPressed: _busy ? null : _restore,
-                icon: const Icon(Icons.cloud_download_outlined),
-                label: const LText('从云端恢复'),
               ),
               if (_busy)
                 const Padding(
@@ -656,68 +650,68 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
   Widget _syncVersionsCard() {
     final colors = Theme.of(context).colorScheme;
     final versions = _syncVersions;
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: colors.surfaceContainerHighest.withValues(alpha: 0.45),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: colors.outlineVariant),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    // 本地 / 云端版本：一块分组卡片，和设置页同样的底色和圆角。
+    return ShunSection(
+      children: [
+        ShunSectionItem(
+          key: const ValueKey('cloud-sync-versions'),
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: _syncVersionMetric(
-                  icon: Icons.smartphone_outlined,
-                  label: '本地版本',
-                  version: versions?.localVersion,
-                  pending: versions?.hasLocalChanges == true,
+              Row(
+                children: [
+                  Expanded(
+                    child: _syncVersionMetric(
+                      icon: Icons.smartphone_outlined,
+                      label: '本地版本',
+                      version: versions?.localVersion,
+                      pending: versions?.hasLocalChanges == true,
+                    ),
+                  ),
+                  Container(
+                    width: 1,
+                    height: 42,
+                    margin: const EdgeInsets.symmetric(horizontal: 10),
+                    color: colors.outlineVariant,
+                  ),
+                  Expanded(
+                    child: _syncVersionMetric(
+                      icon: Icons.cloud_outlined,
+                      label: '云端版本',
+                      version: versions?.cloudVersion,
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: localized('刷新版本'),
+                    onPressed: _busy ||
+                            _checkingSyncVersions ||
+                            providerSecret.text.isEmpty
+                        ? null
+                        : () => _refreshSyncVersions(saveConfiguration: true),
+                    icon: _checkingSyncVersions
+                        ? const SizedBox.square(
+                            dimension: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.refresh),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 8),
+              LText(
+                _syncVersionStatus(),
+                style: TextStyle(
+                  color: _syncVersionsError == null
+                      ? colors.onSurfaceVariant
+                      : colors.error,
+                  fontSize: 12,
                 ),
-              ),
-              Container(
-                width: 1,
-                height: 42,
-                margin: const EdgeInsets.symmetric(horizontal: 10),
-                color: colors.outlineVariant,
-              ),
-              Expanded(
-                child: _syncVersionMetric(
-                  icon: Icons.cloud_outlined,
-                  label: '云端版本',
-                  version: versions?.cloudVersion,
-                ),
-              ),
-              IconButton(
-                tooltip: localized('刷新版本'),
-                onPressed: _busy ||
-                        _checkingSyncVersions ||
-                        providerSecret.text.isEmpty
-                    ? null
-                    : () => _refreshSyncVersions(saveConfiguration: true),
-                icon: _checkingSyncVersions
-                    ? const SizedBox.square(
-                        dimension: 20,
-                        child: CircularProgressIndicator(strokeWidth: 2),
-                      )
-                    : const Icon(Icons.refresh),
               ),
             ],
           ),
-          const SizedBox(height: 8),
-          LText(
-            _syncVersionStatus(),
-            style: TextStyle(
-              color: _syncVersionsError == null
-                  ? colors.onSurfaceVariant
-                  : colors.error,
-              fontSize: 12,
-            ),
-          ),
-        ],
-      ),
+        ),
+      ],
     );
   }
 
@@ -821,27 +815,6 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
           .showSnackBar(SnackBar(content: LText(value)));
     }
   }
-}
-
-class _AdaptiveSyncProviderLabel extends StatelessWidget {
-  const _AdaptiveSyncProviderLabel(this.label);
-
-  final String label;
-
-  @override
-  Widget build(BuildContext context) => SizedBox(
-        width: 48,
-        height: 24,
-        child: FittedBox(
-          fit: BoxFit.scaleDown,
-          child: LText(
-            label,
-            maxLines: 1,
-            softWrap: false,
-            overflow: TextOverflow.visible,
-          ),
-        ),
-      );
 }
 
 class _GitHubDeviceFlowDialog extends StatefulWidget {

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/host_trust.dart';
 import '../../application/vault_controller.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import '../widgets/connection_event_text.dart';
 import '../widgets/hint.dart';
 
@@ -29,11 +30,15 @@ class KnownHostsScreen extends ConsumerWidget {
       ),
       body: entries.isEmpty
           ? const Center(child: LText('还没有接受过服务器'))
-          : ListView.separated(
-              itemCount: entries.length,
-              separatorBuilder: (_, __) => const Divider(height: 1),
-              itemBuilder: (context, index) =>
-                  _KnownHostTile(entry: entries[index]),
+          : ListView(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+              children: [
+                ShunSection(
+                  children: [
+                    for (final entry in entries) _KnownHostTile(entry: entry),
+                  ],
+                ),
+              ],
             ),
     );
   }
@@ -75,13 +80,13 @@ class _KnownHostTile extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final acceptedAt = (entry['acceptedAt'] as num?)?.toInt();
     final name = knownHostLabel(entry);
-    return ListTile(
+    return ShunListRow(
       key: ValueKey('known-host-$name'),
-      title: Text(name),
-      subtitle: Column(
+      title: name,
+      subtitle: '${entry['keyType'] ?? ''}',
+      details: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('${entry['keyType'] ?? ''}'),
           // 能选中复制：核对时要拿去和服务器上的输出比。
           SelectableText('${entry['fingerprint'] ?? ''}'),
           if (acceptedAt != null)

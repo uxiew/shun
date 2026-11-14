@@ -84,10 +84,8 @@ void main() {
     await settle(tester);
     await tester.tap(entry);
     await settle(tester);
-    await tester.tap(find.descendant(
-      of: find.byKey(const ValueKey('app-lock-enabled')),
-      matching: find.byType(Switch),
-    ));
+    // R86：点整行就是拨开关，按 key 找行，不按开关控件类型找。
+    await tester.tap(find.byKey(const ValueKey('app-lock-enabled')));
     action('pin');
     await until(
       tester,
@@ -222,10 +220,8 @@ void main() {
     await settle(tester);
     await tester.tap(entry);
     await settle(tester);
-    await tester.tap(find.descendant(
-      of: find.byKey(const ValueKey('app-lock-enabled')),
-      matching: find.byType(Switch),
-    ));
+    // R86：点整行就是拨开关，按 key 找行，不按开关控件类型找。
+    await tester.tap(find.byKey(const ValueKey('app-lock-enabled')));
     action('pin');
     await until(
       tester,

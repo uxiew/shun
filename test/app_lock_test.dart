@@ -11,6 +11,7 @@ import 'package:shun/domain/models/settings.dart';
 import 'package:shun/infrastructure/device_auth.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/screens/app_lock_settings_screen.dart';
+import 'package:shun/presentation/ui/prism_localizations.dart';
 import 'package:shun/presentation/widgets/app_lock_gate.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 
@@ -521,15 +522,17 @@ void main() {
           deviceAuthProvider.overrideWithValue(auth),
           vaultRepositoryProvider.overrideWithValue(repository),
         ],
-        child: const MaterialApp(home: AppLockSettingsScreen()),
+        // 选项行弹的是 Prism 菜单，要 Prism 的文案；App 里由 ShunUiHost 提供。
+        child: const MaterialApp(
+          localizationsDelegates: [ShunPrismLocalizationsDelegate()],
+          home: AppLockSettingsScreen(),
+        ),
       ));
       await tester.pumpAndSettle();
     }
 
-    Finder switchOf(String key) => find.descendant(
-          of: find.byKey(ValueKey(key)),
-          matching: find.byType(Switch),
-        );
+    // 点整行就是拨开关（R86 起是公共开关行）。按 key 找行，不按开关的控件类型找。
+    Finder switchOf(String key) => find.byKey(ValueKey(key));
 
     testWidgets('打开要先过验证，过了才存，子选项才出现', (tester) async {
       await pumpPage(tester, const AppSettings());

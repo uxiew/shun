@@ -7,6 +7,7 @@ import '../../domain/models/vault.dart';
 import '../../infrastructure/storage/encrypted_vault_file.dart';
 import '../../infrastructure/sync/vault_crypto.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import 'form_gap.dart';
 import 'secret_content.dart';
 
@@ -108,9 +109,6 @@ Future<String?> askBackupPassphrase(BuildContext context, {String? problem}) =>
       builder: (context) => _PassphraseDialog(problem: problem),
     );
 
-InputDecoration _decoration(String label, {String? error}) =>
-    LInputDecoration(labelText: label, errorText: error);
-
 class _NewPassphraseDialog extends StatefulWidget {
   const _NewPassphraseDialog();
 
@@ -156,26 +154,19 @@ class _NewPassphraseDialogState extends State<_NewPassphraseDialog> {
             children: [
               const LText('备份里有密码和私钥，靠这个口令保护。忘了就解不开，App 不存它。'),
               const FormGap(),
-              TextField(
+              ShunSecretField(
                 key: const ValueKey('backup-passphrase'),
                 controller: _first,
                 autofocus: true,
-                obscureText: true,
-                enableIMEPersonalizedLearning: false,
-                enableSuggestions: false,
-                autocorrect: false,
-                decoration: _decoration('口令'),
+                label: '口令',
               ),
               const FormGap(),
-              TextField(
+              ShunSecretField(
                 key: const ValueKey('backup-passphrase-again'),
                 controller: _second,
-                obscureText: true,
-                enableIMEPersonalizedLearning: false,
-                enableSuggestions: false,
-                autocorrect: false,
                 onSubmitted: (_) => _submit(),
-                decoration: _decoration('再输一遍', error: _problem),
+                label: '再输一遍',
+                errorText: _problem,
               ),
             ],
           ),
@@ -221,16 +212,13 @@ class _PassphraseDialogState extends State<_PassphraseDialog> {
   Widget build(BuildContext context) => SecretContent(
         child: AlertDialog(
           title: const LText('备份口令'),
-          content: TextField(
+          content: ShunSecretField(
             key: const ValueKey('backup-passphrase'),
             controller: _passphrase,
             autofocus: true,
-            obscureText: true,
-            enableIMEPersonalizedLearning: false,
-            enableSuggestions: false,
-            autocorrect: false,
             onSubmitted: (_) => _submit(),
-            decoration: _decoration('口令', error: widget.problem),
+            label: '口令',
+            errorText: widget.problem,
           ),
           actions: [
             TextButton(

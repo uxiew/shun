@@ -11,6 +11,7 @@ import '../../application/vault_controller.dart';
 import '../../domain/models/host.dart';
 import '../../domain/models/server_stats.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import '../widgets/catalog_host_sections.dart';
 import '../widgets/empty_state.dart';
 import '../widgets/host_address_line.dart';
@@ -62,44 +63,46 @@ class _HiddenHostsScreenState extends ConsumerState<HiddenHostsScreen> {
               title: '没有隐藏的主机',
             )
           : ListView(
-              padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
               children: [
-                for (final host in hosts)
-                  ListTile(
-                    key: ValueKey('hidden-host-${host.id}'),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                    leading: HostSystemIcon(host: host, size: 40),
-                    title: Text(host.label),
-                    subtitle: HostAddressLine(host),
-                    trailing: TextButton(
-                      key: ValueKey('hidden-restore-${host.id}'),
-                      onPressed: () => unawaited(ref
-                          .read(vaultControllerProvider.notifier)
-                          .updateHost(host.id,
-                              (current) => withHidden(current, false))),
-                      child: const LText('恢复显示'),
-                    ),
-                  ),
-                for (final (:cache, :record) in devices)
-                  ListTile(
-                    key: ValueKey(
-                        'hidden-device-${cache.catalogId}-${record.id}'),
-                    contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                    leading: SystemIcon(
-                      distro: normalizeDistroId(record.device.os ?? ''),
-                      size: 40,
-                      label: record.device.os,
-                    ),
-                    title: Text(catalogDeviceName(record)),
-                    subtitle: Text(record.device.addresses.firstOrNull ?? '—'),
-                    trailing: TextButton(
-                      key: ValueKey(
-                          'hidden-restore-${cache.catalogId}-${record.id}'),
-                      onPressed: () =>
-                          _restoreDevice(cache.catalogId, record.id),
-                      child: const LText('恢复显示'),
-                    ),
-                  ),
+                ShunSection(
+                  children: [
+                    for (final host in hosts)
+                      ShunListRow(
+                        key: ValueKey('hidden-host-${host.id}'),
+                        leading: HostSystemIcon(host: host, size: 40),
+                        title: host.label,
+                        details: HostAddressLine(host),
+                        trailing: TextButton(
+                          key: ValueKey('hidden-restore-${host.id}'),
+                          onPressed: () => unawaited(ref
+                              .read(vaultControllerProvider.notifier)
+                              .updateHost(host.id,
+                                  (current) => withHidden(current, false))),
+                          child: const LText('恢复显示'),
+                        ),
+                      ),
+                    for (final (:cache, :record) in devices)
+                      ShunListRow(
+                        key: ValueKey(
+                            'hidden-device-${cache.catalogId}-${record.id}'),
+                        leading: SystemIcon(
+                          distro: normalizeDistroId(record.device.os ?? ''),
+                          size: 40,
+                          label: record.device.os,
+                        ),
+                        title: catalogDeviceName(record),
+                        subtitle: record.device.addresses.firstOrNull ?? '—',
+                        trailing: TextButton(
+                          key: ValueKey(
+                              'hidden-restore-${cache.catalogId}-${record.id}'),
+                          onPressed: () =>
+                              _restoreDevice(cache.catalogId, record.id),
+                          child: const LText('恢复显示'),
+                        ),
+                      ),
+                  ],
+                ),
               ],
             ),
     );

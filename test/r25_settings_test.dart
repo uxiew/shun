@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shun/app.dart';
@@ -9,6 +10,8 @@ import 'package:shun/application/settings_controller.dart';
 import 'package:shun/domain/models/settings.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
+import 'package:shun/presentation/screens/settings_screen.dart';
+import 'package:shun/presentation/ui/components.dart';
 
 // R25 设置页整理：改了就存（没有「保存外观设置」），按 外观 / 终端 / 文件 / 连接 / 安全 / 数据 分组。
 
@@ -30,6 +33,10 @@ class _FlakyRepository implements VaultRepository {
     }
     stored = settings;
   }
+
+  // 设置页打开时还会读云端备份配置：没有就是 null（R86 页面级测试用）。
+  @override
+  Future<SyncConnection?> loadSyncConnection() async => null;
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -188,6 +195,87 @@ void main() {
         keyTop('settings-allow-sensitive-screenshots'),
         inExclusiveRange(top('安全'), top('数据')),
       );
+    });
+
+    // UIM07：R86 迁到公共分组控件后，迁移前清单里的每一项都还在，上下顺序不变（插件、应用锁、
+    // 互传只在 Android 上有，桌面测试里看不到，这几项按源码核对，见 evidence/R86.md）。
+    testWidgets('UIM07：迁移前的设置项一项不少，顺序不变', (tester) async {
+      await openSettings(tester);
+      const before = [
+        'custom-background-switch',
+        'settings-language',
+        'settings-sftp-highlight',
+        'settings-terminal-font-size',
+        'settings-terminal-font-preview',
+        'terminal-fullscreen-swipe',
+        'settings-key-height',
+        'settings-key-repeat',
+        'settings-key-haptics',
+        'terminal-engine-status',
+        'terminal-engine-check',
+        'settings-credentials',
+        'settings-tailscale-catalog',
+        'settings-app-log',
+        'settings-allow-sensitive-screenshots',
+        'settings-hidden-hosts',
+        'settings-known-hosts',
+        'settings-cloud-backup',
+        'export-encrypted-backup',
+        'restore-from-file',
+      ];
+      final tops = [
+        for (final key in before)
+          tester.getTopLeft(find.byKey(ValueKey(key))).dy,
+      ];
+      expect(tops, orderedEquals([...tops]..sort()));
+      for (final title in [
+        '界面主题',
+        '系统安全键盘',
+        '代理管理',
+        '隐藏的主机',
+        '可信主机密钥',
+      ]) {
+        expect(find.text(title), findsOneWidget, reason: title);
+      }
+    });
+
+    testWidgets('UIM07：存盘失败时开关退回存盘的样子，并说一声', (tester) async {
+      final repository = _FlakyRepository()
+        ..stored = const AppSettings(sftpSyntaxHighlight: true);
+      tester.view.physicalSize = const Size(800, 6000);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(tester.view.reset);
+      await tester.pumpWidget(ProviderScope(
+        overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
+        // 单独装设置页：Prism 的分组标题要 MeasureScope，App 里由 ShunUiHost 提供。
+        child: MaterialApp(
+          builder: (context, child) => prism.MeasureScope(
+            measure: prism.Measure.of(context, 1),
+            child: child!,
+          ),
+          home: const SettingsScreen(),
+        ),
+      ));
+      await tester.pump(const Duration(milliseconds: 100));
+      final row = find.byKey(const ValueKey('settings-sftp-highlight'));
+      bool shown() =>
+          tester.widget<ShunSwitchRow>(row).value;
+      expect(shown(), isTrue);
+
+      repository.failNextSave = true;
+      await tester.tap(row);
+      await tester.pump();
+      expect(shown(), isFalse, reason: '先按点的样子显示');
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(shown(), isTrue, reason: '没存上：退回存盘的样子');
+      expect(repository.stored.sftpSyntaxHighlight, isTrue);
+      expect(find.textContaining('设置没存上'), findsOneWidget);
+
+      await tester.tap(row);
+      await tester.pump(const Duration(milliseconds: 100));
+      expect(shown(), isFalse);
+      expect(repository.stored.sftpSyntaxHighlight, isFalse,
+          reason: '下一次照常存');
     });
   });
 }

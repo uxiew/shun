@@ -13,6 +13,7 @@ import '../../infrastructure/qr_scanner.dart';
 import '../../infrastructure/storage/encrypted_vault_file.dart';
 import '../../infrastructure/sync/lan_transfer.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import '../widgets/hint.dart';
 import '../widgets/secret_content.dart';
 import '../widgets/vault_import_dialog.dart';
@@ -283,7 +284,11 @@ class _Outcome extends StatelessWidget {
             if (extra != null) ...[const SizedBox(height: 8), extra!],
             if (action != null) ...[
               const SizedBox(height: 16),
-              FilledButton(onPressed: onAction, child: LText(action!)),
+              ShunButton(
+                key: const ValueKey('lan-outcome-action'),
+                label: action!,
+                onPressed: onAction,
+              ),
             ],
           ],
         ),

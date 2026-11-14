@@ -3,11 +3,13 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../application/app_log.dart';
 import '../../application/connection_events.dart';
 import '../../application/vault_controller.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import '../widgets/connection_event_text.dart';
 import '../widgets/connection_event_tile.dart';
 import '../widgets/hint.dart';
@@ -178,12 +180,15 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
                       key: const ValueKey('app-log-empty'),
                     ),
                   )
-                : ListView.separated(
+                // 一整组分组卡片，但按需建行（日志可能上千条）：每行自己带上在组里的位置。
+                : ListView.builder(
                     key: const ValueKey('app-log-list'),
+                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
                     itemCount: rows.length,
-                    separatorBuilder: (_, __) => const Divider(height: 1),
-                    itemBuilder: (context, index) =>
-                        _tile(context, rows[index], hosts, small),
+                    itemBuilder: (context, index) => prism.ItemPositionProvider(
+                      position: prism.ItemPosition.get(index, rows.length),
+                      child: _tile(context, rows[index], hosts, small),
+                    ),
                   ),
           ),
         ],
@@ -196,15 +201,23 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
     final scheme = Theme.of(context).colorScheme;
     final time = formatConnectionEventTime(row.at);
     if (row.event case final event?) {
-      return ConnectionEventTile(
-        event: event,
-        hostLabel: widget.hostId == null
-            ? hosts[event.hostId] ?? localized('已删除的主机')
-            : null,
-        hopName: (hop) => connectionHopName(
-          hop,
-          event.hopCount,
-          hop < event.hopIds.length ? hosts[event.hopIds[hop]] : null,
+      // 可展开的连接记录：外面套一块分组卡片，展开、收起照旧由 ExpansionTile 管。
+      return ShunSectionItem(
+        key: ValueKey('app-log-event-${event.at.millisecondsSinceEpoch}'),
+        padding: EdgeInsets.zero,
+        child: Material(
+          type: MaterialType.transparency,
+          child: ConnectionEventTile(
+            event: event,
+            hostLabel: widget.hostId == null
+                ? hosts[event.hostId] ?? localized('已删除的主机')
+                : null,
+            hopName: (hop) => connectionHopName(
+              hop,
+              event.hopCount,
+              hop < event.hopIds.length ? hosts[event.hopIds[hop]] : null,
+            ),
+          ),
         ),
       );
     }
@@ -215,11 +228,12 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
       AppLogKind.sync => (Icons.sync, scheme.primary),
     };
     final first = entry.detail?.split('\n').first;
-    return ListTile(
+    return ShunListRow(
       key: ValueKey('app-log-entry-${entry.at.millisecondsSinceEpoch}'),
       leading: Icon(icon, color: color),
-      title: Text(localized(entry.title)),
-      subtitle: Text(
+      title: entry.title,
+      // 时间、次数、第一行详情：原样显示，不当成一句话去翻译。
+      details: Text(
         [
           time,
           if (entry.count > 1)
@@ -228,7 +242,6 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
         ].join(' · '),
         maxLines: 2,
         overflow: TextOverflow.ellipsis,
-        style: small,
       ),
       onTap: () => _details(entry),
     );
@@ -258,14 +271,15 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
                 const SizedBox(height: 12),
                 Align(
                   alignment: Alignment.centerLeft,
-                  child: FilledButton.tonalIcon(
+                  child: ShunButton(
                     key: const ValueKey('app-log-copy-one'),
+                    kind: ShunButtonKind.tonal,
+                    icon: Icons.copy,
+                    label: '复制这条',
                     onPressed: () async {
                       await Clipboard.setData(ClipboardData(text: text));
                       if (context.mounted) Navigator.pop(context);
                     },
-                    icon: const Icon(Icons.copy),
-                    label: const LText('复制这条'),
                   ),
                 ),
               ],

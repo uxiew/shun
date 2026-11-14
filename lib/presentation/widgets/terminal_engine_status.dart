@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../application/terminal_engine.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 
 /// 设置页里的「终端引擎」：只读，照实写这次运行里引擎怎样（TER12）。
 ///
@@ -48,11 +49,12 @@ class TerminalEngineStatusTile extends ConsumerWidget {
                       )
                     : LText('这次运行还没开过终端', style: small),
           ),
-          TextButton(
+          ShunButton(
             key: const ValueKey('terminal-engine-check'),
+            kind: ShunButtonKind.text,
+            label: '检查',
             onPressed: () =>
                 ref.read(terminalEngineStatusProvider.notifier).check(),
-            child: const LText('检查'),
           ),
         ]),
       ],

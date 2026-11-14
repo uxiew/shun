@@ -8,7 +8,7 @@ import '../../application/settings_controller.dart';
 import '../../domain/models/settings.dart';
 import '../../infrastructure/device_auth.dart';
 import '../localization/localized_widgets.dart';
-import '../widgets/hint.dart';
+import '../ui/components.dart';
 
 /// 离开多久后锁的选项，单位秒。
 const appLockGraceChoices = <int, String>{
@@ -78,67 +78,60 @@ class _AppLockSettingsScreenState extends ConsumerState<AppLockSettingsScreen> {
     return Scaffold(
       appBar: AppBar(title: const LText('应用锁')),
       body: ListView(
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
         children: [
-          HintSwitchTile(
-            key: const ValueKey('app-lock-enabled'),
-            title: '应用锁',
-            hint: '打开 App 要过指纹、面容或手机的 PIN。只挡住打开 App 的人，登录服务器、安全密钥签名照样各问各的。',
-            value: settings.appLockEnabled,
-            onChanged: _busy ? null : _toggle,
-          ),
-          if (settings.appLockEnabled) ...[
-            const Divider(height: 1),
-            ListTile(
-              title: const LText('离开多久后锁'),
-              trailing: DropdownButton<int>(
-                key: const ValueKey('app-lock-grace'),
-                value: appLockGraceChoices.containsKey(
-                  settings.appLockGraceSeconds,
-                )
-                    ? settings.appLockGraceSeconds
-                    : 60,
-                underline: const SizedBox.shrink(),
-                items: [
-                  for (final entry in appLockGraceChoices.entries)
-                    DropdownMenuItem(
-                      value: entry.key,
-                      child: LText(entry.value),
-                    ),
-                ],
-                onChanged: (value) {
-                  if (value == null) return;
-                  _edit((s) => s.copyWith(appLockGraceSeconds: value));
-                },
+          ShunSection(
+            children: [
+              ShunSwitchRow(
+                key: const ValueKey('app-lock-enabled'),
+                title: '应用锁',
+                hint: '打开 App 要过指纹、面容或手机的 PIN。只挡住打开 App 的人，登录服务器、安全密钥签名照样各问各的。',
+                value: settings.appLockEnabled,
+                onChanged: _busy ? null : _toggle,
               ),
-            ),
-            const Divider(height: 1),
-            HintSwitchTile(
-              key: const ValueKey('app-lock-skip-connected'),
-              title: '终端连着时不锁',
-              hint: '有连着的终端时，回来不用解锁。手机被人拿走又没锁屏时，对方能直接看到终端。',
-              value: settings.appLockSkipWhileConnected,
-              onChanged: (value) =>
-                  _edit((s) => s.copyWith(appLockSkipWhileConnected: value)),
-            ),
-            const Divider(height: 1),
-            HintSwitchTile(
-              key: const ValueKey('app-lock-pin-only'),
-              title: '直接用 PIN',
-              hint: '不弹指纹、面容，直接用手机的 PIN 或图案。传感器坏了、手指湿的时候用。',
-              value: settings.appLockPinOnly,
-              onChanged: (value) =>
-                  _edit((s) => s.copyWith(appLockPinOnly: value)),
-            ),
-            const Divider(height: 1),
-            HintSwitchTile(
-              key: const ValueKey('app-lock-weak'),
-              title: '允许弱生物识别',
-              hint: '有些手机的面容解锁系统算弱的，可能被照片骗过。不开就只认指纹这类强的和 PIN。Android 11 起才有效。',
-              value: settings.appLockAllowWeakBiometrics,
-              onChanged: (value) =>
-                  _edit((s) => s.copyWith(appLockAllowWeakBiometrics: value)),
-            ),
-          ],
+              if (settings.appLockEnabled) ...[
+                ShunOptionsRow<int>(
+                  key: const ValueKey('app-lock-grace'),
+                  title: '离开多久后锁',
+                  value: appLockGraceChoices.containsKey(
+                    settings.appLockGraceSeconds,
+                  )
+                      ? settings.appLockGraceSeconds
+                      : 60,
+                  options: [
+                    for (final entry in appLockGraceChoices.entries)
+                      (entry.key, entry.value),
+                  ],
+                  onChanged: (value) =>
+                      _edit((s) => s.copyWith(appLockGraceSeconds: value)),
+                ),
+                ShunSwitchRow(
+                  key: const ValueKey('app-lock-skip-connected'),
+                  title: '终端连着时不锁',
+                  hint: '有连着的终端时，回来不用解锁。手机被人拿走又没锁屏时，对方能直接看到终端。',
+                  value: settings.appLockSkipWhileConnected,
+                  onChanged: (value) => _edit(
+                      (s) => s.copyWith(appLockSkipWhileConnected: value)),
+                ),
+                ShunSwitchRow(
+                  key: const ValueKey('app-lock-pin-only'),
+                  title: '直接用 PIN',
+                  hint: '不弹指纹、面容，直接用手机的 PIN 或图案。传感器坏了、手指湿的时候用。',
+                  value: settings.appLockPinOnly,
+                  onChanged: (value) =>
+                      _edit((s) => s.copyWith(appLockPinOnly: value)),
+                ),
+                ShunSwitchRow(
+                  key: const ValueKey('app-lock-weak'),
+                  title: '允许弱生物识别',
+                  hint: '有些手机的面容解锁系统算弱的，可能被照片骗过。不开就只认指纹这类强的和 PIN。Android 11 起才有效。',
+                  value: settings.appLockAllowWeakBiometrics,
+                  onChanged: (value) => _edit(
+                      (s) => s.copyWith(appLockAllowWeakBiometrics: value)),
+                ),
+              ],
+            ],
+          ),
         ],
       ),
     );
