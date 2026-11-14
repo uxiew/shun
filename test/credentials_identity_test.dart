@@ -18,6 +18,8 @@ import 'package:shun/presentation/widgets/first_login_dialog.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shun/presentation/widgets/keychain_sheet.dart';
 
+import 'support/prism_test_host.dart';
+
 // R26 F25：「凭据」里的登录身份。格式和展开规则照桌面端 Netcatty（Identity、resolveHostAuth）：
 // 身份里的用户名、登录方式、密钥、密码优先；「密钥 + 密码」是带密码的 key，连接时按「自动」先公钥再密码。
 
@@ -237,7 +239,11 @@ void main() {
       await container.read(vaultControllerProvider.notifier).ready();
       await tester.pumpWidget(UncontrolledProviderScope(
         container: container,
-        child: MaterialApp(home: home),
+        child: MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
+          home: home,
+        ),
       ));
       await tester.pumpAndSettle();
       return container;
@@ -372,6 +378,104 @@ void main() {
       await tester.pumpAndSettle();
       expect(saved?.data['identityId'], 'pw');
       expect(saved?.username, 'ops', reason: '列表和路线预览读主机上的用户名');
+    });
+
+    group('UIM10（R89）凭据页和凭据编辑', () {
+      List<String> keysIn(WidgetTester tester, Type root) => [
+            for (final element in find
+                .descendant(
+                    of: find.byType(root),
+                    matching: find
+                        .byWidgetPredicate((w) => w.key is ValueKey<String>))
+                .evaluate())
+              (element.widget.key! as ValueKey<String>).value,
+          ];
+
+      bool inOrder(List<String> expected, List<String> actual) {
+        var at = 0;
+        for (final key in actual) {
+          if (at < expected.length && expected[at] == key) at++;
+        }
+        return at == expected.length;
+      }
+
+      testWidgets('迁移前凭据页的入口一项不少、顺序不变', (tester) async {
+        await open(tester, const KeychainSheet());
+        final keys = keysIn(tester, KeychainSheet);
+        // HEAD 上同一份数据录到的顺序（凭据行、凭据删除、私钥删除、右上角添加）。
+        expect(
+          inOrder([
+            'keychain-identity-pw',
+            'keychain-delete-identity-pw',
+            'keychain-delete-k1',
+            'keychain-add',
+          ], keys),
+          isTrue,
+          reason: '现在的 key：\n${keys.join('\n')}',
+        );
+      });
+
+      testWidgets('凭据行是按钮，删除是独立节点；私钥行不假装能点', (tester) async {
+        final handle = tester.ensureSemantics();
+        await open(tester, const KeychainSheet());
+        expect(
+          tester.getSemantics(find.bySemanticsLabel(RegExp('^pw'))),
+          isSemantics(
+            isButton: true,
+            hasEnabledState: true,
+            isEnabled: true,
+            hasTapAction: true,
+          ),
+        );
+        expect(
+          tester.getSemantics(
+              find.byKey(const ValueKey('keychain-delete-identity-pw'))),
+          isSemantics(
+            tooltip: '删除凭据',
+            isButton: true,
+            hasEnabledState: true,
+            isEnabled: true,
+            hasTapAction: true,
+          ),
+        );
+        // 点私钥行没有动作：不能被读成「不可用的按钮」。
+        final keyRow =
+            tester.getSemantics(find.bySemanticsLabel(RegExp('^laptop')));
+        expect(keyRow.getSemanticsData().flagsCollection.isButton, isFalse);
+        expect(find.byTooltip('删除私钥'), findsOneWidget);
+        handle.dispose();
+      });
+
+      testWidgets('凭据编辑的密码框：切明文三个输入法开关仍全关，取消什么都不存', (tester) async {
+        final container = await open(tester, const KeychainSheet());
+        final before = stored(container).length;
+        await tester.tap(find.byKey(const ValueKey('keychain-add')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.text('新建凭据').last);
+        await tester.pumpAndSettle();
+        EditableText field() => tester.widget<EditableText>(find.descendant(
+            of: find.byKey(const ValueKey('identity-password')),
+            matching: find.byType(EditableText)));
+        for (final obscured in [true, false]) {
+          expect(field().obscureText, obscured);
+          expect(field().enableIMEPersonalizedLearning, isFalse);
+          expect(field().enableSuggestions, isFalse);
+          expect(field().autocorrect, isFalse);
+          await tester.tap(find.descendant(
+              of: find.byKey(const ValueKey('identity-password')),
+              matching: find.byType(IconButton)));
+          await tester.pump();
+        }
+        await tester.enterText(
+            find.descendant(
+                of: find.byKey(const ValueKey('identity-password')),
+                matching: find.byType(EditableText)),
+            'NOT-SAVED');
+        await tester.tap(find.byKey(const ValueKey('identity-cancel')));
+        await tester.pumpAndSettle();
+        expect(stored(container).length, before);
+        expect(secrets.values, isNot(contains('NOT-SAVED')));
+      });
     });
   });
 }

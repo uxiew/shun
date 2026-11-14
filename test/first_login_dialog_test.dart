@@ -5,7 +5,10 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shun/application/tailscale_catalog_refresh.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/presentation/ui/components.dart';
 import 'package:shun/presentation/widgets/first_login_dialog.dart';
+
+import 'support/prism_test_host.dart';
 
 // R26：Tailscale 导入时不统一填用户名和密码，单独连接时再配。什么时候先问、问完得到什么。
 void main() {
@@ -55,6 +58,8 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
       child: MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Builder(
           builder: (context) => TextButton(
             onPressed: () async {
@@ -73,7 +78,7 @@ void main() {
     }
 
     final connect = find.byKey(const ValueKey('first-login-connect'));
-    FilledButton button() => tester.widget<FilledButton>(connect);
+    ShunButton button() => tester.widget<ShunButton>(connect);
 
     await open();
     expect(find.textContaining('100.64.0.1'), findsOneWidget);
@@ -106,5 +111,105 @@ void main() {
     await tester.pumpAndSettle();
     expect(closed, isTrue);
     expect(result, isNull);
+  });
+
+  group('UIM10（R89）首次登录', () {
+    testWidgets('认证方式是分段：选中状态读屏可见；密码切明文仍不让输入法学；取消不返回东西', (tester) async {
+      final handle = tester.ensureSemantics();
+      FirstLogin? result = (username: 'x', password: null, identity: null);
+      var closed = false;
+      SharedPreferences.setMockInitialValues({});
+      final repository = await VaultRepository.open();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
+        child: MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () async {
+                result = await askFirstLogin(context, host({}));
+                closed = true;
+              },
+              child: const Text('go'),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('go'));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSemantics(find.descendant(
+          of: find.byKey(const ValueKey('login-choice-simple')),
+          matching: find.bySemanticsLabel('用户名 / 密码'),
+        )),
+        isSemantics(
+          label: '用户名 / 密码',
+          isButton: true,
+          isSelected: true,
+          hasSelectedState: true,
+          hasTapAction: true,
+        ),
+      );
+      EditableText password() => tester.widget<EditableText>(find.descendant(
+          of: find.byKey(const ValueKey('first-login-password')),
+          matching: find.byType(EditableText)));
+      for (final obscured in [true, false]) {
+        expect(password().obscureText, obscured);
+        expect(password().enableIMEPersonalizedLearning, isFalse);
+        expect(password().enableSuggestions, isFalse);
+        expect(password().autocorrect, isFalse);
+        await tester.tap(find.descendant(
+            of: find.byKey(const ValueKey('first-login-password')),
+            matching: find.byType(IconButton)));
+        await tester.pump();
+      }
+      await tester.tap(find.byKey(const ValueKey('first-login-cancel')));
+      await tester.pumpAndSettle();
+      expect(closed, isTrue);
+      expect(result, isNull);
+      handle.dispose();
+    });
+
+    testWidgets('迁移前首次登录的入口一项不少、顺序不变（用户名/密码）', (tester) async {
+      SharedPreferences.setMockInitialValues({});
+      final repository = await VaultRepository.open();
+      await tester.pumpWidget(ProviderScope(
+        overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
+        child: MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
+          home: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => askFirstLogin(context, host({})),
+              child: const Text('go'),
+            ),
+          ),
+        ),
+      ));
+      await tester.tap(find.text('go'));
+      await tester.pumpAndSettle();
+      final keys = [
+        for (final element in find
+            .descendant(
+                of: find.byType(AlertDialog),
+                matching:
+                    find.byWidgetPredicate((w) => w.key is ValueKey<String>))
+            .evaluate())
+          (element.widget.key! as ValueKey<String>).value,
+      ];
+      var at = 0;
+      // HEAD 上录到的顺序：认证方式、用户名、密码、连接（认证方式的分段 key 是新增的，不算）。
+      const before = [
+        'first-login-mode',
+        'first-login-username',
+        'first-login-password',
+        'first-login-connect',
+      ];
+      for (final key in keys) {
+        if (at < before.length && before[at] == key) at++;
+      }
+      expect(at, before.length, reason: keys.join('\n'));
+    });
   });
 }

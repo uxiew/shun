@@ -7,6 +7,7 @@ import '../../domain/connection_route.dart' show proxyIdentityKey;
 import '../../domain/credential_identity.dart';
 import '../../domain/models/host.dart';
 import '../../domain/security_key.dart';
+import '../ui/components.dart';
 import 'credential_field.dart';
 import 'identity_editor.dart';
 import 'security_key_actions.dart';
@@ -26,7 +27,6 @@ class KeychainSheet extends ConsumerWidget {
     final identities =
         vault == null ? const <IdentityProfile>[] : vaultIdentities(vault);
     final hosts = vault?.hosts ?? const <HostProfile>[];
-    final small = Theme.of(context).textTheme.bodySmall;
     return SafeArea(
       child: Scaffold(
         appBar: AppBar(
@@ -57,89 +57,99 @@ class KeychainSheet extends ConsumerWidget {
           ],
         ),
         body: ListView(
-          padding: const EdgeInsets.fromLTRB(12, 4, 12, 24),
+          padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
           children: [
-            _header(context, '登录凭据'),
-            Padding(
-              padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-              child: LText(
-                '多台主机共用一份登录方式，改一次全跟着变。在主机编辑器里选。',
-                style: small,
-              ),
+            // 两组都是 Prism 分组卡片（R89）。行本身是按钮，删除和公钥是行尾独立的图标按钮：
+            // Prism 卡片是按钮语义的边界，行尾只能放自成节点的控件。
+            ShunSection(
+              title: '登录凭据',
+              hint: '多台主机共用一份登录方式，改一次全跟着变。在主机编辑器里选。',
+              children: [
+                for (final identity in identities)
+                  ShunListRow(
+                    key: ValueKey('keychain-identity-${identity.id}'),
+                    leading: Icon(credentialIcon(identity, keys)),
+                    title: identity.label,
+                    subtitle: [
+                      credentialDetail(identity, keys),
+                      if (identityUsageText(hosts, identity) case final usage?)
+                        usage,
+                    ].join(' · '),
+                    onTap: () =>
+                        editAndSaveIdentity(context, ref, existing: identity),
+                    trailing: IconButton(
+                      key: ValueKey('keychain-delete-identity-${identity.id}'),
+                      tooltip: localized('删除凭据'),
+                      onPressed: () => _deleteIdentity(context, ref, identity),
+                      icon: const Icon(Icons.delete_outline),
+                    ),
+                  ),
+              ],
             ),
             if (identities.isEmpty)
               Align(
                 alignment: Alignment.centerLeft,
-                child: TextButton.icon(
+                child: ShunButton(
                   key: const ValueKey('keychain-new-identity'),
+                  kind: ShunButtonKind.text,
                   onPressed: () => editAndSaveIdentity(context, ref),
-                  icon: const Icon(Icons.person_add_alt),
-                  label: const LText('新建凭据'),
+                  icon: Icons.person_add_alt,
+                  label: '新建凭据',
                 ),
               ),
-            for (final identity in identities)
-              ListTile(
-                key: ValueKey('keychain-identity-${identity.id}'),
-                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                leading: CircleAvatar(
-                  child: Icon(credentialIcon(identity, keys)),
-                ),
-                title: Text(identity.label),
-                subtitle: Text(
-                  [
-                    credentialDetail(identity, keys),
-                    if (identityUsageText(hosts, identity) case final usage?)
-                      usage,
-                  ].join(' · '),
-                  style: small,
-                ),
-                onTap: () =>
-                    editAndSaveIdentity(context, ref, existing: identity),
-                trailing: IconButton(
-                  key: ValueKey('keychain-delete-identity-${identity.id}'),
-                  tooltip: localized('删除凭据'),
-                  onPressed: () => _deleteIdentity(context, ref, identity),
-                  icon: const Icon(Icons.delete_outline),
-                ),
-              ),
-            const SizedBox(height: 12),
-            _header(context, 'SSH 密钥'),
+            ShunSection(
+              title: 'SSH 密钥',
+              children: [
+                for (final key in keys)
+                  // 密钥行点一下没有动作，不用 ShunListRow：Prism 卡片行没 onTap 会被读屏
+                  // 报成「不可用的按钮」。ShunSectionItem 只画同样的底色和圆角，读屏是一个分组，
+                  // 里面名字、类型是文字，公钥和删除是各自的按钮。
+                  ShunSectionItem(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.key),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              LText(key.label),
+                              LText(
+                                key.data['type']?.toString() ?? 'OpenSSH / PEM',
+                                style: Theme.of(context).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                        ),
+                        if (SecurityKeyStub.publicKeyLineOf(key.privateKey)
+                            case final line?)
+                          IconButton(
+                            key: ValueKey('keychain-public-key-${key.id}'),
+                            tooltip: localized('公钥'),
+                            onPressed: () =>
+                                showSecurityKeyPublicKey(context, line),
+                            icon: const Icon(Icons.content_copy_outlined),
+                          ),
+                        IconButton(
+                          key: ValueKey('keychain-delete-${key.id}'),
+                          tooltip: localized('删除私钥'),
+                          onPressed: () => _delete(context, ref, key),
+                          icon: const Icon(Icons.delete_outline),
+                        ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
             if (keys.isEmpty)
               Align(
                 alignment: Alignment.centerLeft,
-                child: TextButton.icon(
+                child: ShunButton(
+                  kind: ShunButtonKind.text,
                   onPressed: () => importSshKey(context, ref),
-                  icon: const Icon(Icons.key),
-                  label: const LText('导入私钥'),
-                ),
-              ),
-            for (final key in keys)
-              ListTile(
-                contentPadding: const EdgeInsets.symmetric(horizontal: 4),
-                leading: const CircleAvatar(child: Icon(Icons.key)),
-                title: LText(key.label),
-                subtitle: LText(
-                  key.data['type']?.toString() ?? 'OpenSSH / PEM',
-                ),
-                trailing: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (SecurityKeyStub.publicKeyLineOf(key.privateKey)
-                        case final line?)
-                      IconButton(
-                        key: ValueKey('keychain-public-key-${key.id}'),
-                        tooltip: localized('公钥'),
-                        onPressed: () =>
-                            showSecurityKeyPublicKey(context, line),
-                        icon: const Icon(Icons.content_copy_outlined),
-                      ),
-                    IconButton(
-                      key: ValueKey('keychain-delete-${key.id}'),
-                      tooltip: localized('删除私钥'),
-                      onPressed: () => _delete(context, ref, key),
-                      icon: const Icon(Icons.delete_outline),
-                    ),
-                  ],
+                  icon: Icons.key,
+                  label: '导入私钥',
                 ),
               ),
           ],
@@ -147,16 +157,6 @@ class KeychainSheet extends ConsumerWidget {
       ),
     );
   }
-
-  Widget _header(BuildContext context, String text) => Padding(
-        padding: const EdgeInsets.fromLTRB(4, 12, 4, 4),
-        child: LText(
-          text,
-          style: Theme.of(context).textTheme.titleSmall?.copyWith(
-                color: Theme.of(context).colorScheme.primary,
-              ),
-        ),
-      );
 
   /// 先问再删，写出哪些主机和代理在用；确认后它们的引用一并去掉（[VaultController.deleteIdentity]）。
   Future<void> _deleteIdentity(
@@ -191,10 +191,11 @@ class KeychainSheet extends ConsumerWidget {
                 ? '没有主机在用它。删了不能撤销。'
                 : '$impact在用它：${users.join('、')}。删了以后，主机用自己的用户名、密码连接时问，代理不再带账号密码；删了不能撤销。'),
             actions: [
-              FilledButton(
+              ShunButton(
+                key: const ValueKey('keychain-cancel-delete-identity'),
                 autofocus: true,
                 onPressed: () => Navigator.pop(context, false),
-                child: const LText('取消'),
+                label: '取消',
               ),
               TextButton(
                 key: const ValueKey('keychain-confirm-delete-identity'),
@@ -239,14 +240,16 @@ class KeychainSheet extends ConsumerWidget {
                 ? '没有主机在用它。删了不能撤销。'
                 : '这些在用它：${users.join('、')}。删了以后，其中用私钥登录的会连不上，要重新选一把；删了不能撤销。'),
             actions: [
-              TextButton(
+              ShunButton(
+                key: const ValueKey('keychain-cancel-delete'),
+                kind: ShunButtonKind.text,
                 onPressed: () => Navigator.pop(context, false),
-                child: const LText('取消'),
+                label: '取消',
               ),
-              FilledButton(
+              ShunButton(
                 key: const ValueKey('keychain-confirm-delete'),
                 onPressed: () => Navigator.pop(context, true),
-                child: const LText('删除'),
+                label: '删除',
               ),
             ],
           ),

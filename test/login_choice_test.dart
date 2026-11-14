@@ -20,6 +20,7 @@ import 'package:shun/domain/vault_secrets.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/tailscale/catalog_cache.dart';
 import 'package:shun/infrastructure/tailscale/tailscale_device.dart';
+import 'package:shun/presentation/ui/components.dart';
 import 'package:shun/presentation/widgets/first_login_dialog.dart';
 import 'package:shun/presentation/widgets/host_address_line.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
@@ -659,11 +660,9 @@ void main() {
       await tester.tap(find.text('go'));
       await tester.pumpAndSettle();
       final connect = find.byKey(const ValueKey('first-login-connect'));
-      await tester.tap(find.byKey(const ValueKey('first-login-mode')));
+      await tester.tap(find.byKey(const ValueKey('login-choice-credential')));
       await tester.pumpAndSettle();
-      await tester.tap(find.text('凭据').last);
-      await tester.pumpAndSettle();
-      expect(tester.widget<FilledButton>(connect).onPressed, isNull);
+      expect(tester.widget<ShunButton>(connect).onPressed, isNull);
       expect(find.byKey(const ValueKey('first-login-username')), findsNothing);
       await tester.tap(find.byKey(const ValueKey('first-login-credential')));
       await tester.pumpAndSettle();
@@ -909,9 +908,7 @@ void main() {
         ],
         stored: {'proxy.p.password': 'MANUAL'},
       );
-      await tester.tap(find.byKey(const ValueKey('proxy-login-choice')));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('凭据').last);
+      await tester.tap(find.byKey(const ValueKey('login-choice-credential')));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const ValueKey('proxy-credential')));
       await tester.pumpAndSettle();

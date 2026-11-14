@@ -7,6 +7,7 @@ import '../../domain/credential_identity.dart';
 import '../../domain/models/host.dart';
 import '../../domain/security_key.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import 'form_gap.dart';
 import 'secret_content.dart';
 import 'security_key_actions.dart';
@@ -87,7 +88,6 @@ class _IdentityDialogState extends ConsumerState<_IdentityDialog> {
   late final _password = TextEditingController(text: _initial?.password);
   late _Kind _kind;
   late String? _keyId = _initial?.keyId;
-  var _obscure = true;
   var _tried = false;
 
   @override
@@ -298,53 +298,41 @@ class _IdentityDialogState extends ConsumerState<_IdentityDialog> {
                 ),
               Align(
                 alignment: Alignment.centerLeft,
-                child: TextButton.icon(
+                child: ShunButton(
                   key: const ValueKey('identity-add-key'),
+                  kind: ShunButtonKind.text,
                   onPressed: _addKey,
-                  icon: const Icon(Icons.add),
-                  label: LText(
-                    _kind == _Kind.securityKey ? '添加安全密钥' : '导入 SSH 私钥',
-                  ),
+                  icon: Icons.add,
+                  label: _kind == _Kind.securityKey ? '添加安全密钥' : '导入 SSH 私钥',
                 ),
               ),
             ],
             if (_usesPassword) ...[
               const FormGap(),
-              TextField(
+              // 切成明文时三个输入法开关也一直关着（ShunSecretField 保证，R44）。
+              ShunSecretField(
                 key: const ValueKey('identity-password'),
                 controller: _password,
-                obscureText: _obscure,
-                // 点小眼睛改成明文时也不让输入法学、不联想（R44）。
-                enableIMEPersonalizedLearning: false,
-                enableSuggestions: false,
-                autocorrect: false,
+                label: askable ? '密码（可选）' : '密码',
+                helperText: askable ? '不填就连接时问' : null,
+                errorText: _tried ? _passwordError : null,
                 onChanged: (_) => setState(() {}),
-                decoration: LInputDecoration(
-                  labelText: askable ? '密码（可选）' : '密码',
-                  hintText: askable ? '不填就连接时问' : null,
-                  errorText: _tried ? _passwordError : null,
-                  suffixIcon: IconButton(
-                    onPressed: () => setState(() => _obscure = !_obscure),
-                    tooltip: localized('显示或隐藏密码'),
-                    icon: Icon(
-                      _obscure ? Icons.visibility : Icons.visibility_off,
-                    ),
-                  ),
-                ),
               ),
             ],
           ],
         ),
       ),
       actions: [
-        TextButton(
+        ShunButton(
+          key: const ValueKey('identity-cancel'),
+          kind: ShunButtonKind.text,
           onPressed: () => Navigator.pop(context),
-          child: const LText('取消'),
+          label: '取消',
         ),
-        FilledButton(
+        ShunButton(
           key: const ValueKey('identity-save'),
           onPressed: _save,
-          child: const LText('保存'),
+          label: '保存',
         ),
       ],
     );

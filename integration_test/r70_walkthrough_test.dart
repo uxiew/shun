@@ -508,9 +508,7 @@ void main() {
       builder: (_) => const ProxyProfileEditor(),
     )));
     await settle(tester);
-    await tester.tap(find.byKey(const ValueKey('proxy-login-choice')));
-    await settle(tester);
-    await tester.tap(find.text('凭据').last);
+    await tester.tap(find.byKey(const ValueKey('login-choice-credential')));
     await settle(tester);
     await tester.tap(find.byKey(const ValueKey('proxy-credential')));
     await settle(tester);
@@ -523,9 +521,7 @@ void main() {
     unawaited(
         askFirstLogin(context, host('t', 'nas-tailscale', {'username': ''})));
     await settle(tester);
-    await tester.tap(find.byKey(const ValueKey('first-login-mode')));
-    await settle(tester);
-    await tester.tap(find.text('凭据').last);
+    await tester.tap(find.byKey(const ValueKey('login-choice-credential')));
     await settle(tester);
     await shot(tester, '31-first-login-credential');
     navigator.pop();

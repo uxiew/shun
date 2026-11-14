@@ -11,6 +11,8 @@ import 'package:shun/domain/ssh_key_type.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/widgets/keychain_sheet.dart';
 
+import 'support/prism_test_host.dart';
+
 // R25 第四部分：私钥列表的类型照实写（以前一律 ED25519），删除前先问、写出哪些主机在用。
 // 测试用的私钥现场用 ssh-keygen 生成，没有 ssh-keygen 的机器这一组跳过。
 void main() {
@@ -113,7 +115,11 @@ void main() {
       await container.read(vaultControllerProvider.notifier).ready();
       await tester.pumpWidget(UncontrolledProviderScope(
         container: container,
-        child: const MaterialApp(home: KeychainSheet()),
+        child: MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
+          home: const KeychainSheet(),
+        ),
       ));
       await tester.pumpAndSettle();
       return container;

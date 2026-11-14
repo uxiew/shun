@@ -5,8 +5,10 @@ import '../../application/tailscale_catalog_refresh.dart';
 import '../../application/vault_controller.dart';
 import '../../domain/models/host.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import 'credential_field.dart';
 import 'form_gap.dart';
+import 'no_intrinsics.dart';
 import 'secret_content.dart';
 import '../../domain/credential_identity.dart';
 
@@ -74,7 +76,6 @@ class _FirstLoginDialogState extends ConsumerState<_FirstLoginDialog> {
   final _password = TextEditingController();
   var _choice = LoginChoice.simple;
   String? _identityId;
-  var _obscure = true;
 
   @override
   void dispose() {
@@ -133,10 +134,13 @@ class _FirstLoginDialogState extends ConsumerState<_FirstLoginDialog> {
             children: [
               Text(address, style: small),
               const FormGap(),
-              LoginChoiceField(
-                key: const ValueKey('first-login-mode'),
-                value: _choice,
-                onChanged: (value) => setState(() => _choice = value),
+              // 分段选择里有 LayoutBuilder，AlertDialog 的固有尺寸测量过不去（见 NoIntrinsics）。
+              NoIntrinsics(
+                child: LoginChoiceField(
+                  key: const ValueKey('first-login-mode'),
+                  value: _choice,
+                  onChanged: (value) => setState(() => _choice = value),
+                ),
               ),
               if (_choice == LoginChoice.credential) ...[
                 const FormGap(),
@@ -160,27 +164,13 @@ class _FirstLoginDialogState extends ConsumerState<_FirstLoginDialog> {
               ],
               if (_choice == LoginChoice.simple) ...[
                 const FormGap(),
-                TextField(
+                // 切成明文时三个输入法开关也一直关着、不让输入法学（ShunSecretField 保证，R44）。
+                ShunSecretField(
                   key: const ValueKey('first-login-password'),
                   controller: _password,
                   autofocus: host.username.trim().isNotEmpty,
-                  obscureText: _obscure,
-                  enableIMEPersonalizedLearning: false,
-                  enableSuggestions: false,
-                  autocorrect: false,
-                  decoration: LInputDecoration(
-                    labelText: '密码（可不填）',
-                    helperText: '填了加密存本机，不填就连接时问',
-                    suffixIcon: IconButton(
-                      tooltip: localized(_obscure ? '显示密码' : '隐藏密码'),
-                      onPressed: () => setState(() => _obscure = !_obscure),
-                      icon: Icon(
-                        _obscure
-                            ? Icons.visibility_outlined
-                            : Icons.visibility_off_outlined,
-                      ),
-                    ),
-                  ),
+                  label: '密码（可不填）',
+                  helperText: '填了加密存本机，不填就连接时问',
                   onSubmitted: (_) => _submit(),
                 ),
               ],
@@ -190,14 +180,16 @@ class _FirstLoginDialogState extends ConsumerState<_FirstLoginDialog> {
           ),
         ),
         actions: [
-          TextButton(
+          ShunButton(
+            key: const ValueKey('first-login-cancel'),
+            kind: ShunButtonKind.text,
             onPressed: () => Navigator.pop(context),
-            child: const LText('取消'),
+            label: '取消',
           ),
-          FilledButton(
+          ShunButton(
             key: const ValueKey('first-login-connect'),
             onPressed: _valid ? _submit : null,
-            child: const LText('连接'),
+            label: '连接',
           ),
         ],
       ),

@@ -31,6 +31,7 @@ import 'package:shun/presentation/widgets/secret_content.dart';
 import 'package:shun/presentation/widgets/ssh_key_import.dart';
 import 'package:shun/presentation/widgets/system_management/sudo_prompt.dart';
 
+import 'support/prism_test_host.dart';
 import 'support/ui_rules.dart';
 
 // R44 / SEC13 的本机部分：什么时候让窗口防截屏、哪些页面接上了、密码框关没关输入法学习。
@@ -59,7 +60,11 @@ void main() {
   Future<void> pump(WidgetTester tester, Widget home) async {
     await tester.pumpWidget(ProviderScope(
       overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
-      child: MaterialApp(home: home),
+      child: MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
+        home: home,
+      ),
     ));
     await tester.pumpAndSettle();
   }

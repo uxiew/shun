@@ -7,6 +7,7 @@ import '../../domain/models/host.dart';
 import '../../domain/security_key.dart';
 import '../localization/localized_widgets.dart';
 import '../ui/components.dart';
+import 'choice_segments.dart';
 import 'identity_editor.dart';
 import 'keychain_sheet.dart';
 import 'security_key_actions.dart';
@@ -15,7 +16,10 @@ import 'ssh_key_import.dart';
 /// 一个连接怎么登录（F31）：直接填用户名和密码，或者用「凭据」里的一个。
 enum LoginChoice { simple, credential, tailscale }
 
-/// 「认证方式」下拉框，主机编辑器、首次登录、Tailscale 设置、代理共用。
+/// 「认证方式」分段，首次登录、目录导入、Tailscale 设置、代理共用（R89 从下拉框换来）。
+///
+/// 写法同主机编辑器的认证方式：上面一行小标题，下面是 [ChoiceSegments]；
+/// 外层 key 是调用方传的，三段各有 `login-choice-simple` / `-credential` / `-tailscale`。
 class LoginChoiceField extends StatelessWidget {
   const LoginChoiceField({
     super.key,
@@ -29,32 +33,42 @@ class LoginChoiceField extends StatelessWidget {
   final bool withTailscale;
 
   @override
-  Widget build(BuildContext context) => KeyedSubtree(
-        // initialValue 只认第一次。「存为凭据」会从外面改选中项，换 key 才跟得上。
-        key: ValueKey(value),
-        child: DropdownButtonFormField<LoginChoice>(
-          initialValue: value,
-          isExpanded: true,
-          decoration: LInputDecoration(labelText: '认证方式'),
-          items: [
-            const DropdownMenuItem(
-              value: LoginChoice.simple,
-              child: LText('用户名 / 密码'),
-            ),
-            const DropdownMenuItem(
-              value: LoginChoice.credential,
-              child: LText('凭据'),
-            ),
-            if (withTailscale)
-              const DropdownMenuItem(
-                value: LoginChoice.tailscale,
-                child: LText('Tailscale SSH'),
+  Widget build(BuildContext context) => Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(left: 4, bottom: 6),
+            child: Semantics(
+              header: true,
+              child: LText(
+                '认证方式',
+                style: Theme.of(context).textTheme.labelLarge,
               ),
-          ],
-          onChanged: (choice) {
-            if (choice != null) onChanged(choice);
-          },
-        ),
+            ),
+          ),
+          ChoiceSegments<LoginChoice>(
+            selected: value,
+            onTap: onChanged,
+            segments: [
+              const ChoiceSegment(
+                LoginChoice.simple,
+                '用户名 / 密码',
+                key: ValueKey('login-choice-simple'),
+              ),
+              const ChoiceSegment(
+                LoginChoice.credential,
+                '凭据',
+                key: ValueKey('login-choice-credential'),
+              ),
+              if (withTailscale)
+                const ChoiceSegment(
+                  LoginChoice.tailscale,
+                  'Tailscale SSH',
+                  key: ValueKey('login-choice-tailscale'),
+                ),
+            ],
+          ),
+        ],
       );
 }
 
@@ -281,10 +295,11 @@ class OwnKeyRow extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
             ),
           ),
-          TextButton(
+          ShunButton(
             key: const ValueKey('own-key-drop'),
+            kind: ShunButtonKind.text,
             onPressed: onDrop,
-            child: const LText('不用了'),
+            label: '不用了',
           ),
         ],
       );
