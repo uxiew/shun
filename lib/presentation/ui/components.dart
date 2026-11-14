@@ -218,6 +218,7 @@ class ShunListRow extends StatelessWidget {
     this.details,
     this.describeLeading = false,
     this.expanded,
+    this.selected,
   });
 
   /// 中文原文，显示时再本地化。
@@ -247,6 +248,10 @@ class ShunListRow extends StatelessWidget {
   /// 点了展开/收起下面内容的行（树形视图的分组、Tailscale 来源）：读屏报「已展开」「已收起」。
   /// null 表示不是这种行。
   final bool? expanded;
+
+  /// 选一个的列表里的一项（分组、密钥、凭据面板）：true 是当前那项，右边打勾（[trailing] 为空时），
+  /// 读屏报「已选中」；false 报「未选中」。null 表示不是这种行。
+  final bool? selected;
 
   @override
   Widget build(BuildContext context) {
@@ -295,18 +300,29 @@ class ShunListRow extends StatelessWidget {
                   color: colors.onSurfaceVariant.withValues(alpha: dim),
                 ),
               )
-            : null);
+            : selected == true
+                ? ExcludeSemantics(
+                    child: glyphs.GlyphIcon(
+                      glyphs.Glyphs.check,
+                      color: colors.primary.withValues(alpha: dim),
+                    ),
+                  )
+                : null);
     if (grouped) {
       // Prism 的分组卡片自己就是一个按钮节点（CardSurface 是语义边界，带点按）。名字要落在
       // 同一个节点上：标题、副标题不排除，直接并进卡片节点；外面不再套自己的节点，
       // 否则读屏听到的是「有名字不能点」和「能点没名字」两个节点（R86 清点时实测）。
       // 长按和展开状态同理：标在卡片里面（并进卡片节点）；长按的手势另由外层收，整行都能按。
       // Prism 卡片只在里面有带 onTap 的部件时才让出点按，只挂长按不影响点一下。
+      // 选中状态：当前那项交给卡片自己报（isSelected）；没选中的在里面补「未选中」。
+      // 两边都标「已选中」会冲突，读屏拆成两个节点（R87 分组 chip 实测）。
       final item = prism.DecorationListItem(
         leading: leading,
+        isSelected: selected == true,
         title: Semantics(
           onLongPress: longPress,
           expanded: expanded,
+          selected: selected == false ? false : null,
           child: LText(
             title,
             style: prism.AppTextStyle.body.of(context).copyWith(
@@ -357,6 +373,7 @@ class ShunListRow extends StatelessWidget {
       button: tappable,
       enabled: tappable ? enabled : null,
       expanded: expanded,
+      selected: selected,
       label: subtitle == null
           ? localizedOf(context, title)
           : '${localizedOf(context, title)}, ${localizedOf(context, subtitle!)}',
