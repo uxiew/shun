@@ -442,6 +442,28 @@ void main() {
         await save(tester, 'connections-populated-412x892-zh-s1');
       });
 
+      // R85 主导航外壳：横屏和平板。底栏是 Prism 的 NavigationBar，五个入口都在。
+      for (final (name, width, height) in const [
+        ('landscape-892x412', 892.0, 412.0),
+        ('tablet-1280x800', 1280.0, 800.0),
+      ]) {
+        testWidgets('主导航：$name', skip: skip != null, (tester) async {
+          final container = await pumpPage(
+            tester,
+            const HomeShell(),
+            width: width,
+            height: height,
+            hosts: uiGalleryHosts,
+            sessions: uiGallerySessions(),
+          );
+          await save(tester, 'shell-connections-$name-zh-s1');
+          container.read(homeTabProvider.notifier).state = 1;
+          await settle(tester);
+          expect(find.byType(GhosttyTerminalView), findsOneWidget);
+          await save(tester, 'shell-terminal-$name-zh-s1');
+        });
+      }
+
       testWidgets('终端、按键面板、会话总览', skip: skip != null, (tester) async {
         final container = await pumpPage(
           tester,

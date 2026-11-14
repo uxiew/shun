@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../application/home_navigation.dart';
 import '../application/settings_controller.dart';
@@ -78,7 +79,6 @@ class _HomeShellState extends ConsumerState<HomeShell>
         ref.watch(terminalPictureInPictureProvider);
     final settings = ref.watch(settingsControllerProvider);
     final customBackground = customBackgroundAppliesToTab(settings, index);
-    final globalBackground = hasGlobalCustomBackground(settings);
     final hideNavigation = shouldHideHomeNavigation(
       index,
       terminalFullscreen || terminalPictureInPicture,
@@ -120,7 +120,6 @@ class _HomeShellState extends ConsumerState<HomeShell>
                 !ref.read(terminalPictureInPictureProvider) &&
                 _overview.isDismissed,
             child: Scaffold(
-              extendBody: globalBackground,
               body: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -147,13 +146,8 @@ class _HomeShellState extends ConsumerState<HomeShell>
                   if (overviewOpen) _overviewLayer(),
                 ],
               ),
-              bottomNavigationBar: hideNavigation
-                  ? null
-                  : _navigationBar(
-                      context,
-                      index,
-                      transparent: globalBackground,
-                    ),
+              bottomNavigationBar:
+                  hideNavigation ? null : _navigationBar(index),
             ),
           ),
         ),
@@ -193,12 +187,29 @@ class _HomeShellState extends ConsumerState<HomeShell>
         ),
       );
 
-  Widget _navigationBar(
-    BuildContext context,
-    int selectedIndex, {
-    required bool transparent,
-  }) {
-    final navigation = NavigationBar(
+  /// 底栏（R85）：Prism 的 NavigationBar，FlClash 手机界面用的就是它。
+  ///
+  /// 一直不透明（Prism 的浮起层颜色），全局自定义背景只铺到底栏上方。以前全局背景时底栏透明、
+  /// 背景从底下透出来，浅色背景上底栏的字看不清（R83 第 4 节）。
+  /// 图标用 Material 的：Prism 只带通用的界面符号，没有服务器、终端、文件夹这类图标。
+  Widget _navigationBar(int selectedIndex) {
+    const icons = [
+      (Icons.dns_outlined, Icons.dns),
+      (Icons.terminal_outlined, Icons.terminal),
+      (Icons.folder_outlined, Icons.folder),
+      (Icons.code_outlined, Icons.code),
+      (Icons.settings_outlined, Icons.settings),
+    ];
+    final labels = [
+      // 以前叫「保险库」，所有者觉得不像放主机的地方（R26）。英文表里「连接」是按钮上的 Connect，
+      // 底栏要的是页名，单独写。
+      ShunLocalizations.isEnglish ? 'Hosts' : '连接',
+      localized('终端'),
+      localized('文件'),
+      localized('片段'),
+      localized('设置'),
+    ];
+    return prism.NavigationBar(
       key: const ValueKey('home-navigation-bar'),
       selectedIndex: selectedIndex,
       onDestinationSelected: (value) {
@@ -206,50 +217,25 @@ class _HomeShellState extends ConsumerState<HomeShell>
         _closeOverview();
       },
       destinations: [
-        NavigationDestination(
-          icon: const Icon(Icons.dns_outlined),
-          selectedIcon: const Icon(Icons.dns),
-          // 以前叫「保险库」，所有者觉得不像放主机的地方（R26）。英文表里「连接」是按钮上的 Connect，
-          // 底栏要的是页名，单独写。
-          label: ShunLocalizations.isEnglish ? 'Hosts' : '连接',
-        ),
-        NavigationDestination(
-          icon: const Icon(Icons.terminal_outlined),
-          selectedIcon: const Icon(Icons.terminal),
-          label: localized('终端'),
-        ),
-        NavigationDestination(
-          icon: const Icon(Icons.folder_outlined),
-          selectedIcon: const Icon(Icons.folder),
-          label: localized('文件'),
-        ),
-        NavigationDestination(
-          icon: const Icon(Icons.code_outlined),
-          selectedIcon: const Icon(Icons.code),
-          label: localized('片段'),
-        ),
-        NavigationDestination(
-          icon: const Icon(Icons.settings_outlined),
-          selectedIcon: const Icon(Icons.settings),
-          label: localized('设置'),
-        ),
+        for (final (index, (outlined, filled)) in icons.indexed)
+          prism.NavigationDestination(
+            icon: KeyedSubtree(
+              key: homeNavigationKey(index),
+              child: Icon(index == selectedIndex ? filled : outlined),
+            ),
+            label: labels[index],
+          ),
       ],
-    );
-    if (!transparent) return navigation;
-    final theme = Theme.of(context);
-    return Theme(
-      data: theme.copyWith(
-        navigationBarTheme: theme.navigationBarTheme.copyWith(
-          backgroundColor: Colors.transparent,
-          surfaceTintColor: Colors.transparent,
-          shadowColor: Colors.transparent,
-          elevation: 0,
-        ),
-      ),
-      child: navigation,
     );
   }
 }
+
+/// 底栏五个入口的 key（R85）：测试和设备脚本按它找入口，不按导航控件的类型找。
+/// 顺序就是 [homeTabProvider] 的值；改顺序等于改所有「切到第 N 页」的地方。
+const homeTabIds = ['hosts', 'terminal', 'files', 'snippets', 'settings'];
+
+ValueKey<String> homeNavigationKey(int index) =>
+    ValueKey('home-nav-${homeTabIds[index]}');
 
 bool shouldHideHomeNavigation(int tabIndex, bool terminalFullscreen) =>
     tabIndex == 1 && terminalFullscreen;

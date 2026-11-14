@@ -43,12 +43,6 @@ ThemeData _build(ShunUiTheme ui, {required bool reduceMotion}) {
         prismTheme.tapTargetSize == prism.TapTargetSize.padded
             ? MaterialTapTargetSize.padded
             : MaterialTapTargetSize.shrinkWrap,
-    // 底栏留给 R85 换成 Prism 导航，这里只把颜色接到同一组表面上，高度和选中底色照旧。
-    navigationBarTheme: NavigationBarThemeData(
-      backgroundColor: card,
-      indicatorColor: colors.primary.withValues(alpha: 0.2),
-      height: 68,
-    ),
     appBarTheme: AppBarTheme(
       backgroundColor: prismTheme.scaffoldBackgroundColor,
       foregroundColor: colors.onSurface,

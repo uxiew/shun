@@ -544,15 +544,12 @@ printf '%s' '$encoded' | base64 -d > $remote/stream.sh
             if ((actionIndex++).isEven) {
               await tester.tap(_key('ts-settings-cancel'));
             } else {
-              final destinations = find.descendant(
-                of: _key('home-navigation-bar'),
-                matching: find.byType(NavigationDestination),
-              );
               // A real hit outside the sheet proves that it does not trap
               // background interaction; the production tab listener closes it.
               // Do not count global ModalBarriers: root routes may own a
               // nonblocking barrier that is unrelated to this sheet.
-              await tester.tap(destinations.at(4));
+              // R85: located by the stable entry key, not the bar's widget type.
+              await tester.tap(find.byKey(homeNavigationKey(4)));
               expect(container.read(homeTabProvider), 4);
             }
             await closed.timeout(const Duration(seconds: 5));
@@ -576,10 +573,7 @@ printf '%s' '$encoded' | base64 -d > $remote/stream.sh
           await hidePanel();
           action = () async {
             final index = actionIndex++ % 5;
-            final destinations = find.descendant(
-                of: _key('home-navigation-bar'),
-                matching: find.byType(NavigationDestination));
-            await tester.tap(destinations.at(index));
+            await tester.tap(find.byKey(homeNavigationKey(index)));
             await _delay(350);
             expect(container.read(homeTabProvider), index);
             if (index == 1) {

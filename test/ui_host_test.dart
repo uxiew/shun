@@ -36,6 +36,7 @@ import 'package:shun/infrastructure/tailscale/catalog_cache_repository.dart';
 import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
 import 'package:shun/presentation/home_shell.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
+import 'package:shun/presentation/screens/settings_screen.dart';
 import 'package:shun/presentation/screens/terminal_screen.dart';
 import 'package:shun/presentation/terminal/ghostty_terminal_view.dart';
 import 'package:shun/presentation/terminal/terminal_view.dart';
@@ -658,7 +659,12 @@ void main() {
       find.byType(TerminalScreen, skipOffstage: false),
     );
     final bar = find.byKey(const ValueKey('home-navigation-bar'));
-    expect(tester.widget<NavigationBar>(bar).destinations, hasLength(5));
+    // 按入口 key 找，不按导航控件的类型找（R85 换成了 Prism 的底栏）。
+    for (var index = 0; index < 5; index++) {
+      expect(
+          find.descendant(of: bar, matching: find.byKey(homeNavigationKey(index))),
+          findsOneWidget);
+    }
     expect(find.byType(WidgetsApp), findsOneWidget);
     expect(find.byType(Navigator), findsOneWidget);
     await tester.tap(find.descendant(of: bar, matching: find.text('终端')).last);
@@ -673,12 +679,7 @@ void main() {
     expect(active.allText(), contains('Application log'));
 
     for (final index in [2, 3, 4, 0, 1]) {
-      final destination =
-          tester.widget<NavigationBar>(bar).destinations[index]
-              as NavigationDestination;
-      await tester.tap(
-        find.descendant(of: bar, matching: find.text(destination.label)).last,
-      );
+      await tester.tap(find.byKey(homeNavigationKey(index)));
       await _frames(tester);
       expect(container.read(homeTabProvider), index);
       expect(tester.state(find.byType(HomeShell)), same(shell));
@@ -1017,6 +1018,371 @@ void main() {
       expect(scaler.scale(15), isNot(closeTo(15 * scaler.scale(30) / 30, 0.01)));
     }
     expect(tester.takeException(), isNull);
+  });
+
+  // R85 / UIM06：底栏换成 Prism 的 NavigationBar 以后，五入口、切页留存、返回顺序、锁定、
+  // 全屏/画中画和各种屏幕尺寸照旧。入口按 key、读屏语义和真实点击找，不按控件类型。
+  group('R85 主导航外壳', () {
+    const names = ['连接', '终端', '文件', '片段', '设置'];
+    final bar = find.byKey(const ValueKey('home-navigation-bar'));
+    Finder entry(int index) => find.byKey(homeNavigationKey(index));
+    final view = find.byType(GhosttyTerminalView, skipOffstage: false);
+    final engine = find.byType(flterm.TerminalView, skipOffstage: false);
+
+    void size(WidgetTester tester, Size logical, {double textScale = 1}) {
+      tester.view.physicalSize = logical * 2;
+      tester.view.devicePixelRatio = 2;
+      tester.platformDispatcher.textScaleFactorTestValue = textScale;
+      addTearDown(tester.view.reset);
+      addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    }
+
+    Future<({ProviderContainer container, SessionState sessions})> open(
+      WidgetTester tester, {
+      String inputMode = terminalInputSystem,
+    }) =>
+        _openShunApp(
+          tester,
+          (_) async => AppSettings(
+            themeMode: 'light',
+            language: 'zh-CN',
+            autoSyncEnabled: false,
+            terminalInputMode: inputMode,
+          ),
+        );
+
+    Future<void> go(
+        WidgetTester tester, ProviderContainer container, int index) async {
+      await tester.tap(entry(index));
+      await _frames(tester);
+      expect(container.read(homeTabProvider), index);
+    }
+
+    testWidgets('五个入口：读屏是五个按钮、标出选中；底栏不透明，只有这五页', (tester) async {
+      _allowIdleTasks(tester);
+      size(tester, const Size(412, 892));
+      final handle = tester.ensureSemantics();
+      final app = await open(tester);
+      final container = app.container;
+      expect(
+        find.descendant(
+          of: bar,
+          matching: find.byWidgetPredicate((widget) =>
+              widget.key is ValueKey<String> &&
+              (widget.key! as ValueKey<String>).value.startsWith('home-nav-')),
+        ),
+        findsNWidgets(5),
+      );
+      final stack = tester.widget<IndexedStack>(find
+          .descendant(
+              of: find.byType(HomeShell), matching: find.byType(IndexedStack))
+          .first);
+      expect(stack.children, hasLength(5), reason: '没有第六页（管理页）');
+
+      for (var selected = 0; selected < 5; selected++) {
+        await go(tester, container, selected);
+        for (var index = 0; index < 5; index++) {
+          final node = tester.getSemantics(entry(index));
+          expect(node.label, names[index]);
+          expect(node.flagsCollection.isButton, isTrue);
+          expect(
+            node.flagsCollection.isSelected,
+            index == selected ? ui.Tristate.isTrue : ui.Tristate.isFalse,
+            reason: '选中第 $selected 页时第 $index 个入口',
+          );
+          final hit = tester.getSize(entry(index));
+          expect(hit.width, greaterThanOrEqualTo(24));
+        }
+        // 每个入口整格可点：宽是整行的五分之一，高 80。
+        final cell = tester.getRect(find
+            .ancestor(of: entry(selected), matching: find.byType(p.PressRegion))
+            .first);
+        expect(cell.height, greaterThanOrEqualTo(48));
+        expect(cell.width, greaterThanOrEqualTo(48));
+      }
+
+      final colors = _lightUi.colorScheme;
+      final surface = tester.widget<p.Surface>(
+          find.descendant(of: bar, matching: find.byType(p.Surface)).first);
+      expect(surface.color, p.SurfaceLevel.floatingOf(colors).colorOf(colors));
+      expect(surface.color!.a, 1.0, reason: '底栏不透明，背景透不过来');
+      expect(tester.takeException(), isNull);
+      handle.dispose();
+    });
+
+    testWidgets('切页保留滚动、草稿、标签和会话；不新建终端视图', (tester) async {
+      _allowIdleTasks(tester);
+      size(tester, const Size(412, 892));
+      final app = await open(tester, inputMode: terminalInputCompose);
+      final container = app.container;
+      final shell = tester.state(find.byType(HomeShell));
+
+      // 设置页往下滚一段。
+      await go(tester, container, 4);
+      final settingsScroll = find
+          .descendant(
+              of: find.byType(SettingsScreen),
+              matching: find.byType(Scrollable))
+          .first;
+      await tester.drag(settingsScroll, const Offset(0, -400));
+      await _frames(tester);
+      final scrolled =
+          tester.state<ScrollableState>(settingsScroll).position.pixels;
+      expect(scrolled, greaterThan(100));
+
+      // 终端页：第二个标签，大输入框里写一段没发的草稿。
+      await go(tester, container, 1);
+      container.read(sessionControllerProvider.notifier).activate(1);
+      await _frames(tester);
+      final editor = find.byKey(const ValueKey('terminal-compose-editor'));
+      await tester.enterText(editor, 'r85-draft');
+      await _frames(tester);
+      final viewState = tester.state(view);
+      final engineState = tester.state(engine);
+      final terminalScreen =
+          tester.state(find.byType(TerminalScreen, skipOffstage: false));
+
+      for (final index in [0, 2, 3, 4, 1, 4, 0, 1]) {
+        await go(tester, container, index);
+        expect(tester.state(find.byType(HomeShell)), same(shell));
+        expect(tester.state(find.byType(TerminalScreen, skipOffstage: false)),
+            same(terminalScreen));
+        expect(view, findsOneWidget, reason: '切页不复制终端视图');
+        expect(tester.state(view), same(viewState));
+        expect(tester.state(engine), same(engineState));
+        expect(
+            container.read(sessionControllerProvider).sessions, hasLength(2));
+        expect(container.read(sessionControllerProvider).activeIndex, 1);
+      }
+      expect(
+        tester
+            .widget<EditableText>(find.descendant(
+                of: editor, matching: find.byType(EditableText)))
+            .controller
+            .text,
+        'r85-draft',
+      );
+      await go(tester, container, 4);
+      expect(tester.state<ScrollableState>(settingsScroll).position.pixels,
+          scrolled);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('持续输出时切主 tab、push/pop 二级页：视图、输出、焦点连续', (tester) async {
+      _allowIdleTasks(tester);
+      size(tester, const Size(412, 892));
+      final app = await open(tester);
+      final container = app.container;
+      final rootKey =
+          tester.widget<ShunUiHost>(find.byType(ShunUiHost)).navigatorKey;
+      await go(tester, container, 1);
+      container.read(sessionControllerProvider.notifier).activate(1);
+      await _frames(tester);
+      final active =
+          app.sessions.sessions[1].terminal as GhosttyTerminalAdapter;
+      final viewState = tester.state(view);
+      final engineState = tester.state(engine);
+      final input = tester.widget<flterm.TerminalView>(engine).focusNode!;
+
+      var line = 0;
+      final output = Timer.periodic(const Duration(milliseconds: 20), (_) {
+        line++;
+        active.feed(utf8.encode('r85-stream-$line\r\n'));
+      });
+      addTearDown(output.cancel);
+
+      for (final index in [0, 2, 3, 4, 1]) {
+        final before = line;
+        await go(tester, container, index);
+        expect(line, greaterThan(before), reason: '切到第 $index 页时输出没停');
+        expect(tester.state(view), same(viewState));
+        expect(tester.state(engine), same(engineState));
+      }
+      expect(active.allText(), contains('r85-stream-$line'));
+      // 终端拿着焦点时点底栏切走：焦点跟着页面隐藏而离开，切回来也不自己回到终端（不自动弹键盘）。
+      // 这是原有行为：11-14 把底栏临时换回旧的 Material NavigationBar 跑同一段，结果相同。
+      input.requestFocus();
+      await _frames(tester);
+      expect(input.hasFocus, isTrue);
+      for (final index in [3, 1]) {
+        await go(tester, container, index);
+        expect(input.hasFocus, isFalse, reason: '切到第 $index 页');
+      }
+      expect(tester.state(engine), same(engineState));
+
+      // 二级页：终端先拿着焦点，push 后交给二级页，pop 回来还给终端。
+      input.requestFocus();
+      await _frames(tester);
+      expect(input.hasFocus, isTrue);
+
+      final route = p.CardPageRoute<void>(
+        settings: const RouteSettings(name: '/r85-secondary'),
+        builder: (_) => const Scaffold(body: TextField(autofocus: true)),
+      );
+      unawaited(rootKey.currentState!.push<void>(route));
+      await _frames(tester);
+      expect(route.isCurrent, isTrue);
+      expect(input.hasFocus, isFalse, reason: '二级页拿走输入焦点');
+      final covered = line;
+      await _frames(tester);
+      expect(line, greaterThan(covered), reason: '被盖住时终端照收输出');
+      expect(tester.state(view), same(viewState));
+      expect(tester.state(engine), same(engineState));
+
+      expect(await tester.binding.handlePopRoute(), isTrue);
+      for (var i = 0; i < 20; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+      expect(route.isActive, isFalse);
+      expect(tester.state(view), same(viewState));
+      expect(tester.state(engine), same(engineState));
+      expect(input.hasFocus, isTrue, reason: '回来后焦点还给终端');
+      expect(active.allText(), contains('r85-stream-$line'));
+      expect(container.read(homeTabProvider), 1);
+      output.cancel();
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('返回顺序：总览 > 全屏 > 根；画中画返回先退画中画；锁着时返回不弹底下的页', (tester) async {
+      _allowIdleTasks(tester);
+      size(tester, const Size(412, 892));
+      final app = await open(tester);
+      final container = app.container;
+      final rootKey =
+          tester.widget<ShunUiHost>(find.byType(ShunUiHost)).navigatorKey;
+      final messenger = tester.binding.defaultBinaryMessenger;
+      final pip = <String>[];
+      messenger.setMockMethodCallHandler(
+          const MethodChannel('top.xdwa.shun/picture_in_picture'),
+          (call) async {
+        pip.add(call.method);
+        return null;
+      });
+      final system = <String>[];
+      messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+        system.add(call.method);
+        return null;
+      });
+      addTearDown(() =>
+          messenger.setMockMethodCallHandler(SystemChannels.platform, null));
+      final overview = find.byKey(const ValueKey('session-overview-scrim'));
+
+      await go(tester, container, 1);
+      container.read(terminalFullscreenProvider.notifier).state = true;
+      container.read(sessionOverviewRequestProvider.notifier).state++;
+      await _frames(tester);
+      expect(bar, findsNothing, reason: '全屏时没有底栏');
+      expect(overview, findsOneWidget);
+
+      expect(await tester.binding.handlePopRoute(), isTrue);
+      await _frames(tester);
+      expect(overview, findsNothing, reason: '先关总览');
+      expect(container.read(terminalFullscreenProvider), isTrue);
+
+      expect(await tester.binding.handlePopRoute(), isTrue);
+      await _frames(tester);
+      expect(container.read(terminalFullscreenProvider), isFalse,
+          reason: '再退全屏');
+      expect(bar, findsOneWidget, reason: '底栏回来');
+      expect(container.read(homeTabProvider), 1);
+
+      container.read(terminalPictureInPictureProvider.notifier).state = true;
+      await _frames(tester);
+      expect(bar, findsNothing, reason: '画中画时没有底栏');
+      expect(await tester.binding.handlePopRoute(), isTrue);
+      await _frames(tester);
+      expect(container.read(terminalPictureInPictureProvider), isFalse);
+      expect(pip, contains('stop'));
+      expect(bar, findsOneWidget);
+
+      // 根上没有可退的：交给系统（退到桌面），HomeShell 不被弹掉。
+      system.clear();
+      expect(await tester.binding.handlePopRoute(), isFalse);
+      expect(find.byType(HomeShell), findsOneWidget);
+
+      // 锁着时：返回退到桌面，盖子底下的二级页不弹。
+      final route = MaterialPageRoute<void>(
+        builder: (_) => const Scaffold(body: Text('r85-under-lock')),
+      );
+      unawaited(rootKey.currentState!.push<void>(route));
+      await _frames(tester);
+      final lock = container.read(appLockControllerProvider.notifier);
+      lock.settingsChanged(
+        const AppSettings(appLockEnabled: true, appLockGraceSeconds: 0),
+      );
+      lock.activityPaused(false);
+      await _frames(tester);
+      expect(container.read(appLockControllerProvider).obscured, isTrue);
+      system.clear();
+      expect(await tester.binding.handlePopRoute(), isTrue);
+      await _frames(tester);
+      expect(system, contains('SystemNavigator.pop'));
+      expect(route.isCurrent, isTrue, reason: '锁着时不弹底下的页');
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('全局自定义背景：底栏仍不透明，背景只铺到底栏上方（R83 记下的字偏淡）', (tester) async {
+      _allowIdleTasks(tester);
+      size(tester, const Size(412, 892));
+      final app = await _openShunApp(tester, (paths) async {
+        final directory = Directory('${paths.supportPath}/custom-backgrounds');
+        await directory.create(recursive: true);
+        await File('${directory.path}/background-r85.png')
+            .writeAsBytes(base64Decode(_onePixelPng));
+        return const AppSettings(
+          themeMode: 'light',
+          language: 'zh-CN',
+          autoSyncEnabled: false,
+          customBackgroundEnabled: true,
+          customBackgroundPath: 'shun-background:background-r85.png',
+          customBackgroundScope: 'global',
+        );
+      });
+      final container = app.container;
+      for (final index in [0, 1, 4]) {
+        await go(tester, container, index);
+        final background = find.byType(CustomBackgroundImage);
+        expect(background, findsOneWidget, reason: '第 $index 页有全局背景');
+        final barRect = tester.getRect(bar);
+        expect(
+            tester.getRect(background).bottom, lessThanOrEqualTo(barRect.top),
+            reason: '背景不伸到底栏底下');
+        final surface = tester.widget<p.Surface>(
+            find.descendant(of: bar, matching: find.byType(p.Surface)).first);
+        expect(surface.color!.a, 1.0);
+      }
+      expect(tester.takeException(), isNull);
+    });
+
+    for (final (label, logical, textScale) in const [
+      ('窄屏 320×640', Size(320, 640), 1.0),
+      ('窄屏大字 320×640 ×2', Size(320, 640), 2.0),
+      ('常见 412×892', Size(412, 892), 1.0),
+      ('横屏 892×412', Size(892, 412), 1.0),
+      ('平板 1280×800', Size(1280, 800), 1.0),
+    ]) {
+      testWidgets('布局：$label 五个入口都点得到，底栏贴底、不溢出', (tester) async {
+        _allowIdleTasks(tester);
+        size(tester, logical, textScale: textScale);
+        final app = await open(tester);
+        final container = app.container;
+        final rect = tester.getRect(bar);
+        expect(rect.bottom, logical.height);
+        expect(rect.width, logical.width);
+        for (final index in [1, 2, 3, 4, 0]) {
+          final center = tester.getCenter(entry(index));
+          expect(rect.contains(center), isTrue);
+          await go(tester, container, index);
+        }
+        // 终端页的终端区在底栏上面，不被盖住。
+        await go(tester, container, 1);
+        final area =
+            tester.getRect(find.byKey(const ValueKey('terminal-area')));
+        expect(area.bottom, lessThanOrEqualTo(rect.top));
+        expect(area.height, greaterThan(0));
+        expect(tester.takeException(), isNull);
+      });
+    }
   });
 }
 

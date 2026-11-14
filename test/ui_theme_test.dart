@@ -38,7 +38,6 @@ void main() {
       expect(material.scaffoldBackgroundColor, preset.background);
       expect(material.appBarTheme.backgroundColor, preset.background);
       expect(material.cardTheme.color, preset.card);
-      expect(material.navigationBarTheme.backgroundColor, preset.card);
       expect(colors.primary, preset.primary);
       expect(colors.outline, preset.border);
       // 终端底色（也是 OSC 11 的回答）读 surface：浅色是卡片，深色是页面。
