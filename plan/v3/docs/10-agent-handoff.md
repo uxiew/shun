@@ -10,7 +10,7 @@ R81–R88已完成，UIM01–UIM09及GU0、GU1 PASS；实际范围见[evidence/R
 
 ### Claude Code 首次接手
 
-本机代码仓库是 `/Users/bing/xdw/shun/shun`，上一层是工具链工作区；在代码仓库内开始。最近已核验分支为 `shun/v3`，R88实现提交见tasks.json的R88.commit，验收与本交接在其后提交。这些是历史核验锚点，后续文档提交会使HEAD前进，不要求回退。
+代码仓库是工具链工作区下的 `shun/` 目录；在代码仓库内开始。最近已核验分支为 `shun/v3`，R88实现提交见tasks.json的R88.commit，验收与本交接在其后提交。这些是历史核验锚点，后续文档提交会使HEAD前进，不要求回退。
 
 先读取现场分支、HEAD、dirty以及适用的CLAUDE.md（若存在）；显式读取根AGENTS.md和plan/v3/AGENTS.md，不依赖宿主自动加载。保留他人改动，不为对齐交接执行reset、强制checkout或清理工作区。若R89已有进展，按tasks.json和实际diff续接，不重复实现。
 
@@ -19,7 +19,7 @@ R81–R88已完成，UIM01–UIM09及GU0、GU1 PASS；实际范围见[evidence/R
 下面是本轮执行提示词；任务定义只维护在tasks.json，结果只按实际验证填写。
 
 ```text
-在 /Users/bing/xdw/shun/shun 接手shun，按V3计划直接完成R89的实现、验证、证据和本地提交。
+在代码仓库 shun/ 接手，按V3计划直接完成R89的实现、验证、证据和本地提交。
 先读根AGENTS、plan/v3/AGENTS、STATUS及规定的契约文档，再读docs/24、
 docs/decisions/ui-system-decision.md、tasks.json的R89条目和evidence/R84、R87、R88，以及docs/23的F41相关段落。
 记录实际分支/HEAD/dirty/SDK/lock，核对R88证据仍对应当前代码；保留他人改动。
