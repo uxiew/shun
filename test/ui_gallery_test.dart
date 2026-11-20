@@ -13,6 +13,7 @@ import 'package:http/testing.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shun/application/app_lock.dart';
+import 'package:shun/application/catalog_overview.dart';
 import 'package:shun/application/home_navigation.dart';
 import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/settings_controller.dart';
@@ -39,11 +40,19 @@ import 'package:shun/presentation/screens/settings_screen.dart';
 import 'package:shun/presentation/screens/snippets_screen.dart';
 import 'package:shun/presentation/screens/tailscale_catalog_screen.dart';
 import 'package:shun/presentation/screens/tailscale_settings_screen.dart';
+import 'package:shun/presentation/screens/vault_screen.dart';
 import 'package:shun/presentation/terminal/ghostty_terminal_view.dart';
 import 'package:shun/presentation/ui/prism_theme.dart';
 import 'package:shun/presentation/ui/shun_ui_host.dart';
 import 'package:shun/domain/connection_route.dart';
 import 'package:shun/presentation/widgets/connection_probe_sheet.dart';
+import 'package:shun/presentation/widgets/connection_prompts.dart';
+import 'package:shun/presentation/widgets/first_login_dialog.dart';
+import 'package:shun/presentation/widgets/host_key_dialogs.dart';
+import 'package:shun/presentation/widgets/keychain_sheet.dart';
+import 'package:shun/presentation/widgets/proxy_profiles_page.dart';
+import 'package:shun/presentation/widgets/security_key_prompt.dart';
+import 'package:shun/presentation/ui/components.dart';
 import 'package:shun/presentation/widgets/custom_background.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shun/presentation/widgets/proxy_profile_editor.dart';
@@ -75,8 +84,11 @@ void main() {
   const secureStorage =
       MethodChannel('plugins.it_nomads.com/flutter_secure_storage');
 
+  // 安全存储的内存假体；pumpPage 的 secretValues 往里预置，Tailscale 面板的「已存 key」就是这么来的。
+  final secrets = <String, String>{};
+
   setUp(() {
-    final secrets = <String, String>{};
+    secrets.clear();
     TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
         .setMockMethodCallHandler(secureStorage, (call) async {
       final args = Map<String, dynamic>.from(call.arguments as Map? ?? {});
@@ -192,7 +204,11 @@ void main() {
         List<CatalogCache> catalogs = const [],
         double textScale = 1,
         SshService? ssh,
+        VaultData Function(VaultData)? seedVault,
+        List<Override> overrides = const [],
+        Map<String, String> secretValues = const {},
       }) async {
+        secrets.addAll(secretValues);
         await loadFonts(tester);
         final paths = (await tester.runAsync(UiGalleryPaths.create))!;
         paths.install();
@@ -231,10 +247,11 @@ void main() {
           customBackgroundScope: backgroundScope ?? 'global',
           serverViewMode: viewMode,
         ));
-        await repository.saveVault(VaultData.empty().copyWith(
+        final vault = VaultData.empty().copyWith(
           hosts: hosts,
           customGroups: hosts.isEmpty ? [] : ['开发', '实验'],
-        ));
+        );
+        await repository.saveVault(seedVault?.call(vault) ?? vault);
         final container = ProviderContainer(overrides: [
           vaultRepositoryProvider.overrideWithValue(repository),
           appLockControllerProvider.overrideWith((ref) => AppLockController(
@@ -245,6 +262,7 @@ void main() {
           catalogCacheRepositoryProvider
               .overrideWithValue(_GalleryCatalog(catalogs)),
           if (ssh != null) sshServiceProvider.overrideWithValue(ssh),
+          ...overrides,
           httpClientProvider.overrideWithValue(MockClient(
               (_) async => http.Response('{"tag_name":"v1.4.7"}', 200))),
           sessionControllerProvider.overrideWith(
@@ -485,6 +503,257 @@ void main() {
             .ensureVisible(find.byKey(const ValueKey('ts-settings-advanced')));
         await tester.tap(find.byKey(const ValueKey('ts-settings-advanced')));
         await save(tester, 'tailscale-settings');
+      });
+
+      // ---- R89：凭据、代理、安全密钥、指纹、交互式认证、Tailscale 非模态面板 ----
+
+      Future<void> tapKey(WidgetTester tester, String key) async {
+        await tester.tap(find.byKey(ValueKey(key)));
+        await settle(tester);
+      }
+
+      /// 在一个有列表垫底的页面上，点一下按钮运行 [open]：弹层/对话框都是从真实上下文里开的。
+      Future<void> openOverList(
+        WidgetTester tester,
+        FutureOr<Object?> Function(BuildContext context, WidgetRef ref) open, {
+        VaultData Function(VaultData)? seedVault,
+        List<Override> overrides = const [],
+        double textScale = 1,
+      }) async {
+        await pumpPage(tester, _Opener(open),
+            height: 892,
+            seedVault: seedVault,
+            overrides: overrides,
+            textScale: textScale);
+        await tapKey(tester, 'gallery-open');
+      }
+
+      // Tailscale 设置面板（非模态）开在连接首页上：无遮罩，背后的主机列表看得见。
+      // 走 VaultScreen 自己的上下文，和生产里从首页点「Tailscale 设置」是同一条路。
+      Future<ProviderContainer> openTailscalePanel(
+        WidgetTester tester, {
+        String? catalogId,
+        double textScale = 1,
+        bool savedKey = false,
+      }) async {
+        final container = await pumpPage(tester, const HomeShell(),
+            height: 892,
+            hosts: [...uiGalleryHosts, ...uiGalleryCatalogHosts],
+            viewMode: 'list',
+            catalogs: uiGalleryCatalogs(),
+            textScale: textScale,
+            secretValues: {
+              if (savedKey)
+                'tailscale.catalog.gallery-home.accessToken': 'tskey-api-test',
+            });
+        unawaited(openTailscaleSettings(
+            tester.element(find.byType(VaultScreen)),
+            catalogId: catalogId));
+        await settle(tester);
+        expect(find.byKey(const ValueKey('non-modal-panel')), findsOneWidget);
+        return container;
+      }
+
+      testWidgets('Tailscale 面板：新建（默认两项）、展开高级', skip: skip != null,
+          (tester) async {
+        await openTailscalePanel(tester);
+        await save(tester, 'ts-panel-new-412x892-zh-s1');
+        await tester
+            .ensureVisible(find.byKey(const ValueKey('ts-settings-advanced')));
+        await tapKey(tester, 'ts-settings-advanced');
+        await save(tester, 'ts-panel-new-advanced-412x892-zh-s1');
+      });
+
+      testWidgets('Tailscale 面板：新建，字号 2.0 倍', skip: skip != null,
+          (tester) async {
+        await openTailscalePanel(tester, textScale: 2.0);
+        await save(tester, 'ts-panel-new-412x892-zh-s20');
+      });
+
+      testWidgets('Tailscale 面板：已存 key（掩码）、修改中、删除确认', skip: skip != null,
+          (tester) async {
+        final container = await openTailscalePanel(tester,
+            catalogId: 'gallery-home', savedKey: true);
+        expect(find.byKey(const ValueKey('ts-settings-saved-key')),
+            findsOneWidget);
+        await save(tester, 'ts-panel-saved-key-412x892-zh-s1');
+        await tapKey(tester, 'ts-settings-change-key');
+        await save(tester, 'ts-panel-changing-key-412x892-zh-s1');
+        await tapKey(tester, 'ts-settings-cancel-change-key');
+        await tapKey(tester, 'ts-settings-forget-key');
+        expect(find.text('删除保存的 key？'), findsOneWidget);
+        await save(tester, 'ts-forget-key-confirm-412x892-zh-s1');
+        await tapKey(tester, 'ts-settings-forget-key-cancel');
+        // 有已存 key 的来源会排「状态同步」定时器；出完图让它停手，测试结束时才没有挂着的 Timer。
+        container.read(catalogOverviewProvider.notifier).setVisible(false);
+      });
+
+      testWidgets('首次登录：密码、凭据', skip: skip != null, (tester) async {
+        await openOverList(
+          tester,
+          (context, ref) => askFirstLogin(
+              context,
+              HostProfile.create(
+                id: 'first-login',
+                label: '家里 NAS',
+                hostname: '100.64.0.1',
+                username: '',
+              )),
+          seedVault: uiGalleryCredentialVault,
+        );
+        expect(
+            find.byKey(const ValueKey('first-login-dialog')), findsOneWidget);
+        await save(tester, 'first-login-password-412x892-zh-s1');
+        await tapKey(tester, 'login-choice-credential');
+        await save(tester, 'first-login-credential-412x892-zh-s1');
+      });
+
+      testWidgets('凭据页：空、有数据', skip: skip != null, (tester) async {
+        await pumpPage(tester, const KeychainSheet(), height: 892);
+        await save(tester, 'keychain-empty-412x892-zh-s1');
+      });
+
+      testWidgets('凭据页：有数据，删凭据、删私钥确认', skip: skip != null, (tester) async {
+        await pumpPage(tester, const KeychainSheet(),
+            height: 892, seedVault: uiGalleryCredentialVault);
+        await save(tester, 'keychain-data-412x892-zh-s1');
+        await tapKey(tester, 'keychain-delete-identity-ops-password');
+        expect(find.textContaining('2 台主机在用'), findsOneWidget);
+        await save(tester, 'keychain-delete-identity-412x892-zh-s1');
+        await tapKey(tester, 'keychain-cancel-delete-identity');
+        await tapKey(tester, 'keychain-delete-key-laptop');
+        await save(tester, 'keychain-delete-key-412x892-zh-s1');
+      });
+
+      testWidgets('凭据编辑：SSH 密钥 + 密码，校验错误', skip: skip != null, (tester) async {
+        await pumpPage(tester, const KeychainSheet(),
+            height: 892, seedVault: uiGalleryCredentialVault);
+        await tapKey(tester, 'keychain-add');
+        await tester.tap(find.text('新建凭据').last);
+        await settle(tester);
+        await tester.enterText(
+            find.byKey(const ValueKey('identity-username')), 'admin');
+        await tapKey(tester, 'identity-auth');
+        await tester.tap(find.text('SSH 密钥 + 密码').last);
+        await settle(tester);
+        await tapKey(tester, 'identity-save');
+        expect(find.text('选一把 SSH 密钥'), findsOneWidget);
+        await save(tester, 'identity-editor-key-password-error-412x892-zh-s1');
+      });
+
+      testWidgets('添加安全密钥：选择、生成选项', skip: skip != null, (tester) async {
+        await pumpPage(tester, const KeychainSheet(),
+            height: 892,
+            seedVault: uiGalleryCredentialVault,
+            overrides: [
+              securityKeyChannelProvider
+                  .overrideWithValue(UiGallerySecurityKeyChannel()),
+            ]);
+        await tapKey(tester, 'keychain-add');
+        await tester.tap(find.text('添加安全密钥'));
+        await settle(tester);
+        await save(tester, 'security-key-add-choice-412x892-zh-s1');
+        await tapKey(tester, 'security-key-create');
+        await save(tester, 'security-key-create-options-412x892-zh-s1');
+        await tapKey(tester, 'security-key-resident');
+        await save(tester, 'security-key-create-options-on-412x892-zh-s1');
+      });
+
+      testWidgets('钥匙询问：等钥匙、问 PIN', skip: skip != null, (tester) async {
+        final channel = UiGallerySecurityKeyChannel();
+        await openOverList(
+          tester,
+          (context, ref) => showSecurityKeyPrompt<Object>(
+            context,
+            channel,
+            title: '安全密钥登录',
+            detail: 'demo@api.example.test',
+            run: (_) => Completer<Object>().future,
+          ),
+        );
+        expect(
+            find.byKey(const ValueKey('security-key-status')), findsOneWidget);
+        await save(tester, 'security-key-waiting-412x892-zh-s1');
+      });
+
+      testWidgets('钥匙询问：先问 PIN', skip: skip != null, (tester) async {
+        final channel = UiGallerySecurityKeyChannel();
+        await openOverList(
+          tester,
+          (context, ref) => showSecurityKeyPrompt<Object>(
+            context,
+            channel,
+            title: '安全密钥登录',
+            detail: 'demo@api.example.test',
+            pinFirst: true,
+            run: (_) => Completer<Object>().future,
+          ),
+        );
+        expect(find.byKey(const ValueKey('security-key-pin')), findsOneWidget);
+        await save(tester, 'security-key-pin-412x892-zh-s1');
+      });
+
+      testWidgets('交互式认证', skip: skip != null, (tester) async {
+        await openOverList(
+          tester,
+          (context, ref) => keyboardInteractivePrompt(context)(
+            'Two-factor',
+            'Enter your password and the verification code.',
+            const [
+              (echo: false, text: 'Password:'),
+              (echo: true, text: 'Verification code:'),
+            ],
+          ),
+        );
+        expect(find.byKey(const ValueKey('kbd-interactive-continue')),
+            findsOneWidget);
+        await save(tester, 'keyboard-interactive-412x892-zh-s1');
+      });
+
+      testWidgets('服务器指纹：首次', skip: skip != null, (tester) async {
+        await openOverList(
+          tester,
+          (context, ref) => confirmNewHostKey(
+            context,
+            hostname: 'api.example.test',
+            port: 22,
+            algorithm: 'ssh-ed25519',
+            fingerprint: 'SHA256:0123456789abcdefghijklmnopqrstuvwxyzABCDEFG',
+          ),
+        );
+        await save(tester, 'host-key-first-412x892-zh-s1');
+      });
+
+      testWidgets('服务器指纹：变化', skip: skip != null, (tester) async {
+        await openOverList(
+          tester,
+          (context, ref) => showChangedHostKey(
+            context,
+            hostname: 'api.example.test',
+            port: 22,
+            algorithm: 'ssh-ed25519',
+            fingerprint: 'SHA256:0123456789abcdefghijklmnopqrstuvwxyzABCDEFG',
+            oldFingerprint:
+                'SHA256:ZYXWVUTSRQPONMLKJIHGFEDCBA9876543210abcdefg',
+          ),
+        );
+        await save(tester, 'host-key-changed-412x892-zh-s1');
+      });
+
+      testWidgets('代理管理：有数据、删除确认', skip: skip != null, (tester) async {
+        await pumpPage(tester, const ProxyProfilesPage(),
+            height: 892, seedVault: uiGalleryCredentialVault);
+        await save(tester, 'proxy-profiles-412x892-zh-s1');
+        await tapKey(tester, 'proxy-delete-office-proxy');
+        await save(tester, 'proxy-delete-412x892-zh-s1');
+      });
+
+      testWidgets('代理编辑：用凭据', skip: skip != null, (tester) async {
+        await pumpPage(tester, const ProxyProfilesPage(),
+            height: 892, seedVault: uiGalleryCredentialVault);
+        await tapKey(tester, 'proxy-edit-office-proxy');
+        expect(find.byKey(const ValueKey('proxy-credential')), findsOneWidget);
+        await save(tester, 'proxy-editor-credential-412x892-zh-s1');
       });
 
       testWidgets('云端备份 WebDAV', skip: skip != null, (tester) async {
@@ -757,6 +1026,37 @@ void main() {
       });
     });
   }
+}
+
+/// 垫一个主机列表，点 `gallery-open` 运行 [open]。
+class _Opener extends StatelessWidget {
+  const _Opener(this.open);
+
+  final FutureOr<Object?> Function(BuildContext context, WidgetRef ref) open;
+
+  @override
+  Widget build(BuildContext context) => Consumer(
+        builder: (context, ref, _) => Scaffold(
+          body: SafeArea(
+            child: ListView(
+              children: [
+                ShunSection(
+                  title: '主机',
+                  children: [
+                    for (final host in uiGalleryHosts)
+                      ShunListRow(title: host.label, subtitle: host.hostname),
+                  ],
+                ),
+                TextButton(
+                  key: const ValueKey('gallery-open'),
+                  onPressed: () => open(context, ref),
+                  child: const Text('open'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
 }
 
 const _backgroundName = 'background-gallery.png';

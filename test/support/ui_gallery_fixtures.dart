@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:async';
 import 'dart:io';
 
 import 'package:dartssh2/dartssh2.dart';
@@ -10,6 +11,8 @@ import 'package:shun/application/tailscale_catalog_refresh.dart';
 import 'package:shun/application/vault_controller.dart';
 import 'package:shun/domain/connection_route.dart';
 import 'package:shun/domain/models/host.dart';
+import 'package:shun/domain/models/vault.dart';
+import 'package:shun/infrastructure/ssh/security_key_channel.dart';
 import 'package:shun/infrastructure/ssh/sftp_service.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/tailscale/catalog_cache.dart';
@@ -402,3 +405,108 @@ final uiGalleryEditedHost = HostProfile({
     'hostIds': ['gallery-jump'],
   },
 });
+
+/// R89 凭据、代理页的数据：两把私钥、三个凭据（密码 / 密钥 / 密钥 + 密码）、两个代理（一个挂凭据），
+/// 三台主机分别引用其中的凭据和代理，删除确认里的「N 台主机在用」才有数。全是假值，不连任何地址。
+VaultData uiGalleryCredentialVault(VaultData base) {
+  Map<String, Object?> identity(String id, Map<String, Object?> fields) => {
+        'id': id,
+        'label': id,
+        'created': 1,
+        ...fields,
+      };
+  HostProfile host(String id, String label, Map<String, Object?> extra) =>
+      HostProfile({
+        ...HostProfile.create(
+          id: id,
+          label: label,
+          hostname: '$id.example.test',
+          username: 'demo',
+        ).data,
+        ...extra,
+      });
+  return base.copyWith(
+    hosts: [
+      host('cred-web', '示例 Web', {'identityId': 'ops-password'}),
+      host('cred-api', '示例 API', {
+        'identityId': 'ops-password',
+        'proxyProfileId': 'office-proxy',
+      }),
+      host('cred-db', '示例 DB', {'proxyProfileId': 'office-proxy'}),
+    ],
+    keys: [
+      SshKeyProfile({
+        'id': 'key-laptop',
+        'label': 'laptop',
+        'type': 'ED25519',
+        'publicKey':
+            'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAItest laptop@example.com',
+      }),
+      SshKeyProfile({
+        'id': 'key-deploy',
+        'label': 'deploy',
+        'type': 'ED25519',
+        'publicKey':
+            'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIdeploytest deploy@example.com',
+      }),
+    ],
+    proxyProfiles: [
+      ProxyProfile({
+        'id': 'office-proxy',
+        'label': '办公室代理',
+        'identityId': 'ops-password',
+        'config': {
+          'type': 'socks5',
+          'host': 'proxy.example.test',
+          'port': 1080
+        },
+      }),
+      ProxyProfile({
+        'id': 'plain-proxy',
+        'label': '备用 HTTP 代理',
+        'config': {
+          'type': 'http',
+          'host': 'proxy2.example.test',
+          'port': 8080,
+          'username': 'demo',
+        },
+      }),
+    ],
+    extras: {
+      ...base.extras,
+      'identities': [
+        identity('ops-password', {
+          'username': 'ops',
+          'authMethod': 'password',
+          'password': 'test-password',
+        }),
+        identity('deploy-key', {
+          'username': 'deploy',
+          'authMethod': 'key',
+          'keyId': 'key-deploy',
+        }),
+        identity('admin-both', {
+          'username': 'admin',
+          'authMethod': 'key',
+          'keyId': 'key-laptop',
+          'password': 'test-second-step',
+        }),
+      ],
+    },
+  );
+}
+
+/// 不连平台的安全密钥通道：只回答「NFC 开着」，阶段由图库自己发；run 回调里卡住，界面就停在等钥匙。
+class UiGallerySecurityKeyChannel extends SecurityKeyChannel {
+  UiGallerySecurityKeyChannel()
+      : super(channel: const MethodChannel('gallery/security_key'));
+
+  final stageEvents = StreamController<SecurityKeyStage>.broadcast();
+
+  @override
+  Stream<SecurityKeyStage> get stages => stageEvents.stream;
+
+  @override
+  Future<SecurityKeyAvailability> availability() async =>
+      const SecurityKeyAvailability(nfc: true, nfcEnabled: true, usb: true);
+}
