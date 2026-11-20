@@ -2298,18 +2298,22 @@
       "action": "在首次登录/凭据/代理/密钥页面创建、选择、修改、删除并取消；在隔离 SSH fixture 核对认证与路线。",
       "expected": "凭据引用/影响数、旧认证方式、每跳 host-key 先于认证、代理失败无直连保持；秘密不进日志/URI/普通导出；全局询问及锁屏保护有效。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R89.md"
+      ]
     },
     {
       "id": "UIM11",
       "action": "在新建和已有 Tailscale 来源打开设置，背景点列表，下滑/返回/切底栏，分别保存、修改、取消和删除 key。",
       "expected": "面板无遮罩且背景可操作；三种关闭方式有效，未存草稿丢弃；常用两项/高级保留；已存 key 固定掩码只可修改或删除，保存成功才替换，原来源/路线和敏感保护不变。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R89.md"
+      ]
     },
     {
       "id": "UIM12",

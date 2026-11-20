@@ -145,7 +145,7 @@
         "R89"
       ],
       "exit": "设置完整垂直切片、主机目录/表单/凭据/Tailscale 完成；F41/F42 及敏感边界保留",
-      "status": "NOT_RUN"
+      "status": "PASS"
     },
     "U3": {
       "title": "文件、管理与扩展页面",
@@ -4228,7 +4228,7 @@
       "id": "R89",
       "phase": "U2",
       "title": "迁移凭据、代理与 Tailscale 非模态面板",
-      "status": "NOT_STARTED",
+      "status": "DONE",
       "depends_on": [
         "R88"
       ],
@@ -4275,8 +4275,10 @@
       ],
       "stop_condition": "透明模态冒充非模态、key 可回显、锁屏穿透或新增隐藏连接/保存副作用即失败，不能削弱原安全测试。",
       "owner_role": "表单实施代理",
-      "evidence": [],
-      "commit": null
+      "evidence": [
+        "evidence/R89.md"
+      ],
+      "commit": "a8ef6e9464f843be894374cc179c30879ac33bae"
     },
     {
       "id": "R90",
