@@ -114,7 +114,7 @@ void main() {
   });
 
   group('UIM10（R89）首次登录', () {
-    testWidgets('认证方式是分段：选中状态读屏可见；密码切明文仍不让输入法学；取消不返回东西', (tester) async {
+    testWidgets('认证方式是分段：选中状态读屏可见、点了跟着换；密码切明文仍不让输入法学；取消不返回东西', (tester) async {
       final handle = tester.ensureSemantics();
       FirstLogin? result = (username: 'x', password: null, identity: null);
       var closed = false;
@@ -164,6 +164,35 @@ void main() {
             matching: find.byType(IconButton)));
         await tester.pump();
       }
+      // 点「凭据」：选中跟着换过去，原来那段报未选中（分段只认初始值时这里会错）。
+      await tester.tap(find.byKey(const ValueKey('login-choice-credential')));
+      await tester.pumpAndSettle();
+      expect(
+        tester.getSemantics(find.descendant(
+          of: find.byKey(const ValueKey('login-choice-credential')),
+          matching: find.bySemanticsLabel('凭据'),
+        )),
+        isSemantics(
+          label: '凭据',
+          isButton: true,
+          isSelected: true,
+          hasSelectedState: true,
+          hasTapAction: true,
+        ),
+      );
+      expect(
+        tester.getSemantics(find.descendant(
+          of: find.byKey(const ValueKey('login-choice-simple')),
+          matching: find.bySemanticsLabel('用户名 / 密码'),
+        )),
+        isSemantics(
+          label: '用户名 / 密码',
+          isButton: true,
+          isSelected: false,
+          hasSelectedState: true,
+          hasTapAction: true,
+        ),
+      );
       await tester.tap(find.byKey(const ValueKey('first-login-cancel')));
       await tester.pumpAndSettle();
       expect(closed, isTrue);
