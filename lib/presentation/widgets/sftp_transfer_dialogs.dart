@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../infrastructure/ssh/sftp_service.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 
 // 文件页传输前要用户拿主意的两件事（R24）：替不替换同名文件、续不续传上次的半截。
 // 都不替用户猜——猜错一次就是覆盖掉别人的文件，或者拼出一个坏文件。
@@ -22,17 +24,22 @@ Future<bool> confirmReplaceDialog(
     context: context,
     builder: (context) => AlertDialog(
       title: const LText('替换同名文件？'),
-      content: Text(
-        '$name${details.isEmpty ? '' : '\n$details'}\n\n$warning',
+      scrollable: true,
+      content: _TransferNotice(
+        file: '$name${details.isEmpty ? '' : '\n$details'}',
+        note: warning,
       ),
       actions: [
-        TextButton(
+        ShunButton(
+          key: const ValueKey('sftp-replace-cancel'),
+          kind: ShunButtonKind.text,
+          label: '取消',
           onPressed: () => Navigator.pop(context, false),
-          child: const LText('取消'),
         ),
-        FilledButton(
+        ShunButton(
+          key: const ValueKey('sftp-replace-confirm'),
+          label: '替换',
           onPressed: () => Navigator.pop(context, true),
-          child: const LText('替换'),
         ),
       ],
     ),
@@ -60,25 +67,61 @@ Future<bool?> askResumeDialog(
     context: context,
     builder: (context) => AlertDialog(
       title: const LText('上次没传完'),
-      content: Text(
-        '$name\n${formatBytes(sent)} / ${formatBytes(total)}\n\n$note',
+      scrollable: true,
+      content: _TransferNotice(
+        file: '$name\n${formatBytes(sent)} / ${formatBytes(total)}',
+        note: note,
       ),
       actions: [
-        TextButton(
+        ShunButton(
+          key: const ValueKey('sftp-resume-cancel'),
+          kind: ShunButtonKind.text,
+          label: '取消',
           onPressed: () => Navigator.pop(context),
-          child: const LText('取消'),
         ),
-        TextButton(
+        ShunButton(
+          key: const ValueKey('sftp-resume-continue'),
+          kind: ShunButtonKind.text,
+          label: '续传',
           onPressed: () => Navigator.pop(context, true),
-          child: const LText('续传'),
         ),
-        FilledButton(
+        ShunButton(
+          key: const ValueKey('sftp-resume-restart'),
+          label: '从头传',
           onPressed: () => Navigator.pop(context, false),
-          child: const LText('从头传'),
         ),
       ],
     ),
   );
+}
+
+class _TransferNotice extends StatelessWidget {
+  const _TransferNotice({required this.file, required this.note});
+
+  final String file;
+  final String note;
+
+  @override
+  Widget build(BuildContext context) => Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          prism.SurfaceScope(
+            level: prism.SurfaceLevel.floatingOf(
+                prism.Theme.of(context).colorScheme),
+            child: prism.generateGroup([
+              ShunSectionItem(
+                padding: const EdgeInsets.all(12),
+                child: Text(file,
+                    style: prism.AppTextStyle.subheadline
+                        .of(context, emphasized: true)),
+              )
+            ]),
+          ),
+          const SizedBox(height: 12),
+          Text(note),
+        ],
+      );
 }
 
 /// 给人看的字节数：B / KB / MB / GB，保留一位小数。

@@ -17,6 +17,7 @@ import '../localization/localized_widgets.dart';
 import '../ui/components.dart';
 import '../widgets/catalog_text.dart';
 import '../widgets/connect_host.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/hint.dart';
 import '../widgets/host_system_icon.dart';
 import 'tailscale_settings_screen.dart';
@@ -193,20 +194,20 @@ class _TailscaleCatalogScreenState
     final sources = _sources;
     return Scaffold(
       key: _scaffold,
-      appBar: AppBar(
+      appBar: ShunAppBar(
         title: const LText('Tailscale 设备目录'),
-        actions: const [
-          HintButton(title: 'Tailscale 设备目录', message: _catalogAbout),
+        actions: [
+          const HintButton(title: 'Tailscale 设备目录', message: _catalogAbout),
+          ShunBarButton(
+            key: const ValueKey('catalog-add-source'),
+            icon: Icons.add,
+            tooltip: localized('添加来源'),
+            onPressed: _add,
+          ),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        key: const ValueKey('catalog-add-source'),
-        onPressed: _add,
-        icon: const Icon(Icons.add),
-        label: const LText('添加来源'),
-      ),
       body: ListView(
-        padding: const EdgeInsets.fromLTRB(16, 0, 16, 96),
+        padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         children: [
           if (_error != null)
             Padding(
@@ -216,10 +217,7 @@ class _TailscaleCatalogScreenState
           if (sources == null && _error == null)
             const LinearProgressIndicator()
           else if (sources != null && sources.isEmpty)
-            const Padding(
-              padding: EdgeInsets.only(top: 16),
-              child: LText('还没有目录来源'),
-            ),
+            const EmptyState(icon: Icons.lan_outlined, title: '还没有目录来源'),
           if (sources != null && sources.isNotEmpty)
             ShunSection(
               children: [
@@ -234,7 +232,8 @@ class _TailscaleCatalogScreenState
                         if (catalogSourceUnnamed(source))
                           catalogLine('ID：', source.catalogId),
                         catalogLine('tailnet：', source.tailnet),
-                        catalogLine('设备数：', '${source.devices.length}'),
+                        ShunPill(
+                            "${localized('设备数：')}${source.devices.length}"),
                         catalogLine(
                           '缓存时间：',
                           source.lastSuccess == null
@@ -407,7 +406,7 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
     final now = DateTime.now();
     return Scaffold(
       key: _scaffold,
-      appBar: AppBar(
+      appBar: ShunAppBar(
         // 还没读到缓存时先空着，别闪一下内部 ID。
         title: Text(cache == null ? '' : catalogSourceName(cache)),
         actions: [
@@ -444,7 +443,7 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
                           key: const ValueKey('catalog-open-settings'),
                           label: '填 API key 读设备列表',
                           icon: Icons.key_outlined,
-                          kind: ShunButtonKind.outlined,
+                          kind: ShunButtonKind.tonal,
                           onPressed: _busy ? null : _settings,
                         ),
                       ),
@@ -454,10 +453,8 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
                     ],
                     // 还没读过时上面的状态卡已经写了，这里不再说一遍。
                     if (devices.isEmpty && cache.lastSuccess != null)
-                      const Padding(
-                        padding: EdgeInsets.only(top: 16),
-                        child: LText('列表里没有设备'),
-                      )
+                      const EmptyState(
+                          icon: Icons.devices_outlined, title: '列表里没有设备')
                     else if (devices.isNotEmpty)
                       ShunSection(
                         title: '设备',
@@ -486,7 +483,9 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          catalogLine('tailnet：', cache.tailnet),
+          catalogLine('tailnet：', cache.tailnet,
+              style: prism.AppTextStyle.headline.of(context, emphasized: true)),
+          const SizedBox(height: 4),
           if (success == null)
             const LText('还没读过设备列表')
           else
@@ -503,10 +502,11 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
             ),
           if (failedLast) ...[
             const SizedBox(height: 4),
-            catalogLine('最近一次读取失败：', catalogTime(attempt.at)),
+            catalogLine('最近一次读取失败：', catalogTime(attempt.at),
+                style: small.copyWith(color: colors.error)),
             if (attempt.note case final note?) LText(note, style: small),
           ],
-          if (_hasSaved) const LText('已保存 key'),
+          if (_hasSaved) ShunPill(localized('已保存 key')),
         ],
       ),
     );
@@ -539,7 +539,7 @@ class _CatalogSourceScreenState extends ConsumerState<CatalogSourceScreen> {
       details: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          if (hidden) const LText('已隐藏'),
+          if (hidden) ShunPill(localized('已隐藏')),
           PresenceLine(
             presence: deviceOnline(record),
             child: Text(

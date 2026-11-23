@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/gestures.dart' show kTouchSlop;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart' show HapticFeedback;
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../infrastructure/terminal/terminal_input_controller.dart';
 import '../../infrastructure/terminal/terminal_session_adapter.dart';
@@ -119,7 +120,11 @@ class TerminalKeyFeel extends InheritedWidget {
       repeatInterval != oldWidget.repeatInterval;
 }
 
-/// 一个键的样子和手感：至少 48dp（UX02），修饰键亮着时有底色，可连发的键按住连发。
+/// 一个键的样子和手感：至少 48dp（UX02），可连发的键按住连发。
+///
+/// 键帽是比所在表面高一层的底色（R94）：没有描边，亮着的修饰键换成主色，按下时再深一层。
+/// 键帽比点按范围四边各小 [_capInset]：360dp 宽的手机上格子只有 49dp，相邻的键帽也不会连成一片，
+/// 点按范围仍是整个格子。
 class TerminalKeyButton extends StatefulWidget {
   const TerminalKeyButton({
     super.key,
@@ -137,6 +142,8 @@ class TerminalKeyButton extends StatefulWidget {
   /// 不可连发的键的长按（快捷键栏的「粘贴」长按打开多行编辑框）。
   final VoidCallback? onLongPress;
   final String? onLongPressHint;
+
+  static const _capInset = 2.0;
 
   @override
   State<TerminalKeyButton> createState() => _TerminalKeyButtonState();
@@ -174,7 +181,8 @@ class _TerminalKeyButtonState extends State<TerminalKeyButton> {
   Widget build(BuildContext context) {
     final spec = widget.spec;
     final selected = widget.selected;
-    final scheme = Theme.of(context).colorScheme;
+    final colors = prism.Theme.of(context).colorScheme;
+    final cap = prism.SurfaceContext(context).raisedSurfaceLevel;
     return Semantics(
       button: true,
       selected: selected,
@@ -198,11 +206,23 @@ class _TerminalKeyButtonState extends State<TerminalKeyButton> {
             minimumSize: Size.zero,
             padding: const EdgeInsets.symmetric(horizontal: 4),
             tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-            backgroundColor: selected ? scheme.primaryContainer : null,
-            foregroundColor:
-                selected ? scheme.onPrimaryContainer : scheme.onSurface,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(7),
+            backgroundColor: Colors.transparent,
+            foregroundColor: selected ? colors.onPrimary : colors.onSurface,
+            // 按下的反馈画在键帽上（见下），不要盖住整个格子的水波。
+            overlayColor: Colors.transparent,
+            shape: prism.AppShape.sm,
+            backgroundBuilder: (context, states, child) => Padding(
+              padding: const EdgeInsets.all(TerminalKeyButton._capInset),
+              child: DecoratedBox(
+                decoration: ShapeDecoration(
+                  color: selected
+                      ? colors.primary
+                      : (states.contains(WidgetState.pressed) ? cap.next : cap)
+                          .colorOf(colors),
+                  shape: prism.AppShape.sm,
+                ),
+                child: child,
+              ),
             ),
           ),
           child: spec.icon == null

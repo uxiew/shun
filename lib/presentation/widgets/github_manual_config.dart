@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 import '../localization/localized_widgets.dart';
 import 'form_gap.dart';
 
@@ -14,8 +15,10 @@ class GitHubManualConfig extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ExpansionTile(
-        tilePadding: EdgeInsets.zero,
-        childrenPadding: const EdgeInsets.only(top: 18, bottom: 12),
+        shape: prism.AppShape.md,
+        collapsedShape: prism.AppShape.md,
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 18, 16, 16),
         title: const LText('高级 / 手动配置'),
         subtitle: const LText('仅用于迁移或登录故障排查'),
         children: [

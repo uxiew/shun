@@ -1407,6 +1407,13 @@ void main() {
     await open(tester, const TailscaleCatalogScreen());
     expect(find.textContaining('还没有目录来源'), findsOneWidget);
     expect(find.textContaining('Unsupported'), findsNothing);
+    final add = find.descendant(
+        of: find.byType(AppBar), matching: find.byTooltip('添加来源'));
+    expect(add, findsOneWidget);
+    expect(find.byType(FloatingActionButton), findsNothing);
+    await tester.tap(add);
+    await tester.pumpAndSettle();
+    expect(find.byKey(nonModalPanelKey), findsOneWidget);
   });
 
   testWidgets('没关联目录的主机，编辑器里不出现目录来源', (tester) async {

@@ -147,6 +147,8 @@ class _NewPassphraseDialogState extends State<_NewPassphraseDialog> {
   @override
   Widget build(BuildContext context) => SecretContent(
         child: AlertDialog(
+          scrollable: true,
+          icon: const Icon(Icons.lock_outline),
           title: const LText('备份口令'),
           content: Column(
             mainAxisSize: MainAxisSize.min,
@@ -175,10 +177,10 @@ class _NewPassphraseDialogState extends State<_NewPassphraseDialog> {
               onPressed: () => Navigator.pop(context),
               child: const LText('取消'),
             ),
-            FilledButton(
+            ShunButton(
               key: const ValueKey('backup-passphrase-confirm'),
               onPressed: _submit,
-              child: const LText('备份'),
+              label: '备份',
             ),
           ],
         ),
@@ -211,6 +213,8 @@ class _PassphraseDialogState extends State<_PassphraseDialog> {
   @override
   Widget build(BuildContext context) => SecretContent(
         child: AlertDialog(
+          scrollable: true,
+          icon: const Icon(Icons.lock_open_outlined),
           title: const LText('备份口令'),
           content: ShunSecretField(
             key: const ValueKey('backup-passphrase'),
@@ -225,10 +229,10 @@ class _PassphraseDialogState extends State<_PassphraseDialog> {
               onPressed: () => Navigator.pop(context),
               child: const LText('取消'),
             ),
-            FilledButton(
+            ShunButton(
               key: const ValueKey('backup-passphrase-confirm'),
               onPressed: _submit,
-              child: const LText('解密'),
+              label: '解密',
             ),
           ],
         ),

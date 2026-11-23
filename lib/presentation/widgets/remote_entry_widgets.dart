@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../domain/remote_entry.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 
 Future<String?> remoteEntryName(BuildContext context, {String? initial}) =>
     showDialog<String>(context: context, builder: (_) => _NameDialog(initial));
@@ -36,17 +37,18 @@ class _NameDialogState extends State<_NameDialog> {
                   value?.trim().isNotEmpty == true ? null : localized('请填写名称'),
             )),
         actions: [
-          TextButton(
+          ShunButton(
+              kind: ShunButtonKind.text,
               onPressed: () => Navigator.pop(context),
-              child: const LText('取消')),
-          FilledButton(
+              label: '取消'),
+          ShunButton(
               key: const ValueKey('remote-entry-save'),
               onPressed: () {
                 if (_form.currentState!.validate()) {
                   Navigator.pop(context, _text.text.trim());
                 }
               },
-              child: const LText('保存')),
+              label: '保存'),
         ],
       );
 }
@@ -86,13 +88,14 @@ class _RemoteEntryActionsState extends State<RemoteEntryActions> {
               '只删除本机条目和绑定，并作废它的待回调；不影响 SSH、其他远控连接或外部 App。',
             ),
             actions: [
-              TextButton(
+              ShunButton(
+                kind: ShunButtonKind.text,
                 onPressed: () => Navigator.pop(context, false),
-                child: const LText('取消'),
+                label: '取消',
               ),
-              FilledButton(
+              ShunButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const LText('删除'),
+                label: '删除',
               ),
             ],
           ),
@@ -138,15 +141,25 @@ class RemoteEntryTile extends StatelessWidget {
   final VoidCallback onOpen;
   final String? status;
   @override
-  Widget build(BuildContext context) => ListTile(
+  Widget build(BuildContext context) => ShunListRow(
         key: ValueKey('remote-$provider-${entry.id}'),
         leading: Icon(
           provider == 'RustDesk'
               ? Icons.connected_tv_outlined
               : Icons.desktop_windows_outlined,
         ),
-        title: Text(entry.label),
-        subtitle: LText('$provider · ${status ?? '仅本机保存'}'),
+        title: entry.label,
+        localizeTitle: false,
+        details: Wrap(
+          spacing: 6,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            ShunPill(localizedOf(context, provider)),
+            LText(status ?? '仅本机保存')
+          ],
+        ),
+        chevron: true,
         onTap: onOpen,
       );
 }

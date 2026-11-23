@@ -2329,9 +2329,11 @@
       "action": "从三个原入口打开监控，点/滑六个 tab，断线，取消和确认受控系统操作。",
       "expected": "入口汇合、tab 次序与左右滑保持；断线禁操作并标记旧值；危险操作/sudo 走原确认与当前目标；未增加远端副作用、R71/R80 功能或轮询。",
       "level": "硬门禁",
-      "result": "NOT_RUN",
+      "result": "PASS",
       "inherited_from": null,
-      "evidence": []
+      "evidence": [
+        "evidence/R91.md"
+      ]
     },
     {
       "id": "UIM14",

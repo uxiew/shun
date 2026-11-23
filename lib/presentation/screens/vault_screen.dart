@@ -168,55 +168,51 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
     return SafeArea(
       child: Column(
         children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 10, 8, 8),
-            child: Row(
-              children: [
-                // 深浅版本共用乌鸦轮廓，背景和线条明度随当前主题切换。
-                Image.asset(
-                    Theme.of(context).brightness == Brightness.dark
-                        ? 'assets/brand/header_icon.png'
-                        : 'assets/brand/header_icon_light.png',
-                    width: 28,
-                    height: 28),
-                // 只留图标，不写 App 名（R26 所有者）。
-                const Spacer(),
-                // Prism 的弹出菜单（FlClash 同款），当前视图打勾；按钮图标跟着当前视图换。
-                prism.PopupAnchor(
-                  targetBuilder: (open) => IconButton(
-                    key: const ValueKey('vault-view-mode'),
-                    tooltip: localizedOf(context, '服务器视图'),
-                    onPressed: open,
-                    icon: Icon(switch (viewMode) {
-                      'list' => Icons.view_list_outlined,
-                      'tree' => Icons.account_tree_outlined,
-                      _ => Icons.grid_view_outlined,
-                    }),
-                  ),
-                  popupBuilder: (_) => prism.PopupMenu(
-                    items: [
-                      for (final (value, label) in const [
-                        ('grid', '网格视图'),
-                        ('list', '列表视图'),
-                        ('tree', '树形视图'),
-                      ])
-                        prism.PopupMenuItem(
-                          label: localizedOf(context, label),
-                          checked: viewMode == value,
-                          onPressed: () => ref
-                              .read(settingsControllerProvider.notifier)
-                              .update(settings.copyWith(serverViewMode: value)),
-                        ),
-                    ],
-                  ),
+          ShunPageHeader(
+            // 页名和底栏那一项同字；App 名照旧不写（R26 所有者），乌鸦图标留着。
+            title: ShunLocalizations.isEnglish ? 'Hosts' : '连接',
+            leading: Image.asset(
+                Theme.of(context).brightness == Brightness.dark
+                    ? 'assets/brand/header_icon.png'
+                    : 'assets/brand/header_icon_light.png',
+                width: 28,
+                height: 28),
+            actions: [
+              // Prism 的弹出菜单（FlClash 同款），当前视图打勾；按钮图标跟着当前视图换。
+              prism.PopupAnchor(
+                targetBuilder: (open) => ShunBarButton(
+                  key: const ValueKey('vault-view-mode'),
+                  tooltip: localizedOf(context, '服务器视图'),
+                  onPressed: open,
+                  icon: switch (viewMode) {
+                    'list' => Icons.view_list_outlined,
+                    'tree' => Icons.account_tree_outlined,
+                    _ => Icons.grid_view_outlined,
+                  },
                 ),
-                IconButton(
-                  tooltip: localized('添加连接'),
-                  onPressed: () => _editHost(),
-                  icon: const Icon(Icons.add_circle_outline),
+                popupBuilder: (_) => prism.PopupMenu(
+                  items: [
+                    for (final (value, label) in const [
+                      ('grid', '网格视图'),
+                      ('list', '列表视图'),
+                      ('tree', '树形视图'),
+                    ])
+                      prism.PopupMenuItem(
+                        label: localizedOf(context, label),
+                        checked: viewMode == value,
+                        onPressed: () => ref
+                            .read(settingsControllerProvider.notifier)
+                            .update(settings.copyWith(serverViewMode: value)),
+                      ),
+                  ],
                 ),
-              ],
-            ),
+              ),
+              ShunBarButton(
+                tooltip: localized('添加连接'),
+                onPressed: () => _editHost(),
+                icon: Icons.add,
+              ),
+            ],
           ),
           if (recent != null && recentHost != null)
             Padding(
@@ -426,6 +422,12 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                         onSettings: _openTailscaleSettings,
                       ),
                     ),
+                  // 浮动底栏时列表从底栏底下滚过去，末尾留出它的高度；默认底栏下是 0。
+                  SliverToBoxAdapter(
+                    child: SizedBox(
+                      height: prism.BottomInsetScope.of(context),
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -463,7 +465,7 @@ class _VaultScreenState extends ConsumerState<VaultScreen> {
                         child: row * columns + column < hosts.length
                             ? ConstrainedBox(
                                 constraints:
-                                    const BoxConstraints(minHeight: 148),
+                                    const BoxConstraints(minHeight: 140),
                                 child: VaultHostCard(
                                   host: hosts[row * columns + column],
                                   onConnect: () => _showHostDetails(

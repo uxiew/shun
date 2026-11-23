@@ -8,6 +8,7 @@ import '../../domain/models/host.dart';
 import '../../domain/proxy_profiles.dart';
 import '../localization/localized_widgets.dart';
 import '../ui/components.dart';
+import 'empty_state.dart';
 import 'proxy_profile_editor.dart';
 
 Future<String?> selectRouteProxy(
@@ -130,19 +131,22 @@ class _ProxyProfilesPageState extends ConsumerState<ProxyProfilesPage> {
           identity.id: identity.label,
     };
     return Scaffold(
-        appBar:
-            AppBar(title: LText(widget.selecting ? '选择代理' : '代理管理'), actions: [
-          TextButton(
-              key: const ValueKey('proxy-create'),
-              onPressed: enabled ? () => _edit() : null,
-              child: const LText('新建代理'))
-        ]),
+        appBar: ShunAppBar(
+            title: LText(widget.selecting ? '选择代理' : '代理管理'),
+            actions: [
+              ShunBarButton(
+                  key: const ValueKey('proxy-create'),
+                  onPressed: enabled ? () => _edit() : null,
+                  icon: Icons.add,
+                  tooltip: localized('新建代理'))
+            ]),
         body: ListView(padding: const EdgeInsets.all(16), children: [
           if (state.loading) const LinearProgressIndicator(),
           if (state.error != null) const LText('代理无法读取或已变化，请重新打开后再操作。'),
           if (_error != null)
             LText(_error!, key: const ValueKey('proxy-manager-error')),
-          if (profiles.isEmpty && !state.loading) const LText('还没有代理'),
+          if (profiles.isEmpty && !state.loading && state.error == null)
+            const EmptyState(icon: Icons.public, title: '还没有代理'),
           if (profiles.isNotEmpty)
             // 每个代理一行 Prism 卡片（R89）。选择模式点行返回 id；管理模式点行等于点「编辑」
             // （以前点行没反应；Prism 卡片行没有点按会被读屏报成「不可用的按钮」）。
@@ -153,12 +157,16 @@ class _ProxyProfilesPageState extends ConsumerState<ProxyProfilesPage> {
                     key: ValueKey('proxy-profile-${profile.id}'),
                     leading: const Icon(Icons.public),
                     title: profile.label,
-                    subtitle: [
-                      '${profile.config?.host ?? ''}:${profile.config?.port ?? ''}',
-                      if (credentials[profile.data[proxyIdentityKey]]
-                          case final credential?)
-                        credential,
-                    ].join(' · '),
+                    subtitle:
+                        '${profile.config?.host ?? ''}:${profile.config?.port ?? ''}',
+                    details: switch (
+                        credentials[profile.data[proxyIdentityKey]]) {
+                      final credential? => Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: ShunPill(credential),
+                        ),
+                      null => null,
+                    },
                     enabled: enabled,
                     onTap: widget.selecting
                         ? () => Navigator.pop(context, profile.id)

@@ -9,6 +9,7 @@ import 'package:flutter/services.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 import 'package:share_plus/share_plus.dart';
 
 import '../../application/session_controller.dart';
@@ -19,7 +20,9 @@ import '../../infrastructure/ssh/sftp_service.dart';
 import '../../infrastructure/ssh/ssh_lease.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import '../../infrastructure/storage/picked_files.dart';
+import '../ui/components.dart';
 import '../widgets/custom_background.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/sftp_editor.dart';
 import '../widgets/sftp_permissions_dialog.dart';
 import '../widgets/sftp_transfer_dialogs.dart';
@@ -144,52 +147,32 @@ class _SftpScreenState extends ConsumerState<SftpScreen> {
                 key: const ValueKey('sftp-title-bar'),
                 color: transparentHeader
                     ? Colors.transparent
-                    : Theme.of(context).colorScheme.surface,
+                    : Theme.of(context).scaffoldBackgroundColor,
                 child: Column(
                   children: [
-                    Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 7, 12, 7),
-                      child: Row(
-                        children: [
-                          Icon(
-                            Icons.folder_copy_outlined,
-                            color: Theme.of(context).colorScheme.primary,
+                    ShunPageHeader(
+                      title: localizedOf(context, 'SFTP文件管理'),
+                      actions: [
+                        if (sessions.isEmpty)
+                          ConstrainedBox(
+                            constraints: BoxConstraints(
+                              maxWidth: MediaQuery.sizeOf(context).width * .3,
+                            ),
+                            child: ShunPill(localizedOf(context, '未连接服务器')),
                           ),
-                          const SizedBox(width: 8),
-                          const Expanded(
-                            child: LText(
-                              'SFTP文件管理',
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(fontWeight: FontWeight.w600),
-                            ),
+                        ShunBarButton(
+                          key: const ValueKey('sftp-pane-mode-toggle'),
+                          tooltip: localized(
+                            _dualPane ? '切换为单栏模式' : '切换为双栏模式',
                           ),
-                          if (sessions.isEmpty)
-                            const Flexible(
-                              child: LText(
-                                '未连接服务器',
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                                style: TextStyle(fontSize: 11),
-                              ),
-                            ),
-                          IconButton(
-                            key: const ValueKey('sftp-pane-mode-toggle'),
-                            tooltip: localized(
-                              _dualPane ? '切换为单栏模式' : '切换为双栏模式',
-                            ),
-                            onPressed: _transfer == null
-                                ? () => setState(() => _dualPane = !_dualPane)
-                                : null,
-                            visualDensity: VisualDensity.compact,
-                            icon: Icon(
-                              _dualPane
-                                  ? Icons.view_column_outlined
-                                  : Icons.view_stream_outlined,
-                            ),
-                          ),
-                        ],
-                      ),
+                          onPressed: _transfer == null
+                              ? () => setState(() => _dualPane = !_dualPane)
+                              : null,
+                          icon: _dualPane
+                              ? Icons.view_column_outlined
+                              : Icons.view_stream_outlined,
+                        ),
+                      ],
                     ),
                     if (_transfer != null)
                       _TransferProgressView(
@@ -200,61 +183,60 @@ class _SftpScreenState extends ConsumerState<SftpScreen> {
                 ),
               ),
               Expanded(
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Expanded(
-                      child: KeyedSubtree(
-                        key: const ValueKey('sftp-left-pane'),
-                        child: _SftpPane(
-                          key: _leftKey,
-                          label: _dualPane ? '左侧' : '当前',
-                          service: left,
-                          sources: sources,
-                          clipboard: _clipboard,
-                          sharedTransferBusy: _transfer != null,
-                          onPaste: _paste,
-                          onSourceChanged: (id) => _changeSource(true, id),
-                          onPhoneMountChanged: _phoneMountChanged,
-                          onOpenInTerminal: left.isLocal
-                              ? null
-                              : (path) => _openInTerminal(left, path),
-                          onCopyToOther: _dualPane
-                              ? (entry) =>
-                                  _copy(entry, _leftKey, _rightKey, '右侧')
-                              : null,
-                        ),
-                      ),
-                    ),
-                    if (_dualPane) ...[
-                      VerticalDivider(
-                        width: 1,
-                        thickness: 1,
-                        color: Theme.of(context).colorScheme.outlineVariant,
-                      ),
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(4, 4, 4, 8),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
                       Expanded(
                         child: KeyedSubtree(
-                          key: const ValueKey('sftp-right-pane'),
+                          key: const ValueKey('sftp-left-pane'),
                           child: _SftpPane(
-                            key: _rightKey,
-                            label: '右侧',
-                            service: right,
+                            key: _leftKey,
+                            label: _dualPane ? '左侧' : '当前',
+                            service: left,
                             sources: sources,
                             clipboard: _clipboard,
                             sharedTransferBusy: _transfer != null,
                             onPaste: _paste,
-                            onSourceChanged: (id) => _changeSource(false, id),
+                            onSourceChanged: (id) => _changeSource(true, id),
                             onPhoneMountChanged: _phoneMountChanged,
-                            onOpenInTerminal: right.isLocal
+                            onOpenInTerminal: left.isLocal
                                 ? null
-                                : (path) => _openInTerminal(right, path),
-                            onCopyToOther: (entry) =>
-                                _copy(entry, _rightKey, _leftKey, '左侧'),
+                                : (path) => _openInTerminal(left, path),
+                            onCopyToOther: _dualPane
+                                ? (entry) =>
+                                    _copy(entry, _leftKey, _rightKey, '右侧')
+                                : null,
                           ),
                         ),
                       ),
+                      if (_dualPane) ...[
+                        const SizedBox(width: 4),
+                        Expanded(
+                          child: KeyedSubtree(
+                            key: const ValueKey('sftp-right-pane'),
+                            child: _SftpPane(
+                              key: _rightKey,
+                              label: '右侧',
+                              service: right,
+                              sources: sources,
+                              clipboard: _clipboard,
+                              sharedTransferBusy: _transfer != null,
+                              onPaste: _paste,
+                              onSourceChanged: (id) => _changeSource(false, id),
+                              onPhoneMountChanged: _phoneMountChanged,
+                              onOpenInTerminal: right.isLocal
+                                  ? null
+                                  : (path) => _openInTerminal(right, path),
+                              onCopyToOther: (entry) =>
+                                  _copy(entry, _rightKey, _leftKey, '左侧'),
+                            ),
+                          ),
+                        ),
+                      ],
                     ],
-                  ],
+                  ),
                 ),
               ),
             ],
@@ -392,20 +374,13 @@ class _SftpScreenState extends ConsumerState<SftpScreen> {
       final confirmed = await showDialog<bool>(
           context: context,
           builder: (context) => AlertDialog(
-                  title: const LText('移动所选文件？'),
-                  content: Column(mainAxisSize: MainAxisSize.min, children: [
-                    Text(
-                        '${selection.source.displayName} → ${target.displayName}\n${target.displayPath(path)}'),
-                    const LText('传输并校验成功后删除源文件'),
-                  ]),
-                  actions: [
-                    TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const LText('取消')),
-                    FilledButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const LText('移动'))
-                  ]));
+              title: const LText('移动所选文件？'),
+              content: Column(mainAxisSize: MainAxisSize.min, children: [
+                Text(
+                    '${selection.source.displayName} → ${target.displayName}\n${target.displayPath(path)}'),
+                const LText('传输并校验成功后删除源文件'),
+              ]),
+              actions: _confirmActions(context, '移动')));
       if (confirmed != true || !mounted) return;
     }
     if (_transfer != null) return;
@@ -421,17 +396,25 @@ class _SftpScreenState extends ConsumerState<SftpScreen> {
                       '目标的身份由源服务器自己的 known_hosts 核对，需要源服务器能用密钥登录目标。'),
                 ),
                 actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const LText('取消')),
-                  TextButton(
-                      onPressed: () =>
-                          Navigator.pop(context, TransferRoute.serverDirect),
-                      child: const LText('服务器直传')),
-                  FilledButton(
-                      onPressed: () =>
-                          Navigator.pop(context, TransferRoute.phoneRelay),
-                      child: const LText('手机中转')),
+                  ShunButton(
+                    key: const ValueKey('sftp-dialog-cancel'),
+                    kind: ShunButtonKind.text,
+                    label: '取消',
+                    onPressed: () => Navigator.pop(context),
+                  ),
+                  ShunButton(
+                    key: const ValueKey('sftp-route-server-direct'),
+                    kind: ShunButtonKind.text,
+                    label: '服务器直传',
+                    onPressed: () =>
+                        Navigator.pop(context, TransferRoute.serverDirect),
+                  ),
+                  ShunButton(
+                    key: const ValueKey('sftp-route-phone-relay'),
+                    label: '手机中转',
+                    onPressed: () =>
+                        Navigator.pop(context, TransferRoute.phoneRelay),
+                  ),
                 ],
               ));
       if (choice == null || !mounted) return;
@@ -496,14 +479,7 @@ class _SftpScreenState extends ConsumerState<SftpScreen> {
                           style: Theme.of(context).textTheme.bodySmall),
                     ],
                   )),
-                  actions: [
-                    TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const LText('取消')),
-                    FilledButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const LText('使用手机中转')),
-                  ],
+                  actions: _confirmActions(context, '使用手机中转'),
                 ));
         if (accepted != true || !mounted) return;
       }

@@ -17,12 +17,55 @@ void main() {
     ];
   }
 
-  Widget app(List<ServerStats> data, {double width = 320}) => MaterialApp(
-      home: Scaffold(
-          body: Align(
-              alignment: Alignment.topLeft,
-              child: SizedBox(
-                  width: width, child: ServerNetworkChart(samples: data)))));
+  Widget app(List<ServerStats> data,
+          {double width = 320, bool stale = false, ThemeData? theme}) =>
+      MaterialApp(
+          theme: theme,
+          home: Scaffold(
+              body: Align(
+                  alignment: Alignment.topLeft,
+                  child: SizedBox(
+                      width: width,
+                      child:
+                          ServerNetworkChart(samples: data, stale: stale)))));
+
+  Color? legendColor(WidgetTester tester, String key) => (tester
+          .widget<Container>(find.descendant(
+              of: find.byKey(ValueKey(key)), matching: find.byType(Container)))
+          .decoration! as BoxDecoration)
+      .color;
+
+  testWidgets('R91 图例跟主题色一致；断开前的数据标出来并变淡', (tester) async {
+    for (final theme in [
+      ThemeData(),
+      ThemeData(brightness: Brightness.dark),
+    ]) {
+      final colors = theme.colorScheme;
+      await tester.pumpWidget(app(readings(), theme: theme));
+      await tester.pumpAndSettle();
+      expect(find.text('接收'), findsOneWidget);
+      expect(find.text('发送'), findsOneWidget);
+      expect(legendColor(tester, 'network-legend-rx'), colors.primary);
+      expect(legendColor(tester, 'network-legend-tx'), colors.tertiary);
+      expect(find.byKey(const ValueKey('network-chart-stale')), findsNothing);
+
+      await tester.pumpWidget(app(readings(), theme: theme, stale: true));
+      expect(find.byKey(const ValueKey('network-chart-stale')), findsOneWidget);
+      expect(legendColor(tester, 'network-legend-rx'),
+          colors.primary.withValues(alpha: .45));
+      expect(legendColor(tester, 'network-legend-tx'),
+          colors.tertiary.withValues(alpha: .45));
+      // 断开后还能按住看断开前的读数。
+      final rect = tester
+          .getRect(find.byKey(const ValueKey('network-chart-touch-area')));
+      final gesture = await tester.startGesture(rect.center);
+      await tester.pump();
+      expect(
+          find.byKey(const ValueKey('network-chart-tooltip')), findsOneWidget);
+      await gesture.up();
+      await tester.pump();
+    }
+  });
 
   test('traffic totals format large counters without long GB strings', () {
     expect(formatTrafficBytes(0), '0 B');
@@ -108,5 +151,18 @@ void main() {
     expect(tester.takeException(), isNull);
     await tester.pumpWidget(app([]));
     expect(find.text('暂无详细数据'), findsOneWidget);
+  });
+
+  testWidgets('stale chart wraps its legend at large text sizes',
+      (tester) async {
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    await tester.pumpWidget(app(readings(), width: 220, stale: true));
+    final receive =
+        tester.getRect(find.byKey(const ValueKey('network-legend-rx')));
+    final stale =
+        tester.getRect(find.byKey(const ValueKey('network-chart-stale')));
+    expect(stale.top, greaterThanOrEqualTo(receive.bottom));
+    expect(tester.takeException(), isNull);
   });
 }

@@ -56,7 +56,7 @@ class _HiddenHostsScreenState extends ConsumerState<HiddenHostsScreen> {
     final devices =
         hiddenCatalogDevices(ref.watch(catalogOverviewProvider), allHosts);
     return Scaffold(
-      appBar: AppBar(title: const LText('隐藏的主机')),
+      appBar: ShunAppBar(title: const LText('隐藏的主机')),
       body: hosts.isEmpty && devices.isEmpty
           ? const EmptyState(
               icon: Icons.visibility_outlined,
@@ -73,13 +73,14 @@ class _HiddenHostsScreenState extends ConsumerState<HiddenHostsScreen> {
                         leading: HostSystemIcon(host: host, size: 40),
                         title: host.label,
                         details: HostAddressLine(host),
-                        trailing: TextButton(
+                        trailing: ShunBarButton(
                           key: ValueKey('hidden-restore-${host.id}'),
+                          tooltip: localized('恢复显示'),
+                          icon: Icons.visibility_outlined,
                           onPressed: () => unawaited(ref
                               .read(vaultControllerProvider.notifier)
                               .updateHost(host.id,
                                   (current) => withHidden(current, false))),
-                          child: const LText('恢复显示'),
                         ),
                       ),
                     for (final (:cache, :record) in devices)
@@ -93,12 +94,13 @@ class _HiddenHostsScreenState extends ConsumerState<HiddenHostsScreen> {
                         ),
                         title: catalogDeviceName(record),
                         subtitle: record.device.addresses.firstOrNull ?? '—',
-                        trailing: TextButton(
+                        trailing: ShunBarButton(
                           key: ValueKey(
                               'hidden-restore-${cache.catalogId}-${record.id}'),
+                          tooltip: localized('恢复显示'),
+                          icon: Icons.visibility_outlined,
                           onPressed: () =>
                               _restoreDevice(cache.catalogId, record.id),
-                          child: const LText('恢复显示'),
                         ),
                       ),
                   ],

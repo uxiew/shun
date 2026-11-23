@@ -169,10 +169,12 @@ void main() {
   group('弹窗', () {
     Future<bool?> open(
       WidgetTester tester,
-      Future<bool> Function(BuildContext context) show,
-    ) async {
+      Future<bool> Function(BuildContext context) show, {
+      ThemeData? theme,
+    }) async {
       bool? result;
       await tester.pumpWidget(MaterialApp(
+        theme: theme,
         localizationsDelegates: prismTestDelegates,
         builder: prismTestBuilder,
         home: Builder(
@@ -206,6 +208,16 @@ void main() {
       for (final label in ['确认更新', '接受并记住', '继续', '信任']) {
         expect(find.text(label), findsNothing, reason: label);
       }
+    });
+
+    testWidgets('changed fingerprint labels retain the UI font fallback',
+        (tester) async {
+      await open(tester, changed,
+          theme: ThemeData(fontFamily: 'UI', fontFamilyFallback: ['CJK']));
+      final block = tester.widget<SelectableText>(find.byWidgetPredicate(
+          (w) => w is SelectableText && (w.data?.contains('现在：$fp') ?? false)));
+      expect(block.style?.fontFamily, 'monospace');
+      expect(block.style?.fontFamilyFallback, ['UI', 'CJK']);
     });
 
     testWidgets('指纹变了：点删除旧指纹返回 true，点关闭返回 false', (tester) async {

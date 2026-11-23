@@ -13,6 +13,7 @@ import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:shun/presentation/screens/rustdesk_screen.dart';
 import 'package:shun/presentation/screens/vault_screen.dart';
+import 'package:shun/presentation/ui/components.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'rustdesk_fakes.dart';
@@ -89,9 +90,8 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  VoidCallback? pressed<T extends ButtonStyleButton>(
-          WidgetTester tester, String key) =>
-      tester.widget<T>(find.byKey(ValueKey(key))).onPressed;
+  VoidCallback? pressed(WidgetTester tester, String key) =>
+      tester.widget<ShunButton>(find.byKey(ValueKey(key))).onPressed;
 
   testWidgets('填 ID：只保存不发请求；不合规的写在输入框下面、不保存', (tester) async {
     await open(tester, const RustDeskHostScreen(hostId: 'win'));
@@ -174,7 +174,7 @@ void main() {
     expect(find.byKey(const ValueKey('rd-other-com.example.myrustdesk')),
         findsOneWidget);
     expect(find.textContaining('ab12 cd34 ef56'), findsOneWidget);
-    expect(pressed<FilledButton>(tester, 'rd-launch'), isNull);
+    expect(pressed(tester, 'rd-launch'), isNull);
 
     // 点「信任并改用」先弹确认框；取消就什么都不变。
     await tester
@@ -183,7 +183,7 @@ void main() {
     expect(find.text('信任这个 App、改用它来远控？'), findsOneWidget);
     await tester.tap(find.text('取消'));
     await tester.pumpAndSettle();
-    expect(pressed<FilledButton>(tester, 'rd-launch'), isNull);
+    expect(pressed(tester, 'rd-launch'), isNull);
     expect(backend.values['rustdesk.trust.v1'], isNull);
 
     await tester
@@ -202,7 +202,7 @@ void main() {
     await tester.tap(find.byKey(const ValueKey('rd-revoke')));
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('rd-not-installed')), findsOneWidget);
-    expect(pressed<FilledButton>(tester, 'rd-launch'), isNull);
+    expect(pressed(tester, 'rd-launch'), isNull);
   });
 
   testWidgets('RDX01：官方包名但证书不认识，批准前不能发；证书再变就停', (tester) async {
@@ -218,10 +218,10 @@ void main() {
     await open(tester, const RustDeskHostScreen(hostId: 'win'));
     await saveId(tester, '123456789');
     expect(find.byKey(const ValueKey('rd-needs-approval')), findsOneWidget);
-    expect(pressed<FilledButton>(tester, 'rd-launch'), isNull);
+    expect(pressed(tester, 'rd-launch'), isNull);
     await tester.tap(find.byKey(const ValueKey('rd-approve')));
     await tester.pumpAndSettle();
-    expect(pressed<FilledButton>(tester, 'rd-launch'), isNotNull);
+    expect(pressed(tester, 'rd-launch'), isNotNull);
 
     platform.probeResult = withCert(
         'ffffcd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12cd34ef56ab12');
@@ -229,7 +229,7 @@ void main() {
     tester.binding.handleAppLifecycleStateChanged(AppLifecycleState.resumed);
     await tester.pumpAndSettle();
     expect(find.byKey(const ValueKey('rd-signer-changed')), findsOneWidget);
-    expect(pressed<FilledButton>(tester, 'rd-launch'), isNull);
+    expect(pressed(tester, 'rd-launch'), isNull);
     expect(platform.launched, isEmpty);
   });
 
@@ -271,15 +271,15 @@ void main() {
 
     await reprobe('1.4.6');
     expect(find.byKey(const ValueKey('rd-version-ungated')), findsOneWidget);
-    expect(pressed<FilledButton>(tester, 'rd-launch'), isNotNull);
+    expect(pressed(tester, 'rd-launch'), isNotNull);
 
     await reprobe('1.6.0');
     expect(find.byKey(const ValueKey('rd-version-unverified')), findsOneWidget);
-    expect(pressed<FilledButton>(tester, 'rd-launch'), isNotNull);
+    expect(pressed(tester, 'rd-launch'), isNotNull);
 
     await reprobe('1.2.3');
     expect(find.byKey(const ValueKey('rd-too-old')), findsOneWidget);
-    expect(pressed<FilledButton>(tester, 'rd-launch'), isNull);
+    expect(pressed(tester, 'rd-launch'), isNull);
   });
 
   testWidgets('改 ID、删除：只动这一条关联', (tester) async {

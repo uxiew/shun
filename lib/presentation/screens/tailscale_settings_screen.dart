@@ -52,9 +52,11 @@ Future<TailscaleSettingsResult?> showTailscaleSettingsOn(
 }) =>
     showNonModalPanel<TailscaleSettingsResult>(
       scaffold,
-      builder: (_, close) => TailscaleSettingsScreen(
-        catalogId: catalogId,
-        onDone: close,
+      builder: (_, close) => prism.ElevatedSurfaceTheme(
+        child: TailscaleSettingsScreen(
+          catalogId: catalogId,
+          onDone: close,
+        ),
       ),
     );
 
@@ -522,21 +524,25 @@ class _TailscaleSettingsScreenState
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Padding(
-              padding: const EdgeInsets.fromLTRB(16, 12, 4, 0),
+              padding: const EdgeInsets.fromLTRB(20, 12, 12, 4),
               child: Row(
                 children: [
                   Expanded(
                     child: LText(
                       'Tailscale 设置',
-                      style: prism.AppTextStyle.headline
-                          .of(context)
+                      style: prism.AppTextStyle.title3
+                          .of(context, emphasized: true)
                           .copyWith(color: colors.onSurface),
                     ),
                   ),
-                  const HintButton(
-                    title: 'Tailscale 设置',
-                    message:
-                        '自动列出 tailnet 里的设备，点一下就导入并连接。只读设备列表：不开 VPN，手机要能到达设备（比如开着 Tailscale App）。',
+                  IconButtonTheme(
+                    data: IconButtonThemeData(
+                        style: ShunBarButton.styleOf(context)),
+                    child: const HintButton(
+                      title: 'Tailscale 设置',
+                      message:
+                          '自动列出 tailnet 里的设备，点一下就导入并连接。只读设备列表：不开 VPN，手机要能到达设备（比如开着 Tailscale App）。',
+                    ),
                   ),
                 ],
               ),
@@ -550,7 +556,7 @@ class _TailscaleSettingsScreenState
               const LinearProgressIndicator()
             else
               Flexible(
-                child: ListView(
+                child: CatalogFormList(
                   shrinkWrap: true,
                   padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
                   children: [
@@ -815,7 +821,10 @@ class _TailscaleSettingsScreenState
               ),
             Padding(
               padding: const EdgeInsets.fromLTRB(12, 4, 12, 8),
-              child: Row(
+              child: OverflowBar(
+                alignment: MainAxisAlignment.end,
+                overflowAlignment: OverflowBarAlignment.end,
+                spacing: 8,
                 children: [
                   if (existing)
                     // 留着 Material 的红字按钮：ShunButton 没有危险样式（R96 统一看）。
@@ -827,14 +836,12 @@ class _TailscaleSettingsScreenState
                       ),
                       child: LText(_onlySource ? '移除 Tailscale' : '移除来源'),
                     ),
-                  const Spacer(),
                   ShunButton(
                     key: const ValueKey('ts-settings-cancel'),
                     kind: ShunButtonKind.text,
                     onPressed: _busy ? null : () => widget.onDone(null),
                     label: '取消',
                   ),
-                  const SizedBox(width: 8),
                   // 忙的时候按钮自己转圈、不响应，读屏念「处理中」。
                   ShunButton(
                     key: const ValueKey('ts-settings-save'),

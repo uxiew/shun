@@ -31,8 +31,12 @@ class _ConnectionStatusPane extends StatelessWidget {
         ? tailscaleFix(pending.host, error, route: route)
         : null;
     final hint = fix?.text ?? (error == null ? null : connectionHint(error));
+    // 层次靠底色：页面一层，卡片高一层，卡片里的提示块再高一层；不描边、不投影。
+    final colors = prism.Theme.of(context).colorScheme;
+    final pageLevel = prism.SurfaceContext(context).surfaceLevel;
+    final cardLevel = pageLevel.next;
     return ColoredBox(
-      color: scheme.surface,
+      color: pageLevel.colorOf(colors),
       child: Center(
         child: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
@@ -40,8 +44,10 @@ class _ConnectionStatusPane extends StatelessWidget {
             constraints: const BoxConstraints(maxWidth: 460),
             child: Card(
               key: const ValueKey('terminal-connection-status-dialog'),
-              elevation: 12,
+              elevation: 0,
               margin: EdgeInsets.zero,
+              color: cardLevel.colorOf(colors),
+              shape: prism.AppShape.xl,
               child: Padding(
                 padding: const EdgeInsets.all(20),
                 child: Column(
@@ -114,9 +120,9 @@ class _ConnectionStatusPane extends StatelessWidget {
                           key: const ValueKey('connection-failure-hint'),
                           width: double.infinity,
                           padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: scheme.secondaryContainer,
-                            borderRadius: BorderRadius.circular(10),
+                          decoration: ShapeDecoration(
+                            color: cardLevel.next.colorOf(colors),
+                            shape: prism.AppShape.md,
                           ),
                           child: Row(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -124,7 +130,7 @@ class _ConnectionStatusPane extends StatelessWidget {
                               Icon(
                                 Icons.lightbulb_outline,
                                 size: 18,
-                                color: scheme.onSecondaryContainer,
+                                color: colors.onSurfaceVariant,
                               ),
                               const SizedBox(width: 8),
                               Expanded(
@@ -133,9 +139,7 @@ class _ConnectionStatusPane extends StatelessWidget {
                                   style: Theme.of(context)
                                       .textTheme
                                       .bodySmall
-                                      ?.copyWith(
-                                        color: scheme.onSecondaryContainer,
-                                      ),
+                                      ?.copyWith(color: colors.onSurface),
                                 ),
                               ),
                             ],
@@ -149,8 +153,11 @@ class _ConnectionStatusPane extends StatelessWidget {
                           key: const ValueKey('tailscale-fix-command'),
                           style: const TextStyle(fontFamily: 'monospace'),
                         ),
-                        TextButton.icon(
+                        ShunButton(
                           key: const ValueKey('tailscale-fix-copy'),
+                          kind: ShunButtonKind.text,
+                          icon: Icons.copy,
+                          label: '复制命令',
                           onPressed: () async {
                             await Clipboard.setData(
                                 ClipboardData(text: command));
@@ -159,13 +166,14 @@ class _ConnectionStatusPane extends StatelessWidget {
                               const SnackBar(content: LText('已复制')),
                             );
                           },
-                          icon: const Icon(Icons.copy),
-                          label: const LText('复制命令'),
                         ),
                       ],
                       if (fix?.openApp == true && TailscaleApp.supported)
-                        TextButton.icon(
+                        ShunButton(
                           key: const ValueKey('tailscale-fix-open'),
+                          kind: ShunButtonKind.text,
+                          icon: Icons.open_in_new,
+                          label: '打开 Tailscale',
                           onPressed: () async {
                             final opened = await TailscaleApp.open();
                             if (opened || !context.mounted) return;
@@ -175,29 +183,29 @@ class _ConnectionStatusPane extends StatelessWidget {
                               ),
                             );
                           },
-                          icon: const Icon(Icons.open_in_new),
-                          label: const LText('打开 Tailscale'),
                         ),
                       if (fix != null && onEditHost != null)
-                        TextButton.icon(
+                        ShunButton(
                           key: const ValueKey('tailscale-fix-edit'),
+                          kind: ShunButtonKind.text,
+                          icon: Icons.edit_outlined,
+                          label: '改认证方式或路线',
                           onPressed: onEditHost,
-                          icon: const Icon(Icons.edit_outlined),
-                          label: const LText('改认证方式或路线'),
                         ),
                       // 服务器上没有 mosh-server（R42）：给这台发行版的安装命令，用户自己执行。
                       if (pending.error
                           case final MoshServerMissing missing) ...[
                         const SizedBox(height: 12),
-                        OutlinedButton.icon(
+                        ShunButton(
                           key: const ValueKey('mosh-install-hint-open'),
+                          kind: ShunButtonKind.tonal,
+                          icon: Icons.download_outlined,
+                          label: '看安装命令',
                           onPressed: () => showMoshInstallHint(
                             context,
                             hint: missing.hint,
                             hostId: sourceHostIdOf(pending.host),
                           ),
-                          icon: const Icon(Icons.download_outlined),
-                          label: const LText('看安装命令'),
                         ),
                       ],
                       if (showRoute) ...[
@@ -216,8 +224,11 @@ class _ConnectionStatusPane extends StatelessWidget {
                       const SizedBox(height: 6),
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: TextButton.icon(
+                        child: ShunButton(
                           key: const ValueKey('connection-failure-log'),
+                          kind: ShunButtonKind.text,
+                          icon: Icons.history,
+                          label: '连接日志',
                           onPressed: () => Navigator.of(context).push(
                             MaterialPageRoute<void>(
                               builder: (_) => AppLogScreen(
@@ -225,8 +236,6 @@ class _ConnectionStatusPane extends StatelessWidget {
                               ),
                             ),
                           ),
-                          icon: const Icon(Icons.history),
-                          label: const LText('连接日志'),
                         ),
                       ),
                     ],
@@ -251,38 +260,36 @@ class _ConnectionStatusPane extends StatelessWidget {
                         runSpacing: 8,
                         children: [
                           if (onReturn != null)
-                            TextButton.icon(
+                            ShunButton(
+                              kind: ShunButtonKind.text,
+                              icon: Icons.arrow_back,
+                              label: '返回当前终端',
                               onPressed: onReturn,
-                              icon: const Icon(Icons.arrow_back),
-                              label: const LText('返回当前终端'),
                             ),
-                          if (onClose != null && onRetry != null)
-                            OutlinedButton.icon(
+                          // 有「重试」时它是主操作，「关闭」退成浅底；只有「关闭」时它就是主操作。
+                          if (onClose != null)
+                            ShunButton(
                               key: const ValueKey('close-failed-connection'),
+                              kind: onRetry != null
+                                  ? ShunButtonKind.tonal
+                                  : ShunButtonKind.filled,
+                              icon: Icons.close,
+                              label: '关闭标签页',
                               onPressed: onClose,
-                              icon: const Icon(Icons.close),
-                              label: const LText('关闭标签页'),
-                            )
-                          else if (onClose != null)
-                            FilledButton.icon(
-                              key: const ValueKey('close-failed-connection'),
-                              onPressed: onClose,
-                              icon: const Icon(Icons.close),
-                              label: const LText('关闭标签页'),
                             ),
                           if (onRetry != null)
-                            FilledButton.icon(
+                            ShunButton(
                               key: const ValueKey('retry-failed-connection'),
+                              icon: Icons.refresh,
+                              label: '重试',
                               onPressed: onRetry,
-                              icon: const Icon(Icons.refresh),
-                              label: const LText('重试'),
                             ),
                           if (onCancel != null)
-                            FilledButton.icon(
+                            ShunButton(
                               key: const ValueKey('cancel-pending-connection'),
+                              icon: Icons.stop_circle_outlined,
+                              label: '终止连接',
                               onPressed: onCancel,
-                              icon: const Icon(Icons.stop_circle_outlined),
-                              label: const LText('终止连接'),
                             ),
                         ],
                       ),
@@ -305,7 +312,8 @@ class _TerminalPictureInPictureHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => ColoredBox(
-        color: Theme.of(context).colorScheme.surfaceContainerHighest,
+        color: prism.SurfaceLevel.inset
+            .colorOf(prism.Theme.of(context).colorScheme),
         child: SizedBox(
           height: 30,
           child: Padding(
@@ -315,9 +323,7 @@ class _TerminalPictureInPictureHeader extends StatelessWidget {
                 Icon(
                   Icons.circle,
                   size: 8,
-                  color: session.connected
-                      ? Colors.greenAccent
-                      : Colors.orangeAccent,
+                  color: _linkColor(session.connected),
                 ),
                 const SizedBox(width: 7),
                 Expanded(
@@ -572,12 +578,13 @@ class _ConnectionBanner extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final colors = prism.Theme.of(context).colorScheme;
     return Material(
       // 不透明：以前 94%，压在终端最上面几行上，而那几行刚好是「连接已断开，正在自动恢复…」
       // 这类字，透出来和横幅的字叠在一起，真机上读不清（UX02）。
-      color: warning ? scheme.tertiaryContainer : scheme.secondaryContainer,
-      elevation: 2,
+      // 底是中性的最高一层：页面和卡片同色的那几套预设里，它和终端底色也分得开。
+      // 状态色只在左边的图标上。
+      color: prism.SurfaceLevel.inset.colorOf(colors),
       child: Padding(
         padding: const EdgeInsets.fromLTRB(12, 6, 6, 6),
         child: Row(
@@ -591,6 +598,7 @@ class _ConnectionBanner extends StatelessWidget {
               Icon(
                 warning ? Icons.warning_amber_outlined : Icons.link_off,
                 size: 18,
+                color: warning ? colors.tertiary : _linkColor(false),
               ),
             const SizedBox(width: 10),
             Expanded(
@@ -598,7 +606,10 @@ class _ConnectionBanner extends StatelessWidget {
                 message,
                 maxLines: 4,
                 overflow: TextOverflow.ellipsis,
-                style: Theme.of(context).textTheme.bodySmall,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall
+                    ?.copyWith(color: colors.onSurface),
               ),
             ),
             if (onReconnect != null)

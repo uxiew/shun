@@ -7,6 +7,7 @@ import 'package:shun/infrastructure/ai/ai_reply_parser.dart';
 import 'package:shun/infrastructure/ai/ai_workspace.dart';
 import 'package:shun/presentation/widgets/ai_panel.dart';
 import 'package:shun/presentation/widgets/ai_providers_page.dart';
+import 'support/prism_test_host.dart';
 
 void main() {
   late Map<String, String?> values;
@@ -115,6 +116,8 @@ void main() {
           values[key] = value;
         });
     await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Builder(
             builder: (context) => Scaffold(
                 body: TextButton(
@@ -147,6 +150,8 @@ void main() {
           values[key] = value;
         });
     await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Scaffold(
             body: ResizableAiPanel(
                 builder: (resize) => GestureDetector(
@@ -174,8 +179,10 @@ void main() {
         write: (key, value) async {
           values[key] = value;
         });
-    await tester
-        .pumpWidget(MaterialApp(home: AiProvidersPage(workspace: workspace)));
+    await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
+        home: AiProvidersPage(workspace: workspace)));
     await tester.pumpAndSettle();
     await tester.tap(find.byTooltip('添加服务商'));
     await tester.pumpAndSettle();

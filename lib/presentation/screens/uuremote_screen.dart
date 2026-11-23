@@ -8,6 +8,7 @@ import '../../application/plugin_registry.dart';
 import '../../application/uuremote.dart';
 import '../../infrastructure/plugins/uuremote_adapter.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import '../widgets/catalog_text.dart';
 import '../widgets/hint.dart';
 import '../widgets/remote_entry_widgets.dart';
@@ -76,15 +77,16 @@ class _UuRemoteListenerState extends ConsumerState<UuRemoteListener> {
             ],
           ),
           actions: [
-            TextButton(
+            ShunButton(
+              kind: ShunButtonKind.text,
               key: const ValueKey('uu-offer-discard'),
               onPressed: () => Navigator.pop(context, false),
-              child: const LText('不要'),
+              label: '不要',
             ),
-            FilledButton(
+            ShunButton(
               key: const ValueKey('uu-offer-confirm'),
               onPressed: () => Navigator.pop(context, true),
-              child: const LText('关联'),
+              label: '关联',
             ),
           ],
         ),
@@ -170,14 +172,15 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
             '如果你要求远控也必须走同一条路线，UU 做不到，请取消。',
           ),
           actions: [
-            TextButton(
+            ShunButton(
+              kind: ShunButtonKind.text,
               onPressed: () => Navigator.pop(context, false),
-              child: const LText('取消'),
+              label: '取消',
             ),
-            FilledButton(
+            ShunButton(
               key: const ValueKey('uu-route-accept'),
               onPressed: () => Navigator.pop(context, true),
-              child: const LText('用 UU 自己的网络继续'),
+              label: '用 UU 自己的网络继续',
             ),
           ],
         ),
@@ -199,13 +202,14 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
         title: const LText('删除这条 UU 绑定？'),
         content: const LText('只删本 App 里的这条绑定，UU 远程里的设备不受影响。'),
         actions: [
-          TextButton(
+          ShunButton(
+            kind: ShunButtonKind.text,
             onPressed: () => Navigator.pop(context, false),
-            child: const LText('取消'),
+            label: '取消',
           ),
-          FilledButton(
+          ShunButton(
             onPressed: () => Navigator.pop(context, true),
-            child: const LText('删除'),
+            label: '删除',
           ),
         ],
       ),
@@ -233,7 +237,7 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
     final canSendWithCallback = canSend && uu.callbackRivals.isEmpty;
     final attempt = uu.attempts[widget.hostId];
     return Scaffold(
-      appBar: AppBar(
+      appBar: ShunAppBar(
           title: Text(host == null
               ? localized('UU 远程')
               : '${localized('UU 远程')} · ${host.label}'),
@@ -254,8 +258,8 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
           if (host == null)
             const LText('这条远控连接已删除。')
           else
-            Card(
-              child: Padding(
+            ShunSection(children: [
+              ShunSectionItem(
                 padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -290,49 +294,52 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
                       runSpacing: 8,
                       children: [
                         if (binding != null && binding.valid) ...[
-                          FilledButton.icon(
+                          ShunButton(
                             key: const ValueKey('uu-launch-fullscreen'),
                             onPressed: canSend
                                 ? () => _launch(UuWindow.fullscreen)
                                 : null,
-                            icon: const Icon(Icons.fullscreen),
-                            label: const LText('全屏远控'),
+                            icon: Icons.fullscreen,
+                            label: '全屏远控',
                           ),
-                          OutlinedButton.icon(
+                          ShunButton(
+                            kind: ShunButtonKind.tonal,
                             key: const ValueKey('uu-launch-pip'),
                             onPressed: canSendWithCallback
                                 ? () => _launch(UuWindow.pip)
                                 : null,
-                            icon: const Icon(
-                                Icons.picture_in_picture_alt_outlined),
-                            label: const LText('小窗远控'),
+                            icon: Icons.picture_in_picture_alt_outlined,
+                            label: '小窗远控',
                           ),
                         ],
-                        OutlinedButton.icon(
+                        ShunButton(
+                          kind: binding == null || !binding.valid
+                              ? ShunButtonKind.filled
+                              : ShunButtonKind.tonal,
                           key: const ValueKey('uu-bind'),
                           onPressed: canSendWithCallback
                               ? () => _run(() => _uu.startBind(widget.hostId))
                               : null,
-                          icon: const Icon(Icons.link),
-                          label: LText(binding == null ? '在 UU 里选设备' : '重新绑定'),
+                          icon: Icons.link,
+                          label: binding == null ? '在 UU 里选设备' : '重新绑定',
                         ),
                         if (binding != null)
-                          TextButton(
+                          ShunButton(
+                            kind: ShunButtonKind.text,
                             key: const ValueKey('uu-delete'),
                             onPressed: _busy ? null : () => _delete(binding),
-                            child: const LText('删除绑定'),
+                            label: '删除绑定',
                           ),
                       ],
                     ),
                   ],
                 ),
-              ),
-            ),
-          if (attempt != null || waitingHere) ...[
-            const SizedBox(height: 12),
-            Card(
-              key: const ValueKey('uu-attempt'),
-              child: Padding(
+              )
+            ]),
+          if (attempt != null || waitingHere)
+            ShunSection(children: [
+              ShunSectionItem(
+                key: const ValueKey('uu-attempt'),
                 padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -349,10 +356,11 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
                           style: small),
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: TextButton(
+                        child: ShunButton(
+                          kind: ShunButtonKind.text,
                           key: const ValueKey('uu-end-waiting'),
                           onPressed: () => _run(_uu.endWaiting),
-                          child: const LText('结束等待'),
+                          label: '结束等待',
                         ),
                       ),
                     ],
@@ -362,19 +370,19 @@ class _UuRemoteHostScreenState extends ConsumerState<UuRemoteHostScreen> {
                         binding.valid)
                       Align(
                         alignment: Alignment.centerLeft,
-                        child: TextButton(
+                        child: ShunButton(
+                          kind: ShunButtonKind.text,
                           key: const ValueKey('uu-retry-fullscreen'),
                           onPressed: canSend
                               ? () => _launch(UuWindow.fullscreen)
                               : null,
-                          child: const LText('改用全屏'),
+                          label: '改用全屏',
                         ),
                       ),
                   ],
                 ),
               ),
-            ),
-          ],
+            ]),
         ],
       ),
     );
@@ -415,7 +423,7 @@ class _UuRemoteSettingsScreenState
     final uu = ref.watch(uuRemoteProvider);
     final hosts = uu.entries;
     return Scaffold(
-      appBar: AppBar(
+      appBar: ShunAppBar(
         title: const LText('UU 远程'),
         actions: [
           // 逐句本地化再拼：拼好的整段在英文表里查不到。
@@ -433,20 +441,24 @@ class _UuRemoteSettingsScreenState
         children: [
           UuAppStatusCard(app: uu.app),
           UuCallbackRivalsNote(rivals: uu.callbackRivals),
-          const SizedBox(height: 16),
-          for (final entry in hosts)
-            RemoteEntryTile(
-              entry: entry,
-              provider: 'UU 远程',
-              onOpen: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => UuRemoteHostScreen(hostId: entry.id),
+          if (hosts.isNotEmpty)
+            ShunSection(children: [
+              for (final entry in hosts)
+                RemoteEntryTile(
+                  entry: entry,
+                  provider: 'UU 远程',
+                  onOpen: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => UuRemoteHostScreen(hostId: entry.id),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          TextButton(
+            ]),
+          const SizedBox(height: 12),
+          ShunButton(
+            kind: ShunButtonKind.text,
             onPressed: () => ref.read(uuRemoteProvider.notifier).retryLoad(),
-            child: const LText('重新读取本机远控记录'),
+            label: '重新读取本机远控记录',
           ),
         ],
       ),
@@ -491,8 +503,6 @@ class UuAppStatusCard extends ConsumerWidget {
     }
 
     final children = <Widget>[
-      const LText('手机上的 UU 远程'),
-      const SizedBox(height: 4),
       ...switch (app) {
         null => [const LinearProgressIndicator()],
         UuPlatformUnsupported() => [const LText('UU 远程联动目前只支持 Android。')],
@@ -532,10 +542,10 @@ class UuAppStatusCard extends ConsumerWidget {
             ),
             Align(
               alignment: Alignment.centerLeft,
-              child: FilledButton(
+              child: ShunButton(
                 key: const ValueKey('uu-approve'),
                 onPressed: () => approve(signer),
-                child: const LText('批准这张证书'),
+                label: '批准这张证书',
               ),
             ),
           ],
@@ -548,10 +558,11 @@ class UuAppStatusCard extends ConsumerWidget {
             catalogLine('现在：', formatDigest(current), style: small),
             Align(
               alignment: Alignment.centerLeft,
-              child: OutlinedButton(
+              child: ShunButton(
+                kind: ShunButtonKind.tonal,
                 key: const ValueKey('uu-approve'),
                 onPressed: () => approve(current),
-                child: const LText('批准新证书'),
+                label: '批准新证书',
               ),
             ),
           ],
@@ -566,23 +577,23 @@ class UuAppStatusCard extends ConsumerWidget {
             if (!official)
               Align(
                 alignment: Alignment.centerLeft,
-                child: TextButton(
+                child: ShunButton(
+                  kind: ShunButtonKind.text,
                   onPressed: controller.revokeApproval,
-                  child: const LText('撤销批准'),
+                  label: '撤销批准',
                 ),
               ),
           ],
       },
     ];
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+    return ShunSection(title: '手机上的 UU 远程', children: [
+      ShunSectionItem(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: children,
         ),
-      ),
-    );
+      )
+    ]);
   }
 }
 
@@ -594,21 +605,19 @@ class UuCallbackRivalsNote extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (rivals.isEmpty) return const SizedBox.shrink();
-    return Card(
+    return ShunSectionItem(
       key: const ValueKey('uu-callback-rivals'),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            catalogLine('另有 App 也声明了本 App 的 UU 回调地址：', rivals.join(', ')),
-            const SizedBox(height: 4),
-            LText(
-              'UU 的回报可能被它截走，绑定和小窗远控先不发。卸载它再回来。',
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
+      padding: const EdgeInsets.all(12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          catalogLine('另有 App 也声明了本 App 的 UU 回调地址：', rivals.join(', ')),
+          const SizedBox(height: 4),
+          LText(
+            'UU 的回报可能被它截走，绑定和小窗远控先不发。卸载它再回来。',
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+        ],
       ),
     );
   }

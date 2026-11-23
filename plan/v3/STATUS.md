@@ -4,11 +4,11 @@
 
 ## 现在（2026-11-14）
 
-**当前主线：按 FlClash 的视觉/交互方向、以 prism_ui 为唯一目标组件体系迁移 UI。R81–R89 已完成，UIM01–UIM11 及 GU0、GU1、GU2 PASS；下一批 U3：R90 文件页与端口转发（R91、R92 可并行）。**
+**当前主线：按 FlClash 的视觉/交互方向、以 prism_ui 为唯一目标组件体系迁移 UI。R81–R89 已完成，UIM01–UIM11 及 GU0、GU1、GU2 PASS；U3 进行中：R90 文件页与端口转发代码与检查齐、待所有者提交验收（R91、R92 并行）。**
 
 - 方案：[docs/24](docs/24-ui-migration.md)；决策：[ui-system-decision](../../docs/decisions/ui-system-decision.md)；模型入口：[docs/10](docs/10-agent-handoff.md)。
-- U0–U5 六阶段、R81–R98 共18项；R81–R89 DONE，其余9项 NOT_STARTED；UIM01–UIM11 PASS，UIM12–UIM22 NOT_RUN。
-- 任务113条：DONE 70、IN_PROGRESS 10、NOT_STARTED 14、DEFERRED 19。分类为74项非P6、39项P6，分类不是完成状态。
+- U0–U5 六阶段、R81–R98 共18项；R81–R89 DONE，R90 IN_PROGRESS，其余8项 NOT_STARTED；UIM01–UIM11 PASS，UIM12–UIM22 NOT_RUN。
+- 任务113条：DONE 70、IN_PROGRESS 11、NOT_STARTED 13、DEFERRED 19。分类为74项非P6、39项P6，分类不是完成状态。
 - 用例210条：PASS 168、FAIL 0、BLOCKED 6、NOT_RUN 36。原188项结果/证据和原95项状态/提交均保留，新UI没有借用旧PASS。
 - 原门禁仍只有G0、G3 PASS；新增GU0、GU1、GU2 PASS，GU3–GU5 NOT_RUN。GU5是UI代码/本地验证出口，不表示CORE_READY/FULL_READY。
 - 规划前基线：`shun/v3 @ 92fe59340515ac26db51cb3a18397d2f42e3c012`，工作区干净。固定参考和依赖SHA见决策。
@@ -29,7 +29,7 @@
 
 | 项 | 当前动作 | 完成出口 |
 |---|---|---|
-| R81–R98 UI迁移 | R81–R89已完成、GU0/GU1/GU2 PASS；接下来U3的R90/R91/R92（可并行） | 依赖顺序推进；UIM01–UIM21本地范围通过后交R98 |
+| R81–R98 UI迁移 | R81–R89已完成、GU0/GU1/GU2 PASS；U3的R90待提交验收（证据evidence/R90.md），R91/R92并行 | 依赖顺序推进；UIM01–UIM21本地范围通过后交R98 |
 | R26 新候选日用 | 保持IN_PROGRESS；旧包反馈可收集，新UI正式完成先等R98 | UIM22及受影响原清单，同候选/手机证据 |
 | R27/R29/X13/R30/R31 | 原发布依赖保留；R30补齐全部210项，仍直接依赖X13 | 原V3完整门禁 |
 | R59/R62及真实账号/对端缺口 | 保留实际IN_PROGRESS/BLOCKED/NOT_RUN | 有硬件/账号和适用授权时验，不伪造 |
@@ -115,6 +115,8 @@ R90/R91/R92是基础完成后唯一可并行的模块批次；终端R93–R95同
   同一目录先用过 Claude 2.1.314 再用 1.0.0，1.0.0 会崩（工具自己的问题，App 不降级）。详见 `evidence/R56-R57-real-cli.md`「没测的」。
 
 ## 进展记录（新的在上）
+
+11-21 **R90文件页、文件编辑器与端口转发：代码与检查齐，IN_PROGRESS，等所有者审阅提交。** 七个补丁（弹层、编辑器、端口转发及占用报错增量、文件页v2及长文件名增量、图库）在 `03340ea` 上依次打上：静态检查0问题，全量1976过/337跳过/0失败，隔离SSH测试环境120过，debug arm64构建成功，Android 11模拟器两条（文件页与编辑器、主机菜单）通过，macOS图库116过196张。UIM12仍记NOT_RUN：文档树选择器、真实chmod、终端入口和转发的新增/停止/去除只有单测，逐项见evidence/R90.md第3节；真机、TalkBack未测。提交后用该文件第7节的命令改DONE。
 
 11-20 **R89凭据、代理与Tailscale面板完成，GU2本地PASS，下一项R90。** 实现提交 `f3ebb15`、`a985fd6`、`67db1fc`、`a8ef6e9`；UIM10、UIM11 PASS。输入框和对话框外壳按R84保留，换的是按钮、列表、开关、分段和展开头：凭据页两组卡片，密码框换ShunSecretField，「认证方式」下拉换分段，代理一行一张卡片，Tailscale「高级」是带展开状态的按钮、地址换分段、保存忙时转圈并念「处理中」。Prism分组和分段放进AlertDialog会因固有尺寸测量抛错，抽出NoIntrinsics；卡片行没有点按会被读屏报成不可用的按钮，SSH密钥行改用ShunSectionItem，代理管理点行改为编辑。Tailscale面板留两处读屏容器（路线编辑器外、提示句），提示句迁移前并进标题，现在自成节点并播报。变异校准第一轮漏了「认证方式分段写死第一项」，补测试后11项全抓到。隔离SSH环境133项、全量2002过/324跳过/0失败、静态检查、debug构建通过；图库164张，本批变化4张、新增48张，另8张是相对时间漂移。展开高级后面板顶到上沿是迁移前就有的。真机、TalkBack、r40/r70/r75设备测试未测；见[R89](evidence/R89.md)。
 

@@ -88,7 +88,9 @@ class _CatalogSourceSectionState extends ConsumerState<CatalogSourceSection> {
                       cache == null
                           ? binding.catalogId
                           : catalogSourceName(cache),
-                      style: small),
+                      style: prism.AppTextStyle.headline
+                          .of(context, emphasized: true)),
+                  const SizedBox(height: 4),
                   catalogLine(
                     '设备：',
                     record == null
@@ -97,7 +99,11 @@ class _CatalogSourceSectionState extends ConsumerState<CatalogSourceSection> {
                     style: small,
                   ),
                   if (status != null) ...[
-                    LText(_presenceText(status.presence), style: small),
+                    LText(_presenceText(status.presence),
+                        style: small.copyWith(
+                            color: status.presence == CatalogPresence.listed
+                                ? colors.onSurfaceVariant
+                                : colors.error)),
                     if (cache?.lastSuccess case final success?)
                       catalogLine('缓存时间：', catalogTime(success.at),
                           style: small),
@@ -112,7 +118,7 @@ class _CatalogSourceSectionState extends ConsumerState<CatalogSourceSection> {
                     style: small,
                   ),
                   LText('目录状态不代表能连上：能不能连到、SSH 是否可用，要实际连接才知道。', style: small),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 8),
                   if (widget.unlinked)
                     Row(
                       children: [

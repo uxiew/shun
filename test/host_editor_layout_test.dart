@@ -9,6 +9,31 @@ import 'package:shared_preferences/shared_preferences.dart';
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  testWidgets('narrow large-text editor keeps all footer actions reachable',
+      (tester) async {
+    tester.view.physicalSize = const Size(320, 760);
+    tester.view.devicePixelRatio = 1;
+    tester.platformDispatcher.textScaleFactorTestValue = 2;
+    addTearDown(tester.view.reset);
+    addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+    SharedPreferences.setMockInitialValues({});
+    final repository = await VaultRepository.open();
+    await tester.pumpWidget(ProviderScope(
+      overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
+      child: MaterialApp(
+          home: HostEditor(verifyHostKey: (_, __, ___) async => false)),
+    ));
+    await tester.pump();
+    for (final key in [
+      'test-connection',
+      'host-editor-cancel',
+      'host-editor-save'
+    ]) {
+      expect(find.byKey(ValueKey(key)).hitTestable(), findsOneWidget);
+    }
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('host editor keeps full sheet height when keyboard is visible',
       (tester) async {
     tester.view.physicalSize = const Size(390, 844);

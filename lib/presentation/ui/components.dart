@@ -20,8 +20,9 @@ import '../widgets/secret_content.dart';
 // key 约定：调用处给的 key 挂在控件最外层，`find.byKey` 后 tap / enterText 都能用；
 // 值写成「页面-字段」（如 `ts-settings-key`），换控件实现时不改 key，测试按 key、语义、行为断言。
 
-/// [ShunButton] 的四种样子，对应 Material 的四种按钮。
-enum ShunButtonKind { filled, tonal, outlined, text }
+/// [ShunButton] 的样子。前四种对应 Material 的四种按钮；[neutral] 是主按钮旁边的次要动作：
+/// 高一层的底、正文色的字，不描边、不带主色（Material 的 tonal 在主按钮旁边像第二个强调色）。
+enum ShunButtonKind { filled, tonal, neutral, outlined, text }
 
 /// 带忙碌态的按钮。
 ///
@@ -47,6 +48,17 @@ class ShunButton extends StatelessWidget {
   final bool busy;
   final FocusNode? focusNode;
   final bool autofocus;
+
+  /// [ShunButtonKind.neutral] 的样式。测试、读屏认控件类型的地方还得留着 `FilledButton.tonal`，
+  /// 把这个样式给它，和 [ShunButton] 的 neutral 是同一个样子。
+  static ButtonStyle neutralStyleOf(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    return FilledButton.styleFrom(
+      backgroundColor:
+          prism.SurfaceContext(context).raisedSurfaceLevel.colorOf(colors),
+      foregroundColor: colors.onSurface,
+    );
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -89,6 +101,22 @@ class ShunButton extends StatelessWidget {
               onPressed: action,
               focusNode: focusNode,
               autofocus: autofocus,
+              icon: leading,
+              label: child,
+            ),
+      ShunButtonKind.neutral => leading == null
+          ? FilledButton.tonal(
+              onPressed: action,
+              focusNode: focusNode,
+              autofocus: autofocus,
+              style: neutralStyleOf(context),
+              child: child,
+            )
+          : FilledButton.tonalIcon(
+              onPressed: action,
+              focusNode: focusNode,
+              autofocus: autofocus,
+              style: neutralStyleOf(context),
               icon: leading,
               label: child,
             ),
@@ -208,6 +236,7 @@ class ShunListRow extends StatelessWidget {
   const ShunListRow({
     super.key,
     required this.title,
+    this.localizeTitle = true,
     this.subtitle,
     this.leading,
     this.trailing,
@@ -221,8 +250,9 @@ class ShunListRow extends StatelessWidget {
     this.selected,
   });
 
-  /// 中文原文，显示时再本地化。
+  /// 中文原文，或不应翻译的外部名称。
   final String title;
+  final bool localizeTitle;
 
   /// 只写状态，不超过 16 个汉字。
   final String? subtitle;
@@ -272,15 +302,17 @@ class ShunListRow extends StatelessWidget {
     final leading = tinted == null || describeLeading
         ? tinted
         : ExcludeSemantics(child: tinted);
+    final displayTitle = localizeTitle ? localizedOf(context, title) : title;
+    Widget buildTitle() => Text(
+          displayTitle,
+          style: prism.AppTextStyle.body.of(context).copyWith(
+                color: colors.onSurface.withValues(alpha: dim),
+              ),
+        );
     // 文字直接交给 LText，不先存进局部变量：UI 规则按参数流向发现副标题的上限，
     // 经过变量就追不到了。
     final titleText = ExcludeSemantics(
-      child: LText(
-        title,
-        style: prism.AppTextStyle.body.of(context).copyWith(
-              color: colors.onSurface.withValues(alpha: dim),
-            ),
-      ),
+      child: buildTitle(),
     );
     final subtitleText = subtitle == null
         ? null
@@ -323,12 +355,7 @@ class ShunListRow extends StatelessWidget {
           onLongPress: longPress,
           expanded: expanded,
           selected: selected == false ? false : null,
-          child: LText(
-            title,
-            style: prism.AppTextStyle.body.of(context).copyWith(
-                  color: colors.onSurface.withValues(alpha: dim),
-                ),
-          ),
+          child: buildTitle(),
         ),
         subtitle: subtitle == null && details == null
             ? null
@@ -375,8 +402,8 @@ class ShunListRow extends StatelessWidget {
       expanded: expanded,
       selected: selected,
       label: subtitle == null
-          ? localizedOf(context, title)
-          : '${localizedOf(context, title)}, ${localizedOf(context, subtitle!)}',
+          ? displayTitle
+          : '$displayTitle, ${localizedOf(context, subtitle!)}',
       onTap: active ? onTap : null,
       onLongPress: longPress,
       child: InkWell(
@@ -413,6 +440,7 @@ class ShunSwitchRow extends StatelessWidget {
     required this.onChanged,
     this.hint,
     this.subtitle,
+    this.subtitleIsData = false,
     this.leading,
   });
 
@@ -424,6 +452,9 @@ class ShunSwitchRow extends StatelessWidget {
 
   /// 只写状态，不超过 16 个汉字。
   final String? subtitle;
+
+  /// [subtitle] 是数据（主机名、路径）而不是界面文字时为真：原样显示，不查翻译表。
+  final bool subtitleIsData;
   final Widget? leading;
   final bool value;
   final ValueChanged<bool>? onChanged;
@@ -457,11 +488,16 @@ class ShunSwitchRow extends StatelessWidget {
       ),
       subtitle: subtitle == null
           ? null
-          : LText(
-              subtitle!,
-              style: prism.AppTextStyle.subheadline.of(context).copyWith(
-                    color: colors.onSurfaceVariant.withValues(alpha: dim),
-                  ),
+          : Builder(
+              builder: (context) {
+                final style =
+                    prism.AppTextStyle.subheadline.of(context).copyWith(
+                          color: colors.onSurfaceVariant.withValues(alpha: dim),
+                        );
+                return subtitleIsData
+                    ? Text(subtitle!, style: style)
+                    : LText(subtitle!, style: style);
+              },
             ),
       trailing: Row(
         mainAxisSize: MainAxisSize.min,
@@ -658,6 +694,172 @@ class ShunSectionItem extends StatelessWidget {
           child: Container(height: 0.5, color: prism.Divider.colorOf(context)),
         ),
       ],
+    );
+  }
+}
+
+/// 底栏五个根页面的页头（FlClash 手机页同款）：左边粗体大标题，右边一排圆形按钮。
+///
+/// 不画底色、不占状态栏：放在页面 SafeArea 里的第一行。[title] 是已本地化的字。
+class ShunPageHeader extends StatelessWidget {
+  const ShunPageHeader({
+    super.key,
+    required this.title,
+    this.leading,
+    this.actions = const [],
+  });
+
+  final String title;
+  final Widget? leading;
+  final List<Widget> actions;
+
+  /// 整条页头的高度，放进 Scaffold 的 appBar 槽时用。
+  static const height = 64.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 8, 12, 8),
+      child: SizedBox(
+        height: height - 16,
+        child: Row(
+          children: [
+            if (leading != null) ...[leading!, const SizedBox(width: 10)],
+            Expanded(
+              // 标题最多放大到 1.34 倍（Prism 页头同一个上限）：再大就撑破这一行，正文照常放大。
+              child: MediaQuery.withClampedTextScaling(
+                maxScaleFactor: 1.34,
+                child: Semantics(
+                  header: true,
+                  child: Text(
+                    title,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: prism.AppTextStyle.title1
+                        .of(context, emphasized: true)
+                        .copyWith(color: colors.onSurface),
+                  ),
+                ),
+              ),
+            ),
+            ...actions,
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+/// 页头里的圆形按钮：40dp 的圆落在卡片那一层的底色上，点按范围仍是 48dp。
+class ShunBarButton extends StatelessWidget {
+  const ShunBarButton({
+    super.key,
+    required this.icon,
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+
+  /// 已本地化的字。
+  final String tooltip;
+  final VoidCallback? onPressed;
+
+  /// 圆形按钮的样式；[ShunAppBar] 把它套给顶栏里所有的图标按钮。
+  static ButtonStyle styleOf(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    return IconButton.styleFrom(
+      backgroundColor:
+          prism.SurfaceContext(context).raisedSurfaceLevel.colorOf(colors),
+      foregroundColor: colors.onSurface,
+      disabledForegroundColor: colors.onSurface.withValues(alpha: 0.38),
+      iconSize: 22,
+      fixedSize: const Size.square(40),
+      minimumSize: const Size.square(40),
+      padding: EdgeInsets.zero,
+      tapTargetSize: MaterialTapTargetSize.padded,
+      shape: const CircleBorder(),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) => IconButton(
+        tooltip: tooltip,
+        onPressed: onPressed,
+        style: styleOf(context),
+        icon: Icon(icon),
+      );
+}
+
+/// 推入页和整页表单的顶栏：仍是一条 Material AppBar（标题、返回、动作的行为照旧），只是里面的
+/// 图标按钮（含自动加的返回、关闭）都成了 [ShunBarButton] 那样的圆形按钮，标题用粗体。
+class ShunAppBar extends StatelessWidget implements PreferredSizeWidget {
+  const ShunAppBar({
+    super.key,
+    this.title,
+    this.actions,
+    this.leading,
+    this.bottom,
+  });
+
+  final Widget? title;
+  final List<Widget>? actions;
+  final Widget? leading;
+  final PreferredSizeWidget? bottom;
+
+  @override
+  Size get preferredSize =>
+      Size.fromHeight(kToolbarHeight + (bottom?.preferredSize.height ?? 0));
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    return IconButtonTheme(
+      data: IconButtonThemeData(style: ShunBarButton.styleOf(context)),
+      child: AppBar(
+        title: title,
+        actions: actions,
+        leading: leading,
+        bottom: bottom,
+        titleSpacing: 4,
+        actionsPadding: const EdgeInsets.only(right: 4),
+        titleTextStyle: prism.AppTextStyle.title3
+            .of(context, emphasized: true)
+            .copyWith(color: colors.onSurface),
+      ),
+    );
+  }
+}
+
+/// 中性的小胶囊：分组、标签、数量这类附带信息，落在卡片里再深一层的底上。
+///
+/// 颜色留给状态：要表示状态时传 [color]，只给字上色，底仍是中性的。[label] 是已本地化的字或数据。
+class ShunPill extends StatelessWidget {
+  const ShunPill(this.label, {super.key, this.color});
+
+  final String label;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    return DecoratedBox(
+      decoration: ShapeDecoration(
+        color: prism.SurfaceContext(context).raisedSurfaceLevel.colorOf(colors),
+        shape: prism.AppShape.full,
+      ),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+        child: Text(
+          label,
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
+          style: prism.AppTextStyle.caption1
+              .of(context, emphasized: true)
+              .copyWith(color: color ?? colors.onSurfaceVariant),
+        ),
+      ),
     );
   }
 }

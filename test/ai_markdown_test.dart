@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_markdown_plus/flutter_markdown_plus.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 import 'package:shun/presentation/widgets/ai_markdown.dart';
 
 void main() {
@@ -21,8 +22,7 @@ void main() {
     expect(inline, findsOneWidget);
     final container = tester.widget<Container>(
         find.descendant(of: inline, matching: find.byType(Container)).first);
-    expect((container.decoration as BoxDecoration).borderRadius,
-        BorderRadius.circular(5));
+    expect((container.decoration as ShapeDecoration).shape, prism.AppShape.xs);
     expect(tester.getBottomRight(inline).dx, lessThanOrEqualTo(320));
     final text = tester.widget<SelectableText>(
         find.descendant(of: inline, matching: find.byType(SelectableText)));

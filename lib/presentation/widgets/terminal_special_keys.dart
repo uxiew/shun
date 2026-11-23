@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../application/settings_controller.dart';
 import '../../domain/models/settings.dart';
@@ -154,8 +155,33 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
     return kept == null || kept.isEmpty ? null : kept;
   }
 
+  /// 栏落在页面那一层的底色上，快捷键是高一层的键帽（见 [TerminalKeyButton]）。操作按钮是没有底色的图标，
+  /// 和键帽分得开；开着的那个（全屏、分屏、画中画、按键面板）落在主色的圆上（R94）。点按范围不变。
   @override
   Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    return IconButtonTheme(
+      data: IconButtonThemeData(
+        style: ButtonStyle(
+          shape: const WidgetStatePropertyAll(CircleBorder()),
+          backgroundColor: WidgetStateProperty.resolveWith(
+            (states) =>
+                states.contains(WidgetState.selected) ? colors.primary : null,
+          ),
+          foregroundColor: WidgetStateProperty.resolveWith(
+            (states) => states.contains(WidgetState.disabled)
+                ? colors.onSurface.withValues(alpha: 0.38)
+                : states.contains(WidgetState.selected)
+                    ? colors.onPrimary
+                    : colors.onSurface,
+          ),
+        ),
+      ),
+      child: _bar(context),
+    );
+  }
+
+  Widget _bar(BuildContext context) {
     final definitions = _definitions;
     final normalized = _hostOrder(definitions) ?? _globalOrder(definitions);
     if (widget.compact && widget.showQuickKeys) {
@@ -167,7 +193,8 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
         key: const ValueKey('terminal-special-keys-surface'),
         color: widget.transparentBackground
             ? Colors.transparent
-            : Theme.of(context).colorScheme.surface,
+            : prism.SurfaceLevel.page
+                .colorOf(prism.Theme.of(context).colorScheme),
         child: Padding(
           padding: const EdgeInsets.fromLTRB(8, 6, 8, 4),
           child: Column(
@@ -192,10 +219,7 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                       key: const ValueKey('terminal-action-ai'),
                       tooltip: localized('shu Agent'),
                       onPressed: widget.onAi,
-                      icon: Icon(
-                        Icons.auto_awesome,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
+                      icon: const Icon(Icons.auto_awesome),
                     ),
                   if (widget.onHostPassword != null)
                     IconButton(
@@ -311,7 +335,8 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
         key: const ValueKey('terminal-special-keys-surface'),
         color: widget.transparentBackground
             ? Colors.transparent
-            : Theme.of(context).colorScheme.surface,
+            : prism.SurfaceLevel.page
+                .colorOf(prism.Theme.of(context).colorScheme),
         child: SizedBox(
           height: TerminalKeyFeel.of(context).height,
           child: Row(
@@ -333,6 +358,8 @@ class _TerminalSpecialKeysState extends ConsumerState<TerminalSpecialKeys> {
                   ],
                 ),
               ),
+              // 键帽滚到这里被裁掉，留一道缝，别让裁口贴着右边的按钮。
+              const SizedBox(width: 4),
               if (widget.onInputPanel != null) _inputPanelButton(),
               _moreActions(context, order),
               IconButton(

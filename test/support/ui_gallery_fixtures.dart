@@ -6,6 +6,7 @@ import 'package:dartssh2/dartssh2.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shun/application/port_forward_controller.dart';
 import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/tailscale_catalog_refresh.dart';
 import 'package:shun/application/vault_controller.dart';
@@ -351,6 +352,121 @@ class UiGalleryFiles extends MountableFileTransferService {
   Future<void> rename(String from, String to) async => _readOnly();
   @override
   Future<void> delete(RemoteEntry entry) async => _readOnly();
+}
+
+/// R90 专用，旧的单/双栏截图仍用原目录；流只在内存中读写。
+class UiGalleryTransfer extends UiGalleryFiles {
+  UiGalleryTransfer({required this.archive});
+
+  static const name = 'production-configuration-backup-2026-11-20.tar.gz';
+  static const size = 1024 * 1024;
+  static const config = '{\n  "service": "gallery",\n  "port": 8080,\n'
+      '  "fallback_port": 8081,\n  "enabled": true\n}\n';
+  final Stream<Uint8List> archive;
+
+  @override
+  Future<List<RemoteEntry>> list(String path) async => [
+        ...await super.list(path),
+        if (path == '/') ...[
+          const RemoteEntry(
+              name: name, path: '/$name', isDirectory: false, size: size),
+          RemoteEntry(
+              name: 'settings.json',
+              path: '/settings.json',
+              isDirectory: false,
+              size: config.length),
+        ],
+      ];
+
+  @override
+  Future<int?> fileSize(String path) async => switch (path) {
+        '/$name' => size,
+        '/settings.json' => config.length,
+        '/downloads/.$name.shun-part' => size ~/ 2,
+        _ => await super.fileSize(path),
+      };
+
+  @override
+  Stream<Uint8List> readStream(String path,
+          {int startOffset = 0, TransferProgressCallback? onProgress}) =>
+      switch (path) {
+        '/settings.json' =>
+          Stream.value(Uint8List.fromList(utf8.encode(config))),
+        '/$name' => archive,
+        _ => super
+            .readStream(path, startOffset: startOffset, onProgress: onProgress),
+      };
+
+  @override
+  Future<void> writeStream(String path, Stream<Uint8List> stream,
+      {int startOffset = 0,
+      bool truncate = true,
+      TransferProgressCallback? onProgress}) async {
+    if (path == '/settings.json') {
+      throw FileSystemException('Read-only file', path);
+    }
+    if (path != '/docs/.$name.shun-part') {
+      throw StateError('Unexpected write: $path');
+    }
+    var bytes = startOffset;
+    await for (final chunk in stream) {
+      bytes += chunk.length;
+      onProgress?.call(bytes);
+    }
+  }
+}
+
+/// 给真实主机菜单一个已连接的标签；面板不拨号、不绑定本地端口。
+SessionState uiGalleryForwardSession() => SessionState(sessions: [
+      ActiveTerminalSession(
+        id: 'gallery-forward',
+        host: uiGalleryHosts.first,
+        terminal: newTestTerminal(),
+        verifyHostKey: (_, __, ___) async => false,
+        keyboardInteractive: null,
+        sshClients: [_GalleryClient()],
+      ),
+    ]);
+
+class _GalleryClient extends Fake implements SSHClient {
+  @override
+  bool get isClosed => false;
+  @override
+  Future<void> close() async {}
+}
+
+class UiGalleryForwards extends PortForwardController {
+  @override
+  Future<void> startLocal({
+    required ActiveTerminalSession session,
+    required int localPort,
+    required String remoteHost,
+    required int remotePort,
+  }) async {
+    if (state.any((forward) => forward.localPort == localPort)) {
+      throw const SocketException('Address already in use');
+    }
+    state = [
+      ...state,
+      ActivePortForward(
+        id: 'gallery-$localPort',
+        kind: ForwardKind.local,
+        localPort: localPort,
+        remoteHost: remoteHost,
+        remotePort: remotePort,
+        sessionId: session.id,
+        client: session.sshClient,
+        hostLabel: session.host.label,
+      ),
+    ];
+  }
+
+  @override
+  Future<void> startDynamic({
+    required ActiveTerminalSession session,
+    required int localPort,
+  }) =>
+      throw UnsupportedError('No sockets in the gallery');
 }
 
 /// R88 测试连接页：走完拨号、握手两步，按 [fail] 报成功或服务器拒绝登录（和真的一样带提示）。不碰网络。

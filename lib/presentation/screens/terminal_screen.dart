@@ -6,6 +6,7 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -28,6 +29,8 @@ import '../../domain/route_description.dart';
 import '../../domain/vault_secrets.dart';
 import '../../infrastructure/device_auth.dart';
 import '../../infrastructure/ai/ai_service.dart';
+import '../ui/components.dart';
+import '../ui/prism_theme.dart';
 import '../widgets/ai_panel.dart';
 import '../widgets/ai_cli_tools_sheet.dart';
 import '../widgets/ai_providers_page.dart';
@@ -88,6 +91,47 @@ Widget _tabLabel(String text) => ConstrainedBox(
       constraints: const BoxConstraints(maxWidth: _tabLabelMaxWidth),
       child: LText(text, maxLines: 1, overflow: TextOverflow.ellipsis),
     );
+
+/// 连着、断开的小圆点和叹号。状态色只落在图标上，标签和横幅的底不染色。
+Color _linkColor(bool connected) => ShunStatusColors.link(connected: connected);
+
+/// 标签条上的一个标签：仍是 InputChip（选中、× 的读屏名字、48dp 点按范围都是它的），
+/// 只换样子：没有描边，底是卡片那一层，当前标签的底和字带主色。
+Widget _tabChip(
+  BuildContext context, {
+  required bool selected,
+  required Widget avatar,
+  required String label,
+  required VoidCallback onPressed,
+  required String closeTooltip,
+  required VoidCallback? onDeleted,
+}) {
+  final colors = prism.Theme.of(context).colorScheme;
+  final card = prism.SurfaceContext(context).raisedSurfaceLevel.colorOf(colors);
+  return InputChip(
+    // 看着 38dp，能点的是 48dp（UX02）。
+    materialTapTargetSize: MaterialTapTargetSize.padded,
+    selected: selected,
+    showCheckmark: false,
+    shape: prism.AppShape.md,
+    side: BorderSide.none,
+    // 不透明：自定义背景铺到终端页时标签名仍读得清。
+    color: WidgetStatePropertyAll(
+      selected
+          ? Color.alphaBlend(colors.primary.withValues(alpha: .16), card)
+          : card,
+    ),
+    labelStyle: prism.AppTextStyle.subheadline
+        .of(context, emphasized: selected)
+        .copyWith(color: selected ? colors.primary : colors.onSurfaceVariant),
+    deleteIconColor: selected ? colors.primary : colors.onSurfaceVariant,
+    avatar: avatar,
+    label: _tabLabel(label),
+    onPressed: onPressed,
+    deleteButtonTooltipMessage: closeTooltip,
+    onDeleted: onDeleted,
+  );
+}
 
 class _TerminalScreenState extends ConsumerState<TerminalScreen>
     with _TerminalInputHost {
@@ -345,172 +389,159 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
         Positioned.fill(
           child: Column(
             children: [
-              if (tabStripShown)
+              if (tabStripShown && state.tabCount == 0)
+                // 没有标签时和别的根页面一样是一条页头；这时没有终端，换高度不牵动远端窗口尺寸。
+                SizedBox(
+                  key: const ValueKey('terminal-tab-strip'),
+                  height: ShunPageHeader.height,
+                  child: ShunPageHeader(title: localized('终端')),
+                )
+              else if (tabStripShown)
                 SizedBox(
                   key: const ValueKey('terminal-tab-strip'),
                   height: 52,
                   child: Row(
                     children: [
-                      const SizedBox(width: 12),
-                      Icon(
-                        Icons.terminal,
-                        color: Theme.of(context).colorScheme.primary,
-                      ),
-                      const SizedBox(width: 8),
                       Expanded(
-                        child: state.tabCount == 0
-                            ? const LText('终端')
-                            : ReorderableListView.builder(
-                                scrollController: _tabStrip,
-                                scrollDirection: Axis.horizontal,
-                                // 标签 × 的 48dp 点击区比标签本体往右多伸出几 dp。最后一个标签贴着右边时，
-                                // 那几 dp 被这里的可视区域裁掉，真机上只剩 43dp（UX02）。末尾留出来。
-                                padding: const EdgeInsets.only(right: 8),
-                                buildDefaultDragHandles: false,
-                                itemCount: state.tabCount,
-                                onReorderItem: ref
-                                    .read(
-                                      sessionControllerProvider.notifier,
-                                    )
-                                    .reorderSessionTab,
-                                itemBuilder: (_, index) {
-                                  final host = tabHosts[index];
-                                  final occurrence = tabHosts
-                                      .take(index + 1)
-                                      .where((value) => value.id == host.id)
-                                      .length;
-                                  final duplicateCount = tabHosts
-                                      .where((value) => value.id == host.id)
-                                      .length;
-                                  if (index >= state.sessions.length) {
-                                    final pending = state.pendingConnections[
-                                        index - state.sessions.length];
-                                    final failed = pending.phase ==
-                                        PendingConnectionPhase.failed;
-                                    return Padding(
-                                      key: ValueKey(
-                                        'pending-terminal-tab-${pending.id}',
-                                      ),
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 2,
-                                        horizontal: 2,
-                                      ),
-                                      child: _tabAnchor(
-                                        pending.id,
-                                        state.activePendingId == pending.id,
-                                        InputChip(
-                                          // 看着 38dp，能点的是 48dp（UX02）。
-                                          materialTapTargetSize:
-                                              MaterialTapTargetSize.padded,
-                                          selected: state.activePendingId ==
-                                              pending.id,
-                                          showCheckmark: false,
-                                          avatar: failed
-                                              ? const Icon(
-                                                  Icons.error_outline,
-                                                  size: 17,
-                                                  color: Colors.redAccent,
-                                                )
-                                              : const SizedBox.square(
-                                                  dimension: 14,
-                                                  child:
-                                                      CircularProgressIndicator(
-                                                    strokeWidth: 2,
-                                                  ),
-                                                ),
-                                          label: _tabLabel(
-                                            duplicateCount > 1
-                                                ? '${host.label} #$occurrence'
-                                                : host.label,
+                        child: ReorderableListView.builder(
+                          scrollController: _tabStrip,
+                          scrollDirection: Axis.horizontal,
+                          // 标签 × 的 48dp 点击区比标签本体往右多伸出几 dp。最后一个标签贴着右边时，
+                          // 那几 dp 被这里的可视区域裁掉，真机上只剩 43dp（UX02）。末尾留出来。
+                          padding: const EdgeInsets.only(left: 14, right: 8),
+                          buildDefaultDragHandles: false,
+                          itemCount: state.tabCount,
+                          onReorderItem: ref
+                              .read(sessionControllerProvider.notifier)
+                              .reorderSessionTab,
+                          itemBuilder: (context, index) {
+                            final host = tabHosts[index];
+                            final occurrence = tabHosts
+                                .take(index + 1)
+                                .where((value) => value.id == host.id)
+                                .length;
+                            final duplicateCount = tabHosts
+                                .where((value) => value.id == host.id)
+                                .length;
+                            if (index >= state.sessions.length) {
+                              final pending = state.pendingConnections[
+                                  index - state.sessions.length];
+                              final failed = pending.phase ==
+                                  PendingConnectionPhase.failed;
+                              final selected =
+                                  state.activePendingId == pending.id;
+                              return Padding(
+                                key: ValueKey(
+                                  'pending-terminal-tab-${pending.id}',
+                                ),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 2,
+                                  horizontal: 2,
+                                ),
+                                child: _tabAnchor(
+                                  pending.id,
+                                  selected,
+                                  _tabChip(
+                                    context,
+                                    selected: selected,
+                                    avatar: failed
+                                        ? Icon(
+                                            Icons.error_outline,
+                                            size: 17,
+                                            color: prism.Theme.of(context)
+                                                .colorScheme
+                                                .error,
+                                          )
+                                        : const SizedBox.square(
+                                            dimension: 14,
+                                            child: CircularProgressIndicator(
+                                              strokeWidth: 2,
+                                            ),
                                           ),
-                                          onPressed: () => ref
-                                              .read(
-                                                sessionControllerProvider
-                                                    .notifier,
-                                              )
-                                              .activate(index),
-                                          // 默认读「删除」，读屏用户会以为要删主机（UX02 真机上查出来的）。
-                                          deleteButtonTooltipMessage: localized(
-                                            '关闭标签“${host.label}”',
-                                          ),
-                                          onDeleted: failed
-                                              ? () => ref
-                                                  .read(
-                                                    sessionControllerProvider
-                                                        .notifier,
-                                                  )
-                                                  .dismissPending(pending.id)
-                                              : null,
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                  final session = state.sessions[index];
-                                  return ReorderableDelayedDragStartListener(
-                                    key: ValueKey(
-                                      'terminal-tab-${session.id}',
+                                    label: duplicateCount > 1
+                                        ? '${host.label} #$occurrence'
+                                        : host.label,
+                                    onPressed: () => ref
+                                        .read(
+                                          sessionControllerProvider.notifier,
+                                        )
+                                        .activate(index),
+                                    // 默认读「删除」，读屏用户会以为要删主机（UX02 真机上查出来的）。
+                                    closeTooltip: localized(
+                                      '关闭标签“${host.label}”',
                                     ),
-                                    index: index,
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(
-                                        vertical: 2,
-                                        horizontal: 2,
-                                      ),
-                                      child: _tabAnchor(
-                                        session.id,
-                                        state.activePendingId == null &&
-                                            state.activeIndex == index,
-                                        InputChip(
-                                          // 看着 38dp，能点的是 48dp（UX02）。
-                                          materialTapTargetSize:
-                                              MaterialTapTargetSize.padded,
-                                          selected: state.activeIndex == index,
-                                          showCheckmark: false,
-                                          // 读屏也要知道断没断：绿点、橙色叹号只靠眼睛看（UX02）。
-                                          avatar: Icon(
-                                            session.connected
-                                                ? Icons.circle
-                                                : Icons.error_outline,
-                                            size: session.connected ? 10 : 16,
-                                            color: session.connected
-                                                ? Colors.greenAccent
-                                                : Colors.orangeAccent,
-                                            semanticLabel: session.connected
-                                                ? null
-                                                : localized('已断开'),
-                                          ),
-                                          // 默认引擎不标；用设置里选的实验引擎开的标签标出来，
-                                          // 改了设置以后哪个标签用的是哪个引擎一眼能看出来。
-                                          // 插件主机的标签标出插件名（X12）：一眼看出这个标签由哪个插件承载。
-                                          label: _tabLabel(
-                                            '${duplicateCount > 1 ? '${session.host.label} #$occurrence' : session.host.label}'
-                                            '${session.host.protocol == HostProtocol.plugin && session.plugin != null ? ' · ${session.plugin!.protocol}' : ''}'
-                                            '${session.terminal.engine == terminalEngineName ? '' : ' · ${session.terminal.engine}'}',
-                                          ),
-                                          onPressed: () => ref
-                                              .read(
-                                                sessionControllerProvider
-                                                    .notifier,
-                                              )
-                                              .activate(index),
-                                          deleteButtonTooltipMessage: localized(
-                                            '关闭标签“${session.host.label}”',
-                                          ),
-                                          onDeleted: () =>
-                                              _confirmClose(index, session),
-                                        ),
-                                      ),
+                                    onDeleted: failed
+                                        ? () => ref
+                                            .read(
+                                              sessionControllerProvider
+                                                  .notifier,
+                                            )
+                                            .dismissPending(pending.id)
+                                        : null,
+                                  ),
+                                ),
+                              );
+                            }
+                            final session = state.sessions[index];
+                            final selected = state.activePendingId == null &&
+                                state.activeIndex == index;
+                            return ReorderableDelayedDragStartListener(
+                              key: ValueKey('terminal-tab-${session.id}'),
+                              index: index,
+                              child: Padding(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 2,
+                                  horizontal: 2,
+                                ),
+                                child: _tabAnchor(
+                                  session.id,
+                                  selected,
+                                  _tabChip(
+                                    context,
+                                    selected: selected,
+                                    // 读屏也要知道断没断：绿点、橙色叹号只靠眼睛看（UX02）。
+                                    avatar: Icon(
+                                      session.connected
+                                          ? Icons.circle
+                                          : Icons.error_outline,
+                                      size: session.connected ? 10 : 16,
+                                      color: _linkColor(session.connected),
+                                      semanticLabel: session.connected
+                                          ? null
+                                          : localized('已断开'),
                                     ),
-                                  );
-                                },
+                                    // 默认引擎不标；用设置里选的实验引擎开的标签标出来，
+                                    // 改了设置以后哪个标签用的是哪个引擎一眼能看出来。
+                                    // 插件主机的标签标出插件名（X12）：一眼看出这个标签由哪个插件承载。
+                                    label:
+                                        '${duplicateCount > 1 ? '${session.host.label} #$occurrence' : session.host.label}'
+                                        '${session.host.protocol == HostProtocol.plugin && session.plugin != null ? ' · ${session.plugin!.protocol}' : ''}'
+                                        '${session.terminal.engine == terminalEngineName ? '' : ' · ${session.terminal.engine}'}',
+                                    onPressed: () => ref
+                                        .read(
+                                          sessionControllerProvider.notifier,
+                                        )
+                                        .activate(index),
+                                    closeTooltip: localized(
+                                      '关闭标签“${session.host.label}”',
+                                    ),
+                                    onDeleted: () =>
+                                        _confirmClose(index, session),
+                                  ),
+                                ),
                               ),
+                            );
+                          },
+                        ),
                       ),
                       if (visibleSession != null)
                         TransportBadge(session: visibleSession),
+                      // 仍是 IconButton（别的测试按这个类型取 onPressed），样子用页头的圆形按钮。
                       if (visibleSession != null)
                         IconButton(
                           key: const ValueKey('terminal-copy-screen'),
                           tooltip: localized('复制屏幕文字'),
+                          style: ShunBarButton.styleOf(context),
                           onPressed: () => _copyScreen(
                             inputSession ?? visibleSession,
                           ),
@@ -522,9 +553,11 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                             'terminal-performance-monitor',
                           ),
                           tooltip: localized('性能监控'),
+                          style: ShunBarButton.styleOf(context),
                           onPressed: _performanceMonitorFor(inputSession),
                           icon: const Icon(Icons.monitor_heart_outlined),
                         ),
+                      const SizedBox(width: 4),
                     ],
                   ),
                 ),
@@ -576,7 +609,6 @@ class _TerminalScreenState extends ConsumerState<TerminalScreen>
                           ? const EmptyState(
                               icon: Icons.terminal_outlined,
                               title: '没有活动会话',
-                              subtitle: '从「连接」页选一台主机开始连接。',
                             )
                           : LayoutBuilder(
                               builder: (context, constraints) {

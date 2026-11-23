@@ -8,6 +8,7 @@ import '../../domain/models/host.dart';
 import '../../domain/security_key.dart';
 import '../localization/localized_widgets.dart';
 import '../ui/components.dart';
+import 'credential_field.dart' show CredentialFields;
 import 'form_gap.dart';
 import 'secret_content.dart';
 import 'security_key_actions.dart';
@@ -206,122 +207,127 @@ class _IdentityDialogState extends ConsumerState<_IdentityDialog> {
     final askable = _kind == _Kind.password && !widget.passwordOnly;
     return AlertDialog(
       title: LText(widget.existing == null ? '新建凭据' : '编辑凭据'),
-      content: SingleChildScrollView(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            TextField(
-              key: const ValueKey('identity-label'),
-              controller: _label,
-              decoration: LInputDecoration(labelText: '名称（可选）'),
-            ),
-            const FormGap(),
-            TextField(
-              key: const ValueKey('identity-username'),
-              controller: _username,
-              autocorrect: false,
-              enableSuggestions: false,
-              onChanged: (_) => setState(() {}),
-              decoration: LInputDecoration(
-                labelText: '用户名',
-                errorText: _tried ? _usernameError : null,
-              ),
-            ),
-            if (!widget.passwordOnly) ...[
-              const FormGap(),
-              DropdownButtonFormField<_Kind>(
-                key: const ValueKey('identity-auth'),
-                initialValue: _kind,
-                isExpanded: true,
-                decoration: LInputDecoration(labelText: '登录方式'),
-                items: const [
-                  DropdownMenuItem(
-                    value: _Kind.password,
-                    child: LText('密码'),
+      content: CredentialFields(
+          inDialog: true,
+          child: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                TextField(
+                  key: const ValueKey('identity-label'),
+                  controller: _label,
+                  decoration: LInputDecoration(labelText: '名称（可选）'),
+                ),
+                const FormGap(),
+                TextField(
+                  key: const ValueKey('identity-username'),
+                  controller: _username,
+                  autocorrect: false,
+                  enableSuggestions: false,
+                  onChanged: (_) => setState(() {}),
+                  decoration: LInputDecoration(
+                    labelText: '用户名',
+                    errorText: _tried ? _usernameError : null,
                   ),
-                  DropdownMenuItem(
-                    value: _Kind.key,
-                    child: LText('SSH 密钥'),
-                  ),
-                  DropdownMenuItem(
-                    value: _Kind.securityKey,
-                    child: LText('安全密钥'),
-                  ),
-                  DropdownMenuItem(
-                    value: _Kind.keyAndPassword,
-                    child: LText('SSH 密钥 + 密码'),
+                ),
+                if (!widget.passwordOnly) ...[
+                  const FormGap(),
+                  DropdownButtonFormField<_Kind>(
+                    key: const ValueKey('identity-auth'),
+                    initialValue: _kind,
+                    isExpanded: true,
+                    decoration: LInputDecoration(labelText: '登录方式'),
+                    items: const [
+                      DropdownMenuItem(
+                        value: _Kind.password,
+                        child: LText('密码'),
+                      ),
+                      DropdownMenuItem(
+                        value: _Kind.key,
+                        child: LText('SSH 密钥'),
+                      ),
+                      DropdownMenuItem(
+                        value: _Kind.securityKey,
+                        child: LText('安全密钥'),
+                      ),
+                      DropdownMenuItem(
+                        value: _Kind.keyAndPassword,
+                        child: LText('SSH 密钥 + 密码'),
+                      ),
+                    ],
+                    onChanged: (value) => _changeKind(value ?? _Kind.password),
                   ),
                 ],
-                onChanged: (value) => _changeKind(value ?? _Kind.password),
-              ),
-            ],
-            if (_kind == _Kind.keyAndPassword) ...[
-              const SizedBox(height: 6),
-              LText(
-                '要先过公钥、再输密码的服务器用。这里的密码不是密钥口令。',
-                style: hint,
-              ),
-            ],
-            if (_usesKey) ...[
-              const FormGap(),
-              if (choices.isNotEmpty)
-                // initialValue 只认第一次：刚导入的那把要显示成选中，得换 key。
-                KeyedSubtree(
-                  key: ValueKey('identity-key-$_keyId-${_kind.name}'),
-                  child: DropdownButtonFormField<String>(
-                    key: const ValueKey('identity-key'),
-                    initialValue:
-                        choices.any((key) => key.id == _keyId) ? _keyId : null,
-                    isExpanded: true,
-                    decoration: LInputDecoration(
-                      labelText: _kind == _Kind.securityKey ? '安全密钥' : 'SSH 密钥',
-                      errorText: _tried ? _keyError : null,
-                    ),
-                    items: [
-                      for (final key in choices)
-                        DropdownMenuItem(
-                          value: key.id,
-                          child:
-                              Text(key.label, overflow: TextOverflow.ellipsis),
+                if (_kind == _Kind.keyAndPassword) ...[
+                  const SizedBox(height: 6),
+                  LText(
+                    '要先过公钥、再输密码的服务器用。这里的密码不是密钥口令。',
+                    style: hint,
+                  ),
+                ],
+                if (_usesKey) ...[
+                  const FormGap(),
+                  if (choices.isNotEmpty)
+                    // initialValue 只认第一次：刚导入的那把要显示成选中，得换 key。
+                    KeyedSubtree(
+                      key: ValueKey('identity-key-$_keyId-${_kind.name}'),
+                      child: DropdownButtonFormField<String>(
+                        key: const ValueKey('identity-key'),
+                        initialValue: choices.any((key) => key.id == _keyId)
+                            ? _keyId
+                            : null,
+                        isExpanded: true,
+                        decoration: LInputDecoration(
+                          labelText:
+                              _kind == _Kind.securityKey ? '安全密钥' : 'SSH 密钥',
+                          errorText: _tried ? _keyError : null,
                         ),
-                    ],
-                    onChanged: (value) => setState(() => _keyId = value),
+                        items: [
+                          for (final key in choices)
+                            DropdownMenuItem(
+                              value: key.id,
+                              child: Text(key.label,
+                                  overflow: TextOverflow.ellipsis),
+                            ),
+                        ],
+                        onChanged: (value) => setState(() => _keyId = value),
+                      ),
+                    )
+                  else if (_tried && _keyError != null)
+                    LText(
+                      _keyError!,
+                      style: hint?.copyWith(
+                        color: Theme.of(context).colorScheme.error,
+                      ),
+                    ),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: ShunButton(
+                      key: const ValueKey('identity-add-key'),
+                      kind: ShunButtonKind.text,
+                      onPressed: _addKey,
+                      icon: Icons.add,
+                      label:
+                          _kind == _Kind.securityKey ? '添加安全密钥' : '导入 SSH 私钥',
+                    ),
                   ),
-                )
-              else if (_tried && _keyError != null)
-                LText(
-                  _keyError!,
-                  style: hint?.copyWith(
-                    color: Theme.of(context).colorScheme.error,
+                ],
+                if (_usesPassword) ...[
+                  const FormGap(),
+                  // 切成明文时三个输入法开关也一直关着（ShunSecretField 保证，R44）。
+                  ShunSecretField(
+                    key: const ValueKey('identity-password'),
+                    controller: _password,
+                    label: askable ? '密码（可选）' : '密码',
+                    helperText: askable ? '不填就连接时问' : null,
+                    errorText: _tried ? _passwordError : null,
+                    onChanged: (_) => setState(() {}),
                   ),
-                ),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: ShunButton(
-                  key: const ValueKey('identity-add-key'),
-                  kind: ShunButtonKind.text,
-                  onPressed: _addKey,
-                  icon: Icons.add,
-                  label: _kind == _Kind.securityKey ? '添加安全密钥' : '导入 SSH 私钥',
-                ),
-              ),
-            ],
-            if (_usesPassword) ...[
-              const FormGap(),
-              // 切成明文时三个输入法开关也一直关着（ShunSecretField 保证，R44）。
-              ShunSecretField(
-                key: const ValueKey('identity-password'),
-                controller: _password,
-                label: askable ? '密码（可选）' : '密码',
-                helperText: askable ? '不填就连接时问' : null,
-                errorText: _tried ? _passwordError : null,
-                onChanged: (_) => setState(() {}),
-              ),
-            ],
-          ],
-        ),
-      ),
+                ],
+              ],
+            ),
+          )),
       actions: [
         ShunButton(
           key: const ValueKey('identity-cancel'),

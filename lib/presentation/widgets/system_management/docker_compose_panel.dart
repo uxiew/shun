@@ -6,6 +6,9 @@ import '../../../infrastructure/ssh/ssh_service.dart';
 import '../../../infrastructure/ssh/system_management_service.dart';
 import 'docker_image_badge.dart';
 import 'sudo_prompt.dart';
+import '../../ui/components.dart';
+import 'management_card.dart';
+import 'management_style.dart';
 
 class DockerComposePanel extends StatefulWidget {
   const DockerComposePanel({
@@ -218,14 +221,14 @@ class _DockerComposePanelState extends State<DockerComposePanel> {
           title: LText(title),
           content: LText(message),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const LText('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: LText(action),
-            ),
+            ShunButton(
+                kind: ShunButtonKind.text,
+                onPressed: () => Navigator.pop(context, false),
+                label: '取消'),
+            ShunButton(
+                kind: ShunButtonKind.filled,
+                onPressed: () => Navigator.pop(context, true),
+                label: action),
           ],
         ),
       ) ??
@@ -240,7 +243,8 @@ class _DockerComposePanelState extends State<DockerComposePanel> {
           padding: const EdgeInsets.fromLTRB(12, 10, 12, 6),
           child: TextField(
             controller: _search,
-            decoration: LInputDecoration(
+            decoration: ManagementFieldDecoration(
+              context,
               isDense: true,
               prefixIcon: Icon(Icons.search),
               hintText: '搜索项目、服务、镜像或配置文件',
@@ -251,18 +255,16 @@ class _DockerComposePanelState extends State<DockerComposePanel> {
           padding: const EdgeInsets.symmetric(horizontal: 12),
           child: Row(
             children: [
-              Chip(
-                avatar: const Icon(Icons.layers_outlined, size: 18),
-                label: LText(
-                  _version.isEmpty ? 'Docker Compose' : 'Compose $_version',
-                ),
-              ),
+              Flexible(
+                  child: ShunPill(_version.isEmpty
+                      ? 'Docker Compose'
+                      : 'Compose $_version')),
               const Spacer(),
-              LText('${_projects.length} 个项目'),
-              IconButton(
+              ShunPill(localized('${_projects.length} 个项目')),
+              ShunBarButton(
                 tooltip: localized('刷新 Compose'),
                 onPressed: _loading ? null : _refresh,
-                icon: const Icon(Icons.refresh),
+                icon: Icons.refresh,
               ),
             ],
           ),
@@ -272,23 +274,17 @@ class _DockerComposePanelState extends State<DockerComposePanel> {
           MaterialBanner(
             content: LText('Compose 读取失败：$_error'),
             actions: [
-              TextButton(onPressed: _refresh, child: const LText('重试')),
+              ShunButton(
+                  kind: ShunButtonKind.text, onPressed: _refresh, label: '重试'),
             ],
           ),
         Expanded(
           child: projects.isEmpty && !_loading
-              ? Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      const Icon(Icons.layers_clear_outlined, size: 48),
-                      const SizedBox(height: 10),
-                      LText(_error == null
-                          ? '没有发现 Docker Compose 项目'
-                          : 'Docker Compose 当前不可用'),
-                    ],
-                  ),
-                )
+              ? ManagementEmptyState(
+                  icon: Icons.layers_clear_outlined,
+                  title: _error == null
+                      ? '没有发现 Docker Compose 项目'
+                      : 'Docker Compose 当前不可用')
               : ListView.builder(
                   padding: const EdgeInsets.fromLTRB(8, 0, 8, 20),
                   itemCount: projects.length,
@@ -336,18 +332,16 @@ class _ComposeProjectCard extends StatelessWidget {
   final ValueChanged<String> onOpenConfig;
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) => ManagementCard(
         child: Column(
           children: [
             ExpansionTile(
-              leading: CircleAvatar(
-                child: Icon(
-                  project.isRunning
-                      ? Icons.layers
-                      : project.isPaused
-                          ? Icons.pause
-                          : Icons.layers_outlined,
-                ),
+              leading: Icon(
+                project.isRunning
+                    ? Icons.layers
+                    : project.isPaused
+                        ? Icons.pause
+                        : Icons.layers_outlined,
               ),
               title: LText(project.name),
               subtitle: LText(
@@ -509,11 +503,13 @@ class _ComposeStateIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 状态色跟主题走（R91）：深浅色下都有对比度，不再写死绿 / 灰。
+    final scheme = Theme.of(context).colorScheme;
     final (label, color) = switch (state) {
-      DockerContainerState.running => ('运行中', Colors.green),
-      DockerContainerState.paused => ('已暂停', Colors.orange),
-      DockerContainerState.stopped => ('已停止', Colors.grey),
-      DockerContainerState.unknown => ('未知', Colors.blueGrey),
+      DockerContainerState.running => ('运行中', scheme.primary),
+      DockerContainerState.paused => ('已暂停', scheme.tertiary),
+      DockerContainerState.stopped => ('已停止', scheme.outline),
+      DockerContainerState.unknown => ('未知', scheme.onSurfaceVariant),
     };
     return Tooltip(
       message: label,

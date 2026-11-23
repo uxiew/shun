@@ -108,6 +108,43 @@ void main() {
     expect(parser.parse('').networkRxBytesTotal, isNull);
   });
 
+  testWidgets('R91 断开后概览：留着断开前的数，图标成断开前、跟深色主题走、不用 Material Card',
+      (tester) async {
+    final session = ActiveTerminalSession(
+        id: 'stale',
+        host: HostProfile({'id': 'stale', 'label': 'Demo'}),
+        terminal: GhosttyTerminalAdapter(),
+        verifyHostKey: (_, __, ___) async => true,
+        keyboardInteractive: null);
+    final service = _Monitor();
+    final monitor = SessionMonitor(session, service: service);
+    monitor.stats = ServerMonitorService().parse(
+        'CORES=2\nMEM=1000 500\nNET=1024 2048',
+        sampledAt: DateTime(2026, 11, 20, 12));
+    monitor.history.add(monitor.stats!);
+    monitor.stop();
+    session.monitor = monitor;
+    final dark = ThemeData(brightness: Brightness.dark);
+    await tester.pumpWidget(MaterialApp(
+        theme: dark,
+        home: Scaffold(body: ServerOverviewPanel(session: session))));
+    await tester.pump();
+    expect(find.byKey(const ValueKey('monitor-disconnected')), findsOneWidget);
+    expect(find.textContaining('断开前读到的数据'), findsOneWidget);
+    expect(find.byKey(const ValueKey('network-chart-stale')), findsOneWidget);
+    expect(find.text('累计：1.0 KB'), findsOneWidget, reason: '断开前的数还在');
+    final legend = tester.widget<Container>(find.descendant(
+        of: find.byKey(const ValueKey('network-legend-rx')),
+        matching: find.byType(Container)));
+    expect((legend.decoration! as BoxDecoration).color,
+        dark.colorScheme.primary.withValues(alpha: .45));
+    expect(find.byType(Card), findsNothing, reason: 'R91 卡片换成 Prism 分组卡片');
+    expect(find.widgetWithText(FilledButton, '重试'), findsNothing);
+    await tester.pump(const Duration(seconds: 12));
+    expect(service.calls, 0, reason: '断开后不再读，也不新开轮询');
+    monitor.dispose();
+    await session.close();
+  });
   testWidgets(
       'sampler starts immediately, avoids overlapping requests and stops',
       (tester) async {

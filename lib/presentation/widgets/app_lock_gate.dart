@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../application/app_lock.dart';
-import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 
 /// 位于 ShunUiHost 的全局视觉层外，提示、导航器、弹框和底部菜单都在它下面。
 ///
@@ -99,29 +100,46 @@ class _AppLockCover extends ConsumerWidget {
       color: Theme.of(context).colorScheme.surface,
       child: SafeArea(
         child: Center(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Icon(Icons.lock_outline, size: 48),
-                const SizedBox(height: 12),
-                const Text('shun'),
-                if (failure != null) ...[
-                  const SizedBox(height: 12),
-                  Text(failure, textAlign: TextAlign.center),
-                ],
-                if (lock.locked && !lock.authenticating) ...[
-                  const SizedBox(height: 16),
-                  FilledButton(
-                    key: const ValueKey('app-lock-unlock'),
-                    autofocus: true,
-                    onPressed: () =>
-                        ref.read(appLockControllerProvider.notifier).unlock(),
-                    child: const LText('解锁'),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 360),
+              child: prism.generateGroup([
+                ShunSectionItem(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 32, vertical: 24),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.lock_outline,
+                          size: 40,
+                          color:
+                              Theme.of(context).colorScheme.onSurfaceVariant),
+                      const SizedBox(height: 12),
+                      Text('shun',
+                          style: Theme.of(context).textTheme.titleLarge),
+                      if (failure != null) ...[
+                        const SizedBox(height: 12),
+                        Text(failure,
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                                color: Theme.of(context).colorScheme.error)),
+                      ],
+                      if (lock.locked && !lock.authenticating) ...[
+                        const SizedBox(height: 16),
+                        ShunButton(
+                          key: const ValueKey('app-lock-unlock'),
+                          autofocus: true,
+                          onPressed: () => ref
+                              .read(appLockControllerProvider.notifier)
+                              .unlock(),
+                          label: '解锁',
+                        ),
+                      ],
+                    ],
                   ),
-                ],
-              ],
+                ),
+              ]),
             ),
           ),
         ),

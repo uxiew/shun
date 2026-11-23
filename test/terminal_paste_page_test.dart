@@ -69,7 +69,7 @@ void main() {
         expect(find.text('粘贴（会逐行执行）'), findsOneWidget);
         expect(
           tester.widget(find.byKey(_send)),
-          isA<OutlinedButton>(),
+          isNot(isA<FilledButton>()),
           reason: '会执行的动作不长成默认按钮',
         );
 

@@ -12,6 +12,7 @@ import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:shun/presentation/screens/settings_screen.dart';
 import 'package:shun/presentation/ui/components.dart';
+import 'support/home_navigation.dart';
 
 // R25 设置页整理：改了就存（没有「保存外观设置」），按 外观 / 终端 / 文件 / 连接 / 安全 / 数据 分组。
 
@@ -112,7 +113,7 @@ void main() {
         child: const ShunApp(),
       ));
       await tester.pump(const Duration(seconds: 1));
-      await tester.tap(find.byIcon(Icons.settings_outlined));
+      await tester.tap(homeNavigationEntry(4));
       await tester.pump(const Duration(seconds: 1));
       return repository;
     }

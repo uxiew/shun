@@ -41,3 +41,13 @@ Tailscale 设置使用本地非模态面板，采用 Prism 表面/形状/动效�
 不移植FlClash的代理核心、平台服务、状态管理或资源品牌，不新增R71/R80等延后功能。R82通过固定Git依赖接入；Prism GPL、上游NOTICE和五项嵌入组件许可已核对实际APK，额外署名全文经 `licenses/prism_ui-third-party.txt` 收录。正式分发仍纳入R27/R29检查，未复制Prism私有实现。
 
 详细执行、文件分工、预算与模型交接见 [UI 迁移方案](../../plan/v3/docs/24-ui-migration.md)。机器权威是 `plan/v3/tasks.json` 与 `verification-cases.json`。GU5 只表示 UI 代码及本地验证交接完成；完整验收仍走 R26、新候选发布与原 V3 门禁。
+
+## 2026-11-21 补充：浮动底栏和页头
+
+所有者看过连接页、设置页的前后对比后定：「铺开，带悬浮底栏」。
+
+- 底栏从 R85 的 `prism.NavigationBar` 换成 `prism.NavigationDock`（FlClash 手机界面的浮动底栏），默认就是它，不留开关。
+- 五个入口、顺序、`IndexedStack`、返回顺序、全屏与画中画时隐藏照旧。入口不再挂 `home-nav-*` key（NavigationDock 只收图形和名字），测试按读屏按钮找，见 `test/support/home_navigation.dart`。
+- R85 的「底栏不透明、全局背景只铺到底栏上方」改成：背景铺满整屏，浮动底栏自己不透明（不开 Liquid Glass）。
+- 根页面用 `ShunPageHeader`，推入页用 `ShunAppBar`，附带信息用 `ShunPill`，都在 `lib/presentation/ui/components.dart`。
+- 以上只有 Linux 上 `flutter test` 的结果；模拟器和手机上的 UIM 用例没有重跑，仍是 NOT_RUN。

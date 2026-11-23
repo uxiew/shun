@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../localization/localized_widgets.dart';
 import '../ui/components.dart';
@@ -17,8 +18,9 @@ Future<bool> confirmNewHostKey(
       builder: (context) => AlertDialog(
         icon: const Icon(Icons.verified_user_outlined),
         title: const LText('确认服务器指纹'),
-        content: LSelectableText(
-          '$hostname:$port\n$algorithm\n$fingerprint\n\n首次连接前请与管理员核对。',
+        content: _FingerprintContent(
+          details: '$hostname:$port\n$algorithm\n$fingerprint',
+          notice: '首次连接前请与管理员核对。',
         ),
         actions: [
           ShunButton(
@@ -58,11 +60,11 @@ Future<bool> showChangedHostKey(
           color: Theme.of(context).colorScheme.error,
         ),
         title: const LText('服务器指纹已变化，已阻止连接'),
-        content: LSelectableText(
-          '$hostname:$port\n$algorithm\n'
-          '现在：$fingerprint\n以前：$oldFingerprint\n\n'
-          '可能是服务器重装，也可能是有人在冒充这台服务器。请先向管理员核对新指纹。'
-          '确认是正常更换后，删除旧指纹再重新连接，届时会按首次连接让你重新核对。',
+        content: _FingerprintContent(
+          details: '$hostname:$port\n$algorithm\n'
+              '现在：$fingerprint\n以前：$oldFingerprint',
+          notice: '可能是服务器重装，也可能是有人在冒充这台服务器。请先向管理员核对新指纹。'
+              '确认是正常更换后，删除旧指纹再重新连接，届时会按首次连接让你重新核对。',
         ),
         actions: [
           ShunButton(
@@ -80,3 +82,43 @@ Future<bool> showChangedHostKey(
       ),
     ) ??
     false;
+
+class _FingerprintContent extends StatelessWidget {
+  const _FingerprintContent({required this.details, required this.notice});
+
+  final String details;
+  final String notice;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    final bodyStyle = Theme.of(context).textTheme.bodyMedium;
+    return SingleChildScrollView(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(12),
+            decoration: ShapeDecoration(
+              color: prism.SurfaceLevel.floatingOf(colors).next.colorOf(colors),
+              shape: prism.AppShape.md,
+            ),
+            child: LSelectableText(
+              details,
+              style: bodyStyle?.copyWith(
+                fontFamily: 'monospace',
+                fontFamilyFallback: [
+                  if (bodyStyle.fontFamily case final String family) family,
+                  ...?bodyStyle.fontFamilyFallback,
+                ],
+              ),
+            ),
+          ),
+          const SizedBox(height: 12),
+          LSelectableText(notice),
+        ],
+      ),
+    );
+  }
+}

@@ -12,6 +12,7 @@ import '../localization/localized_widgets.dart';
 import '../ui/components.dart';
 import '../widgets/connection_event_text.dart';
 import '../widgets/connection_event_tile.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/hint.dart';
 
 /// 日志页（R26 F24）：崩溃、出错、备份（[AppLog]）和连接（[ConnectionEventLog]，R25）合在一起，新的在上。
@@ -100,7 +101,7 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
     final theme = Theme.of(context);
     final small = theme.textTheme.bodySmall;
     return Scaffold(
-      appBar: AppBar(
+      appBar: ShunAppBar(
         title: hostId == null
             ? const LText('日志')
             : Column(
@@ -151,6 +152,17 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
                       padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: ChoiceChip(
                         key: ValueKey('app-log-filter-${filter.name}'),
+                        shape: prism.AppShape.full,
+                        side: BorderSide.none,
+                        backgroundColor: prism.SurfaceContext(context)
+                            .raisedSurfaceLevel
+                            .colorOf(prism.Theme.of(context).colorScheme),
+                        selectedColor: theme.colorScheme.primaryContainer,
+                        checkmarkColor: theme.colorScheme.onPrimaryContainer,
+                        labelStyle: TextStyle(
+                            color: _filter == filter
+                                ? theme.colorScheme.onPrimaryContainer
+                                : theme.colorScheme.onSurfaceVariant),
                         label: Text(
                           '${localized(_filterLabel(filter))} '
                           '${filter == _Filter.all ? all.length : all.where((r) => r.filter == filter).length}',
@@ -175,9 +187,12 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
           Expanded(
             child: rows.isEmpty
                 ? Center(
-                    child: LText(
-                      hostId == null ? '还没有记录' : '这台主机最近 7 天没有记录',
-                      key: const ValueKey('app-log-empty'),
+                    child: SingleChildScrollView(
+                      child: EmptyState(
+                        key: const ValueKey('app-log-empty'),
+                        icon: Icons.receipt_long_outlined,
+                        title: hostId == null ? '还没有记录' : '这台主机最近 7 天没有记录',
+                      ),
                     ),
                   )
                 // 一整组分组卡片，但按需建行（日志可能上千条）：每行自己带上在组里的位置。
@@ -225,7 +240,7 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
     final (icon, color) = switch (entry.kind) {
       AppLogKind.crash => (Icons.error, scheme.error),
       AppLogKind.error => (Icons.warning_amber, scheme.tertiary),
-      AppLogKind.sync => (Icons.sync, scheme.primary),
+      AppLogKind.sync => (Icons.sync, scheme.onSurfaceVariant),
     };
     final first = entry.detail?.split('\n').first;
     return ShunListRow(
@@ -233,15 +248,22 @@ class _AppLogScreenState extends ConsumerState<AppLogScreen> {
       leading: Icon(icon, color: color),
       title: entry.title,
       // 时间、次数、第一行详情：原样显示，不当成一句话去翻译。
-      details: Text(
-        [
-          time,
-          if (entry.count > 1)
-            localized('{n} 次').replaceAll('{n}', '${entry.count}'),
-          if (first != null && first.isNotEmpty) first,
-        ].join(' · '),
-        maxLines: 2,
-        overflow: TextOverflow.ellipsis,
+      details: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Wrap(
+            spacing: 8,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              Text(time),
+              if (entry.count > 1)
+                ShunPill(
+                    localized('{n} 次').replaceAll('{n}', '${entry.count}')),
+            ],
+          ),
+          if (first != null && first.isNotEmpty)
+            Text(first, maxLines: 2, overflow: TextOverflow.ellipsis),
+        ],
       ),
       onTap: () => _details(entry),
     );

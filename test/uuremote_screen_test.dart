@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shun/presentation/ui/components.dart';
 import 'package:shun/application/uuremote.dart';
 import 'package:shun/domain/models/host.dart';
 import 'package:shun/domain/models/vault.dart';
@@ -132,7 +133,7 @@ void main() {
     expect(find.byKey(const ValueKey('uu-other-handlers')), findsOneWidget);
     expect(
         tester
-            .widget<OutlinedButton>(find.byKey(const ValueKey('uu-bind')))
+            .widget<ShunButton>(find.byKey(const ValueKey('uu-bind')))
             .onPressed,
         isNull);
 
@@ -151,7 +152,7 @@ void main() {
     expect(find.textContaining('ab12 cd34 ef56'), findsOneWidget);
     expect(
         tester
-            .widget<OutlinedButton>(find.byKey(const ValueKey('uu-bind')))
+            .widget<ShunButton>(find.byKey(const ValueKey('uu-bind')))
             .onPressed,
         isNull);
     expect(platform.launched, isEmpty);
@@ -206,7 +207,7 @@ void main() {
     expect(find.byKey(const ValueKey('uu-end-waiting')), findsOneWidget);
     expect(
         tester
-            .widget<FilledButton>(
+            .widget<ShunButton>(
                 find.byKey(const ValueKey('uu-launch-fullscreen')))
             .onPressed,
         isNull,
@@ -289,16 +290,16 @@ void main() {
     await leaveAndReturn();
     expect(find.byKey(const ValueKey('uu-callback-rivals')), findsOneWidget);
     expect(find.textContaining('example.hijacker'), findsOneWidget);
-    VoidCallback? pressed<T extends ButtonStyleButton>(String key) =>
-        tester.widget<T>(find.byKey(ValueKey(key))).onPressed;
-    expect(pressed<OutlinedButton>('uu-bind'), isNull);
-    expect(pressed<OutlinedButton>('uu-launch-pip'), isNull);
-    expect(pressed<FilledButton>('uu-launch-fullscreen'), isNotNull);
+    VoidCallback? pressed(String key) =>
+        tester.widget<ShunButton>(find.byKey(ValueKey(key))).onPressed;
+    expect(pressed('uu-bind'), isNull);
+    expect(pressed('uu-launch-pip'), isNull);
+    expect(pressed('uu-launch-fullscreen'), isNotNull);
 
     platform.probeResult = clean;
     await leaveAndReturn();
     expect(find.byKey(const ValueKey('uu-callback-rivals')), findsNothing);
-    expect(pressed<OutlinedButton>('uu-bind'), isNotNull);
+    expect(pressed('uu-bind'), isNotNull);
   });
 
   testWidgets('主机详情移除「UU 远程」旧入口，独立条目保留', (tester) async {

@@ -29,7 +29,7 @@ class KeychainSheet extends ConsumerWidget {
     final hosts = vault?.hosts ?? const <HostProfile>[];
     return SafeArea(
       child: Scaffold(
-        appBar: AppBar(
+        appBar: ShunAppBar(
           leading: IconButton(
             onPressed: () => Navigator.pop(context),
             icon: const Icon(Icons.close),
@@ -70,11 +70,14 @@ class KeychainSheet extends ConsumerWidget {
                     key: ValueKey('keychain-identity-${identity.id}'),
                     leading: Icon(credentialIcon(identity, keys)),
                     title: identity.label,
-                    subtitle: [
-                      credentialDetail(identity, keys),
-                      if (identityUsageText(hosts, identity) case final usage?)
-                        usage,
-                    ].join(' · '),
+                    subtitle: credentialDetail(identity, keys),
+                    details: switch (identityUsageText(hosts, identity)) {
+                      final usage? => Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: ShunPill(usage),
+                        ),
+                      null => null,
+                    },
                     onTap: () =>
                         editAndSaveIdentity(context, ref, existing: identity),
                     trailing: IconButton(
@@ -84,19 +87,15 @@ class KeychainSheet extends ConsumerWidget {
                       icon: const Icon(Icons.delete_outline),
                     ),
                   ),
+                if (identities.isEmpty)
+                  ShunListRow(
+                    key: const ValueKey('keychain-new-identity'),
+                    onTap: () => editAndSaveIdentity(context, ref),
+                    leading: const Icon(Icons.person_add_alt),
+                    title: '新建凭据',
+                  ),
               ],
             ),
-            if (identities.isEmpty)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: ShunButton(
-                  key: const ValueKey('keychain-new-identity'),
-                  kind: ShunButtonKind.text,
-                  onPressed: () => editAndSaveIdentity(context, ref),
-                  icon: Icons.person_add_alt,
-                  label: '新建凭据',
-                ),
-              ),
             ShunSection(
               title: 'SSH 密钥',
               children: [
@@ -115,9 +114,12 @@ class KeychainSheet extends ConsumerWidget {
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               LText(key.label),
-                              LText(
-                                key.data['type']?.toString() ?? 'OpenSSH / PEM',
-                                style: Theme.of(context).textTheme.bodySmall,
+                              const SizedBox(height: 4),
+                              ShunPill(
+                                localizedOf(
+                                    context,
+                                    key.data['type']?.toString() ??
+                                        'OpenSSH / PEM'),
                               ),
                             ],
                           ),
@@ -140,18 +142,14 @@ class KeychainSheet extends ConsumerWidget {
                       ],
                     ),
                   ),
+                if (keys.isEmpty)
+                  ShunListRow(
+                    onTap: () => importSshKey(context, ref),
+                    leading: const Icon(Icons.file_open_outlined),
+                    title: '导入私钥',
+                  ),
               ],
             ),
-            if (keys.isEmpty)
-              Align(
-                alignment: Alignment.centerLeft,
-                child: ShunButton(
-                  kind: ShunButtonKind.text,
-                  onPressed: () => importSshKey(context, ref),
-                  icon: Icons.key,
-                  label: '导入私钥',
-                ),
-              ),
           ],
         ),
       ),

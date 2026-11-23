@@ -150,8 +150,12 @@ class _ConnectionProbeSheetState extends ConsumerState<ConnectionProbeSheet> {
               ),
             ),
             const SizedBox(height: 14),
-            RouteLegsView(plan: widget.plan, dense: true),
-            const Divider(height: 28),
+            prism.ItemPositionProvider(
+              position: prism.ItemPosition.startAndEnd,
+              child: ShunSectionItem(
+                  child: RouteLegsView(plan: widget.plan, dense: true)),
+            ),
+            const SizedBox(height: 16),
             for (var index = 0; index < _stages.length; index++)
               _StageRow(
                 stage: _stages[index],
@@ -175,8 +179,7 @@ class _ConnectionProbeSheetState extends ConsumerState<ConnectionProbeSheet> {
               _ResultBox(
                 key: const ValueKey('probe-succeeded'),
                 icon: Icons.check_circle_outline,
-                color: scheme.primaryContainer,
-                onColor: scheme.onPrimaryContainer,
+                iconColor: scheme.primary,
                 text: _outcome?.tty == null
                     ? '已连通。'
                     : '登录成功，远端分配了终端：${_outcome!.tty}。',
@@ -186,8 +189,7 @@ class _ConnectionProbeSheetState extends ConsumerState<ConnectionProbeSheet> {
               _ResultBox(
                 key: const ValueKey('probe-tmux'),
                 icon: Icons.layers_outlined,
-                color: scheme.surfaceContainerHigh,
-                onColor: scheme.onSurface,
+                iconColor: scheme.onSurfaceVariant,
                 text: tmux,
               ),
             ],
@@ -195,16 +197,14 @@ class _ConnectionProbeSheetState extends ConsumerState<ConnectionProbeSheet> {
               _ResultBox(
                 key: const ValueKey('probe-failed'),
                 icon: Icons.error_outline,
-                color: scheme.errorContainer,
-                onColor: scheme.onErrorContainer,
+                iconColor: scheme.error,
                 text: '$_error',
               ),
               if (connectionHint(_error!) != null) ...[
                 const SizedBox(height: 8),
                 _ResultBox(
                   icon: Icons.lightbulb_outline,
-                  color: scheme.secondaryContainer,
-                  onColor: scheme.onSecondaryContainer,
+                  iconColor: scheme.onSurfaceVariant,
                   text: connectionHint(_error!)!,
                 ),
               ],
@@ -218,7 +218,7 @@ class _ConnectionProbeSheetState extends ConsumerState<ConnectionProbeSheet> {
                       key: const ValueKey('probe-cancel'),
                       label: '停止',
                       icon: Icons.stop_circle_outlined,
-                      kind: ShunButtonKind.outlined,
+                      kind: ShunButtonKind.tonal,
                       onPressed: _attempt.cancel,
                     )
                   : ShunButton(
@@ -295,38 +295,34 @@ class _ResultBox extends StatelessWidget {
   const _ResultBox({
     super.key,
     required this.icon,
-    required this.color,
-    required this.onColor,
+    required this.iconColor,
     required this.text,
   });
 
   final IconData icon;
-  final Color color;
-  final Color onColor;
+  final Color iconColor;
   final String text;
 
-  /// 底色按结果分（成功、失败、提示），圆角取 Prism 卡片的（R88）。
   @override
   Widget build(BuildContext context) => Container(
         width: double.infinity,
         padding: const EdgeInsets.all(12),
         decoration: ShapeDecoration(
-          color: color,
+          color: prism.SurfaceContext(context)
+              .raisedSurfaceLevel
+              .colorOf(prism.Theme.of(context).colorScheme),
           shape: prism.AppShape.of(
               prism.listItemRadiusOf(prism.ItemPosition.startAndEnd)),
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Icon(icon, size: 18, color: onColor),
+            Icon(icon, size: 18, color: iconColor),
             const SizedBox(width: 8),
             Expanded(
               child: LText(
                 text,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: onColor),
+                style: Theme.of(context).textTheme.bodySmall,
               ),
             ),
           ],

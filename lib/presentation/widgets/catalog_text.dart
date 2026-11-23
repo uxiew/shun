@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../application/catalog_overview.dart';
 import '../../application/tailscale_catalog_refresh.dart';
@@ -58,6 +59,44 @@ String catalogRefreshReport(CatalogRefreshOutcome outcome) {
 /// 「标签：值」一行。标签走翻译，值是设备名、地址、时间这类数据，原样显示。
 Widget catalogLine(String label, String value, {TextStyle? style, Key? key}) =>
     Text('${localized(label)}$value', style: style, key: key);
+
+/// 设置面板和导入页共用的表单底色；只去掉静止时的边框，焦点和错误仍清楚可见。
+class CatalogFormList extends StatelessWidget {
+  const CatalogFormList({
+    super.key,
+    required this.children,
+    required this.padding,
+    this.shrinkWrap = false,
+  });
+
+  final List<Widget> children;
+  final EdgeInsetsGeometry padding;
+  final bool shrinkWrap;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    final level = prism.SurfaceScope.of(context);
+    final raised = level.next.colorOf(colors);
+    return InputDecorationTheme(
+      data: InputDecorationTheme.of(context).copyWith(
+        filled: true,
+        fillColor: raised == level.colorOf(colors)
+            ? prism.SurfaceLevel.inset.colorOf(colors)
+            : raised,
+        enabledBorder: const OutlineInputBorder(
+          borderRadius: prism.AppRadius.md,
+          borderSide: BorderSide.none,
+        ),
+      ),
+      child: ListView(
+        padding: padding,
+        shrinkWrap: shrinkWrap,
+        children: children,
+      ),
+    );
+  }
+}
 
 /// 设备在 Tailscale 里在不在线（R26：所有者要像 Tailscale App 那样看在线状态）。
 ///
@@ -163,7 +202,8 @@ class LoggedInMark extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    const color = Color(0xff16a34a);
+    final color =
+        prism.ColorSchemeExtension(prism.Theme.of(context).colorScheme).success;
     return Row(
       key: const ValueKey('logged-in-mark'),
       mainAxisSize: MainAxisSize.min,

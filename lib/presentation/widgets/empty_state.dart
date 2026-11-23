@@ -26,7 +26,11 @@ class EmptyState extends StatelessWidget {
               Icon(icon,
                   size: 48, color: Theme.of(context).colorScheme.primary),
               const SizedBox(height: 16),
-              LText(title, style: Theme.of(context).textTheme.titleLarge),
+              LText(
+                title,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.titleLarge,
+              ),
               if (subtitle != null) ...[
                 const SizedBox(height: 8),
                 LText(

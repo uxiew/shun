@@ -136,8 +136,10 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
                     key: ValueKey('vault-catalog-age-$id'),
                   ),
                 if (failedLast)
-                  catalogLine('最近一次读取失败：', catalogTime(attempt.at)),
-                if (!source.hasSavedCredentials) const LText('未保存 key'),
+                  catalogLine('最近一次读取失败：', catalogTime(attempt.at),
+                      style: small.copyWith(
+                          color: prism.Theme.of(context).colorScheme.error)),
+                if (!source.hasSavedCredentials) ShunPill(localized('未保存 key')),
               ],
             ),
             trailing: Row(
@@ -154,19 +156,19 @@ class _CatalogHostSectionsState extends State<CatalogHostSections> {
                     ),
                   )
                 else
-                  IconButton(
+                  ShunBarButton(
                     key: ValueKey('vault-catalog-refresh-$id'),
                     tooltip: localized(source.hasSavedCredentials
                         ? '刷新'
                         : '去 Tailscale 设置填 key'),
                     onPressed: () => widget.onRefresh(source),
-                    icon: const Icon(Icons.refresh),
+                    icon: Icons.refresh,
                   ),
-                IconButton(
+                ShunBarButton(
                   key: ValueKey('vault-catalog-settings-$id'),
                   tooltip: localized('Tailscale 设置'),
                   onPressed: () => widget.onSettings(id),
-                  icon: const Icon(Icons.tune),
+                  icon: Icons.tune,
                 ),
               ],
             ),

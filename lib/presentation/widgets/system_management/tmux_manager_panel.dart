@@ -10,6 +10,9 @@ import '../../../infrastructure/ssh/ssh_service.dart';
 import '../../../infrastructure/tmux/tmux_protocol.dart';
 import '../../../infrastructure/tmux/tmux_service.dart';
 import '../form_gap.dart';
+import '../../ui/components.dart';
+import 'management_card.dart';
+import 'management_style.dart';
 
 /// tmux 面板（R21）。所有查询和操作都走打开面板的这个标签自己的 SSH 连接。
 ///
@@ -191,14 +194,14 @@ class _TmuxManagerPanelState extends State<TmuxManagerPanel> {
               '只结束这一个：按 ID 核对后才结束，名字相近的其他会话不受影响。',
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const LText('取消'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const LText('结束会话'),
-              ),
+              ShunButton(
+                  kind: ShunButtonKind.text,
+                  onPressed: () => Navigator.pop(context, false),
+                  label: '取消'),
+              ShunButton(
+                  kind: ShunButtonKind.filled,
+                  onPressed: () => Navigator.pop(context, true),
+                  label: '结束会话'),
             ],
           ),
         ) ??
@@ -229,14 +232,14 @@ class _TmuxManagerPanelState extends State<TmuxManagerPanel> {
                       '（全局如果是开着的，鼠标仍然开着）。不改 tmux.conf。',
             ),
             actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const LText('取消'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: LText(enable ? '打开' : '取消设置'),
-              ),
+              ShunButton(
+                  kind: ShunButtonKind.text,
+                  onPressed: () => Navigator.pop(context, false),
+                  label: '取消'),
+              ShunButton(
+                  kind: ShunButtonKind.filled,
+                  onPressed: () => Navigator.pop(context, true),
+                  label: enable ? '打开' : '取消设置'),
             ],
           ),
         ) ??
@@ -286,7 +289,8 @@ class _TmuxManagerPanelState extends State<TmuxManagerPanel> {
               Expanded(
                 child: TextField(
                   controller: _search,
-                  decoration: LInputDecoration(
+                  decoration: ManagementFieldDecoration(
+                    context,
                     isDense: true,
                     prefixIcon: Icon(Icons.search),
                     hintText: '搜索会话',
@@ -294,10 +298,10 @@ class _TmuxManagerPanelState extends State<TmuxManagerPanel> {
                 ),
               ),
               const SizedBox(width: 8),
-              FilledButton.icon(
+              ShunButton(
                 onPressed: operable ? _createSession : null,
-                icon: const Icon(Icons.add),
-                label: const LText('新建'),
+                icon: Icons.add,
+                label: '新建',
               ),
             ],
           ),
@@ -309,52 +313,48 @@ class _TmuxManagerPanelState extends State<TmuxManagerPanel> {
             runSpacing: 4,
             crossAxisAlignment: WrapCrossAlignment.center,
             children: [
-              Chip(
-                avatar: const Icon(Icons.terminal, size: 18),
-                label: LText(_versionLabel(probe)),
-              ),
-              ActionChip(
-                avatar: const Icon(Icons.cable, size: 18),
-                label: LText(_socket.describe()),
-                tooltip: localized('换 socket'),
-                onPressed: _chooseSocket,
-              ),
+              ShunPill(localized(_versionLabel(probe))),
+              Tooltip(
+                  message: localized('换 socket'),
+                  child: ShunButton(
+                      kind: ShunButtonKind.tonal,
+                      icon: Icons.cable,
+                      label: _socket.describe(),
+                      onPressed: _chooseSocket)),
               if (probe != null && probe.unixUser.isNotEmpty)
-                Chip(
-                  avatar: const Icon(Icons.person_outline, size: 18),
-                  label: LText(probe.unixUser),
-                ),
-              IconButton(
+                ShunPill(probe.unixUser),
+              ShunBarButton(
                 tooltip: localized('刷新'),
                 onPressed: _loading ? null : _refresh,
-                icon: const Icon(Icons.refresh),
+                icon: Icons.refresh,
               ),
             ],
           ),
         ),
         if (_loading) const LinearProgressIndicator(minHeight: 2),
         if (bound != null)
-          Card(
-            margin: const EdgeInsets.fromLTRB(12, 8, 12, 0),
-            child: ListTile(
-              leading: const Icon(Icons.link),
-              title: LText(
-                '本标签附着在 ${bound.target.displayName}（${bound.target.sessionId}）',
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: ShunSection(children: [
+              ShunListRow(
+                leading: const Icon(Icons.link),
+                title:
+                    '本标签附着在 ${bound.target.displayName}（${bound.target.sessionId}）',
+                subtitle:
+                    '客户端 ${bound.clientTty} · ${bound.target.socket.describe()}',
+                trailing: ShunButton(
+                    kind: ShunButtonKind.text,
+                    onPressed: widget.session.connected ? _detachThisTab : null,
+                    label: '分离本标签'),
               ),
-              subtitle: LText(
-                '客户端 ${bound.clientTty} · ${bound.target.socket.describe()}',
-              ),
-              trailing: TextButton(
-                onPressed: widget.session.connected ? _detachThisTab : null,
-                child: const LText('分离本标签'),
-              ),
-            ),
+            ]),
           ),
         for (final notice in _notices(probe))
           MaterialBanner(
             content: LText(notice),
             actions: [
-              TextButton(onPressed: _refresh, child: const LText('重试')),
+              ShunButton(
+                  kind: ShunButtonKind.text, onPressed: _refresh, label: '重试'),
             ],
           ),
         Expanded(
@@ -362,22 +362,9 @@ class _TmuxManagerPanelState extends State<TmuxManagerPanel> {
               // 断开时没读过，不能说没有会话：页面顶上已经写了连接断开。
               ? const SizedBox.shrink()
               : values.isEmpty && !_loading
-                  ? Center(
-                      child: Padding(
-                        padding: const EdgeInsets.all(24),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            const Icon(Icons.terminal_outlined, size: 48),
-                            const SizedBox(height: 10),
-                            LText(
-                              operable ? '没有 tmux 会话' : '这里没有可操作的 tmux 会话',
-                              textAlign: TextAlign.center,
-                            ),
-                          ],
-                        ),
-                      ),
-                    )
+                  ? ManagementEmptyState(
+                      icon: Icons.terminal_outlined,
+                      title: operable ? '没有 tmux 会话' : '这里没有可操作的 tmux 会话')
                   : ListView.builder(
                       padding: const EdgeInsets.fromLTRB(8, 8, 8, 20),
                       itemCount: values.length,
@@ -489,12 +476,12 @@ class _SessionCardState extends State<_SessionCard> {
   Widget build(BuildContext context) {
     final row = widget.row;
     final created = DateTime.fromMillisecondsSinceEpoch(row.created * 1000);
-    return Card(
+    return ManagementCard(
       child: ExpansionTile(
         onExpansionChanged: (expanded) {
           if (expanded) _load();
         },
-        leading: CircleAvatar(child: LText('${row.windows}')),
+        leading: ShunPill('${row.windows}'),
         title: LText(row.name),
         subtitle: LText(
           [
@@ -568,7 +555,7 @@ class _SessionCardState extends State<_SessionCard> {
                 title: LText('#${window.index} ${window.name}'),
                 subtitle: LText('${window.panes} 个窗格'),
               ),
-            const Divider(),
+            const SizedBox(height: 12),
             Align(
               alignment: Alignment.centerLeft,
               child: LText(
@@ -669,7 +656,9 @@ class _SocketDialogState extends State<_SocketDialog> {
                 TextField(
                   controller: _value,
                   autofocus: true,
-                  decoration: LInputDecoration(
+                  decoration: ManagementFieldDecoration(
+                    context,
+                    inDialog: true,
                     labelText: _kind == TmuxSocketKind.named
                         ? 'socket 名称'
                         : 'socket 路径',
@@ -689,11 +678,12 @@ class _SocketDialogState extends State<_SocketDialog> {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const LText('取消'),
-          ),
-          FilledButton(onPressed: _submit, child: const LText('确定')),
+          ShunButton(
+              kind: ShunButtonKind.text,
+              onPressed: () => Navigator.pop(context),
+              label: '取消'),
+          ShunButton(
+              kind: ShunButtonKind.filled, onPressed: _submit, label: '确定'),
         ],
       );
 }
@@ -748,7 +738,9 @@ class _CreateDialogState extends State<_CreateDialog> {
               TextField(
                 controller: _name,
                 autofocus: true,
-                decoration: LInputDecoration(
+                decoration: ManagementFieldDecoration(
+                  context,
+                  inDialog: true,
                   labelText: '会话名称',
                   hintText: '例如 work',
                   errorText: _error,
@@ -759,7 +751,9 @@ class _CreateDialogState extends State<_CreateDialog> {
                 DropdownButtonFormField<CommandSnippet>(
                   initialValue: _snippet,
                   isExpanded: true,
-                  decoration: LInputDecoration(
+                  decoration: ManagementFieldDecoration(
+                    context,
+                    inDialog: true,
                     labelText: '从命令片段选择（可选）',
                   ),
                   items: widget.snippets
@@ -785,7 +779,9 @@ class _CreateDialogState extends State<_CreateDialog> {
                 controller: _command,
                 minLines: 2,
                 maxLines: 4,
-                decoration: LInputDecoration(
+                decoration: ManagementFieldDecoration(
+                  context,
+                  inDialog: true,
                   labelText: '启动命令（可选）',
                   hintText: '例如 cd /srv/app && ./start.sh',
                 ),
@@ -801,11 +797,12 @@ class _CreateDialogState extends State<_CreateDialog> {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const LText('取消'),
-          ),
-          FilledButton(onPressed: _submit, child: const LText('创建')),
+          ShunButton(
+              kind: ShunButtonKind.text,
+              onPressed: () => Navigator.pop(context),
+              label: '取消'),
+          ShunButton(
+              kind: ShunButtonKind.filled, onPressed: _submit, label: '创建'),
         ],
       );
 }

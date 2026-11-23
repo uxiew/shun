@@ -9,6 +9,8 @@ import '../../domain/security_key.dart';
 import '../../infrastructure/ssh/security_key_channel.dart';
 import '../localization/localized_widgets.dart';
 import '../ui/components.dart';
+import 'credential_field.dart' show CredentialFields;
+import 'form_gap.dart';
 import 'no_intrinsics.dart';
 import 'security_key_prompt.dart';
 
@@ -29,20 +31,24 @@ Future<List<SshKeyProfile>> addSecurityKey(
       // 无标题的分组只画间距，不需要测量宿主。
       children: [
         NoIntrinsics(
-          child: ShunSection(
-            children: [
-              ShunListRow(
-                key: const ValueKey('security-key-create'),
-                title: '在钥匙上生成新密钥',
-                onTap: () => Navigator.pop(context, 'create'),
-              ),
-              ShunListRow(
-                key: const ValueKey('security-key-read'),
-                title: '读取钥匙里已有的密钥',
-                onTap: () => Navigator.pop(context, 'read'),
-              ),
-            ],
-          ),
+          child: CredentialFields(
+              inDialog: true,
+              child: ShunSection(
+                children: [
+                  ShunListRow(
+                    key: const ValueKey('security-key-create'),
+                    leading: const Icon(Icons.add),
+                    title: '在钥匙上生成新密钥',
+                    onTap: () => Navigator.pop(context, 'create'),
+                  ),
+                  ShunListRow(
+                    key: const ValueKey('security-key-read'),
+                    leading: const Icon(Icons.usb),
+                    title: '读取钥匙里已有的密钥',
+                    onTap: () => Navigator.pop(context, 'read'),
+                  ),
+                ],
+              )),
         ),
       ],
     ),
@@ -181,19 +187,23 @@ Future<void> showSecurityKeyPublicKey(BuildContext context, String line) =>
       context: context,
       builder: (context) => AlertDialog(
         title: const LText('公钥'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const LText('把这一行加到服务器的 ~/.ssh/authorized_keys'),
-            const SizedBox(height: 8),
-            SelectableText(
-              line,
-              key: const ValueKey('security-key-public-key'),
-              style: Theme.of(context).textTheme.bodySmall,
-            ),
-          ],
-        ),
+        scrollable: true,
+        content: CredentialFields(
+            inDialog: true,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const LText('把这一行加到服务器的 ~/.ssh/authorized_keys'),
+                const SizedBox(height: 8),
+                ShunSectionItem(
+                    child: SelectableText(
+                  line,
+                  key: const ValueKey('security-key-public-key'),
+                  style: Theme.of(context).textTheme.bodySmall,
+                )),
+              ],
+            )),
         actions: [
           ShunButton(
             key: const ValueKey('security-key-close-public-key'),
@@ -234,35 +244,40 @@ class _CreateDialogState extends State<_CreateDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
         title: const LText('在钥匙上生成密钥'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            TextField(
-              key: const ValueKey('security-key-label'),
-              controller: _label,
-              decoration: LInputDecoration(labelText: '名称'),
-            ),
-            NoIntrinsics(
-              child: ShunSection(
-                children: [
-                  ShunSwitchRow(
-                    key: const ValueKey('security-key-resident'),
-                    title: '存进钥匙里',
-                    subtitle: '换手机后能从钥匙读回来',
-                    value: _resident,
-                    onChanged: (value) => setState(() => _resident = value),
+        scrollable: true,
+        content: CredentialFields(
+            inDialog: true,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                TextField(
+                  key: const ValueKey('security-key-label'),
+                  controller: _label,
+                  decoration: LInputDecoration(labelText: '名称'),
+                ),
+                const FormGap(),
+                NoIntrinsics(
+                  child: ShunSection(
+                    children: [
+                      ShunSwitchRow(
+                        key: const ValueKey('security-key-resident'),
+                        title: '存进钥匙里',
+                        subtitle: '换手机后能从钥匙读回来',
+                        value: _resident,
+                        onChanged: (value) => setState(() => _resident = value),
+                      ),
+                      ShunSwitchRow(
+                        key: const ValueKey('security-key-require-pin'),
+                        title: '每次登录都要 PIN',
+                        value: _requirePin,
+                        onChanged: (value) =>
+                            setState(() => _requirePin = value),
+                      ),
+                    ],
                   ),
-                  ShunSwitchRow(
-                    key: const ValueKey('security-key-require-pin'),
-                    title: '每次登录都要 PIN',
-                    value: _requirePin,
-                    onChanged: (value) => setState(() => _requirePin = value),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
+                ),
+              ],
+            )),
         actions: [
           ShunButton(
             key: const ValueKey('security-key-create-cancel'),

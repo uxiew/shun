@@ -6,6 +6,7 @@ import '../../application/vault_controller.dart';
 import '../../domain/models/host.dart';
 import '../localization/localized_widgets.dart';
 import '../ui/components.dart';
+import 'connection_endpoint_fields.dart';
 import 'credential_field.dart';
 import 'form_gap.dart';
 import 'no_intrinsics.dart';
@@ -127,58 +128,60 @@ class _FirstLoginDialogState extends ConsumerState<_FirstLoginDialog> {
       child: AlertDialog(
         key: const ValueKey('first-login-dialog'),
         title: LText('登录 ${host.label}'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(address, style: small),
-              const FormGap(),
-              // 分段选择里有 LayoutBuilder，AlertDialog 的固有尺寸测量过不去（见 NoIntrinsics）。
-              NoIntrinsics(
-                child: LoginChoiceField(
-                  key: const ValueKey('first-login-mode'),
-                  value: _choice,
-                  onChanged: (value) => setState(() => _choice = value),
-                ),
+        content: ConnectionFieldTheme(
+            dialog: true,
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(address, style: small),
+                  const FormGap(),
+                  // 分段选择里有 LayoutBuilder，AlertDialog 的固有尺寸测量过不去（见 NoIntrinsics）。
+                  NoIntrinsics(
+                    child: LoginChoiceField(
+                      key: const ValueKey('first-login-mode'),
+                      value: _choice,
+                      onChanged: (value) => setState(() => _choice = value),
+                    ),
+                  ),
+                  if (_choice == LoginChoice.credential) ...[
+                    const FormGap(),
+                    CredentialField(
+                      key: const ValueKey('first-login-credential'),
+                      value: _identityId,
+                      onChanged: (id) => setState(() => _identityId = id),
+                    ),
+                  ],
+                  if (_needsUsername) ...[
+                    const FormGap(),
+                    TextField(
+                      key: const ValueKey('first-login-username'),
+                      controller: _username,
+                      autofocus: host.username.trim().isEmpty,
+                      autocorrect: false,
+                      enableSuggestions: false,
+                      decoration: LInputDecoration(labelText: '用户名'),
+                      onChanged: (_) => setState(() {}),
+                    ),
+                  ],
+                  if (_choice == LoginChoice.simple) ...[
+                    const FormGap(),
+                    // 切成明文时三个输入法开关也一直关着、不让输入法学（ShunSecretField 保证，R44）。
+                    ShunSecretField(
+                      key: const ValueKey('first-login-password'),
+                      controller: _password,
+                      autofocus: host.username.trim().isNotEmpty,
+                      label: '密码（可不填）',
+                      helperText: '填了加密存本机，不填就连接时问',
+                      onSubmitted: (_) => _submit(),
+                    ),
+                  ],
+                  const SizedBox(height: 8),
+                  LText('只给这一台。以后在主机的「编辑」里改。', style: small),
+                ],
               ),
-              if (_choice == LoginChoice.credential) ...[
-                const FormGap(),
-                CredentialField(
-                  key: const ValueKey('first-login-credential'),
-                  value: _identityId,
-                  onChanged: (id) => setState(() => _identityId = id),
-                ),
-              ],
-              if (_needsUsername) ...[
-                const FormGap(),
-                TextField(
-                  key: const ValueKey('first-login-username'),
-                  controller: _username,
-                  autofocus: host.username.trim().isEmpty,
-                  autocorrect: false,
-                  enableSuggestions: false,
-                  decoration: LInputDecoration(labelText: '用户名'),
-                  onChanged: (_) => setState(() {}),
-                ),
-              ],
-              if (_choice == LoginChoice.simple) ...[
-                const FormGap(),
-                // 切成明文时三个输入法开关也一直关着、不让输入法学（ShunSecretField 保证，R44）。
-                ShunSecretField(
-                  key: const ValueKey('first-login-password'),
-                  controller: _password,
-                  autofocus: host.username.trim().isNotEmpty,
-                  label: '密码（可不填）',
-                  helperText: '填了加密存本机，不填就连接时问',
-                  onSubmitted: (_) => _submit(),
-                ),
-              ],
-              const SizedBox(height: 8),
-              LText('只给这一台。以后在主机的「编辑」里改。', style: small),
-            ],
-          ),
-        ),
+            )),
         actions: [
           ShunButton(
             key: const ValueKey('first-login-cancel'),

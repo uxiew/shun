@@ -68,44 +68,49 @@ class _ThemePickerState extends State<_ThemePicker> {
               itemBuilder: (context, index) {
                 final theme = themes[index];
                 final selected = theme.id == widget.selectedId;
-                return InkWell(
-                  borderRadius: BorderRadius.circular(12),
-                  onTap: () => Navigator.pop(context, theme.id),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      color: theme.background,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(
-                        color: selected ? theme.primary : theme.border,
-                        width: selected ? 2 : 1,
-                      ),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          width: 12,
-                          decoration: BoxDecoration(
-                            color: theme.primary,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                        ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: LText(
-                            theme.name,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              color: theme.foreground,
-                              fontWeight:
-                                  selected ? FontWeight.bold : FontWeight.w500,
+                return Semantics(
+                  button: true,
+                  selected: selected,
+                  child: Material(
+                    // 选中那张叠一层主色：当前主题的卡片色和面板底色一样，不叠就看不出块。
+                    color: selected
+                        ? Color.alphaBlend(
+                            theme.primary.withValues(alpha: 0.16), theme.card)
+                        : theme.card,
+                    shape: prism.AppShape.md,
+                    clipBehavior: Clip.antiAlias,
+                    child: InkWell(
+                      onTap: () => Navigator.pop(context, theme.id),
+                      child: Padding(
+                        padding: const EdgeInsets.all(10),
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 12,
+                              decoration: ShapeDecoration(
+                                color: theme.primary,
+                                shape: prism.AppShape.full,
+                              ),
                             ),
-                          ),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: LText(
+                                theme.name,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  color: theme.foreground,
+                                  fontWeight: selected
+                                      ? FontWeight.bold
+                                      : FontWeight.w500,
+                                ),
+                              ),
+                            ),
+                            if (selected)
+                              Icon(Icons.check_circle, color: theme.primary),
+                          ],
                         ),
-                        if (selected)
-                          Icon(Icons.check_circle, color: theme.primary),
-                      ],
+                      ),
                     ),
                   ),
                 );

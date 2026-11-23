@@ -14,9 +14,14 @@ import 'screens/snippets_screen.dart';
 import 'screens/terminal_screen.dart';
 import 'screens/uuremote_screen.dart';
 import 'screens/vault_screen.dart';
+import 'ui/nav_glyphs.dart';
 import 'widgets/custom_background.dart';
 import 'widgets/session_overview.dart';
 import 'widgets/two_finger_swipe.dart';
+
+/// 内容自己滚到浮动底栏底下的页（连接、片段、设置）：它们从 [prism.BottomInsetScope] 拿到底栏的高度，
+/// 在列表末尾留白。终端和文件整页停在底栏上方。
+const _scrollsUnderDock = {0, 3, 4};
 
 class HomeShell extends ConsumerStatefulWidget {
   const HomeShell({super.key});
@@ -84,6 +89,10 @@ class _HomeShellState extends ConsumerState<HomeShell>
       terminalFullscreen || terminalPictureInPicture,
     );
     final overviewOpen = !_overview.isDismissed && !terminalPictureInPicture;
+    // 键盘弹出时底栏收起（以前的底栏是被键盘盖住），页面也不再给它留位置。
+    final dockShown =
+        !hideNavigation && MediaQuery.viewInsetsOf(context).bottom == 0;
+    final dockInset = dockShown ? prism.NavigationDock.insetOf(context) : 0.0;
     ref.listen(
       sessionOverviewRequestProvider,
       (_, __) => unawaited(_overview.forward()),
@@ -120,6 +129,10 @@ class _HomeShellState extends ConsumerState<HomeShell>
                 !ref.read(terminalPictureInPictureProvider) &&
                 _overview.isDismissed,
             child: Scaffold(
+              // 底栏放在 Scaffold 的底栏位、页面照旧铺到它底下：SnackBar 因此停在底栏上方，
+              // 不再盖住底栏的入口（带「撤销」的通知不会自己消失）。
+              extendBody: true,
+              bottomNavigationBar: dockShown ? _navigationDock(index) : null,
               body: Stack(
                 fit: StackFit.expand,
                 children: [
@@ -139,15 +152,16 @@ class _HomeShellState extends ConsumerState<HomeShell>
                     // 底栏也还在。
                     child: ExcludeFocus(
                       excluding: overviewOpen,
-                      child: IndexedStack(
-                          index: index, children: HomeShell._pages),
+                      child: _clearOfDock(
+                        index,
+                        dockInset,
+                        IndexedStack(index: index, children: HomeShell._pages),
+                      ),
                     ),
                   ),
-                  if (overviewOpen) _overviewLayer(),
+                  if (overviewOpen) _overviewLayer(dockInset),
                 ],
               ),
-              bottomNavigationBar:
-                  hideNavigation ? null : _navigationBar(index),
             ),
           ),
         ),
@@ -155,7 +169,8 @@ class _HomeShellState extends ConsumerState<HomeShell>
     );
   }
 
-  Widget _overviewLayer() => AnimatedBuilder(
+  /// 总览压暗整屏，面板停在底栏上方：底栏浮在这一层上面，开着总览也能直接切页。
+  Widget _overviewLayer(double dockInset) => AnimatedBuilder(
         animation: _overview,
         builder: (context, child) => Stack(
           fit: StackFit.expand,
@@ -167,11 +182,14 @@ class _HomeShellState extends ConsumerState<HomeShell>
                 color: Colors.black.withValues(alpha: .5 * _overview.value),
               ),
             ),
-            Align(
-              alignment: Alignment.bottomCenter,
-              child: FractionalTranslation(
-                translation: Offset(0, 1 - _overview.value),
-                child: child,
+            Padding(
+              padding: EdgeInsets.only(bottom: dockInset),
+              child: Align(
+                alignment: Alignment.bottomCenter,
+                child: FractionalTranslation(
+                  translation: Offset(0, 1 - _overview.value),
+                  child: child,
+                ),
               ),
             ),
           ],
@@ -187,55 +205,58 @@ class _HomeShellState extends ConsumerState<HomeShell>
         ),
       );
 
-  /// 底栏（R85）：Prism 的 NavigationBar，FlClash 手机界面用的就是它。
-  ///
-  /// 一直不透明（Prism 的浮起层颜色），全局自定义背景只铺到底栏上方。以前全局背景时底栏透明、
-  /// 背景从底下透出来，浅色背景上底栏的字看不清（R83 第 4 节）。
-  /// 图标用 Material 的：Prism 只带通用的界面符号，没有服务器、终端、文件夹这类图标。
-  Widget _navigationBar(int selectedIndex) {
-    const icons = [
-      (Icons.dns_outlined, Icons.dns),
-      (Icons.terminal_outlined, Icons.terminal),
-      (Icons.folder_outlined, Icons.folder),
-      (Icons.code_outlined, Icons.code),
-      (Icons.settings_outlined, Icons.settings),
-    ];
-    final labels = [
-      // 以前叫「保险库」，所有者觉得不像放主机的地方（R26）。英文表里「连接」是按钮上的 Connect，
-      // 底栏要的是页名，单独写。
-      ShunLocalizations.isEnglish ? 'Hosts' : '连接',
-      localized('终端'),
-      localized('文件'),
-      localized('片段'),
-      localized('设置'),
-    ];
-    return prism.NavigationBar(
-      key: const ValueKey('home-navigation-bar'),
-      selectedIndex: selectedIndex,
-      onDestinationSelected: (value) {
-        ref.read(homeTabProvider.notifier).state = value;
-        _closeOverview();
-      },
-      destinations: [
-        for (final (index, (outlined, filled)) in icons.indexed)
-          prism.NavigationDestination(
-            icon: KeyedSubtree(
-              key: homeNavigationKey(index),
-              child: Icon(index == selectedIndex ? filled : outlined),
-            ),
-            label: labels[index],
-          ),
-      ],
+  /// 底栏占的高度怎么让：会滚动的页拿到 BottomInsetScope，自己在列表末尾留白，内容从底栏底下
+  /// 滚过去；终端、文件整页垫高。两种页外面的部件层数相同，切页不会重建 IndexedStack。
+  Widget _clearOfDock(int index, double inset, Widget pages) {
+    final under = _scrollsUnderDock.contains(index);
+    return Padding(
+      padding: EdgeInsets.only(bottom: under ? 0 : inset),
+      child: prism.BottomInsetScope(
+        inset: under ? inset : 0,
+        child: MediaQuery.removePadding(
+          context: context,
+          removeBottom: inset > 0,
+          child: pages,
+        ),
+      ),
     );
   }
+
+  /// 底栏：Prism 的 NavigationDock，FlClash 手机界面的浮动底栏（所有者 2026-11-21 定，替掉 R85 的
+  /// NavigationBar）。
+  ///
+  /// 浮起的一层不透明（没开 Liquid Glass）：全局自定义背景现在铺满整屏、从底栏四周露出来，底栏
+  /// 上的字仍落在不透明的底上（R83 第 4 节记过透明底栏在浅色背景上看不清）。
+  /// 入口只收 Glyph 和名字，挂不了 key：读屏的按钮、名字、选中状态由它自己给，测试按这些找入口。
+  Widget _navigationDock(int selectedIndex) => prism.NavigationDock(
+        key: const ValueKey('home-navigation-bar'),
+        selectedIndex: selectedIndex,
+        onSelected: (value) {
+          ref.read(homeTabProvider.notifier).state = value;
+          _closeOverview();
+        },
+        destinations: [
+          for (final (index, label) in _navigationLabels().indexed)
+            prism.NavigationDockDestination(
+              glyph: ShunNavGlyphs.all[index],
+              label: label,
+            ),
+        ],
+      );
+
+  List<String> _navigationLabels() => [
+        // 以前叫「保险库」，所有者觉得不像放主机的地方（R26）。英文表里「连接」是按钮上的 Connect，
+        // 底栏要的是页名，单独写。
+        ShunLocalizations.isEnglish ? 'Hosts' : '连接',
+        localized('终端'),
+        localized('文件'),
+        localized('片段'),
+        localized('设置'),
+      ];
 }
 
-/// 底栏五个入口的 key（R85）：测试和设备脚本按它找入口，不按导航控件的类型找。
-/// 顺序就是 [homeTabProvider] 的值；改顺序等于改所有「切到第 N 页」的地方。
+/// 底栏五个入口的顺序，就是 [homeTabProvider] 的值；改顺序等于改所有「切到第 N 页」的地方。
 const homeTabIds = ['hosts', 'terminal', 'files', 'snippets', 'settings'];
-
-ValueKey<String> homeNavigationKey(int index) =>
-    ValueKey('home-nav-${homeTabIds[index]}');
 
 bool shouldHideHomeNavigation(int tabIndex, bool terminalFullscreen) =>
     tabIndex == 1 && terminalFullscreen;

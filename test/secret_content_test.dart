@@ -33,6 +33,7 @@ import 'package:shun/presentation/widgets/system_management/sudo_prompt.dart';
 
 import 'support/prism_test_host.dart';
 import 'support/ui_rules.dart';
+import 'support/home_navigation.dart';
 
 // R44 / SEC13 的本机部分：什么时候让窗口防截屏、哪些页面接上了、密码框关没关输入法学习。
 // 截屏真的变黑、输入法真的不学，只有设备上看得到（evidence/R44.md）。
@@ -236,7 +237,7 @@ void main() {
     await tester.pump(const Duration(seconds: 1));
     expect(window.calls, isEmpty);
 
-    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.tap(homeNavigationEntry(4));
     await tester.pump(const Duration(seconds: 1));
     expect(window.calls, isEmpty, reason: '云同步表单搬走了，设置页本身没有密码');
 

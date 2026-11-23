@@ -7,6 +7,10 @@ import '../../../domain/models/system_management.dart';
 import '../../../infrastructure/ssh/ssh_service.dart';
 import '../../../infrastructure/ssh/system_management_service.dart';
 import '../form_gap.dart';
+import '../../ui/components.dart';
+import 'management_card.dart';
+import 'management_filter_chip.dart';
+import 'management_style.dart';
 
 class ProcessManagerPanel extends StatefulWidget {
   const ProcessManagerPanel({
@@ -166,14 +170,14 @@ class _ProcessManagerPanelState extends State<ProcessManagerPanel> {
             ],
           ),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const LText('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, value.round()),
-              child: const LText('应用'),
-            ),
+            ShunButton(
+                kind: ShunButtonKind.text,
+                onPressed: () => Navigator.pop(context),
+                label: '取消'),
+            ShunButton(
+                kind: ShunButtonKind.filled,
+                onPressed: () => Navigator.pop(context, value.round()),
+                label: '应用'),
           ],
         ),
       ),
@@ -214,14 +218,14 @@ class _ProcessManagerPanelState extends State<ProcessManagerPanel> {
           title: LText(title),
           content: LText(message),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const LText('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: LText(action),
-            ),
+            ShunButton(
+                kind: ShunButtonKind.text,
+                onPressed: () => Navigator.pop(context, false),
+                label: '取消'),
+            ShunButton(
+                kind: ShunButtonKind.filled,
+                onPressed: () => Navigator.pop(context, true),
+                label: action),
           ],
         ),
       ) ??
@@ -244,7 +248,8 @@ class _ProcessManagerPanelState extends State<ProcessManagerPanel> {
             children: [
               TextField(
                 controller: _search,
-                decoration: LInputDecoration(
+                decoration: ManagementFieldDecoration(
+                  context,
                   isDense: true,
                   prefixIcon: const Icon(Icons.search),
                   hintText: '搜索 PID、用户名或命令',
@@ -264,7 +269,8 @@ class _ProcessManagerPanelState extends State<ProcessManagerPanel> {
                     child: DropdownButtonFormField<ProcessSortKey>(
                       initialValue: _sort,
                       isDense: true,
-                      decoration: LInputDecoration(
+                      decoration: ManagementFieldDecoration(
+                        context,
                         labelText: '排序',
                         prefixIcon: Icon(Icons.sort),
                       ),
@@ -295,23 +301,22 @@ class _ProcessManagerPanelState extends State<ProcessManagerPanel> {
                       },
                     ),
                   ),
-                  IconButton(
-                    tooltip: _ascending ? '升序' : '降序',
+                  ShunBarButton(
+                    tooltip: localized(_ascending ? '升序' : '降序'),
                     onPressed: () => setState(() => _ascending = !_ascending),
-                    icon: Icon(
-                      _ascending ? Icons.arrow_upward : Icons.arrow_downward,
-                    ),
+                    icon:
+                        _ascending ? Icons.arrow_upward : Icons.arrow_downward,
                   ),
-                  FilterChip(
-                    label: const LText('仅运行中'),
+                  ManagementFilterChip(
+                    label: '仅运行中',
                     selected: _runningOnly,
-                    showCheckmark: false,
-                    onSelected: (value) => setState(() => _runningOnly = value),
+                    onSelected: () =>
+                        setState(() => _runningOnly = !_runningOnly),
                   ),
-                  IconButton(
+                  ShunBarButton(
                     tooltip: localized('刷新'),
                     onPressed: _loading ? null : _refresh,
-                    icon: const Icon(Icons.refresh),
+                    icon: Icons.refresh,
                   ),
                 ],
               ),
@@ -323,14 +328,16 @@ class _ProcessManagerPanelState extends State<ProcessManagerPanel> {
           MaterialBanner(
             content: LText('读取进程失败：$_error'),
             actions: [
-              TextButton(onPressed: _refresh, child: const LText('重试')),
+              ShunButton(
+                  kind: ShunButtonKind.text, onPressed: _refresh, label: '重试'),
             ],
           ),
         Expanded(
           child: visible.isEmpty && !_loading
               // 断开时没读过，不能说没有进程：页面顶上已经写了连接断开。
               ? widget.session.connected
-                  ? const Center(child: LText('没有符合条件的进程'))
+                  ? const ManagementEmptyState(
+                      icon: Icons.account_tree_outlined, title: '没有符合条件的进程')
                   : const SizedBox.shrink()
               : ListView.builder(
                   padding: const EdgeInsets.fromLTRB(8, 0, 8, 20),
@@ -362,17 +369,11 @@ class _ProcessCard extends StatelessWidget {
   final Future<void> Function(RemoteProcess) onRenice;
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) => ManagementCard(
         child: Column(
           children: [
             ExpansionTile(
-              leading: CircleAvatar(
-                radius: 20,
-                child: LText(
-                  '${process.cpuPercent.round()}%',
-                  style: const TextStyle(fontSize: 11),
-                ),
-              ),
+              leading: ShunPill('${process.cpuPercent.round()}%'),
               title: LText(
                 process.name,
                 maxLines: 1,

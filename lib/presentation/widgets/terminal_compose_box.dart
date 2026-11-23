@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../application/session_controller.dart';
 import '../../application/terminal_compose.dart';
 import '../../domain/terminal_paste.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import 'terminal_paste_sheet.dart';
 
 /// 大输入框（R25 第一部分）：普通的多行文本框，用系统输入法打字、说话，打完了再发给终端。
@@ -148,7 +150,7 @@ class _TerminalComposeBoxState extends ConsumerState<TerminalComposeBox> {
         ? controller.liveSessionFor(target)
         : null;
     final review = PasteReview.of(_editor.text);
-    final scheme = Theme.of(context).colorScheme;
+    final colors = prism.Theme.of(context).colorScheme;
     final canSend = problem == null;
     final canFill = canSend && review.text.isNotEmpty;
     final orphan = widget.drafts.orphan;
@@ -157,14 +159,13 @@ class _TerminalComposeBoxState extends ConsumerState<TerminalComposeBox> {
       if (problem != null)
         TerminalPasteNotice(
           key: const ValueKey('terminal-compose-target-problem'),
-          color: scheme.errorContainer,
-          onColor: scheme.onErrorContainer,
+          boxed: true,
+          danger: true,
           icon: Icons.link_off,
           text: switch (problem) {
             TerminalTargetProblem.disconnected =>
               '连接已断开：不会发送，恢复后也不会自动补发。框里的字留着。',
-            TerminalTargetProblem.replaced =>
-              '连接已经恢复成新的 shell：不会自动改发，框里的字留着。',
+            TerminalTargetProblem.replaced => '连接已经恢复成新的 shell：不会自动改发，框里的字留着。',
             TerminalTargetProblem.closed => '标签已经关了：不会发送。框里的字留着，可以复制。',
           },
           action: live == null
@@ -178,7 +179,7 @@ class _TerminalComposeBoxState extends ConsumerState<TerminalComposeBox> {
       if (orphan != null)
         TerminalPasteNotice(
           key: const ValueKey('terminal-compose-orphan'),
-          color: scheme.surfaceContainerHighest,
+          boxed: true,
           icon: Icons.tab_unselected,
           text: '关掉的标签还有一段没发的字（没有发送）：',
           detail: '${orphan.hostLabel}：${orphan.text}',
@@ -218,10 +219,8 @@ class _TerminalComposeBoxState extends ConsumerState<TerminalComposeBox> {
               key: ValueKey(bracketed
                   ? 'terminal-compose-risk-bracketed'
                   : 'terminal-compose-risk-lines-run'),
-              color: bracketed
-                  ? scheme.surfaceContainerHighest
-                  : scheme.errorContainer,
-              onColor: bracketed ? scheme.onSurface : scheme.onErrorContainer,
+              boxed: true,
+              danger: !bracketed,
               icon: Icons.warning_amber_outlined,
               text: multilinePasteRisk(bracketed: bracketed),
             );
@@ -231,7 +230,7 @@ class _TerminalComposeBoxState extends ConsumerState<TerminalComposeBox> {
         TerminalPasteNotice(
           key: const ValueKey('terminal-compose-error'),
           icon: Icons.error_outline,
-          onColor: scheme.error,
+          danger: true,
           text: _error!,
         ),
     ];
@@ -257,7 +256,14 @@ class _TerminalComposeBoxState extends ConsumerState<TerminalComposeBox> {
             style: const TextStyle(fontFamily: 'monospace', fontSize: 14),
             decoration: LInputDecoration(
               isDense: true,
-              border: const OutlineInputBorder(),
+              // 框是比面板高一层的底色，不描边；拿到焦点时一圈主色（R94）。
+              filled: true,
+              fillColor: prism.SurfaceContext(context)
+                  .raisedSurfaceLevel
+                  .colorOf(colors),
+              border: terminalEditorBorder(context),
+              enabledBorder: terminalEditorBorder(context),
+              focusedBorder: terminalEditorBorder(context, focused: true),
               hintText: '在这里打字或说话，回车只是换行；点「发送」才发到终端',
             ),
           ),
@@ -268,8 +274,10 @@ class _TerminalComposeBoxState extends ConsumerState<TerminalComposeBox> {
       onPressed: canSend ? () => _send(enter: true) : null,
       child: const LText('发送'),
     );
-    final fill = OutlinedButton(
+    // 次要动作是中性的：高一层的底、正文色的字，不描边，主色留给「发送」。
+    final fill = FilledButton.tonal(
       key: const ValueKey('terminal-compose-fill'),
+      style: ShunButton.neutralStyleOf(context),
       onPressed: canFill ? () => _send(enter: false) : null,
       child: const LText('只填入'),
     );
@@ -319,7 +327,7 @@ class _TerminalComposeBoxState extends ConsumerState<TerminalComposeBox> {
     required ActiveTerminalSession? live,
     required bool canFill,
   }) {
-    final scheme = Theme.of(context).colorScheme;
+    final colors = prism.Theme.of(context).colorScheme;
     // 地方只够一行：提醒缩成一句短话放在框上面（照样写清会不会逐行执行），按钮只留「发送」，别的进「…」。
     // 远端的粘贴模式会变（进出 vim），这一句跟着终端重建。
     String? shortNotice() => switch ((problem, review.multiline)) {
@@ -348,7 +356,7 @@ class _TerminalComposeBoxState extends ConsumerState<TerminalComposeBox> {
                 style: Theme.of(context)
                     .textTheme
                     .bodySmall
-                    ?.copyWith(color: scheme.error),
+                    ?.copyWith(color: colors.error),
               ),
             ),
           Row(

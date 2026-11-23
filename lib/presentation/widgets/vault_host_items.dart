@@ -152,6 +152,7 @@ class VaultHostCard extends StatelessWidget {
                 ],
               ),
               const Spacer(),
+              const SizedBox(height: 10),
               LText(
                 host.label,
                 maxLines: 1,
@@ -160,7 +161,7 @@ class VaultHostCard extends StatelessWidget {
                     .of(context)
                     .copyWith(color: colors.onSurface),
               ),
-              const SizedBox(height: 4),
+              const SizedBox(height: 2),
               HostAddressLine(
                 host,
                 maxLines: 1,
@@ -170,15 +171,11 @@ class VaultHostCard extends StatelessWidget {
                     .of(context)
                     .copyWith(color: colors.onSurfaceVariant),
               ),
-              if (host.group?.isNotEmpty == true)
-                LText(
-                  host.group!,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: prism.AppTextStyle.caption1
-                      .of(context)
-                      .copyWith(color: colors.primary),
-                ),
+              if (host.group?.isNotEmpty == true) ...[
+                const SizedBox(height: 8),
+                // 分组是中性的小胶囊（FlClash 状态卡的标签同款）：颜色留给状态，不再用主色字。
+                ShunPill(host.group!),
+              ],
             ],
           ),
         ),

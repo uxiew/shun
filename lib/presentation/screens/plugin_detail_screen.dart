@@ -8,6 +8,8 @@ import '../../application/plugin_discovery.dart';
 import '../../application/plugin_registry.dart';
 import '../../application/plugin_sessions.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/hint.dart';
 import 'plugin_session_test_screen.dart';
 
@@ -169,11 +171,9 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
     final small = theme.textTheme.bodySmall;
     if (entry == null) {
       return Scaffold(
-        appBar: AppBar(title: Text(widget.packageName)),
-        body: const Padding(
-          padding: EdgeInsets.all(16),
-          child: LText('这个插件不在列表里了'),
-        ),
+        appBar: ShunAppBar(title: Text(widget.packageName)),
+        body: const EmptyState(
+            icon: Icons.extension_off_outlined, title: '这个插件不在列表里了'),
       );
     }
     final d = entry.descriptor;
@@ -182,15 +182,19 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
     // 包变了之后发现流程已经断开了那条连接，这里不能再给「断开」，免得以为还连着。
     final connected = _opened && !stale;
     return Scaffold(
-      appBar: AppBar(title: Text(d?.displayName ?? widget.packageName)),
+      appBar: ShunAppBar(title: Text(d?.displayName ?? widget.packageName)),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
           Row(
             children: [
-              Chip(
+              ShunPill(
+                localizedOf(context, pluginStatusLabel(entry.status)),
                 key: const ValueKey('plugin-status'),
-                label: LText(pluginStatusLabel(entry.status)),
+                color: entry.status == PluginStatus.rejected ||
+                        entry.status == PluginStatus.incompatible
+                    ? theme.colorScheme.error
+                    : null,
               ),
               const SizedBox(width: 8),
               if (pluginReasonWorthShowing(entry) case final reason?)
@@ -199,76 +203,107 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
           ),
           if (_busy) const LinearProgressIndicator(),
           const SizedBox(height: 8),
-          _section('这是谁'),
-          if (d != null) ...[
-            _line('来源：', localized(_deploymentLabel(d.deployment))),
-            _line('插件 ID：', d.pluginId),
-          ],
-          _line('包名：', widget.packageName),
-          if (d != null) _line('插件自称的版本：', d.version),
-          if (entry.installedVersionName != null ||
-              entry.installedVersionCode != null)
-            _line(
-              '安装包版本：',
-              '${entry.installedVersionName ?? '?'}${_paren(entry.installedVersionCode ?? '?')}',
+          ShunSection(title: '这是谁', children: [
+            ShunSectionItem(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (d != null) ...[
+                    _line('来源：', localized(_deploymentLabel(d.deployment))),
+                    _line('插件 ID：', d.pluginId),
+                  ],
+                  _line('包名：', widget.packageName),
+                  if (d != null) _line('插件自称的版本：', d.version),
+                  if (entry.installedVersionName != null ||
+                      entry.installedVersionCode != null)
+                    _line(
+                      '安装包版本：',
+                      '${entry.installedVersionName ?? '?'}${_paren(entry.installedVersionCode ?? '?')}',
+                    ),
+                  if (d != null)
+                    _line('插件 API：', '${d.apiMajor}.${d.apiMinor}'),
+                  if (d?.license != null) _line('许可证：', d!.license!),
+                  if (d?.sourceUrl != null) _line('源码：', d!.sourceUrl!),
+                  const SizedBox(height: 8),
+                  const HintTitle('签名证书 SHA-256', hint: '和插件作者公布的核对，一致再批准。'),
+                  SelectableText(
+                    entry.signerDigests.isEmpty
+                        ? '—'
+                        : entry.signerDigests.join('\n'),
+                    key: const ValueKey('plugin-signers'),
+                    style: small,
+                  ),
+                  if (entry.androidDebugSigned)
+                    LText('用 Android 调试证书签名：只有开发构建能用', style: small),
+                ],
+              ),
             ),
-          if (d != null) _line('插件 API：', '${d.apiMajor}.${d.apiMinor}'),
-          if (d?.license != null) _line('许可证：', d!.license!),
-          if (d?.sourceUrl != null) _line('源码：', d!.sourceUrl!),
-          const SizedBox(height: 8),
-          const HintTitle('签名证书 SHA-256', hint: '和插件作者公布的核对，一致再批准。'),
-          SelectableText(
-            entry.signerDigests.isEmpty ? '—' : entry.signerDigests.join('\n'),
-            key: const ValueKey('plugin-signers'),
-            style: small,
-          ),
-          if (entry.androidDebugSigned)
-            LText('用 Android 调试证书签名：只有开发构建能用', style: small),
-          if (d != null) ...[
-            _section(
-              '它能做什么',
+          ]),
+          if (d != null)
+            ShunSection(
+              title: '它能做什么',
               hint: '插件拿不到保险库、私钥、密码或其他主机；它是独立的 App，有自己的系统权限，本 App 管不住它自己联网。',
+              children: [
+                ShunSectionItem(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      _line(
+                          '能力：',
+                          d.capabilities
+                              .map((c) => _named(_capabilityLabel(c), c.wire))
+                              .join('、')),
+                      _line(
+                          '支持的连接路线：',
+                          d.supportedRoutes
+                              .map((r) => _named(_routeLabel(r), r.wire))
+                              .join('、')),
+                      _line(
+                          '申请的权限：',
+                          d.permissions
+                              .map((p) => _named(_permissionLabel(p), p.wire))
+                              .join('、')),
+                    ],
+                  ),
+                ),
+              ],
             ),
-            _line(
-                '能力：',
-                d.capabilities
-                    .map((c) => _named(_capabilityLabel(c), c.wire))
-                    .join('、')),
-            _line(
-                '支持的连接路线：',
-                d.supportedRoutes
-                    .map((r) => _named(_routeLabel(r), r.wire))
-                    .join('、')),
-            _line(
-                '申请的权限：',
-                d.permissions
-                    .map((p) => _named(_permissionLabel(p), p.wire))
-                    .join('、')),
-          ],
-          _section('插件自己的设置页', hint: '设置由插件自己保存，本 App 看不到，也不替它管理。'),
-          ..._settings(entry, small),
-          _section('操作'),
-          if (stale)
-            LText('插件包刚变过，之前的连接测试结果已作废', style: small)
-          else if (_result != null)
-            LText(_result!, key: const ValueKey('plugin-check-result')),
-          if (entry.status == PluginStatus.ready &&
-              (entry.descriptor?.capabilities
-                      .contains(Capability.terminalSession) ??
-                  false) &&
-              PluginSessionTestScreen.whyNot(entry.descriptor) != null)
-            LText(PluginSessionTestScreen.whyNot(entry.descriptor)!,
-                key: const ValueKey('plugin-session-test-unavailable'),
-                style: small),
-          if (entry.status == PluginStatus.ready && _liveSessions() > 0)
-            LText('有会话在用这个插件（比如 Mosh 标签）：连接测试沿用那条连接，这页不给「断开」',
-                key: const ValueKey('plugin-live-sessions'), style: small),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: _actions(entry, connected: connected),
-          ),
+          ShunSection(
+              title: '插件自己的设置页',
+              hint: '设置由插件自己保存，本 App 看不到，也不替它管理。',
+              children: [
+                for (final item in _settings(entry, small))
+                  ShunSectionItem(child: item)
+              ]),
+          ShunSection(title: '操作', children: [
+            ShunSectionItem(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  if (stale)
+                    LText('插件包刚变过，之前的连接测试结果已作废', style: small)
+                  else if (_result != null)
+                    LText(_result!, key: const ValueKey('plugin-check-result')),
+                  if (entry.status == PluginStatus.ready &&
+                      (entry.descriptor?.capabilities
+                              .contains(Capability.terminalSession) ??
+                          false) &&
+                      PluginSessionTestScreen.whyNot(entry.descriptor) != null)
+                    LText(PluginSessionTestScreen.whyNot(entry.descriptor)!,
+                        key: const ValueKey('plugin-session-test-unavailable'),
+                        style: small),
+                  if (entry.status == PluginStatus.ready && _liveSessions() > 0)
+                    LText('有会话在用这个插件（比如 Mosh 标签）：连接测试沿用那条连接，这页不给「断开」',
+                        key: const ValueKey('plugin-live-sessions'),
+                        style: small),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _actions(entry, connected: connected),
+                  ),
+                ]))
+          ]),
         ],
       ),
     );
@@ -289,11 +324,12 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
     return [
       Align(
         alignment: Alignment.centerLeft,
-        child: OutlinedButton.icon(
+        child: ShunButton(
+          kind: ShunButtonKind.tonal,
           key: const ValueKey('plugin-open-settings'),
           onPressed: _busy ? null : () => _run((d) => d.openSettings(entry)),
-          icon: const Icon(Icons.open_in_new),
-          label: const LText('打开插件的设置页'),
+          icon: Icons.open_in_new,
+          label: '打开插件的设置页',
         ),
       ),
     ];
@@ -303,13 +339,14 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
     final ready = entry.status == PluginStatus.ready;
     return [
       if (entry.status == PluginStatus.needsApproval)
-        FilledButton(
+        ShunButton(
           key: const ValueKey('plugin-approve'),
           onPressed: _busy ? null : () => _approve(entry),
-          child: const LText('批准'),
+          label: '批准',
         ),
       if (ready)
-        OutlinedButton(
+        ShunButton(
+          kind: ShunButtonKind.tonal,
           key: const ValueKey('plugin-check'),
           onPressed: _busy
               ? null
@@ -336,11 +373,12 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
                       _opened = _opened || (result.ok && !result.reused);
                     });
                   }),
-          child: const LText('连接测试'),
+          label: '连接测试',
         ),
       // 会话测试（X12）：给插件作者核对终端会话的整个来回。要临时会话材料的插件（Mosh）不在这里开，原因写在下面。
       if (ready && PluginSessionTestScreen.whyNot(entry.descriptor) == null)
-        OutlinedButton(
+        ShunButton(
+          kind: ShunButtonKind.tonal,
           key: const ValueKey('plugin-session-test'),
           onPressed: _busy
               ? null
@@ -348,21 +386,23 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
                     builder: (_) => PluginSessionTestScreen(
                         packageName: widget.packageName),
                   )),
-          child: const LText('会话测试'),
+          label: '会话测试',
         ),
       // 有会话在用这条连接时不给「断开」：断开会把它们（比如 Mosh 标签）一起关掉。
       if (connected && ready && _liveSessions() == 0)
-        TextButton(
+        ShunButton(
+          kind: ShunButtonKind.text,
           onPressed: _busy
               ? null
               : () => _run((d) async {
                     await d.disconnect(widget.packageName);
                     if (mounted) setState(() => _opened = false);
                   }),
-          child: const LText('断开'),
+          label: '断开',
         ),
       if (ready)
-        OutlinedButton(
+        ShunButton(
+          kind: ShunButtonKind.tonal,
           key: const ValueKey('plugin-disable'),
           onPressed: _busy
               ? null
@@ -371,17 +411,18 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
                     if (mounted) setState(() => _opened = false);
                     _message('已停用：它的会话已关闭，批准记录保留，重新启用不用再批准。');
                   }),
-          child: const LText('停用'),
+          label: '停用',
         ),
       if (entry.status == PluginStatus.disabled)
-        FilledButton(
+        ShunButton(
           key: const ValueKey('plugin-enable'),
           onPressed: _busy ? null : () => _run((d) => d.enable(entry)),
-          child: const LText('启用'),
+          label: '启用',
         ),
       // 换签被拒、已卸载时也要能撤销旧批准：作者正常换密钥后，用户得有路重新核对。
       if (entry.hasApproval || entry.status == PluginStatus.disabled)
-        OutlinedButton(
+        ShunButton(
+          kind: ShunButtonKind.tonal,
           key: const ValueKey('plugin-revoke'),
           onPressed: _busy
               ? null
@@ -389,7 +430,7 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
                     await d.revoke(entry);
                     if (mounted) setState(() => _opened = false);
                   }),
-          child: const LText('撤销批准'),
+          label: '撤销批准',
         ),
     ];
   }
@@ -433,14 +474,15 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
           ),
         ),
         actions: [
-          TextButton(
+          ShunButton(
+            kind: ShunButtonKind.text,
             onPressed: () => Navigator.pop(context, false),
-            child: const LText('取消'),
+            label: '取消',
           ),
-          FilledButton(
+          ShunButton(
             key: const ValueKey('plugin-approve-confirm'),
             onPressed: () => Navigator.pop(context, true),
-            child: const LText('批准'),
+            label: '批准',
           ),
         ],
       ),
@@ -449,12 +491,6 @@ class _PluginDetailScreenState extends ConsumerState<PluginDetailScreen> {
     // 传给 approve 的是确认框里给你看的那份：包在确认期间变了会被拒绝，不会批准一个你没核对过的版本。
     await _run((discovery) => discovery.approve(entry));
   }
-
-  Widget _section(String title, {String? hint}) => Padding(
-        padding: EdgeInsets.only(top: hint == null ? 16 : 4, bottom: 4),
-        child: HintTitle(title,
-            hint: hint, style: Theme.of(context).textTheme.titleSmall),
-      );
 
   /// 「标签：值」。值是 ID、包名、版本这类原样显示的数据，长按可复制，方便和作者公布的核对。
   Widget _line(String label, String value) =>

@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
+import 'empty_state.dart';
 import 'form_gap.dart';
+import 'hint.dart';
 import 'secret_content.dart';
 
 import '../../infrastructure/ai/ai_service.dart';
@@ -64,12 +67,13 @@ class _AiProvidersPageState extends State<AiProvidersPage> {
                 title: const LText('删除服务商？'),
                 content: Text(profile.name),
                 actions: [
-                  TextButton(
+                  ShunButton(
+                      kind: ShunButtonKind.text,
                       onPressed: () => Navigator.pop(context, false),
-                      child: const LText('取消')),
-                  FilledButton(
+                      label: '取消'),
+                  ShunButton(
                       onPressed: () => Navigator.pop(context, true),
-                      child: const LText('删除'))
+                      label: '删除')
                 ]));
     if (confirm == true && mounted) {
       await _save(_profiles!.where((p) => p.id != profile.id).toList());
@@ -78,27 +82,46 @@ class _AiProvidersPageState extends State<AiProvidersPage> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-      appBar: AppBar(title: const LText('AI 服务商'), actions: [
+      appBar: ShunAppBar(title: const LText('AI 服务商'), actions: [
+        const HintButton(
+          title: 'AI 服务商',
+          message: '支持 OpenAI Chat Completions 兼容接口。密钥只存在本机安全存储。',
+        ),
         IconButton(
             onPressed: _profiles == null || _saving ? null : () => _edit(),
             tooltip: localized('添加服务商'),
             icon: const Icon(Icons.add))
       ]),
       body: ListView(padding: const EdgeInsets.all(16), children: [
-        const LText('支持 OpenAI Chat Completions 兼容接口。密钥只存在本机安全存储。'),
         if (_error != null)
           LText(_error!,
               style: TextStyle(color: Theme.of(context).colorScheme.error)),
         if (_profiles == null || _saving) const LinearProgressIndicator(),
-        for (final p in _profiles ?? <AiProviderProfile>[])
-          ListTile(
-              title: Text(p.name),
-              subtitle: LText('${p.endpoint}\n${p.models.length} 个模型'),
-              onTap: _saving ? null : () => _edit(p),
-              trailing: IconButton(
+        if (_profiles?.isEmpty == true && !_saving && _error == null)
+          const EmptyState(icon: Icons.dns_outlined, title: '还没有记录'),
+        if (_profiles case final profiles? when profiles.isNotEmpty)
+          ShunSection(children: [
+            for (final p in profiles)
+              ShunListRow(
+                key: ValueKey('ai-provider-${p.id}'),
+                title: p.name,
+                localizeTitle: false,
+                details: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(p.endpoint),
+                      const SizedBox(height: 4),
+                      ShunPill(localizedOf(context, '${p.models.length} 个模型'))
+                    ]),
+                enabled: !_saving,
+                onTap: () => _edit(p),
+                trailing: IconButton(
                   tooltip: localized('删除'),
                   onPressed: _saving ? null : () => _delete(p),
-                  icon: const Icon(Icons.delete_outline))),
+                  icon: const Icon(Icons.delete_outline),
+                ),
+              ),
+          ]),
       ]));
 }
 
@@ -190,32 +213,41 @@ class _ProviderEditorState extends State<_ProviderEditor> {
   Widget build(BuildContext context) => SecretContent(child: _page(context));
 
   Widget _page(BuildContext context) => Scaffold(
-      appBar: AppBar(title: const LText('服务商配置'), actions: [
-        TextButton(onPressed: _busy ? null : _save, child: const LText('保存'))
+      appBar: ShunAppBar(title: const LText('服务商配置'), actions: [
+        ShunBarButton(
+            icon: Icons.check,
+            onPressed: _busy ? null : _save,
+            tooltip: localized('保存'))
       ]),
       body: ListView(padding: const EdgeInsets.all(16), children: [
-        TextField(
-            key: const ValueKey('provider-name'),
-            controller: _name,
-            decoration: LInputDecoration(labelText: '名称')),
-        const FormGap(),
-        TextField(
-            key: const ValueKey('provider-endpoint'),
-            controller: _endpoint,
-            decoration: LInputDecoration(labelText: 'API 地址（通常以 /v1 结尾）')),
-        const FormGap(),
-        TextField(
-            key: const ValueKey('provider-key'),
-            controller: _key,
-            obscureText: true,
-            enableIMEPersonalizedLearning: false,
-            enableSuggestions: false,
-            autocorrect: false,
-            decoration: LInputDecoration(labelText: 'API Key（无鉴权接口可留空）')),
+        ShunSection(children: [
+          ShunSectionItem(
+              child: Column(children: [
+            TextField(
+                key: const ValueKey('provider-name'),
+                controller: _name,
+                decoration: LInputDecoration(labelText: '名称')),
+            const FormGap(),
+            TextField(
+                key: const ValueKey('provider-endpoint'),
+                controller: _endpoint,
+                decoration: LInputDecoration(labelText: 'API 地址（通常以 /v1 结尾）')),
+            const FormGap(),
+            TextField(
+                key: const ValueKey('provider-key'),
+                controller: _key,
+                obscureText: true,
+                enableIMEPersonalizedLearning: false,
+                enableSuggestions: false,
+                autocorrect: false,
+                decoration: LInputDecoration(labelText: 'API Key（无鉴权接口可留空）')),
+          ]))
+        ]),
         const SizedBox(height: 20),
-        OutlinedButton(
+        ShunButton(
+            kind: ShunButtonKind.tonal,
             onPressed: _busy ? null : _fetch,
-            child: LText(_busy ? '正在拉取…' : '自动拉取模型')),
+            label: _busy ? '正在拉取…' : '自动拉取模型'),
         const SizedBox(height: 24),
         TextField(
             key: const ValueKey('provider-models'),
@@ -225,16 +257,18 @@ class _ProviderEditorState extends State<_ProviderEditor> {
             keyboardType: TextInputType.multiline,
             decoration: LInputDecoration(labelText: '模型列表（每行一个）')),
         const SizedBox(height: 20),
-        SwitchListTile(
-            title: const LText('发送 JSON 模式参数'),
-            subtitle: const LText('关着也会用提示词要结构化命令'),
-            value: _json,
-            onChanged: (v) => setState(() => _json = v)),
-        SwitchListTile(
-            title: const LText('发送思考强度参数'),
-            subtitle: const LText('不支持 reasoning_effort 的模型请关闭'),
-            value: _reasoning,
-            onChanged: (v) => setState(() => _reasoning = v)),
+        ShunSection(children: [
+          ShunSwitchRow(
+              title: '发送 JSON 模式参数',
+              hint: '关着也会用提示词要结构化命令',
+              value: _json,
+              onChanged: (v) => setState(() => _json = v)),
+          ShunSwitchRow(
+              title: '发送思考强度参数',
+              hint: '不支持 reasoning_effort 的模型请关闭',
+              value: _reasoning,
+              onChanged: (v) => setState(() => _reasoning = v)),
+        ]),
         if (_error != null)
           LText(_error!,
               style: TextStyle(color: Theme.of(context).colorScheme.error)),

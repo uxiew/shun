@@ -9,6 +9,7 @@ import '../../domain/security_key.dart';
 import '../../infrastructure/ssh/security_key_channel.dart';
 import '../localization/localized_widgets.dart';
 import '../ui/components.dart';
+import 'credential_field.dart' show CredentialFields;
 import 'secret_content.dart';
 
 final securityKeyChannelProvider = Provider((ref) => SecurityKeyChannel());
@@ -248,53 +249,57 @@ class _SecurityKeyPromptState<T extends Object>
       child: SecretContent(
         child: AlertDialog(
           title: LText(widget.title),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (widget.detail != null) ...[
-                Text(widget.detail!, style: small),
-                const SizedBox(height: 12),
-              ],
-              if (_askingPin) ...[
-                if (_pinNote != null) ...[
-                  LText(
-                    _pinNote!,
-                    key: const ValueKey('security-key-pin-note'),
-                  ),
-                  const SizedBox(height: 8),
-                ],
-                TextField(
-                  key: const ValueKey('security-key-pin'),
-                  controller: _pin,
-                  autofocus: true,
-                  obscureText: true,
-                  keyboardType: TextInputType.visiblePassword,
-                  enableIMEPersonalizedLearning: false,
-                  enableSuggestions: false,
-                  autocorrect: false,
-                  onSubmitted: (_) => _submitPin(),
-                  decoration: LInputDecoration(labelText: '钥匙的 PIN'),
-                ),
-              ] else
-                Row(
-                  children: [
-                    const SizedBox(
-                      width: 18,
-                      height: 18,
-                      child: CircularProgressIndicator(strokeWidth: 2),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: LText(
-                        _status(),
-                        key: const ValueKey('security-key-status'),
-                      ),
-                    ),
+          scrollable: true,
+          content: CredentialFields(
+              inDialog: true,
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  if (widget.detail != null) ...[
+                    Text(widget.detail!, style: small),
+                    const SizedBox(height: 12),
                   ],
-                ),
-            ],
-          ),
+                  if (_askingPin) ...[
+                    if (_pinNote != null) ...[
+                      LText(
+                        _pinNote!,
+                        key: const ValueKey('security-key-pin-note'),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    TextField(
+                      key: const ValueKey('security-key-pin'),
+                      controller: _pin,
+                      autofocus: true,
+                      obscureText: true,
+                      keyboardType: TextInputType.visiblePassword,
+                      enableIMEPersonalizedLearning: false,
+                      enableSuggestions: false,
+                      autocorrect: false,
+                      onSubmitted: (_) => _submitPin(),
+                      decoration: LInputDecoration(labelText: '钥匙的 PIN'),
+                    ),
+                  ] else
+                    ShunSectionItem(
+                        child: Row(
+                      children: [
+                        const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: LText(
+                            _status(),
+                            key: const ValueKey('security-key-status'),
+                          ),
+                        ),
+                      ],
+                    )),
+                ],
+              )),
           actions: [
             ShunButton(
               key: const ValueKey('security-key-cancel'),

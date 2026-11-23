@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 import '../../infrastructure/ssh/sftp_service.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 
 class SftpPermissionsDialog extends StatefulWidget {
   const SftpPermissionsDialog(
@@ -22,9 +24,8 @@ class _SftpPermissionsDialogState extends State<SftpPermissionsDialog> {
 
   @override
   Widget build(BuildContext context) {
-    final title = localized('修改文件权限');
     return AlertDialog(
-      title: Text('$title：${widget.name}'),
+      title: const LText('修改文件权限'),
       content: SingleChildScrollView(
           child: Form(
               key: _form,
@@ -32,6 +33,9 @@ class _SftpPermissionsDialogState extends State<SftpPermissionsDialog> {
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(widget.name,
+                        style: prism.AppTextStyle.headline.of(context)),
+                    const SizedBox(height: 16),
                     TextFormField(
                       key: const ValueKey('sftp-permissions-input'),
                       controller: _controller,
@@ -51,19 +55,29 @@ class _SftpPermissionsDialogState extends State<SftpPermissionsDialog> {
                     LText(
                       '依次表示所有者、用户组和其他用户的读写执行权限',
                       key: const ValueKey('sftp-permissions-help'),
-                      style: Theme.of(context).textTheme.bodySmall,
+                      style: prism.AppTextStyle.footnote.of(context).copyWith(
+                            color: prism.Theme.of(context)
+                                .colorScheme
+                                .onSurfaceVariant,
+                          ),
                     ),
                   ]))),
       actions: [
-        TextButton(
-            onPressed: () => Navigator.pop(context), child: const LText('取消')),
-        FilledButton(
-            onPressed: () {
-              if (_form.currentState?.validate() == true) {
-                Navigator.pop(context, parseUnixPermissions(_controller.text));
-              }
-            },
-            child: const LText('应用')),
+        ShunButton(
+          key: const ValueKey('sftp-permissions-cancel'),
+          kind: ShunButtonKind.text,
+          label: '取消',
+          onPressed: () => Navigator.pop(context),
+        ),
+        ShunButton(
+          key: const ValueKey('sftp-permissions-apply'),
+          label: '应用',
+          onPressed: () {
+            if (_form.currentState?.validate() == true) {
+              Navigator.pop(context, parseUnixPermissions(_controller.text));
+            }
+          },
+        ),
       ],
     );
   }

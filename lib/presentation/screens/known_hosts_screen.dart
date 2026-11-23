@@ -6,6 +6,7 @@ import '../../application/vault_controller.dart';
 import '../localization/localized_widgets.dart';
 import '../ui/components.dart';
 import '../widgets/connection_event_text.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/hint.dart';
 
 /// 可信主机密钥（R65）：看、删，别的都不给。
@@ -22,14 +23,15 @@ class KnownHostsScreen extends ConsumerWidget {
       extras == null ? const [] : knownHostsFromExtras(extras),
     );
     return Scaffold(
-      appBar: AppBar(
+      appBar: ShunAppBar(
         title: const HintTitle(
           '可信主机密钥',
           hint: '这里是你核对后接受过的服务器。删一条后，下次连这台要重新核对。只记在这台手机上，同步和导入都不带。',
         ),
       ),
       body: entries.isEmpty
-          ? const Center(child: LText('还没有接受过服务器'))
+          ? const EmptyState(
+              icon: Icons.verified_user_outlined, title: '还没有接受过服务器')
           : ListView(
               padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
               children: [
@@ -79,14 +81,15 @@ class _KnownHostTile extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final acceptedAt = (entry['acceptedAt'] as num?)?.toInt();
+    final keyType = '${entry['keyType'] ?? ''}';
     final name = knownHostLabel(entry);
     return ShunListRow(
       key: ValueKey('known-host-$name'),
       title: name,
-      subtitle: '${entry['keyType'] ?? ''}',
       details: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (keyType.isNotEmpty) ShunPill(keyType),
           // 能选中复制：核对时要拿去和服务器上的输出比。
           SelectableText('${entry['fingerprint'] ?? ''}'),
           if (acceptedAt != null)
@@ -94,9 +97,9 @@ class _KnownHostTile extends ConsumerWidget {
                 DateTime.fromMillisecondsSinceEpoch(acceptedAt))),
         ],
       ),
-      trailing: IconButton(
+      trailing: ShunBarButton(
         tooltip: localized('删除'),
-        icon: const Icon(Icons.delete_outline),
+        icon: Icons.delete_outline,
         onPressed: () => _delete(context, ref),
       ),
     );

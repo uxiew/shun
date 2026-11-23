@@ -145,6 +145,32 @@ void main() {
     await tester.pumpWidget(const SizedBox());
   });
 
+  // R91 / UIM13：迁到 Prism 后断线时每个管理页还是写明原因、整页变淡点不动，没有 Material Card。
+  for (final name in ['进程', 'tmux', 'Docker', '服务', 'Caddy']) {
+    testWidgets('R91 断开时「$name」页：写明断开、变淡、点不动', (tester) async {
+      await open(tester);
+      await tester.ensureVisible(find.text(name));
+      await settlePage(tester);
+      await tester.tap(find.text(name));
+      await settlePage(tester);
+      expect(find.byKey(const ValueKey('system-management-disconnected')),
+          findsOneWidget);
+      expect(
+        find.byWidgetPredicate(
+            (widget) => widget is Opacity && widget.opacity == .4),
+        findsWidgets,
+      );
+      expect(
+        tester
+            .widgetList<AbsorbPointer>(find.byType(AbsorbPointer))
+            .where((pointer) => pointer.absorbing),
+        isNotEmpty,
+      );
+      expect(find.byType(Card), findsNothing);
+      await tester.pumpWidget(const SizedBox());
+    });
+  }
+
   // 断了才点开的页：不会再读，转圈就是骗人。真 SSH 上断线后才看到（MON01）。
   for (final name in ['进程', 'tmux', 'Docker', '服务', 'Caddy']) {
     testWidgets('断开后才打开「$name」页：不一直转', (tester) async {
@@ -154,8 +180,7 @@ void main() {
       await tester.pump(const Duration(seconds: 1));
       expect(
         find.byWidgetPredicate(
-          (widget) =>
-              widget is ProgressIndicator && widget.value == null,
+          (widget) => widget is ProgressIndicator && widget.value == null,
         ),
         findsNothing,
       );

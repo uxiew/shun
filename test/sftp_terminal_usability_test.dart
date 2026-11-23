@@ -21,6 +21,8 @@ import 'package:shun/infrastructure/terminal/terminal_text.dart';
 import 'package:shun/infrastructure/terminal/terminal_input_controller.dart';
 import 'package:shun/infrastructure/terminal/terminal_session_adapter.dart';
 
+import 'support/prism_test_host.dart';
+
 void main() {
   testWidgets('unavailable server copy requires explicit phone-relay consent',
       (tester) async {
@@ -32,6 +34,8 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
       child: MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
           home: Scaffold(body: SftpScreen(localService: Future.value(source)))),
     ));
     await tester.pumpAndSettle();
@@ -69,6 +73,8 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
       child: MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
           home: Scaffold(body: SftpScreen(localService: Future.value(source)))),
     ));
     await tester.pumpAndSettle();
@@ -88,6 +94,8 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
       child: MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
           home: Scaffold(body: SftpScreen(localService: Future.value(source)))),
     ));
     await tester.pumpAndSettle();
@@ -119,6 +127,8 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
       child: MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
           home: Scaffold(body: SftpScreen(localService: Future.value(source)))),
     ));
     await tester.pumpAndSettle();
@@ -237,6 +247,8 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
       child: MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
           home: Scaffold(body: SftpScreen(localService: Future.value(remote)))),
     ));
     await tester.pumpAndSettle();
@@ -455,6 +467,8 @@ void main() {
             ),
           ],
           child: MaterialApp(
+            localizationsDelegates: prismTestDelegates,
+            builder: prismTestBuilder,
             home: Scaffold(
               body: SftpScreen(localService: Future.value(localService)),
             ),
@@ -529,6 +543,8 @@ void main() {
     await tester.pumpWidget(ProviderScope(
       overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
       child: MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
           home: Scaffold(body: SftpScreen(localService: Future.value(phone)))),
     ));
     await tester.pumpAndSettle();

@@ -18,9 +18,11 @@ import 'package:highlight/languages/typescript.dart';
 import 'package:highlight/languages/xml.dart';
 import 'package:highlight/languages/yaml.dart';
 import 'package:markdown/markdown.dart' as md;
+import 'package:prism_ui/prism_ui.dart' as prism;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 
 /// Render replies only; never evaluate HTML, code or embedded remote images.
 class AiMarkdown extends StatelessWidget {
@@ -60,12 +62,12 @@ class AiMarkdown extends StatelessWidget {
               title: const LText('打开链接？'),
               content: SelectableText(uri.toString()),
               actions: [
-                TextButton(
+                ShunButton(
+                    kind: ShunButtonKind.text,
                     onPressed: () => Navigator.pop(context, false),
-                    child: const LText('取消')),
-                FilledButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    child: const LText('打开')),
+                    label: '取消'),
+                ShunButton(
+                    onPressed: () => Navigator.pop(context, true), label: '打开'),
               ],
             ));
     if (confirmed != true || !context.mounted) return;
@@ -97,10 +99,7 @@ class AiInlineCode extends StatelessWidget {
   Widget build(BuildContext context) => IntrinsicWidth(
         child: Container(
           padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHighest,
-            borderRadius: BorderRadius.circular(5),
-          ),
+          decoration: _codeFill(context, prism.AppShape.xs),
           child: SelectableText(code,
               style: TextStyle(
                 fontFamily: 'monospace',
@@ -226,9 +225,7 @@ class _AiCodeBlockState extends State<AiCodeBlock> {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(12),
-      decoration: BoxDecoration(
-          color: theme.colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(10)),
+      decoration: _codeFill(context, prism.AppShape.md),
       child: SelectableText.rich(_span!,
           style: TextStyle(
               fontFamily: 'monospace',
@@ -238,3 +235,10 @@ class _AiCodeBlockState extends State<AiCodeBlock> {
     );
   }
 }
+
+ShapeDecoration _codeFill(BuildContext context, ShapeBorder shape) =>
+    ShapeDecoration(
+        shape: shape,
+        color: prism.SurfaceContext(context)
+            .raisedSurfaceLevel
+            .colorOf(prism.Theme.of(context).colorScheme));

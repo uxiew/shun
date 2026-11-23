@@ -10,6 +10,8 @@ import '../../domain/credential_identity.dart';
 import '../../domain/models/vault.dart';
 import '../../infrastructure/tailscale/catalog_cache.dart';
 import '../localization/localized_widgets.dart';
+import 'catalog_text.dart';
+import 'choice_segments.dart';
 import 'connection_route_draft.dart';
 import 'credential_field.dart';
 import 'connection_route_editor.dart';
@@ -17,6 +19,7 @@ import 'form_gap.dart';
 import 'hint.dart';
 import 'proxy_profiles_page.dart';
 import '../../domain/vault_secrets.dart';
+import '../ui/components.dart';
 
 /// 把选中的目录设备按这一页的设置批量导入为主机（设备页 ⋮ 里的「用自定义设置导入」）。
 /// 返回实际新建的台数，取消返回 null。平常点设备走 Tailscale 设置里的默认值，不经过这页（R26）。
@@ -156,17 +159,18 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
             identities: vaultIdentityMaps(vault))
         : null;
     return Scaffold(
-      appBar: AppBar(
+      appBar: ShunAppBar(
         title: const LText('导入为主机'),
         actions: [
-          TextButton(
+          ShunBarButton(
             key: const ValueKey('catalog-import-confirm'),
             onPressed: _saving || count == 0 ? null : _save,
-            child: const LText('导入'),
+            icon: Icons.check,
+            tooltip: localized('导入'),
           ),
         ],
       ),
-      body: ListView(
+      body: CatalogFormList(
         padding: const EdgeInsets.all(16),
         children: [
           const LText('选中的设备建成新主机，只存不连，第一次连接时照常核对指纹。'),
@@ -192,8 +196,7 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
               onChanged: (_) => setState(() {}),
               decoration: InputDecoration(
                 labelText: localized('登录用户名'),
-                helperText:
-                    localized('必填，不会默认用 root'),
+                helperText: localized('必填，不会默认用 root'),
                 helperMaxLines: 2,
               ),
             ),
@@ -212,24 +215,14 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
           const SizedBox(height: 16),
           const LText('用设备的哪个地址'),
           const SizedBox(height: 4),
-          SegmentedButton<CatalogAddressKind>(
-            segments: [
-              const ButtonSegment(
-                value: CatalogAddressKind.ipv4,
-                label: Text('IPv4'),
-              ),
-              const ButtonSegment(
-                value: CatalogAddressKind.ipv6,
-                label: Text('IPv6'),
-              ),
-              ButtonSegment(
-                value: CatalogAddressKind.fqdn,
-                label: LText('MagicDNS 名称'),
-              ),
+          ChoiceSegments<CatalogAddressKind>(
+            segments: const [
+              ChoiceSegment(CatalogAddressKind.ipv4, 'IPv4'),
+              ChoiceSegment(CatalogAddressKind.ipv6, 'IPv6'),
+              ChoiceSegment(CatalogAddressKind.fqdn, 'MagicDNS 名称'),
             ],
-            selected: {_address},
-            onSelectionChanged: (value) =>
-                setState(() => _address = value.first),
+            selected: _address,
+            onTap: (value) => setState(() => _address = value),
           ),
           const SizedBox(height: 4),
           LText(
@@ -279,42 +272,35 @@ class _CatalogImportPageState extends ConsumerState<CatalogImportPage> {
     final theme = Theme.of(context);
     final newHosts = localized('将新建主机：');
     final skipped = localized('跳过：');
-    return Card(
+    return ShunSectionItem(
       key: const ValueKey('catalog-import-preview'),
-      color: error == null ? null : theme.colorScheme.errorContainer,
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (error != null) LText(error),
-            if (result != null) ...[
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (error != null)
+            LText(error, style: TextStyle(color: theme.colorScheme.error)),
+          if (result != null) ...[
+            ShunPill('$newHosts${result.hosts.length}'),
+            const SizedBox(height: 4),
+            for (final host in result.hosts)
               Text(
-                '$newHosts${result.hosts.length}',
-                style: theme.textTheme.titleSmall,
+                '${host.label}  →  ${host.username}@${host.hostname}:${host.port}',
+                style: small,
               ),
-              for (final host in result.hosts)
-                Text(
-                  '${host.label}  →  ${host.username}@${host.hostname}:${host.port}',
-                  style: small,
+            if (result.skipped.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              ShunPill('$skipped${result.skipped.length}'),
+              const SizedBox(height: 4),
+              for (final skip in result.skipped)
+                Wrap(
+                  children: [
+                    Text('${skip.name}：', style: small),
+                    LText(skip.reason, style: small),
+                  ],
                 ),
-              if (result.skipped.isNotEmpty) ...[
-                const SizedBox(height: 8),
-                Text(
-                  '$skipped${result.skipped.length}',
-                  style: theme.textTheme.titleSmall,
-                ),
-                for (final skip in result.skipped)
-                  Wrap(
-                    children: [
-                      Text('${skip.name}：', style: small),
-                      LText(skip.reason, style: small),
-                    ],
-                  ),
-              ],
             ],
           ],
-        ),
+        ],
       ),
     );
   }

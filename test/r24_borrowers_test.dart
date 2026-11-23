@@ -27,6 +27,7 @@ import 'package:shun/infrastructure/ssh/ssh_lease.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/presentation/widgets/sftp_transfer_dialogs.dart';
 
+import 'support/prism_test_host.dart';
 import 'support/test_terminal.dart';
 
 // R24：借用标签上那条 SSH 的文件、监控、系统管理、端口转发。
@@ -327,8 +328,12 @@ void portForwards(
           portForwardControllerProvider
               .overrideWith((ref) => _SeededForwards(items)),
         ],
-        child:
-            MaterialApp(home: Scaffold(body: PortForwardSheet(session: tab))),
+        child: MaterialApp(
+          // R90：迁移后的面板用 Prism 的分段和分组，单独装要补 Prism 宿主。
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
+          home: Scaffold(body: PortForwardSheet(session: tab)),
+        ),
       ));
       await tester.pumpAndSettle();
     }
@@ -553,10 +558,18 @@ void previewAndSave() {
     await tester.pumpWidget(ProviderScope(
       overrides: [vaultRepositoryProvider.overrideWithValue(repository)],
       child: MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Scaffold(body: SftpScreen(localService: Future.value(phone))),
       ),
     ));
     await tester.pumpAndSettle();
+  }
+
+  // 等确认框弹出来。这时保存还没完，R90 以后编辑器的保存按钮一直在转圈，pumpAndSettle 等不到静止。
+  Future<void> untilAsked(WidgetTester tester) async {
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
   }
 
   group('预览有上限、保存先核对（UX12）', () {
@@ -605,7 +618,7 @@ void previewAndSave() {
       phone.put('/a.txt', Uint8List.fromList('changed by someone'.codeUnits));
       await tester.enterText(find.byType(TextField).first, 'mine');
       await tester.tap(find.text('保存'));
-      await tester.pumpAndSettle();
+      await untilAsked(tester);
       expect(find.text('服务器上的文件变了'), findsOneWidget);
       await tester.tap(find.text('取消'));
       await tester.pumpAndSettle();
@@ -613,7 +626,7 @@ void previewAndSave() {
       expect(find.textContaining('没有保存'), findsOneWidget);
 
       await tester.tap(find.text('保存'));
-      await tester.pumpAndSettle();
+      await untilAsked(tester);
       await tester.tap(find.text('仍然保存'));
       await tester.pumpAndSettle();
       expect(phone.text('/a.txt'), 'mine');

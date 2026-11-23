@@ -11,6 +11,7 @@ import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:shun/presentation/screens/plugin_detail_screen.dart';
 import 'package:shun/presentation/screens/plugins_screen.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'support/prism_test_host.dart';
 
 // X04 插件管理界面：详情页按状态给出操作（批准 / 连接测试 / 停用 / 启用 / 撤销 / 设置页），
 // 显示来源、证书、两种版本、能力、路线、权限；页面开着时插件包变了，按重新核验的结果变化（PLG11）。
@@ -24,6 +25,7 @@ const impostor =
 
 DiscoveredPackage echo({
   String cert = author,
+  String displayName = 'Echo fixture (test only)',
   String version = '0.1.0',
   List<String> capabilities = const ['terminal-session'],
   List<String> permissions = const ['own-session-input-output'],
@@ -38,7 +40,7 @@ DiscoveredPackage echo({
       descriptorJson: jsonEncode({
         'schemaVersion': 1,
         'pluginId': 'example.fixture_echo',
-        'displayName': 'Echo fixture (test only)',
+        'displayName': displayName,
         'version': version,
         'apiMajor': 1,
         'apiMinor': 0,
@@ -117,7 +119,10 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(ProviderScope(
       overrides: [androidPluginBridgeProvider.overrideWithValue(bridge)],
-      child: const MaterialApp(home: PluginsScreen()),
+      child: const MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
+          home: PluginsScreen()),
     ));
     await tester.pumpAndSettle();
   }
@@ -129,10 +134,10 @@ void main() {
   }
 
   String status(WidgetTester tester) => tester
-      .widget<LText>(find.descendant(
+      .widget<Text>(find.descendant(
           of: find.byKey(const ValueKey('plugin-status')),
-          matching: find.byType(LText)))
-      .data;
+          matching: find.byType(Text)))
+      .data!;
 
   Future<void> tapKey(WidgetTester tester, String key) async {
     await tester.tap(find.byKey(ValueKey(key)));
@@ -344,6 +349,14 @@ void main() {
     expect(RegExp(r'[一-鿿]').hasMatch(text), isFalse, reason: text);
     expect(text, contains('Capabilities: Terminal session (terminal-session)'));
     expect(text, contains('Installed package version: 0.1.0 (7)'));
+  });
+
+  testWidgets('英文界面：插件的原始名称不翻译', (tester) async {
+    ShunLocalizations.use('en');
+    addTearDown(() => ShunLocalizations.use('zh'));
+    bridge.installed = [echo(displayName: '保存')];
+    await open(tester);
+    expect(find.text('保存'), findsOneWidget);
   });
 
   testWidgets('英文界面：列表页的 ⓘ 和两个折叠块里没有汉字', (tester) async {

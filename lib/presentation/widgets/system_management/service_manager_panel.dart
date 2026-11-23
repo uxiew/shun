@@ -5,7 +5,10 @@ import '../../../domain/models/system_management.dart';
 import '../../../infrastructure/ssh/ssh_service.dart';
 import '../../../infrastructure/ssh/system_management_service.dart';
 import 'management_filter_chip.dart';
+import 'management_style.dart';
 import 'sudo_prompt.dart';
+import '../../ui/components.dart';
+import 'management_card.dart';
 
 enum _ServiceFilter { all, running, stopped, failed }
 
@@ -118,14 +121,14 @@ class _ServiceManagerPanelState extends State<ServiceManagerPanel> {
           title: LText(confirmation.title),
           content: LText(confirmation.message),
           actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const LText('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: LText(confirmation.action),
-            ),
+            ShunButton(
+                kind: ShunButtonKind.text,
+                onPressed: () => Navigator.pop(context, false),
+                label: '取消'),
+            ShunButton(
+                kind: ShunButtonKind.filled,
+                onPressed: () => Navigator.pop(context, true),
+                label: confirmation.action),
           ],
         ),
       );
@@ -166,7 +169,8 @@ class _ServiceManagerPanelState extends State<ServiceManagerPanel> {
           child: TextField(
             key: const ValueKey('service-search'),
             controller: _search,
-            decoration: LInputDecoration(
+            decoration: ManagementFieldDecoration(
+              context,
               hintText: '搜索服务名称或描述',
               prefixIcon: const Icon(Icons.search),
               suffixIcon: IconButton(
@@ -193,7 +197,7 @@ class _ServiceManagerPanelState extends State<ServiceManagerPanel> {
                 style: Theme.of(context).textTheme.labelLarge,
               ),
               const Spacer(),
-              LText('${services.length} / ${_services.length}'),
+              ShunPill('${services.length} / ${_services.length}'),
             ],
           ),
         ),
@@ -227,28 +231,14 @@ class _ServiceManagerPanelState extends State<ServiceManagerPanel> {
       return const Center(child: CircularProgressIndicator());
     }
     if (_error != null && _services.isEmpty) {
-      return Center(
-        child: Padding(
-          padding: const EdgeInsets.all(24),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.miscellaneous_services_outlined, size: 44),
-              const SizedBox(height: 12),
-              LText('无法读取系统服务：$_error', textAlign: TextAlign.center),
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _refresh,
-                icon: const Icon(Icons.refresh),
-                label: const LText('重试'),
-              ),
-            ],
-          ),
-        ),
-      );
+      return ManagementEmptyState(
+          icon: Icons.miscellaneous_services_outlined,
+          title: '无法读取系统服务：$_error',
+          action: ShunButton(onPressed: _refresh, label: '重试'));
     }
     if (services.isEmpty) {
-      return const Center(child: LText('没有符合条件的服务'));
+      return const ManagementEmptyState(
+          icon: Icons.miscellaneous_services_outlined, title: '没有符合条件的服务');
     }
     return RefreshIndicator(
       onRefresh: _refresh,
@@ -277,7 +267,7 @@ class _ServiceCard extends StatelessWidget {
   final Future<void> Function(RemoteService, RemoteServiceAction) onAction;
 
   @override
-  Widget build(BuildContext context) => Card(
+  Widget build(BuildContext context) => ManagementCard(
         child: ExpansionTile(
           leading: _ServiceStateIcon(state: service.state),
           title: LText(
@@ -360,11 +350,13 @@ class _ServiceStateIcon extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // 状态色跟主题走（R91）：深浅色下都有对比度，不再写死绿 / 灰。
+    final scheme = Theme.of(context).colorScheme;
     final (label, color) = switch (state) {
-      RemoteServiceState.running => ('运行中', Colors.green),
-      RemoteServiceState.stopped => ('已停止', Colors.grey),
-      RemoteServiceState.failed => ('失败', Colors.redAccent),
-      RemoteServiceState.unknown => ('未知', Colors.blueGrey),
+      RemoteServiceState.running => ('运行中', scheme.primary),
+      RemoteServiceState.stopped => ('已停止', scheme.outline),
+      RemoteServiceState.failed => ('失败', scheme.error),
+      RemoteServiceState.unknown => ('未知', scheme.onSurfaceVariant),
     };
     return Tooltip(
       message: localized(label),

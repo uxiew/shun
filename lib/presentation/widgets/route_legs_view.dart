@@ -37,7 +37,7 @@ class RouteLegsView extends StatelessWidget {
                 Icon(
                   iconFor(legs[index].kind),
                   size: dense ? 16 : 20,
-                  color: theme.colorScheme.primary,
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
                 const SizedBox(width: 10),
                 Expanded(

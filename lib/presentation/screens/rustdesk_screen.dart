@@ -8,6 +8,7 @@ import '../../application/plugin_registry.dart';
 import '../../application/rustdesk.dart';
 import '../../infrastructure/plugins/rustdesk_external.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import '../widgets/catalog_text.dart';
 import '../widgets/hint.dart';
 import '../widgets/remote_entry_widgets.dart';
@@ -100,14 +101,15 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
             '这台主机的 SSH 经代理或跳板连接。RustDesk 用它自己配置的 ID 服务器和中继，不会经过这些设置。如果你要求远控也必须走同一条路线，RustDesk 做不到，请取消。',
           ),
           actions: [
-            TextButton(
+            ShunButton(
+              kind: ShunButtonKind.text,
               onPressed: () => Navigator.pop(context, false),
-              child: const LText('取消'),
+              label: '取消',
             ),
-            FilledButton(
+            ShunButton(
               key: const ValueKey('rd-route-accept'),
               onPressed: () => Navigator.pop(context, true),
-              child: const LText('用 RustDesk 自己的网络继续'),
+              label: '用 RustDesk 自己的网络继续',
             ),
           ],
         ),
@@ -126,14 +128,15 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
         title: const LText('删除这条连接的 RustDesk ID？'),
         content: const LText('只删本 App 里的这条关联，RustDesk 里的设备、密码和服务器设置不受影响。'),
         actions: [
-          TextButton(
+          ShunButton(
+            kind: ShunButtonKind.text,
             onPressed: () => Navigator.pop(context, false),
-            child: const LText('取消'),
+            label: '取消',
           ),
-          FilledButton(
+          ShunButton(
             key: const ValueKey('rd-delete-confirm'),
             onPressed: () => Navigator.pop(context, true),
-            child: const LText('删除'),
+            label: '删除',
           ),
         ],
       ),
@@ -155,7 +158,7 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
     final attempt = rd.attempts[widget.hostId];
     final editing = _editing || link == null;
     return Scaffold(
-      appBar: AppBar(
+      appBar: ShunAppBar(
         title: Text(host == null ? 'RustDesk' : 'RustDesk · ${host.label}'),
         actions: [
           const HintButton(title: 'RustDesk', message: _limits),
@@ -179,8 +182,8 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
           if (host == null)
             const LText('这条远控连接已删除。')
           else
-            Card(
-              child: Padding(
+            ShunSection(children: [
+              ShunSectionItem(
                 padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -211,20 +214,21 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
                       Wrap(
                         spacing: 8,
                         children: [
-                          FilledButton(
+                          ShunButton(
                             key: const ValueKey('rd-save'),
                             onPressed: _busy ? null : _save,
-                            child: const LText('保存'),
+                            label: '保存',
                           ),
                           if (link != null)
-                            TextButton(
+                            ShunButton(
+                              kind: ShunButtonKind.text,
                               onPressed: _busy
                                   ? null
                                   : () => setState(() {
                                         _editing = false;
                                         _idError = null;
                                       }),
-                              child: const LText('取消'),
+                              label: '取消',
                             ),
                         ],
                       ),
@@ -250,15 +254,16 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
                         spacing: 8,
                         runSpacing: 8,
                         children: [
-                          FilledButton.icon(
+                          ShunButton(
                             key: const ValueKey('rd-launch'),
                             onPressed: rd.app is RustDeskReady && !_busy
                                 ? _launch
                                 : null,
-                            icon: const Icon(Icons.open_in_new),
-                            label: const LText('用 RustDesk 远控'),
+                            icon: Icons.open_in_new,
+                            label: '用 RustDesk 远控',
                           ),
-                          OutlinedButton(
+                          ShunButton(
+                            kind: ShunButtonKind.tonal,
                             key: const ValueKey('rd-edit'),
                             onPressed: _busy
                                 ? null
@@ -266,25 +271,25 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
                                       _id.text = link.peer.display;
                                       _editing = true;
                                     }),
-                            child: const LText('改 ID'),
+                            label: '改 ID',
                           ),
-                          TextButton(
+                          ShunButton(
+                            kind: ShunButtonKind.text,
                             key: const ValueKey('rd-delete'),
                             onPressed: _busy ? null : () => _delete(link),
-                            child: const LText('删除'),
+                            label: '删除',
                           ),
                         ],
                       ),
                     ],
                   ],
                 ),
-              ),
-            ),
-          if (attempt != null) ...[
-            const SizedBox(height: 12),
-            Card(
-              key: const ValueKey('rd-attempt'),
-              child: Padding(
+              )
+            ]),
+          if (attempt != null)
+            ShunSection(children: [
+              ShunSectionItem(
+                key: const ValueKey('rd-attempt'),
                 padding: const EdgeInsets.all(12),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -304,8 +309,7 @@ class _RustDeskHostScreenState extends ConsumerState<RustDeskHostScreen> {
                   ],
                 ),
               ),
-            ),
-          ],
+            ]),
         ],
       ),
     );
@@ -346,7 +350,7 @@ class _RustDeskSettingsScreenState
     final rd = ref.watch(rustDeskProvider);
     final hosts = rd.entries;
     return Scaffold(
-      appBar: AppBar(
+      appBar: ShunAppBar(
         title: const Text('RustDesk'),
         actions: [
           // 逐句本地化再拼：拼好的整段在英文表里查不到。
@@ -367,20 +371,24 @@ class _RustDeskSettingsScreenState
             const SizedBox(height: 12),
           ],
           RustDeskAppStatusCard(app: rd.app),
-          const SizedBox(height: 16),
-          for (final entry in hosts)
-            RemoteEntryTile(
-              entry: entry,
-              provider: 'RustDesk',
-              onOpen: () => Navigator.of(context).push(
-                MaterialPageRoute<void>(
-                  builder: (_) => RustDeskHostScreen(hostId: entry.id),
+          if (hosts.isNotEmpty)
+            ShunSection(children: [
+              for (final entry in hosts)
+                RemoteEntryTile(
+                  entry: entry,
+                  provider: 'RustDesk',
+                  onOpen: () => Navigator.of(context).push(
+                    MaterialPageRoute<void>(
+                      builder: (_) => RustDeskHostScreen(hostId: entry.id),
+                    ),
+                  ),
                 ),
-              ),
-            ),
-          TextButton(
+            ]),
+          const SizedBox(height: 12),
+          ShunButton(
+            kind: ShunButtonKind.text,
             onPressed: () => ref.read(rustDeskProvider.notifier).retryLoad(),
-            child: const LText('重新读取本机远控记录'),
+            label: '重新读取本机远控记录',
           ),
         ],
       ),
@@ -433,14 +441,15 @@ class RustDeskAppStatusCard extends ConsumerWidget {
             ],
           ),
           actions: [
-            TextButton(
+            ShunButton(
+              kind: ShunButtonKind.text,
               onPressed: () => Navigator.pop(context, false),
-              child: const LText('取消'),
+              label: '取消',
             ),
-            FilledButton(
+            ShunButton(
               key: const ValueKey('rd-trust-confirm'),
               onPressed: () => Navigator.pop(context, true),
-              child: const LText('信任并改用'),
+              label: '信任并改用',
             ),
           ],
         ),
@@ -453,15 +462,14 @@ class RustDeskAppStatusCard extends ConsumerWidget {
           catalogLine('版本：', c.versionName ?? '?', style: small),
         ];
 
-    Widget revoke() => TextButton(
+    Widget revoke() => ShunButton(
+          kind: ShunButtonKind.text,
           key: const ValueKey('rd-revoke'),
           onPressed: () => controller.revokeTrust().catchError(snack),
-          child: const LText('撤销信任'),
+          label: '撤销信任',
         );
 
     final children = <Widget>[
-      const LText('手机上的 RustDesk'),
-      const SizedBox(height: 4),
       ...switch (app) {
         null => [const LinearProgressIndicator()],
         RustDeskPlatformUnsupported() => [
@@ -499,10 +507,10 @@ class RustDeskAppStatusCard extends ConsumerWidget {
             ),
             Align(
               alignment: Alignment.centerLeft,
-              child: FilledButton(
+              child: ShunButton(
                 key: const ValueKey('rd-approve'),
                 onPressed: () => trust(c.package, signer),
-                child: const LText('批准这张证书'),
+                label: '批准这张证书',
               ),
             ),
           ],
@@ -522,10 +530,11 @@ class RustDeskAppStatusCard extends ConsumerWidget {
             Wrap(
               spacing: 8,
               children: [
-                OutlinedButton(
+                ShunButton(
+                  kind: ShunButtonKind.tonal,
                   key: const ValueKey('rd-approve'),
                   onPressed: () => trust(c.package, current),
-                  child: const LText('批准新证书'),
+                  label: '批准新证书',
                 ),
                 revoke(),
               ],
@@ -581,7 +590,7 @@ class RustDeskAppStatusCard extends ConsumerWidget {
           ],
       },
       for (final other in app?.others ?? const <RustDeskClient>[]) ...[
-        const Divider(),
+        const SizedBox(height: 12),
         catalogLine('另有 App 也声明能打开 rustdesk://：', other.package,
             key: ValueKey('rd-other-${other.package}')),
         catalogLine('版本：', other.versionName ?? '?', style: small),
@@ -591,25 +600,25 @@ class RustDeskAppStatusCard extends ConsumerWidget {
           LText('本 App 不会把请求发给它，除非你明确信任它。', style: small),
           Align(
             alignment: Alignment.centerLeft,
-            child: TextButton(
+            child: ShunButton(
+              kind: ShunButtonKind.text,
               key: ValueKey('rd-trust-${other.package}'),
               onPressed: () => trustOther(other),
-              child: const LText('信任并改用'),
+              label: '信任并改用',
             ),
           ),
         ] else
           LText('本 App 不会把请求发给它。它由多张证书签名，也没法信任。', style: small),
       ],
     ];
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
+    return ShunSection(title: '手机上的 RustDesk', children: [
+      ShunSectionItem(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: children,
         ),
-      ),
-    );
+      )
+    ]);
   }
 }
 

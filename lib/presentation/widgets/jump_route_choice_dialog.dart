@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../domain/connection_route.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 
 Future<bool?> showJumpRouteChoice(
         BuildContext context, JumpRouteProposal proposal) =>
@@ -25,18 +26,22 @@ Future<bool?> showJumpRouteChoice(
                     ],
                   ])),
               actions: [
-                TextButton(
+                ShunButton(
+                    kind: ShunButtonKind.text,
                     onPressed: () => Navigator.pop(context),
-                    child: const LText('取消')),
-                TextButton(
+                    label: '取消'),
+                ShunButton(
+                    kind: proposal.hasFirstProxy
+                        ? ShunButtonKind.tonal
+                        : ShunButtonKind.filled,
                     key: const ValueKey('route-choice-direct'),
                     onPressed: () => Navigator.pop(context, false),
-                    child:
-                        LText(proposal.hasFirstProxy ? '直连这台跳板机' : '展开并使用此路线')),
+                    label: proposal.hasFirstProxy ? '直连这台跳板机' : '展开并使用此路线'),
                 if (proposal.hasFirstProxy)
-                  TextButton(
+                  ShunButton(
+                      kind: ShunButtonKind.tonal,
                       key: const ValueKey('route-choice-proxy'),
                       onPressed: () => Navigator.pop(context, true),
-                      child: const LText('也经这个代理')),
+                      label: '也经这个代理'),
               ],
             ));

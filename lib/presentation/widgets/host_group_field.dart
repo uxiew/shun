@@ -4,13 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../application/vault_controller.dart';
 import '../localization/localized_widgets.dart';
 import '../ui/components.dart';
+import 'connection_endpoint_fields.dart';
 
 /// 选这台放哪个分组：列出已有的，没有合适的当场新建。
 ///
 /// 不让直接打字：以前是个输入框，打错一个字就多出一个组，「生产」和「生产 」连接页上是两个筛选。
 /// 分组不单独存，就是主机上的一个名字；组里最后一台移走，这个组也就没了。
 class HostGroupField extends ConsumerWidget {
-  const HostGroupField({super.key, required this.value, required this.onChanged});
+  const HostGroupField(
+      {super.key, required this.value, required this.onChanged});
 
   /// 空字符串是不分组。
   final String value;
@@ -61,8 +63,8 @@ class HostGroupField extends ConsumerWidget {
                 key: ValueKey('host-group-option-$name'),
                 leading: const Icon(Icons.folder_outlined),
                 title: name,
-                subtitle:
-                    localized('{n} 台主机').replaceAll('{n}', '${counts[name]}'),
+                details: ShunPill(
+                    localized('{n} 台主机').replaceAll('{n}', '${counts[name]}')),
                 selected: name == value,
                 onTap: () => Navigator.pop(context, _GroupChoice(name)),
               ),
@@ -126,14 +128,16 @@ class _NewGroupDialogState extends State<_NewGroupDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
         title: const LText('新建分组'),
-        content: TextField(
-          key: const ValueKey('host-group-new-name'),
-          controller: _name,
-          autofocus: true,
-          textInputAction: TextInputAction.done,
-          onSubmitted: (_) => _create(),
-          decoration: LInputDecoration(labelText: '组名'),
-        ),
+        content: ConnectionFieldTheme(
+            dialog: true,
+            child: TextField(
+              key: const ValueKey('host-group-new-name'),
+              controller: _name,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+              onSubmitted: (_) => _create(),
+              decoration: LInputDecoration(labelText: '组名'),
+            )),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),

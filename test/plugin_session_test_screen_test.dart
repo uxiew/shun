@@ -5,6 +5,7 @@ import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shun/presentation/ui/components.dart';
 import 'package:shun/application/plugin_discovery.dart';
 import 'package:shun/application/plugin_registry.dart';
 import 'package:shun/application/plugin_sessions.dart';
@@ -14,6 +15,7 @@ import 'package:shun/presentation/screens/plugin_session_test_screen.dart';
 import 'package:shun/presentation/screens/plugins_screen.dart';
 import 'package:plugin_api/plugin_api.dart' show SessionPhase;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'support/prism_test_host.dart';
 
 // X12 给插件作者的两样东西：插件页底部的「本 App 的签名证书」，详情页的「会话测试」。
 // 桥是假的，插件那一侧的事件由测试按真实顺序发；真插件（plugins/example）在模拟器上走，见 evidence/X12.md。
@@ -190,19 +192,25 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
     await tester.pumpWidget(ProviderScope(
       overrides: [androidPluginBridgeProvider.overrideWithValue(bridge)],
-      child: const MaterialApp(home: PluginsScreen()),
+      child: const MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
+          home: PluginsScreen()),
     ));
     await tester.pumpAndSettle();
   }
 
-  /// 列表 → 详情 → 批准 → 会话测试页 → 开始。
-  Future<void> startTest(WidgetTester tester) async {
+  Future<void> openTest(WidgetTester tester) async {
     await openList(tester);
     await tester.tap(find.byKey(const ValueKey('plugin-entry-$pkg')));
     await tester.pumpAndSettle();
     await tapKey(tester, 'plugin-approve');
     await tapKey(tester, 'plugin-approve-confirm');
     await tapKey(tester, 'plugin-session-test');
+  }
+
+  Future<void> startTest(WidgetTester tester) async {
+    await openTest(tester);
     await tapKey(tester, 'session-test-start');
   }
 
@@ -238,6 +246,23 @@ void main() {
     await tapKey(tester, 'plugin-approve');
     await tapKey(tester, 'plugin-approve-confirm');
     expect(find.byKey(const ValueKey('plugin-session-test')), findsNothing);
+  });
+
+  testWidgets('空输出区和输入区同宽', (tester) async {
+    await openTest(tester);
+    final outputCard = find.ancestor(
+        of: find.byKey(const ValueKey('session-test-output')),
+        matching: find.byType(ShunSectionItem));
+    final inputCard = find.ancestor(
+        of: find.byKey(const ValueKey('session-test-input')),
+        matching: find.byType(ShunSectionItem));
+    final outputFill = find
+        .descendant(of: outputCard, matching: find.byType(DecoratedBox))
+        .first;
+    final inputFill = find
+        .descendant(of: inputCard, matching: find.byType(DecoratedBox))
+        .first;
+    expect(tester.getSize(outputFill).width, tester.getSize(inputFill).width);
   });
 
   testWidgets('会话测试走完一遍：连接、打开、看输出、发一行、改尺寸、关闭，每一步照实写', (tester) async {
@@ -279,8 +304,7 @@ void main() {
     expect(find.byKey(const ValueKey('session-test-send')), findsOneWidget);
     expect(
         tester
-            .widget<FilledButton>(
-                find.byKey(const ValueKey('session-test-send')))
+            .widget<ShunButton>(find.byKey(const ValueKey('session-test-send')))
             .onPressed,
         isNull);
     await drain(tester);
@@ -442,7 +466,7 @@ void main() {
         find.byKey(const ValueKey('session-test-unavailable')), findsOneWidget);
     expect(
         tester
-            .widget<FilledButton>(
+            .widget<ShunButton>(
                 find.byKey(const ValueKey('session-test-start')))
             .onPressed,
         isNull);

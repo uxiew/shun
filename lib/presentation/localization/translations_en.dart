@@ -963,7 +963,6 @@ const englishTranslations = <String, String>{
   '关闭标签页': 'Close tab',
   '返回当前终端': 'Return to current terminal',
   '没有活动会话': 'No active session',
-  '从「连接」页选一台主机开始连接。': 'Choose a host on the Hosts page to start a connection.',
   '生成命令': 'Generate command',
   '确认命令': 'Confirm command',
   '执行': 'Run',
@@ -1180,6 +1179,7 @@ const englishTranslations = <String, String>{
       'Disconnected, so new forwards can\'t start. Reconnect, then open this from the new connection.',
   '连接已断开，这里的操作都不会执行。重新连接后再从新连接打开。':
       'Disconnected, so nothing here will run. Reconnect, then open this from the new connection.',
+  '断开前的数据': 'From before disconnect',
   '连接已断开，读不到数据。重新连接后再从新连接打开。':
       'Disconnected, so no data can be read. Reconnect, then open this from the new connection.',
   '连接已断开，下面是断开前读到的数据。重新连接后再从新连接打开。':

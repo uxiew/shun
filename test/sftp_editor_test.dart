@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:ui' show Tristate;
+
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -7,34 +10,59 @@ import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/presentation/widgets/sftp_editor.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'support/prism_test_host.dart';
+
+Finder key(String id) => find.byKey(ValueKey(id));
+
+Future<void> openEditor(
+  WidgetTester tester, {
+  required String name,
+  required String content,
+  Future<void> Function(String)? onSave,
+  Size size = const Size(390, 800),
+  ThemeData? theme,
+  double textScale = 1,
+}) async {
+  SharedPreferences.setMockInitialValues({});
+  final repo = await VaultRepository.open();
+  tester.view.devicePixelRatio = 1;
+  tester.view.physicalSize = size;
+  addTearDown(tester.view.reset);
+  tester.platformDispatcher.textScaleFactorTestValue = textScale;
+  addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
+  await tester.pumpWidget(ProviderScope(
+    overrides: [vaultRepositoryProvider.overrideWithValue(repo)],
+    child: MaterialApp(
+      theme: theme,
+      localizationsDelegates: prismTestDelegates,
+      builder: prismTestBuilder,
+      initialRoute: '/editor',
+      routes: {
+        '/': (_) => const Scaffold(body: Text('files')),
+        '/editor': (_) => SftpEditor(
+            name: name, content: content, onSave: onSave ?? (_) async {}),
+      },
+    ),
+  ));
+  await tester.pumpAndSettle();
+}
+
 void main() {
   for (final platform in [TargetPlatform.android, TargetPlatform.iOS]) {
     for (final scale in [1.0, 1.8]) {
       testWidgets('gutter follows actual $platform layout at scale $scale',
           (tester) async {
-        SharedPreferences.setMockInitialValues({});
-        final repo = await VaultRepository.open();
-        await tester.binding.setSurfaceSize(const Size(390, 800));
-        addTearDown(() => tester.binding.setSurfaceSize(null));
         final content =
             '${List.filled(8, 'long code 中文 👩‍💻 with spaces ').join()}\r\n\n'
             'const value = "another long line of highlighted code";\nlast\n';
-        await tester.pumpWidget(ProviderScope(
-            overrides: [vaultRepositoryProvider.overrideWithValue(repo)],
-            child: MaterialApp(
-                theme: ThemeData(
-                    platform: platform,
-                    textTheme: const TextTheme(
-                        bodyLarge: TextStyle(letterSpacing: 1.4))),
-                builder: (context, child) => MediaQuery(
-                    data: MediaQuery.of(context)
-                        .copyWith(textScaler: TextScaler.linear(scale)),
-                    child: child!),
-                home: SftpEditor(
-                    name: 'sample.dart',
-                    content: content,
-                    onSave: (_) async {}))));
-        await tester.pumpAndSettle();
+        await openEditor(tester,
+            name: 'sample.dart',
+            content: content,
+            textScale: scale,
+            theme: ThemeData(
+                platform: platform,
+                textTheme:
+                    const TextTheme(bodyLarge: TextStyle(letterSpacing: 1.4))));
 
         void verify() {
           final gutter = tester.renderObject<RenderEditorLineNumbers>(
@@ -68,7 +96,7 @@ void main() {
         await tester.tap(find.byKey(const ValueKey('editor-wrap-toggle')));
         await tester.pumpAndSettle();
         verify();
-        await tester.binding.setSurfaceSize(const Size(320, 800));
+        tester.view.physicalSize = const Size(320, 800);
         await tester.pumpAndSettle();
         verify();
         await tester.enterText(find.byKey(const ValueKey('sftp-editor-field')),
@@ -154,44 +182,48 @@ void main() {
   testWidgets(
       'editor searches, navigates, changes match mode and reports errors',
       (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    final repo = await VaultRepository.open();
-    await tester.binding.setSurfaceSize(const Size(390, 800));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
-    await tester.pumpWidget(ProviderScope(
-        overrides: [vaultRepositoryProvider.overrideWithValue(repo)],
-        child: MaterialApp(
-            home: SftpEditor(
-                name: 'sample.txt',
-                content: 'foo\nbar foo\nFOO',
-                onSave: (_) async {}))));
-    await tester.pumpAndSettle();
+    await openEditor(tester, name: 'sample.txt', content: 'foo\nbar foo\nFOO');
     await tester.tap(find.byKey(const ValueKey('editor-search-toggle')));
     await tester.pump(const Duration(milliseconds: 100));
     await tester.enterText(
         find.byKey(const ValueKey('editor-search-field')), 'foo');
     await tester.pump(const Duration(milliseconds: 250));
     expect(find.text('1 / 3'), findsOneWidget);
-    var editor = tester.widget<TextField>(find.byType(TextField).last);
-    expect(editor.controller!.selection,
-        const TextSelection(baseOffset: 0, extentOffset: 3));
-    await tester.tap(find.byTooltip('下一个匹配'));
+    TextSelection selection() => tester
+        .widget<TextField>(key('sftp-editor-field'))
+        .controller!
+        .selection;
+    expect(selection(), const TextSelection(baseOffset: 0, extentOffset: 3));
+    await tester.tap(key('editor-search-next'));
     await tester.pump(const Duration(milliseconds: 250));
     expect(find.text('2 / 3'), findsOneWidget);
-    editor = tester.widget<TextField>(find.byType(TextField).last);
-    expect(editor.controller!.selection,
-        const TextSelection(baseOffset: 8, extentOffset: 11));
+    expect(selection(), const TextSelection(baseOffset: 8, extentOffset: 11));
+    await tester.tap(key('editor-search-previous'));
+    await tester.pump(const Duration(milliseconds: 250));
+    expect(selection(), const TextSelection(baseOffset: 0, extentOffset: 3));
     await tester.tap(find.byKey(const ValueKey('editor-search-case')));
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
     expect(find.text('1 / 2'), findsOneWidget);
     await tester.tap(find.byKey(const ValueKey('editor-search-mode')));
     await tester.pumpAndSettle();
     await tester.tap(find.text('正则表达式').last);
-    await tester.pump(const Duration(milliseconds: 100));
+    await tester.pumpAndSettle();
     await tester.enterText(
         find.byKey(const ValueKey('editor-search-field')), '[');
     await tester.pump(const Duration(milliseconds: 100));
     expect(find.text('正则表达式无效'), findsOneWidget);
+    expect(
+        tester
+            .getSemantics(key('editor-search-next'))
+            .flagsCollection
+            .isEnabled,
+        Tristate.isFalse);
+    await tester.tap(key('editor-search-clear'));
+    await tester.pumpAndSettle();
+    expect(find.text('0 / 0'), findsOneWidget);
+    await tester.tap(key('editor-search-close'));
+    await tester.pumpAndSettle();
+    expect(key('editor-search-field'), findsNothing);
   });
 
   test('highlight preference persists and defaults on', () {
@@ -199,20 +231,136 @@ void main() {
     final value = const AppSettings().copyWith(sftpSyntaxHighlight: false);
     expect(AppSettings.fromJson(value.toJson()).sftpSyntaxHighlight, isFalse);
   });
+
+  testWidgets(
+      'a pending save blocks exit and saves only the submitted revision',
+      (tester) async {
+    final writes = <String>[];
+    final pending = Completer<void>();
+    await openEditor(tester, name: 'file.txt', content: 'original',
+        onSave: (text) {
+      writes.add(text);
+      return pending.future;
+    });
+    final field = key('sftp-editor-field');
+    final save = key('editor-save');
+    await tester.enterText(field, 'first');
+    await tester.tap(save);
+    await tester.tap(save);
+    await tester.pump();
+    final busy = tester.getSemantics(save);
+    expect(busy.label, contains('处理中'));
+    expect(busy.flagsCollection.isEnabled, Tristate.isFalse);
+    await tester.binding.handlePopRoute();
+    await tester.pump();
+    expect(field, findsOneWidget);
+    expect(key('editor-discard'), findsNothing);
+    await tester.enterText(field, 'second');
+    pending.complete();
+    await tester.pumpAndSettle();
+    expect(writes, ['first']);
+    expect(find.text('* file.txt'), findsOneWidget);
+    await tester.tap(save);
+    await tester.pumpAndSettle();
+    expect(writes, ['first', 'second']);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(find.text('files'), findsOneWidget);
+  });
+
+  testWidgets('search keeps the editor keys and reading order', (tester) async {
+    await openEditor(tester, name: 'text.txt', content: 'one two one');
+    await tester.tap(key('editor-search-toggle'));
+    await tester.pumpAndSettle();
+    await tester.enterText(key('editor-search-field'), 'one');
+    await tester.pumpAndSettle();
+    const originalKeys = [
+      'editor-search-field',
+      'editor-search-mode',
+      'editor-search-case',
+      'editor-search-count',
+      'editor-zoom-area',
+      'editor-line-numbers',
+      'sftp-editor-field',
+      'editor-wrap-toggle',
+      'editor-search-toggle',
+    ];
+    expect(
+        tester.allWidgets
+            .map((w) => w.key)
+            .whereType<ValueKey<String>>()
+            .map((k) => k.value)
+            .where(originalKeys.contains),
+        originalKeys);
+    final labels = tester.semantics
+        .simulatedAccessibilityTraversal()
+        .map((node) => node.tooltip.isEmpty ? node.label : node.tooltip);
+    expect(
+        labels,
+        containsAllInOrder([
+          '关闭',
+          'text.txt',
+          '自动换行',
+          '在文件中搜索',
+          '撤销',
+          '重做',
+          '保存',
+          '搜索打开的文件',
+          '清除',
+          '关闭搜索',
+          contains('普通文本'),
+          '区分大小写',
+          '1 / 2',
+          '上一个匹配',
+          '下一个匹配',
+        ]));
+  });
+
+  testWidgets('search remains usable above a narrow keyboard at large text',
+      (tester) async {
+    await openEditor(tester,
+        name: 'long-filename-with-extension.txt',
+        content: 'cat cats cat',
+        size: const Size(360, 640),
+        textScale: 2);
+    await tester.tap(key('editor-search-toggle'));
+    tester.view.viewInsets = const FakeViewPadding(bottom: 250);
+    await tester.pumpAndSettle();
+    await tester.enterText(key('editor-search-field'), 'cat');
+    await tester.ensureVisible(key('editor-search-mode'));
+    await tester.tap(key('editor-search-mode'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('全词匹配').last);
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(key('editor-search-next'));
+    await tester.tap(key('editor-search-next'));
+    await tester.pumpAndSettle();
+    expect(find.text('2 / 2'), findsOneWidget);
+    expect(tester.getSize(key('editor-zoom-area')).height, greaterThan(0));
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('toolbar undoes and redoes edits', (tester) async {
+    await openEditor(tester, name: 'file.txt', content: 'initial');
+    final field = key('sftp-editor-field');
+    String value() => tester.widget<TextField>(field).controller!.text;
+    await tester.tap(field);
+    await tester.pump(const Duration(seconds: 1));
+    await tester.enterText(field, 'edited');
+    await tester.pump(const Duration(seconds: 1));
+    await tester.tap(key('editor-undo'));
+    await tester.pumpAndSettle();
+    expect(value(), 'initial');
+    await tester.tap(key('editor-redo'));
+    await tester.pumpAndSettle();
+    expect(value(), 'edited');
+  });
   testWidgets('editor preserves text, numbers lines and retains failed saves',
       (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    final repo = await VaultRepository.open();
-    await tester.pumpWidget(ProviderScope(
-        overrides: [vaultRepositoryProvider.overrideWithValue(repo)],
-        child: MaterialApp(
-            home: SftpEditor(
-                name: 'a.json',
-                content: '{\n"a": 1\n}',
-                onSave: (_) async {
-                  throw StateError('save failed');
-                }))));
-    await tester.pumpAndSettle();
+    await openEditor(tester,
+        name: 'a.json',
+        content: '{\n"a": 1\n}',
+        onSave: (_) async => throw StateError('save failed'));
     expect(
         tester
             .renderObject<RenderEditorLineNumbers>(
@@ -220,30 +368,38 @@ void main() {
             .lineOffsets
             .keys,
         [1, 2, 3]);
-    await tester.enterText(find.byType(TextField), '{"a": 2}');
-    await tester.tap(find.text('保存'));
+    final field = key('sftp-editor-field');
+    await tester.enterText(field, '{"a": 2}');
+    await tester.tap(key('editor-save'));
     await tester.pumpAndSettle();
     expect(find.text('Bad state: save failed'), findsOneWidget);
-    expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
-        '{"a": 2}');
+    expect(tester.widget<TextField>(field).controller!.text, '{"a": 2}');
     expect(find.text('* a.json'), findsOneWidget);
+    expect(
+        tester
+            .getSemantics(key('editor-save-error'))
+            .flagsCollection
+            .isLiveRegion,
+        isTrue);
+    await tester.binding.handlePopRoute();
+    await tester.pumpAndSettle();
+    expect(key('editor-discard'), findsOneWidget);
+    await tester.tap(key('editor-discard-cancel'));
+    await tester.pumpAndSettle();
+    expect(tester.widget<TextField>(field).controller!.text, '{"a": 2}');
+    await tester.tap(key('editor-close'));
+    await tester.pumpAndSettle();
+    await tester.tap(key('editor-discard'));
+    await tester.pumpAndSettle();
+    expect(find.text('files'), findsOneWidget);
   });
 
   testWidgets(
       'editor is borderless, wraps with logical line labels and pinch zooms',
       (tester) async {
-    SharedPreferences.setMockInitialValues({});
-    final repo = await VaultRepository.open();
-    await tester.binding.setSurfaceSize(const Size(390, 800));
-    addTearDown(() => tester.binding.setSurfaceSize(null));
     const content =
         'this is a deliberately very long source line repeated repeated repeated repeated repeated repeated repeated repeated\nsecond';
-    await tester.pumpWidget(ProviderScope(
-        overrides: [vaultRepositoryProvider.overrideWithValue(repo)],
-        child: MaterialApp(
-            home: SftpEditor(
-                name: 'long.txt', content: content, onSave: (_) async {}))));
-    await tester.pumpAndSettle();
+    await openEditor(tester, name: 'long.txt', content: content);
 
     RenderEditorLineNumbers gutter() => tester
         .renderObject<RenderEditorLineNumbers>(find.byType(EditorLineNumbers));

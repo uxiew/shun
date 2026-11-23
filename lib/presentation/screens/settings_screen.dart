@@ -155,9 +155,13 @@ class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   ) =>
       SafeArea(
         child: Scaffold(
-          appBar: AppBar(title: const LText('设置')),
+          appBar: PreferredSize(
+            preferredSize: const Size.fromHeight(ShunPageHeader.height),
+            child: ShunPageHeader(title: localizedOf(context, '设置')),
+          ),
           body: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+            padding: EdgeInsets.fromLTRB(
+                16, 0, 16, 24 + prism.BottomInsetScope.of(context)),
             children: [
               ShunSection(
                 title: '通用',

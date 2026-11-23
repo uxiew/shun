@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../application/auto_sync_controller.dart';
@@ -136,7 +137,7 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
           if (!didPop) unawaited(_leave());
         },
         child: Scaffold(
-          appBar: AppBar(
+          appBar: ShunAppBar(
             title: const LText('云端备份'),
             actions: const [
               HintButton(
@@ -168,85 +169,89 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
               ),
               const FormGap(),
               if (provider == SyncProviderType.webdav) ...[
-                TextField(
-                  controller: endpoint,
-                  keyboardType: TextInputType.url,
-                  decoration: LInputDecoration(
-                    labelText: 'WebDAV 地址',
-                    hintText: 'https://dav.example.com/shun',
+                _BackupFields(children: [
+                  TextField(
+                    controller: endpoint,
+                    keyboardType: TextInputType.url,
+                    decoration: LInputDecoration(
+                      labelText: 'WebDAV 地址',
+                      hintText: 'https://dav.example.com/shun',
+                    ),
                   ),
-                ),
-                const FormGap(),
-                TextField(
-                  controller: username,
-                  decoration: LInputDecoration(labelText: '用户名'),
-                ),
-                const FormGap(),
-                ShunSecretField(
-                  key: const ValueKey('cloud-webdav-password'),
-                  controller: providerSecret,
-                  label: '密码 / 应用密码',
-                ),
+                  const FormGap(),
+                  TextField(
+                    controller: username,
+                    decoration: LInputDecoration(labelText: '用户名'),
+                  ),
+                  const FormGap(),
+                  ShunSecretField(
+                    key: const ValueKey('cloud-webdav-password'),
+                    controller: providerSecret,
+                    label: '密码 / 应用密码',
+                  ),
+                ]),
               ] else if (provider == SyncProviderType.s3) ...[
-                TextField(
-                  controller: endpoint,
-                  keyboardType: TextInputType.url,
-                  decoration: LInputDecoration(
-                    labelText: 'S3 Endpoint',
-                    hintText: 'https://s3.example.com',
+                _BackupFields(children: [
+                  TextField(
+                    controller: endpoint,
+                    keyboardType: TextInputType.url,
+                    decoration: LInputDecoration(
+                      labelText: 'S3 Endpoint',
+                      hintText: 'https://s3.example.com',
+                    ),
                   ),
-                ),
-                const FormGap(),
-                Row(
-                  children: [
-                    Expanded(
-                      child: TextField(
-                        controller: s3Region,
-                        decoration: LInputDecoration(
-                          labelText: 'Region',
-                          hintText: 'us-east-1',
+                  const FormGap(),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: TextField(
+                          controller: s3Region,
+                          decoration: LInputDecoration(
+                            labelText: 'Region',
+                            hintText: 'us-east-1',
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: TextField(
-                        controller: s3Bucket,
-                        decoration: LInputDecoration(
-                          labelText: 'Bucket',
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: TextField(
+                          controller: s3Bucket,
+                          decoration: LInputDecoration(
+                            labelText: 'Bucket',
+                          ),
                         ),
                       ),
+                    ],
+                  ),
+                  const FormGap(),
+                  TextField(
+                    controller: s3AccessKeyId,
+                    decoration: LInputDecoration(
+                      labelText: 'Access Key ID',
                     ),
-                  ],
-                ),
-                const FormGap(),
-                TextField(
-                  controller: s3AccessKeyId,
-                  decoration: LInputDecoration(
-                    labelText: 'Access Key ID',
                   ),
-                ),
-                const FormGap(),
-                ShunSecretField(
-                  key: const ValueKey('cloud-s3-secret'),
-                  controller: providerSecret,
-                  label: 'Secret Access Key',
-                  onChanged: (_) => setState(() {}),
-                ),
-                const FormGap(),
-                ShunSecretField(
-                  key: const ValueKey('cloud-s3-session-token'),
-                  controller: s3SessionToken,
-                  label: 'Session Token（可选）',
-                ),
-                const FormGap(),
-                TextField(
-                  controller: s3Prefix,
-                  decoration: LInputDecoration(
-                    labelText: '对象前缀（可选）',
-                    hintText: 'shun',
+                  const FormGap(),
+                  ShunSecretField(
+                    key: const ValueKey('cloud-s3-secret'),
+                    controller: providerSecret,
+                    label: 'Secret Access Key',
+                    onChanged: (_) => setState(() {}),
                   ),
-                ),
+                  const FormGap(),
+                  ShunSecretField(
+                    key: const ValueKey('cloud-s3-session-token'),
+                    controller: s3SessionToken,
+                    label: 'Session Token（可选）',
+                  ),
+                  const FormGap(),
+                  TextField(
+                    controller: s3Prefix,
+                    decoration: LInputDecoration(
+                      labelText: '对象前缀（可选）',
+                      hintText: 'shun',
+                    ),
+                  ),
+                ]),
                 ShunSection(
                   children: [
                     ShunSwitchRow(
@@ -272,7 +277,7 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
                   width: double.infinity,
                   child: ShunButton(
                     key: const ValueKey('cloud-s3-test'),
-                    kind: ShunButtonKind.outlined,
+                    kind: ShunButtonKind.tonal,
                     icon: Icons.wifi_tethering_outlined,
                     label: '测试 S3 连接',
                     onPressed: _busy ? null : _testS3Connection,
@@ -284,14 +289,9 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
                   children: [
                     ShunListRow(
                       key: const ValueKey('cloud-github-status'),
-                      leading: CircleAvatar(
-                        radius: 16,
-                        child: Icon(
-                          providerSecret.text.isEmpty
-                              ? Icons.login
-                              : Icons.check,
-                          size: 18,
-                        ),
+                      leading: Icon(
+                        providerSecret.text.isEmpty ? Icons.login : Icons.check,
+                        size: 22,
                       ),
                       title: providerSecret.text.isEmpty
                           ? '尚未登录 GitHub'
@@ -314,26 +314,32 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
                         )
                       : ShunButton(
                           key: const ValueKey('cloud-github-logout'),
-                          kind: ShunButtonKind.outlined,
+                          kind: ShunButtonKind.tonal,
                           icon: Icons.logout,
                           label: '退出 GitHub',
                           onPressed: _busy ? null : _logoutGitHub,
                         ),
                 ),
                 _syncVersionsCard(),
-                GitHubManualConfig(
-                    resourceId: resourceId,
-                    secret: providerSecret,
-                    onSecretChanged: (_) => setState(() {})),
+                ShunSection(children: [
+                  ShunSectionItem(
+                    padding: EdgeInsets.zero,
+                    child: GitHubManualConfig(
+                        resourceId: resourceId,
+                        secret: providerSecret,
+                        onSecretChanged: (_) => setState(() {})),
+                  )
+                ]),
               ],
-              const FormGap(),
-              ShunSecretField(
-                key: const ValueKey('cloud-master-password'),
-                controller: masterPassword,
-                label: '主密码',
-              ),
               ShunSection(
                 children: [
+                  _BackupFields(children: [
+                    ShunSecretField(
+                      key: const ValueKey('cloud-master-password'),
+                      controller: masterPassword,
+                      label: '主密码',
+                    ),
+                  ]),
                   ShunSwitchRow(
                     key: const ValueKey('cloud-auto-sync'),
                     leading: autoSyncState.syncing
@@ -360,7 +366,7 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
               const SizedBox(height: 10),
               ShunButton(
                 key: const ValueKey('cloud-restore'),
-                kind: ShunButtonKind.outlined,
+                kind: ShunButtonKind.tonal,
                 icon: Icons.cloud_download_outlined,
                 label: '从云端恢复',
                 onPressed: _busy ? null : _restore,
@@ -669,12 +675,7 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
                       pending: versions?.hasLocalChanges == true,
                     ),
                   ),
-                  Container(
-                    width: 1,
-                    height: 42,
-                    margin: const EdgeInsets.symmetric(horizontal: 10),
-                    color: colors.outlineVariant,
-                  ),
+                  const SizedBox(width: 12),
                   Expanded(
                     child: _syncVersionMetric(
                       icon: Icons.cloud_outlined,
@@ -730,16 +731,13 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 LText(label, style: const TextStyle(fontSize: 12)),
-                Row(
+                Wrap(
+                  spacing: 5,
+                  runSpacing: 2,
                   children: [
-                    Text(
-                      version == null ? '—' : 'v$version',
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                    if (pending) ...[
-                      const SizedBox(width: 5),
+                    ShunPill(version == null ? '—' : 'v$version'),
+                    if (pending)
                       const LText('待备份', style: TextStyle(fontSize: 11)),
-                    ],
                   ],
                 ),
               ],
@@ -817,6 +815,39 @@ class _CloudBackupScreenState extends ConsumerState<CloudBackupScreen> {
   }
 }
 
+class _BackupFields extends StatelessWidget {
+  const _BackupFields({required this.children});
+
+  final List<Widget> children;
+
+  @override
+  Widget build(BuildContext context) {
+    final item = ShunSectionItem(
+      child: Builder(builder: (context) {
+        final fill = prism.SurfaceContext(context)
+            .raisedSurfaceLevel
+            .colorOf(prism.Theme.of(context).colorScheme);
+        return InputDecorationTheme(
+          data: InputDecorationTheme.of(context).copyWith(
+            filled: true,
+            fillColor: fill,
+            enabledBorder: const OutlineInputBorder(
+              borderRadius: prism.AppRadius.md,
+              borderSide: BorderSide.none,
+            ),
+          ),
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: children),
+        );
+      }),
+    );
+    // 单独一块时没有分组给它首尾位置，要自己包一层才有圆角。
+    if (prism.ItemPositionProvider.of(context) != null) return item;
+    return prism.generateGroup([item]);
+  }
+}
+
 class _GitHubDeviceFlowDialog extends StatefulWidget {
   const _GitHubDeviceFlowDialog({
     required this.authorization,
@@ -885,9 +916,12 @@ class _GitHubDeviceFlowDialogState extends State<_GitHubDeviceFlowDialog> {
             const SizedBox(height: 16),
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 14),
-              decoration: BoxDecoration(
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
-                borderRadius: BorderRadius.circular(12),
+              decoration: ShapeDecoration(
+                color: prism.SurfaceLevel.floatingOf(
+                        prism.Theme.of(context).colorScheme)
+                    .next
+                    .colorOf(prism.Theme.of(context).colorScheme),
+                shape: prism.AppShape.md,
               ),
               child: LSelectableText(
                 widget.authorization.userCode,
@@ -919,10 +953,10 @@ class _GitHubDeviceFlowDialogState extends State<_GitHubDeviceFlowDialog> {
             onPressed: () => Navigator.pop(context),
             child: const LText('取消'),
           ),
-          OutlinedButton.icon(
+          ShunButton(
             onPressed: _openGitHub,
-            icon: const Icon(Icons.open_in_browser),
-            label: const LText('打开 GitHub'),
+            icon: Icons.open_in_browser,
+            label: '打开 GitHub',
           ),
         ],
       );

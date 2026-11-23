@@ -7,6 +7,7 @@ import '../../domain/models/host.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import '../localization/localized_widgets.dart';
 import '../ui/components.dart';
+import 'connection_endpoint_fields.dart';
 import 'form_gap.dart';
 import 'host_key_dialogs.dart';
 import 'secret_content.dart';
@@ -74,33 +75,35 @@ KeyboardInteractiveHandler keyboardInteractivePrompt(BuildContext context) =>
         builder: (context) => SecretContent(
             child: AlertDialog(
           title: LText(name.isEmpty ? '交互式认证' : name),
-          content: SingleChildScrollView(
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (instruction.isNotEmpty) ...[
-                  LText(instruction),
-                  const SizedBox(height: 12),
-                ],
-                for (var index = 0; index < prompts.length; index++) ...[
-                  TextField(
-                    key: ValueKey('kbd-interactive-answer-$index'),
-                    controller: controllers[index],
-                    obscureText: !prompts[index].echo,
-                    // 服务器说可以回显的（验证码之类）也是登录答案，一样不让输入法学。
-                    enableIMEPersonalizedLearning: false,
-                    enableSuggestions: false,
-                    autocorrect: false,
-                    autofocus: index == 0,
-                    decoration:
-                        LInputDecoration(labelText: prompts[index].text),
-                  ),
-                  const FormGap(),
-                ],
-              ],
-            ),
-          ),
+          content: ConnectionFieldTheme(
+              dialog: true,
+              child: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    if (instruction.isNotEmpty) ...[
+                      LText(instruction),
+                      const SizedBox(height: 12),
+                    ],
+                    for (var index = 0; index < prompts.length; index++) ...[
+                      TextField(
+                        key: ValueKey('kbd-interactive-answer-$index'),
+                        controller: controllers[index],
+                        obscureText: !prompts[index].echo,
+                        // 服务器说可以回显的（验证码之类）也是登录答案，一样不让输入法学。
+                        enableIMEPersonalizedLearning: false,
+                        enableSuggestions: false,
+                        autocorrect: false,
+                        autofocus: index == 0,
+                        decoration:
+                            LInputDecoration(labelText: prompts[index].text),
+                      ),
+                      const FormGap(),
+                    ],
+                  ],
+                ),
+              )),
           actions: [
             ShunButton(
               key: const ValueKey('kbd-interactive-cancel'),

@@ -45,6 +45,10 @@ Future<void> r39Tap(WidgetTester tester, Finder finder,
 }
 
 Future<void> r39Type(WidgetTester tester, Finder finder, String value) async {
+  if (finder.evaluate().isEmpty) {
+    await tester.scrollUntilVisible(finder, 240,
+        scrollable: find.byType(Scrollable).first, maxScrolls: 30);
+  }
   await tester.ensureVisible(finder);
   await tester.enterText(finder, value);
   await r39Frames(tester);

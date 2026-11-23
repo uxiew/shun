@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
 
@@ -13,6 +14,8 @@ import '../../../infrastructure/ssh/server_monitor_service.dart';
 import '../../../infrastructure/ssh/ssh_service.dart';
 import '../../../infrastructure/ssh/system_management_service.dart';
 import '../host_system_icon.dart';
+import '../../ui/components.dart';
+import 'management_style.dart';
 import 'caddy_manager_panel.dart';
 import 'docker_manager_panel.dart';
 import 'process_manager_panel.dart';
@@ -131,8 +134,9 @@ class _ServerPanelSheetState extends ConsumerState<ServerPanelSheet>
     return FractionallySizedBox(
       heightFactor: .94,
       child: Material(
-        color: colors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+        color: prism.SurfaceLevel.page
+            .colorOf(prism.Theme.of(context).colorScheme),
+        shape: prism.AppShape.top(prism.AppCorner.xxl),
         clipBehavior: Clip.antiAlias,
         child: Column(
           children: [
@@ -140,40 +144,34 @@ class _ServerPanelSheetState extends ConsumerState<ServerPanelSheet>
             Container(
               width: 38,
               height: 4,
-              decoration: BoxDecoration(
+              decoration: ShapeDecoration(
                 color: colors.onSurfaceVariant.withValues(alpha: .35),
-                borderRadius: BorderRadius.circular(99),
+                shape: prism.AppShape.full,
               ),
             ),
             AnimatedBuilder(
               animation: Listenable.merge([_monitor, _tabs]),
               builder: (context, _) => _header(context),
             ),
-            TabBar(
+            ManagementTabStyle(
+                child: TabBar(
               key: const ValueKey('server-panel-tabs'),
               controller: _tabs,
               isScrollable: true,
               tabAlignment: TabAlignment.start,
+              padding: const EdgeInsets.symmetric(horizontal: 10),
+              labelPadding: const EdgeInsets.symmetric(horizontal: 10),
+              indicatorPadding: const EdgeInsets.symmetric(vertical: 5),
               tabs: [
-                Tab(
-                  icon: const Icon(Icons.monitor_heart_outlined),
-                  text: localized('概览'),
-                ),
-                Tab(
-                  icon: const Icon(Icons.account_tree_outlined),
-                  text: localized('进程'),
-                ),
-                const Tab(icon: Icon(Icons.terminal_outlined), text: 'tmux'),
-                const Tab(
-                    icon: Icon(Icons.view_in_ar_outlined), text: 'Docker'),
-                Tab(
-                  icon: const Icon(Icons.miscellaneous_services_outlined),
-                  text: localized('服务'),
-                ),
-                const Tab(icon: Icon(Icons.language_outlined), text: 'Caddy'),
+                Tab(text: localized('概览')),
+                Tab(text: localized('进程')),
+                const Tab(text: 'tmux'),
+                const Tab(text: 'Docker'),
+                Tab(text: localized('服务')),
+                const Tab(text: 'Caddy'),
               ],
-            ),
-            const Divider(height: 1),
+            )),
+            const SizedBox(height: 4),
             Expanded(
               child: TabBarView(
                 controller: _tabs,
@@ -251,7 +249,10 @@ class _ServerPanelSheetState extends ConsumerState<ServerPanelSheet>
                       : widget.session.host.label,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: Theme.of(context).textTheme.titleMedium,
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.bold),
                 ),
                 LText(
                   system == null
@@ -268,18 +269,18 @@ class _ServerPanelSheetState extends ConsumerState<ServerPanelSheet>
             ),
           ),
           if (_tabs.index == 0)
-            IconButton(
+            ShunBarButton(
               key: const ValueKey('server-panel-refresh'),
               tooltip: localized('刷新'),
               onPressed: _monitor.polling || !live
                   ? null
                   : () => unawaited(_monitor.refresh()),
-              icon: const Icon(Icons.refresh),
+              icon: Icons.refresh,
             ),
-          IconButton(
+          ShunBarButton(
             tooltip: localized('关闭'),
             onPressed: () => Navigator.pop(context),
-            icon: const Icon(Icons.close),
+            icon: Icons.close,
           ),
         ],
       ),

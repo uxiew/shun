@@ -13,6 +13,7 @@ import 'package:shun/infrastructure/http_client_provider.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'support/home_navigation.dart';
 
 // BAS02：未经用户开启的 AI / 同步 / 更新检查，冷启动、切到设置页、后台恢复时网络请求必须为零。
 void main() {
@@ -68,7 +69,7 @@ void main() {
       child: const ShunApp(),
     ));
     await tester.pump(const Duration(seconds: 1));
-    await tester.tap(find.byIcon(Icons.settings_outlined));
+    await tester.tap(homeNavigationEntry(4));
     await tester.pump(const Duration(seconds: 1));
     // Flutter 断言生命周期只能相邻切换，跳步会直接抛 "Invalid state transition"。
     for (final state in const [

@@ -171,3 +171,15 @@ double _contrast(Color a, Color b) {
   final y = b.computeLuminance();
   return (math.max(x, y) + 0.05) / (math.min(x, y) + 0.05);
 }
+
+/// 连着 / 断开的状态色：终端标签、会话总览的小圆点和叹号共用这一对。
+///
+/// 不跟预设走：36 套预设的主色各不相同，状态色要在每一套上都认得出是「绿 = 连着、橙 = 断开」。
+/// 只给图标和状态文字上色，底不染色；断开同时有图标或文字说明，不只靠颜色。
+abstract final class ShunStatusColors {
+  static const connected = Color(0xFF69F0AE);
+  static const disconnected = Color(0xFFFFAB40);
+
+  static Color link({required bool connected}) =>
+      connected ? ShunStatusColors.connected : disconnected;
+}

@@ -6,7 +6,9 @@ import '../../../infrastructure/ssh/ssh_service.dart';
 import '../../../infrastructure/ssh/system_management_service.dart';
 import '../form_gap.dart';
 import '../hint.dart';
+import 'management_style.dart';
 import 'sudo_prompt.dart';
+import '../../ui/components.dart';
 
 class CaddyManagerPanel extends StatefulWidget {
   const CaddyManagerPanel({
@@ -135,14 +137,14 @@ class _CaddyManagerPanelState extends State<CaddyManagerPanel> {
           ],
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const LText('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const LText('删除'),
-          ),
+          ShunButton(
+              kind: ShunButtonKind.text,
+              onPressed: () => Navigator.pop(context, false),
+              label: '取消'),
+          ShunButton(
+              kind: ShunButtonKind.filled,
+              onPressed: () => Navigator.pop(context, true),
+              label: '删除'),
         ],
       ),
     );
@@ -192,16 +194,17 @@ class _CaddyManagerPanelState extends State<CaddyManagerPanel> {
                   key: const ValueKey('caddy-search'),
                   controller: _search,
                   enabled: status?.installed == true,
-                  decoration: LInputDecoration(
+                  decoration: ManagementFieldDecoration(
+                    context,
                     hintText: '搜索站点或上游地址',
                     prefixIcon: Icon(Icons.search),
                   ),
                 ),
               ),
-              IconButton(
+              ShunBarButton(
                 tooltip: localized('刷新'),
                 onPressed: _loading ? null : _refresh,
-                icon: const Icon(Icons.refresh),
+                icon: Icons.refresh,
               ),
               IconButton.filled(
                 key: const ValueKey('caddy-add'),
@@ -222,10 +225,7 @@ class _CaddyManagerPanelState extends State<CaddyManagerPanel> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  LText(
-                    status!.version.isEmpty ? 'Caddy' : status.version,
-                    style: Theme.of(context).textTheme.labelLarge,
-                  ),
+                  ShunPill(status!.version.isEmpty ? 'Caddy' : status.version),
                   Row(
                     children: [
                       LText(
@@ -270,7 +270,6 @@ class _CaddyManagerPanelState extends State<CaddyManagerPanel> {
         Icons.error_outline,
         '${localized('无法读取 Caddy 配置')}：$_error',
         retry: true,
-        localizedMessage: false,
       );
     }
     if (sites.isEmpty) {
@@ -287,21 +286,13 @@ class _CaddyManagerPanelState extends State<CaddyManagerPanel> {
         itemBuilder: (context, index) {
           final site = sites[index];
           final busy = _busy.contains(site.id);
-          return Card(
-            child: ListTile(
-              leading: const CircleAvatar(
-                child: Icon(Icons.swap_horiz),
-              ),
-              title: Text(
-                site.address,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-              ),
-              subtitle: Text(
-                site.upstreams.join(' · '),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
+          // 一个站点一行 Prism 卡片（R91）：点行编辑，行尾菜单照旧有编辑 / 删除。
+          return ShunSection(children: [
+            ShunListRow(
+              key: ValueKey('caddy-site-${site.id}'),
+              leading: const Icon(Icons.swap_horiz),
+              title: site.address,
+              subtitle: site.upstreams.join(' · '),
               trailing: busy
                   ? const SizedBox.square(
                       dimension: 22,
@@ -327,9 +318,10 @@ class _CaddyManagerPanelState extends State<CaddyManagerPanel> {
                         ),
                       ],
                     ),
-              onTap: busy ? null : () => _edit(site),
+              enabled: !busy,
+              onTap: () => _edit(site),
             ),
-          );
+          ]);
         },
       ),
     );
@@ -339,33 +331,11 @@ class _CaddyManagerPanelState extends State<CaddyManagerPanel> {
     IconData icon,
     String message, {
     bool retry = false,
-    bool localizedMessage = true,
-  }) {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, size: 48),
-            const SizedBox(height: 12),
-            if (localizedMessage)
-              LText(message, textAlign: TextAlign.center)
-            else
-              Text(message, textAlign: TextAlign.center),
-            if (retry) ...[
-              const SizedBox(height: 12),
-              OutlinedButton.icon(
-                onPressed: _refresh,
-                icon: const Icon(Icons.refresh),
-                label: const LText('重试'),
-              ),
-            ],
-          ],
-        ),
-      ),
-    );
-  }
+  }) =>
+      ManagementEmptyState(
+          icon: icon,
+          title: message,
+          action: retry ? ShunButton(onPressed: _refresh, label: '重试') : null);
 }
 
 class _CaddySiteDialog extends StatefulWidget {
@@ -431,7 +401,9 @@ class _CaddySiteDialogState extends State<_CaddySiteDialog> {
                 autofocus: true,
                 textInputAction: TextInputAction.next,
                 scrollPadding: const EdgeInsets.only(bottom: 160),
-                decoration: LInputDecoration(
+                decoration: ManagementFieldDecoration(
+                  context,
+                  inDialog: true,
                   labelText: '站点地址',
                   hintText: 'example.com',
                   helperText: '可使用域名、IP、端口或 http:// 地址',
@@ -445,7 +417,9 @@ class _CaddySiteDialogState extends State<_CaddySiteDialog> {
                 maxLines: 5,
                 keyboardType: TextInputType.multiline,
                 scrollPadding: const EdgeInsets.only(bottom: 160),
-                decoration: LInputDecoration(
+                decoration: ManagementFieldDecoration(
+                  context,
+                  inDialog: true,
                   labelText: '上游地址',
                   hintText: '127.0.0.1:8080',
                   helperText: '多个上游地址使用换行或逗号分隔',
@@ -456,15 +430,15 @@ class _CaddySiteDialogState extends State<_CaddySiteDialog> {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const LText('取消'),
-          ),
-          FilledButton(
-            key: const ValueKey('caddy-save'),
-            onPressed: _submit,
-            child: const LText('保存并重新加载'),
-          ),
+          ShunButton(
+              kind: ShunButtonKind.text,
+              onPressed: () => Navigator.pop(context),
+              label: '取消'),
+          ShunButton(
+              key: const ValueKey('caddy-save'),
+              kind: ShunButtonKind.filled,
+              onPressed: _submit,
+              label: '保存并重新加载'),
         ],
       );
 }

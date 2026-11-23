@@ -46,6 +46,7 @@ import 'package:shun/presentation/ui/shun_ui_host.dart';
 import 'package:shun/presentation/widgets/custom_background.dart';
 import 'package:shun/presentation/widgets/security_key_prompt.dart';
 
+import 'support/home_navigation.dart';
 import 'support/ui_gallery_fixtures.dart';
 
 // R82：用生产宿主验证根导航、兼容层、提示/锁罩和真实 Ghostty 视图。
@@ -131,8 +132,7 @@ void main() {
 
   testWidgets('covered 后旧 IME client 不能向真实 Ghostty 写字或提交', (tester) async {
     _allowIdleTasks(tester);
-    final terminal = GhosttyTerminalAdapter()
-      ..feed(utf8.encode('\x1b[?25l'));
+    final terminal = GhosttyTerminalAdapter()..feed(utf8.encode('\x1b[?25l'));
     final sent = <int>[];
     final binding = terminal.bind(sent.addAll);
     addTearDown(() {
@@ -249,16 +249,19 @@ void main() {
     expect(rootRoute, isA<PageRouteBuilder>());
     expect(rootRoute.allowSnapshotting, isFalse);
     expect(
-      tester.widget<p.RemoteFocusAdapter>(find.byType(p.RemoteFocusAdapter))
+      tester
+          .widget<p.RemoteFocusAdapter>(find.byType(p.RemoteFocusAdapter))
           .enabled,
       isFalse,
     );
-    expect(Theme.of(homeKey.currentContext!).colorScheme, _lightTheme.colorScheme);
+    expect(
+        Theme.of(homeKey.currentContext!).colorScheme, _lightTheme.colorScheme);
     expect(p.Theme.of(homeKey.currentContext!).colorScheme.primary,
         _lightTheme.colorScheme.primary);
     expect(MediaQuery.textScalerOf(homeKey.currentContext!).scale(16), 32);
 
-    await tester.enterText(find.byKey(const ValueKey('material-field')), 'draft');
+    await tester.enterText(
+        find.byKey(const ValueKey('material-field')), 'draft');
     await tester.enterText(
       find.descendant(
         of: find.byKey(const ValueKey('prism-field')),
@@ -279,7 +282,8 @@ void main() {
     expect(materialText.text, 'draft');
     expect(prismText.text, 'prism draft');
     expect(Theme.of(context).colorScheme, _darkTheme.colorScheme);
-    expect(p.Theme.of(context).colorScheme.primary, _darkTheme.colorScheme.primary);
+    expect(p.Theme.of(context).colorScheme.primary,
+        _darkTheme.colorScheme.primary);
     expect(MediaQuery.textScalerOf(context).scale(16), 32);
     expect(MaterialLocalizations.of(context).copyButtonLabel, 'Copy');
     expect(CupertinoLocalizations.of(context).copyButtonLabel, 'Copy');
@@ -317,11 +321,14 @@ void main() {
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
         content: const Text('r82-snack'),
         duration: const Duration(minutes: 1),
-        action: SnackBarAction(label: 'r82-action', onPressed: () => snackTaps++),
+        action:
+            SnackBarAction(label: 'r82-action', onPressed: () => snackTaps++),
       ));
       await _frames(tester);
-      expect(find.semantics.byLabel(RegExp('r82-banner')).evaluate(), isNotEmpty);
-      expect(find.semantics.byLabel(RegExp('r82-snack')).evaluate(), isNotEmpty);
+      expect(
+          find.semantics.byLabel(RegExp('r82-banner')).evaluate(), isNotEmpty);
+      expect(
+          find.semantics.byLabel(RegExp('r82-snack')).evaluate(), isNotEmpty);
 
       final channel = _SecurityKeyChannel();
       addTearDown(channel.events.close);
@@ -352,7 +359,12 @@ void main() {
       await tester.pump(const Duration(milliseconds: 16));
       expect(find.byKey(const ValueKey('app-lock-cover')), findsOneWidget);
       expect(pin.focusNode.hasFocus, isFalse, reason: 'covered 也要关闭 IME 连接');
-      for (final text in ['r82-banner', 'r82-snack', 'r82-auth', 'r82-background']) {
+      for (final text in [
+        'r82-banner',
+        'r82-snack',
+        'r82-auth',
+        'r82-background'
+      ]) {
         expect(find.semantics.byLabel(RegExp(text)).evaluate(), isEmpty);
       }
       await _expectCoverPixels(tester, fixture, _darkTheme.colorScheme.surface);
@@ -379,7 +391,8 @@ void main() {
       expect(channel.cancelCalls, 0);
       fixture.mode.value = ThemeMode.light;
       await tester.pump(const Duration(milliseconds: 16));
-      await _expectCoverPixels(tester, fixture, _lightTheme.colorScheme.surface);
+      await _expectCoverPixels(
+          tester, fixture, _lightTheme.colorScheme.surface);
       expect(find.byType(p.ThemeCrossFade), findsNothing);
 
       fixture.auth.next = const DeviceAuthOutcome(DeviceAuthResult.success);
@@ -453,9 +466,7 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-
-  testWidgets('Ghostty 持续输出时 push/pop、切主题和锁罩保留单视图及输入焦点',
-      (tester) async {
+  testWidgets('Ghostty 持续输出时 push/pop、切主题和锁罩保留单视图及输入焦点', (tester) async {
     _allowIdleTasks(tester);
     final terminal = GhosttyTerminalAdapter()
       ..feed(utf8.encode('\x1b[?25lbefore-route\r\n'));
@@ -563,8 +574,7 @@ void main() {
     output.cancel();
   });
 
-  testWidgets('真实 ShunApp 和 HomeShell 的五入口及两个终端标签保持原导航树',
-      (tester) async {
+  testWidgets('真实 ShunApp 和 HomeShell 的五入口及两个终端标签保持原导航树', (tester) async {
     _allowIdleTasks(tester);
     tester.view.physicalSize = const Size(824, 1800);
     tester.view.devicePixelRatio = 2;
@@ -659,14 +669,25 @@ void main() {
       find.byType(TerminalScreen, skipOffstage: false),
     );
     final bar = find.byKey(const ValueKey('home-navigation-bar'));
-    // 按入口 key 找，不按导航控件的类型找（R85 换成了 Prism 的底栏）。
+    // 按入口的读屏按钮找，不按导航控件的类型找（底栏换成了 Prism 的浮动底栏）。
     for (var index = 0; index < 5; index++) {
-      expect(
-          find.descendant(of: bar, matching: find.byKey(homeNavigationKey(index))),
-          findsOneWidget);
+      expect(homeNavigationEntry(index), findsOneWidget);
     }
     expect(find.byType(WidgetsApp), findsOneWidget);
     expect(find.byType(Navigator), findsOneWidget);
+    // SnackBar 停在浮动底栏上方，不盖住底栏的入口（带「撤销」的通知不会自己消失）。
+    final snacks = ScaffoldMessenger.of(tester.element(find.byType(HomeShell)));
+    snacks.showSnackBar(const SnackBar(content: Text('snack-above-dock')));
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(
+      tester.getRect(find.byType(SnackBar)).bottom,
+      lessThanOrEqualTo(tester.getRect(bar).top + 0.01),
+    );
+    snacks.removeCurrentSnackBar();
+    await tester.pump();
+    await tester.pump(const Duration(seconds: 1));
+    expect(find.byType(SnackBar), findsNothing);
     await tester.tap(find.descendant(of: bar, matching: find.text('终端')).last);
     await _frames(tester);
     final controller = container.read(sessionControllerProvider.notifier);
@@ -679,7 +700,7 @@ void main() {
     expect(active.allText(), contains('Application log'));
 
     for (final index in [2, 3, 4, 0, 1]) {
-      await tester.tap(find.byKey(homeNavigationKey(index)));
+      await tester.tap(homeNavigationEntry(index));
       await _frames(tester);
       expect(container.read(homeTabProvider), index);
       expect(tester.state(find.byType(HomeShell)), same(shell));
@@ -692,7 +713,9 @@ void main() {
     expect(tester.state(view), same(before));
     expect(active.allText(), contains('background-tab-output'));
     await container.read(settingsControllerProvider.notifier).update(
-          container.read(settingsControllerProvider).copyWith(themeMode: 'dark'),
+          container
+              .read(settingsControllerProvider)
+              .copyWith(themeMode: 'dark'),
         );
     await _frames(tester);
     expect(tester.widget<ShunUiHost>(find.byType(ShunUiHost)).navigatorKey,
@@ -749,8 +772,7 @@ void main() {
   // R83 / UIM04：旧版本存下的主题 ID、模式、自定义背景、终端字号和输入方式照样生效；
   // 逐项改设置时主题当帧就换好，HomeShell、终端页、挂着的终端视图和大输入框都是原来那一个，
   // 草稿和焦点还在，前台和后台终端回答的背景色都等于当前主题。
-  testWidgets('R83 旧设置生效；切模式、主题、背景、字号不重建页面和终端，草稿焦点保留、终端配色同步',
-      (tester) async {
+  testWidgets('R83 旧设置生效；切模式、主题、背景、字号不重建页面和终端，草稿焦点保留、终端配色同步', (tester) async {
     _allowIdleTasks(tester);
     tester.view.physicalSize = const Size(824, 1800);
     tester.view.devicePixelRatio = 2;
@@ -828,7 +850,8 @@ void main() {
     await _frames(tester);
     final focus = FocusManager.instance.primaryFocus!;
     expect(focus.hasFocus, isTrue);
-    final editable = find.descendant(of: editor, matching: find.byType(EditableText));
+    final editable =
+        find.descendant(of: editor, matching: find.byType(EditableText));
     final before = (
       shell: tester.state(shell),
       screen: tester.state(find.byType(TerminalScreen, skipOffstage: false)),
@@ -836,7 +859,8 @@ void main() {
       engine: tester.state(find.byType(flterm.TerminalView)),
       editable: tester.state(editable),
     );
-    final rootKey = tester.widget<ShunUiHost>(find.byType(ShunUiHost)).navigatorKey;
+    final rootKey =
+        tester.widget<ShunUiHost>(find.byType(ShunUiHost)).navigatorKey;
     final navigator = rootKey.currentState;
 
     final changes = <(String, AppSettings Function(AppSettings), Brightness?)>[
@@ -863,8 +887,8 @@ void main() {
       final settings = container.read(settingsControllerProvider);
       final dark = switch (settings.themeMode) {
         'light' => false,
-        'system' => tester.platformDispatcher.platformBrightness ==
-            Brightness.dark,
+        'system' =>
+          tester.platformDispatcher.platformBrightness == Brightness.dark,
         _ => true,
       };
       final expected = ShunUiTheme.resolve(
@@ -897,7 +921,8 @@ void main() {
         reason: label,
       );
       expect(tester.state(view), same(before.view), reason: label);
-      expect(tester.state(find.byType(flterm.TerminalView)), same(before.engine),
+      expect(
+          tester.state(find.byType(flterm.TerminalView)), same(before.engine),
           reason: label);
       expect(tester.state(editable), same(before.editable), reason: label);
       expect(tester.widget<TextField>(editor).controller!.text, 'r83-draft',
@@ -973,7 +998,8 @@ void main() {
     expect(Theme.of(context).colorScheme, _darkTheme.colorScheme);
     expect(p.Theme.of(context), same(_darkUi.prismTheme));
     expect(
-      find.ancestor(of: find.byKey(homeKey), matching: find.byType(AnimatedTheme)),
+      find.ancestor(
+          of: find.byKey(homeKey), matching: find.byType(AnimatedTheme)),
       findsNothing,
     );
     expect(find.byType(p.ThemeCrossFade), findsNothing);
@@ -1015,7 +1041,8 @@ void main() {
       expect(paragraph.textScaler, same(scaler));
       // 正文是 Prism 的 15；非线性放大后不是线性倍数。
       expect(paragraph.text.style?.fontSize, 15);
-      expect(scaler.scale(15), isNot(closeTo(15 * scaler.scale(30) / 30, 0.01)));
+      expect(
+          scaler.scale(15), isNot(closeTo(15 * scaler.scale(30) / 30, 0.01)));
     }
     expect(tester.takeException(), isNull);
   });
@@ -1025,7 +1052,7 @@ void main() {
   group('R85 主导航外壳', () {
     const names = ['连接', '终端', '文件', '片段', '设置'];
     final bar = find.byKey(const ValueKey('home-navigation-bar'));
-    Finder entry(int index) => find.byKey(homeNavigationKey(index));
+    Finder entry(int index) => homeNavigationEntry(index);
     final view = find.byType(GhosttyTerminalView, skipOffstage: false);
     final engine = find.byType(flterm.TerminalView, skipOffstage: false);
 
@@ -1068,8 +1095,7 @@ void main() {
         find.descendant(
           of: bar,
           matching: find.byWidgetPredicate((widget) =>
-              widget.key is ValueKey<String> &&
-              (widget.key! as ValueKey<String>).value.startsWith('home-nav-')),
+              widget is Semantics && widget.properties.button == true),
         ),
         findsNWidgets(5),
       );
@@ -1093,10 +1119,8 @@ void main() {
           final hit = tester.getSize(entry(index));
           expect(hit.width, greaterThanOrEqualTo(24));
         }
-        // 每个入口整格可点：宽是整行的五分之一，高 80。
-        final cell = tester.getRect(find
-            .ancestor(of: entry(selected), matching: find.byType(p.PressRegion))
-            .first);
+        // 每个入口整格可点。
+        final cell = tester.getRect(entry(selected));
         expect(cell.height, greaterThanOrEqualTo(48));
         expect(cell.width, greaterThanOrEqualTo(48));
       }
@@ -1321,7 +1345,7 @@ void main() {
       expect(tester.takeException(), isNull);
     });
 
-    testWidgets('全局自定义背景：底栏仍不透明，背景只铺到底栏上方（R83 记下的字偏淡）', (tester) async {
+    testWidgets('全局自定义背景：背景铺满整屏，浮动底栏自己不透明（R83 记下的字偏淡）', (tester) async {
       _allowIdleTasks(tester);
       size(tester, const Size(412, 892));
       final app = await _openShunApp(tester, (paths) async {
@@ -1344,9 +1368,8 @@ void main() {
         final background = find.byType(CustomBackgroundImage);
         expect(background, findsOneWidget, reason: '第 $index 页有全局背景');
         final barRect = tester.getRect(bar);
-        expect(
-            tester.getRect(background).bottom, lessThanOrEqualTo(barRect.top),
-            reason: '背景不伸到底栏底下');
+        expect(tester.getRect(background).bottom, barRect.bottom,
+            reason: '背景从浮动底栏四周露出来，铺到屏幕底');
         final surface = tester.widget<p.Surface>(
             find.descendant(of: bar, matching: find.byType(p.Surface)).first);
         expect(surface.color!.a, 1.0);
@@ -1374,11 +1397,13 @@ void main() {
           expect(rect.contains(center), isTrue);
           await go(tester, container, index);
         }
-        // 终端页的终端区在底栏上面，不被盖住。
+        // 终端页的终端区在浮动底栏那条上面，不被盖住（底栏的框上面还留着 8dp 的阴影位）。
         await go(tester, container, 1);
         final area =
             tester.getRect(find.byKey(const ValueKey('terminal-area')));
-        expect(area.bottom, lessThanOrEqualTo(rect.top));
+        final dock = tester.getRect(find.descendant(
+            of: bar, matching: find.byType(p.FloatingNavigationBar)));
+        expect(area.bottom, lessThanOrEqualTo(dock.top));
         expect(area.height, greaterThan(0));
         expect(tester.takeException(), isNull);
       });
@@ -1463,8 +1488,7 @@ class _HostFixture {
 
 class _DeviceAuth implements DeviceAuth {
   var authenticateCalls = 0;
-  DeviceAuthOutcome next =
-      const DeviceAuthOutcome(DeviceAuthResult.canceled);
+  DeviceAuthOutcome next = const DeviceAuthOutcome(DeviceAuthResult.canceled);
 
   @override
   set onActivityPaused(void Function(bool ownActivity)? callback) {}
@@ -1576,12 +1600,12 @@ Future<({ProviderContainer container, SessionState sessions})> _openShunApp(
               initial.uiThemeId &&
           attempt < 100;
       attempt++) {
-    await tester.runAsync(
-        () => Future<void>.delayed(const Duration(milliseconds: 10)));
+    await tester
+        .runAsync(() => Future<void>.delayed(const Duration(milliseconds: 10)));
     await tester.pump();
   }
-  expect(container.read(settingsControllerProvider).uiThemeId,
-      initial.uiThemeId);
+  expect(
+      container.read(settingsControllerProvider).uiThemeId, initial.uiThemeId);
   await _frames(tester);
   return (container: container, sessions: sessions);
 }
@@ -1620,7 +1644,9 @@ class _NonlinearTextScaler extends TextScaler {
   double get textScaleFactor => 2.0;
 
   @override
-  TextScaler clamp({double minScaleFactor = 0, double maxScaleFactor = double.infinity}) =>
+  TextScaler clamp(
+          {double minScaleFactor = 0,
+          double maxScaleFactor = double.infinity}) =>
       this;
 }
 
@@ -1643,8 +1669,8 @@ Future<void> _expectCoverPixels(
   _HostFixture fixture,
   Color expected,
 ) async {
-  final boundary =
-      fixture.captureKey.currentContext!.findRenderObject()! as RenderRepaintBoundary;
+  final boundary = fixture.captureKey.currentContext!.findRenderObject()!
+      as RenderRepaintBoundary;
   final image = (await tester.runAsync(() => boundary.toImage(pixelRatio: 1)))!;
   try {
     final bytes = (await tester.runAsync(
@@ -1660,7 +1686,10 @@ Future<void> _expectCoverPixels(
     for (final point in points) {
       final offset = (point.dy.floor() * image.width + point.dx.floor()) * 4;
       expect(
-        [for (var channel = 0; channel < 4; channel++) bytes.getUint8(offset + channel)],
+        [
+          for (var channel = 0; channel < 4; channel++)
+            bytes.getUint8(offset + channel)
+        ],
         [
           (expected.r * 255).round(),
           (expected.g * 255).round(),

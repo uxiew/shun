@@ -68,7 +68,17 @@ class _SftpPaneState extends State<_SftpPane> {
   }
 
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
+  Widget build(BuildContext context) {
+    final level = prism.SurfaceContext(context).raisedSurfaceLevel;
+    return Material(
+      shape: prism.AppShape.lg,
+      clipBehavior: Clip.antiAlias,
+      color: level.colorOf(prism.Theme.of(context).colorScheme),
+      child: prism.SurfaceScope(level: level, child: _paneContents()),
+    );
+  }
+
+  Widget _paneContents() => LayoutBuilder(
         builder: (context, constraints) {
           final compact = constraints.maxWidth < 260;
           final mountable = service is MountableFileTransferService
@@ -78,11 +88,12 @@ class _SftpPaneState extends State<_SftpPane> {
           return Column(
             children: [
               Padding(
-                padding: const EdgeInsets.fromLTRB(5, 6, 3, 2),
+                padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
                 child: Row(
                   children: [
                     Expanded(
                       child: PopupMenuButton<String>(
+                        key: const ValueKey('sftp-source'),
                         tooltip: localized('切换 ${widget.label} 文件来源'),
                         initialValue: service.id,
                         onSelected: widget.onSourceChanged,
@@ -112,10 +123,11 @@ class _SftpPaneState extends State<_SftpPane> {
                             horizontal: 7,
                             vertical: 6,
                           ),
-                          decoration: BoxDecoration(
-                            color:
-                                Theme.of(context).colorScheme.primaryContainer,
-                            borderRadius: BorderRadius.circular(7),
+                          decoration: ShapeDecoration(
+                            color: prism.SurfaceContext(context)
+                                .raisedSurfaceLevel
+                                .colorOf(prism.Theme.of(context).colorScheme),
+                            shape: prism.AppShape.full,
                           ),
                           child: Row(
                             children: [
@@ -131,10 +143,8 @@ class _SftpPaneState extends State<_SftpPane> {
                                   service.displayName,
                                   maxLines: 1,
                                   overflow: TextOverflow.ellipsis,
-                                  style: const TextStyle(
-                                    fontSize: 11,
-                                    fontWeight: FontWeight.w600,
-                                  ),
+                                  style: prism.AppTextStyle.caption2
+                                      .of(context, emphasized: true),
                                 ),
                               ),
                               const Icon(Icons.arrow_drop_down, size: 18),
@@ -144,7 +154,7 @@ class _SftpPaneState extends State<_SftpPane> {
                       ),
                     ),
                     const SizedBox(width: 3),
-                    LText(widget.label, style: const TextStyle(fontSize: 10)),
+                    ShunPill(localizedOf(context, widget.label)),
                   ],
                 ),
               ),
@@ -159,10 +169,9 @@ class _SftpPaneState extends State<_SftpPane> {
                       service.displayPath(path),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: const TextStyle(
-                        fontFamily: 'monospace',
-                        fontSize: 10,
-                      ),
+                      style: prism.AppTextStyle.caption2
+                          .of(context)
+                          .copyWith(fontFamily: 'monospace'),
                     ),
                   ),
                 ),
@@ -230,22 +239,20 @@ class _SftpPaneState extends State<_SftpPane> {
                           spacing: 2,
                           children: [
                             if (_selecting) ...[
-                              TextButton(
-                                  onPressed: () => setState(() {
-                                        if (_selected.length ==
-                                            _entries.length) {
-                                          _selected.clear();
-                                        } else {
-                                          _selected.addAll(
-                                              _entries.map((e) => e.path));
-                                        }
-                                      }),
-                                  child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        const LText('全选'),
-                                        Text(' (${_selected.length})'),
-                                      ])),
+                              ShunButton(
+                                key: const ValueKey('sftp-select-all'),
+                                kind: ShunButtonKind.text,
+                                label:
+                                    '${localized('全选')} (${_selected.length})',
+                                onPressed: () => setState(() {
+                                  if (_selected.length == _entries.length) {
+                                    _selected.clear();
+                                  } else {
+                                    _selected
+                                        .addAll(_entries.map((e) => e.path));
+                                  }
+                                }),
+                              ),
                               IconButton(
                                   tooltip: localized('复制'),
                                   onPressed: _selected.isEmpty
@@ -282,12 +289,15 @@ class _SftpPaneState extends State<_SftpPane> {
                                   icon: const Icon(Icons.close)),
                             ],
                             if (clipboard != null) ...[
-                              TextButton.icon(
-                                  onPressed: () =>
-                                      widget.onPaste(clipboard, service, path),
-                                  icon: const Icon(Icons.paste),
-                                  label: LText(
-                                      '${localized('粘贴')} (${clipboard.entries.length})')),
+                              ShunButton(
+                                key: const ValueKey('sftp-paste'),
+                                kind: ShunButtonKind.text,
+                                icon: Icons.paste,
+                                label:
+                                    '${localized('粘贴')} (${clipboard.entries.length})',
+                                onPressed: () =>
+                                    widget.onPaste(clipboard, service, path),
+                              ),
                               IconButton(
                                   tooltip: localized('清空文件剪贴板'),
                                   onPressed: () =>
@@ -296,7 +306,11 @@ class _SftpPaneState extends State<_SftpPane> {
                             ],
                           ])),
               if (_extracting) const LinearProgressIndicator(minHeight: 2),
-              if (_extracting) LText(_archiveStatus),
+              if (_extracting)
+                LText(
+                  _archiveStatus,
+                  style: prism.AppTextStyle.caption1.of(context),
+                ),
               if (_transfer != null)
                 _TransferProgressView(
                   progress: _transfer!,
@@ -312,10 +326,9 @@ class _SftpPaneState extends State<_SftpPane> {
                       '加载失败，点按重试\n$_error',
                       maxLines: 3,
                       overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        color: Theme.of(context).colorScheme.error,
-                        fontSize: 11,
-                      ),
+                      style: prism.AppTextStyle.caption2.of(context).copyWith(
+                            color: prism.Theme.of(context).colorScheme.error,
+                          ),
                     ),
                   ),
                 ),
@@ -326,20 +339,20 @@ class _SftpPaneState extends State<_SftpPane> {
                             !mountable.usesAppDocuments
                         ? _mountHint()
                         : Center(
-                            child: LText(
-                              mountable?.usesAppDocuments == true
-                                  ? 'shun 文件夹为空\n可从服务器下载或导入文件'
-                                  : service.isLocal
-                                      ? '挂载目录为空\n可直接上传或导入文件'
-                                      : '目录为空',
-                              textAlign: TextAlign.center,
-                              style: const TextStyle(fontSize: 11),
+                            child: SingleChildScrollView(
+                              child: EmptyState(
+                                icon: Icons.folder_open_outlined,
+                                title: mountable?.usesAppDocuments == true
+                                    ? 'shun 文件夹为空'
+                                    : service.isLocal
+                                        ? '挂载目录为空'
+                                        : '目录为空',
+                              ),
                             ),
                           )
-                    : ListView.separated(
+                    : ListView.builder(
                         padding: const EdgeInsets.symmetric(horizontal: 3),
                         itemCount: _entries.length,
-                        separatorBuilder: (_, __) => const Divider(height: 1),
                         itemBuilder: (context, index) =>
                             _entryTile(_entries[index], compact),
                       ),
@@ -349,43 +362,20 @@ class _SftpPaneState extends State<_SftpPane> {
         },
       );
 
-  Widget _entryTile(RemoteEntry entry, bool compact) => ListTile(
-        selected: _selected.contains(entry.path) ||
-            entry.path == _highlightedEntryPath,
-        selectedTileColor: Theme.of(context)
-            .colorScheme
-            .primaryContainer
-            .withValues(alpha: .4),
-        dense: true,
-        visualDensity: compact
-            ? const VisualDensity(horizontal: -4, vertical: -3)
-            : VisualDensity.compact,
-        contentPadding: const EdgeInsets.only(left: 5, right: 0),
-        leading: _selecting
-            ? Checkbox(
-                value: _selected.contains(entry.path),
-                onChanged: (_) => _toggleEntry(entry))
-            : Icon(
-                entry.isDirectory ? Icons.folder : _fileIcon(entry.name),
-                size: compact ? 20 : 23,
-                color: entry.isDirectory ? const Color(0xfff59e0b) : null,
-              ),
-        title: LText(
-          entry.name,
-          maxLines: 1,
-          overflow: TextOverflow.ellipsis,
-          style: TextStyle(fontSize: compact ? 12 : 14),
-        ),
-        subtitle: compact
-            ? null
-            : LText(entry.isDirectory ? '目录' : formatBytes(entry.size)),
-        onLongPress: () => _toggleEntry(entry),
+  Widget _entryTile(RemoteEntry entry, bool compact) => _FileRow(
+        key: ValueKey('sftp-entry-${entry.path}'),
+        entry: entry,
+        compact: compact,
+        selecting: _selecting,
+        checked: _selected.contains(entry.path),
+        highlighted: entry.path == _highlightedEntryPath,
+        onToggle: () => _toggleEntry(entry),
         onTap: () => _selecting
             ? _toggleEntry(entry)
             : entry.isDirectory
                 ? _open(entry.path)
                 : _edit(entry),
-        trailing: PopupMenuButton<String>(
+        menu: PopupMenuButton<String>(
           tooltip: localized('文件操作'),
           padding: EdgeInsets.zero,
           onSelected: (value) => _entryAction(value, entry),
@@ -514,17 +504,21 @@ class _SftpPaneState extends State<_SftpPane> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              FilledButton.tonalIcon(
+              ShunButton(
                 key: const ValueKey('sftp-mount-phone-directory'),
+                kind: ShunButtonKind.tonal,
+                icon: Icons.folder_open_outlined,
+                label: '选择手机目录',
                 onPressed: _mountPhoneDirectory,
-                icon: const Icon(Icons.folder_open_outlined),
-                label: const LText('选择手机目录'),
               ),
               const SizedBox(height: 8),
-              const LText(
+              LText(
                 _mountLimits,
                 textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 11),
+                style: prism.AppTextStyle.caption1.of(context).copyWith(
+                      color:
+                          prism.Theme.of(context).colorScheme.onSurfaceVariant,
+                    ),
               ),
             ],
           ),
@@ -627,16 +621,7 @@ class _SftpPaneState extends State<_SftpPane> {
       builder: (context) => AlertDialog(
         title: const LText('文件太大，不在这里打开'),
         content: Text('${entry.name}${size == null ? '' : '\n$size'}\n\n$note'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const LText('取消'),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const LText('下载'),
-          ),
-        ],
+        actions: _confirmActions(context, '下载'),
       ),
     );
     if (download == true && mounted) await _share(entry);
@@ -658,16 +643,7 @@ class _SftpPaneState extends State<_SftpPane> {
           title: const LText('服务器上的文件变了'),
           content:
               const LText('你打开之后，这个文件在服务器上被改过（或被删了）。保存会用编辑器里的内容整个替换它，那些修改就没了。'),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const LText('取消'),
-            ),
-            FilledButton(
-              onPressed: () => Navigator.pop(context, true),
-              child: const LText('仍然保存'),
-            ),
-          ],
+          actions: _confirmActions(context, '仍然保存'),
         ),
       );
       if (overwrite != true) throw const _NotSaved();
@@ -872,16 +848,7 @@ class _SftpPaneState extends State<_SftpPane> {
             content: LText(service.isLocal
                 ? '文件将从当前挂载的手机目录删除，无法撤销。'
                 : '此操作会直接修改远程服务器，无法撤销。'),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const LText('取消'),
-              ),
-              FilledButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const LText('删除'),
-              ),
-            ],
+            actions: _confirmActions(context, '删除'),
           ),
         );
         if (ok == true) await service.delete(entry);
@@ -945,16 +912,9 @@ class _SftpPaneState extends State<_SftpPane> {
     final confirmed = await showDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
-                title: const LText('删除所选文件'),
-                content: LText('${entries.length}\n${localized('此操作无法撤销。')}'),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(context, false),
-                      child: const LText('取消')),
-                  FilledButton(
-                      onPressed: () => Navigator.pop(context, true),
-                      child: const LText('删除'))
-                ]));
+            title: const LText('删除所选文件'),
+            content: LText('${entries.length}\n${localized('此操作无法撤销。')}'),
+            actions: _confirmActions(context, '删除')));
     if (confirmed != true) return;
     source.activeOperations++;
     try {
@@ -976,18 +936,22 @@ class _SftpPaneState extends State<_SftpPane> {
       builder: (context) => AlertDialog(
         title: LText(title),
         content: TextField(
+          key: const ValueKey('sftp-dialog-input'),
           controller: controller,
           autofocus: true,
           decoration: LInputDecoration(hintText: hint),
         ),
         actions: [
-          TextButton(
+          ShunButton(
+            key: const ValueKey('sftp-dialog-cancel'),
+            kind: ShunButtonKind.text,
+            label: '取消',
             onPressed: () => Navigator.pop(context),
-            child: const LText('取消'),
           ),
-          FilledButton(
+          ShunButton(
+            key: const ValueKey('sftp-dialog-confirm'),
+            label: '确定',
             onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const LText('确定'),
           ),
         ],
       ),
@@ -1198,14 +1162,15 @@ class _TransferProgressView extends StatelessWidget {
                     progress.title,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                      fontSize: compact ? 10 : 11,
-                      fontWeight: FontWeight.w600,
-                    ),
+                    style: (compact
+                            ? prism.AppTextStyle.caption2
+                            : prism.AppTextStyle.caption1)
+                        .of(context, emphasized: true),
                   ),
                 ),
                 if (onCancel != null)
                   IconButton(
+                    key: const ValueKey('sftp-transfer-cancel'),
                     tooltip: localized('取消传输'),
                     onPressed: onCancel,
                     visualDensity: VisualDensity.compact,
@@ -1224,7 +1189,11 @@ class _TransferProgressView extends StatelessWidget {
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     textAlign: TextAlign.end,
-                    style: TextStyle(fontSize: compact ? 9 : 10),
+                    style: prism.AppTextStyle.caption2.of(context).copyWith(
+                          color: prism.Theme.of(context)
+                              .colorScheme
+                              .onSurfaceVariant,
+                        ),
                   ),
                 ),
               ],
@@ -1239,6 +1208,222 @@ class _TransferProgressView extends StatelessWidget {
       ),
     );
   }
+}
+
+/// 文件页确认框的两个按钮：左边取消（返回 false），右边 [confirm]（返回 true）。
+/// 同一时刻只开一个确认框，key 各框通用。
+List<Widget> _confirmActions(BuildContext context, String confirm) => [
+      ShunButton(
+        key: const ValueKey('sftp-dialog-cancel'),
+        kind: ShunButtonKind.text,
+        label: '取消',
+        onPressed: () => Navigator.pop(context, false),
+      ),
+      ShunButton(
+        key: const ValueKey('sftp-dialog-confirm'),
+        label: confirm,
+        onPressed: () => Navigator.pop(context, true),
+      ),
+    ];
+
+/// 文件列表的一行，排版用 Prism 的 ListRow。
+///
+/// 没用 ShunListRow：它左右留白固定 16dp、标题不限行数，双栏时一栏只有两百 dp 左右，
+/// 文件名要压成一行。读屏和迁移前一样：名字和大小合成一个按钮节点（点按、长按都在它上面，
+/// 报选没选中），勾选框和 ⋮ 是它下面各自独立的节点。
+class _FileRow extends StatelessWidget {
+  const _FileRow({
+    super.key,
+    required this.entry,
+    required this.compact,
+    required this.selecting,
+    required this.checked,
+    required this.highlighted,
+    required this.onTap,
+    required this.onToggle,
+    required this.menu,
+  });
+
+  final RemoteEntry entry;
+
+  /// 一栏窄于 260dp（手机竖屏双栏）：字小一号，不显示大小。
+  final bool compact;
+  final bool selecting;
+  final bool checked;
+
+  /// 「在文件页中显示」定位到的那个文件。
+  final bool highlighted;
+  final VoidCallback onTap;
+
+  /// 长按、点勾选框：进多选并切换这一项。
+  final VoidCallback onToggle;
+  final Widget menu;
+
+  static const _compactRowHeight = 38.0;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    final name = localizedOf(context, entry.name);
+    final size = entry.isDirectory
+        ? localizedOf(context, '目录')
+        : formatBytes(entry.size);
+    // 整行是一个节点，勾选框和 ⋮ 是它的子节点：和迁移前的 ListTile 一样，读屏先念文件名。
+    return Semantics(
+      container: true,
+      button: true,
+      enabled: true,
+      selected: checked || highlighted,
+      label: compact ? name : '$name, $size',
+      onTap: onTap,
+      onLongPress: onToggle,
+      child: Material(
+        color: checked || highlighted
+            ? prism.SurfaceContext(context).raisedSurfaceLevel.colorOf(colors)
+            : Colors.transparent,
+        shape: prism.AppShape.md,
+        clipBehavior: Clip.antiAlias,
+        // 点按范围是整行（和 ListTile 一样）；勾选框、⋮ 自己接自己的点按。
+        child: InkWell(
+          onTap: onTap,
+          onLongPress: onToggle,
+          excludeFromSemantics: true,
+          child: Row(
+            children: [
+              if (selecting)
+                Checkbox(
+                  value: checked,
+                  onChanged: (_) => onToggle(),
+                  visualDensity: VisualDensity.compact,
+                ),
+              Expanded(
+                child: prism.ListRow(
+                  padding:
+                      EdgeInsets.only(left: selecting ? 0 : (compact ? 4 : 8)),
+                  horizontalTitleGap: compact ? 4 : 12,
+                  minVerticalPadding: compact ? 2 : 6,
+                  minHeight: compact ? _compactRowHeight : 48,
+                  leading: selecting
+                      ? null
+                      : ExcludeSemantics(
+                          child: Icon(
+                            entry.isDirectory
+                                ? Icons.folder
+                                : _fileIcon(entry.name),
+                            size: compact ? 20 : 23,
+                            color: highlighted
+                                ? colors.primary
+                                : colors.onSurfaceVariant,
+                          ),
+                        ),
+                  title: ExcludeSemantics(
+                    child: _FileName(
+                      name: name,
+                      extension: entry.isDirectory ? '' : _nameExtension(name),
+                      style: (compact
+                              ? prism.AppTextStyle.footnote
+                              : prism.AppTextStyle.subheadline)
+                          .of(context)
+                          .copyWith(color: colors.onSurface),
+                    ),
+                  ),
+                  subtitle: compact
+                      ? null
+                      : ExcludeSemantics(
+                          child: Text(
+                            size,
+                            maxLines: 1,
+                            style: prism.AppTextStyle.caption1
+                                .of(context)
+                                .copyWith(color: colors.onSurfaceVariant),
+                          ),
+                        ),
+                ),
+              ),
+              // 窄栏里一屏要多看几行：⋮ 的宽度照旧 48dp，高度跟着行高走（迁移前 ListTile 也是这样）。
+              if (compact)
+                SizedBox(height: _compactRowHeight, child: menu)
+              else
+                menu,
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 文件名里放不下也要露着的那一段：最后一个扩展名，前面是 `.tar` 时连它一起（`.tar.gz`）。
+/// 没有扩展名、以点开头的名字（`.bashrc`）、扩展名长过 12 个字符的，返回空串，照旧在末尾省略。
+String _nameExtension(String name) {
+  final dot = name.lastIndexOf('.');
+  if (dot <= 0 || dot == name.length - 1) return '';
+  final before = name.lastIndexOf('.', dot - 1);
+  final start =
+      before > 0 && name.substring(before, dot).toLowerCase() == '.tar'
+          ? before
+          : dot;
+  final extension = name.substring(start);
+  return extension.length > 12 || extension.contains(' ') ? '' : extension;
+}
+
+/// 一行文件名。放得下就是一个 Text（按名字找它的测试和脚本照旧）；放不下时省略中间、
+/// 留住 [extension]：`backup-2026….tar.gz`，不然一排长名字看不出各是什么文件。
+/// 扩展名之外连省略号都放不下时退回末尾省略。
+class _FileName extends StatelessWidget {
+  const _FileName({
+    required this.name,
+    required this.extension,
+    required this.style,
+  });
+
+  final String name;
+  final String extension;
+  final TextStyle style;
+
+  @override
+  Widget build(BuildContext context) => LayoutBuilder(
+        builder: (context, constraints) {
+          final whole = Text(
+            name,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            style: style,
+          );
+          if (extension.isEmpty || !constraints.hasBoundedWidth) return whole;
+          double widthOf(String text) {
+            final painter = TextPainter(
+              text: TextSpan(text: text, style: style),
+              maxLines: 1,
+              textDirection: Directionality.of(context),
+              textScaler: MediaQuery.textScalerOf(context),
+            )..layout();
+            final width = painter.width;
+            painter.dispose();
+            return width;
+          }
+
+          if (widthOf(name) <= constraints.maxWidth) return whole;
+          // 扩展名之外连省略号都放不下：拆了会溢出，退回末尾省略。
+          if (constraints.maxWidth - widthOf(extension) < widthOf('…')) {
+            return whole;
+          }
+          return Row(
+            children: [
+              Flexible(
+                child: Text(
+                  name.substring(0, name.length - extension.length),
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                  style: style,
+                ),
+              ),
+              Text(extension, maxLines: 1, softWrap: false, style: style),
+            ],
+          );
+        },
+      );
 }
 
 IconData _fileIcon(String name) =>

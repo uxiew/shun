@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../application/port_forward_controller.dart';
 import '../../application/session_controller.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
+import '../ui/components.dart';
+import 'choice_segments.dart';
 import 'form_gap.dart';
 
 class PortForwardSheet extends ConsumerStatefulWidget {
@@ -21,6 +24,15 @@ class _PortForwardSheetState extends ConsumerState<PortForwardSheet> {
   final remotePort = TextEditingController(text: '80');
   var kind = ForwardKind.local;
   var busy = false;
+  String? startError;
+
+  @override
+  void dispose() {
+    localPort.dispose();
+    remoteHost.dispose();
+    remotePort.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -32,6 +44,7 @@ class _PortForwardSheetState extends ConsumerState<PortForwardSheet> {
     final running = forwards.where((item) => item.running).toList();
     final stopped = forwards.where((item) => !item.running).toList();
     return Padding(
+      key: const ValueKey('port-forward-sheet'),
       padding: EdgeInsets.fromLTRB(
         16,
         18,
@@ -43,10 +56,20 @@ class _PortForwardSheetState extends ConsumerState<PortForwardSheet> {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            LText('端口转发', style: Theme.of(context).textTheme.titleLarge),
-            const SizedBox(height: 4),
-            LText(widget.session.host.label,
-                style: Theme.of(context).textTheme.bodySmall),
+            Wrap(
+              spacing: 10,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Semantics(
+                  header: true,
+                  child: LText('端口转发',
+                      style: prism.AppTextStyle.title2
+                          .of(context, emphasized: true)),
+                ),
+                ShunPill(localizedOf(context, widget.session.host.label)),
+              ],
+            ),
             if (!live) ...[
               const SizedBox(height: 10),
               LText(
@@ -56,107 +79,130 @@ class _PortForwardSheetState extends ConsumerState<PortForwardSheet> {
               ),
             ],
             const SizedBox(height: 12),
-            SegmentedButton<ForwardKind>(
+            ChoiceSegments<ForwardKind>(
               segments: const [
-                ButtonSegment(value: ForwardKind.local, label: LText('本地转发')),
-                ButtonSegment(
-                  value: ForwardKind.dynamic,
-                  label: LText('SOCKS5'),
-                ),
+                ChoiceSegment(ForwardKind.local, '本地转发',
+                    key: ValueKey('port-forward-local')),
+                ChoiceSegment(ForwardKind.dynamic, 'SOCKS5',
+                    key: ValueKey('port-forward-dynamic')),
               ],
-              selected: {kind},
-              onSelectionChanged: (value) => setState(() => kind = value.first),
+              selected: kind,
+              onTap: (value) => setState(() => kind = value),
             ),
-            const FormGap(),
-            TextField(
-              controller: localPort,
-              keyboardType: TextInputType.number,
-              decoration: LInputDecoration(labelText: '本地端口（0 为自动）'),
-            ),
-            if (kind == ForwardKind.local) ...[
-              const SizedBox(height: 10),
-              Row(
-                children: [
-                  Expanded(
-                    flex: 2,
-                    child: TextField(
-                      controller: remoteHost,
-                      decoration: LInputDecoration(labelText: '远端主机'),
-                    ),
+            ShunSection(children: [
+              ShunSectionItem(
+                child: Column(children: [
+                  TextField(
+                    key: const ValueKey('port-forward-local-port'),
+                    controller: localPort,
+                    keyboardType: TextInputType.number,
+                    decoration: LInputDecoration(labelText: '本地端口（0 为自动）'),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(
-                    child: TextField(
-                      controller: remotePort,
-                      keyboardType: TextInputType.number,
-                      decoration: LInputDecoration(labelText: '端口'),
+                  if (kind == ForwardKind.local) ...[
+                    const FormGap(),
+                    Row(
+                      children: [
+                        Expanded(
+                          flex: 2,
+                          child: TextField(
+                            key: const ValueKey('port-forward-remote-host'),
+                            controller: remoteHost,
+                            decoration: LInputDecoration(labelText: '远端主机'),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: TextField(
+                            key: const ValueKey('port-forward-remote-port'),
+                            controller: remotePort,
+                            keyboardType: TextInputType.number,
+                            decoration: LInputDecoration(labelText: '端口'),
+                          ),
+                        ),
+                      ],
                     ),
-                  ),
-                ],
+                  ],
+                ]),
               ),
-            ],
+            ]),
             const SizedBox(height: 12),
+            if (startError != null) ...[
+              Semantics(
+                liveRegion: true,
+                child: LText(startError!,
+                    style:
+                        TextStyle(color: Theme.of(context).colorScheme.error)),
+              ),
+              const SizedBox(height: 8),
+            ],
             SizedBox(
               width: double.infinity,
-              child: FilledButton.icon(
-                onPressed: busy || !live ? null : _start,
-                icon: const Icon(Icons.play_arrow),
-                label: const LText('启动'),
+              child: ShunButton(
+                key: const ValueKey('port-forward-start'),
+                onPressed: live ? _start : null,
+                busy: busy,
+                icon: Icons.play_arrow,
+                label: '启动',
               ),
             ),
-            if (running.isNotEmpty) ...[
-              const Padding(
-                padding: EdgeInsets.only(top: 18, bottom: 6),
-                child: LText('运行中'),
-              ),
-              for (final item in running)
-                ListTile(
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.swap_horiz),
-                  title: LText(item.describe()),
-                  subtitle:
-                      item.hostLabel == null ? null : LText(item.hostLabel!),
-                  trailing: IconButton(
-                    tooltip: localized('停止'),
-                    onPressed: () => ref
-                        .read(portForwardControllerProvider.notifier)
-                        .stop(item.id),
-                    icon: const Icon(Icons.stop_circle_outlined),
-                  ),
-                ),
-            ],
-            if (stopped.isNotEmpty) ...[
-              const Padding(
-                padding: EdgeInsets.only(top: 18, bottom: 6),
-                child: LText('已停止'),
-              ),
-              for (final item in stopped)
-                ListTile(
-                  key: ValueKey('port-forward-stopped-${item.id}'),
-                  contentPadding: EdgeInsets.zero,
-                  leading: const Icon(Icons.link_off),
-                  title: LText(item.describe()),
-                  subtitle: LText([
-                    if (item.hostLabel != null) item.hostLabel!,
-                    localized(item.endedReason!),
-                  ].join(' · ')),
-                  trailing: IconButton(
-                    tooltip: localized('从列表里去掉'),
-                    onPressed: () => ref
-                        .read(portForwardControllerProvider.notifier)
-                        .stop(item.id),
-                    icon: const Icon(Icons.clear),
-                  ),
-                ),
-            ],
+            if (running.isNotEmpty)
+              ShunSection(title: '运行中', children: running.map(_row).toList()),
+            if (stopped.isNotEmpty)
+              ShunSection(title: '已停止', children: stopped.map(_row).toList()),
           ],
         ),
       ),
     );
   }
 
+  Widget _row(ActivePortForward item) {
+    final running = item.running;
+    final subtitle = [
+      if (item.hostLabel != null) item.hostLabel!,
+      if (item.endedReason != null) localized(item.endedReason!),
+    ].join(' · ');
+    // 只有行尾能停止或去除；无动作的卡片不能是一个「不可用的按钮」。
+    return ShunSectionItem(
+      key: ValueKey(
+          'port-forward-${running ? 'running' : 'stopped'}-${item.id}'),
+      padding: const EdgeInsets.fromLTRB(16, 8, 4, 8),
+      child: Row(children: [
+        Icon(
+          running ? Icons.swap_horiz : Icons.link_off,
+          color: running
+              ? prism.Theme.of(context).colorScheme.success
+              : prism.Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              LText(item.describe()),
+              if (subtitle.isNotEmpty)
+                LText(subtitle, style: Theme.of(context).textTheme.bodySmall),
+            ],
+          ),
+        ),
+        ShunBarButton(
+          key: ValueKey(
+              'port-forward-${running ? 'stop' : 'remove'}-${item.id}'),
+          tooltip: localized(running ? '停止' : '从列表里去掉'),
+          icon: running ? Icons.stop_circle_outlined : Icons.clear,
+          onPressed: () =>
+              ref.read(portForwardControllerProvider.notifier).stop(item.id),
+        ),
+      ]),
+    );
+  }
+
   Future<void> _start() async {
-    setState(() => busy = true);
+    if (busy) return;
+    setState(() {
+      busy = true;
+      startError = null;
+    });
+    String? failure;
     try {
       final controller = ref.read(portForwardControllerProvider.notifier);
       if (kind == ForwardKind.local) {
@@ -173,13 +219,12 @@ class _PortForwardSheetState extends ConsumerState<PortForwardSheet> {
         );
       }
     } catch (error) {
-      if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: LText('$error')));
-      }
-    } finally {
-      if (mounted) setState(() => busy = false);
+      failure = '$error';
     }
+    if (!mounted) return;
+    setState(() {
+      busy = false;
+      startError = failure;
+    });
   }
 }

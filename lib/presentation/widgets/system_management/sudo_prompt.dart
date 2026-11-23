@@ -4,6 +4,8 @@ import 'package:shun/presentation/localization/localized_widgets.dart';
 import '../../../infrastructure/ssh/system_management_service.dart';
 import '../form_gap.dart';
 import '../secret_content.dart';
+import '../../ui/components.dart';
+import 'management_style.dart';
 
 /// 用户在 sudo 确认框里点了取消。没有对服务器做任何事，打印出来是当时的权限提示。
 class SudoDeclined implements Exception {
@@ -88,13 +90,16 @@ class _SudoDialogState extends State<_SudoDialog> {
                 enableSuggestions: false,
                 autocorrect: false,
                 onSubmitted: (_) => _submit(),
-                decoration: LInputDecoration(
+                decoration: ManagementFieldDecoration(
+                  context,
+                  inDialog: true,
                   labelText: 'sudo 密码',
                   helperText: _optional
                       ? '免密 sudo 的服务器可以留空；密码只在这次面板打开期间保留'
                       : '密码仅在本次面板打开期间保留',
                   helperMaxLines: 3,
                   suffixIcon: IconButton(
+                    tooltip: localized(_obscure ? '显示密码' : '隐藏密码'),
                     onPressed: () => setState(() => _obscure = !_obscure),
                     icon: Icon(
                       _obscure ? Icons.visibility : Icons.visibility_off,
@@ -106,15 +111,15 @@ class _SudoDialogState extends State<_SudoDialog> {
           ),
         ),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const LText('取消'),
-          ),
-          FilledButton(
-            key: const ValueKey('sudo-continue'),
-            onPressed: _submit,
-            child: LText(_optional ? '用 sudo 继续' : '继续'),
-          ),
+          ShunButton(
+              kind: ShunButtonKind.text,
+              onPressed: () => Navigator.pop(context),
+              label: '取消'),
+          ShunButton(
+              key: const ValueKey('sudo-continue'),
+              kind: ShunButtonKind.filled,
+              onPressed: _submit,
+              label: _optional ? '用 sudo 继续' : '继续'),
         ],
       );
 }

@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 import 'package:shun/presentation/localization/localized_widgets.dart';
 
 import '../../domain/models/settings.dart';
+import '../ui/components.dart';
 import 'form_gap.dart';
 import 'terminal_keys.dart';
 
@@ -33,11 +35,15 @@ Future<TerminalKeySettingsResult?> showTerminalKeySettings(
       context: context,
       useSafeArea: true,
       isScrollControlled: true,
-      builder: (context) => _TerminalKeySettingsSheet(
-        globalOrder: globalOrder,
-        customKeys: customKeys,
-        hostLabel: hostLabel,
-        hostOrder: hostOrder,
+      // 底部面板是抬起后的页面层：里面的卡片、胶囊从这一层再往上数，深色下不然会和面板同色。
+      builder: (context) => prism.Theme(
+        data: prism.Theme.of(context).elevated,
+        child: _TerminalKeySettingsSheet(
+          globalOrder: globalOrder,
+          customKeys: customKeys,
+          hostLabel: hostLabel,
+          hostOrder: hostOrder,
+        ),
       ),
     );
 
@@ -100,6 +106,9 @@ class _TerminalKeySettingsSheetState extends State<_TerminalKeySettingsSheet> {
             child: ReorderableListView.builder(
               // 开关、模板、添加按钮放列表头，跟着列表滚：横屏这个框只有 280dp 高，钉在上面的话放不下。
               header: _header(context),
+              // 拖起来的那一行自己就是一张卡片，不再垫一块方的底。
+              proxyDecorator: (child, _, __) =>
+                  Material(type: MaterialType.transparency, child: child),
               itemCount: _working.length,
               onReorderItem: (oldIndex, newIndex) => setState(() {
                 final value = _working.removeAt(oldIndex);
@@ -134,35 +143,69 @@ class _TerminalKeySettingsSheetState extends State<_TerminalKeySettingsSheet> {
   Widget _header(BuildContext context) {
     final hostLabel = widget.hostLabel;
     final addable = _addable;
+    final colors = prism.Theme.of(context).colorScheme;
+    final raised =
+        prism.SurfaceContext(context).raisedSurfaceLevel.colorOf(colors);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ListTile(
-          title: const LText('快捷键设置'),
-          subtitle: const LText('拖动排序，放不下自动换行'),
-          trailing: TextButton(
-            onPressed: () => setState(() {
-              _working
-                ..clear()
-                ..addAll(defaultTerminalQuickKeys);
-              // 专用布局只管这台主机，不能顺手把所有主机共用的自定义键清了。
-              if (!_hostScope) _custom.clear();
-            }),
-            child: const LText('恢复默认'),
+        Padding(
+          padding: const EdgeInsets.fromLTRB(20, 16, 8, 8),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Semantics(
+                      header: true,
+                      child: LText(
+                        '快捷键设置',
+                        style: prism.AppTextStyle.title3
+                            .of(context, emphasized: true)
+                            .copyWith(color: colors.onSurface),
+                      ),
+                    ),
+                    LText(
+                      '拖动排序，放不下自动换行',
+                      style: prism.AppTextStyle.footnote
+                          .of(context)
+                          .copyWith(color: colors.onSurfaceVariant),
+                    ),
+                  ],
+                ),
+              ),
+              TextButton(
+                onPressed: () => setState(() {
+                  _working
+                    ..clear()
+                    ..addAll(defaultTerminalQuickKeys);
+                  // 专用布局只管这台主机，不能顺手把所有主机共用的自定义键清了。
+                  if (!_hostScope) _custom.clear();
+                }),
+                child: const LText('恢复默认'),
+              ),
+            ],
           ),
         ),
         if (hostLabel != null)
-          SwitchListTile(
-            key: const ValueKey('terminal-keys-host-scope'),
-            dense: true,
-            title: const LText('只给这台主机用'),
-            subtitle: Text(hostLabel),
-            value: _hostScope,
-            onChanged: (value) {
-              setState(() => _hostScope = value);
-              // 打开：从眼前这一套改起。关掉：回到全局那一套。
-              if (!value) _replace(widget.globalOrder);
-            },
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 3, 16, 3),
+            // 和设置页的开关同一种行：单独一行也按分组画，四角是圆的、底下没有分隔线。
+            child: prism.generateGroup([
+              ShunSwitchRow(
+                key: const ValueKey('terminal-keys-host-scope'),
+                title: '只给这台主机用',
+                subtitle: hostLabel,
+                subtitleIsData: true,
+                value: _hostScope,
+                onChanged: (value) {
+                  setState(() => _hostScope = value);
+                  // 打开：从眼前这一套改起。关掉：回到全局那一套。
+                  if (!value) _replace(widget.globalOrder);
+                },
+              ),
+            ]),
           ),
         SizedBox(
           height: 48,
@@ -176,6 +219,10 @@ class _TerminalKeySettingsSheetState extends State<_TerminalKeySettingsSheet> {
                   child: ActionChip(
                     key: ValueKey('terminal-keys-template-${template.id}'),
                     label: LText(template.label),
+                    // 模板是没有描边的中性胶囊。
+                    side: BorderSide.none,
+                    shape: prism.AppShape.full,
+                    backgroundColor: raised,
                     onPressed: () => _replace(template.keys),
                   ),
                 ),
@@ -196,8 +243,10 @@ class _TerminalKeySettingsSheetState extends State<_TerminalKeySettingsSheet> {
                       child: LText(_labelFor(id)),
                     ),
                 ],
-                builder: (context, menu, _) => OutlinedButton.icon(
+                // 两个「添加」是中性的：高一层的底、正文色的字，不描边，主色留给「保存快捷键」。
+                builder: (context, menu, _) => FilledButton.tonalIcon(
                   key: const ValueKey('terminal-keys-add'),
+                  style: ShunButton.neutralStyleOf(context),
                   onPressed: addable.isEmpty
                       ? null
                       : () => menu.isOpen ? menu.close() : menu.open(),
@@ -206,7 +255,8 @@ class _TerminalKeySettingsSheetState extends State<_TerminalKeySettingsSheet> {
                 ),
               ),
               const SizedBox(height: 4),
-              OutlinedButton.icon(
+              FilledButton.tonalIcon(
+                style: ShunButton.neutralStyleOf(context),
                 onPressed: () async {
                   final key = await _editCustomKey(context);
                   if (key == null) return;
@@ -221,15 +271,33 @@ class _TerminalKeySettingsSheetState extends State<_TerminalKeySettingsSheet> {
             ],
           ),
         ),
-        const Divider(height: 1),
       ],
     );
   }
 
+  /// 高一层的卡片：开关那一行、列表里的每个键各一张，之间留缝，不画分隔线。
+  static Widget _card(Color color, Widget child, {Key? key}) => Padding(
+        key: key,
+        padding: const EdgeInsets.fromLTRB(16, 3, 16, 3),
+        child: DecoratedBox(
+          decoration: ShapeDecoration(color: color, shape: prism.AppShape.md),
+          // ListTile 要有 Material 祖先才画得出来；这一层透明，底色是上面的卡片。
+          child: Material(type: MaterialType.transparency, child: child),
+        ),
+      );
+
   Widget _row(String id) {
     final customIndex = _custom.indexWhere((key) => key.id == id);
-    return ListTile(
+    final colors = prism.Theme.of(context).colorScheme;
+    return _card(
       key: ValueKey(id),
+      prism.SurfaceContext(context).raisedSurfaceLevel.colorOf(colors),
+      _rowTile(id, customIndex),
+    );
+  }
+
+  Widget _rowTile(String id, int customIndex) {
+    return ListTile(
       leading: const Icon(Icons.drag_handle),
       title: LText(_labelFor(id)),
       subtitle: customIndex < 0

@@ -9,26 +9,68 @@ import 'package:shun/domain/models/host.dart';
 import 'package:shun/domain/models/settings.dart';
 import 'package:shun/infrastructure/ai/ai_service.dart';
 import 'package:shun/infrastructure/ai/ai_workspace.dart';
+import 'package:shun/presentation/ui/components.dart';
 import 'package:shun/presentation/widgets/ai_chat_sheet.dart';
+import 'support/prism_test_host.dart';
 
 void main() {
+  testWidgets('privacy switches are independent and do not send a request',
+      (tester) async {
+    var requests = 0;
+    await tester.pumpWidget(MaterialApp(
+      localizationsDelegates: prismTestDelegates,
+      builder: prismTestBuilder,
+      home: Scaffold(
+        body: _testSheet(service: AiService(client: MockClient((_) async {
+          requests++;
+          return _chatResponse('ok');
+        }))),
+      ),
+    ));
+
+    Future<void> openPrivacy() async {
+      await tester.tap(find.byTooltip('服务商与预览'));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text('隐私与上下文'));
+      await tester.pumpAndSettle();
+    }
+
+    final hide = find.widgetWithText(ShunSwitchRow, '隐藏服务器身份');
+    final redact = find.widgetWithText(ShunSwitchRow, '常见密钥脱敏');
+    await openPrivacy();
+    final initialHide = tester.widget<ShunSwitchRow>(hide).value;
+    final initialRedact = tester.widget<ShunSwitchRow>(redact).value;
+    await tester.tap(find.text('隐藏服务器身份'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('完成'));
+    await tester.pumpAndSettle();
+    await openPrivacy();
+
+    expect(tester.widget<ShunSwitchRow>(hide).value, !initialHide);
+    expect(tester.widget<ShunSwitchRow>(redact).value, initialRedact);
+    expect(requests, 0);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('preview shows only filtered terminal content and saves edits',
       (tester) async {
     String? sent;
     await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Scaffold(
             body: _testSheet(
-      settings: const AppSettings(aiIncludeTerminalContext: true),
-      initialSummary: 'old-summary',
-      initialMessages: const [
-        AiChatMessage(role: AiChatRole.user, content: 'old-history')
-      ],
-      terminalContext: () => 'terminal-output token=secret123',
-      service: AiService(client: MockClient((r) async {
-        sent = r.body;
-        return _chatResponse('ok');
-      })),
-    ))));
+          settings: const AppSettings(aiIncludeTerminalContext: true),
+          initialSummary: 'old-summary',
+          initialMessages: const [
+            AiChatMessage(role: AiChatRole.user, content: 'old-history')
+          ],
+          terminalContext: () => 'terminal-output token=secret123',
+          service: AiService(client: MockClient((r) async {
+            sent = r.body;
+            return _chatResponse('ok');
+          })),
+        ))));
     await tester.enterText(
         find.byKey(const ValueKey('ai-chat-input')), 'new-question');
     await tester.tap(find.byTooltip('服务商与预览'));
@@ -64,12 +106,15 @@ void main() {
 
   testWidgets('disabled preview does not read terminal text', (tester) async {
     var reads = 0;
-    await tester.pumpWidget(MaterialApp(home: Scaffold(body: _testSheet(
-      terminalContext: () {
-        reads++;
-        return 'private';
-      },
-    ))));
+    await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
+        home: Scaffold(body: _testSheet(
+          terminalContext: () {
+            reads++;
+            return 'private';
+          },
+        ))));
     await tester.tap(find.byTooltip('服务商与预览'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('预览 / 编辑发送内容'));
@@ -95,6 +140,8 @@ void main() {
       addTearDown(() => tester.binding.defaultBinaryMessenger
           .setMockMethodCallHandler(SystemChannels.platform, null));
       await tester.pumpWidget(MaterialApp(
+          localizationsDelegates: prismTestDelegates,
+          builder: prismTestBuilder,
           theme: ThemeData(platform: platform),
           home: Scaffold(
               body: _testSheet(
@@ -123,10 +170,12 @@ void main() {
     addTearDown(() => tester.binding.setSurfaceSize(null));
     final changes = <bool>[];
     await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Scaffold(
             body: _testSheet(
-      onTerminalContextChanged: (v) async => changes.add(v),
-    ))));
+          onTerminalContextChanged: (v) async => changes.add(v),
+        ))));
     final upload = find.byKey(const ValueKey('ai-chat-upload-selector'));
     final model = find.byKey(const ValueKey('ai-chat-model-selector'));
     final reasoning = find.byKey(const ValueKey('ai-chat-reasoning-selector'));
@@ -148,18 +197,21 @@ void main() {
     var requests = 0;
     final commands = <(String, bool)>[];
     await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Scaffold(
             body: _testSheet(
-      initialMessages: const [
-        AiChatMessage(
-            role: AiChatRole.assistant, content: 'check', command: 'pwd')
-      ],
-      onCommand: (command, execute) async => commands.add((command, execute)),
-      service: AiService(client: MockClient((_) async {
-        requests++;
-        return _chatResponse('done');
-      })),
-    ))));
+          initialMessages: const [
+            AiChatMessage(
+                role: AiChatRole.assistant, content: 'check', command: 'pwd')
+          ],
+          onCommand: (command, execute) async =>
+              commands.add((command, execute)),
+          service: AiService(client: MockClient((_) async {
+            requests++;
+            return _chatResponse('done');
+          })),
+        ))));
     await tester.tap(find.byKey(const ValueKey('ai-command-execute')));
     await tester.pumpAndSettle();
     expect(commands, isEmpty);
@@ -180,17 +232,19 @@ void main() {
     String? sent;
     var reads = 0;
     await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Scaffold(
             body: _testSheet(
-      terminalContext: () {
-        reads++;
-        return 'token=supersecret';
-      },
-      service: AiService(client: MockClient((r) async {
-        sent = r.body;
-        return _chatResponse('analysis');
-      })),
-    ))));
+          terminalContext: () {
+            reads++;
+            return 'token=supersecret';
+          },
+          service: AiService(client: MockClient((r) async {
+            sent = r.body;
+            return _chatResponse('analysis');
+          })),
+        ))));
     await tester.tap(find.byTooltip('服务商与预览'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('读取终端并分析'));
@@ -215,14 +269,16 @@ void main() {
       (tester) async {
     var changes = 0;
     await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Scaffold(
             body: _testSheet(
-      initialMessages: List.generate(
-          30, (i) => AiChatMessage(role: AiChatRole.user, content: 'old-$i')),
-      onMessagesChanged: (_) => changes++,
-      service:
-          AiService(client: MockClient((_) async => http.Response('', 500))),
-    ))));
+          initialMessages: List.generate(30,
+              (i) => AiChatMessage(role: AiChatRole.user, content: 'old-$i')),
+          onMessagesChanged: (_) => changes++,
+          service: AiService(
+              client: MockClient((_) async => http.Response('', 500))),
+        ))));
     await tester.enterText(
         find.byKey(const ValueKey('ai-chat-input')), 'continue');
     await tester.tap(find.byKey(const ValueKey('ai-chat-send')));
@@ -235,23 +291,25 @@ void main() {
       (tester) async {
     late http.Request captured;
     await tester.pumpWidget(MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Scaffold(
             body: _testSheet(
-      profiles: const [
-        AiProviderProfile(
-            id: 'local',
-            name: 'Local',
-            endpoint: 'http://localhost:1234/v1',
-            models: ['local-model'],
-            reasoning: false)
-      ],
-      initialProfileId: 'local',
-      settings: const AppSettings(aiReasoningEffort: 'high'),
-      service: AiService(client: MockClient((r) async {
-        captured = r;
-        return _chatResponse('ok');
-      })),
-    ))));
+          profiles: const [
+            AiProviderProfile(
+                id: 'local',
+                name: 'Local',
+                endpoint: 'http://localhost:1234/v1',
+                models: ['local-model'],
+                reasoning: false)
+          ],
+          initialProfileId: 'local',
+          settings: const AppSettings(aiReasoningEffort: 'high'),
+          service: AiService(client: MockClient((r) async {
+            captured = r;
+            return _chatResponse('ok');
+          })),
+        ))));
     await tester.enterText(
         find.byKey(const ValueKey('ai-chat-input')), 'hello');
     await tester.tap(find.byKey(const ValueKey('ai-chat-send')));
@@ -277,6 +335,8 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Scaffold(
           body: AiChatSheet(
             host: host,
@@ -325,6 +385,8 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: MediaQuery(
           data: const MediaQueryData(
             size: Size(390, 844),
@@ -356,6 +418,8 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Scaffold(body: _testSheet(initialMessages: messages)),
       ),
     );
@@ -372,6 +436,8 @@ void main() {
     late Map<String, dynamic> requestBody;
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Scaffold(
           body: _testSheet(
             terminalContext: () {
@@ -407,6 +473,8 @@ void main() {
     final changedModels = <String>[];
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Scaffold(
           body: _testSheet(
             settings: const AppSettings(
@@ -449,6 +517,8 @@ void main() {
     final changedEfforts = <String>[];
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Scaffold(
           body: _testSheet(
             settings: const AppSettings(aiReasoningEffort: 'low'),
@@ -496,6 +566,8 @@ void main() {
     );
     await tester.pumpWidget(
       MaterialApp(
+        localizationsDelegates: prismTestDelegates,
+        builder: prismTestBuilder,
         home: Scaffold(
           body: _testSheet(
             initialMessages: initialMessages,

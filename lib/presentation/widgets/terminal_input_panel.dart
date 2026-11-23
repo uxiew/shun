@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../application/terminal_compose.dart';
 import '../../domain/models/settings.dart';
@@ -16,6 +17,7 @@ import 'terminal_keys.dart';
 /// 顶上的两个标签也能点着切（读屏软件用）。往下滑收起面板和输入法，往上滑换回系统键盘。
 ///
 /// 面板开着时系统键盘收着（大输入框那页点进框里才弹），它占的就是系统键盘原来的位置。
+/// 面板落在页面那一层的底色上，键帽、分页胶囊比它高一层；选中的那一页、那个分页用主色（R94）。
 /// 按键面板的键和快捷键栏走同一个出口（[TerminalKeyActions]：功能键交给引擎编码，文字经修饰键发），
 /// 大输入框按 R19 的粘贴发（[TerminalComposeBox]）。
 class TerminalInputPanel extends StatefulWidget {
@@ -120,7 +122,7 @@ class _TerminalInputPanelState extends State<TerminalInputPanel> {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
+    final colors = prism.Theme.of(context).colorScheme;
     final composing = widget.mode == terminalInputCompose;
     return GestureDetector(
       // 上下滑（R26）：和左右换页不打架；从键上起步也算，键不会被按下（移动超过触摸容差就不算点击）。
@@ -130,8 +132,9 @@ class _TerminalInputPanelState extends State<TerminalInputPanel> {
       onVerticalDragEnd: _onVerticalDragEnd,
       child: Material(
         key: const ValueKey('terminal-input-panel'),
-        color:
-            widget.transparentBackground ? Colors.transparent : scheme.surface,
+        color: widget.transparentBackground
+            ? Colors.transparent
+            : prism.SurfaceLevel.page.colorOf(colors),
         child: Column(
           children: [
             if (widget.showHeader && !widget.dense) _header(context, composing),
@@ -215,6 +218,9 @@ class _TerminalInputPanelState extends State<TerminalInputPanel> {
       (_KeyPage.function, 'F 键'),
       if (widget.customKeys.isNotEmpty) (_KeyPage.custom, '自定义'),
     ];
+    final colors = prism.Theme.of(context).colorScheme;
+    final raised =
+        prism.SurfaceContext(context).raisedSurfaceLevel.colorOf(colors);
     return SizedBox(
       height: 48,
       child: Row(
@@ -242,7 +248,9 @@ class _TerminalInputPanelState extends State<TerminalInputPanel> {
                       key: const ValueKey('terminal-compose-target'),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: Theme.of(context).textTheme.labelLarge,
+                      style: prism.AppTextStyle.subheadline
+                          .of(context, emphasized: true)
+                          .copyWith(color: colors.onSurfaceVariant),
                     ),
                   )
                 : ListView(
@@ -257,6 +265,21 @@ class _TerminalInputPanelState extends State<TerminalInputPanel> {
                             label: LText(label),
                             selected: _keyPage == page,
                             showCheckmark: false,
+                            // 分页是没有描边的胶囊：选中的那个用主色，其余和键帽同一层。
+                            side: BorderSide.none,
+                            shape: prism.AppShape.full,
+                            color: WidgetStateProperty.resolveWith(
+                              (states) => states.contains(WidgetState.selected)
+                                  ? colors.primary
+                                  : raised,
+                            ),
+                            labelStyle: prism.AppTextStyle.subheadline
+                                .of(context, emphasized: true)
+                                .copyWith(
+                                  color: _keyPage == page
+                                      ? colors.onPrimary
+                                      : colors.onSurface,
+                                ),
                             // 四个分页在 411dp 宽的手机上要一眼都看得见，不要藏到横向滚动里去：字两边少留点白。
                             labelPadding:
                                 const EdgeInsets.symmetric(horizontal: 4),
@@ -299,13 +322,26 @@ class _TerminalInputPanelState extends State<TerminalInputPanel> {
         tooltip: localized(label),
         isSelected: selected,
         onPressed: onPressed,
-        style: IconButton.styleFrom(
-          backgroundColor: selected
-              ? Theme.of(context).colorScheme.secondaryContainer
-              : null,
-        ),
+        style: _modeTabStyle(context, selected),
         icon: Icon(icon),
       );
+
+  /// 两个标签是页头那种 40dp 的圆钮（点按范围仍是 48dp）：当前这一页用主色，另一页是高一层的底色。
+  static ButtonStyle _modeTabStyle(BuildContext context, bool selected) {
+    final colors = prism.Theme.of(context).colorScheme;
+    return IconButton.styleFrom(
+      backgroundColor: selected
+          ? colors.primary
+          : prism.SurfaceContext(context).raisedSurfaceLevel.colorOf(colors),
+      foregroundColor: selected ? colors.onPrimary : colors.onSurface,
+      iconSize: 22,
+      fixedSize: const Size.square(40),
+      minimumSize: const Size.square(40),
+      padding: EdgeInsets.zero,
+      tapTargetSize: MaterialTapTargetSize.padded,
+      shape: const CircleBorder(),
+    );
+  }
 
   Widget _keysPage() => LayoutBuilder(
         builder: (context, constraints) => _keyGrid(constraints.maxWidth),

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../application/vault_controller.dart';
 import '../../domain/credential_identity.dart';
@@ -15,6 +16,38 @@ import 'ssh_key_import.dart';
 
 /// 一个连接怎么登录（F31）：直接填用户名和密码，或者用「凭据」里的一个。
 enum LoginChoice { simple, credential, tailscale }
+
+/// 保留 Material 的浮动标签、聚焦和错误提示；输入框底色比所在的卡片或对话框高一层。
+class CredentialFields extends StatelessWidget {
+  const CredentialFields(
+      {super.key, required this.child, this.inDialog = false});
+
+  final Widget child;
+  final bool inDialog;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    final level = inDialog
+        ? prism.SurfaceLevel.floatingOf(colors)
+        : prism.SurfaceScope.of(context);
+    const border = ShapedInputBorder(shape: prism.AppShape.md);
+    final resting = border.copyWith(borderSide: BorderSide.none);
+    return prism.SurfaceScope(
+      level: level,
+      child: InputDecorationTheme(
+        data: InputDecorationTheme.of(context).copyWith(
+          filled: true,
+          fillColor: level.next.colorOf(colors),
+          border: border,
+          enabledBorder: resting,
+          disabledBorder: resting,
+        ),
+        child: child,
+      ),
+    );
+  }
+}
 
 /// 「认证方式」分段，首次登录、目录导入、Tailscale 设置、代理共用（R89 从下拉框换来）。
 ///
@@ -128,8 +161,7 @@ class CredentialField extends ConsumerWidget {
         ? null
         : vaultIdentities(vault).where((item) => item.id == value).firstOrNull;
     // 一个都没有：下拉里也只有「新建」，不如直接摆按钮，少点一下。
-    if (vault != null &&
-        !vaultIdentities(vault).any((item) => _listed(item))) {
+    if (vault != null && !vaultIdentities(vault).any((item) => _listed(item))) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -137,7 +169,7 @@ class CredentialField extends ConsumerWidget {
             key: const ValueKey('credential-new-direct'),
             label: '新建凭据',
             icon: Icons.add,
-            kind: ShunButtonKind.outlined,
+            kind: ShunButtonKind.tonal,
             onPressed: () => _create(context, ref),
           ),
           if (errorText case final error?)
@@ -151,7 +183,9 @@ class CredentialField extends ConsumerWidget {
         ],
       );
     }
-    return InkWell(
+    return CredentialFields(
+        child: InkWell(
+      customBorder: prism.AppShape.md,
       onTap: () => _pick(context, ref),
       child: InputDecorator(
         isEmpty: selected == null,
@@ -181,7 +215,7 @@ class CredentialField extends ConsumerWidget {
                 ],
               ),
       ),
-    );
+    ));
   }
 
   bool _listed(IdentityProfile item) =>
@@ -239,23 +273,29 @@ class _CredentialSheet extends ConsumerWidget {
     return SafeArea(
       child: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: ShunSection(
-          title: '选择凭据',
-          children: [
-            for (final item in items)
-              if (!passwordOnly ||
-                  (item.auth == IdentityAuth.password && item.password != null))
-                ShunListRow(
-                  key: ValueKey('credential-option-${item.id}'),
-                  leading: Icon(credentialIcon(item, keys)),
-                  title: item.label,
-                  subtitle: [
-                    credentialDetail(item, keys),
-                    if (identityUsageText(hosts, item) case final usage?) usage,
-                  ].join(' · '),
-                  selected: item.id == selected,
-                  onTap: () => Navigator.pop(context, item.id),
-                ),
+        child: Column(children: [
+          ShunSection(
+            title: '选择凭据',
+            children: [
+              for (final item in items)
+                if (!passwordOnly ||
+                    (item.auth == IdentityAuth.password &&
+                        item.password != null))
+                  ShunListRow(
+                    key: ValueKey('credential-option-${item.id}'),
+                    leading: Icon(credentialIcon(item, keys)),
+                    title: item.label,
+                    subtitle: [
+                      credentialDetail(item, keys),
+                      if (identityUsageText(hosts, item) case final usage?)
+                        usage,
+                    ].join(' · '),
+                    selected: item.id == selected,
+                    onTap: () => Navigator.pop(context, item.id),
+                  ),
+            ],
+          ),
+          ShunSection(children: [
             ShunListRow(
               key: const ValueKey('credential-new'),
               leading: const Icon(Icons.add),
@@ -269,8 +309,8 @@ class _CredentialSheet extends ConsumerWidget {
               chevron: true,
               onTap: () => Navigator.pop(context, _manageCredentials),
             ),
-          ],
-        ),
+          ]),
+        ]),
       ),
     );
   }
@@ -331,7 +371,9 @@ class SshKeyField extends ConsumerWidget {
     final keys = ref.watch(vaultControllerProvider).data?.keys ??
         const <SshKeyProfile>[];
     final selected = keys.where((key) => key.id == value).firstOrNull;
-    return InkWell(
+    return CredentialFields(
+        child: InkWell(
+      customBorder: prism.AppShape.md,
       onTap: () => _pick(context, ref, keys),
       child: InputDecorator(
         isEmpty: selected == null,
@@ -359,7 +401,7 @@ class SshKeyField extends ConsumerWidget {
                 ],
               ),
       ),
-    );
+    ));
   }
 
   Future<void> _pick(
@@ -376,21 +418,26 @@ class SshKeyField extends ConsumerWidget {
       // R88：分组卡片，当前那把打勾、读屏报「已选中」。
       builder: (context) => SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-        child: ShunSection(
-          children: [
-            for (final key in keys)
-              ShunListRow(
-                key: ValueKey('ssh-key-option-${key.id}'),
-                leading: Icon(
-                  SecurityKeyStub.isStubPem(key.privateKey)
-                      ? Icons.usb
-                      : Icons.key,
-                ),
-                title: key.label,
-                subtitle: _detail(key),
-                selected: key.id == value,
-                onTap: () => Navigator.pop(context, key.id),
-              ),
+        child: Column(children: [
+          if (keys.isNotEmpty)
+            ShunSection(
+              children: [
+                for (final key in keys)
+                  ShunListRow(
+                    key: ValueKey('ssh-key-option-${key.id}'),
+                    leading: Icon(
+                      SecurityKeyStub.isStubPem(key.privateKey)
+                          ? Icons.usb
+                          : Icons.key,
+                    ),
+                    title: key.label,
+                    details: ShunPill(_detail(key)),
+                    selected: key.id == value,
+                    onTap: () => Navigator.pop(context, key.id),
+                  ),
+              ],
+            ),
+          ShunSection(children: [
             ShunListRow(
               key: const ValueKey('ssh-key-import'),
               leading: const Icon(Icons.file_open_outlined),
@@ -403,8 +450,8 @@ class SshKeyField extends ConsumerWidget {
               title: '添加安全密钥',
               onTap: () => Navigator.pop(context, _addSecurityKey),
             ),
-          ],
-        ),
+          ]),
+        ]),
       ),
     );
     if (choice == null || !context.mounted) return;

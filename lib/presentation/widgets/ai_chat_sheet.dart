@@ -1,12 +1,16 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../domain/models/host.dart';
 import '../../domain/models/settings.dart';
 import '../../infrastructure/ai/ai_service.dart';
 import '../../infrastructure/ai/ai_workspace.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
+import 'empty_state.dart';
+import 'no_intrinsics.dart';
 import 'ai_markdown.dart';
 
 class AiChatSheet extends StatefulWidget {
@@ -328,13 +332,14 @@ class _AiChatSheetState extends State<AiChatSheet> {
             title: const LText('开始新对话？'),
             content: const LText('当前终端的 AI 对话记录将被清空。'),
             actions: [
-              TextButton(
+              ShunButton(
+                kind: ShunButtonKind.text,
                 onPressed: () => Navigator.pop(context, false),
-                child: const LText('取消'),
+                label: '取消',
               ),
-              FilledButton(
+              ShunButton(
                 onPressed: () => Navigator.pop(context, true),
-                child: const LText('新对话'),
+                label: '新对话',
               ),
             ],
           ),
@@ -392,13 +397,14 @@ class _AiChatSheetState extends State<AiChatSheet> {
                 ],
               )),
               actions: [
-                TextButton(
+                ShunButton(
+                  kind: ShunButtonKind.text,
                   onPressed: () => Navigator.pop(context, false),
-                  child: const LText('取消'),
+                  label: '取消',
                 ),
-                FilledButton(
+                ShunButton(
                   onPressed: () => Navigator.pop(context, true),
-                  child: const LText('执行'),
+                  label: '执行',
                 ),
               ],
             ),
@@ -430,30 +436,28 @@ class _AiChatSheetState extends State<AiChatSheet> {
         builder: (dialog) => StatefulBuilder(
             builder: (context, update) => AlertDialog(
                     title: const LText('本次对话隐私'),
-                    content: SingleChildScrollView(
-                        child: Column(mainAxisSize: MainAxisSize.min, children: [
-                      SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const LText('隐藏服务器身份'),
+                    content: NoIntrinsics(
+                        child: SingleChildScrollView(
+                            child: ShunSection(children: [
+                      ShunSwitchRow(
+                          title: '隐藏服务器身份',
                           value: _hideIdentity,
                           onChanged: (v) {
                             setState(() => _hideIdentity = v);
                             update(() {});
                           }),
-                      SwitchListTile(
-                          contentPadding: EdgeInsets.zero,
-                          title: const LText('常见密钥脱敏'),
-                          subtitle: const LText('不能识别所有敏感内容，发送前请预览'),
+                      ShunSwitchRow(
+                          title: '常见密钥脱敏',
+                          hint: '不能识别所有敏感内容，发送前请预览',
                           value: _redact,
                           onChanged: (v) {
                             setState(() => _redact = v);
                             update(() {});
                           }),
                       if (widget.workspace != null)
-                        SwitchListTile(
-                            contentPadding: EdgeInsets.zero,
-                            title: const LText('在本机保存聊天历史'),
-                            subtitle: const LText('关闭会删除该服务器已保存的历史；不进云端备份'),
+                        ShunSwitchRow(
+                            title: '在本机保存聊天历史',
+                            hint: '关闭会删除该服务器已保存的历史；不进云端备份',
                             value: _remember,
                             onChanged: (v) async {
                               try {
@@ -469,11 +473,12 @@ class _AiChatSheetState extends State<AiChatSheet> {
                                 }
                               }
                             }),
-                    ])),
+                    ]))),
                     actions: [
-                      TextButton(
+                      ShunButton(
+                          kind: ShunButtonKind.text,
                           onPressed: () => Navigator.pop(dialog),
-                          child: const LText('完成'))
+                          label: '完成')
                     ])));
   }
 
@@ -494,20 +499,21 @@ class _AiChatSheetState extends State<AiChatSheet> {
                           )
                         : const LText('终端输出上传已关闭')),
                 actions: [
-                  TextButton(
+                  ShunButton(
+                      kind: ShunButtonKind.text,
                       onPressed: () {
                         setState(() => _contextOverride = null);
                         Navigator.pop(dialog);
                       },
-                      child: const LText('恢复实时上下文')),
-                  FilledButton(
+                      label: '恢复实时上下文'),
+                  ShunButton(
                       onPressed: () {
                         if (_includeContext) {
                           setState(() => _contextOverride = contextInput.text);
                         }
                         Navigator.pop(dialog);
                       },
-                      child: const LText('完成'))
+                      label: '完成')
                 ]));
     // Dialog route disposal happens after its reverse transition.
     Future<void>.delayed(const Duration(seconds: 1), contextInput.dispose);
@@ -523,12 +529,13 @@ class _AiChatSheetState extends State<AiChatSheet> {
                 title: const LText('切换服务商？'),
                 content: const LText('后续提问会把当前对话及摘要发送给新的服务商。若不希望共享历史，请先开始新对话。'),
                 actions: [
-                  TextButton(
+                  ShunButton(
+                      kind: ShunButtonKind.text,
                       onPressed: () => Navigator.pop(context, false),
-                      child: const LText('取消')),
-                  FilledButton(
+                      label: '取消'),
+                  ShunButton(
                       onPressed: () => Navigator.pop(context, true),
-                      child: const LText('切换'))
+                      label: '切换')
                 ]));
     if (confirm == true && mounted) {
       try {
@@ -562,7 +569,7 @@ class _AiChatSheetState extends State<AiChatSheet> {
       duration: const Duration(milliseconds: 180),
       curve: Curves.easeOut,
       child: Material(
-        color: colors.surface,
+        color: Theme.of(context).scaffoldBackgroundColor,
         child: SafeArea(
           top: false,
           child: Column(
@@ -576,13 +583,12 @@ class _AiChatSheetState extends State<AiChatSheet> {
                   Container(
                       width: 38,
                       height: 4,
-                      decoration: BoxDecoration(
+                      decoration: ShapeDecoration(
                           color: colors.onSurfaceVariant.withValues(alpha: .35),
-                          borderRadius: BorderRadius.circular(99))),
+                          shape: prism.AppShape.full)),
                   _buildHeader(context),
                 ]),
               ),
-              const Divider(height: 1),
               Expanded(
                 child: _messages.isEmpty
                     ? _buildEmptyState(context)
@@ -623,18 +629,18 @@ class _AiChatSheetState extends State<AiChatSheet> {
                   margin: const EdgeInsets.fromLTRB(12, 0, 12, 8),
                   padding:
                       const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: colors.errorContainer,
-                    borderRadius: BorderRadius.circular(10),
+                  decoration: ShapeDecoration(
+                    color: Theme.of(context).cardColor,
+                    shape: prism.AppShape.md,
                   ),
                   child: Row(
                     children: [
-                      Icon(Icons.error_outline, color: colors.onErrorContainer),
+                      Icon(Icons.error_outline, color: colors.error),
                       const SizedBox(width: 8),
                       Expanded(
                         child: LText(
                           _error!,
-                          style: TextStyle(color: colors.onErrorContainer),
+                          style: TextStyle(color: colors.onSurface),
                         ),
                       ),
                       IconButton(
@@ -659,10 +665,10 @@ class _AiChatSheetState extends State<AiChatSheet> {
         child: Row(
           children: [
             CircleAvatar(
-              backgroundColor: Theme.of(context).colorScheme.primaryContainer,
+              backgroundColor: Theme.of(context).cardColor,
               child: Icon(
                 Icons.auto_awesome,
-                color: Theme.of(context).colorScheme.onPrimaryContainer,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
               ),
             ),
             const SizedBox(width: 12),
@@ -684,6 +690,7 @@ class _AiChatSheetState extends State<AiChatSheet> {
               ),
             ),
             PopupMenuButton<String>(
+              style: ShunBarButton.styleOf(context),
               tooltip: localized('服务商与预览'),
               enabled: !_sending,
               onSelected: (id) {
@@ -706,35 +713,25 @@ class _AiChatSheetState extends State<AiChatSheet> {
                   PopupMenuItem(value: p.id, child: LText('服务商：${p.name}')),
               ],
             ),
-            IconButton(
+            ShunBarButton(
               key: const ValueKey('ai-chat-new'),
               tooltip: localized('新对话'),
               onPressed: _sending ? null : _newChat,
-              icon: const Icon(Icons.add_comment_outlined),
+              icon: Icons.add_comment_outlined,
             ),
-            IconButton(
+            ShunBarButton(
               tooltip: localized('关闭'),
               onPressed: () => Navigator.pop(context),
-              icon: const Icon(Icons.close),
+              icon: Icons.close,
             ),
           ],
         ),
       );
 
   Widget _buildEmptyState(BuildContext context) => ListView(
-        padding: const EdgeInsets.fromLTRB(24, 28, 24, 16),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
         children: [
-          Icon(
-            Icons.auto_awesome,
-            size: 42,
-            color: Theme.of(context).colorScheme.primary,
-          ),
-          const SizedBox(height: 14),
-          LText(
-            '有什么可以帮你？',
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.titleLarge,
-          ),
+          const EmptyState(icon: Icons.auto_awesome, title: '有什么可以帮你？'),
           // 只留「终端输出会不会上传」这条隐私状态；shu 是做什么的写在使用手册里。
           const SizedBox(height: 8),
           LText(
@@ -744,81 +741,82 @@ class _AiChatSheetState extends State<AiChatSheet> {
             textAlign: TextAlign.center,
             style: Theme.of(context).textTheme.bodySmall,
           ),
-          const SizedBox(height: 24),
-          for (final prompt in [
-            '检查服务器健康状态',
-            '分析当前磁盘使用情况',
-            if (_includeContext) '分析最近的终端输出',
-            '帮我排查最近的系统错误',
-          ])
-            Padding(
-              padding: const EdgeInsets.only(bottom: 8),
-              child: OutlinedButton.icon(
-                onPressed: _sending ? null : () => _send(prompt),
-                icon: const Icon(Icons.arrow_outward, size: 17),
-                label: Align(
-                  alignment: Alignment.centerLeft,
-                  child: LText(prompt),
-                ),
+          ShunSection(children: [
+            for (final prompt in [
+              '检查服务器健康状态',
+              '分析当前磁盘使用情况',
+              if (_includeContext) '分析最近的终端输出',
+              '帮我排查最近的系统错误',
+            ])
+              ShunListRow(
+                title: prompt,
+                trailing: const Icon(Icons.arrow_outward, size: 17),
+                enabled: !_sending,
+                onTap: () => _send(prompt),
               ),
-            ),
+          ]),
         ],
       );
 
-  Widget _buildComposer(BuildContext context) => Container(
-        padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          border: Border(
-            top: BorderSide(color: Theme.of(context).dividerColor),
+  Widget _buildComposer(BuildContext context) => Padding(
+        padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
+        child: prism.ItemPositionProvider(
+          position: prism.ItemPosition.startAndEnd,
+          child: ShunSectionItem(
+            padding: const EdgeInsets.all(10),
+            child: Builder(
+                builder: (context) => Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(child: _buildModelSelector(context)),
+                            const SizedBox(width: 8),
+                            Expanded(child: _buildReasoningSelector(context)),
+                            const SizedBox(width: 8),
+                            Expanded(child: _buildUploadSelector(context)),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Row(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Expanded(
+                              child: DecoratedBox(
+                                  decoration: ShapeDecoration(
+                                      color: _raisedFill(context),
+                                      shape: prism.AppShape.md),
+                                  child: TextField(
+                                    key: const ValueKey('ai-chat-input'),
+                                    controller: _input,
+                                    enabled: !_sending,
+                                    minLines: 1,
+                                    maxLines: 4,
+                                    textInputAction: TextInputAction.newline,
+                                    decoration: LInputDecoration(
+                                      hintText: '向 shu 询问当前服务器…',
+                                      filled: false,
+                                      contentPadding: const EdgeInsets.all(12),
+                                      enabledBorder: InputBorder.none,
+                                      disabledBorder: InputBorder.none,
+                                    ),
+                                  )),
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton.filled(
+                              key: const ValueKey('ai-chat-send'),
+                              tooltip: localized(_sending ? '停止' : '发送'),
+                              onPressed:
+                                  _sending ? () => _operation?.cancel() : _send,
+                              icon: _sending
+                                  ? const Icon(Icons.stop)
+                                  : const Icon(Icons.arrow_upward),
+                            ),
+                          ],
+                        ),
+                      ],
+                    )),
           ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Row(
-              children: [
-                Expanded(child: _buildModelSelector(context)),
-                const SizedBox(width: 8),
-                Expanded(child: _buildReasoningSelector(context)),
-                const SizedBox(width: 8),
-                Expanded(child: _buildUploadSelector(context)),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Expanded(
-                  child: TextField(
-                    key: const ValueKey('ai-chat-input'),
-                    controller: _input,
-                    enabled: !_sending,
-                    minLines: 1,
-                    maxLines: 4,
-                    textInputAction: TextInputAction.newline,
-                    decoration: LInputDecoration(
-                      hintText: '向 shu 询问当前服务器…',
-                      filled: true,
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
-                        borderSide: BorderSide.none,
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 8),
-                IconButton.filled(
-                  key: const ValueKey('ai-chat-send'),
-                  tooltip: localized(_sending ? '停止' : '发送'),
-                  onPressed: _sending ? () => _operation?.cancel() : _send,
-                  icon: _sending
-                      ? const Icon(Icons.stop)
-                      : const Icon(Icons.arrow_upward),
-                ),
-              ],
-            ),
-          ],
         ),
       );
 
@@ -869,12 +867,13 @@ class _AiChatSheetState extends State<AiChatSheet> {
                       SelectableText(snapshot),
                     ]))),
                 actions: [
-                  TextButton(
+                  ShunButton(
+                      kind: ShunButtonKind.text,
                       onPressed: () => Navigator.pop(context, false),
-                      child: const LText('取消')),
-                  FilledButton(
+                      label: '取消'),
+                  ShunButton(
                       onPressed: () => Navigator.pop(context, true),
-                      child: const LText('发送并分析')),
+                      label: '发送并分析'),
                 ]));
     if (share == true && mounted) {
       await _send(
@@ -939,11 +938,11 @@ class _AiChatSheetState extends State<AiChatSheet> {
     bool fitLabel = false,
   }) =>
       Container(
-        height: 40,
+        constraints: const BoxConstraints(minHeight: 48),
         padding: const EdgeInsets.symmetric(horizontal: 6),
-        decoration: BoxDecoration(
-          border: Border.all(color: Theme.of(context).dividerColor),
-          borderRadius: BorderRadius.circular(12),
+        decoration: ShapeDecoration(
+          color: _raisedFill(context),
+          shape: prism.AppShape.md,
         ),
         child: Row(
           children: [
@@ -1026,64 +1025,63 @@ class _MessageBubble extends StatelessWidget {
           maxWidth: MediaQuery.sizeOf(context).width * .86,
         ),
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: user ? colors.primaryContainer : colors.surfaceContainerHigh,
-          borderRadius: BorderRadius.circular(16).copyWith(
-            bottomRight: user ? const Radius.circular(4) : null,
-            bottomLeft: user ? null : const Radius.circular(4),
+        child: prism.ItemPositionProvider(
+          position: prism.ItemPosition.startAndEnd,
+          child: ShunSectionItem(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                if (!user) ...[
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(Icons.auto_awesome, size: 15, color: colors.primary),
+                      const SizedBox(width: 6),
+                      LText(
+                        'shu',
+                        style: Theme.of(context)
+                            .textTheme
+                            .labelMedium
+                            ?.copyWith(color: colors.primary),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                ],
+                if (user)
+                  SelectableText(message.content)
+                else
+                  AiMarkdown(message.content),
+                if (message.command?.isNotEmpty == true) ...[
+                  const SizedBox(height: 12),
+                  _CommandCode(command: message.command!),
+                  const SizedBox(height: 8),
+                  Wrap(
+                    alignment: WrapAlignment.end,
+                    spacing: 4,
+                    runSpacing: 4,
+                    children: [
+                      ShunButton(
+                        kind: ShunButtonKind.text,
+                        key: const ValueKey('ai-command-paste'),
+                        onPressed: onPaste,
+                        icon: Icons.content_paste_go_outlined,
+                        label: '粘贴到终端',
+                      ),
+                      ShunButton(
+                        key: const ValueKey('ai-command-execute'),
+                        onPressed: onExecute,
+                        icon: Icons.play_arrow,
+                        label: '执行',
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
           ),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            if (!user) ...[
-              Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.auto_awesome, size: 15, color: colors.primary),
-                  const SizedBox(width: 6),
-                  LText(
-                    'shu',
-                    style: Theme.of(context)
-                        .textTheme
-                        .labelMedium
-                        ?.copyWith(color: colors.primary),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-            ],
-            if (user)
-              SelectableText(message.content)
-            else
-              AiMarkdown(message.content),
-            if (message.command?.isNotEmpty == true) ...[
-              const SizedBox(height: 12),
-              _CommandCode(command: message.command!),
-              const SizedBox(height: 8),
-              Wrap(
-                alignment: WrapAlignment.end,
-                spacing: 4,
-                runSpacing: 4,
-                children: [
-                  TextButton.icon(
-                    key: const ValueKey('ai-command-paste'),
-                    onPressed: onPaste,
-                    icon: const Icon(Icons.content_paste_go_outlined, size: 18),
-                    label: const LText('粘贴到终端'),
-                  ),
-                  FilledButton.icon(
-                    key: const ValueKey('ai-command-execute'),
-                    onPressed: onExecute,
-                    icon: const Icon(Icons.play_arrow, size: 18),
-                    label: const LText('执行'),
-                  ),
-                ],
-              ),
-            ],
-          ],
         ),
       ),
     );
@@ -1110,9 +1108,9 @@ class _ThinkingBubble extends StatelessWidget {
           key: const ValueKey('ai-chat-thinking'),
           margin: const EdgeInsets.only(bottom: 12),
           padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          decoration: BoxDecoration(
-            color: Theme.of(context).colorScheme.surfaceContainerHigh,
-            borderRadius: BorderRadius.circular(16),
+          decoration: ShapeDecoration(
+            color: _raisedFill(context),
+            shape: prism.AppShape.md,
           ),
           child: const Row(
             mainAxisSize: MainAxisSize.min,
@@ -1128,3 +1126,7 @@ class _ThinkingBubble extends StatelessWidget {
         ),
       );
 }
+
+Color _raisedFill(BuildContext context) => prism.SurfaceContext(context)
+    .raisedSurfaceLevel
+    .colorOf(prism.Theme.of(context).colorScheme);

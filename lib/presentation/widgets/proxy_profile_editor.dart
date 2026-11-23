@@ -129,90 +129,116 @@ class _ProxyProfileEditorState extends ConsumerState<ProxyProfileEditor> {
   Widget _page(BuildContext context) => PopScope(
       canPop: !_saving,
       child: Scaffold(
-        appBar: AppBar(
+        appBar: ShunAppBar(
             title: LText(widget.profile == null ? '新建代理' : '编辑代理'),
             actions: [
-              ShunButton(
+              IconButton(
                   key: const ValueKey('proxy-save'),
-                  kind: ShunButtonKind.text,
-                  busy: _saving,
-                  onPressed: _save,
-                  label: '保存')
+                  tooltip: localized('保存'),
+                  onPressed: _saving ? null : _save,
+                  icon: _saving
+                      ? SizedBox.square(
+                          dimension: 18,
+                          child: CircularProgressIndicator(
+                              strokeWidth: 2, semanticsLabel: localized('处理中')))
+                      : const Icon(Icons.check))
             ]),
         body: Form(
             key: _form,
-            child: ListView(padding: const EdgeInsets.all(16), children: [
-              TextFormField(
-                  key: const ValueKey('proxy-label'),
-                  controller: _label,
-                  enabled: !_saving,
-                  decoration: LInputDecoration(labelText: '代理名称'),
-                  validator: (v) =>
-                      v?.trim().isNotEmpty == true ? null : localized('必填')),
-              const FormGap(),
-              DropdownButtonFormField<ProxyType>(
-                  initialValue: _type,
-                  decoration: LInputDecoration(labelText: '代理类型'),
-                  items: const [
-                    DropdownMenuItem(
-                        value: ProxyType.socks5, child: Text('SOCKS5')),
-                    DropdownMenuItem(
-                        value: ProxyType.http, child: Text('HTTP')),
-                  ],
-                  onChanged: _saving ? null : (v) => setState(() => _type = v)),
-              const FormGap(),
-              TextFormField(
-                  key: const ValueKey('proxy-host'),
-                  controller: _host,
-                  enabled: !_saving,
-                  autocorrect: false,
-                  decoration: LInputDecoration(labelText: '代理地址')),
-              const FormGap(),
-              TextFormField(
-                  key: const ValueKey('proxy-port'),
-                  controller: _port,
-                  enabled: !_saving,
-                  keyboardType: TextInputType.number,
-                  decoration: LInputDecoration(labelText: '代理端口')),
-              const FormGap(),
-              LoginChoiceField(
-                  key: const ValueKey('proxy-login-choice'),
-                  value: _login,
-                  onChanged: (value) => setState(() => _login = value)),
-              const FormGap(),
-              if (_usesCredential) ...[
-                CredentialField(
-                    key: const ValueKey('proxy-credential'),
-                    value: _credentialId,
-                    passwordOnly: true,
-                    onChanged: (id) => setState(() {
-                          _credentialId = id;
-                          _error = null;
-                        })),
-                const SizedBox(height: 6),
-                LText('明文发给代理', style: Theme.of(context).textTheme.bodySmall),
-              ] else ...[
-                TextFormField(
-                    key: const ValueKey('proxy-username'),
-                    controller: _user,
-                    enabled: !_saving,
-                    autocorrect: false,
-                    enableSuggestions: false,
-                    decoration: LInputDecoration(labelText: '代理用户名（可选）')),
-                const FormGap(),
-                // 切成明文时三个输入法开关也一直关着（ShunSecretField 保证，R44）。
-                ShunSecretField(
-                    key: const ValueKey('proxy-password'),
-                    controller: _password,
-                    enabled: !_saving,
-                    label: '代理密码（可选）',
-                    helperText: '明文发给代理'),
-              ],
-              if (_error != null)
-                LText(_error!,
-                    key: const ValueKey('proxy-error'),
-                    style:
-                        TextStyle(color: Theme.of(context).colorScheme.error)),
-            ])),
+            child: ListView(
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                children: [
+                  ShunSectionItem(
+                      padding: const EdgeInsets.all(8),
+                      child: CredentialFields(
+                          child: Column(children: [
+                        TextFormField(
+                            key: const ValueKey('proxy-label'),
+                            controller: _label,
+                            enabled: !_saving,
+                            decoration: LInputDecoration(labelText: '代理名称'),
+                            validator: (v) => v?.trim().isNotEmpty == true
+                                ? null
+                                : localized('必填')),
+                        const FormGap(),
+                        DropdownButtonFormField<ProxyType>(
+                            initialValue: _type,
+                            decoration: LInputDecoration(labelText: '代理类型'),
+                            items: const [
+                              DropdownMenuItem(
+                                  value: ProxyType.socks5,
+                                  child: Text('SOCKS5')),
+                              DropdownMenuItem(
+                                  value: ProxyType.http, child: Text('HTTP')),
+                            ],
+                            onChanged: _saving
+                                ? null
+                                : (v) => setState(() => _type = v)),
+                        const FormGap(),
+                        TextFormField(
+                            key: const ValueKey('proxy-host'),
+                            controller: _host,
+                            enabled: !_saving,
+                            autocorrect: false,
+                            decoration: LInputDecoration(labelText: '代理地址')),
+                        const FormGap(),
+                        TextFormField(
+                            key: const ValueKey('proxy-port'),
+                            controller: _port,
+                            enabled: !_saving,
+                            keyboardType: TextInputType.number,
+                            decoration: LInputDecoration(labelText: '代理端口')),
+                      ]))),
+                  const SizedBox(height: 8),
+                  ShunSectionItem(
+                      padding: const EdgeInsets.all(8),
+                      child: CredentialFields(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                            LoginChoiceField(
+                                key: const ValueKey('proxy-login-choice'),
+                                value: _login,
+                                onChanged: (value) =>
+                                    setState(() => _login = value)),
+                            const FormGap(),
+                            if (_usesCredential) ...[
+                              CredentialField(
+                                  key: const ValueKey('proxy-credential'),
+                                  value: _credentialId,
+                                  passwordOnly: true,
+                                  onChanged: (id) => setState(() {
+                                        _credentialId = id;
+                                        _error = null;
+                                      })),
+                              const SizedBox(height: 6),
+                              LText('明文发给代理',
+                                  style: Theme.of(context).textTheme.bodySmall),
+                            ] else ...[
+                              TextFormField(
+                                  key: const ValueKey('proxy-username'),
+                                  controller: _user,
+                                  enabled: !_saving,
+                                  autocorrect: false,
+                                  enableSuggestions: false,
+                                  decoration:
+                                      LInputDecoration(labelText: '代理用户名（可选）')),
+                              const FormGap(),
+                              // 切成明文时三个输入法开关也一直关着（ShunSecretField 保证，R44）。
+                              ShunSecretField(
+                                  key: const ValueKey('proxy-password'),
+                                  controller: _password,
+                                  enabled: !_saving,
+                                  label: '代理密码（可选）',
+                                  helperText: '明文发给代理'),
+                            ],
+                            if (_error != null)
+                              LText(_error!,
+                                  key: const ValueKey('proxy-error'),
+                                  style: TextStyle(
+                                      color:
+                                          Theme.of(context).colorScheme.error)),
+                          ]))),
+                ])),
       ));
 }

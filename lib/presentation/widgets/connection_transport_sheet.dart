@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 import 'package:shun/presentation/localization/localized_widgets.dart';
 
 import '../../application/connection_switch.dart';
@@ -18,6 +19,7 @@ import '../../domain/tmux/tmux_target.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import '../../infrastructure/tmux/tmux_protocol.dart';
 import '../../infrastructure/tmux/tmux_service.dart';
+import '../ui/components.dart';
 import 'connection_prompts.dart';
 
 /// 标签条右侧的连接方式徽标（R42）：当前标签走 SSH 还是 Mosh，点开是「连接方式」菜单。
@@ -33,47 +35,28 @@ class TransportBadge extends ConsumerWidget {
     if (transport == null) return const SizedBox.shrink();
     final switching =
         ref.watch(sessionControllerProvider).switching.containsKey(session.id);
-    final scheme = Theme.of(context).colorScheme;
-    final mosh = transport == TabTransport.mosh;
     return Tooltip(
       message: localized('连接方式'),
       child: InkWell(
         key: const ValueKey('terminal-transport-badge'),
-        borderRadius: BorderRadius.circular(8),
+        customBorder: prism.AppShape.full,
         onTap: () => showTransportSheet(context, session),
         // 看着小，能点的是 48dp（UX02）。
         child: ConstrainedBox(
           constraints: const BoxConstraints(minWidth: 48, minHeight: 48),
           child: Center(
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
-              decoration: BoxDecoration(
-                color:
-                    mosh ? scheme.tertiaryContainer : scheme.secondaryContainer,
-                borderRadius: BorderRadius.circular(6),
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  if (switching) ...[
-                    const SizedBox.square(
-                      dimension: 10,
-                      child: CircularProgressIndicator(strokeWidth: 1.5),
-                    ),
-                    const SizedBox(width: 4),
-                  ],
-                  Text(
-                    transport.label.toUpperCase(),
-                    style: Theme.of(context).textTheme.labelSmall?.copyWith(
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: .6,
-                          color: mosh
-                              ? scheme.onTertiaryContainer
-                              : scheme.onSecondaryContainer,
-                        ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (switching) ...[
+                  const SizedBox.square(
+                    dimension: 10,
+                    child: CircularProgressIndicator(strokeWidth: 1.5),
                   ),
+                  const SizedBox(width: 4),
                 ],
-              ),
+                ShunPill(transport.label.toUpperCase()),
+              ],
             ),
           ),
         ),
@@ -144,7 +127,6 @@ class _TransportSheetState extends ConsumerState<TransportSheet> {
             LText('连接方式', style: theme.textTheme.titleMedium),
             const SizedBox(height: 8),
             _Facts(session: session, state: state),
-            const Divider(height: 24),
             FutureBuilder<TransportMenu?>(
               future: _menu,
               builder: (context, snapshot) {
@@ -158,8 +140,7 @@ class _TransportSheetState extends ConsumerState<TransportSheet> {
                 if (menu == null) {
                   return const LText('这个标签不是 SSH 或 Mosh，没有可切换的方式。');
                 }
-                return Column(
-                  mainAxisSize: MainAxisSize.min,
+                return ShunSection(
                   children: [
                     _switchTile(session, menu, progress),
                     if (menu.setDefault case final option?)
@@ -189,17 +170,16 @@ class _TransportSheetState extends ConsumerState<TransportSheet> {
             (option.inPlace
                 ? '附着同一个 tmux 会话 ${tmux!.displayName}，核对过才换过去，不重发输入'
                 : '另开一个 $to 标签，这个标签不动');
-    return ListTile(
+    return ShunListRow(
       key: const ValueKey('transport-switch'),
-      contentPadding: EdgeInsets.zero,
       enabled: option.blocked == null && progress == null,
       leading: Icon(
         option.to == TabTransport.mosh
             ? Icons.bolt_outlined
             : Icons.lan_outlined,
       ),
-      title: LText(option.inPlace ? '切换到 $to（同一个 tmux 会话）' : '用 $to 另开一个'),
-      subtitle: LText(how),
+      title: option.inPlace ? '切换到 $to（同一个 tmux 会话）' : '用 $to 另开一个',
+      details: LText(how),
       trailing: progress == null
           ? null
           : TextButton(
@@ -217,13 +197,12 @@ class _TransportSheetState extends ConsumerState<TransportSheet> {
     ActiveTerminalSession session,
     DefaultTransportOption option,
   ) =>
-      ListTile(
+      ShunListRow(
         key: const ValueKey('transport-set-default'),
-        contentPadding: EdgeInsets.zero,
         enabled: option.blocked == null,
         leading: const Icon(Icons.push_pin_outlined),
-        title: LText('把 ${option.transport.label} 设为这台主机的默认'),
-        subtitle: LText(
+        title: '把 ${option.transport.label} 设为这台主机的默认',
+        details: LText(
           option.blocked ?? '以后从主机列表连这台都用 ${option.transport.label}',
         ),
         onTap: () async {
@@ -247,13 +226,12 @@ class _TransportSheetState extends ConsumerState<TransportSheet> {
   /// Mosh 标签自己查不了（它没有 SSH 通道），有同主机的 SSH 标签就借它的。
   Widget _tmuxTile(ActiveTerminalSession session, SessionState state) {
     final via = _sshTabOnSameHost(state, session);
-    return ListTile(
+    return ShunListRow(
       key: const ValueKey('transport-pick-tmux'),
-      contentPadding: EdgeInsets.zero,
       enabled: via != null,
       leading: const Icon(Icons.view_quilt_outlined),
-      title: const LText('选 tmux 会话…'),
-      subtitle: LText(
+      title: '选 tmux 会话…',
+      details: LText(
         via == null ? '要先有一个连着的 SSH 标签' : '选一个会话，在新标签里附着',
       ),
       onTap: via == null
@@ -475,10 +453,10 @@ class _TmuxPickerSheetState extends ConsumerState<TmuxPickerSheet> {
                 Expanded(
                   child: LText('选 tmux 会话', style: theme.textTheme.titleMedium),
                 ),
-                IconButton(
+                ShunBarButton(
                   tooltip: localized('刷新'),
                   onPressed: () => setState(() => _probe = _load()),
-                  icon: const Icon(Icons.refresh),
+                  icon: Icons.refresh,
                 ),
               ],
             ),
@@ -512,25 +490,27 @@ class _TmuxPickerSheetState extends ConsumerState<TmuxPickerSheet> {
                   return ListView(
                     shrinkWrap: true,
                     children: [
-                      for (final row in probe.sessions)
-                        ListTile(
-                          key: ValueKey('tmux-pick-${row.sessionId}'),
-                          contentPadding: EdgeInsets.zero,
-                          leading: const Icon(Icons.view_quilt_outlined),
-                          title: Text(row.name),
-                          subtitle: LText(
-                            row.attached > 0
-                                ? '${row.sessionId} · ${row.windows} 个窗口 · 已有 ${row.attached} 个客户端附着'
-                                : '${row.sessionId} · ${row.windows} 个窗口',
-                          ),
-                          onTap: () => _attach(targetOf(
-                            row,
-                            hostKey: tmuxHostKeyOf(widget.session),
-                            unixUser: probe.unixUser,
-                            uid: probe.uid!,
-                            socket: _socket,
-                          )),
-                        ),
+                      ShunSection(children: [
+                        for (final row in probe.sessions)
+                          ShunListRow(
+                            key: ValueKey('tmux-pick-${row.sessionId}'),
+                            leading: const Icon(Icons.view_quilt_outlined),
+                            title: row.name,
+                            localizeTitle: false,
+                            details: LText(
+                              row.attached > 0
+                                  ? '${row.sessionId} · ${row.windows} 个窗口 · 已有 ${row.attached} 个客户端附着'
+                                  : '${row.sessionId} · ${row.windows} 个窗口',
+                            ),
+                            onTap: () => _attach(targetOf(
+                              row,
+                              hostKey: tmuxHostKeyOf(widget.session),
+                              unixUser: probe.unixUser,
+                              uid: probe.uid!,
+                              socket: _socket,
+                            )),
+                          )
+                      ]),
                     ],
                   );
                 },
@@ -818,9 +798,11 @@ class _CommandBox extends StatelessWidget {
   Widget build(BuildContext context) => Container(
         width: double.infinity,
         padding: const EdgeInsets.all(10),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surfaceContainerHighest,
-          borderRadius: BorderRadius.circular(8),
+        decoration: ShapeDecoration(
+          color: prism.SurfaceContext(context)
+              .raisedSurfaceLevel
+              .colorOf(prism.Theme.of(context).colorScheme),
+          shape: prism.AppShape.md,
         ),
         child: SelectableText(
           command,

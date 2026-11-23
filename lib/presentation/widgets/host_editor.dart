@@ -278,7 +278,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
       },
       child: Scaffold(
         resizeToAvoidBottomInset: true,
-        appBar: AppBar(
+        appBar: ShunAppBar(
           leading: IconButton(
             tooltip: localized('取消'),
             onPressed: _leave,
@@ -287,7 +287,8 @@ class _HostEditorState extends ConsumerState<HostEditor> {
           title: LText(widget.host == null ? '新建连接' : '编辑连接'),
         ),
         bottomNavigationBar: _bottomBar(preview),
-        body: Form(
+        body: ConnectionFieldTheme(
+            child: Form(
           key: _form,
           autovalidateMode: _triedSave
               ? AutovalidateMode.always
@@ -309,7 +310,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                 ..._hostFields(vaultState, identities, preview, sshLike),
             ],
           ),
-        ),
+        )),
       ),
     );
   }
@@ -321,121 +322,118 @@ class _HostEditorState extends ConsumerState<HostEditor> {
     bool sshLike,
   ) =>
       [
-              if (protocol == HostProtocol.plugin) ..._pluginSection(),
-              // 插件主机没有地址、端口、用户名：连哪里由插件自己的设置页决定，本 App 不交给它任何主机数据。
-              // 它自己顶上带一个 FormGap，这里不再放，放了间隔就是两倍。
-              if (protocol != HostProtocol.plugin)
-                ConnectionEndpointFields(
-                  protocol: protocol,
-                  hostname: hostname,
-                  port: port,
-                ),
-              // 地址、端口写错时路线算不出来：路线编辑器收在高级里，错得在这里说，不然底部写
-              //「按上面红字改好」，页面上却找不到红字。
-              if (protocol != HostProtocol.plugin &&
-                  preview.error != null &&
-                  !_quiet &&
-                  !_routeVisible(preview))
-                Padding(
-                  padding: const EdgeInsets.only(top: 8),
-                  child: LText(
-                    preview.error!,
-                    key: const ValueKey('host-editor-route-error'),
-                    style: TextStyle(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                ),
-              if (sshLike) ...[
-                const FormGap(),
-                _segmentsWithHint(
-                  title: '认证方式',
-                  hint:
-                      '密码、密钥只给这一台，不填密码就连接时问。凭据是多台共用的一份，改一次全跟着变。Tailscale 不发密码和密钥，由 Tailscale 放行。',
-                  ChoiceSegments<_LoginKind>(
-                    key: const ValueKey('ssh-login-mode'),
-                    selected: _loginKind,
-                    onTap: _setLoginKind,
-                    segments: const [
-                      ChoiceSegment(
-                        _LoginKind.password,
-                        '密码',
-                        key: ValueKey('login-kind-password'),
-                      ),
-                      ChoiceSegment(
-                        _LoginKind.key,
-                        '密钥',
-                        key: ValueKey('login-kind-key'),
-                      ),
-                      ChoiceSegment(
-                        _LoginKind.credential,
-                        '凭据',
-                        key: ValueKey('login-kind-credential'),
-                      ),
-                      ChoiceSegment(
-                        _LoginKind.tailscale,
-                        'Tailscale',
-                        key: ValueKey('login-kind-tailscale'),
-                      ),
-                    ],
-                  ),
-                ),
-                const FormGap(),
-                ...switch (_loginKind) {
-                  _LoginKind.password => _passwordLogin(),
-                  _LoginKind.key => _keyLogin(),
-                  _LoginKind.credential => _credentialLogin(identities),
-                  _LoginKind.tailscale => [
-                      _usernameField(),
-                      const FormGap(),
-                      _tailscaleLoginNote(preview.plan),
-                    ],
-                },
-              ],
-              const FormGap(),
-              TextFormField(
-                controller: label,
-                decoration: protocol == HostProtocol.plugin
-                    ? LInputDecoration(labelText: '名称')
-                    : LInputDecoration(
-                        labelText: '名称',
-                        hintText: '留空用地址',
-                        floatingLabelBehavior: FloatingLabelBehavior.always,
-                      ),
-                // 插件主机没有地址可以拿来当名字。
-                validator: protocol == HostProtocol.plugin ? _required : null,
+        if (protocol == HostProtocol.plugin) ..._pluginSection(),
+        // 插件主机没有地址、端口、用户名：连哪里由插件自己的设置页决定，本 App 不交给它任何主机数据。
+        // 它自己顶上带一个 FormGap，这里不再放，放了间隔就是两倍。
+        if (protocol != HostProtocol.plugin)
+          ConnectionEndpointFields(
+            protocol: protocol,
+            hostname: hostname,
+            port: port,
+          ),
+        // 地址、端口写错时路线算不出来：路线编辑器收在高级里，错得在这里说，不然底部写
+        //「按上面红字改好」，页面上却找不到红字。
+        if (protocol != HostProtocol.plugin &&
+            preview.error != null &&
+            !_quiet &&
+            !_routeVisible(preview))
+          Padding(
+            padding: const EdgeInsets.only(top: 8),
+            child: LText(
+              preview.error!,
+              key: const ValueKey('host-editor-route-error'),
+              style: TextStyle(
+                color: Theme.of(context).colorScheme.error,
               ),
-              const FormGap(),
-              HostGroupField(
-                key: const ValueKey('host-group'),
-                value: group.text.trim(),
-                onChanged: (value) => group.text = value,
-              ),
-              const SizedBox(height: 12),
-              _AdvancedGroup(
-                key: _advancedKey,
-                id: 'all',
-                title: '高级',
-                state: _advancedSummary,
-                expanded: _advancedVisible(preview),
-                onToggle: _toggleAdvanced,
-                children: _advancedGroups(vaultState, preview),
-              ),
-              if (widget.host != null && widget.onDelete != null) ...[
-                const SizedBox(height: 28),
-                OutlinedButton.icon(
-                  key: const ValueKey('delete-host-from-editor'),
-                  onPressed: _delete,
-                  style: OutlinedButton.styleFrom(
-                    foregroundColor: Theme.of(context).colorScheme.error,
-                    side: BorderSide(
-                      color: Theme.of(context).colorScheme.error,
-                    ),
-                  ),
-                  icon: const Icon(Icons.delete_outline),
-                  label: const LText('删除此服务器'),
+            ),
+          ),
+        if (sshLike) ...[
+          const FormGap(),
+          _segmentsWithHint(
+            title: '认证方式',
+            hint:
+                '密码、密钥只给这一台，不填密码就连接时问。凭据是多台共用的一份，改一次全跟着变。Tailscale 不发密码和密钥，由 Tailscale 放行。',
+            ChoiceSegments<_LoginKind>(
+              key: const ValueKey('ssh-login-mode'),
+              selected: _loginKind,
+              onTap: _setLoginKind,
+              segments: const [
+                ChoiceSegment(
+                  _LoginKind.password,
+                  '密码',
+                  key: ValueKey('login-kind-password'),
+                ),
+                ChoiceSegment(
+                  _LoginKind.key,
+                  '密钥',
+                  key: ValueKey('login-kind-key'),
+                ),
+                ChoiceSegment(
+                  _LoginKind.credential,
+                  '凭据',
+                  key: ValueKey('login-kind-credential'),
+                ),
+                ChoiceSegment(
+                  _LoginKind.tailscale,
+                  'Tailscale',
+                  key: ValueKey('login-kind-tailscale'),
                 ),
               ],
+            ),
+          ),
+          const FormGap(),
+          ...switch (_loginKind) {
+            _LoginKind.password => _passwordLogin(),
+            _LoginKind.key => _keyLogin(),
+            _LoginKind.credential => _credentialLogin(identities),
+            _LoginKind.tailscale => [
+                _usernameField(),
+                const FormGap(),
+                _tailscaleLoginNote(preview.plan),
+              ],
+          },
+        ],
+        const FormGap(),
+        TextFormField(
+          controller: label,
+          decoration: protocol == HostProtocol.plugin
+              ? LInputDecoration(labelText: '名称')
+              : LInputDecoration(
+                  labelText: '名称',
+                  hintText: '留空用地址',
+                  floatingLabelBehavior: FloatingLabelBehavior.always,
+                ),
+          // 插件主机没有地址可以拿来当名字。
+          validator: protocol == HostProtocol.plugin ? _required : null,
+        ),
+        const FormGap(),
+        HostGroupField(
+          key: const ValueKey('host-group'),
+          value: group.text.trim(),
+          onChanged: (value) => group.text = value,
+        ),
+        const SizedBox(height: 12),
+        _AdvancedGroup(
+          key: _advancedKey,
+          id: 'all',
+          title: '高级',
+          state: _advancedSummary,
+          expanded: _advancedVisible(preview),
+          onToggle: _toggleAdvanced,
+          children: _advancedGroups(vaultState, preview),
+        ),
+        if (widget.host != null && widget.onDelete != null) ...[
+          const SizedBox(height: 28),
+          TextButton.icon(
+            key: const ValueKey('delete-host-from-editor'),
+            onPressed: _delete,
+            style: TextButton.styleFrom(
+              foregroundColor: Theme.of(context).colorScheme.error,
+            ),
+            icon: const Icon(Icons.delete_outline),
+            label: const LText('删除此服务器'),
+          ),
+        ],
       ];
 
   _LoginKind get _loginKind => loginMode == SshLoginMode.tailscale
@@ -749,8 +747,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
   bool get _timeoutsFilled => [keepalive, connectTimeout, authTimeout]
       .any((c) => c.text.trim().isNotEmpty);
   bool get _startupFilled => startupCommand.text.trim().isNotEmpty;
-  bool get _organizeFilled =>
-      tags.text.trim().isNotEmpty || pinned;
+  bool get _organizeFilled => tags.text.trim().isNotEmpty || pinned;
   bool get _routeSet => route.usesProxy || route.jumpHostIds.isNotEmpty;
   bool get _hasCatalog =>
       widget.host != null && CatalogBinding.of(widget.host!) != null;
@@ -1060,70 +1057,68 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         protocol == HostProtocol.ssh;
     // 放在 bottomNavigationBar：SnackBar 会浮在它上面，不挡保存按钮。但 Scaffold 不会把这一栏抬到键盘上方，
     // 所以自己补上键盘高度的内边距，键盘弹出时仍点得到（UX07）。
-    // R88：Prism 卡片那一层底色加顶上一条细线（FlClash 底栏同款），不再用 Material 的阴影。
     final colors = prism.Theme.of(context).colorScheme;
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        color: prism.SurfaceContext(context).raisedSurfaceLevel.colorOf(colors),
-        border: Border(
-          top: BorderSide(color: prism.Divider.colorOf(context), width: 0.5),
-        ),
-      ),
-      child: Padding(
-        padding:
-            EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
-        child: SafeArea(
-          top: false,
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Row(
-                  children: [
-                    Icon(status.icon, size: 18, color: status.color),
-                    const SizedBox(width: 6),
-                    Expanded(
-                      child: LText(
-                        status.text,
-                        key: const ValueKey('host-editor-verification'),
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.bodySmall
-                            ?.copyWith(color: status.color),
-                      ),
+    return Padding(
+      padding: EdgeInsets.only(bottom: MediaQuery.viewInsetsOf(context).bottom),
+      child: SafeArea(
+        top: false,
+        child: Container(
+          margin: const EdgeInsets.fromLTRB(12, 0, 12, 6),
+          decoration: ShapeDecoration(
+            shape: prism.AppShape.xl,
+            color: prism.SurfaceContext(context)
+                .raisedSurfaceLevel
+                .colorOf(colors),
+          ),
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Icon(status.icon, size: 18, color: status.color),
+                  const SizedBox(width: 6),
+                  Expanded(
+                    child: LText(
+                      status.text,
+                      key: const ValueKey('host-editor-verification'),
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
+                      style: theme.textTheme.bodySmall
+                          ?.copyWith(color: status.color),
                     ),
-                  ],
-                ),
-                const SizedBox(height: 6),
-                Row(
-                  children: [
-                    if (canTest)
-                      ShunButton(
-                        key: const ValueKey('test-connection'),
-                        label: '测试连接',
-                        icon: Icons.network_check,
-                        kind: ShunButtonKind.outlined,
-                        onPressed: _testConnection,
-                      ),
-                    const Spacer(),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              OverflowBar(
+                alignment: MainAxisAlignment.end,
+                overflowAlignment: OverflowBarAlignment.end,
+                spacing: 8,
+                children: [
+                  if (canTest)
                     ShunButton(
-                      key: const ValueKey('host-editor-cancel'),
-                      label: '取消',
-                      kind: ShunButtonKind.text,
-                      onPressed: _leave,
+                      key: const ValueKey('test-connection'),
+                      label: '测试连接',
+                      icon: Icons.network_check,
+                      kind: ShunButtonKind.tonal,
+                      onPressed: _testConnection,
                     ),
-                    const SizedBox(width: 8),
-                    ShunButton(
-                      key: const ValueKey('host-editor-save'),
-                      label: '保存',
-                      onPressed: _save,
-                    ),
-                  ],
-                ),
-              ],
-            ),
+                  ShunButton(
+                    key: const ValueKey('host-editor-cancel'),
+                    label: '取消',
+                    kind: ShunButtonKind.text,
+                    onPressed: _leave,
+                  ),
+                  ShunButton(
+                    key: const ValueKey('host-editor-save'),
+                    label: '保存',
+                    onPressed: _save,
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -1369,21 +1364,22 @@ class _HostEditorState extends ConsumerState<HostEditor> {
           key: const ValueKey('plugin-route-problem'),
           width: double.infinity,
           padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            color: theme.colorScheme.errorContainer,
-            borderRadius: BorderRadius.circular(10),
+          decoration: ShapeDecoration(
+            color: prism.SurfaceContext(context)
+                .raisedSurfaceLevel
+                .colorOf(prism.Theme.of(context).colorScheme),
+            shape: prism.AppShape.md,
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               LText(routeProblem,
-                  style: small?.copyWith(
-                      color: theme.colorScheme.onErrorContainer)),
+                  style: small?.copyWith(color: theme.colorScheme.error)),
               const SizedBox(height: 6),
               ShunButton(
                 key: const ValueKey('plugin-route-clear'),
                 label: '改成直连（去掉这台主机上的代理和跳板设置）',
-                kind: ShunButtonKind.outlined,
+                kind: ShunButtonKind.tonal,
                 onPressed: () => setState(() {
                   route.clear();
                 }),
@@ -1570,11 +1566,9 @@ class _HostEditorState extends ConsumerState<HostEditor> {
         key: const ValueKey('route-preview'),
         width: double.infinity,
         padding: const EdgeInsets.all(12),
-        // R88：底色和圆角取 Prism 卡片那一层；算不出来时仍用错误色，一眼看出不对。
         decoration: ShapeDecoration(
-          color: preview.error == null
-              ? prism.SurfaceContext(context).raisedSurfaceLevel.colorOf(colors)
-              : theme.colorScheme.errorContainer,
+          color:
+              prism.SurfaceContext(context).raisedSurfaceLevel.colorOf(colors),
           shape: prism.AppShape.of(
               prism.listItemRadiusOf(prism.ItemPosition.startAndEnd)),
         ),
@@ -1588,7 +1582,7 @@ class _HostEditorState extends ConsumerState<HostEditor> {
                 preview.error!,
                 key: const ValueKey('route-preview-error'),
                 style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onErrorContainer,
+                  color: theme.colorScheme.error,
                 ),
               )
             else if (preview.plan != null)
@@ -1627,7 +1621,9 @@ class _HostEditorState extends ConsumerState<HostEditor> {
       if (_moshFilled || _timeoutsFilled) setState(() => _advancedOpen = true);
       return null;
     }
-    if (_sshLike && _loginKind == _LoginKind.credential && _chosenCredential == null) {
+    if (_sshLike &&
+        _loginKind == _LoginKind.credential &&
+        _chosenCredential == null) {
       failed();
       _message('选一个凭据，或者改成用户名 / 密码。');
       return null;

@@ -4284,7 +4284,7 @@
       "id": "R90",
       "phase": "U3",
       "title": "迁移 SFTP、文件编辑与端口转发界面",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [
         "R89"
       ],
@@ -4319,14 +4319,16 @@
       ],
       "stop_condition": "UI 动效影响传输取消、文件内容丢失、服务借用泄漏或操作串到另一台主机时停。",
       "owner_role": "文件页面实施代理",
-      "evidence": [],
+      "evidence": [
+        "evidence/R90.md"
+      ],
       "commit": null
     },
     {
       "id": "R91",
       "phase": "U3",
       "title": "迁移监控与系统管理面板",
-      "status": "NOT_STARTED",
+      "status": "IN_PROGRESS",
       "depends_on": [
         "R89"
       ],
@@ -4359,7 +4361,9 @@
       ],
       "stop_condition": "移植引入额外远端副作用、改变 sudo 目标或绕过确认即失败；无 fixture 时不以静态图替代行为证据。",
       "owner_role": "管理面板实施代理",
-      "evidence": [],
+      "evidence": [
+        "evidence/R91.md"
+      ],
       "commit": null
     },
     {

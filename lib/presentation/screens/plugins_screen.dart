@@ -2,11 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 import 'package:plugin_api/plugin_api.dart' show hostApiMajor, hostApiMinor;
 
 import '../../application/plugin_discovery.dart';
 import '../../application/plugin_registry.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
+import '../widgets/empty_state.dart';
 import '../widgets/hint.dart';
 import 'plugin_detail_screen.dart';
 
@@ -113,7 +116,7 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
     final builtinNames =
         builtin.map((e) => localized(e.descriptor!.displayName)).join('、');
     return Scaffold(
-      appBar: AppBar(
+      appBar: ShunAppBar(
         title: const LText('插件（实验）'),
         actions: [
           HintButton(title: '插件（实验）', message: _about(builtinNames)),
@@ -130,15 +133,18 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
         padding: const EdgeInsets.all(16),
         children: [
           if (discovery != null && !discovery.supported)
-            const LText('独立插件只支持 Android'),
+            const EmptyState(
+                icon: Icons.extension_outlined, title: '独立插件只支持 Android'),
           if (_busy) const LinearProgressIndicator(),
           if (_error != null) LText('扫描失败：$_error'),
           if (discovery != null &&
               discovery.supported &&
               external.isEmpty &&
               !_busy)
-            const LText('没有发现插件'),
-          for (final entry in external) _summary(entry),
+            const EmptyState(icon: Icons.extension_outlined, title: '没有发现插件'),
+          if (external.isNotEmpty)
+            ShunSection(
+                children: [for (final entry in external) _summary(entry)]),
           // 排查和给作者的两块大多数人用不上，收起来；点标题展开（docs/dev/ui-text.md）。
           if (discovery != null && discovery.supported) ...[
             const SizedBox(height: 16),
@@ -154,30 +160,35 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
                         decoration: InputDecoration(labelText: localized('包名')),
                       ),
                     ),
-                    TextButton(
+                    ShunButton(
+                      kind: ShunButtonKind.text,
                       onPressed: () async {
                         final result =
                             await discovery.inspect(_inspectPackage.text);
                         if (mounted) setState(() => _inspectResult = result);
                       },
-                      child: const LText('检查'),
+                      label: '检查',
                     ),
                   ],
                 ),
                 if (_inspectResult != null) LText(_inspectResult!),
               ],
             ),
-            if (_hostSigners != null)
+            if (_hostSigners != null) ...[
+              const SizedBox(height: 8),
               _fold(
                 key: const ValueKey('plugin-for-authors'),
                 title: '给插件作者',
                 children: _forAuthors(small),
-              ),
+              )
+            ],
           ],
           if (_events.isNotEmpty) ...[
             const SizedBox(height: 16),
-            const LText('事件'),
-            for (final line in _events) Text(line, style: small),
+            ShunSection(title: '事件', children: [
+              for (final line in _events)
+                ShunSectionItem(child: Text(line, style: small)),
+            ]),
           ],
         ],
       ),
@@ -201,12 +212,14 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
   }) =>
       ExpansionTile(
         key: key,
-        tilePadding: EdgeInsets.zero,
-        childrenPadding: const EdgeInsets.only(bottom: 8),
+        tilePadding: const EdgeInsets.symmetric(horizontal: 16),
+        childrenPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
         expandedCrossAxisAlignment: CrossAxisAlignment.start,
         expandedAlignment: Alignment.centerLeft,
-        shape: const Border(),
-        collapsedShape: const Border(),
+        shape: prism.AppShape.md,
+        collapsedShape: prism.AppShape.md,
+        backgroundColor: Theme.of(context).cardColor,
+        collapsedBackgroundColor: Theme.of(context).cardColor,
         title: LText(title),
         children: children,
       );
@@ -237,25 +250,25 @@ class _PluginsScreenState extends ConsumerState<PluginsScreen> {
     final d = entry.descriptor;
     final package = entry.packageName!;
     final small = Theme.of(context).textTheme.bodySmall;
-    return Card(
-      margin: const EdgeInsets.only(top: 12),
-      child: ListTile(
-        key: ValueKey('plugin-entry-$package'),
-        title: Text(d?.displayName ?? package),
-        subtitle: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('${d?.pluginId ?? package} · ${d?.version ?? '?'}',
-                style: small),
-            if (pluginReasonWorthShowing(entry) case final reason?)
-              LText(reason, style: small),
-          ],
-        ),
-        trailing: Chip(label: LText(pluginStatusLabel(entry.status))),
-        onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
-          builder: (_) => PluginDetailScreen(packageName: package),
-        )),
+    return ShunListRow(
+      key: ValueKey('plugin-entry-$package'),
+      title: d?.displayName ?? package,
+      localizeTitle: false,
+      leading: const Icon(Icons.extension_outlined),
+      details: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          ShunPill(localizedOf(context, pluginStatusLabel(entry.status))),
+          Text('${d?.pluginId ?? package} · ${d?.version ?? '?'}',
+              style: small),
+          if (pluginReasonWorthShowing(entry) case final reason?)
+            LText(reason, style: small),
+        ],
       ),
+      chevron: true,
+      onTap: () => Navigator.of(context).push(MaterialPageRoute<void>(
+        builder: (_) => PluginDetailScreen(packageName: package),
+      )),
     );
   }
 }

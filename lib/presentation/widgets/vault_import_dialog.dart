@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../application/vault_import.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 
 /// 恢复完告诉用户的那句话。
 String vaultImportSummary(VaultImportPlan plan, VaultImportMode mode) {
@@ -91,10 +92,10 @@ Future<VaultImportMode?> confirmVaultImport(
             onPressed: () => Navigator.pop(context, VaultImportMode.replace),
             child: const LText('替换'),
           ),
-        FilledButton(
+        ShunButton(
           key: const ValueKey('vault-import-merge'),
           onPressed: () => Navigator.pop(context, VaultImportMode.merge),
-          child: LText(plan.hasLocalOnly ? '合并' : '确认恢复'),
+          label: plan.hasLocalOnly ? '合并' : '确认恢复',
         ),
       ],
     ),
@@ -110,16 +111,14 @@ class _NamedCount extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Padding(
         padding: const EdgeInsets.only(top: 4),
-        child: Text.rich(
-          TextSpan(
-            children: [
-              TextSpan(
-                text: localized(label),
-                style: const TextStyle(fontWeight: FontWeight.w600),
-              ),
-              TextSpan(text: ' ${names.length} · ${names.join('、')}'),
-            ],
-          ),
+        child: Wrap(
+          spacing: 8,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            ShunPill('${localized(label)} ${names.length}'),
+            Text(names.join('、')),
+          ],
         ),
       );
 }

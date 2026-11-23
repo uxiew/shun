@@ -18,6 +18,7 @@ import 'package:shun/presentation/widgets/ai_cli_tools_sheet.dart';
 import 'package:shun/presentation/widgets/terminal_special_keys.dart';
 
 import 'support/test_terminal.dart';
+import 'support/prism_test_host.dart';
 
 class Preferences implements AiCliPreferencesStore {
   final data = <String, AiCliScanRequest>{};
@@ -89,6 +90,8 @@ void main() {
     var opened = 0;
     await tester.pumpWidget(ProviderScope(
         child: MaterialApp(
+            localizationsDelegates: prismTestDelegates,
+            builder: prismTestBuilder,
             home: Scaffold(
                 body: TerminalSpecialKeys(
                     order: const ['ESC'],
@@ -132,6 +135,8 @@ void main() {
     AiCliScanRequest? request;
     await tester.pumpWidget(ProviderScope(
         child: MaterialApp(
+            localizationsDelegates: prismTestDelegates,
+            builder: prismTestBuilder,
             home: Scaffold(
                 body: AiCliToolsSheet(
                     host: host,
@@ -167,6 +172,8 @@ void main() {
     addTearDown(() => ShunLocalizations.use('zh'));
     await tester.pumpWidget(ProviderScope(
         child: MaterialApp(
+            localizationsDelegates: prismTestDelegates,
+            builder: prismTestBuilder,
             home: Scaffold(
                 body: AiCliToolsSheet(
                     host: host,
@@ -203,6 +210,8 @@ void main() {
     AiCliProbeCancellation? token;
     await tester.pumpWidget(ProviderScope(
         child: MaterialApp(
+            localizationsDelegates: prismTestDelegates,
+            builder: prismTestBuilder,
             home: Scaffold(
                 body: AiCliToolsSheet(
                     host: host,
@@ -242,6 +251,8 @@ void main() {
       ];
     await tester.pumpWidget(ProviderScope(
         child: MaterialApp(
+            localizationsDelegates: prismTestDelegates,
+            builder: prismTestBuilder,
             home: Scaffold(
                 body: AiCliToolsSheet(
                     host: host,
@@ -267,6 +278,8 @@ void main() {
     final recent = BrokenRecent();
     await tester.pumpWidget(ProviderScope(
         child: MaterialApp(
+            localizationsDelegates: prismTestDelegates,
+            builder: prismTestBuilder,
             home: Scaffold(
                 body: AiCliToolsSheet(
                     host: host,
@@ -302,6 +315,8 @@ void main() {
     );
     await tester.pumpWidget(ProviderScope(
         child: MaterialApp(
+            localizationsDelegates: prismTestDelegates,
+            builder: prismTestBuilder,
             home: Scaffold(
                 body: AiCliToolsSheet(
                     host: host,

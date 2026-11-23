@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../application/session_controller.dart';
 import '../../domain/models/host.dart';
@@ -10,6 +11,7 @@ import '../../domain/plugins/plugin_host.dart';
 import '../../domain/terminal_paste.dart';
 import '../../infrastructure/ssh/ssh_service.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 
 /// 快捷键栏的「粘贴」、硬件键盘的粘贴快捷键（R19，SEC10、TER09）。
 ///
@@ -90,8 +92,15 @@ class _TerminalPasteSheetState extends ConsumerState<TerminalPasteSheet> {
 
   void _onEdited() => setState(() => _error = null);
 
+  // 底部面板是抬起后的页面层（material_compat 的 bottomSheetTheme）：里面的块、胶囊从这一层再往上数，
+  // 深色下不然会和面板同色。
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context) => prism.Theme(
+        data: prism.Theme.of(context).elevated,
+        child: Builder(builder: _content),
+      );
+
+  Widget _content(BuildContext context) {
     // 连接断开、恢复、标签关闭都会改会话状态，跟着重建，按钮和提示跟上。
     ref.watch(sessionControllerProvider);
     final controller = ref.read(sessionControllerProvider.notifier);
@@ -106,7 +115,9 @@ class _TerminalPasteSheetState extends ConsumerState<TerminalPasteSheet> {
       (name, count) => removed[name] = (removed[name] ?? 0) + count,
     );
     final runsLines = review.multiline && !bracketed;
-    final scheme = Theme.of(context).colorScheme;
+    final colors = prism.Theme.of(context).colorScheme;
+    final raised =
+        prism.SurfaceContext(context).raisedSurfaceLevel.colorOf(colors);
     final canSend = problem == null && review.text.isNotEmpty;
     // 单独一行取译文：本地化覆盖检查按引号抓中文，插值里套引号会被抓成半截。
     final linesUnit = localized('行');
@@ -124,20 +135,35 @@ class _TerminalPasteSheetState extends ConsumerState<TerminalPasteSheet> {
           children: [
             Text(
               '${localized('粘贴到')} ${_target.host.label}',
-              style: Theme.of(context).textTheme.titleMedium,
+              style: prism.AppTextStyle.title3
+                  .of(context, emphasized: true)
+                  .copyWith(color: colors.onSurface),
             ),
-            Text(
-              '${_target.host.protocol == HostProtocol.plugin ? pluginHostEndpoint(_target.host) : '${_target.host.username}@${_target.host.hostname}'} · '
-              '${review.lines} $linesUnit · '
-              '${review.text.runes.length} $charsUnit',
-              style: Theme.of(context).textTheme.bodySmall,
+            const SizedBox(height: 4),
+            // 地址是一行字，行数、字数是中性的小胶囊。
+            Wrap(
+              spacing: 6,
+              runSpacing: 4,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  _target.host.protocol == HostProtocol.plugin
+                      ? pluginHostEndpoint(_target.host)
+                      : '${_target.host.username}@${_target.host.hostname}',
+                  style: prism.AppTextStyle.footnote
+                      .of(context)
+                      .copyWith(color: colors.onSurfaceVariant),
+                ),
+                ShunPill('${review.lines} $linesUnit'),
+                ShunPill('${review.text.runes.length} $charsUnit'),
+              ],
             ),
             if (problem != null) ...[
               const SizedBox(height: 10),
               TerminalPasteNotice(
                 key: const ValueKey('terminal-paste-target-problem'),
-                color: scheme.errorContainer,
-                onColor: scheme.onErrorContainer,
+                boxed: true,
+                danger: true,
                 icon: Icons.link_off,
                 text: switch (problem) {
                   TerminalTargetProblem.disconnected =>
@@ -161,10 +187,8 @@ class _TerminalPasteSheetState extends ConsumerState<TerminalPasteSheet> {
                 key: ValueKey(bracketed
                     ? 'terminal-paste-risk-bracketed'
                     : 'terminal-paste-risk-lines-run'),
-                color: runsLines
-                    ? scheme.errorContainer
-                    : scheme.surfaceContainerHighest,
-                onColor: runsLines ? scheme.onErrorContainer : scheme.onSurface,
+                boxed: true,
+                danger: runsLines,
                 icon: Icons.warning_amber_outlined,
                 text: multilinePasteRisk(bracketed: bracketed),
               ),
@@ -214,14 +238,18 @@ class _TerminalPasteSheetState extends ConsumerState<TerminalPasteSheet> {
                 keyboardType: TextInputType.multiline,
                 style: const TextStyle(fontFamily: 'monospace', fontSize: 13),
                 decoration: LInputDecoration(
-                  border: const OutlineInputBorder(),
+                  filled: true,
+                  fillColor: raised,
+                  border: terminalEditorBorder(context),
+                  enabledBorder: terminalEditorBorder(context),
+                  focusedBorder: terminalEditorBorder(context, focused: true),
                   hintText: '在这里编辑。按回车只是换行，不会发送',
                 ),
               ),
             ),
             if (_error != null) ...[
               const SizedBox(height: 8),
-              LText(_error!, style: TextStyle(color: scheme.error)),
+              LText(_error!, style: TextStyle(color: colors.error)),
             ],
             const SizedBox(height: 12),
             Wrap(
@@ -240,18 +268,22 @@ class _TerminalPasteSheetState extends ConsumerState<TerminalPasteSheet> {
                     onPressed: review.text.isEmpty ? null : _copy,
                     child: const LText('复制内容'),
                   ),
-                OutlinedButton(
+                // 次要动作是中性的：高一层的底、正文色的字，不描边，主色留给默认的「粘贴」。
+                FilledButton.tonal(
                   key: const ValueKey('terminal-paste-enter'),
+                  style: ShunButton.neutralStyleOf(context),
                   onPressed: canSend ? () => _send(enter: true) : null,
                   child: const LText('粘贴并回车'),
                 ),
                 // 没开 bracketed paste 的多行粘贴本身就会执行前面各行：这时不给它「默认动作」的样子，
-                // 文字直接说会发生什么（UX03「危险动作不是默认动作」）。
+                // 文字直接说会发生什么（UX03「危险动作不是默认动作」）。不描边：中性的底、警示色的字。
                 if (runsLines)
-                  OutlinedButton(
+                  TextButton(
                     key: const ValueKey('terminal-paste-send'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: scheme.error,
+                    style: TextButton.styleFrom(
+                      backgroundColor: raised,
+                      foregroundColor: colors.error,
+                      padding: const EdgeInsets.symmetric(horizontal: 24),
                     ),
                     onPressed: canSend ? () => _send(enter: false) : null,
                     child: const LText('粘贴（会逐行执行）'),
@@ -306,37 +338,57 @@ String multilinePasteRisk({required bool bracketed}) => bracketed
     ? '多行。远端程序现在开着 bracketed paste（粘贴标记）：多数新版 shell 会把整段放进输入行，等你按回车才执行。但这是远端程序自己的约定，App 保证不了，有的程序照样逐行执行。'
     : '多行。远端程序现在没开 bracketed paste：每个换行都等于按一次回车，除了最后一行，前面各行会在粘贴的同时执行。';
 
-/// 粘贴预览、大输入框里的一条提醒：图标加一段话，危险的用底色标出来（不只靠颜色，图标和文字也说）。
+/// 粘贴预览、大输入框的编辑框的边：不描边（底色比所在表面高一层），拿到焦点时一圈主色。
+InputBorder terminalEditorBorder(BuildContext context,
+        {bool focused = false}) =>
+    OutlineInputBorder(
+      // 和 material_compat 给输入框的圆角一样。Prism 的输入框边不是 Material 的 InputBorder，这里用不上。
+      borderRadius: prism.AppRadius.md,
+      borderSide: focused
+          ? BorderSide(
+              color: prism.Theme.of(context).colorScheme.primary,
+              width: 1.5,
+            )
+          : BorderSide.none,
+    );
+
+/// 粘贴预览、大输入框里的一条提醒：图标加一段话。要紧的（[boxed]）落在高一层的底上；
+/// 危险的（[danger]）图标和字用警示色，底仍是中性的（不只靠颜色，图标和文字也说）。
 class TerminalPasteNotice extends StatelessWidget {
   const TerminalPasteNotice({
     super.key,
     required this.icon,
     required this.text,
     this.detail,
-    this.color,
-    this.onColor,
+    this.boxed = false,
+    this.danger = false,
     this.action,
   });
 
   final IconData icon;
   final String text;
   final String? detail;
-  final Color? color;
-  final Color? onColor;
+  final bool boxed;
+  final bool danger;
   final Widget? action;
 
   @override
   Widget build(BuildContext context) {
-    final foreground = onColor ?? Theme.of(context).colorScheme.onSurface;
+    final colors = prism.Theme.of(context).colorScheme;
+    final foreground = danger ? colors.error : colors.onSurface;
     return Padding(
       padding: const EdgeInsets.only(bottom: 6),
       child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(8),
+        decoration: ShapeDecoration(
+          color: boxed
+              ? prism.SurfaceContext(context).raisedSurfaceLevel.colorOf(colors)
+              : null,
+          shape: prism.AppShape.md,
         ),
         child: Padding(
-          padding: EdgeInsets.all(color == null ? 0 : 8),
+          padding: boxed
+              ? const EdgeInsets.symmetric(horizontal: 12, vertical: 8)
+              : EdgeInsets.zero,
           child: Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

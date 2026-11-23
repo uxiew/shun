@@ -102,7 +102,17 @@ class _ConnectionRouteEditorState extends State<ConnectionRouteEditor> {
               padding: const EdgeInsets.all(10),
               child:
                   Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Icon(RouteLegsView.iconFor(leg.kind)),
+                DecoratedBox(
+                  decoration: ShapeDecoration(
+                    color: prism.SurfaceLevel.block
+                        .colorOf(prism.Theme.of(context).colorScheme),
+                    shape: prism.AppShape.md,
+                  ),
+                  child: Padding(
+                    padding: const EdgeInsets.all(8),
+                    child: Icon(RouteLegsView.iconFor(leg.kind), size: 20),
+                  ),
+                ),
                 const SizedBox(width: 10),
                 Expanded(
                     child: Column(

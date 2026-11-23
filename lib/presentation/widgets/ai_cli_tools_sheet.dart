@@ -25,6 +25,7 @@ import '../../infrastructure/storage/ai_cli_recent_work.dart';
 import '../../infrastructure/tmux/ai_cli_tmux_service.dart';
 import '../../infrastructure/tmux/tmux_protocol.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import 'catalog_text.dart';
 import 'form_gap.dart';
 import 'hint.dart';
@@ -338,15 +339,16 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
                   ),
                 ])),
                 actions: [
-                  TextButton(
+                  ShunButton(
+                    kind: ShunButtonKind.text,
                     onPressed: () => Navigator.pop(context),
-                    child: const LText('取消'),
+                    label: '取消',
                   ),
-                  FilledButton(
+                  ShunButton(
                     key: const ValueKey('ai-cli-confirm-launch'),
                     onPressed: () => Navigator.pop(
                         context, (directory: directory, useTmux: useTmux)),
-                    child: const LText('新建终端'),
+                    label: '新建终端',
                   ),
                 ],
               )),
@@ -607,51 +609,50 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
                         ? '选择 Codex 历史'
                         : '选择 Claude 历史'
                     : '仅可重新新建';
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          LText('${item.name} · ${item.projectDirectory}'),
-          const SizedBox(height: 4),
-          LText(liveIndex >= 0
-              ? '原终端仍连接；工具状态请在终端确认'
-              : tmux
-                  ? '将核对原 session、窗口、窗格和进程，再返回终端'
-                  : exact
-                      ? 'Claude 会话 ID 已记录；远端会话存在性待工具核验'
-                      : picker
-                          ? item.tool == AiCliKind.codex
-                              ? 'Codex 未取得确切会话 ID，需在工具中选择'
-                              : 'Claude 未取得确切会话 ID，需在工具中选择'
-                          : '没有可核验的继续目标'),
-          Wrap(
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              TextButton(
-                key: ValueKey('ai-cli-recent-${item.id}'),
-                onPressed: _launching
-                    ? null
-                    : liveIndex >= 0
-                        ? () => _returnLive(item)
-                        : tmux && (_scannedPlan != null || liveTmux)
-                            ? () => _returnTmux(item)
-                            : _scannedPlan != null && (exact || picker)
-                                ? () => _resume(item)
-                                : null,
-                child: LText(label),
-              ),
-              IconButton(
-                key: ValueKey('ai-cli-new-from-recent-${item.id}'),
-                tooltip: localized('同项目新建'),
-                onPressed: _launching || _scannedPlan == null
-                    ? null
-                    : () => _launchFromRecent(item),
-                icon: const Icon(Icons.add),
-              ),
-            ],
-          ),
-        ]),
-      ),
+    return ShunSectionItem(
+      padding: const EdgeInsets.all(12),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        LText('${item.name} · ${item.projectDirectory}'),
+        const SizedBox(height: 4),
+        LText(liveIndex >= 0
+            ? '原终端仍连接；工具状态请在终端确认'
+            : tmux
+                ? '将核对原 session、窗口、窗格和进程，再返回终端'
+                : exact
+                    ? 'Claude 会话 ID 已记录；远端会话存在性待工具核验'
+                    : picker
+                        ? item.tool == AiCliKind.codex
+                            ? 'Codex 未取得确切会话 ID，需在工具中选择'
+                            : 'Claude 未取得确切会话 ID，需在工具中选择'
+                        : '没有可核验的继续目标'),
+        Wrap(
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            ShunButton(
+              kind: ShunButtonKind.text,
+              key: ValueKey('ai-cli-recent-${item.id}'),
+              onPressed: _launching
+                  ? null
+                  : liveIndex >= 0
+                      ? () => _returnLive(item)
+                      : tmux && (_scannedPlan != null || liveTmux)
+                          ? () => _returnTmux(item)
+                          : _scannedPlan != null && (exact || picker)
+                              ? () => _resume(item)
+                              : null,
+              label: label,
+            ),
+            IconButton(
+              key: ValueKey('ai-cli-new-from-recent-${item.id}'),
+              tooltip: localized('同项目新建'),
+              onPressed: _launching || _scannedPlan == null
+                  ? null
+                  : () => _launchFromRecent(item),
+              icon: const Icon(Icons.add),
+            ),
+          ],
+        ),
+      ]),
     );
   }
 
@@ -845,13 +846,14 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
             child: Row(children: [
               const Icon(Icons.terminal),
               const SizedBox(width: 8),
-              const Expanded(
-                  child: LText('AI 命令行工具', style: TextStyle(fontSize: 20))),
+              Expanded(
+                  child: LText('AI 命令行工具',
+                      style: Theme.of(context).textTheme.titleLarge)),
               HintButton(title: 'AI 命令行工具', message: _about()),
-              IconButton(
+              ShunBarButton(
                   tooltip: localized('关闭'),
                   onPressed: () => Navigator.pop(context),
-                  icon: const Icon(Icons.close)),
+                  icon: Icons.close),
             ])),
         Expanded(
             child: ListView(padding: const EdgeInsets.all(16), children: [
@@ -864,29 +866,34 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
               const Expanded(
                   child: LText('最近工作（仅本机）',
                       style: TextStyle(fontWeight: FontWeight.bold))),
-              TextButton(
+              ShunButton(
+                  kind: ShunButtonKind.text,
                   onPressed: _launching ? null : _clearRecent,
-                  child: const LText('清除最近工作')),
+                  label: '清除最近工作'),
             ]),
-            for (final item in _recent.take(5)) _recentCard(item),
+            if (_recent.isNotEmpty)
+              ShunSection(children: _recent.take(5).map(_recentCard).toList()),
           ],
           Wrap(spacing: 8, children: [
-            TextButton.icon(
+            ShunButton(
+                kind: ShunButtonKind.tonal,
                 key: const ValueKey('ai-cli-refresh'),
                 onPressed:
                     _loading || _launching || !_settingsReady ? null : _refresh,
-                icon: const Icon(Icons.refresh),
-                label: const LText('重新检测')),
-            TextButton.icon(
+                icon: Icons.refresh,
+                label: '重新检测'),
+            ShunButton(
+                kind: ShunButtonKind.text,
                 key: const ValueKey('ai-cli-settings'),
                 onPressed: _loading || _launching ? null : _settings,
-                icon: const Icon(Icons.tune),
-                label: const LText('补充目录和工具')),
+                icon: Icons.tune,
+                label: '补充目录和工具'),
             if (_loading)
-              TextButton(
+              ShunButton(
+                  kind: ShunButtonKind.text,
                   key: const ValueKey('ai-cli-cancel'),
                   onPressed: _cancel,
-                  child: const LText('取消检测')),
+                  label: '取消检测'),
           ]),
           if (_loading) ...[
             const LinearProgressIndicator(),
@@ -944,34 +951,39 @@ class _AiCliToolsSheetState extends ConsumerState<AiCliToolsSheet> {
     return 'PATH';
   }
 
-  Widget _toolGroup(String name, List<AiCliInstallation> items) => Card(
-          child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          LText(name, style: const TextStyle(fontWeight: FontWeight.bold)),
-          if (items.isEmpty) const LText('此范围未发现'),
-          for (final item in items) ...[
-            const SizedBox(height: 8),
-            SelectableText(item.path),
-            // 标签翻译、值（版本号、来源名）原样拼在后面。
-            if (item.packageVersion case final version?)
-              catalogLine('安装包标注版本：', version)
-            else
-              const LText('版本未核验'),
-            catalogLine('来源：', _sourceLabel(item.source)),
-            if (_scannedPlan != null)
-              Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton.tonal(
-                  key: ValueKey('ai-cli-launch-${item.path}'),
-                  onPressed:
-                      _launching || _loading ? null : () => _launch(item),
-                  child: const LText('新建终端'),
-                ),
-              ),
-          ],
-        ]),
-      ));
+  Widget _toolGroup(String name, List<AiCliInstallation> items) => ShunSection(
+        title: name,
+        children: [
+          if (items.isEmpty) const ShunSectionItem(child: LText('此范围未发现')),
+          for (final item in items)
+            ShunSectionItem(
+              padding: const EdgeInsets.all(12),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    SelectableText(item.path),
+                    // 标签翻译、值（版本号、来源名）原样拼在后面。
+                    if (item.packageVersion case final version?)
+                      catalogLine('安装包标注版本：', version)
+                    else
+                      const LText('版本未核验'),
+                    ShunPill('${localized('来源：')}${_sourceLabel(item.source)}'),
+                    if (_scannedPlan != null)
+                      Align(
+                        alignment: Alignment.centerRight,
+                        child: ShunButton(
+                          kind: ShunButtonKind.tonal,
+                          key: ValueKey('ai-cli-launch-${item.path}'),
+                          onPressed: _launching || _loading
+                              ? null
+                              : () => _launch(item),
+                          label: '新建终端',
+                        ),
+                      ),
+                  ]),
+            ),
+        ],
+      );
 }
 
 class _DiscoverySettings extends StatefulWidget {
@@ -1051,13 +1063,14 @@ class _DiscoverySettingsState extends State<_DiscoverySettings> {
                         TextStyle(color: Theme.of(context).colorScheme.error)),
             ]))),
         actions: [
-          TextButton(
+          ShunButton(
+              kind: ShunButtonKind.text,
               onPressed: () => Navigator.pop(context),
-              child: const LText('取消')),
-          FilledButton(
+              label: '取消'),
+          ShunButton(
               key: const ValueKey('ai-cli-save-settings'),
               onPressed: _save,
-              child: const LText('保存并检测'))
+              label: '保存并检测')
         ],
       );
 }

@@ -10,6 +10,7 @@ import '../../application/plugin_discovery.dart';
 import '../../application/plugin_registry.dart';
 import '../../application/plugin_sessions.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 import '../widgets/hint.dart';
 
 /// 会话测试（X12）：插件作者只装本 App 的安装包，就能核对自己的插件走不走得完一次终端会话——
@@ -310,7 +311,7 @@ class _PluginSessionTestScreenState
     final ready = entry?.status == PluginStatus.ready;
     final active = _session?.phase == SessionPhase.active;
     return Scaffold(
-      appBar: AppBar(
+      appBar: ShunAppBar(
         title: Text(_title(entry)),
         actions: [
           HintButton(title: '会话测试', message: _about()),
@@ -323,76 +324,89 @@ class _PluginSessionTestScreenState
           if (ready && unavailable != null)
             LText(unavailable,
                 key: const ValueKey('session-test-unavailable'), style: small),
-          const SizedBox(height: 8),
-          Wrap(
-            spacing: 8,
-            runSpacing: 8,
-            children: [
-              FilledButton(
-                key: const ValueKey('session-test-start'),
-                onPressed: !ready || unavailable != null || _busy || _running
-                    ? null
-                    : _start,
-                child: LText(_session == null ? '开始' : '重新开始'),
-              ),
-              OutlinedButton(
-                key: const ValueKey('session-test-resize'),
-                onPressed: active ? _resize : null,
-                child: LText(_session?.lastResize == '100x30'
-                    ? '改回 80×24'
-                    : '改成 100×30'),
-              ),
-              OutlinedButton(
-                key: const ValueKey('session-test-close'),
-                onPressed: _running ? _close : null,
-                child: const LText('关闭会话'),
-              ),
-            ],
-          ),
+          ShunSection(children: [
+            ShunSectionItem(
+                child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                ShunButton(
+                  key: const ValueKey('session-test-start'),
+                  onPressed: !ready || unavailable != null || _busy || _running
+                      ? null
+                      : _start,
+                  label: _session == null ? '开始' : '重新开始',
+                ),
+                ShunButton(
+                  kind: ShunButtonKind.tonal,
+                  key: const ValueKey('session-test-resize'),
+                  onPressed: active ? _resize : null,
+                  label: _session?.lastResize == '100x30'
+                      ? '改回 80×24'
+                      : '改成 100×30',
+                ),
+                ShunButton(
+                  kind: ShunButtonKind.tonal,
+                  key: const ValueKey('session-test-close'),
+                  onPressed: _running ? _close : null,
+                  label: '关闭会话',
+                ),
+              ],
+            ))
+          ]),
           if (_busy) const LinearProgressIndicator(),
           const SizedBox(height: 8),
           for (final line in _steps) SelectableText(line, style: small),
           const SizedBox(height: 12),
-          Text(_receivedLabel(), style: small),
-          Container(
-            margin: const EdgeInsets.only(top: 4),
-            padding: const EdgeInsets.all(8),
-            decoration: BoxDecoration(
-              border: Border.all(color: Theme.of(context).dividerColor),
-            ),
-            constraints: const BoxConstraints(minHeight: 80),
-            child: SelectableText(
-              PluginSessionTestScreen.render(_received),
-              key: const ValueKey('session-test-output'),
-              style: mono,
-            ),
-          ),
-          const SizedBox(height: 12),
-          Row(
-            children: [
-              Expanded(
-                child: TextField(
-                  key: const ValueKey('session-test-input'),
-                  controller: _input,
-                  enabled: _running,
-                  decoration: InputDecoration(labelText: localized('发给插件的一行')),
-                  onSubmitted: (_) => _send(),
+          Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: ShunPill(_receivedLabel())),
+          const SizedBox(height: 4),
+          ShunSection(children: [
+            ShunSectionItem(
+              padding: const EdgeInsets.all(16),
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                    minWidth: double.infinity, minHeight: 64),
+                child: SelectableText(
+                  PluginSessionTestScreen.render(_received),
+                  key: const ValueKey('session-test-output'),
+                  style: mono,
                 ),
               ),
-              const SizedBox(width: 8),
-              FilledButton(
-                key: const ValueKey('session-test-send'),
-                onPressed: _running ? _send : null,
-                child: const LText('发送'),
+            ),
+            ShunSectionItem(
+                child: Column(children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      key: const ValueKey('session-test-input'),
+                      controller: _input,
+                      enabled: _running,
+                      decoration:
+                          InputDecoration(labelText: localized('发给插件的一行')),
+                      onSubmitted: (_) => _send(),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  ShunButton(
+                    key: const ValueKey('session-test-send'),
+                    onPressed: _running ? _send : null,
+                    label: '发送',
+                  ),
+                ],
               ),
-            ],
-          ),
-          CheckboxListTile(
-            contentPadding: EdgeInsets.zero,
-            value: _appendCr,
-            onChanged: (v) => setState(() => _appendCr = v ?? true),
-            title: const LText(r'末尾加回车（\r，和终端里按回车一样）'),
-          ),
+              Material(
+                  type: MaterialType.transparency,
+                  child: CheckboxListTile(
+                    contentPadding: EdgeInsets.zero,
+                    value: _appendCr,
+                    onChanged: (v) => setState(() => _appendCr = v ?? true),
+                    title: const LText(r'末尾加回车（\r，和终端里按回车一样）'),
+                  )),
+            ]))
+          ]),
         ],
       ),
     );

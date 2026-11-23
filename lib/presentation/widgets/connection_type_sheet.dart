@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:plugin_api/plugin_api.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 import '../../application/plugin_host_session.dart';
 import '../../application/plugin_registry.dart';
 import '../../application/rustdesk.dart';
@@ -98,9 +99,8 @@ String? remoteTypeStatus(WidgetRef ref, RemoteConnectionType type) {
       final uu = ref.watch(uuRemoteProvider);
       return uu.notice ??
           switch (uu.app) {
-            UuReady() => uu.callbackRivals.isEmpty
-                ? '只能控制 Windows/macOS'
-                : '回调地址冲突，绑定不可用',
+            UuReady() =>
+              uu.callbackRivals.isEmpty ? '只能控制 Windows/macOS' : '回调地址冲突，绑定不可用',
             UuNotInstalled() => '未安装',
             UuPlatformUnsupported() => '仅支持 Android',
             UuVersionTooOld() => '版本过旧，请更新客户端',
@@ -211,7 +211,20 @@ class _ConnectionTypeSheetState extends ConsumerState<ConnectionTypeSheet> {
     }) =>
         ShunListRow(
           key: ValueKey('connection-type-$title'),
-          leading: Icon(icon),
+          leading: Builder(builder: (context) {
+            final colors = prism.Theme.of(context).colorScheme;
+            return DecoratedBox(
+              decoration: ShapeDecoration(
+                color: prism.SurfaceContext(context)
+                    .raisedSurfaceLevel
+                    .colorOf(colors),
+                shape: prism.AppShape.md,
+              ),
+              child: Padding(
+                  padding: const EdgeInsets.all(8),
+                  child: Icon(icon, size: 20)),
+            );
+          }),
           title: title,
           subtitle: status,
           selected: selected(value),

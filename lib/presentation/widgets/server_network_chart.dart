@@ -1,15 +1,28 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../domain/models/server_stats.dart';
 import '../localization/localized_widgets.dart';
 
 /// Readings use local sample timestamps, not interpolated or invented speeds.
 /// Freeze the displayed timeline during a touch so polling cannot move it away.
+///
+/// Custom drawing stays (R91): Prism has no chart, and the only consumer is the
+/// overview tab of the monitor panel. Colors come from the theme; the legend is
+/// drawn here so it always matches the plotted colors.
 class ServerNetworkChart extends StatefulWidget {
-  const ServerNetworkChart({super.key, required this.samples});
+  const ServerNetworkChart({
+    super.key,
+    required this.samples,
+    this.stale = false,
+  });
   final List<ServerStats> samples;
+
+  /// The connection is gone: these are the last readings before it dropped.
+  /// Lines are dimmed and marked, and nothing new arrives.
+  final bool stale;
 
   @override
   State<ServerNetworkChart> createState() => _ServerNetworkChartState();
@@ -34,7 +47,11 @@ class _ServerNetworkChartState extends State<ServerNetworkChart> {
       return const SizedBox(height: 160, child: Center(child: LText('暂无详细数据')));
     }
     final selected = _fraction == null ? null : timeline.nearest(_fraction!);
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+    final dim = widget.stale ? .45 : 1.0;
+    final rx = colors.primary.withValues(alpha: dim);
+    final tx = colors.tertiary.withValues(alpha: dim);
+    final plot =
+        Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       LayoutBuilder(builder: (context, constraints) {
         final width = constraints.maxWidth;
         void position(Offset point) {
@@ -78,13 +95,8 @@ class _ServerNetworkChartState extends State<ServerNetworkChart> {
                 child: Stack(children: [
                   Positioned.fill(
                       child: CustomPaint(
-                          painter: _NetworkPlot(
-                              timeline,
-                              selected,
-                              colors.primary,
-                              colors.tertiary,
-                              colors.onSurfaceVariant,
-                              colors.outlineVariant))),
+                          painter: _NetworkPlot(timeline, selected, rx, tx,
+                              colors.onSurfaceVariant, colors.outlineVariant))),
                   if (selected != null)
                     Positioned(
                       left: tooltipLeft,
@@ -93,9 +105,8 @@ class _ServerNetworkChartState extends State<ServerNetworkChart> {
                       child: IgnorePointer(
                           child: Material(
                               key: const ValueKey('network-chart-tooltip'),
-                              elevation: 3,
                               color: colors.inverseSurface,
-                              borderRadius: BorderRadius.circular(8),
+                              shape: prism.AppShape.sm,
                               child: Padding(
                                   padding: const EdgeInsets.all(8),
                                   child: DefaultTextStyle(
@@ -146,8 +157,42 @@ class _ServerNetworkChartState extends State<ServerNetworkChart> {
                             fontSize: 11, color: colors.onSurfaceVariant)))),
           ),
       ]),
+      const SizedBox(height: 6),
+      Wrap(
+          spacing: 16,
+          runSpacing: 4,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            _legend('接收', rx, const ValueKey('network-legend-rx')),
+            _legend('发送', tx, const ValueKey('network-legend-tx')),
+            if (widget.stale)
+              LText('断开前的数据',
+                  key: const ValueKey('network-chart-stale'),
+                  style: TextStyle(fontSize: 11, color: colors.error)),
+          ]),
     ]);
+    return Container(
+      padding: const EdgeInsets.all(10),
+      decoration: ShapeDecoration(
+        color: prism.SurfaceContext(context)
+            .raisedSurfaceLevel
+            .colorOf(prism.Theme.of(context).colorScheme),
+        shape: prism.AppShape.md,
+      ),
+      child: plot,
+    );
   }
+
+  Widget _legend(String label, Color color, Key key) =>
+      Row(key: key, mainAxisSize: MainAxisSize.min, children: [
+        Container(
+            width: 14,
+            height: 3,
+            decoration: BoxDecoration(
+                color: color, borderRadius: prism.AppRadius.full)),
+        const SizedBox(width: 6),
+        LText(label),
+      ]);
 
   Widget _reading(String label, double rate, Key key) => FittedBox(
         fit: BoxFit.scaleDown,

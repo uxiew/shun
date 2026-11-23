@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -22,16 +23,19 @@ class SnippetsScreen extends ConsumerWidget {
     final snippets = vault?.snippets ?? const <CommandSnippet>[];
     return SafeArea(
       child: Scaffold(
-        appBar: AppBar(
-          title: const LText('命令片段'),
-          actions: [
-            IconButton(
-              key: const ValueKey('snippet-add'),
-              tooltip: localized('新建片段'),
-              onPressed: () => _edit(context, ref),
-              icon: const Icon(Icons.add),
-            ),
-          ],
+        appBar: PreferredSize(
+          preferredSize: const Size.fromHeight(ShunPageHeader.height),
+          child: ShunPageHeader(
+            title: localizedOf(context, '命令片段'),
+            actions: [
+              ShunBarButton(
+                key: const ValueKey('snippet-add'),
+                tooltip: localized('新建片段'),
+                onPressed: () => _edit(context, ref),
+                icon: Icons.add,
+              ),
+            ],
+          ),
         ),
         body: snippets.isEmpty
             ? EmptyState(
@@ -45,7 +49,9 @@ class SnippetsScreen extends ConsumerWidget {
                 ),
               )
             : ListView(
-                padding: const EdgeInsets.fromLTRB(16, 0, 16, 24),
+                // 列表从浮动底栏底下滚过去，末尾留出它的高度。
+                padding: EdgeInsets.fromLTRB(
+                    16, 0, 16, 24 + prism.BottomInsetScope.of(context)),
                 children: [
                   ShunSection(
                     children: [

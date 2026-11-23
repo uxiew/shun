@@ -28,14 +28,16 @@ class HostActionsSheet extends StatelessWidget {
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            ShunListRow(
-              title: host.label,
-              leading:
-                  HostLeadingIcon(host: host, size: 40, catalogOs: catalogOs),
-              describeLeading: true,
-              details: HostAddressLine(host,
-                  maxLines: 1, overflow: TextOverflow.ellipsis),
-            ),
+            ShunSection(children: [
+              ShunListRow(
+                title: host.label,
+                leading:
+                    HostLeadingIcon(host: host, size: 40, catalogOs: catalogOs),
+                describeLeading: true,
+                details: HostAddressLine(host,
+                    maxLines: 1, overflow: TextOverflow.ellipsis),
+              )
+            ]),
             ShunSection(
               children: [
                 for (final action in menu.actions)

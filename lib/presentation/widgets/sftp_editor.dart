@@ -2,8 +2,10 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 import '../../application/settings_controller.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
 
 enum EditorSearchMode { text, wholeWord, regularExpression }
 
@@ -574,12 +576,15 @@ class _SftpEditorState extends ConsumerState<SftpEditor> {
           context: context,
           builder: (context) =>
               AlertDialog(title: const LText('放弃未保存的修改？'), actions: [
-                TextButton(
-                    onPressed: () => Navigator.pop(context, false),
-                    child: const LText('取消')),
-                FilledButton(
-                    onPressed: () => Navigator.pop(context, true),
-                    child: const LText('放弃'))
+                ShunButton(
+                    key: const ValueKey('editor-discard-cancel'),
+                    kind: ShunButtonKind.text,
+                    label: '取消',
+                    onPressed: () => Navigator.pop(context, false)),
+                ShunButton(
+                    key: const ValueKey('editor-discard'),
+                    label: '放弃',
+                    onPressed: () => Navigator.pop(context, true))
               ]));
       if (discard != true || !mounted) return;
     }
@@ -587,6 +592,7 @@ class _SftpEditorState extends ConsumerState<SftpEditor> {
   }
 
   Future<void> _save() async {
+    if (saving) return;
     final text = code.text;
     setState(() {
       saving = true;
@@ -610,57 +616,113 @@ class _SftpEditorState extends ConsumerState<SftpEditor> {
     code.currentSearchIndex = searchVisible ? currentSearchIndex : -1;
     final style = editorStyle;
     final scaler = MediaQuery.textScalerOf(context);
+    final compact = MediaQuery.sizeOf(context).width < 480;
+    final actions = [
+      IconButton(
+          key: const ValueKey('editor-wrap-toggle'),
+          tooltip: localized('自动换行'),
+          isSelected: softWrap,
+          onPressed: _toggleWrap,
+          icon: const Icon(Icons.wrap_text)),
+      IconButton(
+          key: const ValueKey('editor-search-toggle'),
+          tooltip: localized('在文件中搜索'),
+          isSelected: searchVisible,
+          onPressed: _toggleSearch,
+          icon: Icon(searchVisible ? Icons.search_off : Icons.search)),
+      ValueListenableBuilder<UndoHistoryValue>(
+          valueListenable: undo,
+          builder: (context, value, _) => Row(children: [
+                IconButton(
+                    key: const ValueKey('editor-undo'),
+                    tooltip: localized('撤销'),
+                    onPressed: value.canUndo ? undo.undo : null,
+                    icon: const Icon(Icons.undo)),
+                IconButton(
+                    key: const ValueKey('editor-redo'),
+                    tooltip: localized('重做'),
+                    onPressed: value.canRedo ? undo.redo : null,
+                    icon: const Icon(Icons.redo)),
+              ])),
+      ShunButton(
+        key: const ValueKey('editor-save'),
+        label: saving ? '保存中…' : '保存',
+        kind: ShunButtonKind.text,
+        busy: saving,
+        onPressed: _save,
+      ),
+    ];
     return PopScope(
         canPop: saved == code.text && !saving,
         onPopInvokedWithResult: (didPop, _) {
           if (!didPop) _close();
         },
         child: Scaffold(
-          appBar: AppBar(
-              leading:
-                  IconButton(onPressed: _close, icon: const Icon(Icons.close)),
+          appBar: ShunAppBar(
+              leading: IconButton(
+                  key: const ValueKey('editor-close'),
+                  tooltip: localized('关闭'),
+                  onPressed: saving ? null : _close,
+                  icon: const Icon(Icons.close)),
               title: Text('${saved == code.text ? '' : '* '}${widget.name}'),
-              actions: [
-                IconButton(
-                    key: const ValueKey('editor-wrap-toggle'),
-                    tooltip: localized('自动换行'),
-                    isSelected: softWrap,
-                    onPressed: _toggleWrap,
-                    icon: const Icon(Icons.wrap_text)),
-                IconButton(
-                    key: const ValueKey('editor-search-toggle'),
-                    tooltip: localized('在文件中搜索'),
-                    onPressed: _toggleSearch,
-                    icon:
-                        Icon(searchVisible ? Icons.search_off : Icons.search)),
-                ValueListenableBuilder<UndoHistoryValue>(
-                    valueListenable: undo,
-                    builder: (context, value, _) => Row(children: [
-                          IconButton(
-                              tooltip: localized('撤销'),
-                              onPressed: value.canUndo ? undo.undo : null,
-                              icon: const Icon(Icons.undo)),
-                          IconButton(
-                              tooltip: localized('重做'),
-                              onPressed: value.canRedo ? undo.redo : null,
-                              icon: const Icon(Icons.redo)),
-                        ])),
-                TextButton(
-                    onPressed: saving ? null : _save,
-                    child: LText(saving ? '保存中…' : '保存'))
-              ]),
-          body: Column(children: [
-            if (searchVisible) _searchPanel(),
-            if (error != null)
-              Padding(
-                  padding: const EdgeInsets.all(8),
-                  child: LText(error!,
-                      style: TextStyle(
-                          color: Theme.of(context).colorScheme.error))),
-            if (code.highlight && code.text.length > 200000)
-              const LText('大文件已暂停代码高亮'),
-            Expanded(child: _editorArea(style, scaler)),
-          ]),
+              actions: compact ? null : actions,
+              bottom: compact
+                  ? PreferredSize(
+                      preferredSize: const Size.fromHeight(48),
+                      child: Align(
+                        alignment: AlignmentDirectional.centerEnd,
+                        child: SingleChildScrollView(
+                          scrollDirection: Axis.horizontal,
+                          child: Row(children: actions),
+                        ),
+                      ),
+                    )
+                  : null),
+          body: LayoutBuilder(builder: (context, constraints) {
+            return Column(children: [
+              if (searchVisible || error != null)
+                ConstrainedBox(
+                  constraints:
+                      BoxConstraints(maxHeight: constraints.maxHeight * .65),
+                  child: SingleChildScrollView(
+                    primary: false,
+                    child: Column(children: [
+                      if (searchVisible) _searchPanel(),
+                      if (error != null)
+                        Semantics(
+                          key: const ValueKey('editor-save-error'),
+                          liveRegion: true,
+                          child: Padding(
+                            padding: const EdgeInsets.all(8),
+                            child: LText(error!,
+                                style: TextStyle(
+                                    color:
+                                        Theme.of(context).colorScheme.error)),
+                          ),
+                        ),
+                    ]),
+                  ),
+                ),
+              if (code.highlight && code.text.length > 200000)
+                const LText('大文件已暂停代码高亮'),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(8, 4, 8, 8),
+                  child: Material(
+                    color: prism.SurfaceContext(context)
+                        .raisedSurfaceLevel
+                        .colorOf(prism.Theme.of(context).colorScheme),
+                    shape: prism.AppShape.lg,
+                    clipBehavior: Clip.antiAlias,
+                    child: prism.SurfaceScope(
+                      level: prism.SurfaceContext(context).raisedSurfaceLevel,
+                      child: _editorArea(style, scaler),
+                    ),
+                  ),
+                ),
+              ),
+            ]);
+          }),
         ));
   }
 
@@ -716,10 +778,14 @@ class _SftpEditorState extends ConsumerState<SftpEditor> {
             controller: editorScroll,
             child: EditorLineNumbers(
                 text: code.text,
-                style: style,
+                style: style.copyWith(
+                    color:
+                        prism.Theme.of(context).colorScheme.onSurfaceVariant),
                 scaler: scaler,
                 gutterWidth: gutterWidth,
-                color: Theme.of(context).colorScheme.surfaceContainerHighest,
+                color: prism.SurfaceContext(context)
+                    .raisedSurfaceLevel
+                    .colorOf(prism.Theme.of(context).colorScheme),
                 child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -770,21 +836,9 @@ class _SftpEditorState extends ConsumerState<SftpEditor> {
             right: 12,
             bottom: 12,
             child: IgnorePointer(
-              child: DecoratedBox(
-                decoration: BoxDecoration(
-                  color: Theme.of(context).colorScheme.inverseSurface,
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                  child: Text(
-                    '${editorFontSize.toStringAsFixed(1)} pt',
-                    key: const ValueKey('editor-font-size'),
-                    style: TextStyle(
-                        color: Theme.of(context).colorScheme.onInverseSurface),
-                  ),
-                ),
+              child: ShunPill(
+                '${editorFontSize.toStringAsFixed(1)} pt',
+                key: const ValueKey('editor-font-size'),
               ),
             ),
           ),
@@ -793,22 +847,16 @@ class _SftpEditorState extends ConsumerState<SftpEditor> {
   }
 
   Widget _searchPanel() {
-    final label = switch (searchMode) {
-      EditorSearchMode.text => '普通文本',
-      EditorSearchMode.wholeWord => '全词匹配',
-      EditorSearchMode.regularExpression => '正则表达式',
-    };
-    final count = searchError != null
-        ? searchError!
-        : searchMatches.isEmpty
+    final count = searchError ??
+        (searchMatches.isEmpty
             ? '0 / 0'
-            : '${currentSearchIndex + 1} / ${searchMatches.length}${searchTruncated ? '+' : ''}';
-    return Material(
-      color: Theme.of(context).colorScheme.surfaceContainerLow,
-      child: Padding(
-        padding: const EdgeInsets.fromLTRB(8, 6, 8, 6),
-        child: Column(children: [
-          Row(children: [
+            : '${currentSearchIndex + 1} / ${searchMatches.length}${searchTruncated ? '+' : ''}');
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: ShunSection(children: [
+        ShunSectionItem(
+          padding: const EdgeInsets.fromLTRB(8, 4, 4, 4),
+          child: Row(children: [
             Expanded(
               child: TextField(
                 key: const ValueKey('editor-search-field'),
@@ -816,12 +864,13 @@ class _SftpEditorState extends ConsumerState<SftpEditor> {
                 focusNode: searchFocus,
                 maxLines: 1,
                 textInputAction: TextInputAction.search,
-                decoration: InputDecoration(
-                  hintText: localized('搜索打开的文件'),
+                decoration: LInputDecoration(
+                  labelText: '搜索打开的文件',
                   prefixIcon: const Icon(Icons.search),
                   suffixIcon: search.text.isEmpty
                       ? null
                       : IconButton(
+                          key: const ValueKey('editor-search-clear'),
                           tooltip: localized('清除'),
                           onPressed: search.clear,
                           icon: const Icon(Icons.clear)),
@@ -830,41 +879,32 @@ class _SftpEditorState extends ConsumerState<SftpEditor> {
               ),
             ),
             IconButton(
+                key: const ValueKey('editor-search-close'),
                 tooltip: localized('关闭搜索'),
                 onPressed: _toggleSearch,
                 icon: const Icon(Icons.close)),
           ]),
-          const SizedBox(height: 4),
-          Row(children: [
-            PopupMenuButton<EditorSearchMode>(
-              key: const ValueKey('editor-search-mode'),
-              tooltip: localized('匹配方式'),
-              initialValue: searchMode,
-              onSelected: (value) {
-                setState(() {
-                  searchMode = value;
-                  _calculateSearch(reset: true);
-                });
-                _showCurrentMatch();
-              },
-              itemBuilder: (_) => const [
-                PopupMenuItem(
-                    value: EditorSearchMode.text, child: LText('普通文本')),
-                PopupMenuItem(
-                    value: EditorSearchMode.wholeWord, child: LText('全词匹配')),
-                PopupMenuItem(
-                    value: EditorSearchMode.regularExpression,
-                    child: LText('正则表达式')),
-              ],
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                child: Row(mainAxisSize: MainAxisSize.min, children: [
-                  const Icon(Icons.tune, size: 18),
-                  const SizedBox(width: 5),
-                  LText(label),
-                ]),
-              ),
-            ),
+        ),
+        ShunOptionsRow<EditorSearchMode>(
+          key: const ValueKey('editor-search-mode'),
+          title: '匹配方式',
+          value: searchMode,
+          options: const [
+            (EditorSearchMode.text, '普通文本'),
+            (EditorSearchMode.wholeWord, '全词匹配'),
+            (EditorSearchMode.regularExpression, '正则表达式'),
+          ],
+          onChanged: (value) {
+            setState(() {
+              searchMode = value;
+              _calculateSearch(reset: true);
+            });
+            _showCurrentMatch();
+          },
+        ),
+        ShunSectionItem(
+          padding: const EdgeInsets.symmetric(horizontal: 4),
+          child: Row(children: [
             IconButton(
               key: const ValueKey('editor-search-case'),
               tooltip: localized('区分大小写'),
@@ -879,29 +919,37 @@ class _SftpEditorState extends ConsumerState<SftpEditor> {
               icon: const Icon(Icons.text_fields),
             ),
             Expanded(
-              child: Text(count,
-                  key: const ValueKey('editor-search-count'),
-                  maxLines: 1,
-                  textAlign: TextAlign.end,
-                  overflow: TextOverflow.ellipsis,
-                  style: TextStyle(
-                      color: searchError == null
-                          ? null
-                          : Theme.of(context).colorScheme.error)),
+              // Keep the count after the case toggle, not on the card's node.
+              child: Semantics(
+                container: true,
+                child: Align(
+                  alignment: AlignmentDirectional.centerEnd,
+                  child: searchError == null
+                      ? ShunPill(count,
+                          key: const ValueKey('editor-search-count'))
+                      : LText(count,
+                          key: const ValueKey('editor-search-count'),
+                          textAlign: TextAlign.end,
+                          style: TextStyle(
+                              color: Theme.of(context).colorScheme.error)),
+                ),
+              ),
             ),
             IconButton(
+                key: const ValueKey('editor-search-previous'),
                 tooltip: localized('上一个匹配'),
                 onPressed:
                     searchMatches.isEmpty ? null : () => _navigateSearch(-1),
                 icon: const Icon(Icons.keyboard_arrow_up)),
             IconButton(
+                key: const ValueKey('editor-search-next'),
                 tooltip: localized('下一个匹配'),
                 onPressed:
                     searchMatches.isEmpty ? null : () => _navigateSearch(1),
                 icon: const Icon(Icons.keyboard_arrow_down)),
           ]),
-        ]),
-      ),
+        ),
+      ]),
     );
   }
 }

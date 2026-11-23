@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../application/home_navigation.dart';
 import '../../application/session_controller.dart';
@@ -12,6 +13,9 @@ import '../../infrastructure/ssh/ssh_service.dart';
 import '../../infrastructure/terminal/terminal_session_adapter.dart';
 import '../../infrastructure/terminal/terminal_text.dart';
 import '../localization/localized_widgets.dart';
+import '../ui/components.dart';
+import '../ui/prism_theme.dart';
+import 'empty_state.dart';
 import 'session_tab_actions.dart';
 
 /// 总览里的一张卡：一个标签，连着的会话，或者还在连、连失败的。
@@ -170,104 +174,187 @@ class _SessionOverviewState extends ConsumerState<SessionOverview> {
       for (final session in state.sessions)
         if (_canReconnect(session, state)) session,
     ];
-    final theme = Theme.of(context);
+    final colors = prism.Theme.of(context).colorScheme;
+    // 面板落在页面那一层，卡片和胶囊各高一层：层次靠底色，不靠描边。
+    const level = prism.SurfaceLevel.page;
     // 只占底下一截：上面还看得见终端，点那里就关。
     return SafeArea(
       child: Material(
         key: const ValueKey('session-overview'),
-        color: theme.colorScheme.surface,
+        color: level.colorOf(colors),
         clipBehavior: Clip.antiAlias,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(16, 4, 4, 0),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: LText('会话总览', style: theme.textTheme.titleMedium),
-                  ),
-                  if (waiting.length > 1)
-                    TextButton(
-                      key: const ValueKey('overview-reconnect-all'),
-                      onPressed: () => _reconnect(waiting),
-                      child: const LText('全部重连'),
-                    ),
-                  IconButton(
-                    key: const ValueKey('overview-close'),
-                    tooltip: localized('关闭'),
-                    onPressed: widget.onClose,
-                    icon: const Icon(Icons.close),
-                  ),
-                ],
-              ),
-            ),
-            if (selected == null)
-              const Padding(
-                padding: EdgeInsets.fromLTRB(16, 24, 16, 40),
-                child: Center(child: LText('没有打开的会话')),
-              )
-            else ...[
-              // 机器里少了、多了就换一个控制器，起始位置设成现在选的那台。
-              DefaultTabController(
-                key: ValueKey(machines.map((m) => m.id).join('\n')),
-                length: machines.length,
-                initialIndex: machines.indexOf(selected),
-                child: TabBar(
-                  key: const ValueKey('overview-machines'),
-                  isScrollable: true,
-                  tabAlignment: TabAlignment.start,
-                  // 右边不留：× 自己带 48dp 的点按区，够它和下一个机器名隔开。
-                  labelPadding: const EdgeInsets.only(left: 16),
-                  onTap: (index) =>
-                      setState(() => _machineId = machines[index].id),
-                  tabs: [
-                    for (final machine in machines)
-                      Tab(
-                        key: ValueKey('overview-machine-${machine.id}'),
-                        height: 48,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text(
-                              machine.windows.length > 1
-                                  ? '${machine.name} · ${machine.windows.length}'
-                                  : machine.name,
-                            ),
-                            IconButton(
-                              key: ValueKey(
-                                'overview-close-machine-${machine.id}',
-                              ),
-                              tooltip: localized('关闭“${machine.name}”的全部会话'),
-                              iconSize: 18,
-                              onPressed: () => _closeMachine(machine),
-                              icon: const Icon(Icons.close),
-                            ),
-                          ],
-                        ),
+        shape: prism.AppShape.top(prism.AppCorner.xxl),
+        child: prism.SurfaceScope(
+          level: level,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 8, 8, 0),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: LText(
+                        '会话总览',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: prism.AppTextStyle.title3
+                            .of(context, emphasized: true)
+                            .copyWith(color: colors.onSurface),
                       ),
+                    ),
+                    if (waiting.length > 1)
+                      ShunButton(
+                        key: const ValueKey('overview-reconnect-all'),
+                        kind: ShunButtonKind.text,
+                        label: '全部重连',
+                        onPressed: () => _reconnect(waiting),
+                      ),
+                    ShunBarButton(
+                      key: const ValueKey('overview-close'),
+                      icon: Icons.close,
+                      tooltip: localized('关闭'),
+                      onPressed: widget.onClose,
+                    ),
                   ],
                 ),
               ),
-              // 外层不做横滑：卡片已经在左右滑了，两层都滑的话手指到头就切了机器，分不清在翻什么。
-              // Flexible：横屏弹着键盘时放不下整张卡，卡片跟着矮，不溟出。
-              Flexible(
-                child: SizedBox(
-                  height: _cardRowHeight,
-                  child: _WindowPager(
-                    key: ValueKey('overview-pager-${selected.id}'),
-                    machine: selected,
-                    activeTabIndex: activeIndex,
-                    state: state,
-                    onOpen: _open,
-                    onClose: _closeWindow,
-                    onReconnect: (session) => _reconnect([session]),
+              if (selected == null)
+                const EmptyState(
+                  icon: Icons.terminal_outlined,
+                  title: '没有打开的会话',
+                )
+              else ...[
+                // 机器一台一个胶囊，主色只给选中的那台。机器不多，全部建出来：选中的那台才能滚进来。
+                SingleChildScrollView(
+                  key: const ValueKey('overview-machines'),
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.symmetric(horizontal: 12),
+                  child: Row(
+                    children: [
+                      for (final machine in machines)
+                        _MachineChip(
+                          key: ValueKey('overview-machine-${machine.id}'),
+                          machine: machine,
+                          selected: machine == selected,
+                          onSelect: () =>
+                              setState(() => _machineId = machine.id),
+                          onClose: () => _closeMachine(machine),
+                        ),
+                    ],
                   ),
                 ),
-              ),
+                // 外层不做横滑：卡片已经在左右滑了，两层都滑的话手指到头就切了机器，分不清在翻什么。
+                // Flexible：横屏弹着键盘时放不下整张卡，卡片跟着矮，不溟出。
+                Flexible(
+                  child: SizedBox(
+                    height: _cardRowHeight,
+                    child: _WindowPager(
+                      key: ValueKey('overview-pager-${selected.id}'),
+                      machine: selected,
+                      activeTabIndex: activeIndex,
+                      state: state,
+                      onOpen: _open,
+                      onClose: _closeWindow,
+                      onReconnect: (session) => _reconnect([session]),
+                    ),
+                  ),
+                ),
+              ],
             ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// 一台机器的胶囊：名字（多于一个标签时带数量）和关掉这台全部会话的 ×。
+///
+/// 胶囊看着 40dp 高，× 的点按区仍是 48dp：它叠在胶囊右端，不算在胶囊的高度里。
+class _MachineChip extends StatefulWidget {
+  const _MachineChip({
+    super.key,
+    required this.machine,
+    required this.selected,
+    required this.onSelect,
+    required this.onClose,
+  });
+
+  final _Machine machine;
+  final bool selected;
+  final VoidCallback onSelect;
+  final VoidCallback onClose;
+
+  @override
+  State<_MachineChip> createState() => _MachineChipState();
+}
+
+class _MachineChipState extends State<_MachineChip> {
+  @override
+  void initState() {
+    super.initState();
+    if (widget.selected) _reveal();
+  }
+
+  @override
+  void didUpdateWidget(_MachineChip oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.selected && !oldWidget.selected) _reveal();
+  }
+
+  /// 机器多到一行放不下时，选中的那台滚进来。
+  void _reveal() => WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) Scrollable.ensureVisible(context, alignment: .5);
+      });
+
+  @override
+  Widget build(BuildContext context) {
+    final machine = widget.machine;
+    final colors = prism.Theme.of(context).colorScheme;
+    final foreground = widget.selected ? colors.onPrimary : colors.onSurface;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 48),
+        child: Stack(
+          alignment: Alignment.centerRight,
+          children: [
+            prism.PressSurface(
+              fill: widget.selected
+                  ? colors.primary
+                  : prism.SurfaceContext(context)
+                      .raisedSurfaceLevel
+                      .colorOf(colors),
+              shape: prism.AppShape.full,
+              inkColor: foreground,
+              selected: widget.selected,
+              minimum: const BoxConstraints(minHeight: 40),
+              // 右边那一截是 × 的位置。
+              padding: const EdgeInsets.only(left: 16, right: 44),
+              onPressed: widget.onSelect,
+              child: Text(
+                machine.windows.length > 1
+                    ? '${machine.name} · ${machine.windows.length}'
+                    : machine.name,
+                maxLines: 1,
+                style: prism.AppTextStyle.subheadline
+                    .of(context, emphasized: true)
+                    .copyWith(color: foreground),
+              ),
+            ),
+            Material(
+              type: MaterialType.transparency,
+              child: IconButton(
+                key: ValueKey('overview-close-machine-${machine.id}'),
+                tooltip: localized('关闭“${machine.name}”的全部会话'),
+                iconSize: 18,
+                color: foreground,
+                onPressed: widget.onClose,
+                icon: const Icon(Icons.close),
+              ),
+            ),
           ],
         ),
       ),
@@ -328,7 +415,7 @@ class _WindowPagerState extends State<_WindowPager> {
         key: const ValueKey('overview-windows'),
         controller: _scroll,
         scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 12),
         itemExtent: _cardWidth,
         itemCount: widget.machine.windows.length,
         itemBuilder: (context, index) {
@@ -389,80 +476,115 @@ class _WindowCard extends StatelessWidget {
     final session = window.session;
     final pending = window.pending;
     final failed = pending?.phase == PendingConnectionPhase.failed;
-    return Card(
-      margin: const EdgeInsets.fromLTRB(4, 8, 4, 12),
-      clipBehavior: Clip.antiAlias,
-      shape: active
-          ? RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
-              side: BorderSide(
-                color: Theme.of(context).colorScheme.primary,
-                width: 2,
-              ),
-            )
-          : null,
-      child: InkWell(
-        onTap: onOpen,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Row(
+    final colors = prism.Theme.of(context).colorScheme;
+    final level = prism.SurfaceContext(context).raisedSurfaceLevel;
+    final fill = level.colorOf(colors);
+    final note = prism.AppTextStyle.footnote
+        .of(context)
+        .copyWith(color: colors.onSurfaceVariant);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(4, 4, 4, 12),
+      // 当前那张不描边：底色带一层主色，名字也用主色。
+      child: prism.PressSurface(
+        fill: active
+            ? Color.alphaBlend(colors.primary.withValues(alpha: .16), fill)
+            : fill,
+        shape: prism.AppShape.md,
+        selected: active,
+        childFills: true,
+        clipsChild: true,
+        onPressed: onOpen,
+        child: prism.SurfaceScope(
+          level: level,
+          // 里面的 × 和按钮是 Material 的：水波纹画在这一层，不会被卡片的底色盖住。
+          child: Material(
+            type: MaterialType.transparency,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const SizedBox(width: 10),
-                _statusIcon(session, failed),
-                const SizedBox(width: 6),
+                Row(
+                  children: [
+                    const SizedBox(width: 10),
+                    _statusIcon(session, failed, colors),
+                    const SizedBox(width: 6),
+                    Expanded(
+                      child: Text(
+                        title,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        // 名字靠末尾的序号分得开彼此，字再大就被截掉了。
+                        style: prism.AppTextStyle.caption1
+                            .of(context, emphasized: true)
+                            .copyWith(
+                              color: active ? colors.primary : colors.onSurface,
+                            ),
+                      ),
+                    ),
+                    // 还在连的也给关（所有者 11-01）：点了先问，确认才终止，不会误触。
+                    IconButton(
+                      key: ValueKey('overview-close-${window.id}'),
+                      tooltip: localized('关闭标签“${window.host.label}”'),
+                      iconSize: 18,
+                      color: colors.onSurfaceVariant,
+                      onPressed: onClose,
+                      icon: const Icon(Icons.close),
+                    ),
+                  ],
+                ),
                 Expanded(
-                  child: Text(
-                    title,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.labelMedium,
+                  child: session != null
+                      ? Padding(
+                          padding: const EdgeInsets.fromLTRB(6, 0, 6, 6),
+                          child: _Preview(
+                            key: ValueKey('overview-preview-${session.id}'),
+                            terminal: session.terminal,
+                          ),
+                        )
+                      : Center(
+                          child: LText(
+                            failed ? '连接失败' : '正在连接…',
+                            style: failed
+                                ? note.copyWith(color: colors.error)
+                                : note,
+                          ),
+                        ),
+                ),
+                if (session != null && state.recovering.contains(session.id))
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(8, 2, 8, 8),
+                    child: LText(
+                      '正在恢复连接…',
+                      textAlign: TextAlign.center,
+                      style: note,
+                    ),
+                  )
+                else if (session != null && _canReconnect(session, state))
+                  Padding(
+                    padding: const EdgeInsets.fromLTRB(6, 0, 6, 2),
+                    child: ShunButton(
+                      key: ValueKey('overview-reconnect-${session.id}'),
+                      kind: ShunButtonKind.tonal,
+                      label: '重新连接',
+                      onPressed: () => onReconnect(session),
+                    ),
                   ),
-                ),
-                // 还在连的也给关（所有者 11-01）：点了先问，确认才终止，不会误触。
-                IconButton(
-                  key: ValueKey('overview-close-${window.id}'),
-                  tooltip: localized('关闭标签“${window.host.label}”'),
-                  onPressed: onClose,
-                  icon: const Icon(Icons.close),
-                ),
               ],
             ),
-            Expanded(
-              child: session != null
-                  ? _Preview(
-                      key: ValueKey('overview-preview-${session.id}'),
-                      terminal: session.terminal,
-                    )
-                  : Center(
-                      child: LText(failed ? '连接失败' : '正在连接…'),
-                    ),
-            ),
-            if (session != null && state.recovering.contains(session.id))
-              const Padding(
-                padding: EdgeInsets.all(8),
-                child: LText('正在恢复连接…', textAlign: TextAlign.center),
-              )
-            else if (session != null && _canReconnect(session, state))
-              Padding(
-                padding: const EdgeInsets.all(4),
-                child: FilledButton.tonal(
-                  key: ValueKey('overview-reconnect-${session.id}'),
-                  onPressed: () => onReconnect(session),
-                  child: const LText('重新连接'),
-                ),
-              ),
-          ],
+          ),
         ),
       ),
     );
   }
 
   /// 和标签条同一套：绿点、橙色叹号不只靠颜色，读屏也要知道断没断。
-  Widget _statusIcon(ActiveTerminalSession? session, bool failed) {
+  Widget _statusIcon(
+    ActiveTerminalSession? session,
+    bool failed,
+    prism.ColorScheme colors,
+  ) {
     if (session == null) {
       return failed
-          ? const Icon(Icons.error_outline, size: 17, color: Colors.redAccent)
+          ? Icon(Icons.error_outline, size: 17, color: colors.error)
           : const SizedBox.square(
               dimension: 14,
               child: CircularProgressIndicator(strokeWidth: 2),
@@ -471,7 +593,7 @@ class _WindowCard extends StatelessWidget {
     return Icon(
       session.connected ? Icons.circle : Icons.error_outline,
       size: session.connected ? 10 : 16,
-      color: session.connected ? Colors.greenAccent : Colors.orangeAccent,
+      color: ShunStatusColors.link(connected: session.connected),
       semanticLabel: session.connected ? null : localized('已断开'),
     );
   }
@@ -517,16 +639,19 @@ class _PreviewState extends State<_Preview> {
     const color = Color(0xFFD7DBE0);
     // 终端内容不过翻译表：服务器输出里碰巧有表里的词，会被改掉。
     final empty = _text.isEmpty || _text == '等待终端输出…';
-    return ColoredBox(
-      color: const Color(0xFF12161B),
+    // 终端快照是内容，不跟主题走：深底浅字，嵌在卡片里的一块。
+    return DecoratedBox(
+      decoration: ShapeDecoration(
+        color: const Color(0xFF12161B),
+        shape: prism.AppShape.all(10),
+      ),
       child: empty
           ? Center(
               child: LText(
                 '还没有输出',
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall
-                    ?.copyWith(color: color),
+                style: prism.AppTextStyle.caption1
+                    .of(context)
+                    .copyWith(color: color),
               ),
             )
           : ClipRect(

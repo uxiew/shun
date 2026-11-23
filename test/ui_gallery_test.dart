@@ -15,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:shun/application/app_lock.dart';
 import 'package:shun/application/catalog_overview.dart';
 import 'package:shun/application/home_navigation.dart';
+import 'package:shun/application/port_forward_controller.dart';
 import 'package:shun/application/session_controller.dart';
 import 'package:shun/application/settings_controller.dart';
 import 'package:shun/application/vault_controller.dart';
@@ -57,6 +58,8 @@ import 'package:shun/presentation/widgets/custom_background.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
 import 'package:shun/presentation/widgets/proxy_profile_editor.dart';
 import 'package:shun/presentation/widgets/session_overview.dart';
+import 'package:shun/presentation/widgets/sftp_permissions_dialog.dart';
+import 'package:shun/presentation/widgets/sftp_transfer_dialogs.dart';
 
 import 'support/component_gallery.dart';
 import 'support/ui_gallery_fixtures.dart';
@@ -954,6 +957,161 @@ void main() {
         await settle(tester);
         expect(find.text('README.md'), findsOneWidget);
         await save(tester, 'sftp-local-single-412x892-zh-s1');
+      });
+
+      // R90：所有交互走生产页面；只替换文件来源、SSH 标签和监听控制器。
+      Finder key(String name) => find.byKey(ValueKey(name));
+      Finder inPane(String side, Finder child) =>
+          find.descendant(of: key('sftp-$side-pane'), matching: child);
+      Finder entry(String side, String name) =>
+          inPane(side, key('sftp-entry-/$name'));
+
+      Future<UiGalleryTransfer> openFiles(WidgetTester tester,
+          {Stream<Uint8List> archive = const Stream.empty()}) async {
+        final files = UiGalleryTransfer(archive: archive);
+        await pumpPage(tester,
+            Scaffold(body: SftpScreen(localService: Future.value(files))),
+            height: 892);
+        return files;
+      }
+
+      Future<void> r90Shot(WidgetTester tester, String name) =>
+          save(tester, '$name-412x892-zh-s1');
+
+      testWidgets('R90 文件行：长名、操作菜单、删除、多选', skip: skip != null, (tester) async {
+        await openFiles(tester);
+        final row = entry('left', UiGalleryTransfer.name);
+        final menu = find.descendant(of: row, matching: find.byTooltip('文件操作'));
+        expect(find.bySemanticsLabel(UiGalleryTransfer.name), findsNWidgets(2));
+        expect(find.descendant(of: row, matching: find.text('.tar.gz')),
+            findsOneWidget);
+        expect(menu.hitTestable(), findsOneWidget);
+        await r90Shot(tester, 'sftp-long-name');
+        await tester.tap(menu);
+        await settle(tester);
+        expect(find.text('重命名'), findsOneWidget);
+        await r90Shot(tester, 'sftp-entry-menu');
+        await tester.tap(find.text('删除'));
+        await settle(tester);
+        expect(key('sftp-dialog-confirm'), findsOneWidget);
+        await r90Shot(tester, 'sftp-delete');
+        await tapKey(tester, 'sftp-dialog-cancel');
+        await tester.longPress(row);
+        await tester.pump();
+        await tester.tap(entry('left', 'settings.json'));
+        await settle(tester);
+        expect(find.text('全选 (2)'), findsOneWidget);
+        await r90Shot(tester, 'sftp-multiselect');
+      });
+
+      testWidgets('R90 文件传输：半程进度与取消', skip: skip != null, (tester) async {
+        final feed = StreamController<Uint8List>.broadcast();
+        addTearDown(feed.close);
+        await openFiles(tester, archive: feed.stream);
+        await tester.tap(entry('right', 'docs'));
+        await tester.longPress(entry('left', UiGalleryTransfer.name));
+        await tester.pump();
+        await tester.tap(inPane('left', find.byTooltip('复制')));
+        await tester.pump();
+        await tester.tap(inPane('right', key('sftp-paste')));
+        await tester.pump();
+        expect(feed.hasListener, isTrue);
+        feed.add(Uint8List(UiGalleryTransfer.size ~/ 2));
+        await tester.pump(const Duration(milliseconds: 300));
+        expect(find.textContaining('50%'), findsOneWidget);
+        expect(key('sftp-transfer-cancel').hitTestable(), findsOneWidget);
+        await r90Shot(tester, 'sftp-transfer-progress');
+        await tester.tap(key('sftp-transfer-cancel'));
+        await tester.pumpAndSettle();
+        expect(feed.hasListener, isFalse);
+        expect(key('sftp-transfer-cancel'), findsNothing);
+        expect(find.textContaining('已取消：'), findsOneWidget);
+        await r90Shot(tester, 'sftp-transfer-cancelled');
+      });
+
+      testWidgets('R90 文件弹层：权限、替换、续传', skip: skip != null, (tester) async {
+        final files = await openFiles(tester);
+        BuildContext page() => tester.element(key('sftp-title-bar'));
+        const name = 'settings.json';
+        unawaited(showDialog<int>(
+          context: page(),
+          builder: (_) =>
+              const SftpPermissionsDialog(name: name, initialMode: '644'),
+        ));
+        await settle(tester);
+        expect(find.text('644'), findsOneWidget);
+        await r90Shot(tester, 'sftp-permissions');
+        await tapKey(tester, 'sftp-permissions-cancel');
+        unawaited(
+            confirmReplaceDialog(page(), name, const FileStamp(2048, null)));
+        await settle(tester);
+        expect(key('sftp-replace-confirm'), findsOneWidget);
+        await r90Shot(tester, 'sftp-replace');
+        await tapKey(tester, 'sftp-replace-cancel');
+        const archive = UiGalleryTransfer.name;
+        unawaited(askResumeDialog(
+            page(),
+            files,
+            copyPartialPath(files, '/downloads', archive),
+            archive,
+            UiGalleryTransfer.size));
+        await settle(tester);
+        expect(key('sftp-resume-continue'), findsOneWidget);
+        await r90Shot(tester, 'sftp-resume');
+        await tapKey(tester, 'sftp-resume-cancel');
+      });
+
+      testWidgets('R90 文件编辑：正常、搜索、保存失败、放弃确认', skip: skip != null,
+          (tester) async {
+        await openFiles(tester);
+        await tester.tap(entry('left', 'settings.json'));
+        await settle(tester);
+        expect(find.text(UiGalleryTransfer.config), findsOneWidget);
+        await r90Shot(tester, 'sftp-editor');
+        await tapKey(tester, 'editor-search-toggle');
+        await tester.enterText(key('editor-search-field'), 'port');
+        await tester.pump();
+        expect(find.text('1 / 2'), findsOneWidget);
+        await r90Shot(tester, 'sftp-editor-search');
+        await tapKey(tester, 'editor-search-close');
+        final edited = UiGalleryTransfer.config.replaceFirst('8080', '9090');
+        await tester.enterText(key('sftp-editor-field'), edited);
+        await tapKey(tester, 'editor-save');
+        expect(find.textContaining('Read-only file'), findsOneWidget);
+        expect(find.text(edited), findsOneWidget);
+        await r90Shot(tester, 'sftp-editor-save-error');
+        await tapKey(tester, 'editor-close');
+        expect(key('editor-discard'), findsOneWidget);
+        await r90Shot(tester, 'sftp-editor-discard');
+      });
+
+      testWidgets('R90 主机菜单进端口转发：空、监听中、端口被占用', skip: skip != null,
+          (tester) async {
+        await pumpPage(tester, const Scaffold(body: VaultScreen()),
+            height: 892,
+            hosts: uiGalleryHosts,
+            sessions: uiGalleryForwardSession(),
+            overrides: [
+              portForwardControllerProvider
+                  .overrideWith((_) => UiGalleryForwards()),
+            ]);
+        await tapKey(tester, 'vault-host-menu-gallery-web');
+        await tapKey(tester, 'host-menu-portForward');
+        expect(key('port-forward-start').hitTestable(), findsOneWidget);
+        expect(find.text('运行中'), findsNothing);
+        await r90Shot(tester, 'port-forward-empty');
+        await tapKey(tester, 'port-forward-start');
+        final listener = key('port-forward-running-gallery-8080');
+        expect(listener, findsOneWidget);
+        await r90Shot(tester, 'port-forward-listening');
+        await tester.tap(key('port-forward-start'));
+        await tester.pump();
+        final error = find.descendant(
+            of: key('port-forward-sheet'),
+            matching: find.textContaining('Address already in use'));
+        expect(error.hitTestable(), findsOneWidget);
+        expect(listener, findsOneWidget);
+        await r90Shot(tester, 'port-forward-error');
       });
 
       // R83：同一个语义主题下的外观设置、弹层和自定义背景。

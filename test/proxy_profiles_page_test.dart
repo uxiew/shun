@@ -8,7 +8,9 @@ import 'package:shun/domain/models/host.dart';
 import 'package:shun/domain/models/vault.dart';
 import 'package:shun/presentation/localization/localized_widgets.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
+import 'package:shun/presentation/widgets/empty_state.dart';
 import 'package:shun/presentation/widgets/host_editor.dart';
+import 'package:shun/presentation/widgets/proxy_profile_editor.dart';
 import 'package:shun/presentation/widgets/proxy_profiles_page.dart';
 import 'package:shun/presentation/widgets/connection_route_editor.dart';
 import 'support/prism_test_host.dart';
@@ -299,6 +301,42 @@ void main() {
   });
 
   group('UIM10（R89）代理页', () {
+    testWidgets('空列表可从具名顶栏按钮新建代理', (tester) async {
+      await repository.saveVault((await repository.loadVault()).copyWith(
+        proxyProfiles: [],
+      ));
+      await open(tester, const ProxyProfilesPage(), size: const Size(320, 640));
+      expect(find.byType(EmptyState), findsOneWidget);
+      expect(find.text('还没有代理'), findsOneWidget);
+      await tester.tap(find.byTooltip('新建代理'));
+      await tester.pumpAndSettle();
+      expect(find.byType(ProxyProfileEditor), findsOneWidget);
+      await tester.tap(find.byTooltip('保存'));
+      await tester.pumpAndSettle();
+      expect(find.text('必填'), findsOneWidget);
+    });
+
+    testWidgets('窄屏两倍字号仍能选凭据、返回密码输入', (tester) async {
+      await open(
+          tester,
+          Builder(
+              builder: (context) => MediaQuery(
+                    data: MediaQuery.of(context)
+                        .copyWith(textScaler: const TextScaler.linear(2)),
+                    child: const ProxyProfileEditor(),
+                  )),
+          size: const Size(320, 640));
+      for (final mode in ['credential', 'simple']) {
+        final segment = find.byKey(ValueKey('login-choice-$mode'));
+        await tapRoute(tester, segment);
+        expect(
+            find.byKey(ValueKey(
+                mode == 'credential' ? 'proxy-credential' : 'proxy-password')),
+            findsOneWidget);
+        expect(tester.takeException(), isNull);
+      }
+    });
+
     List<String> keysIn(WidgetTester tester) => [
           for (final element in find
               .descendant(

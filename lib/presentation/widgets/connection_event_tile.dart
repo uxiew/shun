@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../application/connection_events.dart';
 import '../localization/localized_widgets.dart';
@@ -95,14 +96,17 @@ class ConnectionEventTile extends StatelessWidget {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-              color: scheme.secondaryContainer,
-              borderRadius: BorderRadius.circular(8),
+            // 「下一步」是建议不是状态：中性的底，比所在的卡片高一层。
+            decoration: ShapeDecoration(
+              color: prism.SurfaceContext(context)
+                  .raisedSurfaceLevel
+                  .colorOf(prism.Theme.of(context).colorScheme),
+              shape: prism.AppShape.sm,
             ),
             child: Text(
               connectionNextStepLine(next),
-              style: theme.textTheme.bodySmall
-                  ?.copyWith(color: scheme.onSecondaryContainer),
+              style:
+                  theme.textTheme.bodySmall?.copyWith(color: scheme.onSurface),
             ),
           ),
         ],

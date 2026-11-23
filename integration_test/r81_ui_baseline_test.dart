@@ -26,6 +26,7 @@ import 'package:shun/domain/models/vault.dart';
 import 'package:shun/infrastructure/ssh/ssh_service.dart';
 import 'package:shun/infrastructure/storage/vault_repository.dart';
 import 'package:shun/infrastructure/terminal/ghostty_terminal_adapter.dart';
+import '../test/support/home_navigation.dart';
 import 'package:shun/presentation/home_shell.dart';
 import 'package:shun/presentation/screens/settings_screen.dart';
 import 'package:shun/presentation/screens/tailscale_settings_screen.dart';
@@ -549,7 +550,7 @@ printf '%s' '$encoded' | base64 -d > $remote/stream.sh
               // Do not count global ModalBarriers: root routes may own a
               // nonblocking barrier that is unrelated to this sheet.
               // R85: located by the stable entry key, not the bar's widget type.
-              await tester.tap(find.byKey(homeNavigationKey(4)));
+              await tester.tap(homeNavigationEntry(4));
               expect(container.read(homeTabProvider), 4);
             }
             await closed.timeout(const Duration(seconds: 5));
@@ -573,7 +574,7 @@ printf '%s' '$encoded' | base64 -d > $remote/stream.sh
           await hidePanel();
           action = () async {
             final index = actionIndex++ % 5;
-            await tester.tap(find.byKey(homeNavigationKey(index)));
+            await tester.tap(homeNavigationEntry(index));
             await _delay(350);
             expect(container.read(homeTabProvider), index);
             if (index == 1) {

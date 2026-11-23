@@ -112,7 +112,7 @@ class _LanSendScreenState extends ConsumerState<LanSendScreen>
   @override
   Widget build(BuildContext context) => SecretContent(
         child: Scaffold(
-          appBar: AppBar(
+          appBar: ShunAppBar(
             title: const HintTitle(
               '发到另一台手机',
               hint: '另一台在「从另一台手机接收」里扫这个码。内容含密码和私钥，扫到码就能解开，别给别人看。离开这页就作废。',
@@ -140,14 +140,14 @@ class _LanSendScreenState extends ConsumerState<LanSendScreen>
             ),
             const SizedBox(height: 16),
             Center(
-              child: Text(
+              child: ShunPill(
                 _waitingText(sender.pairing.expiresAt),
                 key: const ValueKey('lan-send-status'),
               ),
             ),
             if (_missing > 0) ...[
               const SizedBox(height: 8),
-              Center(child: _missingNote()),
+              Center(child: LText(_missingNote())),
             ],
           ],
         );
@@ -189,9 +189,9 @@ class _LanSendScreenState extends ConsumerState<LanSendScreen>
     return localized('等对方扫码 · $time');
   }
 
-  Widget _missingNote() {
+  String _missingNote() {
     final missing = _missing;
-    return LText('$missing 条凭据解不开，没有带上');
+    return '$missing 条凭据解不开，没有带上';
   }
 
   String _errorText(Object? error) {
@@ -268,22 +268,33 @@ class _Outcome extends StatelessWidget {
 
   final IconData icon;
   final String message;
-  final Widget? extra;
+  final String? extra;
   final String? action;
   final VoidCallback? onAction;
 
   @override
-  Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.all(24),
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    // 结果句子常折成两行，要居中；EmptyState 的大标题不居中，这里自己排。
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(32),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(icon, size: 48),
-            const SizedBox(height: 12),
-            LText(message, textAlign: TextAlign.center),
-            if (extra != null) ...[const SizedBox(height: 8), extra!],
+            Icon(icon, size: 48, color: theme.colorScheme.onSurfaceVariant),
+            const SizedBox(height: 16),
+            LText(message,
+                textAlign: TextAlign.center, style: theme.textTheme.bodyLarge),
+            if (extra != null) ...[
+              const SizedBox(height: 8),
+              LText(extra!,
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
+            ],
             if (action != null) ...[
-              const SizedBox(height: 16),
+              const SizedBox(height: 24),
               ShunButton(
                 key: const ValueKey('lan-outcome-action'),
                 label: action!,
@@ -292,7 +303,9 @@ class _Outcome extends StatelessWidget {
             ],
           ],
         ),
-      );
+      ),
+    );
+  }
 }
 
 Future<List<int>> _receive(LanPairing pairing) => receiveLanTransfer(pairing);
@@ -417,7 +430,7 @@ class _LanReceiveScreenState extends ConsumerState<LanReceiveScreen> {
     final failure = _failure;
     final done = _done;
     return Scaffold(
-      appBar: AppBar(title: const LText('从另一台手机接收')),
+      appBar: ShunAppBar(title: const LText('从另一台手机接收')),
       body: SafeArea(
         child: Center(
           child: _busy

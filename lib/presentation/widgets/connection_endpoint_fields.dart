@@ -1,8 +1,36 @@
 import 'package:flutter/material.dart';
+import 'package:prism_ui/prism_ui.dart' as prism;
 
 import '../../domain/models/host.dart';
 import '../localization/localized_widgets.dart';
 import 'form_gap.dart';
+
+/// Use the surface fill for idle fields; keep visible focus and error rings.
+class ConnectionFieldTheme extends StatelessWidget {
+  const ConnectionFieldTheme(
+      {super.key, required this.child, this.dialog = false});
+
+  final Widget child;
+  final bool dialog;
+
+  @override
+  Widget build(BuildContext context) {
+    final colors = prism.Theme.of(context).colorScheme;
+    final level = dialog
+        ? prism.SurfaceLevel.floatingOf(colors).next
+        : prism.SurfaceContext(context).raisedSurfaceLevel;
+    const outline = OutlineInputBorder(borderRadius: prism.AppRadius.md);
+    return InputDecorationTheme(
+      data: InputDecorationTheme.of(context).copyWith(
+        filled: true,
+        fillColor: level.colorOf(colors),
+        border: outline,
+        enabledBorder: outline.copyWith(borderSide: BorderSide.none),
+      ),
+      child: child,
+    );
+  }
+}
 
 /// Endpoint form only; the editor retains draft ownership and route validation.
 /// 用户名不在这里：它属于认证，选了凭据就不用填（F31）。

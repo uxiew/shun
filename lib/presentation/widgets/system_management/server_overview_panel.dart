@@ -5,6 +5,9 @@ import '../../../domain/models/server_stats.dart';
 import '../../../infrastructure/ssh/server_monitor_service.dart';
 import '../../../infrastructure/ssh/ssh_service.dart';
 import '../server_network_chart.dart';
+import '../../ui/components.dart';
+import 'management_card.dart';
+import 'management_style.dart';
 
 /// 性能监控面板的「概览」页（R68）：CPU、内存、磁盘、网络、负载。机器名和刷新键在面板顶上。
 class ServerOverviewPanel extends StatefulWidget {
@@ -86,22 +89,13 @@ class _ServerOverviewPanelState extends State<ServerOverviewPanel> {
         else if (value == null)
           SliverFillRemaining(
             hasScrollBody: false,
-            child: Center(
-              child: Padding(
-                padding: const EdgeInsets.all(24),
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    const Icon(Icons.monitor_heart_outlined, size: 48),
-                    const SizedBox(height: 12),
-                    LText('无法读取性能数据\n$error', textAlign: TextAlign.center),
-                    const SizedBox(height: 12),
-                    FilledButton(
-                        onPressed: live ? _poll : null,
-                        child: const LText('重试')),
-                  ],
-                ),
-              ),
+            child: ManagementEmptyState(
+              icon: Icons.monitor_heart_outlined,
+              title: '无法读取性能数据\n$error',
+              action: ShunButton(
+                  kind: ShunButtonKind.filled,
+                  onPressed: live ? _poll : null,
+                  label: '重试'),
             ),
           )
         else
@@ -186,7 +180,7 @@ class _ServerOverviewPanelState extends State<ServerOverviewPanel> {
                         _usage('${disk.device} → ${disk.mount}', disk.percent,
                             '${_bytes(disk.usedBytes)} / ${_bytes(disk.totalBytes)}'),
                     ])),
-                Card(
+                ManagementCard(
                   child: Padding(
                     padding: const EdgeInsets.all(14),
                     child: Column(
@@ -223,22 +217,16 @@ class _ServerOverviewPanelState extends State<ServerOverviewPanel> {
                         LText(
                             '当前 TCP 连接数：${value.connectionCount?.toString() ?? '—'}'),
                         const SizedBox(height: 8),
-                        ServerNetworkChart(samples: List.of(monitor.history)),
-                        Row(children: [
-                          Icon(Icons.remove,
-                              color: Theme.of(context).colorScheme.primary),
-                          const LText('接收'),
-                          const SizedBox(width: 16),
-                          Icon(Icons.remove,
-                              color: Theme.of(context).colorScheme.tertiary),
-                          const LText('发送'),
-                        ]),
+                        ServerNetworkChart(
+                          samples: List.of(monitor.history),
+                          stale: !live,
+                        ),
                       ],
                     ),
                   ),
                 ),
                 const SizedBox(height: 10),
-                Card(
+                ManagementCard(
                   child: ListTile(
                     leading: const Icon(Icons.timeline),
                     title: const LText('系统负载（1 / 5 / 15 分钟）'),
@@ -246,8 +234,9 @@ class _ServerOverviewPanelState extends State<ServerOverviewPanel> {
                         .map((item) => item.toStringAsFixed(2))
                         .join('  /  ')),
                     trailing: error == null
-                        ? const Icon(Icons.circle,
-                            color: Colors.green, size: 10)
+                        ? Icon(Icons.circle,
+                            color: Theme.of(context).colorScheme.primary,
+                            size: 10)
                         : Tooltip(
                             message: '$error',
                             child: const Icon(Icons.warning_amber),
@@ -302,7 +291,7 @@ class _GaugeCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => GestureDetector(
       onTap: onTap,
-      child: Card(
+      child: ManagementCard(
         margin: EdgeInsets.zero,
         child: Padding(
           padding: const EdgeInsets.all(12),
@@ -337,7 +326,7 @@ class _GaugeCard extends StatelessWidget {
       ));
 }
 
-Widget _detailCard(String title, List<Widget> children) => Card(
+Widget _detailCard(String title, List<Widget> children) => ManagementCard(
     child: Padding(
         padding: const EdgeInsets.all(14),
         child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
@@ -370,7 +359,7 @@ class _Metric extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Row(
         children: [
-          CircleAvatar(radius: 18, child: Icon(icon, size: 18)),
+          Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
           const SizedBox(width: 9),
           Expanded(
               child: Column(

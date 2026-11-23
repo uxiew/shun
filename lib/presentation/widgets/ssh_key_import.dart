@@ -13,6 +13,7 @@ import '../../domain/ssh_key_type.dart';
 import '../../infrastructure/storage/picked_files.dart';
 import '../localization/localized_widgets.dart';
 import '../ui/components.dart';
+import 'credential_field.dart' show CredentialFields;
 import 'form_gap.dart';
 import 'secret_content.dart';
 
@@ -52,26 +53,29 @@ Future<SshKeyProfile?> importSshKey(BuildContext context, WidgetRef ref) async {
     builder: (context) => SecretContent(
         child: AlertDialog(
       title: const LText('导入 SSH 私钥'),
-      content: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          TextField(
-            key: const ValueKey('ssh-key-import-label'),
-            controller: label,
-            decoration: LInputDecoration(labelText: '名称'),
-          ),
-          const FormGap(),
-          TextField(
-            key: const ValueKey('ssh-key-import-passphrase'),
-            controller: passphrase,
-            obscureText: true,
-            enableIMEPersonalizedLearning: false,
-            enableSuggestions: false,
-            autocorrect: false,
-            decoration: LInputDecoration(labelText: '口令（可选）'),
-          ),
-        ],
-      ),
+      scrollable: true,
+      content: CredentialFields(
+          inDialog: true,
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              TextField(
+                key: const ValueKey('ssh-key-import-label'),
+                controller: label,
+                decoration: LInputDecoration(labelText: '名称'),
+              ),
+              const FormGap(),
+              TextField(
+                key: const ValueKey('ssh-key-import-passphrase'),
+                controller: passphrase,
+                obscureText: true,
+                enableIMEPersonalizedLearning: false,
+                enableSuggestions: false,
+                autocorrect: false,
+                decoration: LInputDecoration(labelText: '口令（可选）'),
+              ),
+            ],
+          )),
       actions: [
         ShunButton(
           key: const ValueKey('ssh-key-import-cancel'),
