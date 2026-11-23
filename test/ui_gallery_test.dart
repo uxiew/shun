@@ -150,8 +150,7 @@ void main() {
         final root = Platform.environment['FLUTTER_ROOT'] ??
             '/opt/homebrew/share/flutter';
         final icons = FontLoader('MaterialIcons')
-          ..addFont(File(
-                  '$root/bin/cache/artifacts/material_fonts/'
+          ..addFont(File('$root/bin/cache/artifacts/material_fonts/'
                   'MaterialIcons-Regular.otf')
               .readAsBytes()
               .then((bytes) => ByteData.sublistView(bytes)));
@@ -230,9 +229,9 @@ void main() {
         addTearDown(tester.platformDispatcher.clearTextScaleFactorTestValue);
         // flterm 的 idle 任务不等待不存在的真实帧时钟；与现有终端测试保持一致。
         final strategy = tester.binding.schedulingStrategy;
-        tester.binding.schedulingStrategy =
-            ({required int priority, required SchedulerBinding scheduler}) =>
-                true;
+        tester.binding.schedulingStrategy = (
+                {required int priority, required SchedulerBinding scheduler}) =>
+            true;
         addTearDown(() => tester.binding.schedulingStrategy = strategy);
 
         final id = brightness == Brightness.dark ? 'midnight' : 'snow';
@@ -244,9 +243,8 @@ void main() {
           terminalFontSize: 14,
           // 用户存下的背景是受管目录里的文件引用；不透明度取默认的 35%。
           customBackgroundEnabled: backgroundFile != null,
-          customBackgroundPath: backgroundFile == null
-              ? ''
-              : 'shun-background:$_backgroundName',
+          customBackgroundPath:
+              backgroundFile == null ? '' : 'shun-background:$_backgroundName',
           customBackgroundScope: backgroundScope ?? 'global',
           serverViewMode: viewMode,
         ));
@@ -308,7 +306,8 @@ void main() {
                 () => Future<void>.delayed(const Duration(milliseconds: 20)));
             await tester.pump();
           }
-          expect(container.read(settingsControllerProvider).customBackgroundPath,
+          expect(
+              container.read(settingsControllerProvider).customBackgroundPath,
               backgroundFile);
           // 读到设置后 HomeShell 要再建一帧，背景图才在树上。
           await tester.pump();
@@ -342,8 +341,7 @@ void main() {
                 () => Future<void>.delayed(const Duration(milliseconds: 20)));
             await tester.pump();
           }
-          expect(completed, isTrue,
-              reason: '本机文件服务未在 100 次 IO/pump 轮转内完成初始化');
+          expect(completed, isTrue, reason: '本机文件服务未在 100 次 IO/pump 轮转内完成初始化');
           if (loadError != null) {
             Error.throwWithStackTrace(loadError!, loadStack!);
           }
@@ -799,8 +797,8 @@ void main() {
           const HomeShell(),
           height: 892,
         );
-        expect(find.byKey(const ValueKey('home-navigation-bar')),
-            findsOneWidget);
+        expect(
+            find.byKey(const ValueKey('home-navigation-bar')), findsOneWidget);
         await save(tester, 'connections-empty-412x892-zh-s1');
         container.read(homeTabProvider.notifier).state = 1;
         await settle(tester);
@@ -832,8 +830,7 @@ void main() {
         });
       }
 
-      testWidgets('连接首页：搜到目录设备、搜不到、分组', skip: skip != null,
-          (tester) async {
+      testWidgets('连接首页：搜到目录设备、搜不到、分组', skip: skip != null, (tester) async {
         await pumpPage(tester, const HomeShell(),
             height: 892,
             hosts: [...uiGalleryHosts, ...uiGalleryCatalogHosts],
@@ -842,7 +839,8 @@ void main() {
         final search = find.byKey(const ValueKey('vault-search'));
         await tester.enterText(search, '100.64.0.2');
         await settle(tester);
-        expect(find.byKey(const ValueKey('vault-catalog-device-gallery-home-2')),
+        expect(
+            find.byKey(const ValueKey('vault-catalog-device-gallery-home-2')),
             findsOneWidget);
         await save(tester, 'connections-search-device-412x892-zh-s1');
         await tester.enterText(search, 'nothing-like-this');
@@ -872,8 +870,7 @@ void main() {
         await save(tester, 'tailscale-catalog-412x892-zh-s1');
       });
 
-      testWidgets('Tailscale 目录：旧且读取失败的来源', skip: skip != null,
-          (tester) async {
+      testWidgets('Tailscale 目录：旧且读取失败的来源', skip: skip != null, (tester) async {
         await pumpPage(
             tester, const CatalogSourceScreen(catalogId: 'gallery-work'),
             height: 892,
@@ -935,11 +932,11 @@ void main() {
 
         await tester.tap(find.byKey(const ValueKey('overview-close')));
         await settle(tester);
-        await tester.tap(
-            find.byKey(const ValueKey('terminal-action-input-panel')));
+        await tester
+            .tap(find.byKey(const ValueKey('terminal-action-input-panel')));
         await settle(tester);
-        expect(find.byKey(const ValueKey('terminal-input-panel')),
-            findsOneWidget);
+        expect(
+            find.byKey(const ValueKey('terminal-input-panel')), findsOneWidget);
         await save(tester, 'terminal-input-panel-412x892-zh-s1');
       });
 
@@ -1122,8 +1119,7 @@ void main() {
         await save(tester, 'theme-picker-412x892-zh-s1');
       });
 
-      testWidgets('连接首页：主机操作面板与详情弹窗', skip: skip != null,
-          (tester) async {
+      testWidgets('连接首页：主机操作面板与详情弹窗', skip: skip != null, (tester) async {
         await pumpPage(tester, const HomeShell(),
             height: 892, hosts: uiGalleryHosts);
         await tester
@@ -1137,8 +1133,7 @@ void main() {
         expect(find.byType(AlertDialog), findsOneWidget);
       });
 
-      testWidgets('自定义背景：全局的连接页、仅终端的终端页', skip: skip != null,
-          (tester) async {
+      testWidgets('自定义背景：全局的连接页、仅终端的终端页', skip: skip != null, (tester) async {
         await pumpPage(tester, const HomeShell(),
             height: 892, hosts: uiGalleryHosts, backgroundScope: 'global');
         expect(find.byType(CustomBackgroundImage), findsOneWidget);

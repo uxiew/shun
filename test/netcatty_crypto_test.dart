@@ -82,8 +82,8 @@ void main() {
         await expectLater(
           VaultCrypto.decrypt(tampered, 'pw')
               .timeout(const Duration(seconds: 2)),
-          throwsA(isA<FormatException>().having((e) => e.message, 'message',
-              VaultCrypto.iterationsOutOfRange)),
+          throwsA(isA<FormatException>().having(
+              (e) => e.message, 'message', VaultCrypto.iterationsOutOfRange)),
           reason: '$rounds',
         );
       }

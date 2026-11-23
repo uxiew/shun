@@ -30,8 +30,8 @@ void main() {
     test('sh -c 加固定脚本，只有单引号包着的位置参数可变', () {
       final auto = MoshBootstrap.command();
       expect(auto, startsWith("sh -c '"));
-      expect(auto,
-          endsWith("' shun '60001:60999' 'auto' 'en_US.UTF-8' '604800'"));
+      expect(
+          auto, endsWith("' shun '60001:60999' 'auto' 'en_US.UTF-8' '604800'"));
       expect(MoshBootstrap.command(portRange: (60101, 60108)),
           endsWith("' shun '60101:60108' 'auto' 'en_US.UTF-8' '604800'"));
       expect(MoshBootstrap.command(portRange: (60101, 60101)),
@@ -42,8 +42,7 @@ void main() {
           custom,
           endsWith("' shun '60001:60999' '/opt/mosh/bin/mosh-server' "
               "'C.UTF-8' '604800'"));
-      expect(
-          MoshBootstrap.command(networkTimeout: const Duration(seconds: 5)),
+      expect(MoshBootstrap.command(networkTimeout: const Duration(seconds: 5)),
           endsWith("' shun '60001:60999' 'auto' 'en_US.UTF-8' '5'"));
       // 脚本部分不随参数变：用户填的东西进不了脚本。
       String script(String command) =>

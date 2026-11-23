@@ -19,7 +19,8 @@ void main() {
   const ai = AiCliTmuxService();
   final socket = TmuxSocketSpec.named('r28ai');
   // 每一种写法都对应一个带编号的 pwn 文件，哪种被执行了一眼就能看出来。
-  const evil = "a;touch \$HOME/r28/pwn1;'b\"\$(touch \$HOME/r28/pwn2)\"`touch \$HOME/r28/pwn3`"
+  const evil =
+      "a;touch \$HOME/r28/pwn1;'b\"\$(touch \$HOME/r28/pwn2)\"`touch \$HOME/r28/pwn3`"
       r' #{session_name} %1 \\x';
   final b64 = base64Encode(utf8.encode(evil));
   const node = 'tmux35';
@@ -46,8 +47,7 @@ void main() {
 
   Future<void> start(String requestId, AiCliLaunchSpec launch) async {
     final host = f!.host(node);
-    final plan =
-        resolveRoutePlan(host, hosts: [host], proxyProfiles: const []);
+    final plan = resolveRoutePlan(host, hosts: [host], proxyProfiles: const []);
     await SshService().withVerifiedClientForAiTmux(
       routePlan: plan,
       verifyHostKey: f.verify,
@@ -67,10 +67,10 @@ void main() {
     (1, '/home/fixture/r28/$evil'),
     (2, '~/r28/$evil'),
   ]) {
-    test('SEC11 AI tmux 启动：目录名里的 ; \' " \$() ` #{} 只是名字（$directory）',
-        () async {
+    test('SEC11 AI tmux 启动：目录名里的 ; \' " \$() ` #{} 只是名字（$directory）', () async {
       await remote('rm -f ~/r28/ran ~/r28/pwn*');
-      await start('7a1b2c3d-0000-4000-8000-00000000000$i',
+      await start(
+          '7a1b2c3d-0000-4000-8000-00000000000$i',
           AiCliLaunchSpec(
               executable: '/home/fixture/r28/tool',
               projectDirectory: directory));
@@ -88,16 +88,17 @@ void main() {
     await remote('rm -f ~/r28/ran ~/r28/pwn*');
     // 启动失败可以报错也可以不报（窗格里的 sh 自己以 125/126 退出），这里只看有没有副作用。
     await start(
-        '7a1b2c3d-0000-4000-8000-000000000003',
-        AiCliLaunchSpec(
-            executable: '/home/fixture/r28/tool',
-            projectDirectory: '/home/fixture/r28/nope;touch \$HOME/r28/pwn4'))
+            '7a1b2c3d-0000-4000-8000-000000000003',
+            AiCliLaunchSpec(
+                executable: '/home/fixture/r28/tool',
+                projectDirectory:
+                    '/home/fixture/r28/nope;touch \$HOME/r28/pwn4'))
         .catchError((Object _) {});
     await start(
-        '7a1b2c3d-0000-4000-8000-000000000004',
-        AiCliLaunchSpec(
-            executable: '/home/fixture/r28/to ol;touch \$HOME/r28/pwn5',
-            projectDirectory: '/home/fixture/r28'))
+            '7a1b2c3d-0000-4000-8000-000000000004',
+            AiCliLaunchSpec(
+                executable: '/home/fixture/r28/to ol;touch \$HOME/r28/pwn5',
+                projectDirectory: '/home/fixture/r28'))
         .catchError((Object _) {});
     await Future<void>.delayed(const Duration(seconds: 2));
     expect(await f!.run(node, 'test -e ~/r28/ran && echo ran || :'), isEmpty);

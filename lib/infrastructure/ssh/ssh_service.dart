@@ -1190,8 +1190,7 @@ class SshService {
         plan,
         index,
         '读取登录私钥失败',
-        () async =>
-            loadHopIdentities(hops[index], securityKeySigner: signer),
+        () async => loadHopIdentities(hops[index], securityKeySigner: signer),
       ));
     }
     for (var index = 0; index < hops.length; index++) {

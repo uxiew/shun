@@ -102,7 +102,10 @@ void main() {
   group('服务器只认旧算法时说得清原因（R58）', () {
     for (final (name, server) in <(String, Future<ServerSocket> Function())>[
       ('只有 CBC 加密', () => _legacyServer(cipher: 'aes128-cbc')),
-      ('只有 SHA-1 密钥交换', () => _legacyServer(kex: 'diffie-hellman-group14-sha1')),
+      (
+        '只有 SHA-1 密钥交换',
+        () => _legacyServer(kex: 'diffie-hellman-group14-sha1')
+      ),
       ('只有 ssh-rsa 主机密钥', () => _legacyServer(hostKey: 'ssh-rsa')),
     ]) {
       test(name, () async {

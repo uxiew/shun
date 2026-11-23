@@ -110,7 +110,8 @@ void main() {
     expect(plain, allOf(contains(hostPassword), contains(privateKey)));
     expect(sent.where((r) => r.method == 'PUT'), isNotEmpty);
     for (final request in sent) {
-      final wire = '${request.url}\n${utf8.decode(request.bodyBytes, allowMalformed: true)}';
+      final wire =
+          '${request.url}\n${utf8.decode(request.bodyBytes, allowMalformed: true)}';
       for (final marker in [hostPassword, privateKey, master, davSecret]) {
         expect(wire, isNot(contains(marker)),
             reason: '${request.method} ${request.url} 带了明文 $marker');
@@ -122,8 +123,8 @@ void main() {
 
     final file = SyncedVaultFile.fromJson(
         jsonDecode(utf8.decode(stored!)) as Map<String, dynamic>);
-    await expectLater(VaultCrypto.decrypt(file, 'wrong-$master'),
-        throwsA(anything));
+    await expectLater(
+        VaultCrypto.decrypt(file, 'wrong-$master'), throwsA(anything));
     final back = await VaultCrypto.decrypt(file, master);
     expect(back.hosts.single.data['password'], hostPassword);
     expect(back.hosts.single.data['r28UnknownField'], {'kept': true});

@@ -30,8 +30,7 @@ class VaultCrypto {
   /// 下限只拦非正数：次数少不影响安全，密钥还是从用户的主密码来，改小了只会解不开。
   static const maxIterations = 2000000;
 
-  static const iterationsOutOfRange =
-      '云端文件的密钥派生次数超出范围，没有解密：可能被改过，也可能是更新版本写的';
+  static const iterationsOutOfRange = '云端文件的密钥派生次数超出范围，没有解密：可能被改过，也可能是更新版本写的';
   static const saltLength = 32;
   static const ivLength = 12;
   static const tagLength = 16;

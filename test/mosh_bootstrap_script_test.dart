@@ -106,8 +106,7 @@ void main() {
         final unset =
             await run(shell, MoshBootstrap.command(), withPathBin: true);
         expect(unset.output, contains('PATH TMOUT:604800'));
-        final short = await run(
-            shell,
+        final short = await run(shell,
             MoshBootstrap.command(networkTimeout: const Duration(seconds: 5)),
             withPathBin: true);
         expect(short.output, contains('PATH TMOUT:5'));

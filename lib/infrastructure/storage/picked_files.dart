@@ -11,7 +11,8 @@ import 'package:path_provider/path_provider.dart';
 /// 读完就调它，删掉 [file] 那一份和它的时间戳目录。只认 file_picker 自己的缓存目录，
 /// 别的路径（用户自己的文件、别的平台）一律不碰。删不掉不报错：下次启动 [purgePickedCopies] 还会再清。
 /// [cacheRoot] 只给测试用，默认是 App 的 cache 目录。
-Future<void> discardPickedCopy(PlatformFile file, {Directory? cacheRoot}) async {
+Future<void> discardPickedCopy(PlatformFile file,
+    {Directory? cacheRoot}) async {
   final path = file.path;
   if (path == null) return;
   try {
@@ -40,5 +41,5 @@ Future<void> purgePickedCopies({Directory? cacheRoot}) async {
   }
 }
 
-Future<Directory> _pickerCache(Directory? cacheRoot) async =>
-    Directory('${(cacheRoot ?? await getTemporaryDirectory()).path}/file_picker');
+Future<Directory> _pickerCache(Directory? cacheRoot) async => Directory(
+    '${(cacheRoot ?? await getTemporaryDirectory()).path}/file_picker');

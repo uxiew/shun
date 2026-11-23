@@ -40,12 +40,12 @@ class _ShunAppState extends ConsumerState<ShunApp> with WidgetsBindingObserver {
     // 连接记录（R25）一启动就读盘：主机菜单按已经读到的判断「有没有记录」，不在点开菜单时等读盘。
     ref.read(connectionEventLogProvider.notifier);
     // 连接在哪都可能走到要碰钥匙（新开标签、重连、测试连接），弹框不依赖发起连接的页面还在不在。
-    ref.read(sshServiceProvider).securityKeySigner = (request) =>
-        signWithSecurityKey(
-          _navigatorKey.currentContext,
-          ref.read(securityKeyChannelProvider),
-          request,
-        );
+    ref.read(sshServiceProvider).securityKeySigner =
+        (request) => signWithSecurityKey(
+              _navigatorKey.currentContext,
+              ref.read(securityKeyChannelProvider),
+              request,
+            );
     _autoSyncSubscription = ref.listenManual<bool>(
       settingsControllerProvider.select((settings) => settings.autoSyncEnabled),
       (_, enabled) => ref

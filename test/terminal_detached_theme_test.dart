@@ -142,9 +142,11 @@ void main() {
     await _frames(tester);
     final view = tester.state(find.byType(GhosttyTerminalView));
     final engine = tester.state(find.byType(flterm.TerminalView));
-    final input = tester.widget<flterm.TerminalView>(
-      find.byType(flterm.TerminalView),
-    ).focusNode!;
+    final input = tester
+        .widget<flterm.TerminalView>(
+          find.byType(flterm.TerminalView),
+        )
+        .focusNode!;
     expect(shown.hasEngineView, isTrue);
     expect(hidden.hasActiveView, isFalse);
     expect(input.hasFocus, isTrue);
@@ -165,8 +167,7 @@ void main() {
       expect(Theme.of(context).colorScheme.surface, surface,
           reason: '$mode / 系统 $platform');
       expect(p.Theme.of(context).colorScheme.surface, surface);
-      expect(askBackground(shown), answer(surface),
-          reason: '挂着视图的终端按视图主题回答');
+      expect(askBackground(shown), answer(surface), reason: '挂着视图的终端按视图主题回答');
       expect(askBackground(hidden), answer(surface),
           reason: '后台终端按 GhosttyDetachedThemeSync 推的主题回答');
       expect(tester.state(find.byType(GhosttyTerminalView)), same(view));
@@ -227,7 +228,8 @@ class _NoDeviceAuth implements DeviceAuth {
     String? description,
     required bool pinOnly,
     required bool allowWeak,
-  }) async => const DeviceAuthOutcome(DeviceAuthResult.unavailable);
+  }) async =>
+      const DeviceAuthOutcome(DeviceAuthResult.unavailable);
 
   @override
   Future<void> setProtectRecents(bool enabled) async {}

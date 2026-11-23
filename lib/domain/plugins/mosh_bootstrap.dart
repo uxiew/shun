@@ -162,8 +162,7 @@ class MoshBootstrap {
       throw ArgumentError.value(networkTimeout, 'networkTimeout');
     }
     final ports = low == high ? '$low' : '$low:$high';
-    final base =
-        "shun '$ports' '${serverPath ?? 'auto'}' '$lang' '$seconds'";
+    final base = "shun '$ports' '${serverPath ?? 'auto'}' '$lang' '$seconds'";
     if (tmux == null) return "sh -c '$_script' $base";
     if (!_tmuxSessionId.hasMatch(tmux.sessionId)) {
       throw ArgumentError.value(tmux.sessionId, 'tmux.sessionId');

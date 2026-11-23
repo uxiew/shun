@@ -16,8 +16,8 @@ void main() {
         ..createSync(recursive: true)
         ..writeAsStringSync('-----BEGIN OPENSSH PRIVATE KEY-----');
 
-  PlatformFile picked(File file) => PlatformFile(
-      name: file.uri.pathSegments.last, size: 1, path: file.path);
+  PlatformFile picked(File file) =>
+      PlatformFile(name: file.uri.pathSegments.last, size: 1, path: file.path);
 
   test('删掉这一份和它的时间戳目录，别的副本不动', () async {
     final mine = copyAt('1793341872131', 'id_ed25519');

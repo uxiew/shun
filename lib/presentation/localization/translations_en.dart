@@ -303,7 +303,8 @@ const englishTranslations = <String, String>{
   '推荐 OAuth client（tskey-client-…）：在 Tailscale 后台 Settings → OAuth clients 创建，只勾 devices:core:read。访问令牌（tskey-api-…）也能用，但它带着你账号的全部权限。\n\n读成功就加密存在这台手机上：只有 shun 能解开，不进备份和同步。':
       'Recommended: an OAuth client (tskey-client-…), created in the Tailscale admin console under Settings → OAuth clients with only devices:core:read. An access token (tskey-api-…) works too, but it carries your account\'s full permissions.\n\nOnce a read succeeds it is saved encrypted on this phone: only shun can decrypt it, and it stays out of backups and sync.',
   '删除保存的 key？': 'Delete the saved key?',
-  '删了找不回来，要用得重新填。': 'It can’t be recovered; you’ll have to enter it again to use it.',
+  '删了找不回来，要用得重新填。':
+      'It can’t be recovered; you’ll have to enter it again to use it.',
   '已删除本机保存的 key。它在 Tailscale 那边仍然有效，要彻底作废请到 Tailscale 后台撤销。':
       'Deleted the key saved on this phone. It is still valid at Tailscale; revoke it in the Tailscale admin console to disable it.',
   '会删除本机的设备缓存和保存的 key。':
@@ -2654,24 +2655,15 @@ const englishTranslations = <String, String>{
   '未命名来源': 'Unnamed source',
   'ID：': 'ID: ',
   // 新建连接：类型和认证改成单选行，分组改成选择（R72 第二轮）。
-  '保存后到下一页设置':
-      'Set it up on the next page',
-  '密钥':
-      'Key',
-  '不分组':
-      'No group',
-  '新建分组':
-      'New group',
-  '组名':
-      'Group name',
-  '连接路径、启动命令、超时等':
-      'Route, startup command, timeouts and more',
-  '标签和置顶':
-      'Tags and pinning',
-  '选一把密钥':
-      'Choose a key',
-  '选一把密钥，或者改用密码。':
-      'Choose a key, or use a password instead.',
+  '保存后到下一页设置': 'Set it up on the next page',
+  '密钥': 'Key',
+  '不分组': 'No group',
+  '新建分组': 'New group',
+  '组名': 'Group name',
+  '连接路径、启动命令、超时等': 'Route, startup command, timeouts and more',
+  '标签和置顶': 'Tags and pinning',
+  '选一把密钥': 'Choose a key',
+  '选一把密钥，或者改用密码。': 'Choose a key, or use a password instead.',
   '密码、密钥只给这一台，不填密码就连接时问。凭据是多台共用的一份，改一次全跟着变。Tailscale 不发密码和密钥，由 Tailscale 放行。':
       'A password or key belongs to this host only; leave the password empty to be asked when connecting. A credential is shared by several hosts: change it once and they all follow. Tailscale sends no password or key; Tailscale decides who gets in.',
 };

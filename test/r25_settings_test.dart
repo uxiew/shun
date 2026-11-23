@@ -259,8 +259,7 @@ void main() {
       ));
       await tester.pump(const Duration(milliseconds: 100));
       final row = find.byKey(const ValueKey('settings-sftp-highlight'));
-      bool shown() =>
-          tester.widget<ShunSwitchRow>(row).value;
+      bool shown() => tester.widget<ShunSwitchRow>(row).value;
       expect(shown(), isTrue);
 
       repository.failNextSave = true;
@@ -275,8 +274,7 @@ void main() {
       await tester.tap(row);
       await tester.pump(const Duration(milliseconds: 100));
       expect(shown(), isFalse);
-      expect(repository.stored.sftpSyntaxHighlight, isFalse,
-          reason: '下一次照常存');
+      expect(repository.stored.sftpSyntaxHighlight, isFalse, reason: '下一次照常存');
     });
   });
 }

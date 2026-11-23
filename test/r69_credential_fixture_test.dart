@@ -228,8 +228,7 @@ void main() {
       final f = fixture!;
       final dir = await Directory.systemTemp.createTemp('shun-crd01-sk-');
       addTearDown(() => dir.delete(recursive: true));
-      final authenticator =
-          await SoftAuthenticator.create(dir, skEd25519Type);
+      final authenticator = await SoftAuthenticator.create(dir, skEd25519Type);
       const marker = 'shun-crd01-test';
       Future<void> onEdge(String command) async {
         final client = SSHClient(

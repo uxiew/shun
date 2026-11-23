@@ -42,7 +42,8 @@ PluginHostAvailability pluginHostAvailability(
   final reason = seen.reason ?? '';
   final problem = switch (seen.status) {
     PluginStatus.ready => _whyNotTerminal(seen.descriptor!, name),
-    PluginStatus.needsApproval => '插件“$name”还没批准：到「设置 → 插件 → 插件（实验）」核对证书后批准，再连。',
+    PluginStatus.needsApproval =>
+      '插件“$name”还没批准：到「设置 → 插件 → 插件（实验）」核对证书后批准，再连。',
     PluginStatus.disabled => '插件“$name”被停用了：到「设置 → 插件 → 插件（实验）」启用它，再连。',
     PluginStatus.missing => '插件“$name”已被卸载：装回同一证书的包会直接恢复，这台主机的设置还在。',
     PluginStatus.rejected => '插件“$name”被拒绝了：$reason',

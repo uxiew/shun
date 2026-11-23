@@ -32,7 +32,8 @@ void main() {
     ]) {
       expect(
         manifest,
-        contains('<uses-feature android:name="$feature" android:required="false" />'),
+        contains(
+            '<uses-feature android:name="$feature" android:required="false" />'),
       );
     }
   });

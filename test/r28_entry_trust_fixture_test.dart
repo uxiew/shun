@@ -217,8 +217,8 @@ void main() {
     /// 保险库里已有的信任记录：边缘那台是真的；目标记的是 [targetFp]。
     List<Map<String, dynamic>> knownWith(String targetFp) {
       final f = fixture!;
-      final edge =
-          record(f.edgeHost, f.edgePort, keyType('ssh-edge'), f.edgeFingerprint);
+      final edge = record(
+          f.edgeHost, f.edgePort, keyType('ssh-edge'), f.edgeFingerprint);
       return [
         edge,
         record(f.targetName, f.targetPort, keyType('target'), targetFp),
@@ -250,8 +250,8 @@ void main() {
             () async {
           final f = fixture!;
           final r = route(routeName, evil);
-          final plan = resolveRoutePlan(r.host,
-              hosts: r.hosts, proxyProfiles: const []);
+          final plan =
+              resolveRoutePlan(r.host, hosts: r.hosts, proxyProfiles: const []);
           final dialer = RecordingDialer();
           final ssh = SshService(dialer: dialer.call);
           if (moshEntries.contains(entry.key) && routeName != 'direct') {
@@ -308,8 +308,8 @@ void main() {
         test('SEC03 $routeName · $name：第一次见必须问用户，拒了就不认证、不记', () async {
           final f = fixture!;
           final r = route(routeName, evil);
-          final plan = resolveRoutePlan(r.host,
-              hosts: r.hosts, proxyProfiles: const []);
+          final plan =
+              resolveRoutePlan(r.host, hosts: r.hosts, proxyProfiles: const []);
           final trust = _Trust(routeName == 'jump'
               ? [
                   record(f.edgeHost, f.edgePort, keyType('ssh-edge'),
@@ -319,7 +319,8 @@ void main() {
           final before = await sshdLog(r.service);
           Object? reached;
           try {
-            reached = await entries[name]!(SshService(), r.host, plan, trust.call);
+            reached =
+                await entries[name]!(SshService(), r.host, plan, trust.call);
           } on RouteHopException catch (error) {
             expect(error.message, contains('主机指纹没有通过校验'));
           }
@@ -399,8 +400,8 @@ void main() {
       // 用户名不对会登录失败，但失败的是登录而不是指纹：Unix 用户不是信任身份的一部分。
       await expectLater(
           entries['probe']!(SshService(), otherUser, userPlan, trust.call),
-          throwsA(isA<RouteHopException>().having(
-              (e) => e.message, 'message', contains('登录被拒绝'))));
+          throwsA(isA<RouteHopException>()
+              .having((e) => e.message, 'message', contains('登录被拒绝'))));
       expect(trust.asked, ['localhost:${f.edgePort}']);
     }, skip: skip);
   });

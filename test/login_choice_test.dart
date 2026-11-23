@@ -411,7 +411,8 @@ void main() {
       await tester.pump();
       await tester.tap(group());
       await tester.pumpAndSettle();
-      expect(find.byKey(const ValueKey('host-group-option-prod')), findsOneWidget);
+      expect(
+          find.byKey(const ValueKey('host-group-option-prod')), findsOneWidget);
       expect(find.text('1 台主机'), findsOneWidget);
 
       await tester.tap(find.byKey(const ValueKey('host-group-new')));

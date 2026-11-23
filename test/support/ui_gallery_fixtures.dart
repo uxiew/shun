@@ -187,30 +187,30 @@ SessionState uiGallerySessions() {
       'gallery-shell',
       uiGalleryHosts[0],
       '\x1b[32mdemo@web\x1b[0m:~/workspace\$ ls\r\n'
-      '\x1b[34msrc/  docs/  test/\x1b[0m\r\n'
-      'README.md  shun.toml\r\n\r\n'
-      '\x1b[32mdemo@web\x1b[0m:~/workspace\$ ./check\r\n'
-      '\x1b[36m[1/3]\x1b[0m Reading configuration\r\n'
-      '\x1b[36m[2/3]\x1b[0m Checking local files\r\n'
-      '\x1b[36m[3/3]\x1b[0m Complete\r\n'
-      '\x1b[32mAll checks passed.\x1b[0m\r\n\r\n'
-      'UI gallery fixture / no remote connection\r\n'
-      '\x1b[32mdemo@web\x1b[0m:~/workspace\$ ',
+          '\x1b[34msrc/  docs/  test/\x1b[0m\r\n'
+          'README.md  shun.toml\r\n\r\n'
+          '\x1b[32mdemo@web\x1b[0m:~/workspace\$ ./check\r\n'
+          '\x1b[36m[1/3]\x1b[0m Reading configuration\r\n'
+          '\x1b[36m[2/3]\x1b[0m Checking local files\r\n'
+          '\x1b[36m[3/3]\x1b[0m Complete\r\n'
+          '\x1b[32mAll checks passed.\x1b[0m\r\n\r\n'
+          'UI gallery fixture / no remote connection\r\n'
+          '\x1b[32mdemo@web\x1b[0m:~/workspace\$ ',
     ),
     session(
       'gallery-log',
       uiGalleryHosts[0],
       '\x1b[36mApplication log\x1b[0m\r\n'
-      'INFO  configuration loaded\r\n'
-      'INFO  worker ready\r\n'
-      'INFO  request completed\r\n',
+          'INFO  configuration loaded\r\n'
+          'INFO  worker ready\r\n'
+          'INFO  request completed\r\n',
     ),
     session(
       'gallery-disconnected',
       uiGalleryHosts[1],
       'demo@worker:~\$ status\r\n'
-      'worker is idle\r\n'
-      'Connection closed.\r\n',
+          'worker is idle\r\n'
+          'Connection closed.\r\n',
       connected: false,
     ),
   ]);

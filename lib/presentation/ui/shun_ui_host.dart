@@ -92,10 +92,9 @@ class _ShunUiHostState extends State<ShunUiHost> {
                     child: AppLockGate(
                       child: ScaffoldMessenger(
                         child: DefaultSelectionStyle(
-                          selectionColor:
-                              theme.textSelectionTheme.selectionColor ??
-                                  theme.colorScheme.primary
-                                      .withValues(alpha: 0.4),
+                          selectionColor: theme
+                                  .textSelectionTheme.selectionColor ??
+                              theme.colorScheme.primary.withValues(alpha: 0.4),
                           cursorColor: theme.textSelectionTheme.cursorColor ??
                               theme.colorScheme.primary,
                           child: ScrollConfiguration(

@@ -27,8 +27,7 @@ const shunSshAlgorithms = SSHAlgorithms(
 /// 不单独认出来就会被当成「登录前被对方关掉」：提示指向网络，自动恢复还会一直重试。
 bool isAlgorithmMismatch(Object? error) {
   final cause = error is SSHAuthAbortError ? error.reason : error;
-  return cause is SSHInternalError &&
-      '${cause.error}'.contains('No matching ');
+  return cause is SSHInternalError && '${cause.error}'.contains('No matching ');
 }
 
 /// 这次失败是不是钥匙那边的事（取消、超时、PIN、自动恢复碰不了钥匙）。dartssh2 把签名时抛的错包了两层：
