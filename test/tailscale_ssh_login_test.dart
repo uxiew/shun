@@ -126,16 +126,52 @@ Future<void> main() async {
       expect(dialed, contains('$tailnetAddress:22'));
     }, skip: skip, timeout: const Timeout(Duration(seconds: 30)));
 
-    test('普通模式没配凭据：dartssh2 自动补发的 none 被放行了，App 也不认，登录后立刻断开、什么都不执行', () async {
+    test('普通模式没配凭据：服务器不支持键盘交互时直接认证失败，不改用 none', () async {
+      final before = (await fx.events()).length;
       final result =
           await probe(host('accept', extra: {'id': 'no-credentials'}));
-      expect(cause(result.error), isA<StandardLoginFellBackToNone>());
-      expect('${result.error}', contains('none 认证'));
-      final events = await fx.events();
-      final conn = events.lastWhere((e) => e['kind'] == 'connect')['conn'];
-      final mine = events.where((e) => e['conn'] == conn).toList();
-      expect(methods(mine), ['none'],
-          reason: '键盘交互 tailssh 不支持，dartssh2 接着就试了 none');
+      expect(cause(result.error), isA<SSHAuthFailError>());
+      final mine = (await fx.events()).skip(before).toList();
+      expect(mine.map((e) => e['kind']), contains('connect'));
+      expect(methods(mine), isNot(contains('none')));
+      expect(
+          mine.map((e) => e['kind']),
+          isNot(anyOf(
+              contains('authenticated'), contains('exec'), contains('shell'))));
+    }, skip: skip, timeout: const Timeout(Duration(seconds: 30)));
+
+    test('普通模式拒绝服务器已放行的 none，立刻断开、不执行命令', () async {
+      final before = (await fx.events()).length;
+      final watch = SshLoginWatch(
+        mode: SshLoginMode.standard,
+        allowCheck: true,
+        authWait: const Duration(seconds: 30),
+        checkWait: const Duration(minutes: 10),
+        describePrompt: (_, __) => throw StateError('unexpected check'),
+        onPrompt: (_) {},
+      );
+      final client = SSHClient(
+        await SSHSocket.connect('127.0.0.1', fx.sshPort),
+        username: 'accept',
+        printDebug: watch.debug,
+        onVerifyHostKey: (_, fingerprint) {
+          final accepted = String.fromCharCodes(fingerprint) == fx.fingerprint;
+          if (accepted) watch.hostKeyAccepted();
+          return accepted;
+        },
+      );
+      addTearDown(client.close);
+
+      final rejected = expectLater(
+        watch.authenticated(client),
+        throwsA(isA<StandardLoginFellBackToNone>()
+            .having((error) => '$error', 'message', contains('none 认证'))),
+      );
+      await client.authenticated;
+      await rejected;
+      expect(client.isClosed, isTrue);
+      final mine = (await fx.events()).skip(before).toList();
+      expect(methods(mine), ['none']);
       expect(mine.map((e) => e['kind']), isNot(contains('exec')),
           reason: '登录虽然成了，连 tty 都没执行就断开');
       expect(mine.map((e) => e['kind']), isNot(contains('shell')));
